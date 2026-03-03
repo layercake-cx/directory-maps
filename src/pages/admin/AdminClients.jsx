@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import { hashUrl } from "../../lib/url";
 
 export default function AdminClients() {
   const [rows, setRows] = useState([]);
@@ -68,9 +69,7 @@ export default function AdminClients() {
           </button>
 
           {/* Create button wired in next step */}
-            <a className="btn btn-primary" href="/#/admin/clients/new">
-                New client
-            </a>
+            <a className="btn btn-primary" href={hashUrl("/admin/clients/new")}>New client</a>
         </div>
 
         {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
