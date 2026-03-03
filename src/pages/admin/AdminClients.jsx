@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { hashUrl } from "../../lib/url";
+import { Link } from "react-router-dom";
 
 export default function AdminClients() {
   const [rows, setRows] = useState([]);
@@ -68,8 +69,9 @@ export default function AdminClients() {
             Refresh
           </button>
 
-          {/* Create button wired in next step */}
-            <a className="btn btn-primary" href={hashUrl("/admin/clients/new")}>New client</a>
+          <Link className="btn btn-primary" to="/admin/clients/new">
+            New client
+          </Link>
         </div>
 
         {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
@@ -90,9 +92,12 @@ export default function AdminClients() {
                 <td>
                   <strong>{r.name}</strong>
                   <div style={{ fontSize: 11, opacity: 0.6 }}>
-                    <a href={`/#/admin/clients/${encodeURIComponent(r.id)}`} style={{ fontWeight: 600, color: "inherit" }}>
-                    {r.name}
-                    </a>
+                    
+                    <Link
+                      to={`/admin/clients/${encodeURIComponent(r.id)}`}
+                      style={{ fontWeight: 600, color: "inherit" }}
+                    ></Link>
+
                   </div>
                 </td>
 
