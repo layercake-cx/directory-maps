@@ -1,0 +1,194 @@
+:root {
+  --lc-brand: #4a9baa;
+  --lc-brand-dark: #1a363b;
+  --lc-bg: #f6f8fa;
+  --lc-card: #ffffff;
+  --lc-border: #e5e7eb;
+  --lc-text: #111827;
+  --lc-muted: #6b7280;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  background: var(--lc-bg);
+  color: var(--lc-text);
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-header {
+  background: var(--lc-brand);
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.admin-header__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-brand img {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.admin-title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-actions a,
+.admin-actions button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-actions a:hover,
+.admin-actions button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.admin-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+}
+
+.admin-card {
+  background: var(--lc-card);
+  border: 1px solid var(--lc-border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.admin-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-controls input,
+.admin-controls select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  min-height: 40px;
+}
+
+.admin-controls input {
+  min-width: 280px;
+}
+
+.admin-controls .btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-controls .btn-primary {
+  border-color: var(--lc-brand);
+  background: var(--lc-brand);
+  color: #fff;
+}
+
+.admin-controls .btn-primary:hover {
+  filter: brightness(0.97);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 14px;
+}
+
+.admin-table th {
+  text-align: left;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--lc-muted);
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--lc-border);
+}
+
+.admin-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--lc-border);
+  vertical-align: top;
+}
+
+.admin-table a {
+  color: var(--lc-brand-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-table a:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+}
+
+.badge--off {
+  opacity: 0.7;
+}
+/* Smaller listing table typography */
+.admin-table {
+  font-size: 13px;
+}
+
+.admin-table th {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-table td {
+  font-size: 13px;
+}
+
+.admin-table td div {
+  font-size: 11px;   /* the ID line under name */
+  opacity: 0.6;
+}
