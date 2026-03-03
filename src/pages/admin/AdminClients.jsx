@@ -90,15 +90,12 @@ export default function AdminClients() {
             {filtered.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <strong>{r.name}</strong>
-                  <div style={{ fontSize: 11, opacity: 0.6 }}>
-                    
-                    <Link
+                 <Link
                       to={`/admin/clients/${encodeURIComponent(r.id)}`}
                       style={{ fontWeight: 600, color: "inherit" }}
-                    ></Link>
-
-                  </div>
+                    >
+                       <strong>{r.name}</strong>
+                  </Link>
                 </td>
 
                 <td>{r.slug}</td>
