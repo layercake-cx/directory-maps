@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import { hashUrl } from "../../lib/url";
 
 function slugify(input) {
   return (input || "")
@@ -111,7 +112,8 @@ export default function AdminMapDashboard() {
   }
 
   function openEmbed() {
-    window.open(embedSrc, "_blank", "noopener,noreferrer");
+    const url = `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
+    window.open(url, "_blank");
   }
 
   async function saveMap(e) {
