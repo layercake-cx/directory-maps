@@ -41,6 +41,12 @@
 
 After DNS propagates, `https://maps.layercake-cx.biz` will serve the app. Future pushes to `main` trigger new deployments.
 
+### If you see a black or blank page
+
+- **Root URL:** The app uses hash routing (`#/`, `#/login`, etc.). Visiting the exact root with no hash now redirects to `#/` automatically.
+- **Build base:** The app is built with `base: "/"` so it works at the Vercel root. Do not set `VITE_BASE_PATH` unless you are deploying to a subpath (e.g. GitHub Pages at `/directory-maps/`).
+- **Env vars required:** For the app to work (login, maps, data), set **VITE_SUPABASE_URL** and **VITE_SUPABASE_ANON_KEY** in Vercel. Without them, the app may load but auth and data will fail. Get these from Supabase Dashboard → Project Settings → API.
+
 ---
 
 ## Alternatives

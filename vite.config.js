@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [react()],
-  // Only use base path on GitHub Pages build
-  base: command === "build" ? "/directory-maps/" : "/",
-}));
+  // Use "/" for Vercel/root deployment. For GitHub Pages at /directory-maps/, set VITE_BASE_PATH=/directory-maps/
+  base: process.env.VITE_BASE_PATH || "/",
+});
