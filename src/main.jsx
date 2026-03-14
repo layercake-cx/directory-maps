@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { HashRouter, useLocation } from "react-router-dom";
 import App from "./App.jsx";
 import SiteHeader from "./components/SiteHeader.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { supabase } from "./lib/supabase";
 import { getImpersonatedClientId, stopImpersonatingClient } from "./lib/clientAuth";
 import "./style.css";
@@ -108,8 +109,10 @@ function Layout() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <HashRouter>
-      <Layout />
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <Layout />
+      </HashRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
