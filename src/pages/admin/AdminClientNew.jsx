@@ -19,6 +19,8 @@ export default function AdminClientNew() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [id, setId] = useState(() => crypto.randomUUID()); // stored as text
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -31,9 +33,12 @@ export default function AdminClientNew() {
 
     const cleanName = name.trim();
     const cleanSlug = finalSlug.trim();
+    const email = contactEmail.trim();
+    const contactNameTrimmed = contactName.trim();
 
-    if (!cleanName) return setErr("Name is required.");
+    if (!cleanName) return setErr("Client name is required.");
     if (!cleanSlug) return setErr("Slug is required.");
+    if (!email) return setErr("Primary contact email is required.");
 
     try {
       setSaving(true);
@@ -45,6 +50,15 @@ export default function AdminClientNew() {
       });
 
       if (error) throw error;
+
+      const { error: contactError } = await supabase.from("contacts").insert({
+        client_id: id,
+        email,
+        name: contactNameTrimmed || null,
+        is_primary: true,
+      });
+
+      if (contactError) throw contactError;
 
       navigate("/admin/clients");
     } catch (e2) {
@@ -96,6 +110,24 @@ export default function AdminClientNew() {
               <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
                 Internal identifier. Default is a random UUID string.
               </div>
+            </Field>
+
+            <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Primary contact</h3>
+            <Field label="Contact name">
+              <input
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="e.g. Jane Smith"
+              />
+            </Field>
+            <Field label="Contact email">
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="e.g. jane@example.com"
+                required
+              />
             </Field>
 
             {err ? <p style={{ margin: 0 }}>{err}</p> : null}

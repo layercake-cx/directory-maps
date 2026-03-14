@@ -2,12 +2,14 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
-import AdminLayout from "./AdminLayout.jsx";
+import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import AdminLayout from "../admin/AdminLayout.jsx";
 import DirectoryMap from "../../components/DirectoryMap.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl } from "../../lib/markerIcons";
+import "../admin/admin.css";
 
-const TABS = ["detail", "design", "data", "groups", "publish"];
+const TABS = ["detail", "design", "data", "publish"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -22,15 +24,6 @@ const PIN_STYLES = [
   { id: "circle", label: "Circle" },
   { id: "custom", label: "Custom" },
 ];
-
-function slugify(input) {
-  return (input || "")
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 function Field({ label, children }) {
   return (
@@ -84,8 +77,8 @@ function ColorRow({ value, onChange, ariaLabel }) {
   );
 }
 
-export default function AdminMapDashboard() {
-  const { clientId, mapId } = useParams();
+export default function ClientMapDashboard() {
+  const { mapId } = useParams();
   const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
@@ -131,14 +124,6 @@ export default function AdminMapDashboard() {
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
 
-  const [reorderedGroupIds, setReorderedGroupIds] = useState(null);
-  const [editingGroupId, setEditingGroupId] = useState(null);
-  const [groupEditDesign, setGroupEditDesign] = useState(null);
-  const [savingGroups, setSavingGroups] = useState(false);
-
-  const suggestedSlug = useMemo(() => slugify(name), [name]);
-  const finalSlug = (slug || suggestedSlug).trim();
-
   const embedSrc = useMemo(() => {
     return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
   }, [mapId]);
@@ -164,11 +149,7 @@ export default function AdminMapDashboard() {
   const groupColorById = useMemo(() => {
     const m = new Map();
     (groups || []).forEach((g) => {
-      if (!g.id) return;
-      const raw = g.theme_json;
-      const theme = typeof raw === "string" ? (() => { try { return JSON.parse(raw || "{}"); } catch { return {}; } })() : raw || {};
-      const color = theme.marker_color || theme.markerColor || g.color;
-      if (color) m.set(g.id, color);
+      if (g.id && g.color) m.set(g.id, g.color);
     });
     return m;
   }, [groups]);
@@ -189,22 +170,25 @@ export default function AdminMapDashboard() {
         setErr("");
         setMsg("");
 
+        const currentClientId = await getClientIdForCurrentUser();
+        if (!currentClientId) {
+          setErr("No client account linked. Use the client dashboard first.");
+          setLoading(false);
+          return;
+        }
+
         let m = null;
-        const [{ data: c, error: ce }, { data: l, error: le }] = await Promise.all([
-          supabase.from("clients").select("id,name,slug").eq("id", clientId).single(),
-          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone").eq("map_id", mapId),
+        const [{ data: c, error: ce }, { data: g, error: ge }, { data: l, error: le }] = await Promise.all([
+          supabase.from("clients").select("id,name,slug").eq("id", currentClientId).single(),
+          supabase.from("groups").select("id,name,color").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase
+            .from("listings")
+            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone")
+            .eq("map_id", mapId),
         ]);
         if (ce) throw ce;
+        if (ge) throw ge;
         if (le) throw le;
-
-        let g = null;
-        let ge = null;
-        ({ data: g, error: ge } = await supabase.from("groups").select("id,name,sort_order,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true }));
-        if (ge && String(ge.message || "").includes("theme_json")) {
-          const res = await supabase.from("groups").select("id,name,sort_order").eq("map_id", mapId).order("sort_order", { ascending: true });
-          if (res.error) throw res.error;
-          g = res.data;
-        } else if (ge) throw ge;
 
         const { data: mapRow, error: me } = await supabase
           .from("maps")
@@ -212,6 +196,7 @@ export default function AdminMapDashboard() {
             "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at",
           )
           .eq("id", mapId)
+          .eq("client_id", currentClientId)
           .single();
 
         const msg = String(me?.message || "");
@@ -222,16 +207,13 @@ export default function AdminMapDashboard() {
               "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,marker_style,marker_color,theme_json",
             )
             .eq("id", mapId)
+            .eq("client_id", currentClientId)
             .single();
           if (me2) throw me2;
           m = mapRowFallback;
         } else {
           if (me) throw me;
           m = mapRow;
-        }
-
-        if (m.client_id !== clientId) {
-          throw new Error("This map does not belong to the selected client.");
         }
 
         if (!cancelled) {
@@ -261,21 +243,21 @@ export default function AdminMapDashboard() {
             setPinBorderColor("#ffffff");
             setPinBorderSize(0);
           }
-          try {
-            const raw = m.published_config;
-            let parsed = null;
-            if (raw) {
-              if (typeof raw === "string") {
-                parsed = JSON.parse(raw);
-              } else if (typeof raw === "object") {
-                parsed = raw;
-              }
+        try {
+          const raw = m.published_config;
+          let parsed = null;
+          if (raw) {
+            if (typeof raw === "string") {
+              parsed = JSON.parse(raw);
+            } else if (typeof raw === "object") {
+              parsed = raw;
             }
-            setPublishedConfig(parsed);
-          } catch {
-            setPublishedConfig(null);
           }
-          setPublishedAt(m.published_at ?? null);
+          setPublishedConfig(parsed);
+        } catch {
+          setPublishedConfig(null);
+        }
+        setPublishedAt(m.published_at ?? null);
         }
       } catch (e) {
         if (!cancelled) setErr(e.message ?? String(e));
@@ -287,7 +269,7 @@ export default function AdminMapDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, mapId]);
+  }, [mapId]);
 
   useLayoutEffect(() => {
     if (!selectedMarkerPoint || !pinOverlayRef.current) return;
@@ -340,7 +322,7 @@ export default function AdminMapDashboard() {
 
     const cleanName = name.trim();
     if (!cleanName) return setErr("Map name is required.");
-    if (!finalSlug) return setErr("Map slug is required.");
+    if (!slug.trim()) return setErr("Map slug is required.");
 
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -352,98 +334,50 @@ export default function AdminMapDashboard() {
     try {
       setSaving(true);
 
-      const existingTheme = !map?.theme_json ? {} : typeof map.theme_json === "string" ? (() => { try { return JSON.parse(map.theme_json); } catch (_) { return {}; } })() : map.theme_json;
-        const themeJson = {
-          ...existingTheme,
-          clusterColor: clusterColor || "#4A9BAA",
-          pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(5, Number(pinBorderSize) || 0)),
-        };
-        const payloadBase = {
-          name: cleanName,
-          slug: finalSlug,
-          default_lat: lat,
-          default_lng: lng,
-          default_zoom: zoom,
-          show_list_panel: showListPanel,
-          enable_clustering: enableClustering,
-          marker_style: markerStyle,
-          marker_color: markerColor,
-          theme_json: themeJson,
-        };
-        const payloadWithExtras = {
-          ...payloadBase,
-          cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)),
-        };
-        let { error } = await supabase.from("maps").update(payloadWithExtras).eq("id", mapId);
-        const msg = String(error?.message || "");
-        if (error && (msg.includes("cluster_radius") || msg.includes("custom_pin_url"))) {
-          ({ error } = await supabase.from("maps").update(payloadBase).eq("id", mapId));
-        }
-        if (error) throw error;
+      const existingTheme =
+        !map?.theme_json
+          ? {}
+          : typeof map.theme_json === "string"
+          ? (() => {
+              try {
+                return JSON.parse(map.theme_json);
+              } catch (_) {
+                return {};
+              }
+            })()
+          : map.theme_json;
+      const themeJson = {
+        ...existingTheme,
+        clusterColor: clusterColor || "#4A9BAA",
+        pinBorderColor: pinBorderColor || "#ffffff",
+        pinBorderSize: Math.max(0, Math.min(5, Number(pinBorderSize) || 0)),
+      };
+      const payloadBase = {
+        name: cleanName,
+        slug: slug.trim(),
+        default_lat: lat,
+        default_lng: lng,
+        default_zoom: zoom,
+        show_list_panel: showListPanel,
+        enable_clustering: enableClustering,
+        marker_style: markerStyle,
+        marker_color: markerColor,
+        theme_json: themeJson,
+      };
+      const payloadWithExtras = {
+        ...payloadBase,
+        cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)),
+        custom_pin_url: customPinUrl || null,
+      };
+      let { error } = await supabase.from("maps").update(payloadWithExtras).eq("id", mapId);
+      const msg = String(error?.message || "");
+      if (error && (msg.includes("cluster_radius") || msg.includes("custom_pin_url"))) {
+        ({ error } = await supabase.from("maps").update(payloadBase).eq("id", mapId));
+      }
+      if (error) throw error;
 
       setMsg("Saved.");
       window.setTimeout(() => setMsg(""), 1600);
-    } catch (e2) {
-      setErr(e2.message ?? String(e2));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function lookupLocation(e) {
-    e?.preventDefault?.();
-    const q = locationQuery.trim();
-    if (!q) return;
-    if (!apiKey) {
-      setErr("Cannot look up location: missing VITE_GOOGLE_MAPS_API_KEY.");
-      return;
-    }
-    try {
-      setGeocoding(true);
-      setErr("");
-      const url =
-        "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-        encodeURIComponent(q) +
-        "&key=" +
-        encodeURIComponent(apiKey);
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.status !== "OK" || !json.results?.length) {
-        throw new Error(`No results for "${q}" (status: ${json.status || "ERROR"})`);
-      }
-      const loc = json.results[0].geometry.location;
-      setDefaultLat(String(loc.lat));
-      setDefaultLng(String(loc.lng));
-      const approxType = json.results[0].types?.[0] || "";
-      const zoomGuess =
-        approxType.includes("country") || approxType.includes("continent")
-          ? 5
-          : approxType.includes("administrative_area_level_1") ||
-            approxType.includes("administrative_area_level_2")
-          ? 7
-          : 10;
-      setDefaultZoom(String(zoomGuess));
-      setMsg(`Location set from "${q}".`);
-      window.setTimeout(() => setMsg(""), 2000);
-    } catch (e2) {
-      setErr(e2.message ?? String(e2));
-    } finally {
-      setGeocoding(false);
-    }
-  }
-
-  async function deleteMap() {
-    const ok = window.confirm("Delete this map? This will also delete its groups and listings if FK cascade is set.");
-    if (!ok) return;
-
-    try {
-      setSaving(true);
-      setErr("");
-      setMsg("");
-      const { error } = await supabase.from("maps").delete().eq("id", mapId);
-      if (error) throw error;
-      navigate(`/admin/clients/${encodeURIComponent(clientId)}`);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
@@ -518,130 +452,63 @@ export default function AdminMapDashboard() {
     }
   }
 
-  const orderedGroupsList = useMemo(() => {
-    const list = groups || [];
-    if (reorderedGroupIds && reorderedGroupIds.length === list.length) {
-      const byId = new Map(list.map((g) => [g.id, g]));
-      return reorderedGroupIds.map((id) => byId.get(id)).filter(Boolean);
-    }
-    return list;
-  }, [groups, reorderedGroupIds]);
-
-  function handleGroupDragStart(e, index) {
-    e.dataTransfer.setData("text/plain", String(index));
-    e.dataTransfer.effectAllowed = "move";
-  }
-  function handleGroupDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }
-  function handleGroupDrop(e, dropIndex) {
-    e.preventDefault();
-    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
-    if (Number.isNaN(fromIndex) || fromIndex === dropIndex) return;
-    const ids = reorderedGroupIds ?? (groups || []).map((g) => g.id);
-    const next = [...ids];
-    const [removed] = next.splice(fromIndex, 1);
-    next.splice(dropIndex, 0, removed);
-    setReorderedGroupIds(next);
-  }
-
-  async function saveGroupsOrder() {
-    const order = reorderedGroupIds ?? (groups || []).map((g) => g.id);
-    if (!order.length) return;
-    try {
-      setSavingGroups(true);
-      setErr("");
-      for (let i = 0; i < order.length; i++) {
-        const { error } = await supabase.from("groups").update({ sort_order: i }).eq("id", order[i]).eq("map_id", mapId);
-        if (error) throw error;
-      }
-      setReorderedGroupIds(null);
-      const { data } = await supabase.from("groups").select("id,name,sort_order,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true });
-      if (data) setGroups(data);
-      setMsg("Group order saved.");
-      window.setTimeout(() => setMsg(""), 2000);
-    } catch (e2) {
-      setErr(e2.message ?? String(e2));
-    } finally {
-      setSavingGroups(false);
-    }
-  }
-
-  function openGroupEdit(gr) {
-    setEditingGroupId(gr.id);
-    const raw = gr.theme_json;
-    if (!raw) {
-      setGroupEditDesign(null);
+  async function lookupLocation(e) {
+    e?.preventDefault?.();
+    const q = locationQuery.trim();
+    if (!q) return;
+    if (!apiKey) {
+      setErr("Cannot look up location: missing VITE_GOOGLE_MAPS_API_KEY.");
       return;
     }
-    const theme = typeof raw === "string" ? (() => { try { return JSON.parse(raw || "{}"); } catch { return {}; } })() : raw || {};
-    setGroupEditDesign({
-      marker_style: theme.marker_style ?? theme.markerStyle ?? null,
-      marker_color: theme.marker_color ?? theme.markerColor ?? null,
-      pinBorderColor: theme.pinBorderColor ?? null,
-      pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
-      clusterColor: theme.clusterColor ?? null,
-      custom_pin_url: theme.custom_pin_url ?? null,
-    });
-  }
-  function closeGroupEdit() {
-    setEditingGroupId(null);
-    setGroupEditDesign(null);
-  }
-  function resetGroupDesign() {
-    setGroupEditDesign(null);
-  }
-  async function saveGroupDesign() {
-    if (!editingGroupId) return;
     try {
-      setSavingGroups(true);
+      setGeocoding(true);
       setErr("");
-      const raw = groupEditDesign
-        ? {
-            marker_style: groupEditDesign.marker_style ?? undefined,
-            marker_color: groupEditDesign.marker_color ?? undefined,
-            pinBorderColor: groupEditDesign.pinBorderColor ?? undefined,
-            pinBorderSize: groupEditDesign.pinBorderSize ?? undefined,
-            clusterColor: groupEditDesign.clusterColor ?? undefined,
-            custom_pin_url: groupEditDesign.custom_pin_url ?? undefined,
-          }
-        : null;
-      const theme_json = raw ? Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null)) : null;
-      const final = theme_json && Object.keys(theme_json).length ? theme_json : null;
-      const { error } = await supabase.from("groups").update({ theme_json: final }).eq("id", editingGroupId).eq("map_id", mapId);
-      if (error) {
-        if (String(error.message || "").includes("theme_json")) {
-          setErr("Group design overrides need the theme_json column on the groups table. Run the migration: 20260314100000_add_groups_theme_json.sql");
-          setSavingGroups(false);
-          return;
-        }
-        throw error;
+      const url =
+        "https://maps.googleapis.com/maps/api/geocode/json?address=" + encodeURIComponent(q) + "&key=" + encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.status !== "OK" || !json.results?.length) {
+        throw new Error(`No results for "${q}" (status: ${json.status || "ERROR"})`);
       }
-      setGroups((prev) =>
-        (prev || []).map((g) => (g.id === editingGroupId ? { ...g, theme_json: final } : g))
-      );
-      setMsg("Group design saved.");
+      const loc = json.results[0].geometry.location;
+      setDefaultLat(String(loc.lat));
+      setDefaultLng(String(loc.lng));
+      const approxType = json.results[0].types?.[0] || "";
+      const zoomGuess =
+        approxType.includes("country") || approxType.includes("continent")
+          ? 5
+          : approxType.includes("administrative_area_level_1") || approxType.includes("administrative_area_level_2")
+          ? 7
+          : 10;
+      setDefaultZoom(String(zoomGuess));
+      setMsg(`Location set from "${q}".`);
       window.setTimeout(() => setMsg(""), 2000);
-      closeGroupEdit();
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
-      setSavingGroups(false);
+      setGeocoding(false);
     }
   }
 
-  const globalDesignForGroup = useMemo(
-    () => ({
-      marker_style: markerStyle,
-      marker_color: markerColor,
-      pinBorderColor,
-      pinBorderSize,
-      clusterColor,
-      custom_pin_url: customPinUrl || null,
-    }),
-    [markerStyle, markerColor, pinBorderColor, pinBorderSize, clusterColor, customPinUrl],
-  );
+  async function deleteMap() {
+    const ok = window.confirm("Delete this map? This will also delete its groups and listings if FK cascade is set.");
+    if (!ok) return;
+
+    try {
+      setSaving(true);
+      setErr("");
+      setMsg("");
+      const clientId = await getClientIdForCurrentUser();
+      if (!clientId) throw new Error("No client account linked.");
+      const { error } = await supabase.from("maps").delete().eq("id", mapId).eq("client_id", clientId);
+      if (error) throw error;
+      navigate("/client");
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleCustomPinFile(e) {
     const file = e?.target?.files?.[0];
@@ -677,11 +544,12 @@ export default function AdminMapDashboard() {
     }
   }
 
-  if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (loading) return <div className="page-main">Loading…</div>;
 
   return (
     <AdminLayout
       title={`${client?.name ?? "Client"} · ${map?.name ?? "Map"}`}
+      backTo="/client"
       mainClassName="admin-main--map-page"
       rightActions={
         <>
@@ -696,7 +564,7 @@ export default function AdminMapDashboard() {
     >
       <div className="admin-map-page">
         <div className="admin-map-page__toolbar">
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back</Link>
+          <Link to="/client">← Back</Link>
           <div className="admin-map-page__toolbar-tabs">
             {TABS.map((t) => (
               <button
@@ -743,7 +611,7 @@ export default function AdminMapDashboard() {
           <button className="btn btn-primary" type="button" onClick={openEmbed}>
             Launch map
           </button>
-          <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/listings`}>
+          <Link className="btn btn-primary" to={`/client/maps/${encodeURIComponent(mapId)}/listings`}>
             Listings
           </Link>
         </div>
@@ -772,7 +640,15 @@ export default function AdminMapDashboard() {
               pinBorderSize={pinBorderSize}
             />
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "var(--lc-muted)",
+              }}
+            >
               Set VITE_GOOGLE_MAPS_API_KEY to show the map.
             </div>
           )}
@@ -796,7 +672,14 @@ export default function AdminMapDashboard() {
                   : undefined
               }
             >
-              <button type="button" className="admin-map-pin-overlay__close" onClick={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }} aria-label="Close">×</button>
+              <button
+                type="button"
+                className="admin-map-pin-overlay__close"
+                onClick={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
+                aria-label="Close"
+              >
+                ×
+              </button>
               <div className="admin-map-pin-overlay__body">
                 {selectedListing.logo_url ? (
                   <LogoImage
@@ -810,7 +693,17 @@ export default function AdminMapDashboard() {
                 <h3 className="admin-map-pin-overlay__name">{selectedListing.name || "—"}</h3>
                 {selectedListing.website_url ? (
                   <p className="admin-map-pin-overlay__row">
-                    <a href={selectedListing.website_url.startsWith("http") ? selectedListing.website_url : `https://${selectedListing.website_url}`} target="_blank" rel="noopener noreferrer">Website</a>
+                    <a
+                      href={
+                        selectedListing.website_url.startsWith("http")
+                          ? selectedListing.website_url
+                          : `https://${selectedListing.website_url}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Website
+                    </a>
                   </p>
                 ) : null}
                 {selectedListing.email ? (
@@ -827,17 +720,23 @@ export default function AdminMapDashboard() {
         </div>
 
         {/* Overlay */}
-        <div
-          className={`admin-map-overlay ${overlayTab ? "is-open" : ""}`}
-          aria-hidden={!overlayTab}
-        >
+        <div className={`admin-map-overlay ${overlayTab ? "is-open" : ""}`} aria-hidden={!overlayTab}>
           <div className="admin-map-overlay__backdrop" onClick={closeOverlay} aria-label="Close overlay" />
-          <div className="admin-map-overlay__panel" role="dialog" aria-label={overlayTab ? `${overlayTab} settings` : ""}>
+          <div
+            className="admin-map-overlay__panel"
+            role="dialog"
+            aria-label={overlayTab ? `${overlayTab} settings` : ""}
+          >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
                 {overlayTab ? overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1) : ""}
               </h2>
-              <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
+              <button
+                type="button"
+                className="admin-map-overlay__close"
+                onClick={closeOverlay}
+                aria-label="Close"
+              >
                 ×
               </button>
             </header>
@@ -847,12 +746,11 @@ export default function AdminMapDashboard() {
               {overlayTab === "detail" && (
                 <form onSubmit={saveMap}>
                   <div style={{ display: "grid", gap: 12 }}>
-                    <Field label="Name">
+                    <Field label="Map name">
                       <input value={name} onChange={(e) => setName(e.target.value)} />
                     </Field>
                     <Field label="Slug">
-                      <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={suggestedSlug} />
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Suggested: <strong>{suggestedSlug || "—"}</strong></div>
+                      <input value={slug} onChange={(e) => setSlug(e.target.value)} />
                     </Field>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                       <Field label="Default lat">
@@ -887,11 +785,19 @@ export default function AdminMapDashboard() {
                     </Field>
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                       <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+                        <input
+                          type="checkbox"
+                          checked={showListPanel}
+                          onChange={(e) => setShowListPanel(e.target.checked)}
+                        />
                         Show list panel
                       </label>
                       <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
+                        <input
+                          type="checkbox"
+                          checked={enableClustering}
+                          onChange={(e) => setEnableClustering(e.target.checked)}
+                        />
                         Enable clustering
                       </label>
                     </div>
@@ -915,8 +821,12 @@ export default function AdminMapDashboard() {
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                      <button className="btn btn-primary" type="submit" disabled={saving}>Save</button>
-                      <button className="btn" type="button" onClick={deleteMap} disabled={saving}>Delete map</button>
+                      <button className="btn btn-primary" type="submit" disabled={saving}>
+                        {saving ? "Saving…" : "Save"}
+                      </button>
+                      <button className="btn" type="button" onClick={deleteMap} disabled={saving}>
+                        Delete map
+                      </button>
                     </div>
                   </div>
                 </form>
@@ -930,7 +840,15 @@ export default function AdminMapDashboard() {
                       {PIN_STYLES.map(({ id, label }) => {
                         const isSelected = markerStyle === id;
                         const isCustom = id === "custom";
-                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize }) : null;
+                        const src =
+                          isCustom && customPinUrl
+                            ? customPinUrl
+                            : !isCustom
+                            ? markerIconDataUrl(id, markerColor, {
+                                borderColor: pinBorderColor,
+                                borderWidth: pinBorderSize,
+                              })
+                            : null;
                         return (
                           <button
                             key={id}
@@ -940,7 +858,11 @@ export default function AdminMapDashboard() {
                             aria-pressed={isSelected}
                           >
                             <div className="pin-style-option__preview">
-                              {src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}
+                              {src ? (
+                                <img src={src} alt="" aria-hidden />
+                              ) : (
+                                <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>
+                              )}
                             </div>
                             <span className="pin-style-option__label">{label}</span>
                           </button>
@@ -950,7 +872,9 @@ export default function AdminMapDashboard() {
                   </div>
                   <Field label="Marker colour (default)">
                     <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Applies to Pin, Dot, Circle. Changes update the map behind.</div>
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                      Applies to Pin, Dot, Circle. Changes update the map behind.
+                    </div>
                   </Field>
                   <Field label="Pin border">
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -967,24 +891,35 @@ export default function AdminMapDashboard() {
                       />
                       <span style={{ fontSize: 13 }}>{pinBorderSize}px</span>
                     </div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>0 = no border. Updates the map as you change.</div>
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                      0 = no border. Updates the map as you change.
+                    </div>
                   </Field>
                   {enableClustering && (
                     <Field label="Cluster colour">
                       <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Colour of cluster circles when clustering is on.</div>
+                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                        Colour of cluster circles when clustering is on.
+                      </div>
                     </Field>
                   )}
                   <div>
                     <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin</div>
-                    <p style={{ fontSize: 12, opacity: 0.8, margin: "0 0 10px 0" }}>SVG or PNG. Max 64×64 recommended. PNG colours are not changed by the map.</p>
+                    <p style={{ fontSize: 12, opacity: 0.8, margin: "0 0 10px 0" }}>
+                      SVG or PNG. Max 64×64 recommended. PNG colours are not changed by the map.
+                    </p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                       <input
                         type="url"
                         value={customPinUrl}
                         onChange={(e) => setCustomPinUrl(e.target.value)}
                         placeholder="Image URL (or upload below)"
-                        style={{ minWidth: 200, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)" }}
+                        style={{
+                          minWidth: 200,
+                          padding: "8px 12px",
+                          borderRadius: 10,
+                          border: "1px solid var(--lc-border)",
+                        }}
                       />
                       <label className="btn" style={{ margin: 0 }}>
                         {customPinUploading ? "Uploading…" : "Upload SVG/PNG"}
@@ -999,7 +934,15 @@ export default function AdminMapDashboard() {
                     </div>
                   </div>
                   <div style={{ marginTop: 16 }}>
-                    <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        saveMap({ preventDefault: () => {} });
+                      }}
+                      disabled={saving}
+                    >
                       {saving ? "Saving…" : "Save"}
                     </button>
                   </div>
@@ -1009,121 +952,30 @@ export default function AdminMapDashboard() {
               {overlayTab === "data" && (
                 <div style={{ display: "grid", gap: 12 }}>
                   <p style={{ margin: 0, opacity: 0.9 }}>
-                    Upload a spreadsheet or connect a Google Sheet to populate listings. Missing coordinates can be geocoded during import.
+                    Upload a spreadsheet or connect a Google Sheet to populate listings. Missing coordinates can be geocoded during
+                    import.
                   </p>
-                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/data`}>
+                  <Link className="btn btn-primary" to={`/client/maps/${encodeURIComponent(mapId)}/data`}>
                     Manage data
                   </Link>
-                  <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/listings`}>
-                    View listings
-                  </Link>
-                </div>
-              )}
-
-              {overlayTab === "groups" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder groups. Order is used in the embed map search bar.</p>
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                    {orderedGroupsList.map((gr, index) => (
-                      <li
-                        key={gr.id}
-                        draggable
-                        onDragStart={(e) => handleGroupDragStart(e, index)}
-                        onDragOver={handleGroupDragOver}
-                        onDrop={(e) => handleGroupDrop(e, index)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "10px 12px",
-                          background: "var(--lc-card)",
-                          border: "1px solid var(--lc-border)",
-                          borderRadius: 10,
-                          cursor: "grab",
-                        }}
-                      >
-                        <span style={{ opacity: 0.6, cursor: "grab" }} aria-hidden>⋮⋮</span>
-                        <span style={{ flex: 1, fontWeight: 600 }}>{gr.name || "—"}</span>
-                        <button type="button" className="btn" onClick={() => openGroupEdit(gr)}>Edit design</button>
-                      </li>
-                    ))}
-                  </ul>
-                  {orderedGroupsList.length === 0 && <p style={{ margin: 0, opacity: 0.8 }}>No groups yet. Add groups when importing data.</p>}
-                  <div>
-                    <button type="button" className="btn btn-primary" onClick={saveGroupsOrder} disabled={savingGroups || orderedGroupsList.length === 0}>
-                      {savingGroups ? "Saving…" : "Save order"}
-                    </button>
-                  </div>
-
-                  {editingGroupId && (
-                    <div style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--lc-border)" }}>
-                      <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Group design overrides</h3>
-                      <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this group’s pins. Leave as default to use map design.</p>
-                      <div style={{ display: "grid", gap: 14 }}>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin style</div>
-                          <div className="pin-style-grid">
-                            {PIN_STYLES.map(({ id, label }) => {
-                              const val = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
-                              const isSelected = val === id;
-                              const isCustom = id === "custom";
-                              const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize }) : null;
-                              return (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                                  onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }))}
-                                  aria-pressed={isSelected}
-                                >
-                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
-                                  <span className="pin-style-option__label">{label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <Field label="Marker colour">
-                          <ColorRow
-                            value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
-                            onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
-                            ariaLabel="Pin colour"
-                          />
-                        </Field>
-                        <Field label="Pin border">
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                            <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
-                            <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                            <input type="range" min={0} max={5} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
-                          </div>
-                        </Field>
-                        <Field label="Cluster colour">
-                          <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
-                        </Field>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
-                          <input type="url" value={groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url ?? ""} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), custom_pin_url: e.target.value || null }))} placeholder="Optional" style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)" }} />
-                        </div>
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>
-                          <button type="button" className="btn btn-primary" onClick={saveGroupDesign} disabled={savingGroups}>Save</button>
-                          <button type="button" className="btn" onClick={closeGroupEdit}>Cancel</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
               {overlayTab === "publish" && (
                 <div style={{ display: "grid", gap: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div style={{ fontSize: 13, opacity: 0.85 }}>
                       {publishedAt ? (
                         <>
-                          Last published:{" "}
-                          <strong>{new Date(publishedAt).toLocaleString()}</strong>
+                          Last published: <strong>{new Date(publishedAt).toLocaleString()}</strong>
                         </>
                       ) : (
                         "This map has not been published yet."

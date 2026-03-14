@@ -4,7 +4,8 @@ import "./admin.css";
 
 import logo from "../../assets/layercake-logo.png"; // <- adjust filename if needed
 
-export default function AdminLayout({ title, rightActions, children }) {
+export default function AdminLayout({ title, rightActions, children, mainClassName = "", backTo, backLabel = "Back to map" }) {
+  const backLink = backTo != null ? backTo : "/";
   return (
     <div className="admin-shell">
       <header className="admin-header">
@@ -15,13 +16,13 @@ export default function AdminLayout({ title, rightActions, children }) {
           </div>
 
           <div className="admin-actions">
-            <Link to="/">Back to map</Link>
+            <Link to={backLink}>{backLabel}</Link>
             {rightActions}
           </div>
         </div>
       </header>
 
-      <main className="admin-main">{children}</main>
+      <main className={`admin-main ${mainClassName}`.trim()}>{children}</main>
     </div>
   );
 }

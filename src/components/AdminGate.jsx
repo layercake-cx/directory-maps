@@ -12,28 +12,35 @@ export default function AdminGate({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    const timeoutMs = 15000;
 
     async function run() {
       try {
         setState((s) => ({ ...s, loading: true, error: "" }));
 
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Session check timed out. Check network and Supabase configuration.")), timeoutMs)
+        );
+        const work = (async () => {
+          const { data } = await supabase.auth.getUser();
+          const user = data?.user;
+          if (!user) return { user: null, role: null };
+          const role = await getMyRole();
+          return { user, role };
+        })();
+        const { user, role } = await Promise.race([work, timeoutPromise]);
 
+        if (!mounted) return;
         if (!user) {
-          if (mounted) setState({ loading: false, authed: false, isAdmin: false, error: "" });
+          setState({ loading: false, authed: false, isAdmin: false, error: "" });
           return;
         }
-
-        const role = await getMyRole();
-        if (mounted) {
-          setState({
-            loading: false,
-            authed: true,
-            isAdmin: role === "admin",
-            error: "",
-          });
-        }
+        setState({
+          loading: false,
+          authed: true,
+          isAdmin: role === "admin",
+          error: "",
+        });
       } catch (e) {
         if (mounted) {
           setState({

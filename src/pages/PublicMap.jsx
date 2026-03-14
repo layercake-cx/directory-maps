@@ -1,43 +1,55 @@
-import React, { useEffect, useState } from "react";
-import DirectoryMap from "../components/DirectoryMap.jsx";
-import { supabase } from "../lib/supabase";
+import React from "react";
+import { Link } from "react-router-dom";
 
 export default function PublicMap() {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-  const [listings, setListings] = useState([]);
-  const [selected, setSelected] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from("public_listings") // or "listings" if you didn't make the view
-        .select("*");
-
-      if (!error) setListings(data ?? []);
-      // if error, we’ll surface it next
-    })();
-  }, []);
-
   return (
-    <div style={{ padding: 16 }}>
-      {!apiKey ? (
-        <div>Missing VITE_GOOGLE_MAPS_API_KEY</div>
-      ) : null}
+    <div style={{ padding: 32, maxWidth: 960, margin: "0 auto" }}>
+      <header style={{ marginBottom: 32 }}>
+        <h1 style={{ margin: "0 0 12px 0" }}>Directory Maps</h1>
+        <p style={{ margin: 0, opacity: 0.8 }}>
+          Create interactive Google Maps-based directories and upload your own data.
+        </p>
+      </header>
 
-      <DirectoryMap
-        apiKey={apiKey}
-        center={{ lat: 51.5072, lng: -0.1276 }}
-        zoom={4}
-        listings={listings}
-        onSelect={setSelected}
-      />
+      <section
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          padding: 24,
+          borderRadius: 16,
+          border: "1px solid #e5e7eb",
+          background: "#f9fafb",
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 20 }}>Client sign-up & login</h2>
+        <p style={{ margin: 0, opacity: 0.85 }}>
+          If you are a client, you can create an account, build maps, and upload your listings directly.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
+          <Link
+            to="/client"
+            className="btn btn-primary"
+            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            Open client portal
+          </Link>
+          <a
+            href="mailto:support@example.com"
+            className="btn"
+            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            Contact us
+          </a>
+        </div>
+      </section>
 
-      {selected ? (
-        <pre style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-          {JSON.stringify(selected, null, 2)}
-        </pre>
-      ) : null}
+      <section style={{ marginTop: 32, fontSize: 13, opacity: 0.75 }}>
+        <p style={{ margin: 0 }}>
+          Admins can continue to use the{" "}
+          <a href="#/admin/clients">admin interface</a> to manage all client maps.
+        </p>
+      </section>
     </div>
   );
 }

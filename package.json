@@ -13,6 +13,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@googlemaps/markerclusterer": "^2.6.2",
     "@supabase/supabase-js": "^2.98.0",
     "dotenv": "^17.3.1",
     "react": "^19.2.4",

@@ -50,30 +50,49 @@ function boolish(v) {
   return null;
 }
 
-async function geocodeGoogle({ apiKey, address }) {
-  const url =
-    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-    encodeURIComponent(address) +
-    "&key=" +
-    encodeURIComponent(apiKey);
-
-  const res = await fetch(url);
-  const json = await res.json();
-
-  if (json.status !== "OK" || !json.results?.length) {
-    return { ok: false, status: json.status || "ERROR", lat: null, lng: null };
+/** Geocode via Supabase Edge Function (avoids CORS; uses GOOGLE_GEOCODING_API_KEY on server). */
+async function geocodeViaServer(supabaseClient, address) {
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!baseUrl) {
+    return { ok: false, status: "ERROR", lat: null, lng: null };
   }
-
-  const loc = json.results[0].geometry.location;
-  return { ok: true, status: "OK", lat: loc.lat, lng: loc.lng };
+  const url = `${baseUrl.replace(/\/$/, "")}/functions/v1/geocode_address`;
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address }),
+    });
+  } catch (e) {
+    return { ok: false, status: "ERROR", lat: null, lng: null };
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, status: data?.status || "ERROR", lat: null, lng: null };
+  }
+  return {
+    ok: !!data.ok,
+    status: data.status || "ERROR",
+    lat: data.lat ?? null,
+    lng: data.lng ?? null,
+  };
 }
 
 export default function AdminMapData() {
   const { clientId, mapId } = useParams();
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const pickerApiKey = import.meta.env.VITE_GOOGLE_API_KEY || apiKey;
 
   const [map, setMap] = useState(null);
   const [groups, setGroups] = useState([]);
+
+  const [sheetStatus, setSheetStatus] = useState(null);
+  const [sheetMsg, setSheetMsg] = useState("");
+  const [sheetErr, setSheetErr] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [configuring, setConfiguring] = useState(false);
+  const [spreadsheetInput, setSpreadsheetInput] = useState("");
 
   const [fileErr, setFileErr] = useState("");
   const [rows, setRows] = useState([]); // parsed objects
@@ -84,6 +103,8 @@ export default function AdminMapData() {
 
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [importChoiceOverlayOpen, setImportChoiceOverlayOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -96,11 +117,106 @@ export default function AdminMapData() {
     })();
   }, [mapId]);
 
+  async function refreshSheetStatus() {
+    try {
+      setSheetErr("");
+      const { data, error } = await supabase.functions.invoke("validate_sheet_source", { body: { mapId } });
+      if (error) throw error;
+      setSheetStatus(data ?? null);
+    } catch (e) {
+      setSheetErr(e?.message ?? String(e));
+    }
+  }
+
+  useEffect(() => {
+    refreshSheetStatus().catch(() => {});
+  }, [mapId]);
+
+  async function connectGoogle() {
+    try {
+      setConnecting(true);
+      setSheetErr("");
+      setSheetMsg("");
+      const returnTo = window.location.href;
+      const { data, error } = await supabase.functions.invoke("google_oauth_start", { body: { mapId, returnTo } });
+      const serverError = data?.error;
+      if (serverError) throw new Error(serverError);
+      if (error) throw error;
+      if (!data?.authUrl) throw new Error("Missing authUrl");
+      window.location.assign(data.authUrl);
+    } catch (e) {
+      const msg = e?.message ?? String(e);
+      const isGenericFailure = /failed to send a request to the edge function/i.test(msg);
+      setSheetErr(
+        isGenericFailure
+          ? `${msg}\n\nCheck: (1) You’re logged in as an admin, (2) Edge Functions are deployed (google_oauth_start, google_oauth_callback, etc.), (3) VITE_SUPABASE_URL points to your project. See docs/GOOGLE_SHEETS_SYNC.md.`
+          : msg
+      );
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  function getSpreadsheetIdError(value) {
+    const trimmed = (value || "").trim();
+    if (!trimmed) return null;
+    // Drive file links (drive.google.com/file/d/...) are not spreadsheet links
+    if (/drive\.google\.com\/file\/d\//i.test(trimmed) || /^https?:\/\/drive\.google\.com\/file\//i.test(trimmed)) {
+      return "That’s a Google Drive file link. Use the Google Sheet link instead: open the sheet in your browser and copy the URL from the address bar (it should look like docs.google.com/spreadsheets/d/…).";
+    }
+    return null;
+  }
+
+  async function configureSpreadsheet() {
+    try {
+      setConfiguring(true);
+      setSheetErr("");
+      setSheetMsg("");
+      const input = spreadsheetInput.trim();
+      const urlError = getSpreadsheetIdError(input);
+      if (urlError) {
+        setSheetErr(urlError);
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("google_set_sheet_file", {
+        body: { mapId, spreadsheetId: input },
+      });
+      const serverError = data?.error;
+      if (serverError) throw new Error(serverError);
+      if (error) throw error;
+      setSheetMsg(`Connected sheet: ${data.sheetName}`);
+      await refreshSheetStatus();
+    } catch (e) {
+      setSheetErr(e?.message ?? String(e));
+    } finally {
+      setConfiguring(false);
+    }
+  }
+
   const groupLookup = useMemo(() => {
     const m = new Map();
     groups.forEach((g) => m.set((g.name || "").trim().toLowerCase(), g.id));
     return m;
   }, [groups]);
+
+  async function clearMapData() {
+    if (!confirm("Clear all listing data and groups for this map? This cannot be undone.")) return;
+    try {
+      setClearing(true);
+      setErr("");
+      setMsg("");
+      const { error: listingsErr } = await supabase.from("listings").delete().eq("map_id", mapId);
+      if (listingsErr) throw listingsErr;
+      const { error: groupsErr } = await supabase.from("groups").delete().eq("map_id", mapId);
+      if (groupsErr) throw groupsErr;
+      setGroups([]);
+      setMsg("All listings and groups for this map have been removed.");
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setClearing(false);
+    }
+  }
 
   function downloadTemplate() {
     const header = [
@@ -189,18 +305,53 @@ const objs = raw.slice(1).map((row) => {
     setMsg(`Loaded ${objs.length} rows.`);
   }
 
-  async function doImport() {
+  function getGroupLabel(r) {
+    const raw = r.group_name ?? r.group ?? r.category ?? r["group name"] ?? "";
+    return String(raw).trim();
+  }
 
-    setErr("");
-    setMsg(`Import clicked. rows=${rows.length} mapId=${mapId}`);
-    console.log("DO_IMPORT_RUN", { mapId, rows: rows.length });
-
+  async function doImport(mode) {
     setErr("");
     setMsg("");
 
     if (!rows.length) {
       setErr("No rows loaded yet.");
       return;
+    }
+
+    // 1. Select distinct groups from CSV (normalized key -> display name, first occurrence wins)
+    const distinctGroups = new Map();
+    for (const r of rows) {
+      const label = getGroupLabel(r);
+      if (!label) continue;
+      const key = label.toLowerCase();
+      if (!distinctGroups.has(key)) distinctGroups.set(key, label);
+    }
+
+    // 2. Load existing groups for this map and build lookup by name
+    const { data: existingGroups } = await supabase
+      .from("groups")
+      .select("id,name")
+      .eq("map_id", mapId)
+      .order("sort_order", { ascending: true });
+    const lookup = new Map();
+    (existingGroups ?? []).forEach((g) => lookup.set((g.name || "").trim().toLowerCase(), g.id));
+
+    // 3. For each distinct CSV group: if no match, create group with new guid and map_id; add id to lookup
+    const toCreate = [];
+    let sortOrder = (existingGroups?.length ?? 0);
+    for (const [key, displayName] of distinctGroups) {
+      if (lookup.has(key)) continue;
+      const id = crypto.randomUUID();
+      toCreate.push({ id, map_id: mapId, name: displayName, sort_order: sortOrder++ });
+      lookup.set(key, id);
+    }
+    if (toCreate.length) {
+      const { error: createErr } = await supabase.from("groups").insert(toCreate);
+      if (createErr) {
+        setErr(createErr.message ?? String(createErr));
+        return;
+      }
     }
 
     const cleaned = [];
@@ -223,8 +374,8 @@ const objs = raw.slice(1).map((row) => {
         errors.push(`Row ${rowNum}: provide both lat and lng, or leave both blank`);
       }
 
-      const groupName = String(r.group_name ?? "").trim().toLowerCase();
-      const group_id = groupName ? groupLookup.get(groupName) ?? null : null;
+      const groupKey = getGroupLabel(r).toLowerCase();
+      const group_id = groupKey ? lookup.get(groupKey) ?? null : null;
 
       const allow_html = boolish(r.allow_html);
       const is_active = boolish(r.is_active);
@@ -256,19 +407,23 @@ const objs = raw.slice(1).map((row) => {
 
     try {
       setImporting(true);
+      setImportChoiceOverlayOpen(false);
+
+      if (mode === "overwrite") {
+        const { error: delErr } = await supabase.from("listings").delete().eq("map_id", mapId);
+        if (delErr) throw new Error(`Delete existing failed: ${delErr.message}`);
+      }
 
       if (geocodeMissing) {
-        if (!apiKey) throw new Error("Missing VITE_GOOGLE_MAPS_API_KEY (needed for geocoding).");
-
         for (let i = 0; i < cleaned.length; i++) {
           const r = cleaned[i];
           if (r.lat != null && r.lng != null) continue;
 
           const parts = [r.address, r.postcode, r.country].filter(Boolean);
-          if (!parts.length) continue;
+          const address = parts.length ? parts.join(", ") : (r.name || "").trim();
+          if (!address) continue;
 
-          const address = parts.join(", ");
-          const geo = await geocodeGoogle({ apiKey, address });
+          const geo = await geocodeViaServer(supabase, address);
 
           r.geocode_status = geo.ok ? "OK" : geo.status;
           r.geocoded_at = new Date().toISOString();
@@ -315,9 +470,6 @@ const objs = raw.slice(1).map((row) => {
               </Link>
             </div>
             <h2 style={{ margin: "8px 0 0 0" }}>Load data</h2>
-            <p style={{ margin: "8px 0", opacity: 0.7 }}>
-  Debug: AdminMapData.jsx loaded at {new Date().toLocaleTimeString()}
-</p>
             <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6 }}>
               Rows loaded: <strong>{rows.length}</strong>
             </div>
@@ -334,6 +486,82 @@ const objs = raw.slice(1).map((row) => {
         </div>
 
         <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+          <div className="admin-card" style={{ padding: 12, borderRadius: 12, border: "1px solid var(--lc-border)" }}>
+            <h3 style={{ margin: 0, fontSize: 15 }}>Google Sheet sync (nightly)</h3>
+            <p style={{ margin: "8px 0 0 0", fontSize: 13, opacity: 0.8 }}>
+              Connect a Google Sheet for this map. Required columns: <strong>id</strong>, <strong>name</strong>.
+            </p>
+
+            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button className="btn btn-primary" type="button" onClick={connectGoogle} disabled={connecting}>
+                {connecting ? "Connecting…" : "Connect Google Drive"}
+              </button>
+              <button className="btn" type="button" onClick={refreshSheetStatus}>
+                Refresh status
+              </button>
+            </div>
+
+            {!sheetStatus?.connected ? (
+              <p style={{ margin: "10px 0 0 0", fontSize: 13, color: "var(--lc-fg-muted)" }}>
+                Click <strong>Connect Google Drive</strong> above and sign in with the Google account that has access to your sheet. Then come back here and paste the sheet URL.
+              </p>
+            ) : null}
+            <div style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 560 }}>
+              <div style={{ fontSize: 13, opacity: 0.85 }}>Spreadsheet URL or ID</div>
+              <input
+                value={spreadsheetInput}
+                onChange={(e) => {
+                  setSpreadsheetInput(e.target.value);
+                  if (sheetErr && !getSpreadsheetIdError(e.target.value)) setSheetErr("");
+                }}
+                placeholder="Paste Google Sheet URL (…/spreadsheets/d/<id>/…) or the raw id"
+                disabled={!sheetStatus?.connected}
+              />
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={configureSpreadsheet}
+                  disabled={configuring || !spreadsheetInput.trim() || !sheetStatus?.connected}
+                >
+                  {configuring ? "Saving…" : "Use this sheet"}
+                </button>
+                {pickerApiKey ? (
+                  <span style={{ fontSize: 12, opacity: 0.7 }}>
+                    (Optional) Set `VITE_GOOGLE_API_KEY` for Drive picker later.
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            {sheetMsg ? <p style={{ margin: "10px 0 0 0" }}>{sheetMsg}</p> : null}
+            {sheetErr ? <pre style={{ margin: "10px 0 0 0", whiteSpace: "pre-wrap" }}>{sheetErr}</pre> : null}
+            {sheetStatus ? (
+              <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>
+                Status:{" "}
+                <strong>
+                  {sheetStatus.connected
+                    ? sheetStatus.configured
+                      ? sheetStatus.ok
+                        ? "Validated"
+                        : "Needs attention"
+                      : "Connected (pick a sheet)"
+                    : "Not connected"}
+                </strong>
+                {sheetStatus.issues?.length ? (
+                  <div style={{ marginTop: 6 }}>
+                    Issues:
+                    <ul style={{ margin: "6px 0 0 18px" }}>
+                      {sheetStatus.issues.slice(0, 10).map((x) => (
+                        <li key={x}>{x}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
           <div>
             <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>Upload CSV</div>
             <input type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
@@ -345,15 +573,112 @@ const objs = raw.slice(1).map((row) => {
             Geocode rows missing lat/lng
           </label>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button className="btn btn-primary" type="button" onClick={doImport} disabled={importing || rows.length === 0}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => setImportChoiceOverlayOpen(true)}
+              disabled={importing || rows.length === 0}
+            >
               {importing ? "Importing…" : `Import ${rows.length} rows`}
             </button>
 
             <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}>
               Done
             </Link>
+
+            <button
+              className="btn"
+              type="button"
+              onClick={clearMapData}
+              disabled={clearing}
+              style={{ marginLeft: "auto" }}
+            >
+              {clearing ? "Clearing…" : "Clear data"}
+            </button>
           </div>
+
+          {importChoiceOverlayOpen ? (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,0,0,0.4)",
+              }}
+              onClick={() => setImportChoiceOverlayOpen(false)}
+            >
+              <div
+                className="admin-card"
+                style={{
+                  padding: 20,
+                  maxWidth: 360,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>How should this data be added?</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => doImport("overwrite")}
+                    disabled={importing}
+                  >
+                    Overwrite existing data
+                  </button>
+                  <button className="btn" type="button" onClick={() => doImport("append")} disabled={importing}>
+                    Add to existing map
+                  </button>
+                  <button className="btn" type="button" onClick={() => setImportChoiceOverlayOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {importing ? (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1001,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(0,0,0,0.5)",
+              }}
+            >
+              <div
+                className="admin-card"
+                style={{
+                  padding: 24,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 16,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    border: "3px solid var(--lc-border, #e5e7eb)",
+                    borderTopColor: "var(--lc-brand, #4A9BAA)",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                <span style={{ fontSize: 15, fontWeight: 500 }}>Import in progress…</span>
+                <span style={{ fontSize: 13, opacity: 0.8 }}>This may take a moment.</span>
+              </div>
+            </div>
+          ) : null}
 
           {msg ? <p style={{ margin: 0 }}>{msg}</p> : null}
           {err ? <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{err}</pre> : null}
@@ -379,7 +704,7 @@ const objs = raw.slice(1).map((row) => {
                     <td>{r.country}</td>
                     <td>{r.lat || "—"}</td>
                     <td>{r.lng || "—"}</td>
-                    <td>{r.group_name || "—"}</td>
+                    <td>{r.group_name || r.group || r.category || r["group name"] || "—"}</td>
                   </tr>
                 ))}
               </tbody>

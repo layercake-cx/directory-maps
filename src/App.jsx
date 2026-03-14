@@ -2,19 +2,27 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AdminGate from "./components/AdminGate.jsx";
+import ClientGate from "./components/ClientGate.jsx";
 
 import PublicMap from "./pages/PublicMap.jsx";
+import EmbedMap from "./pages/EmbedMap.jsx";
+
 import AdminClients from "./pages/admin/AdminClients.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
 import AdminEditListing from "./pages/admin/AdminEditListing.jsx";
 import AdminClientDetail from "./pages/admin/AdminClientDetail.jsx";
 import AdminClientNew from "./pages/admin/AdminClientNew.jsx";
+import AdminContactDetail from "./pages/admin/AdminContactDetail.jsx";
 import AdminMapNew from "./pages/admin/AdminMapNew.jsx";
-import EmbedMap from "./pages/EmbedMap.jsx";
 import AdminMapDashboard from "./pages/admin/AdminMapDashboard.jsx";
 import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
 
+import ClientDashboard from "./pages/client/ClientDashboard.jsx";
+import ClientMapNew from "./pages/client/ClientMapNew.jsx";
+import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
+import ClientMapData from "./pages/client/ClientMapData.jsx";
+import ClientMapListings from "./pages/client/ClientMapListings.jsx";
 
 export default function App() {
   return (
@@ -23,10 +31,52 @@ export default function App() {
       <Route path="/" element={<PublicMap />} />
       <Route path="/embed" element={<EmbedMap />} />
 
+      {/* Client portal */}
+      <Route
+        path="/client"
+        element={
+          <ClientGate>
+            <ClientDashboard />
+          </ClientGate>
+        }
+      />
+      <Route
+        path="/client/maps/new"
+        element={
+          <ClientGate>
+            <ClientMapNew />
+          </ClientGate>
+        }
+      />
+      <Route
+        path="/client/maps/:mapId"
+        element={
+          <ClientGate>
+            <ClientMapDashboard />
+          </ClientGate>
+        }
+      />
+      <Route
+        path="/client/maps/:mapId/data"
+        element={
+          <ClientGate>
+            <ClientMapData />
+          </ClientGate>
+        }
+      />
+      <Route
+        path="/client/maps/:mapId/listings"
+        element={
+          <ClientGate>
+            <ClientMapListings />
+          </ClientGate>
+        }
+      />
+
       {/* Admin root -> clients */}
       <Route path="/admin" element={<Navigate to="/admin/clients" replace />} />
 
-      {/* Clients */}
+      {/* Admin · Clients */}
       <Route
         path="/admin/clients"
         element={
@@ -36,7 +86,7 @@ export default function App() {
         }
       />
 
-      {/* Keep existing listing routes temporarily */}
+      {/* Admin · Legacy listings */}
       <Route
         path="/admin/listings"
         element={
@@ -60,6 +110,14 @@ export default function App() {
         element={
           <AdminGate>
             <AdminClientDetail />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/contacts/:contactId"
+        element={
+          <AdminGate>
+            <AdminContactDetail />
           </AdminGate>
         }
       />
@@ -99,14 +157,13 @@ export default function App() {
       />
 
       <Route
-  path="/admin/clients/:clientId/maps/:mapId/listings"
-  element={
-    <AdminGate>
-      <AdminMapListings />
-    </AdminGate>
-  }
-/>
-
+        path="/admin/clients/:clientId/maps/:mapId/listings"
+        element={
+          <AdminGate>
+            <AdminMapListings />
+          </AdminGate>
+        }
+      />
     </Routes>
   );
 }

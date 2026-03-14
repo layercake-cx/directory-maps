@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 
+const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
+
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -21,6 +23,13 @@ export async function getMyRole() {
 }
 
 export async function signOut() {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.removeItem(IMPERSONATED_CLIENT_KEY);
+    }
+  } catch {
+    // ignore
+  }
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }

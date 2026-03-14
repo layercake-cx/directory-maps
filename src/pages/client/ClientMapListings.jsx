@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
-import AdminLayout from "./AdminLayout.jsx";
+import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import AdminLayout from "../admin/AdminLayout.jsx";
+import "../admin/admin.css";
 
 /** Geocode via Supabase Edge Function. No auth header: deploy with --no-verify-jwt (see scripts/test-geocode.md). */
 async function geocodeViaServer(supabaseClient, address) {
@@ -38,9 +40,10 @@ async function geocodeViaServer(supabaseClient, address) {
   };
 }
 
-export default function AdminMapListings() {
-  const { clientId, mapId } = useParams();
+export default function ClientMapListings() {
+  const { mapId } = useParams();
 
+  const [clientName, setClientName] = useState("");
   const [map, setMap] = useState(null);
   const [groups, setGroups] = useState([]);
   const [rows, setRows] = useState([]);
@@ -59,14 +62,18 @@ export default function AdminMapListings() {
       setLoading(true);
       setErr("");
 
-      const [{ data: m, error: me }, { data: g, error: ge }, { data: l, error: le }] =
+      const currentClientId = await getClientIdForCurrentUser();
+      if (!currentClientId) {
+        setErr("No client account linked.");
+        setLoading(false);
+        return;
+      }
+
+      const [{ data: clientData, error: clientErr }, { data: m, error: me }, { data: g, error: ge }, { data: l, error: le }] =
         await Promise.all([
+          supabase.from("clients").select("name").eq("id", currentClientId).single(),
           supabase.from("maps").select("id,name,client_id").eq("id", mapId).single(),
-          supabase
-            .from("groups")
-            .select("id,name")
-            .eq("map_id", mapId)
-            .order("sort_order", { ascending: true }),
+          supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
           supabase
             .from("listings")
             .select("id,name,address,postcode,country,lat,lng,group_id,is_active,updated_at")
@@ -74,15 +81,16 @@ export default function AdminMapListings() {
             .order("updated_at", { ascending: false }),
         ]);
 
+      if (clientErr) throw clientErr;
       if (me) throw me;
       if (ge) throw ge;
       if (le) throw le;
 
-      // sanity: map belongs to this client
-      if (m.client_id !== clientId) {
-        throw new Error("This map does not belong to the selected client.");
+      if (m.client_id !== currentClientId) {
+        throw new Error("This map does not belong to your account.");
       }
 
+      setClientName(clientData?.name ?? "Client");
       setMap(m);
       setGroups(g ?? []);
       setRows(l ?? []);
@@ -172,7 +180,6 @@ export default function AdminMapListings() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapId]);
 
   const groupNameById = useMemo(() => {
@@ -183,13 +190,10 @@ export default function AdminMapListings() {
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-
     return rows.filter((r) => {
       if (onlyActive && !r.is_active) return false;
       if (groupId && r.group_id !== groupId) return false;
-
       if (!query) return true;
-
       const hay = [
         r.name,
         r.postcode,
@@ -200,14 +204,15 @@ export default function AdminMapListings() {
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-
       return hay.includes(query);
     });
   }, [rows, q, groupId, onlyActive, groupNameById]);
 
   return (
     <AdminLayout
-      title={`Admin · ${map?.name ?? "Map"} · Listings`}
+      title={`${clientName} · ${map?.name ?? "Map"} · Listings`}
+      backTo={`/client/maps/${encodeURIComponent(mapId)}`}
+      backLabel="Back to map"
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -217,22 +222,15 @@ export default function AdminMapListings() {
       <div className="admin-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              <Link to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}>
-                ← Back to map dashboard
-              </Link>
-            </div>
-            <h2 style={{ margin: "8px 0 0 0" }}>Listings</h2>
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6 }}>
+            <h2 style={{ margin: "0 0 6px 0" }}>Listings</h2>
+            <div style={{ fontSize: 13, opacity: 0.8 }}>
               Showing <strong>{filtered.length}</strong> of <strong>{rows.length}</strong>
             </div>
           </div>
-
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button className="btn" type="button" onClick={load}>
               Refresh
             </button>
-
             <button
               className="btn"
               type="button"
@@ -240,11 +238,6 @@ export default function AdminMapListings() {
               disabled={loading || geocodingMissing}
             >
               {geocodingMissing ? "Geocoding…" : "Geocode missing coords"}
-            </button>
-
-            {/* next: create listing form */}
-            <button className="btn btn-primary" type="button" disabled>
-              New listing (next)
             </button>
           </div>
         </div>
@@ -255,7 +248,6 @@ export default function AdminMapListings() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, postcode, country, group…"
           />
-
           <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
             <option value="">All groups</option>
             {groups.map((g) => (
@@ -264,7 +256,6 @@ export default function AdminMapListings() {
               </option>
             ))}
           </select>
-
           <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
             <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
             Active only
@@ -283,28 +274,19 @@ export default function AdminMapListings() {
               ))}
             </tr>
           </thead>
-
           <tbody>
             {filtered.map((r) => {
               const hasCoords = r.lat != null && r.lng != null;
               return (
                 <tr key={r.id}>
                   <td>
-                    {/* if you want to reuse your edit page, link it here */}
                     <strong>{r.name}</strong>
                     <div style={{ fontSize: 11, opacity: 0.6 }}>{r.id}</div>
                   </td>
-
                   <td>{groupNameById.get(r.group_id) || "—"}</td>
-
-                  <td>
-                    {(r.postcode || "—") + (r.country ? ` · ${r.country}` : "")}
-                  </td>
-
+                  <td>{(r.postcode || "—") + (r.country ? ` · ${r.country}` : "")}</td>
                   <td>{hasCoords ? "✓" : "—"}</td>
-
                   <td>{r.is_active ? "Yes" : "No"}</td>
-
                   <td>{r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—"}</td>
                 </tr>
               );
