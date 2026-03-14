@@ -15,12 +15,12 @@ export default function SiteHeader() {
         </Link>
 
         <nav className="site-header__nav">
-          <Link to="/client" className="site-header__navLink">
-            Client portal
+          <Link to="/login" className="site-header__navLink">
+            Log in
           </Link>
-          <a href="#/admin/clients" className="site-header__navLink">
-            Admin
-          </a>
+          <Link to="/signup" className="site-header__navLink site-header__navLink--primary">
+            Sign up
+          </Link>
         </nav>
       </div>
     </header>

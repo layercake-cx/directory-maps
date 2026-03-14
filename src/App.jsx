@@ -5,6 +5,8 @@ import AdminGate from "./components/AdminGate.jsx";
 import ClientGate from "./components/ClientGate.jsx";
 
 import PublicMap from "./pages/PublicMap.jsx";
+import Login from "./pages/Login.jsx";
+import SignUp from "./pages/SignUp.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
@@ -29,6 +31,8 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<PublicMap />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignUp />} />
       <Route path="/embed" element={<EmbedMap />} />
 
       {/* Client portal */}

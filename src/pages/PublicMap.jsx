@@ -1,53 +1,63 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+const FEATURES = [
+  {
+    title: "Interactive maps",
+    description: "Embed Google Maps–based directories on your site. Visitors search, filter by group, and click pins for details.",
+  },
+  {
+    title: "Your data, your brand",
+    description: "Upload your own listings via CSV or connect a Google Sheet. Geocode addresses, add logos and links.",
+  },
+  {
+    title: "Groups & styling",
+    description: "Organise listings into groups, customise pin colours and styles per group, and control clustering.",
+  },
+  {
+    title: "Client portal",
+    description: "Let clients create and manage their own maps, listings, and data—with optional Google Sheet sync.",
+  },
+  {
+    title: "Embed anywhere",
+    description: "One link or iframe to drop into any website. Works on desktop and mobile.",
+  },
+];
+
 export default function PublicMap() {
   return (
-    <div style={{ padding: 32, maxWidth: 960, margin: "0 auto" }}>
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: "0 0 12px 0" }}>Directory Maps</h1>
-        <p style={{ margin: 0, opacity: 0.8 }}>
-          Create interactive Google Maps-based directories and upload your own data.
+    <div className="landing">
+      <section className="landing__hero">
+        <h1 className="landing__heroTitle">Directory Maps</h1>
+        <p className="landing__heroSub">
+          Create and embed interactive map directories. Upload your data, organise by groups, and share one link.
         </p>
-      </header>
-
-      <section
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          padding: 24,
-          borderRadius: 16,
-          border: "1px solid #e5e7eb",
-          background: "#f9fafb",
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: 20 }}>Client sign-up & login</h2>
-        <p style={{ margin: 0, opacity: 0.85 }}>
-          If you are a client, you can create an account, build maps, and upload your listings directly.
-        </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
-          <Link
-            to="/client"
-            className="btn btn-primary"
-            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            Open client portal
-          </Link>
-          <a
-            href="mailto:support@example.com"
-            className="btn"
-            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            Contact us
-          </a>
-        </div>
+        <Link to="/signup" className="landing__cta">
+          Register now
+        </Link>
       </section>
 
-      <section style={{ marginTop: 32, fontSize: 13, opacity: 0.75 }}>
-        <p style={{ margin: 0 }}>
-          Admins can continue to use the{" "}
-          <a href="#/admin/clients">admin interface</a> to manage all client maps.
+      <section className="landing__features">
+        <h2 className="landing__featuresTitle">What you get</h2>
+        <ul className="landing__featuresList">
+          {FEATURES.map((f, i) => (
+            <li key={i} className="landing__feature">
+              <h3 className="landing__featureTitle">{f.title}</h3>
+              <p className="landing__featureDesc">{f.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="landing__footer">
+        <p className="landing__footerText">
+          Already have an account?{" "}
+          <Link to="/login" className="landing__footerLink">
+            Log in
+          </Link>
+        </p>
+        <p className="landing__footerMuted">
+          Admins: <a href="#/admin/clients">admin interface</a>
         </p>
       </section>
     </div>
