@@ -18,6 +18,7 @@ const MAP_TYPES = [
 ];
 const PIN_STYLES = [
   { id: "pin", label: "Pin" },
+  { id: "teardrop", label: "Teardrop" },
   { id: "dot", label: "Dot" },
   { id: "circle", label: "Circle" },
   { id: "custom", label: "Custom" },
@@ -115,6 +116,7 @@ export default function AdminMapDashboard() {
   const [clusterColor, setClusterColor] = useState("#4A9BAA");
   const [pinBorderColor, setPinBorderColor] = useState("#ffffff");
   const [pinBorderSize, setPinBorderSize] = useState(0);
+  const [pinFaviconUrl, setPinFaviconUrl] = useState("");
 
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -255,7 +257,8 @@ export default function AdminMapDashboard() {
             const theme = typeof m.theme_json === "string" ? JSON.parse(m.theme_json || "{}") : m.theme_json || {};
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
-            setPinBorderSize(Math.max(0, Math.min(5, Number(theme.pinBorderSize) ?? 0)));
+            setPinBorderSize(Math.max(0, Math.min(8, Number(theme.pinBorderSize) ?? 0)));
+            setPinFaviconUrl(theme.pin_favicon_url ?? "");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -357,7 +360,8 @@ export default function AdminMapDashboard() {
           ...existingTheme,
           clusterColor: clusterColor || "#4A9BAA",
           pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(5, Number(pinBorderSize) || 0)),
+          pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+          pin_favicon_url: (pinFaviconUrl || "").trim() || null,
         };
         const payloadBase = {
           name: cleanName,
@@ -463,7 +467,7 @@ export default function AdminMapDashboard() {
       marker_color: markerColor,
       custom_pin_url: customPinUrl || null,
       theme_json: (() => {
-        if (!map?.theme_json && !clusterColor && !pinBorderColor && !pinBorderSize) return null;
+        if (!map?.theme_json && !clusterColor && !pinBorderColor && !pinBorderSize && !(pinFaviconUrl || "").trim()) return null;
         let base =
           !map?.theme_json || typeof map.theme_json === "string"
             ? (() => {
@@ -478,12 +482,13 @@ export default function AdminMapDashboard() {
           ...base,
           clusterColor: clusterColor || "#4A9BAA",
           pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(5, Number(pinBorderSize) || 0)),
+          pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+          pin_favicon_url: (pinFaviconUrl || "").trim() || null,
         };
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -639,8 +644,9 @@ export default function AdminMapDashboard() {
       pinBorderSize,
       clusterColor,
       custom_pin_url: customPinUrl || null,
+      pin_favicon_url: (pinFaviconUrl || "").trim() || null,
     }),
-    [markerStyle, markerColor, pinBorderColor, pinBorderSize, clusterColor, customPinUrl],
+    [markerStyle, markerColor, pinBorderColor, pinBorderSize, clusterColor, customPinUrl, pinFaviconUrl],
   );
 
   async function handleCustomPinFile(e) {
@@ -770,6 +776,7 @@ export default function AdminMapDashboard() {
               clusterColor={clusterColor}
               pinBorderColor={pinBorderColor}
               pinBorderSize={pinBorderSize}
+              pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
             />
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
@@ -930,7 +937,7 @@ export default function AdminMapDashboard() {
                       {PIN_STYLES.map(({ id, label }) => {
                         const isSelected = markerStyle === id;
                         const isCustom = id === "custom";
-                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize }) : null;
+                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
                         return (
                           <button
                             key={id}
@@ -959,7 +966,7 @@ export default function AdminMapDashboard() {
                       <input
                         type="range"
                         min={0}
-                        max={5}
+                        max={8}
                         step={1}
                         value={pinBorderSize}
                         onChange={(e) => setPinBorderSize(Number(e.target.value))}
@@ -969,6 +976,44 @@ export default function AdminMapDashboard() {
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>0 = no border. Updates the map as you change.</div>
                   </Field>
+                  {(markerStyle === "pin" || markerStyle === "teardrop") && (
+                    <Field label="Image inside pin">
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                        <label className="btn" style={{ margin: 0 }}>
+                          {pinFaviconUrl ? "Change image…" : "Upload image"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 48 * 1024) {
+                                setErr("Image must be under 48KB (favicon-sized).");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setPinFaviconUrl(reader.result || "");
+                                setErr("");
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = "";
+                            }}
+                            style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
+                          />
+                        </label>
+                        {pinFaviconUrl && (
+                          <>
+                            <span style={{ fontSize: 12, opacity: 0.8 }} className="admin-pin-favicon-preview-wrap">
+                              <img src={pinFaviconUrl} alt="" style={{ maxWidth: 24, maxHeight: 24, objectFit: "contain", verticalAlign: "middle" }} />
+                            </span>
+                            <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button>
+                          </>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Optional. Small image (favicon-sized, under 48KB) shown inside the pin. Use with Pin style only.</div>
+                    </Field>
+                  )}
                   {enableClustering && (
                     <Field label="Cluster colour">
                       <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
@@ -1068,7 +1113,7 @@ export default function AdminMapDashboard() {
                               const isSelected = val === id;
                               const isCustom = id === "custom";
                               const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize }) : null;
+                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? (globalDesignForGroup.pin_favicon_url || undefined) : undefined }) : null;
                               return (
                                 <button
                                   key={id}
@@ -1095,7 +1140,7 @@ export default function AdminMapDashboard() {
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                             <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
                             <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                            <input type="range" min={0} max={5} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
+                            <input type="range" min={0} max={8} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
                           </div>
                         </Field>
                         <Field label="Cluster colour">

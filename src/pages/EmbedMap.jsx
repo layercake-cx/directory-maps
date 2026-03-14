@@ -270,6 +270,18 @@ export default function EmbedMap() {
             return 0;
           }
         })()}
+        pinFaviconUrl={(() => {
+          try {
+            const t =
+              typeof effectiveDefaults.themeSource === "string"
+                ? JSON.parse(effectiveDefaults.themeSource || "{}")
+                : effectiveDefaults.themeSource || {};
+            const url = t.pin_favicon_url;
+            return url && typeof url === "string" ? url.trim() || null : null;
+          } catch (_) {
+            return null;
+          }
+        })()}
       />
 
       {effectiveDefaults.showListPanel && (

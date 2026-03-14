@@ -90,6 +90,7 @@ export default function DirectoryMap({
   clusterColor = "#4A9BAA",
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
+  pinFaviconUrl = null,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -189,6 +190,7 @@ export default function DirectoryMap({
         customIconUrl: customMarkerIconUrl || undefined,
         pinBorderColor,
         pinBorderSize,
+        pinFaviconUrl: pinFaviconUrl || undefined,
       }),
       scaledSize: new window.google.maps.Size(size.w, size.h),
       anchor: new window.google.maps.Point(anchor.x, anchor.y),
@@ -311,6 +313,7 @@ export default function DirectoryMap({
     clusterColor,
     pinBorderColor,
     pinBorderSize,
+    pinFaviconUrl,
   ]);
 
   return <div ref={elRef} style={{ width: "100%", height, borderRadius: 12 }} />;
