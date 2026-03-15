@@ -2,13 +2,13 @@
  * Builds data URLs for map marker icons. Used by DirectoryMap and admin Design preview.
  * @param {'pin'|'teardrop'|'dot'|'circle'} style
  * @param {string} color - hex e.g. #4A9BAA
- * @param {{ borderColor?: string, borderWidth?: number, pinFaviconUrl?: string }} border - optional pin border (0-8px), optional favicon (data URL or https URL) inside pin
+ * @param {{ borderColor?: string, borderWidth?: number, pinFaviconUrl?: string }} border - optional pin border (0-15px), optional favicon (data URL or https URL) inside pin
  * @returns {string} data URL for the icon
  */
 export function markerIconDataUrl(style, color, border = {}) {
   const fill = color || "#4A9BAA";
   const stroke = border.borderColor || "#ffffff";
-  const sw = Math.max(0, Math.min(8, Number(border.borderWidth) || 0));
+  const sw = Math.max(0, Math.min(15, Number(border.borderWidth) || 0));
   const pinFavicon = border.pinFaviconUrl ? String(border.pinFaviconUrl).trim() : "";
   const hasFavicon = pinFavicon && (/^data:/i.test(pinFavicon) || /^https?:\/\//i.test(pinFavicon));
 
@@ -34,7 +34,7 @@ export function markerIconDataUrl(style, color, border = {}) {
     return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
   }
 
-  // Pin and Teardrop: allow border up to 8px; use padded viewBox so stroke isn't clipped.
+  // Pin and Teardrop: allow border up to 15px; use padded viewBox (8px) so stroke isn't clipped.
   const strokeW = sw > 0 ? sw : 1;
   const strokeCol = sw > 0 ? stroke : "#ffffff";
   const pathAttrs = `fill="${fill}" stroke="${strokeCol}" stroke-width="${strokeW}"`;
@@ -46,19 +46,19 @@ export function markerIconDataUrl(style, color, border = {}) {
   const pinPath = `d="M16 0C7.2 0 0.5 6.8 0.5 15c0 11.8 14.5 30 15.5 31s15.5-19.2 15.5-31C31.5 6.8 24.8 0 16 0z"`;
 
   const path = style === "teardrop" ? teardropPath : pinPath;
-  // Icon circle slightly smaller than before so there's visible padding inside the pin (r=10 → 20px diam; image 20×20)
+  // Icon inside circle with 3px padding: circle r=10 (20px diam), image 14×14 centered at (16,14) → x=9 y=7
   const faviconSnippet = hasFavicon
     ? `
     <defs><clipPath id="pin-favclip"><circle cx="16" cy="14" r="10"/></clipPath></defs>
     <path ${path} ${pathAttrs}/>
     <g clip-path="url(#pin-favclip)">
-      <image href="${faviconHref}" x="6" y="4" width="20" height="20" preserveAspectRatio="xMidYMid slice"/>
+      <image href="${faviconHref}" x="9" y="7" width="14" height="14" preserveAspectRatio="xMidYMid slice"/>
     </g>`
     : `
     <path ${path} ${pathAttrs}/>`;
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="44" height="58" viewBox="-4 -4 44 58">
-      <g transform="translate(4, 4)">
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="56" height="70" viewBox="-8 -8 56 70">
+      <g transform="translate(8, 8)">
         ${faviconSnippet.trim()}
       </g>
     </svg>
@@ -87,10 +87,10 @@ export function getMarkerIconUrl(options) {
   });
 }
 
-/** Sizes and anchors for each style so markers sit on the point correctly. Pin/teardrop use 44×58 viewBox with 4px padding for up to 8px border. */
+/** Sizes and anchors for each style so markers sit on the point correctly. Pin/teardrop use 56×70 viewBox with 8px padding for up to 15px border. */
 export const MARKER_ANCHORS = {
-  pin:      { scaledSize: { w: 31, h: 41 }, anchor: { x: 20, y: 50 } },
-  teardrop: { scaledSize: { w: 31, h: 41 }, anchor: { x: 20, y: 50 } },
+  pin:      { scaledSize: { w: 39, h: 49 }, anchor: { x: 24, y: 54 } },
+  teardrop: { scaledSize: { w: 39, h: 49 }, anchor: { x: 24, y: 54 } },
   dot:      { scaledSize: { w: 24, h: 24 }, anchor: { x: 12, y: 12 } },
   circle:   { scaledSize: { w: 28, h: 28 }, anchor: { x: 14, y: 14 } },
   custom:   { scaledSize: { w: 40, h: 40 }, anchor: { x: 20, y: 40 } },

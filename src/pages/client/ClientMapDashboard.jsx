@@ -14,6 +14,7 @@ const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
   { id: "roadmap_dark", label: "Roadmap (Dark)" },
+  { id: "roadmap_muted", label: "Roadmap (Muted)" },
   { id: "satellite", label: "Satellite" },
   { id: "hybrid", label: "Hybrid" },
   { id: "terrain", label: "Terrain" },
@@ -111,6 +112,9 @@ export default function ClientMapDashboard() {
   const [pinBorderSize, setPinBorderSize] = useState(0);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
   const [buttonColor, setButtonColor] = useState("#4A9BAA");
+  const [panelBackgroundColor, setPanelBackgroundColor] = useState("#e4f0ff");
+  const [panelBackgroundOpacity, setPanelBackgroundOpacity] = useState(0.88);
+  const [panelLinkColor, setPanelLinkColor] = useState("#4A9BAA");
 
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -240,9 +244,12 @@ export default function ClientMapDashboard() {
             const theme = typeof m.theme_json === "string" ? JSON.parse(m.theme_json || "{}") : m.theme_json || {};
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
-            setPinBorderSize(Math.max(0, Math.min(8, Number(theme.pinBorderSize) ?? 0)));
+            setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
             setPinFaviconUrl(theme.pin_favicon_url ?? "");
             setButtonColor(theme.buttonColor ?? "#4A9BAA");
+            setPanelBackgroundColor(theme.panelBackgroundColor ?? "#e4f0ff");
+            setPanelBackgroundOpacity(theme.panelBackgroundOpacity ?? 0.88);
+            setPanelLinkColor(theme.panelLinkColor ?? "#4A9BAA");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -355,9 +362,12 @@ export default function ClientMapDashboard() {
         ...existingTheme,
         clusterColor: clusterColor || "#4A9BAA",
         pinBorderColor: pinBorderColor || "#ffffff",
-        pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+        pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
         pin_favicon_url: (pinFaviconUrl || "").trim() || null,
         buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+        panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+        panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+        panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
       };
       const payloadBase = {
         name: cleanName,
@@ -419,14 +429,17 @@ export default function ClientMapDashboard() {
           ...base,
           clusterColor: clusterColor || "#4A9BAA",
           pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+          pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
           buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+          panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+          panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         };
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelLinkColor],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -702,7 +715,7 @@ export default function ClientMapDashboard() {
                 ) : null}
                 <h3 className="admin-map-pin-overlay__name">{selectedListing.name || "—"}</h3>
                 {selectedListing.website_url ? (
-                  <p className="admin-map-pin-overlay__row">
+                  <div className="admin-map-pin-overlay__actions" style={{ marginTop: 8 }}>
                     <a
                       href={
                         selectedListing.website_url.startsWith("http")
@@ -711,10 +724,11 @@ export default function ClientMapDashboard() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="btn btn-primary"
                     >
-                      Website
+                      Visit website
                     </a>
-                  </p>
+                  </div>
                 ) : null}
                 {selectedListing.email ? (
                   <p className="admin-map-pin-overlay__row">
@@ -843,165 +857,66 @@ export default function ClientMapDashboard() {
               )}
 
               {overlayTab === "design" && (
-                <div style={{ display: "grid", gap: 20 }}>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 10, opacity: 0.85 }}>Pin style</div>
-                    <div className="pin-style-grid">
-                      {PIN_STYLES.map(({ id, label }) => {
-                        const isSelected = markerStyle === id;
-                        const isCustom = id === "custom";
-                        const src =
-                          isCustom && customPinUrl
-                            ? customPinUrl
-                            : !isCustom
-                            ? markerIconDataUrl(id, markerColor, {
-                                borderColor: pinBorderColor,
-                                borderWidth: pinBorderSize,
-                                pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined,
-                              })
-                            : null;
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                            onClick={() => setMarkerStyle(id)}
-                            aria-pressed={isSelected}
-                          >
-                            <div className="pin-style-option__preview">
-                              {src ? (
-                                <img src={src} alt="" aria-hidden />
-                              ) : (
-                                <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>
-                              )}
-                            </div>
-                            <span className="pin-style-option__label">{label}</span>
-                          </button>
-                        );
-                      })}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Pins</h3>
+                      <div>
+                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Style</div>
+                        <div className="pin-style-grid">
+                          {PIN_STYLES.map(({ id, label }) => {
+                            const isSelected = markerStyle === id;
+                            const isCustom = id === "custom";
+                            const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
+                            return (
+                              <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
+                                <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                                <span className="pin-style-option__label">{label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <Field label="Marker colour"><ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" /></Field>
+                      <Field label="Pin border">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
+                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ width: 64 }} />
+                          <span style={{ fontSize: 12 }}>{pinBorderSize}px</span>
+                        </div>
+                      </Field>
+                      {(markerStyle === "pin" || markerStyle === "teardrop") && (
+                        <Field label="Image inside pin">
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                            <label className="btn" style={{ margin: 0 }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
+                            {pinFaviconUrl && <><span style={{ fontSize: 12, opacity: 0.8 }}><img src={pinFaviconUrl} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain", verticalAlign: "middle" }} /></span><button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button></>}
+                          </div>
+                        </Field>
+                      )}
+                      {enableClustering && <Field label="Cluster colour"><ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" /></Field>}
+                      <div>
+                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          <input type="url" value={customPinUrl} onChange={(e) => setCustomPinUrl(e.target.value)} placeholder="Optional" style={{ flex: "1", minWidth: 120, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--lc-border)" }} />
+                          <label className="btn" style={{ margin: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Panel</h3>
+                      <Field label="Background colour"><ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" /></Field>
+                      <Field label="Background opacity">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ width: 80 }} />
+                          <span style={{ fontSize: 12 }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
+                        </div>
+                      </Field>
+                      <Field label="Link colour"><ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" /></Field>
+                      <Field label="Website button colour"><ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" /></Field>
                     </div>
                   </div>
-                  <Field label="Marker colour (default)">
-                    <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                      Applies to Pin, Dot, Circle. Changes update the map behind.
-                    </div>
-                  </Field>
-                  <Field label="Pin border">
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                      <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                      <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={8}
-                        step={1}
-                        value={pinBorderSize}
-                        onChange={(e) => setPinBorderSize(Number(e.target.value))}
-                        style={{ width: 80 }}
-                      />
-                      <span style={{ fontSize: 13 }}>{pinBorderSize}px</span>
-                    </div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                      0 = no border. Updates the map as you change.
-                    </div>
-                  </Field>
-                  {(markerStyle === "pin" || markerStyle === "teardrop") && (
-                    <Field label="Image inside pin">
-                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                        <label className="btn" style={{ margin: 0 }}>
-                          {pinFaviconUrl ? "Change image…" : "Upload image"}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (file.size > 48 * 1024) {
-                                setErr("Image must be under 48KB (favicon-sized).");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setPinFaviconUrl(reader.result || "");
-                                setErr("");
-                              };
-                              reader.readAsDataURL(file);
-                              e.target.value = "";
-                            }}
-                            style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-                          />
-                        </label>
-                        {pinFaviconUrl && (
-                          <>
-                            <span style={{ fontSize: 12, opacity: 0.8 }}>
-                              <img src={pinFaviconUrl} alt="" style={{ maxWidth: 24, maxHeight: 24, objectFit: "contain", verticalAlign: "middle" }} />
-                            </span>
-                            <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button>
-                          </>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                        Optional. Small image (favicon-sized, under 48KB) shown inside the pin.
-                      </div>
-                    </Field>
-                  )}
-                  {enableClustering && (
-                    <Field label="Cluster colour">
-                      <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                        Colour of cluster circles when clustering is on.
-                      </div>
-                    </Field>
-                  )}
-                  <Field label="Website button colour">
-                    <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                      Colour of the &quot;Visit website&quot; button on the embedded map. Independent of pin colour.
-                    </div>
-                  </Field>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin</div>
-                    <p style={{ fontSize: 12, opacity: 0.8, margin: "0 0 10px 0" }}>
-                      SVG or PNG. Max 64×64 recommended. PNG colours are not changed by the map.
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                      <input
-                        type="url"
-                        value={customPinUrl}
-                        onChange={(e) => setCustomPinUrl(e.target.value)}
-                        placeholder="Image URL (or upload below)"
-                        style={{
-                          minWidth: 200,
-                          padding: "8px 12px",
-                          borderRadius: 10,
-                          border: "1px solid var(--lc-border)",
-                        }}
-                      />
-                      <label className="btn" style={{ margin: 0 }}>
-                        {customPinUploading ? "Uploading…" : "Upload SVG/PNG"}
-                        <input
-                          type="file"
-                          accept=".svg,.png,image/svg+xml,image/png"
-                          onChange={handleCustomPinFile}
-                          disabled={customPinUploading}
-                          style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 16 }}>
-                    <button
-                      className="btn btn-primary"
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        saveMap({ preventDefault: () => {} });
-                      }}
-                      disabled={saving}
-                    >
-                      {saving ? "Saving…" : "Save"}
-                    </button>
+                  <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
+                    <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
                   </div>
                 </div>
               )}

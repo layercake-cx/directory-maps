@@ -161,10 +161,10 @@ a:hover {
   width: max-content;
   max-width: min(340px, calc(100vw - 48px));
   height: max-content;
-  background: rgba(255, 255, 255, 0.8);
+  background: transparent;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(229, 231, 235, 0.8);
   padding: 14px;
   box-sizing: border-box;
   overflow: hidden;
@@ -191,18 +191,21 @@ a:hover {
 
 .map-pin-overlay__logo {
   background: #ffffff;
-  padding: 10px 10px 6px;
-  margin: -14px -14px 8px;
+  padding: 10px 10px 16px;
+  margin: -14px -14px 0;
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.08);
 }
 
 .map-pin-overlay__body {
-  padding: 12px 14px 14px;
+  padding: 14px 14px 18px;
   padding-right: 30px;
   min-width: 0;
-  border-radius: 0 0 10px 10px;
+  margin: 0 -14px -14px -14px;
+  border-radius: 0 0 12px 12px;
+  background: var(--panel-bg, rgba(228, 240, 255, 0.88));
 }
 
 .map-pin-overlay__image-wrap {
@@ -262,7 +265,7 @@ a:hover {
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--brand-teal);
+  color: var(--panel-link, var(--brand-teal));
   text-align: left;
   font: inherit;
 }
@@ -272,7 +275,7 @@ a:hover {
 }
 
 .map-pin-overlay__row a {
-  color: var(--brand-teal);
+  color: var(--panel-link, var(--brand-teal));
   text-decoration: none;
 }
 
@@ -310,7 +313,7 @@ a:hover {
   max-height: calc(100vh - 24px);
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--panel-bg, rgba(228, 240, 255, 0.88));
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(229, 231, 235, 0.5);
@@ -452,6 +455,135 @@ a:hover {
 
 .embed-list-panel__entry:hover {
   background: rgba(243, 244, 246, 0.7);
+}
+
+/* Embed: message drawer (right-hand panel) */
+.embed-message-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.embed-message-drawer--open {
+  pointer-events: auto;
+}
+
+.embed-message-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.embed-message-drawer--open .embed-message-drawer__backdrop {
+  opacity: 1;
+}
+
+.embed-message-drawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 100vw);
+  max-width: 100%;
+  background: var(--panel-bg, rgba(255, 255, 255, 0.98));
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+}
+
+.embed-message-drawer--open .embed-message-drawer__panel {
+  transform: translateX(0);
+}
+
+.embed-message-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.embed-message-drawer__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.embed-message-drawer__close {
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  color: #6b7280;
+  border-radius: 8px;
+}
+
+.embed-message-drawer__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+}
+
+.embed-message-drawer__to {
+  margin: 0;
+  padding: 8px 16px 12px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.embed-message-drawer__form,
+.embed-message-drawer__success {
+  padding: 0 16px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.embed-message-drawer__label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.embed-message-drawer__label > span {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+.embed-message-drawer__label input,
+.embed-message-drawer__label textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.embed-message-drawer__label textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.embed-message-drawer__error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.embed-message-drawer__success p {
+  margin: 0 0 12px;
+  font-size: 14px;
 }
 
 /* Landing page */

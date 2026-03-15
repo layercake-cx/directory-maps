@@ -58,7 +58,11 @@ export default function AdminContactDetail() {
 
   return (
     <AdminLayout
-      title="Admin · Contact"
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+        { label: "Contact" },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -67,7 +71,7 @@ export default function AdminContactDetail() {
     >
       <div className="admin-card">
         <div style={{ marginBottom: 12 }}>
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to client</Link>
+          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
         {loading ? <p>Loading…</p> : null}
@@ -78,7 +82,7 @@ export default function AdminContactDetail() {
             <h2 style={{ margin: "0 0 8px 0" }}>Contact details</h2>
             <div style={{ fontSize: 13 }}>
               <div style={{ marginBottom: 8 }}>
-                <strong>Client:</strong>{" "}
+                <strong>Customer:</strong>{" "}
                 <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
                 {client.slug ? ` (${client.slug})` : ""}
               </div>

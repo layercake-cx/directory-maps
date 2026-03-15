@@ -14,9 +14,11 @@ export default function AdminGate({ children }) {
     let mounted = true;
     const timeoutMs = 15000;
 
-    async function run() {
+    async function run(isInitial) {
       try {
-        setState((s) => ({ ...s, loading: true, error: "" }));
+        if (isInitial) {
+          setState((s) => ({ ...s, loading: true, error: "" }));
+        }
 
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Session check timed out. Check network and Supabase configuration.")), timeoutMs)
@@ -53,8 +55,10 @@ export default function AdminGate({ children }) {
       }
     }
 
-    run();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => run());
+    run(true);
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      run(false);
+    });
 
     return () => {
       mounted = false;

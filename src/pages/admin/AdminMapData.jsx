@@ -84,6 +84,7 @@ export default function AdminMapData() {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const pickerApiKey = import.meta.env.VITE_GOOGLE_API_KEY || apiKey;
 
+  const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
   const [groups, setGroups] = useState([]);
 
@@ -108,14 +109,16 @@ export default function AdminMapData() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: m }, { data: g }] = await Promise.all([
+      const [{ data: c }, { data: m }, { data: g }] = await Promise.all([
+        supabase.from("clients").select("id,name").eq("id", clientId).single(),
         supabase.from("maps").select("id,name").eq("id", mapId).single(),
         supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
       ]);
+      setClient(c ?? null);
       setMap(m ?? null);
       setGroups(g ?? []);
     })();
-  }, [mapId]);
+  }, [clientId, mapId]);
 
   async function refreshSheetStatus() {
     try {
@@ -454,7 +457,12 @@ const objs = raw.slice(1).map((row) => {
 
   return (
     <AdminLayout
-      title={`Admin · ${map?.name ?? "Map"} · Data`}
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+        { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
+        { label: "Data" },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out

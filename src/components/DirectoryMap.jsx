@@ -15,7 +15,32 @@ function clusterIconDataUrl(color) {
 }
 
 const MAP_TYPE_IDS = ["roadmap", "satellite", "hybrid", "terrain"];
-const CUSTOM_ROADMAP_IDS = ["roadmap_silver", "roadmap_dark"];
+const CUSTOM_ROADMAP_IDS = ["roadmap_silver", "roadmap_dark", "roadmap_muted"];
+
+/** Styled roadmap: muted / illustrated (light beige land, light blue water, clean borders – Eastern Europe atlas style) */
+const ROADMAP_MUTED_STYLES = [
+  { elementType: "geometry", stylers: [{ color: "#e8e2d5" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f0" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#8b8680" }, { weight: 1 }] },
+  { featureType: "administrative.land_parcel", elementType: "geometry.stroke", stylers: [{ color: "#d4cfc4" }] },
+  { featureType: "administrative.land_parcel", elementType: "labels.text.fill", stylers: [{ color: "#9a958a" }] },
+  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#e0dac8" }] },
+  { featureType: "landscape.natural.terrain", elementType: "geometry", stylers: [{ color: "#d8d2be" }] },
+  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#e0dac8" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#5c5c5c" }] },
+  { featureType: "poi.park", elementType: "geometry.fill", stylers: [{ color: "#c9d9c4" }] },
+  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#4a5d48" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#f0ede6" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#f5f3eb" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#e8e0d0" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#d4cfc4" }] },
+  { featureType: "road.local", elementType: "geometry", stylers: [{ color: "#f5f3eb" }] },
+  { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#7a756b" }] },
+  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#e0dac8" }] },
+  { featureType: "water", elementType: "geometry.fill", stylers: [{ color: "#b8d4e3" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#6b7d85" }] },
+];
 
 /** Styled roadmap: silver/light (beige, muted) */
 const ROADMAP_SILVER_STYLES = [
@@ -69,8 +94,10 @@ function registerCustomMapTypes(map) {
   if (map.mapTypes.get("roadmap_silver")) return;
   const silver = new window.google.maps.StyledMapType(ROADMAP_SILVER_STYLES, { name: "Roadmap (Silver)" });
   const dark = new window.google.maps.StyledMapType(ROADMAP_DARK_STYLES, { name: "Roadmap (Dark)" });
+  const muted = new window.google.maps.StyledMapType(ROADMAP_MUTED_STYLES, { name: "Roadmap (Muted)" });
   map.mapTypes.set("roadmap_silver", silver);
   map.mapTypes.set("roadmap_dark", dark);
+  map.mapTypes.set("roadmap_muted", muted);
 }
 
 export default function DirectoryMap({

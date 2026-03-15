@@ -38,6 +38,11 @@ export default function EmbedMap() {
   const [selectedMarkerPoint, setSelectedMarkerPoint] = useState(null);
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
   const pinOverlayRef = useRef(null);
+  const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", message: "" });
+  const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
+  const [contactFormSent, setContactFormSent] = useState(false);
+  const [contactFormError, setContactFormError] = useState("");
 
   useLayoutEffect(() => {
     if (!selectedMarkerPoint || !pinOverlayRef.current) return;
@@ -218,20 +223,29 @@ export default function EmbedMap() {
   if (!apiKey) return <div style={{ padding: 16 }}>Missing VITE_GOOGLE_MAPS_API_KEY</div>;
 
   const primaryColor = effectiveDefaults.markerColor || "#4A9BAA";
-  const buttonColor = (() => {
+  const theme = (() => {
     try {
-      const t =
-        typeof effectiveDefaults.themeSource === "string"
-          ? JSON.parse(effectiveDefaults.themeSource || "{}")
-          : effectiveDefaults.themeSource || {};
-      return (t.buttonColor && String(t.buttonColor).trim()) || primaryColor;
+      return typeof effectiveDefaults.themeSource === "string"
+        ? JSON.parse(effectiveDefaults.themeSource || "{}")
+        : effectiveDefaults.themeSource || {};
     } catch (_) {
-      return primaryColor;
+      return {};
     }
   })();
+  const buttonColor = (theme.buttonColor && String(theme.buttonColor).trim()) || primaryColor;
+  const panelLinkColor = (theme.panelLinkColor && String(theme.panelLinkColor).trim()) || primaryColor;
+  const panelBgHex = (theme.panelBackgroundColor && String(theme.panelBackgroundColor).trim()) || "#e4f0ff";
+  const panelBgOpacity = Math.max(0, Math.min(1, Number(theme.panelBackgroundOpacity) ?? 0.88));
+  const hexToRgba = (hex, a) => {
+    const m = hex.replace(/^#/, "").match(/.{2}/g);
+    if (!m) return `rgba(228, 240, 255, ${a})`;
+    const [r, g, b] = m.map((x) => parseInt(x, 16));
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  const panelBg = hexToRgba(panelBgHex, panelBgOpacity);
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative", ["--panel-bg"]: panelBg, ["--panel-link"]: panelLinkColor }}>
       <DirectoryMap
         apiKey={apiKey}
         center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
@@ -276,7 +290,7 @@ export default function EmbedMap() {
               typeof effectiveDefaults.themeSource === "string"
                 ? JSON.parse(effectiveDefaults.themeSource || "{}")
                 : effectiveDefaults.themeSource || {};
-            return Math.max(0, Math.min(5, Number(t.pinBorderSize) ?? 0));
+            return Math.max(0, Math.min(15, Number(t.pinBorderSize) ?? 0));
           } catch (_) {
             return 0;
           }
@@ -445,7 +459,7 @@ export default function EmbedMap() {
               <div className="map-pin-overlay__logo-placeholder">Logo</div>
             )}
           </div>
-          <div className="map-pin-overlay__body" style={{ background: "rgba(255, 255, 255, 0.9)" }}>
+          <div className="map-pin-overlay__body">
             <h3 className="map-pin-overlay__name">{selectedListing.name || "—"}</h3>
             {selectedListing.address ? (
               <p className="map-pin-overlay__row map-pin-overlay__address">
@@ -470,41 +484,111 @@ export default function EmbedMap() {
                 {selectedListing.phone}
               </p>
             ) : null}
-            {selectedListing.website_url ? (
-              <p className="map-pin-overlay__row">
-                <a
-                  href={
-                    selectedListing.website_url.startsWith("http")
-                      ? selectedListing.website_url
-                      : `https://${selectedListing.website_url}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Website: {selectedListing.website_url}
-                </a>
-              </p>
-            ) : null}
-            {selectedListing.website_url ? (
-              <div className="map-pin-overlay__actions">
-                <a
-                  href={
-                    selectedListing.website_url.startsWith("http")
-                      ? selectedListing.website_url
-                      : `https://${selectedListing.website_url}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="map-pin-overlay__visit-btn"
-                  style={{ backgroundColor: buttonColor }}
-                >
-                  Visit website
-                </a>
+            <div className="map-pin-overlay__actions" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {selectedListing.website_url ? (
+                  <a
+                    href={
+                      selectedListing.website_url.startsWith("http")
+                        ? selectedListing.website_url
+                        : `https://${selectedListing.website_url}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="map-pin-overlay__visit-btn"
+                    style={{ backgroundColor: buttonColor }}
+                  >
+                    Visit website
+                  </a>
+                ) : null}
+                {selectedListing.email ? (
+                  <button
+                    type="button"
+                    className="map-pin-overlay__visit-btn"
+                    style={{ backgroundColor: buttonColor }}
+                    onClick={() => {
+                      setMessageDrawerOpen(true);
+                      setContactFormSent(false);
+                      setContactFormError("");
+                    }}
+                  >
+                    Send message
+                  </button>
+                ) : null}
               </div>
-            ) : null}
+            </div>
           </div>
+        ) : null}
+
+      {/* Message drawer */}
+      <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen}>
+        <div className="embed-message-drawer__backdrop" onClick={() => setMessageDrawerOpen(false)} aria-label="Close" />
+        <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
+          <div className="embed-message-drawer__header">
+            <h3 className="embed-message-drawer__title">Send message</h3>
+            <button type="button" className="embed-message-drawer__close" onClick={() => setMessageDrawerOpen(false)} aria-label="Close">×</button>
+          </div>
+          {selectedListing ? (
+            <p className="embed-message-drawer__to">To: {selectedListing.name || "—"}</p>
+          ) : null}
+          {contactFormSent ? (
+            <div className="embed-message-drawer__success">
+              <p>Your message has been sent. A copy has been emailed to you.</p>
+              <button type="button" className="btn btn-primary" onClick={() => { setMessageDrawerOpen(false); setContactFormSent(false); }}>Close</button>
+            </div>
+          ) : (
+            <form
+              className="embed-message-drawer__form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!selectedListing?.email) return;
+                setContactFormError("");
+                setContactFormSubmitting(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("send_contact_message", {
+                    body: {
+                      toEmail: selectedListing.email,
+                      listingName: selectedListing.name || "",
+                      senderName: (contactForm.name || "").trim(),
+                      senderEmail: (contactForm.email || "").trim(),
+                      senderPhone: (contactForm.phone || "").trim(),
+                      message: (contactForm.message || "").trim(),
+                    },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  setContactFormSent(true);
+                  setContactForm({ name: "", email: "", phone: "", message: "" });
+                } catch (err) {
+                  setContactFormError(err?.message ?? "Failed to send message. Try again.");
+                } finally {
+                  setContactFormSubmitting(false);
+                }
+              }}
+            >
+              <label className="embed-message-drawer__label">
+                <span>Name</span>
+                <input type="text" value={contactForm.name} onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))} placeholder="Your name" />
+              </label>
+              <label className="embed-message-drawer__label">
+                <span>Email</span>
+                <input type="email" value={contactForm.email} onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))} placeholder="your@email.com" required />
+              </label>
+              <label className="embed-message-drawer__label">
+                <span>Phone</span>
+                <input type="tel" value={contactForm.phone} onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Optional" />
+              </label>
+              <label className="embed-message-drawer__label">
+                <span>Message</span>
+                <textarea value={contactForm.message} onChange={(e) => setContactForm((f) => ({ ...f, message: e.target.value }))} placeholder="Your message…" rows={4} required />
+              </label>
+              {contactFormError ? <p className="embed-message-drawer__error">{contactFormError}</p> : null}
+              <button type="submit" className="btn btn-primary" disabled={contactFormSubmitting} style={{ marginTop: 8 }}>
+                {contactFormSubmitting ? "Sending…" : "Send message"}
+              </button>
+            </form>
+          )}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

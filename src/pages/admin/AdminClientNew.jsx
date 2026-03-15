@@ -36,7 +36,7 @@ export default function AdminClientNew() {
     const email = contactEmail.trim();
     const contactNameTrimmed = contactName.trim();
 
-    if (!cleanName) return setErr("Client name is required.");
+    if (!cleanName) return setErr("Customer name is required.");
     if (!cleanSlug) return setErr("Slug is required.");
     if (!email) return setErr("Primary contact email is required.");
 
@@ -70,7 +70,10 @@ export default function AdminClientNew() {
 
   return (
     <AdminLayout
-      title="Admin · New client"
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: "New customer" },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -79,14 +82,14 @@ export default function AdminClientNew() {
     >
       <div className="admin-card" style={{ maxWidth: 720 }}>
         <div style={{ marginBottom: 12 }}>
-          <Link to="/admin/clients">← Back to clients</Link>
+          <Link to="/admin/clients">← Back to customers</Link>
         </div>
 
-        <h2 style={{ marginTop: 0 }}>Create client</h2>
+        <h2 style={{ marginTop: 0 }}>Create customer</h2>
 
         <form onSubmit={createClient}>
           <div style={{ display: "grid", gap: 14 }}>
-            <Field label="Client name">
+            <Field label="Customer name">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -134,7 +137,7 @@ export default function AdminClientNew() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <button className="btn btn-primary" type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create client"}
+                {saving ? "Creating…" : "Create customer"}
               </button>
 
               <Link className="btn" to="/admin/clients">

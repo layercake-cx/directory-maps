@@ -41,6 +41,7 @@ async function geocodeViaServer(supabaseClient, address) {
 export default function AdminMapListings() {
   const { clientId, mapId } = useParams();
 
+  const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
   const [groups, setGroups] = useState([]);
   const [rows, setRows] = useState([]);
@@ -59,8 +60,9 @@ export default function AdminMapListings() {
       setLoading(true);
       setErr("");
 
-      const [{ data: m, error: me }, { data: g, error: ge }, { data: l, error: le }] =
+      const [{ data: c }, { data: m, error: me }, { data: g, error: ge }, { data: l, error: le }] =
         await Promise.all([
+          supabase.from("clients").select("id,name").eq("id", clientId).single(),
           supabase.from("maps").select("id,name,client_id").eq("id", mapId).single(),
           supabase
             .from("groups")
@@ -78,11 +80,12 @@ export default function AdminMapListings() {
       if (ge) throw ge;
       if (le) throw le;
 
-      // sanity: map belongs to this client
+      // sanity: map belongs to this customer
       if (m.client_id !== clientId) {
-        throw new Error("This map does not belong to the selected client.");
+        throw new Error("This map does not belong to the selected customer.");
       }
 
+      setClient(c ?? null);
       setMap(m);
       setGroups(g ?? []);
       setRows(l ?? []);
@@ -207,7 +210,12 @@ export default function AdminMapListings() {
 
   return (
     <AdminLayout
-      title={`Admin · ${map?.name ?? "Map"} · Listings`}
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+        { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
+        { label: "Listings" },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out

@@ -138,7 +138,7 @@ export default function AdminClients() {
 
   return (
     <AdminLayout
-      title="Admin · Clients"
+      breadcrumbs={[{ label: "Customers" }]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -150,7 +150,7 @@ export default function AdminClients() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search client name, slug, id…"
+            placeholder="Search customer name, slug, id…"
           />
 
           <button className="btn" onClick={load} type="button">
@@ -158,7 +158,7 @@ export default function AdminClients() {
           </button>
 
           <Link className="btn btn-primary" to="/admin/clients/new">
-            New client
+            New customer
           </Link>
         </div>
 
@@ -168,7 +168,7 @@ export default function AdminClients() {
         <table className="admin-table">
           <thead>
             <tr>
-              {["Client", "Slug", "Number of maps", "Primary contact", "Created", "Updated", ""].map((h) => (
+              {["Customer", "Slug", "Number of maps", "Primary contact", "Created", "Updated", ""].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -204,8 +204,8 @@ export default function AdminClients() {
                           <button
                             type="button"
                             className="admin-table__icon-btn"
-                            title="Impersonate client in portal"
-                            aria-label={`Impersonate client ${r.name}`}
+                            title="Impersonate customer in portal"
+                            aria-label={`Impersonate customer ${r.name}`}
                             onClick={() => {
                               const ok = window.confirm(`Are you sure you wish to impersonate ${r.name}?`);
                               if (!ok) return;
@@ -243,8 +243,8 @@ export default function AdminClients() {
                           setClientToDelete({ id: r.id, name: r.name });
                           setDeleteConfirmText("");
                         }}
-                        title="Delete client"
-                        aria-label={`Delete client ${r.name}`}
+                        title="Delete customer"
+                        aria-label={`Delete customer ${r.name}`}
                       >
                         {TRASH_ICON}
                       </button>
@@ -258,11 +258,11 @@ export default function AdminClients() {
       </div>
 
       {clientToDelete ? (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-client-title">
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-customer-title">
           <div className="admin-modal">
-            <h2 id="delete-client-title" className="admin-modal__title">Delete client</h2>
+            <h2 id="delete-customer-title" className="admin-modal__title">Delete customer</h2>
             <p className="admin-modal__message">
-              Are you sure you want to permanently delete the client &quot;{clientToDelete.name}&quot;? This cannot be undone.
+              Are you sure you want to permanently delete the customer &quot;{clientToDelete.name}&quot;? This cannot be undone.
             </p>
             <p className="admin-modal__hint">Type <strong>delete</strong> below to confirm.</p>
             <input

@@ -13,9 +13,11 @@ export default function ClientGate({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    async function run() {
+    async function run(isInitial) {
       try {
-        setState((s) => ({ ...s, loading: true, error: "" }));
+        if (isInitial) {
+          setState((s) => ({ ...s, loading: true, error: "" }));
+        }
 
         const { data } = await supabase.auth.getUser();
         const user = data?.user;
@@ -38,8 +40,10 @@ export default function ClientGate({ children }) {
       }
     }
 
-    run();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => run());
+    run(true);
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      run(false);
+    });
 
     return () => {
       mounted = false;
