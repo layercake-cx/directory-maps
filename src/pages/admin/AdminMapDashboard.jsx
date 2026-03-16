@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
-import DirectoryMap from "../../components/DirectoryMap.jsx";
+import PublishedMapView from "../../components/PublishedMapView.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl } from "../../lib/markerIcons";
 
-const TABS = ["detail", "design", "data", "groups", "publish"];
+const TABS = ["detail", "design", "data", "groups", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -109,6 +109,8 @@ export default function AdminMapDashboard() {
   const [defaultLng, setDefaultLng] = useState("");
   const [defaultZoom, setDefaultZoom] = useState("");
   const [showListPanel, setShowListPanel] = useState(true);
+  const [showSearch, setShowSearch] = useState(true);
+  const [showGroupDropdowns, setShowGroupDropdowns] = useState(true);
   const [enableClustering, setEnableClustering] = useState(true);
   const [clusterRadius, setClusterRadius] = useState(80);
   const [markerStyle, setMarkerStyle] = useState("pin");
@@ -130,6 +132,7 @@ export default function AdminMapDashboard() {
   const [selectedListing, setSelectedListing] = useState(null);
   const [selectedMarkerPoint, setSelectedMarkerPoint] = useState(null);
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
+  const [centerOnListingId, setCenterOnListingId] = useState(null);
   const pinOverlayRef = useRef(null);
   const [publishedConfig, setPublishedConfig] = useState(null);
   const [publishedAt, setPublishedAt] = useState(null);
@@ -268,6 +271,8 @@ export default function AdminMapDashboard() {
             setPanelBackgroundColor(theme.panelBackgroundColor ?? "#e4f0ff");
             setPanelBackgroundOpacity(theme.panelBackgroundOpacity ?? 0.88);
             setPanelLinkColor(theme.panelLinkColor ?? "#4A9BAA");
+            setShowSearch(theme.showSearch !== false);
+            setShowGroupDropdowns(theme.showGroupDropdowns !== false);
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -375,6 +380,8 @@ export default function AdminMapDashboard() {
           panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
           panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
           panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+          showSearch,
+          showGroupDropdowns,
         };
         const payloadBase = {
           name: cleanName,
@@ -501,11 +508,13 @@ export default function AdminMapDashboard() {
           panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
           panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
           panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+          showSearch,
+          showGroupDropdowns,
         };
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelLinkColor],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, showSearch, showGroupDropdowns, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelLinkColor],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -513,6 +522,20 @@ export default function AdminMapDashboard() {
     const b = publishedConfig || null;
     return JSON.stringify(a) !== JSON.stringify(b);
   }, [currentPublishConfig, publishedConfig]);
+
+  const editTheme = useMemo(() => {
+    const hex = (panelBackgroundColor || "#e4f0ff").trim().replace(/^#/, "");
+    const m = hex.match(/.{2}/g);
+    const r = m ? parseInt(m[0], 16) : 228;
+    const g = m ? parseInt(m[1], 16) : 240;
+    const b = m ? parseInt(m[2], 16) : 255;
+    const a = Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88));
+    return {
+      panelBg: `rgba(${r},${g},${b},${a})`,
+      panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+      buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+    };
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor]);
 
   async function publishMap() {
     if (!map) return;
@@ -722,9 +745,65 @@ export default function AdminMapDashboard() {
       }
     >
       <div className="admin-map-page">
-        <div className="admin-map-page__toolbar">
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
-          <div className="admin-map-page__toolbar-tabs">
+        <div className="admin-map-page__map-wrap">
+          {overlayTab ? (
+            <div
+              className="admin-map-overlay__backdrop"
+              onClick={closeOverlay}
+              onKeyDown={(e) => e.key === "Escape" && closeOverlay()}
+              aria-label="Close panel"
+              role="button"
+              tabIndex={0}
+            />
+          ) : null}
+          {apiKey ? (
+            <PublishedMapView
+              apiKey={apiKey}
+              center={mapCenter}
+              zoom={Number(defaultZoom) || 10}
+              mapTypeId={mapTypeId}
+              listings={listings}
+              groups={groups}
+              showListPanel={showListPanel}
+              showSearch={showSearch}
+              showGroupDropdowns={showGroupDropdowns}
+              enableClustering={enableClustering}
+              clusterRadius={clusterRadius}
+              markerStyle={markerStyle}
+              markerColor={markerColor}
+              customPinUrl={markerStyle === "custom" && customPinUrl ? customPinUrl : null}
+              clusterColor={clusterColor}
+              pinBorderColor={pinBorderColor}
+              pinBorderSize={pinBorderSize}
+              pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
+              theme={editTheme}
+              selectedListing={selectedListing}
+              selectedMarkerPoint={selectedMarkerPoint}
+              clampedPanelPosition={clampedPanelPosition}
+              setClampedPanelPosition={setClampedPanelPosition}
+              pinOverlayRef={pinOverlayRef}
+              onSelectMarker={(listing, point) => {
+                setSelectedListing(listing);
+                setSelectedMarkerPoint(point ?? null);
+                setClampedPanelPosition(null);
+              }}
+              onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
+              centerOnListingId={centerOnListingId}
+              setCenterOnListingId={setCenterOnListingId}
+              showSendMessage={false}
+              height="100%"
+              listingsWithColor={listingsWithColor}
+            />
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
+              Set VITE_GOOGLE_MAPS_API_KEY to show the map.
+            </div>
+          )}
+        </div>
+
+        <div className="admin-map-page__right">
+          <div className="admin-map-page__controls">
+            <h2 className="admin-map-page__controls-title">Map Settings</h2>
             {TABS.map((t) => (
               <button
                 key={t}
@@ -732,138 +811,59 @@ export default function AdminMapDashboard() {
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
-          </div>
-          {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
-          <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
-            <button
-              type="button"
-              className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
-              onClick={() => setMapOptionsOpen((o) => !o)}
-              aria-expanded={mapOptionsOpen}
-              aria-haspopup="true"
-            >
-              Map options
-            </button>
-            {mapOptionsOpen && (
-              <div className="admin-map-page__map-options-panel" role="menu">
-                {MAP_TYPES.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={mapTypeId === id}
-                    className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
-                    onClick={() => {
-                      setMapTypeId(id);
-                      setMapOptionsOpen(false);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button className="btn btn-primary" type="button" onClick={openEmbed}>
-            Launch map
-          </button>
-          <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/listings`}>
-            Listings
-          </Link>
-        </div>
-
-        <div className="admin-map-page__map-wrap">
-          {apiKey ? (
-            <DirectoryMap
-              apiKey={apiKey}
-              center={mapCenter}
-              zoom={Number(defaultZoom) || 10}
-              mapTypeId={mapTypeId}
-              listings={listingsWithColor}
-              onSelect={(listing, point) => {
-                setSelectedListing(listing);
-                setSelectedMarkerPoint(point ?? null);
-                setClampedPanelPosition(null);
-              }}
-              defaultMarkerColor={markerColor}
-              markerStyle={markerStyle}
-              customMarkerIconUrl={markerStyle === "custom" && customPinUrl ? customPinUrl : null}
-              height="100%"
-              enableClustering={enableClustering}
-              clusterRadius={clusterRadius}
-              clusterColor={clusterColor}
-              pinBorderColor={pinBorderColor}
-              pinBorderSize={pinBorderSize}
-              pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
-            />
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
-              Set VITE_GOOGLE_MAPS_API_KEY to show the map.
+            <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
+              <button
+                type="button"
+                className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
+                onClick={() => setMapOptionsOpen((o) => !o)}
+                aria-expanded={mapOptionsOpen}
+                aria-haspopup="true"
+              >
+                Map type
+              </button>
+              {mapOptionsOpen && (
+                <div className="admin-map-page__map-options-panel" role="menu">
+                  {MAP_TYPES.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={mapTypeId === id}
+                      className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
+                      onClick={() => {
+                        setMapTypeId(id);
+                        setMapOptionsOpen(false);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-
-          {selectedListing ? (
-            <div
-              ref={pinOverlayRef}
-              className="admin-map-pin-overlay"
-              role="dialog"
-              aria-label="Listing details"
-              style={
-                selectedMarkerPoint
-                  ? {
-                      left: "auto",
-                      right: clampedPanelPosition?.right ?? 0,
-                      top: clampedPanelPosition?.top ?? selectedMarkerPoint.y,
-                      bottom: "auto",
-                      transform: clampedPanelPosition != null ? "none" : "translateY(-50%)",
-                      maxWidth: "min(320px, calc(100% - 24px))",
-                    }
-                  : undefined
-              }
-            >
-              <button type="button" className="admin-map-pin-overlay__close" onClick={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }} aria-label="Close">×</button>
-              <div className="admin-map-pin-overlay__body">
-                {selectedListing.logo_url ? (
-                  <LogoImage
-                    src={selectedListing.logo_url}
-                    wrapClassName="admin-map-pin-overlay__image-wrap"
-                    imgClassName="admin-map-pin-overlay__image"
-                    maxWidth={280}
-                    maxHeight={80}
-                  />
-                ) : null}
-                <h3 className="admin-map-pin-overlay__name">{selectedListing.name || "—"}</h3>
-                {selectedListing.website_url ? (
-                  <div className="admin-map-pin-overlay__actions" style={{ marginTop: 8 }}>
-                    <a href={selectedListing.website_url.startsWith("http") ? selectedListing.website_url : `https://${selectedListing.website_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Visit website</a>
-                  </div>
-                ) : null}
-                {selectedListing.email ? (
-                  <p className="admin-map-pin-overlay__row">
-                    <a href={`mailto:${selectedListing.email}`}>{selectedListing.email}</a>
-                  </p>
-                ) : null}
-                {selectedListing.phone ? (
-                  <p className="admin-map-pin-overlay__row">{selectedListing.phone}</p>
-                ) : null}
-              </div>
+            <div className="admin-map-page__controls-footer">
+              <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
+                Launch map
+              </button>
+              <Link to={`/admin/clients/${encodeURIComponent(clientId)}`} className="admin-map-page__control-btn">
+                Exit
+              </Link>
+              {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
             </div>
-          ) : null}
-        </div>
+          </div>
 
-        {/* Overlay */}
-        <div
-          className={`admin-map-overlay ${overlayTab ? "is-open" : ""}`}
-          aria-hidden={!overlayTab}
-        >
-          <div className="admin-map-overlay__backdrop" onClick={closeOverlay} aria-label="Close overlay" />
-          <div className="admin-map-overlay__panel" role="dialog" aria-label={overlayTab ? `${overlayTab} settings` : ""}>
+          <div
+            className={`admin-map-overlay__panel ${overlayTab ? "admin-map-overlay__panel--open" : ""}`}
+            role="dialog"
+            aria-label={overlayTab ? `${overlayTab} settings` : ""}
+            aria-hidden={!overlayTab}
+          >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1) : ""}
+                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×
@@ -1202,6 +1202,25 @@ export default function AdminMapDashboard() {
                     </button>
                     <button className="btn" type="button" onClick={openEmbed}>
                       Launch map
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {overlayTab === "search" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Control what appears in the list panel when the map is published.</p>
+                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={showSearch} onChange={(e) => setShowSearch(e.target.checked)} />
+                    Show search bar
+                  </label>
+                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={showGroupDropdowns} onChange={(e) => setShowGroupDropdowns(e.target.checked)} />
+                    Show group dropdowns
+                  </label>
+                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                    <button className="btn btn-primary" type="button" onClick={() => saveMap()} disabled={saving}>
+                      {saving ? "Saving…" : "Save"}
                     </button>
                   </div>
                 </div>

@@ -440,9 +440,23 @@ const objs = raw.slice(1).map((row) => {
         }
       }
 
+      // Only send columns that exist on listings (avoids schema errors; requires migration 20250202000000 for geocoded_at)
+      const LISTING_UPSERT_KEYS = [
+        "id", "map_id", "group_id", "name", "address", "postcode", "country", "city",
+        "lat", "lng", "is_active", "website_url", "email", "phone", "logo_url", "notes_html",
+        "allow_html", "geocode_status", "geocoded_at",
+      ];
+      const toUpsert = cleaned.map((row) => {
+        const out = {};
+        for (const key of LISTING_UPSERT_KEYS) {
+          if (Object.prototype.hasOwnProperty.call(row, key)) out[key] = row[key];
+        }
+        return out;
+      });
+
       const { data, error, status } = await supabase
         .from("listings")
-        .upsert(cleaned, { onConflict: "id" })
+        .upsert(toUpsert, { onConflict: "id" })
         .select("id");
 
       if (error) throw new Error(`Upsert failed (${status}): ${error.message}`);

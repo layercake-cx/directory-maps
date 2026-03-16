@@ -1,13 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import BrandLogo from "../../components/BrandLogo.jsx";
 import "./admin.css";
-
-import logo from "../../assets/layercake-logo.png"; // <- adjust filename if needed
 
 const ADMIN_NAV = [
   { label: "Customers", path: "/admin/clients" },
   { label: "Maps", path: "/admin/maps" },
   { label: "Admin Users", path: "/admin/users" },
+  { label: "Deployments", path: "/admin/deployments", superadmin: true },
 ];
 
 export default function AdminLayout({ rightActions, children, mainClassName = "", breadcrumbs = [] }) {
@@ -18,10 +18,7 @@ export default function AdminLayout({ rightActions, children, mainClassName = ""
     <div className="admin-shell">
       <header className="admin-header">
         <div className="admin-header__inner">
-          <div className="admin-brand">
-            <img src={logo} alt="Layercake" />
-            <div className="admin-title">Maps Admin</div>
-          </div>
+          <BrandLogo to="/admin" className="admin-brand" />
 
           <div className="admin-actions">
             {rightActions}
@@ -31,14 +28,14 @@ export default function AdminLayout({ rightActions, children, mainClassName = ""
 
       <nav className="admin-nav" aria-label="Admin sections">
         <div className="admin-nav__inner">
-          {ADMIN_NAV.map(({ label, path }) => {
+          {ADMIN_NAV.map(({ label, path, superadmin }) => {
             const href = path.startsWith("/") ? path : `/admin${path === "/" ? "" : path}`;
             const isActive = pathname === href || (pathname.startsWith(href + "/"));
             return (
               <Link
                 key={href}
                 to={href}
-                className={`admin-nav__link ${isActive ? "admin-nav__link--active" : ""}`}
+                className={`admin-nav__link ${isActive ? "admin-nav__link--active" : ""} ${superadmin ? "admin-nav__link--superadmin" : ""}`}
               >
                 {label}
               </Link>

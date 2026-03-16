@@ -21,6 +21,7 @@ import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
 import AdminMaps from "./pages/admin/AdminMaps.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
+import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
 
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
@@ -186,6 +187,15 @@ export default function App() {
         element={
           <AdminGate>
             <AdminUsers />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/deployments"
+        element={
+          <AdminGate>
+            <AdminDeployments />
           </AdminGate>
         }
       />

@@ -1,23 +1,7 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import DirectoryMap from "../components/DirectoryMap.jsx";
-import LogoImage from "../components/LogoImage.jsx";
-
-function buildSearchIndex(listing, groupName = "") {
-  const parts = [
-    listing.name,
-    listing.email,
-    listing.phone,
-    listing.website_url,
-    listing.address,
-    listing.postcode,
-    listing.country,
-    listing.city,
-    groupName,
-  ].filter(Boolean);
-  return parts.join(" ").toLowerCase();
-}
+import PublishedMapView from "../components/PublishedMapView.jsx";
 
 export default function EmbedMap() {
   const [params] = useSearchParams();
@@ -32,9 +16,6 @@ export default function EmbedMap() {
   const [groups, setGroups] = useState([]);
   const [selectedListing, setSelectedListing] = useState(null);
   const [centerOnListingId, setCenterOnListingId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [openGroupIds, setOpenGroupIds] = useState(new Set());
   const [selectedMarkerPoint, setSelectedMarkerPoint] = useState(null);
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
   const pinOverlayRef = useRef(null);
@@ -43,23 +24,6 @@ export default function EmbedMap() {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
-
-  useLayoutEffect(() => {
-    if (!selectedMarkerPoint || !pinOverlayRef.current) return;
-    const el = pinOverlayRef.current;
-    const parent = el.offsetParent;
-    if (!parent) return;
-    const pad = 12;
-    const containerW = parent.clientWidth;
-    const containerH = parent.clientHeight;
-    const panelH = el.offsetHeight;
-    const centerY = selectedMarkerPoint.y;
-    const idealTop = centerY - panelH / 2;
-    const top = Math.max(pad, Math.min(idealTop, containerH - panelH - pad));
-    const gap = 31;
-    const right = containerW - selectedMarkerPoint.x + gap;
-    setClampedPanelPosition({ top, right });
-  }, [selectedMarkerPoint, selectedListing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,65 +87,6 @@ export default function EmbedMap() {
     };
   }, [mapId]);
 
-  const groupNameById = useMemo(() => {
-    const m = new Map();
-    groups.forEach((gr) => m.set(gr.id, gr.name || ""));
-    return m;
-  }, [groups]);
-
-  const searchIndex = useMemo(() => {
-    return (listings || []).map((listing) => ({
-      listing,
-      searchText: buildSearchIndex(listing, groupNameById.get(listing.group_id) || ""),
-    }));
-  }, [listings, groupNameById]);
-
-  const suggestions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return searchIndex
-      .filter(({ searchText }) => searchText.includes(q))
-      .map(({ listing }) => listing)
-      .slice(0, 10);
-  }, [searchIndex, searchQuery]);
-
-  const listingsByGroup = useMemo(() => {
-    const active = (listings || []).filter((l) => l.is_active !== false);
-    const byGroup = new Map();
-    byGroup.set(null, []);
-    groups.forEach((gr) => byGroup.set(gr.id, []));
-    active.forEach((listing) => {
-      const key = listing.group_id ?? null;
-      if (!byGroup.has(key)) byGroup.set(key, []);
-      byGroup.get(key).push(listing);
-    });
-    groups.forEach((gr) => byGroup.get(gr.id)?.sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-    byGroup.get(null)?.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    return byGroup;
-  }, [listings, groups]);
-
-  function toggleGroup(id) {
-    setOpenGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function selectListing(listing) {
-    setSelectedListing(listing);
-    setCenterOnListingId(listing.id);
-    setSelectedMarkerPoint(null);
-    setClampedPanelPosition(null);
-    setSearchQuery("");
-  }
-
-  function zoomToSelectedAddress() {
-    if (!selectedListing) return;
-    setCenterOnListingId(selectedListing.id);
-  }
-
   const publishedConfig = useMemo(() => {
     if (!map?.published_config) return null;
     const raw = map.published_config;
@@ -243,281 +148,54 @@ export default function EmbedMap() {
     return `rgba(${r},${g},${b},${a})`;
   };
   const panelBg = hexToRgba(panelBgHex, panelBgOpacity);
+  const parsedTheme = (() => {
+    try {
+      return typeof effectiveDefaults.themeSource === "string"
+        ? JSON.parse(effectiveDefaults.themeSource || "{}")
+        : effectiveDefaults.themeSource || {};
+    } catch (_) {
+      return {};
+    }
+  })();
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative", ["--panel-bg"]: panelBg, ["--panel-link"]: panelLinkColor }}>
-      <DirectoryMap
+    <>
+      <PublishedMapView
         apiKey={apiKey}
         center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
         zoom={effectiveDefaults.zoom}
         listings={listings}
-        onSelect={(listing, point) => {
+        groups={groups}
+        showListPanel={effectiveDefaults.showListPanel}
+        showSearch={parsedTheme.showSearch !== false}
+        showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
+        enableClustering={effectiveDefaults.enableClustering}
+        clusterRadius={effectiveDefaults.clusterRadius}
+        markerStyle={effectiveDefaults.markerStyle}
+        markerColor={effectiveDefaults.markerColor}
+        customPinUrl={effectiveDefaults.customPinUrl}
+        clusterColor={parsedTheme.clusterColor || "#4A9BAA"}
+        pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
+        pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
+        pinFaviconUrl={(parsedTheme.pin_favicon_url && String(parsedTheme.pin_favicon_url).trim()) || null}
+        theme={{ panelBg, panelLinkColor, buttonColor }}
+        selectedListing={selectedListing}
+        selectedMarkerPoint={selectedMarkerPoint}
+        clampedPanelPosition={clampedPanelPosition}
+        setClampedPanelPosition={setClampedPanelPosition}
+        pinOverlayRef={pinOverlayRef}
+        onSelectMarker={(listing, point) => {
           setSelectedListing(listing);
           setSelectedMarkerPoint(point ?? null);
           setClampedPanelPosition(null);
         }}
+        onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
         centerOnListingId={centerOnListingId}
-        defaultMarkerColor={effectiveDefaults.markerColor}
-        markerStyle={effectiveDefaults.markerStyle}
-        customMarkerIconUrl={effectiveDefaults.customPinUrl}
-        enableClustering={effectiveDefaults.enableClustering}
-        clusterRadius={effectiveDefaults.clusterRadius}
-        clusterColor={(() => {
-          try {
-            const t =
-              typeof effectiveDefaults.themeSource === "string"
-                ? JSON.parse(effectiveDefaults.themeSource || "{}")
-                : effectiveDefaults.themeSource || {};
-            return t.clusterColor || "#4A9BAA";
-          } catch (_) {
-            return "#4A9BAA";
-          }
-        })()}
-        pinBorderColor={(() => {
-          try {
-            const t =
-              typeof effectiveDefaults.themeSource === "string"
-                ? JSON.parse(effectiveDefaults.themeSource || "{}")
-                : effectiveDefaults.themeSource || {};
-            return t.pinBorderColor || "#ffffff";
-          } catch (_) {
-            return "#ffffff";
-          }
-        })()}
-        pinBorderSize={(() => {
-          try {
-            const t =
-              typeof effectiveDefaults.themeSource === "string"
-                ? JSON.parse(effectiveDefaults.themeSource || "{}")
-                : effectiveDefaults.themeSource || {};
-            return Math.max(0, Math.min(15, Number(t.pinBorderSize) ?? 0));
-          } catch (_) {
-            return 0;
-          }
-        })()}
-        pinFaviconUrl={(() => {
-          try {
-            const t =
-              typeof effectiveDefaults.themeSource === "string"
-                ? JSON.parse(effectiveDefaults.themeSource || "{}")
-                : effectiveDefaults.themeSource || {};
-            const url = t.pin_favicon_url;
-            return url && typeof url === "string" ? url.trim() || null : null;
-          } catch (_) {
-            return null;
-          }
-        })()}
+        setCenterOnListingId={setCenterOnListingId}
+        showSendMessage={true}
+        onOpenSendMessage={() => { setMessageDrawerOpen(true); setContactFormSent(false); setContactFormError(""); }}
+        height="100vh"
       />
-
-      {effectiveDefaults.showListPanel && (
-        <div className="embed-list-panel">
-          <div className="embed-list-panel__search-wrap">
-            <input
-              type="text"
-              className="embed-list-panel__search"
-              placeholder="Search…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
-              aria-label="Search listings"
-            />
-            {searchFocused && suggestions.length > 0 && (
-              <ul className="embed-list-panel__suggestions" role="listbox">
-                {suggestions.map((listing) => (
-                  <li
-                    key={listing.id}
-                    className="embed-list-panel__suggestion"
-                    role="option"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectListing(listing);
-                    }}
-                  >
-                    {listing.name || "—"}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="embed-list-panel__groups">
-            {groups.map((gr) => {
-              const entries = listingsByGroup.get(gr.id) || [];
-              if (entries.length === 0) return null;
-              const isOpen = openGroupIds.has(gr.id);
-              return (
-                <div key={gr.id} className="embed-list-panel__group">
-                  <button
-                    type="button"
-                    className="embed-list-panel__group-head"
-                    onClick={() => toggleGroup(gr.id)}
-                    aria-expanded={isOpen}
-                  >
-                    <span className="embed-list-panel__group-name">{gr.name || "—"}</span>
-                    <span className="embed-list-panel__group-count">{entries.length}</span>
-                    <span className="embed-list-panel__group-chevron" aria-hidden>
-                      {isOpen ? "▼" : "▶"}
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <div className="embed-list-panel__group-body">
-                      <ul className="embed-list-panel__entries" role="list">
-                        {entries.map((listing) => (
-                          <li key={listing.id}>
-                            <button
-                              type="button"
-                              className="embed-list-panel__entry"
-                              onClick={() => selectListing(listing)}
-                            >
-                              {listing.name || "—"}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {(listingsByGroup.get(null) || []).length > 0 && (
-              <div className="embed-list-panel__group">
-                <button
-                  type="button"
-                  className="embed-list-panel__group-head"
-                  onClick={() => toggleGroup("ungrouped")}
-                  aria-expanded={openGroupIds.has("ungrouped")}
-                >
-                  <span className="embed-list-panel__group-name">Ungrouped</span>
-                  <span className="embed-list-panel__group-count">
-                    {(listingsByGroup.get(null) || []).length}
-                  </span>
-                  <span className="embed-list-panel__group-chevron" aria-hidden>
-                    {openGroupIds.has("ungrouped") ? "▼" : "▶"}
-                  </span>
-                </button>
-                {openGroupIds.has("ungrouped") && (
-                  <div className="embed-list-panel__group-body">
-                    <ul className="embed-list-panel__entries" role="list">
-                      {(listingsByGroup.get(null) || []).map((listing) => (
-                        <li key={listing.id}>
-                          <button
-                            type="button"
-                            className="embed-list-panel__entry"
-                            onClick={() => selectListing(listing)}
-                          >
-                            {listing.name || "—"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {selectedListing ? (
-        <div
-          ref={pinOverlayRef}
-          className="map-pin-overlay"
-          role="dialog"
-          aria-label="Listing details"
-          style={
-            selectedMarkerPoint
-              ? {
-                  left: "auto",
-                  right: clampedPanelPosition?.right ?? 0,
-                  top: clampedPanelPosition?.top ?? selectedMarkerPoint.y,
-                  bottom: "auto",
-                  transform: clampedPanelPosition != null ? "none" : "translateY(-50%)",
-                  maxWidth: "min(340px, calc(100% - 24px))",
-                }
-              : undefined
-          }
-        >
-          <button
-            type="button"
-            className="map-pin-overlay__close"
-            onClick={() => setSelectedListing(null)}
-            aria-label="Close"
-          >
-            ×
-          </button>
-          <div className="map-pin-overlay__logo">
-            {selectedListing.logo_url ? (
-              <LogoImage
-                src={selectedListing.logo_url}
-                wrapClassName="map-pin-overlay__image-wrap"
-                imgClassName="map-pin-overlay__image"
-                maxWidth={280}
-                maxHeight={90}
-              />
-            ) : (
-              <div className="map-pin-overlay__logo-placeholder">Logo</div>
-            )}
-          </div>
-          <div className="map-pin-overlay__body">
-            <h3 className="map-pin-overlay__name">{selectedListing.name || "—"}</h3>
-            {selectedListing.address ? (
-              <p className="map-pin-overlay__row map-pin-overlay__address">
-                <button
-                  type="button"
-                  className="map-pin-overlay__address-btn"
-                  onClick={zoomToSelectedAddress}
-                >
-                  {selectedListing.address}
-                </button>
-              </p>
-            ) : null}
-            {selectedListing.email ? (
-              <p className="map-pin-overlay__row">
-                <span>Email: </span>
-                <a href={`mailto:${selectedListing.email}`}>{selectedListing.email}</a>
-              </p>
-            ) : null}
-            {selectedListing.phone ? (
-              <p className="map-pin-overlay__row">
-                <span>Phone: </span>
-                {selectedListing.phone}
-              </p>
-            ) : null}
-            <div className="map-pin-overlay__actions" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {selectedListing.website_url ? (
-                  <a
-                    href={
-                      selectedListing.website_url.startsWith("http")
-                        ? selectedListing.website_url
-                        : `https://${selectedListing.website_url}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="map-pin-overlay__visit-btn"
-                    style={{ backgroundColor: buttonColor }}
-                  >
-                    Visit website
-                  </a>
-                ) : null}
-                {selectedListing.email ? (
-                  <button
-                    type="button"
-                    className="map-pin-overlay__visit-btn"
-                    style={{ backgroundColor: buttonColor }}
-                    onClick={() => {
-                      setMessageDrawerOpen(true);
-                      setContactFormSent(false);
-                      setContactFormError("");
-                    }}
-                  >
-                    Send message
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
 
       {/* Message drawer */}
       <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen}>
@@ -589,6 +267,6 @@ export default function EmbedMap() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:test": "./scripts/deploy-to-test.sh",
+    "deploy:live": "./scripts/deploy-live.sh"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.4",

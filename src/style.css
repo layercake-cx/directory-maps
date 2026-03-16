@@ -65,25 +65,14 @@ a:hover {
   color: inherit;
 }
 
-.site-header__logoImg {
-  height: 34px;
-  width: auto;
-  display: block;
-}
-
-.site-header__text {
-  display: flex;
-  flex-direction: column;
-}
-
-.site-header__title {
+.site-header__brand .brand-logo__word {
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
 }
-
-.site-header__subtitle {
-  font-size: 12px;
-  opacity: 0.85;
+.site-header__brand .brand-logo__by {
+  font-size: 17px;
+  font-weight: 400;
+  font-style: italic;
 }
 
 .site-header__nav {
@@ -149,6 +138,46 @@ a:hover {
 }
 .client-tabs__panel--active {
   display: block;
+}
+
+/* Client dashboard header (brand + title + actions) */
+.client-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.client-dashboard-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.client-dashboard-header__brand:hover {
+  opacity: 0.9;
+}
+.client-dashboard-header__logo {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+.client-dashboard-header__brand .brand-logo__word {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--brand-teal);
+}
+.client-dashboard-header__brand .brand-logo__by {
+  font-size: 17px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--brand-teal);
+}
+.client-dashboard-header__main {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Pin detail overlay (embed map – when a listing marker is clicked) */
@@ -842,6 +871,53 @@ a:hover {
 
 .auth-page__footer a:hover {
   text-decoration: underline;
+}
+
+/* Layout root: flex column so footer can sit at bottom */
+.layout-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Site footer (black bar, logo, legal) */
+.site-footer {
+  background: #0d0d0d;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: auto;
+  padding: 28px 16px 32px;
+}
+.site-footer__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+.site-footer__logo-wrap {
+  flex-shrink: 0;
+}
+.site-footer__logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  opacity: 0.95;
+}
+.site-footer__legal {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 720px;
+  opacity: 0.9;
+}
+.site-footer__link {
+  color: rgba(255, 255, 255, 0.95);
+  text-decoration: underline;
+}
+.site-footer__link:hover {
+  color: #fff;
 }
 
 @keyframes spin {
