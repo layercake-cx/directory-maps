@@ -3,13 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
-import AdminLayout from "../admin/AdminLayout.jsx";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
-import { markerIconDataUrl } from "../../lib/markerIcons";
+import { markerIconDataUrl, normalizePinSize, pinPreviewScale } from "../../lib/markerIcons";
+import PricingPlans from "../../components/PricingPlans.jsx";
 import "../admin/admin.css";
 
-const TABS = ["detail", "design", "data", "publish", "search"];
+const TABS = ["detail", "design", "panels", "data", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -107,6 +107,7 @@ export default function ClientMapDashboard() {
   const [enableClustering, setEnableClustering] = useState(true);
   const [clusterRadius, setClusterRadius] = useState(80);
   const [markerStyle, setMarkerStyle] = useState("pin");
+  const [pinSize, setPinSize] = useState("medium");
   const [markerColor, setMarkerColor] = useState("#4A9BAA");
   const [customPinUrl, setCustomPinUrl] = useState("");
   const [clusterColor, setClusterColor] = useState("#4A9BAA");
@@ -114,8 +115,10 @@ export default function ClientMapDashboard() {
   const [pinBorderSize, setPinBorderSize] = useState(0);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
   const [buttonColor, setButtonColor] = useState("#4A9BAA");
-  const [panelBackgroundColor, setPanelBackgroundColor] = useState("#e4f0ff");
+  const [panelBackgroundColor, setPanelBackgroundColor] = useState("#ffffff");
   const [panelBackgroundOpacity, setPanelBackgroundOpacity] = useState(0.88);
+  const [panelBorderRadius, setPanelBorderRadius] = useState(12);
+  const [pinDetailLayout, setPinDetailLayout] = useState("map");
   const [panelLinkColor, setPanelLinkColor] = useState("#4A9BAA");
 
   const [locationQuery, setLocationQuery] = useState("");
@@ -134,6 +137,23 @@ export default function ClientMapDashboard() {
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
 
+  const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    testToEmail: "",
+  });
+  const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
+  const [contactFormSent, setContactFormSent] = useState(false);
+  const [contactFormError, setContactFormError] = useState("");
+
+  // Placeholder for future real billing integration.
+  // For now (test payment wiring), always treat as not subscribed so pricing
+  // plans are shown when accessing the Publish tab.
+  const hasActiveSubscription = false;
+
   const embedSrc = useMemo(() => {
     return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
   }, [mapId]);
@@ -149,6 +169,8 @@ export default function ClientMapDashboard() {
   }, [embedSrc]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
+  const isProductionEnv = ENVIRONMENT === "production";
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -156,20 +178,57 @@ export default function ClientMapDashboard() {
     return { lat, lng };
   }, [defaultLat, defaultLng]);
 
-  const groupColorById = useMemo(() => {
+  const groupOverridesById = useMemo(() => {
     const m = new Map();
     (groups || []).forEach((g) => {
-      if (g.id && g.color) m.set(g.id, g.color);
+      if (!g.id) return;
+      const raw = g.theme_json;
+      const theme =
+        typeof raw === "string"
+          ? (() => {
+              try {
+                return JSON.parse(raw || "{}");
+              } catch {
+                return {};
+              }
+            })()
+          : raw || {};
+      if (!theme || typeof theme !== "object") {
+        m.set(g.id, {});
+        return;
+      }
+      m.set(g.id, {
+        marker_style: theme.marker_style ?? theme.markerStyle ?? null,
+        marker_color: theme.marker_color ?? theme.markerColor ?? g.color ?? null,
+        custom_pin_url: theme.custom_pin_url ?? null,
+        pin_favicon_url: theme.pin_favicon_url ?? null,
+        pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
+        pinBorderColor: theme.pinBorderColor ?? null,
+        pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+        pinSize:
+          theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
+      });
     });
     return m;
   }, [groups]);
 
   const listingsWithColor = useMemo(() => {
-    return (listings || []).map((l) => ({
-      ...l,
-      group_color: l.group_id ? groupColorById.get(l.group_id) : null,
-    }));
-  }, [listings, groupColorById]);
+    return (listings || []).map((l) => {
+      const overrides = l.group_id ? groupOverridesById.get(l.group_id) || {} : {};
+      return {
+        ...l,
+        group_color: overrides.marker_color || null,
+        group_marker_style: overrides.marker_style || null,
+        group_custom_pin_url: overrides.custom_pin_url || null,
+        group_pin_favicon_url: overrides.pin_favicon_url || null,
+        group_pin_favicon_mode: overrides.pin_favicon_mode || "inherit",
+        group_pin_border_color: overrides.pinBorderColor || null,
+        group_pin_border_size:
+          typeof overrides.pinBorderSize === "number" ? overrides.pinBorderSize : null,
+        group_pin_size: overrides.pinSize != null && overrides.pinSize !== "" ? overrides.pinSize : null,
+      };
+    });
+  }, [listings, groupOverridesById]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +249,7 @@ export default function ClientMapDashboard() {
         let m = null;
         const [{ data: c, error: ce }, { data: g, error: ge }, { data: l, error: le }] = await Promise.all([
           supabase.from("clients").select("id,name,slug").eq("id", currentClientId).single(),
-          supabase.from("groups").select("id,name,color").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase.from("groups").select("id,name,color,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true }),
           supabase
             .from("listings")
             .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone")
@@ -250,15 +309,19 @@ export default function ClientMapDashboard() {
             setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
             setPinFaviconUrl(theme.pin_favicon_url ?? "");
             setButtonColor(theme.buttonColor ?? "#4A9BAA");
-            setPanelBackgroundColor(theme.panelBackgroundColor ?? "#e4f0ff");
+            setPanelBackgroundColor(theme.panelBackgroundColor ?? "#ffffff");
             setPanelBackgroundOpacity(theme.panelBackgroundOpacity ?? 0.88);
+            setPanelBorderRadius(Math.max(0, Math.min(28, Number(theme.panelBorderRadius) ?? 12)));
+            setPinDetailLayout(theme.pinDetailLayout === "drawer" ? "drawer" : "map");
             setPanelLinkColor(theme.panelLinkColor ?? "#4A9BAA");
+            setPinSize(normalizePinSize(theme.pinSize));
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
             setPinBorderSize(0);
+            setPinSize("medium");
           }
         try {
           const raw = m.published_config;
@@ -352,9 +415,12 @@ export default function ClientMapDashboard() {
         pinBorderColor: pinBorderColor || "#ffffff",
         pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
         pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+        pinSize: normalizePinSize(pinSize),
         buttonColor: (buttonColor || "").trim() || "#4A9BAA",
-        panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+        panelBackgroundColor: (panelBackgroundColor || "").trim() || "#ffffff",
         panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+        panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
+        pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
@@ -421,9 +487,12 @@ export default function ClientMapDashboard() {
           pinBorderColor: pinBorderColor || "#ffffff",
           pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+          pinSize: normalizePinSize(pinSize),
           buttonColor: (buttonColor || "").trim() || "#4A9BAA",
-          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#ffffff",
           panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+          panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
+          pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
           panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
           showSearch,
           showGroupDropdowns,
@@ -431,7 +500,7 @@ export default function ClientMapDashboard() {
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, showSearch, showGroupDropdowns, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelLinkColor],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, showSearch, showGroupDropdowns, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, pinSize],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -441,18 +510,21 @@ export default function ClientMapDashboard() {
   }, [currentPublishConfig, publishedConfig]);
 
   const editTheme = useMemo(() => {
-    const hex = (panelBackgroundColor || "#e4f0ff").trim().replace(/^#/, "");
+    const hex = (panelBackgroundColor || "#ffffff").trim().replace(/^#/, "");
     const m = hex.match(/.{2}/g);
-    const r = m ? parseInt(m[0], 16) : 228;
-    const g = m ? parseInt(m[1], 16) : 240;
+    const r = m ? parseInt(m[0], 16) : 255;
+    const g = m ? parseInt(m[1], 16) : 255;
     const b = m ? parseInt(m[2], 16) : 255;
     const a = Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88));
     return {
       panelBg: `rgba(${r},${g},${b},${a})`,
       panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
       buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+      pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
+      panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
+      pinSize: normalizePinSize(pinSize),
     };
-  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor]);
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize]);
 
   async function publishMap() {
     if (!map) return;
@@ -575,21 +647,7 @@ export default function ClientMapDashboard() {
   if (loading) return <div className="page-main">Loading…</div>;
 
   return (
-    <AdminLayout
-      title={`${client?.name ?? "Client"} · ${map?.name ?? "Map"}`}
-      backTo="/client"
-      mainClassName="admin-main--map-page"
-      rightActions={
-        <>
-          <button className="btn btn-primary" type="button" onClick={saveMap} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button onClick={signOut} type="button">
-            Sign out
-          </button>
-        </>
-      }
-    >
+    <main className="admin-main admin-main--map-page">
       <div className="admin-map-page">
         <div className="admin-map-page__map-wrap">
           {overlayTab ? (
@@ -628,6 +686,7 @@ export default function ClientMapDashboard() {
               clampedPanelPosition={clampedPanelPosition}
               setClampedPanelPosition={setClampedPanelPosition}
               pinOverlayRef={pinOverlayRef}
+              onMarkerScreenPosition={setSelectedMarkerPoint}
               onSelectMarker={(listing, point) => {
                 setSelectedListing(listing);
                 setSelectedMarkerPoint(point ?? null);
@@ -636,7 +695,13 @@ export default function ClientMapDashboard() {
               onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
               centerOnListingId={centerOnListingId}
               setCenterOnListingId={setCenterOnListingId}
-              showSendMessage={false}
+              showSendMessage={true}
+              onOpenSendMessage={() => {
+                if (!selectedListing?.email) return;
+                setMessageDrawerOpen(true);
+                setContactFormSent(false);
+                setContactFormError("");
+              }}
               height="100%"
               listingsWithColor={listingsWithColor}
             />
@@ -668,6 +733,19 @@ export default function ClientMapDashboard() {
                 {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
+            {(!listings || listings.length === 0) && (
+              <div style={{ margin: "6px 0 8px 0", padding: "6px 8px", borderRadius: 8, background: "rgba(74,155,170,0.06)", fontSize: 11, lineHeight: 1.4 }}>
+                Start by loading your places in <strong>Data</strong> →{" "}
+                <button
+                  type="button"
+                  onClick={() => openOverlay("data")}
+                  style={{ border: "none", background: "none", padding: 0, margin: 0, color: "var(--lc-brand, #4A9BAA)", cursor: "pointer", font: "inherit" }}
+                >
+                  open data panel
+                </button>
+                .
+              </div>
+            )}
             <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
               <button
                 type="button"
@@ -817,8 +895,7 @@ export default function ClientMapDashboard() {
 
               {overlayTab === "design" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Pins</h3>
                       <div>
                         <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Style</div>
@@ -829,13 +906,32 @@ export default function ClientMapDashboard() {
                             const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
                             return (
                               <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
-                                <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                                <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
                                 <span className="pin-style-option__label">{label}</span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
+                      <Field label="Pin size">
+                        <div className="pin-size-segmented" role="group" aria-label="Pin size">
+                          {[
+                            { id: "small", label: "Small" },
+                            { id: "medium", label: "Medium" },
+                            { id: "large", label: "Large" },
+                          ].map(({ id, label: szLabel }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              className={`pin-size-segmented__btn${pinSize === id ? " is-selected" : ""}`}
+                              onClick={() => setPinSize(id)}
+                              aria-pressed={pinSize === id}
+                            >
+                              {szLabel}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
                       <Field label="Marker colour"><ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" /></Field>
                       <Field label="Pin border">
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -860,20 +956,58 @@ export default function ClientMapDashboard() {
                           <label className="btn" style={{ margin: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
                         </div>
                       </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Panel</h3>
-                      <Field label="Background colour"><ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" /></Field>
-                      <Field label="Background opacity">
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ width: 80 }} />
-                          <span style={{ fontSize: 12 }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
-                        </div>
-                      </Field>
-                      <Field label="Link colour"><ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" /></Field>
-                      <Field label="Website button colour"><ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" /></Field>
-                    </div>
                   </div>
+                  <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
+                    <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                  </div>
+                </div>
+              )}
+
+              {overlayTab === "panels" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
+                    Style the listing detail panel and choose whether it appears beside the pin on the map or in a side drawer (drawer
+                    mode shows extended description text when you have added it in Data).
+                  </p>
+                  <Field label="Listing detail display">
+                    <div className="panel-detail-layout-options">
+                      <label
+                        className={`panel-detail-layout-option${pinDetailLayout === "map" ? " is-selected" : ""}`}
+                      >
+                        <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "map"} onChange={() => setPinDetailLayout("map")} />
+                        <span className="panel-detail-layout-option__text">
+                          <span className="panel-detail-layout-option__title">Map panel</span>
+                          <span className="panel-detail-layout-option__desc">Floating card next to the pin on the map.</span>
+                        </span>
+                      </label>
+                      <label
+                        className={`panel-detail-layout-option${pinDetailLayout === "drawer" ? " is-selected" : ""}`}
+                      >
+                        <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "drawer"} onChange={() => setPinDetailLayout("drawer")} />
+                        <span className="panel-detail-layout-option__text">
+                          <span className="panel-detail-layout-option__title">Side drawer</span>
+                          <span className="panel-detail-layout-option__desc">
+                            Slides in from the edge with a scrollable area for descriptions and full details.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </Field>
+                  <Field label="Panel background colour"><ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" /></Field>
+                  <Field label="Translucency">
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ width: 120 }} />
+                      <span style={{ fontSize: 12 }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
+                    </div>
+                  </Field>
+                  <Field label="Corner roundness">
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="range" min={0} max={28} step={1} value={panelBorderRadius} onChange={(e) => setPanelBorderRadius(Number(e.target.value))} style={{ width: 120 }} />
+                      <span style={{ fontSize: 12 }}>{panelBorderRadius}px</span>
+                    </div>
+                  </Field>
+                  <Field label="Link colour"><ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" /></Field>
+                  <Field label="Website button colour"><ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" /></Field>
                   <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
                     <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
                   </div>
@@ -894,72 +1028,86 @@ export default function ClientMapDashboard() {
 
               {overlayTab === "publish" && (
                 <div style={{ display: "grid", gap: 14 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ fontSize: 13, opacity: 0.85 }}>
-                      {publishedAt ? (
-                        <>
-                          Last published: <strong>{new Date(publishedAt).toLocaleString()}</strong>
-                        </>
-                      ) : (
-                        "This map has not been published yet."
-                      )}
+                  {!hasActiveSubscription ? (
+                    <div style={{ display: "grid", gap: 16 }}>
+                      <div>
+                        <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.85 }}>
+                          To publish this map and use the embed, choose a subscription plan below. You can still design
+                          and preview your map without a plan.
+                        </p>
+                      </div>
+                      <PricingPlans originSection="Client publish tab" />
                     </div>
-                    <button
-                      className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
-                      type="button"
-                      onClick={publishMap}
-                      disabled={!hasUnpublishedChanges || publishing}
-                    >
-                      {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
-                    </button>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed URL</div>
-                    <code
-                      style={{
-                        display: "block",
-                        padding: 10,
-                        border: "1px solid var(--lc-border)",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {embedSrc}
-                    </code>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed code</div>
-                    <pre
-                      style={{
-                        margin: 0,
-                        padding: 10,
-                        border: "1px solid var(--lc-border)",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        overflow: "auto",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {embedIframe}
-                    </pre>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button className="btn" type="button" onClick={copyEmbed}>
-                      Copy embed code
-                    </button>
-                    <button className="btn" type="button" onClick={openEmbed}>
-                      Launch map
-                    </button>
-                  </div>
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ fontSize: 13, opacity: 0.85 }}>
+                          {publishedAt ? (
+                            <>
+                              Last published: <strong>{new Date(publishedAt).toLocaleString()}</strong>
+                            </>
+                          ) : (
+                            "This map has not been published yet."
+                          )}
+                        </div>
+                        <button
+                          className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
+                          type="button"
+                          onClick={publishMap}
+                          disabled={!hasUnpublishedChanges || publishing}
+                        >
+                          {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
+                        </button>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed URL</div>
+                        <code
+                          style={{
+                            display: "block",
+                            padding: 10,
+                            border: "1px solid var(--lc-border)",
+                            borderRadius: 10,
+                            fontSize: 12,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {embedSrc}
+                        </code>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed code</div>
+                        <pre
+                          style={{
+                            margin: 0,
+                            padding: 10,
+                            border: "1px solid var(--lc-border)",
+                            borderRadius: 10,
+                            fontSize: 12,
+                            overflow: "auto",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {embedIframe}
+                        </pre>
+                      </div>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button className="btn" type="button" onClick={copyEmbed}>
+                          Copy embed code
+                        </button>
+                        <button className="btn" type="button" onClick={openEmbed}>
+                          Launch map
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -984,7 +1132,193 @@ export default function ClientMapDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Message drawer (same behaviour as embed) */}
+        <div
+          className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`}
+          aria-hidden={!messageDrawerOpen}
+        >
+          <div
+            className="embed-message-drawer__backdrop"
+            onClick={() => setMessageDrawerOpen(false)}
+            aria-label="Close"
+          />
+          <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
+            <div className="embed-message-drawer__header">
+              <h3 className="embed-message-drawer__title">Send message</h3>
+              <button
+                type="button"
+                className="embed-message-drawer__close"
+                onClick={() => setMessageDrawerOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            {selectedListing ? (
+              <p className="embed-message-drawer__to">To: {selectedListing.name || "—"}</p>
+            ) : null}
+            {contactFormSent ? (
+              <div className="embed-message-drawer__success">
+                <p>Your message has been sent. A copy has been emailed to you.</p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setMessageDrawerOpen(false);
+                    setContactFormSent(false);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <form
+                className="embed-message-drawer__form"
+                onSubmit={async (e) => {
+                e.preventDefault();
+                if (!selectedListing?.email) return;
+                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email when in test/preview.");
+                  return;
+                }
+                setContactFormError("");
+                  setContactFormSubmitting(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("send_contact_message", {
+                      body: {
+                        toEmail: isProductionEnv
+                          ? selectedListing.email
+                          : (contactForm.testToEmail || "").trim(),
+                        listingName: selectedListing.name || "",
+                        senderName: (contactForm.name || "").trim(),
+                        senderEmail: (contactForm.email || "").trim(),
+                        senderPhone: (contactForm.phone || "").trim(),
+                        message: (contactForm.message || "").trim(),
+                      },
+                    });
+                    if (error) throw error;
+                    if (data?.error) throw new Error(data.error);
+                    setContactFormSent(true);
+                    setContactForm({
+                      name: "",
+                      email: "",
+                      phone: "",
+                      message: "",
+                      testToEmail: contactForm.testToEmail,
+                    });
+                  } catch (err) {
+                    setContactFormError(err?.message ?? "Failed to send message. Try again.");
+                  } finally {
+                    setContactFormSubmitting(false);
+                  }
+                }}
+              >
+                {!isProductionEnv && (
+                  <div
+                    style={{
+                      marginBottom: 10,
+                      fontSize: 12,
+                      color: "#b45309",
+                      background: "#fef3c7",
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
+                  </div>
+                )}
+                {!isProductionEnv && (
+                  <label className="embed-message-drawer__label">
+                    <span>Test recipient email</span>
+                    <input
+                      type="email"
+                      value={contactForm.testToEmail}
+                      onChange={(e) =>
+                        setContactForm((f) => ({
+                          ...f,
+                          testToEmail: e.target.value,
+                        }))
+                      }
+                      placeholder="test-recipient@example.com"
+                      required
+                    />
+                  </label>
+                )}
+                <label className="embed-message-drawer__label">
+                  <span>Name</span>
+                  <input
+                    type="text"
+                    value={contactForm.name}
+                    onChange={(e) =>
+                      setContactForm((f) => ({
+                        ...f,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="Your name"
+                  />
+                </label>
+                <label className="embed-message-drawer__label">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) =>
+                      setContactForm((f) => ({
+                        ...f,
+                        email: e.target.value,
+                      }))
+                    }
+                    placeholder="your@email.com"
+                    required
+                  />
+                </label>
+                <label className="embed-message-drawer__label">
+                  <span>Phone</span>
+                  <input
+                    type="tel"
+                    value={contactForm.phone}
+                    onChange={(e) =>
+                      setContactForm((f) => ({
+                        ...f,
+                        phone: e.target.value,
+                      }))
+                    }
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="embed-message-drawer__label">
+                  <span>Message</span>
+                  <textarea
+                    value={contactForm.message}
+                    onChange={(e) =>
+                      setContactForm((f) => ({
+                        ...f,
+                        message: e.target.value,
+                      }))
+                    }
+                    placeholder="Your message…"
+                    rows={4}
+                    required
+                  />
+                </label>
+                {contactFormError ? (
+                  <p className="embed-message-drawer__error">{contactFormError}</p>
+                ) : null}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={contactFormSubmitting}
+                  style={{ marginTop: 8 }}
+                >
+                  {contactFormSubmitting ? "Sending…" : "Send message"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
-    </AdminLayout>
+    </main>
   );
 }

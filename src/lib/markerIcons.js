@@ -95,3 +95,40 @@ export const MARKER_ANCHORS = {
   circle:   { scaledSize: { w: 28, h: 28 }, anchor: { x: 14, y: 14 } },
   custom:   { scaledSize: { w: 40, h: 40 }, anchor: { x: 20, y: 40 } },
 };
+
+/** Visual scale on map vs. medium (current default). */
+const PIN_SIZE_MULTIPLIER = {
+  small: 0.78,
+  medium: 1,
+  large: 1.22,
+};
+
+/** @param {unknown} v */
+export function normalizePinSize(v) {
+  if (v === "small" || v === "large") return v;
+  return "medium";
+}
+
+/**
+ * @param {'pin'|'teardrop'|'dot'|'circle'|'custom'} styleKey
+ * @param {'small'|'medium'|'large'} [pinSize]
+ */
+export function getScaledMarkerAnchors(styleKey, pinSize = "medium") {
+  const base = MARKER_ANCHORS[styleKey] || MARKER_ANCHORS.pin;
+  const m = PIN_SIZE_MULTIPLIER[normalizePinSize(pinSize)] ?? 1;
+  return {
+    scaledSize: {
+      w: Math.max(8, Math.round(base.scaledSize.w * m)),
+      h: Math.max(8, Math.round(base.scaledSize.h * m)),
+    },
+    anchor: {
+      x: Math.max(1, Math.round(base.anchor.x * m)),
+      y: Math.max(1, Math.round(base.anchor.y * m)),
+    },
+  };
+}
+
+/** Scale factor for design-preview thumbnails (matches map multipliers). */
+export function pinPreviewScale(pinSize) {
+  return PIN_SIZE_MULTIPLIER[normalizePinSize(pinSize)] ?? 1;
+}

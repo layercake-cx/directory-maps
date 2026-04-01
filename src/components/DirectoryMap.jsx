@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer";
 import { loadGoogleMaps } from "../lib/loadGoogleMaps";
-import { getMarkerIconUrl, MARKER_ANCHORS } from "../lib/markerIcons";
+import { getMarkerIconUrl, getScaledMarkerAnchors, normalizePinSize } from "../lib/markerIcons";
 
 function clusterIconDataUrl(color) {
   const fill = color || "#4A9BAA";
@@ -89,6 +89,22 @@ const ROADMAP_DARK_STYLES = [
   { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
 ];
 
+/** Pixel position of a lat/lng on the map div (matches marker click math). */
+function latLngToMapDivPixel(map, lat, lng) {
+  const proj = map.getProjection();
+  const bounds = map.getBounds();
+  if (!proj || !bounds) return null;
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  const topRight = proj.fromLatLngToPoint(ne);
+  const bottomLeft = proj.fromLatLngToPoint(sw);
+  const pt = proj.fromLatLngToPoint(new window.google.maps.LatLng(lat, lng));
+  const div = map.getDiv();
+  const x = ((pt.x - bottomLeft.x) / (topRight.x - bottomLeft.x)) * div.offsetWidth;
+  const y = ((pt.y - topRight.y) / (bottomLeft.y - topRight.y)) * div.offsetHeight;
+  return { x, y };
+}
+
 function registerCustomMapTypes(map) {
   if (!window.google?.maps?.StyledMapType) return;
   if (map.mapTypes.get("roadmap_silver")) return;
@@ -118,6 +134,11 @@ export default function DirectoryMap({
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
   pinFaviconUrl = null,
+  /** small | medium | large — medium matches historical default marker scale */
+  pinSize = "medium",
+  /** When set (e.g. listing detail panel open), keep updating screen position on pan/zoom */
+  screenOverlayListing = null,
+  onScreenOverlayPosition,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -141,21 +162,9 @@ export default function DirectoryMap({
     map.setZoom(12);
 
     if (onSelect) {
-      const proj = map.getProjection();
-      const bounds = map.getBounds();
-      if (proj && bounds) {
-        const ne = bounds.getNorthEast();
-        const sw = bounds.getSouthWest();
-        const topRight = proj.fromLatLngToPoint(ne);
-        const bottomLeft = proj.fromLatLngToPoint(sw);
-        const pt = proj.fromLatLngToPoint(new window.google.maps.LatLng(pos.lat, pos.lng));
-        const div = map.getDiv();
-        const x = ((pt.x - bottomLeft.x) / (topRight.x - bottomLeft.x)) * div.offsetWidth;
-        const y = ((pt.y - topRight.y) / (bottomLeft.y - topRight.y)) * div.offsetHeight;
-        onSelect(point, { x, y });
-      } else {
-        onSelect(point, null);
-      }
+      const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
+      if (pixel) onSelect(point, pixel);
+      else onSelect(point, null);
     }
   }, [centerOnListingId, points]);
 
@@ -202,26 +211,68 @@ export default function DirectoryMap({
   }, [apiKey, mapTypeId]);
 
   useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps || !onScreenOverlayPosition) return;
+    const lat = screenOverlayListing?.lat;
+    const lng = screenOverlayListing?.lng;
+    if (lat == null || lng == null) return;
+
+    const map = mapRef.current;
+    let rafId = 0;
+
+    function pushPosition() {
+      const nlat = Number(lat);
+      const nlng = Number(lng);
+      if (Number.isNaN(nlat) || Number.isNaN(nlng)) return;
+      const pixel = latLngToMapDivPixel(map, nlat, nlng);
+      if (pixel) onScreenOverlayPosition(pixel);
+    }
+
+    function onBoundsChanged() {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        pushPosition();
+      });
+    }
+
+    const listener = map.addListener("bounds_changed", onBoundsChanged);
+    pushPosition();
+
+    return () => {
+      window.google.maps.event.removeListener(listener);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [mapReady, screenOverlayListing?.id, screenOverlayListing?.lat, screenOverlayListing?.lng, onScreenOverlayPosition]);
+
+  useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps) return;
 
     const map = mapRef.current;
-    const style = markerStyle === "custom" && customMarkerIconUrl ? "custom" : markerStyle || "pin";
-    const anchorConf = MARKER_ANCHORS[style] || MARKER_ANCHORS.pin;
-    const size = anchorConf.scaledSize;
-    const anchor = anchorConf.anchor;
 
-    const makeIcon = (color) => ({
-      url: getMarkerIconUrl({
-        style: markerStyle,
-        color,
-        customIconUrl: customMarkerIconUrl || undefined,
-        pinBorderColor,
-        pinBorderSize,
-        pinFaviconUrl: pinFaviconUrl || undefined,
-      }),
-      scaledSize: new window.google.maps.Size(size.w, size.h),
-      anchor: new window.google.maps.Point(anchor.x, anchor.y),
-    });
+    const makeIcon = (
+      styleForMarker,
+      color,
+      customUrlForMarker,
+      faviconForMarker,
+      borderColorForMarker,
+      borderSizeForMarker,
+      pinSizeForMarker,
+    ) => {
+      const styleKey = styleForMarker === "custom" && customUrlForMarker ? "custom" : styleForMarker || "pin";
+      const { scaledSize, anchor } = getScaledMarkerAnchors(styleKey, pinSizeForMarker);
+      return {
+        url: getMarkerIconUrl({
+          style: styleForMarker,
+          color,
+          customIconUrl: customUrlForMarker || undefined,
+          pinBorderColor: borderColorForMarker,
+          pinBorderSize: borderSizeForMarker,
+          pinFaviconUrl: faviconForMarker || undefined,
+        }),
+        scaledSize: new window.google.maps.Size(scaledSize.w, scaledSize.h),
+        anchor: new window.google.maps.Point(anchor.x, anchor.y),
+      };
+    };
 
     // Remove clusterer when toggling off or when radius changes (we'll recreate below if needed)
     if (clustererRef.current) {
@@ -244,7 +295,30 @@ export default function DirectoryMap({
     const markerList = [];
     points.forEach((p) => {
       const color = p.group_color || defaultMarkerColor;
-      const icon = makeIcon(color);
+      const styleForListing = p.group_marker_style || markerStyle;
+      const customUrlForListing = p.group_custom_pin_url || customMarkerIconUrl;
+      let faviconForListing = pinFaviconUrl || null;
+      if (p.group_pin_favicon_mode === "off") {
+        faviconForListing = null;
+      } else if (p.group_pin_favicon_mode === "custom") {
+        faviconForListing = p.group_pin_favicon_url || null;
+      }
+      const borderColorForListing = p.group_pin_border_color || pinBorderColor;
+      const borderSizeForListing =
+        typeof p.group_pin_border_size === "number" ? p.group_pin_border_size : pinBorderSize;
+      const pinSizeForListing =
+        p.group_pin_size != null && p.group_pin_size !== ""
+          ? normalizePinSize(p.group_pin_size)
+          : normalizePinSize(pinSize);
+      const icon = makeIcon(
+        styleForListing === "custom" && customUrlForListing ? "custom" : styleForListing || "pin",
+        color,
+        customUrlForListing,
+        faviconForListing,
+        borderColorForListing,
+        borderSizeForListing,
+        pinSizeForListing,
+      );
 
       let marker = markersRef.current.get(p.id);
       if (marker) {
@@ -263,21 +337,9 @@ export default function DirectoryMap({
           map.setCenter(pos);
           map.setZoom(12);
           if (!onSelect) return;
-          const proj = map.getProjection();
-          const bounds = map.getBounds();
-          if (proj && bounds) {
-            const ne = bounds.getNorthEast();
-            const sw = bounds.getSouthWest();
-            const topRight = proj.fromLatLngToPoint(ne);
-            const bottomLeft = proj.fromLatLngToPoint(sw);
-            const pt = proj.fromLatLngToPoint(marker.getPosition());
-            const div = map.getDiv();
-            const x = ((pt.x - bottomLeft.x) / (topRight.x - bottomLeft.x)) * div.offsetWidth;
-            const y = ((pt.y - topRight.y) / (bottomLeft.y - topRight.y)) * div.offsetHeight;
-            onSelect(p, { x, y });
-          } else {
-            onSelect(p, null);
-          }
+          const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
+          if (pixel) onSelect(p, pixel);
+          else onSelect(p, null);
         });
         markersRef.current.set(p.id, marker);
       }
@@ -341,6 +403,7 @@ export default function DirectoryMap({
     pinBorderColor,
     pinBorderSize,
     pinFaviconUrl,
+    pinSize,
   ]);
 
   return <div ref={elRef} style={{ width: "100%", height, borderRadius: 12 }} />;

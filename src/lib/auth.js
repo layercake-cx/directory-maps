@@ -16,7 +16,7 @@ export async function getMyRole() {
     .from("profiles")
     .select("role")
     .eq("user_id", session.user.id)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data?.role ?? null;

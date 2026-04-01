@@ -1,65 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function ClientGate({ children }) {
   const navigate = useNavigate();
-  const [state, setState] = useState({
-    loading: true,
-    authed: false,
-    error: "",
-  });
+  const { initializing, user } = useAuth();
 
   useEffect(() => {
-    let mounted = true;
+    if (initializing) return;
+    if (user) return;
 
-    async function run(isInitial) {
-      try {
-        if (isInitial) {
-          setState((s) => ({ ...s, loading: true, error: "" }));
-        }
-
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
-
-        if (!mounted) return;
-
-        if (!user) {
-          setState({ loading: false, authed: false, error: "" });
-        } else {
-          setState({ loading: false, authed: true, error: "" });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState({
-            loading: false,
-            authed: false,
-            error: e?.message ?? String(e),
-          });
-        }
-      }
-    }
-
-    run(true);
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      run(false);
-    });
-
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  if (state.loading) return <div className="page-main">Loading…</div>;
-
-  if (!state.authed) {
     const currentHash = typeof window !== "undefined" ? window.location.hash : "";
     const redirect = currentHash || "/client";
     navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
-    return null;
-  }
+  }, [initializing, user, navigate]);
 
+  if (initializing) return <div className="page-main">Loading…</div>;
+  if (!user) return null;
   return children;
 }
 

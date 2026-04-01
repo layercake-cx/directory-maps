@@ -22,7 +22,7 @@
 }
 
 .admin-header__inner {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 14px 16px;
   display: flex;
@@ -86,7 +86,7 @@
 }
 
 .admin-nav__inner {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
@@ -140,7 +140,7 @@
 }
 
 .admin-breadcrumbs__inner {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 8px 16px;
   font-size: 13px;
@@ -172,7 +172,7 @@
 }
 
 .admin-main {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 18px 16px 40px;
 }
@@ -205,6 +205,8 @@
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-controls input,
@@ -216,8 +218,92 @@
   min-height: 40px;
 }
 
-.admin-controls input {
+.admin-controls input:not([type="radio"]):not([type="checkbox"]) {
   min-width: 280px;
+}
+
+.admin-controls input[type="radio"],
+.admin-controls input[type="checkbox"] {
+  min-width: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  min-height: auto;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--lc-brand);
+}
+
+/* Listing detail layout (Panels tab) — stacked cards, tight radio + text */
+.admin-controls:has(> .panel-detail-layout-options) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-controls:has(> .pin-size-segmented) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.panel-detail-layout-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.panel-detail-layout-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.panel-detail-layout-option:hover {
+  border-color: rgba(74, 155, 170, 0.45);
+}
+
+.panel-detail-layout-option.is-selected {
+  border-color: var(--lc-brand);
+  background: rgba(74, 155, 170, 0.08);
+}
+
+.panel-detail-layout-option input[type="radio"] {
+  margin-top: 3px;
+}
+
+.panel-detail-layout-option__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.panel-detail-layout-option__title {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--lc-text);
+  margin-bottom: 4px;
+}
+
+.panel-detail-layout-option__desc {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--lc-muted);
 }
 
 .admin-controls .btn {
@@ -840,6 +926,39 @@
   font-weight: 600;
   color: var(--lc-text);
   text-align: center;
+}
+
+/* Design tab: Small / Medium / Large pin scale */
+.pin-size-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.pin-size-segmented__btn {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  color: var(--lc-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pin-size-segmented__btn:hover {
+  border-color: rgba(74, 155, 170, 0.45);
+}
+
+.pin-size-segmented__btn.is-selected {
+  border-color: var(--lc-brand);
+  background: rgba(74, 155, 170, 0.1);
+  color: var(--lc-brand-dark, var(--lc-text));
 }
 
 /* Map preview in Design tab */

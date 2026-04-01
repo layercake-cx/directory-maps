@@ -38,6 +38,7 @@ export default function AuthForm({ mode, onSuccess }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("");
+    setLoading(true);
 
     try {
       if (isSignUp) {
@@ -101,6 +102,8 @@ export default function AuthForm({ mode, onSuccess }) {
       }
     } catch (e) {
       setMsg(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -162,7 +165,7 @@ export default function AuthForm({ mode, onSuccess }) {
           placeholder={isSignUp ? "Min 6 characters" : ""}
         />
         <button type="submit" className="btn btn-primary auth-form__submit" disabled={loading}>
-          {isSignUp ? "Create account" : "Log in"}
+          {loading ? (isSignUp ? "Creating account…" : "Logging in…") : isSignUp ? "Create account" : "Log in"}
         </button>
       </form>
 

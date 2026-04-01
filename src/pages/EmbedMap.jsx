@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PublishedMapView from "../components/PublishedMapView.jsx";
+import { normalizePinSize } from "../lib/markerIcons";
 
 export default function EmbedMap() {
   const [params] = useSearchParams();
   const mapId = params.get("map");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
+  const isProductionEnv = ENVIRONMENT === "production";
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -20,7 +23,13 @@ export default function EmbedMap() {
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
   const pinOverlayRef = useRef(null);
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", message: "" });
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    testToEmail: "",
+  });
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
@@ -47,7 +56,7 @@ export default function EmbedMap() {
             .eq("id", mapId)
             .single(),
           supabase.from("public_listings").select("*").eq("map_id", mapId),
-          supabase.from("groups").select("id,name,sort_order").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase.from("groups").select("id,name,sort_order,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true }),
         ]);
 
         let mapRow = m;
@@ -122,6 +131,55 @@ export default function EmbedMap() {
     };
   }, [publishedConfig, map]);
 
+  const listingsWithOverrides = useMemo(() => {
+    const overridesById = new Map();
+    (groups || []).forEach((gr) => {
+      if (!gr.id) return;
+      const raw = gr.theme_json;
+      const theme =
+        typeof raw === "string"
+          ? (() => {
+              try {
+                return JSON.parse(raw || "{}");
+              } catch {
+                return {};
+              }
+            })()
+          : raw || {};
+      if (!theme || typeof theme !== "object") {
+        overridesById.set(gr.id, {});
+        return;
+      }
+      overridesById.set(gr.id, {
+        marker_style: theme.marker_style ?? theme.markerStyle ?? null,
+        marker_color: theme.marker_color ?? theme.markerColor ?? null,
+        custom_pin_url: theme.custom_pin_url ?? null,
+        pin_favicon_url: theme.pin_favicon_url ?? null,
+        pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
+        pinBorderColor: theme.pinBorderColor ?? null,
+        pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+        pinSize:
+          theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
+      });
+    });
+
+    return (listings || []).map((l) => {
+      const o = l.group_id ? overridesById.get(l.group_id) || {} : {};
+      return {
+        ...l,
+        group_color: o.marker_color || null,
+        group_marker_style: o.marker_style || null,
+        group_custom_pin_url: o.custom_pin_url || null,
+        group_pin_favicon_url: o.pin_favicon_url || null,
+        group_pin_favicon_mode: o.pin_favicon_mode || "inherit",
+        group_pin_border_color: o.pinBorderColor || null,
+        group_pin_border_size:
+          typeof o.pinBorderSize === "number" ? o.pinBorderSize : null,
+        group_pin_size: o.pinSize != null && o.pinSize !== "" ? o.pinSize : null,
+      };
+    });
+  }, [listings, groups]);
+
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (err) return <div style={{ padding: 16 }}>{err}</div>;
   if (!map) return <div style={{ padding: 16 }}>Map not found.</div>;
@@ -139,8 +197,11 @@ export default function EmbedMap() {
   })();
   const buttonColor = (theme.buttonColor && String(theme.buttonColor).trim()) || primaryColor;
   const panelLinkColor = (theme.panelLinkColor && String(theme.panelLinkColor).trim()) || primaryColor;
-  const panelBgHex = (theme.panelBackgroundColor && String(theme.panelBackgroundColor).trim()) || "#e4f0ff";
+  const panelBgHex = (theme.panelBackgroundColor && String(theme.panelBackgroundColor).trim()) || "#ffffff";
   const panelBgOpacity = Math.max(0, Math.min(1, Number(theme.panelBackgroundOpacity) ?? 0.88));
+  const panelBorderRadius = Math.max(0, Math.min(28, Number(theme.panelBorderRadius) ?? 12));
+  const pinDetailLayout = theme.pinDetailLayout === "drawer" ? "drawer" : "map";
+  const embedPinSize = normalizePinSize(theme.pinSize);
   const hexToRgba = (hex, a) => {
     const m = hex.replace(/^#/, "").match(/.{2}/g);
     if (!m) return `rgba(228, 240, 255, ${a})`;
@@ -165,6 +226,7 @@ export default function EmbedMap() {
         center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
         zoom={effectiveDefaults.zoom}
         listings={listings}
+        listingsWithColor={listingsWithOverrides}
         groups={groups}
         showListPanel={effectiveDefaults.showListPanel}
         showSearch={parsedTheme.showSearch !== false}
@@ -178,12 +240,13 @@ export default function EmbedMap() {
         pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
         pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
         pinFaviconUrl={(parsedTheme.pin_favicon_url && String(parsedTheme.pin_favicon_url).trim()) || null}
-        theme={{ panelBg, panelLinkColor, buttonColor }}
+        theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
         selectedListing={selectedListing}
         selectedMarkerPoint={selectedMarkerPoint}
         clampedPanelPosition={clampedPanelPosition}
         setClampedPanelPosition={setClampedPanelPosition}
         pinOverlayRef={pinOverlayRef}
+        onMarkerScreenPosition={setSelectedMarkerPoint}
         onSelectMarker={(listing, point) => {
           setSelectedListing(listing);
           setSelectedMarkerPoint(point ?? null);
@@ -219,12 +282,18 @@ export default function EmbedMap() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!selectedListing?.email) return;
+                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email when in test/preview.");
+                  return;
+                }
                 setContactFormError("");
                 setContactFormSubmitting(true);
                 try {
                   const { data, error } = await supabase.functions.invoke("send_contact_message", {
                     body: {
-                      toEmail: selectedListing.email,
+                      toEmail: isProductionEnv
+                        ? selectedListing.email
+                        : (contactForm.testToEmail || "").trim(),
                       listingName: selectedListing.name || "",
                       senderName: (contactForm.name || "").trim(),
                       senderEmail: (contactForm.email || "").trim(),
@@ -235,7 +304,7 @@ export default function EmbedMap() {
                   if (error) throw error;
                   if (data?.error) throw new Error(data.error);
                   setContactFormSent(true);
-                  setContactForm({ name: "", email: "", phone: "", message: "" });
+                  setContactForm({ name: "", email: "", phone: "", message: "", testToEmail: contactForm.testToEmail });
                 } catch (err) {
                   setContactFormError(err?.message ?? "Failed to send message. Try again.");
                 } finally {
@@ -243,6 +312,37 @@ export default function EmbedMap() {
                 }
               }}
             >
+              {!isProductionEnv && (
+                <div
+                  style={{
+                    marginBottom: 10,
+                    fontSize: 12,
+                    color: "#b45309",
+                    background: "#fef3c7",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                  }}
+                >
+                  <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
+                </div>
+              )}
+              {!isProductionEnv && (
+                <label className="embed-message-drawer__label">
+                  <span>Test recipient email</span>
+                  <input
+                    type="email"
+                    value={contactForm.testToEmail}
+                    onChange={(e) =>
+                      setContactForm((f) => ({
+                        ...f,
+                        testToEmail: e.target.value,
+                      }))
+                    }
+                    placeholder="test-recipient@example.com"
+                    required
+                  />
+                </label>
+              )}
               <label className="embed-message-drawer__label">
                 <span>Name</span>
                 <input type="text" value={contactForm.name} onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))} placeholder="Your name" />

@@ -95,6 +95,7 @@ export default function ClientMapData() {
   const [err, setErr] = useState("");
   const [importChoiceOverlayOpen, setImportChoiceOverlayOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [activeTab, setActiveTab] = useState("drive"); // "drive" | "spreadsheet"
 
   useEffect(() => {
     (async () => {
@@ -403,42 +404,76 @@ export default function ClientMapData() {
         </div>
       </div>
 
-      <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>Upload CSV</div>
-          <input type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
-          {fileErr ? <p style={{ marginTop: 8 }}>{fileErr}</p> : null}
-        </div>
-
-        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input type="checkbox" checked={geocodeMissing} onChange={(e) => setGeocodeMissing(e.target.checked)} />
-          Geocode rows missing lat/lng
-        </label>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ marginTop: 16 }}>
+        <div className="admin-map-tabs" style={{ marginBottom: 12 }}>
           <button
-            className="btn btn-primary"
             type="button"
-            onClick={() => setImportChoiceOverlayOpen(true)}
-            disabled={importing || rows.length === 0}
+            className={`admin-map-tabs__tab ${activeTab === "drive" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("drive")}
           >
-            {importing ? "Importing…" : `Import ${rows.length} rows`}
+            Automated Google Drive integration
           </button>
-
-          <Link className="btn" to={`/client/maps/${encodeURIComponent(mapId)}`}>
-            Done
-          </Link>
-
           <button
-            className="btn"
             type="button"
-            onClick={clearMapData}
-            disabled={clearing}
-            style={{ marginLeft: "auto" }}
+            className={`admin-map-tabs__tab ${activeTab === "spreadsheet" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("spreadsheet")}
           >
-            {clearing ? "Clearing…" : "Clear data"}
+            Spreadsheet / CSV
           </button>
         </div>
+
+        {activeTab === "drive" && (
+          <div className="admin-card" style={{ padding: 12, borderRadius: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 15 }}>Google Sheet sync</h3>
+            <p style={{ margin: "8px 0 0 0", fontSize: 13, opacity: 0.85 }}>
+              Your administrator can connect a Google Sheet for this map from the admin area. Once configured, listings
+              will be kept in sync automatically.
+            </p>
+            <p style={{ margin: "8px 0 0 0", fontSize: 13, opacity: 0.8 }}>
+              If you need a direct integration with your internal systems or CRM, we can offer this as a custom PoA engagement.
+            </p>
+          </div>
+        )}
+
+        {activeTab === "spreadsheet" && (
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>Upload CSV</div>
+              <input type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
+              {fileErr ? <p style={{ marginTop: 8 }}>{fileErr}</p> : null}
+            </div>
+
+            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input type="checkbox" checked={geocodeMissing} onChange={(e) => setGeocodeMissing(e.target.checked)} />
+              Geocode rows missing lat/lng
+            </label>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => setImportChoiceOverlayOpen(true)}
+                disabled={importing || rows.length === 0}
+              >
+                {importing ? "Importing…" : `Import ${rows.length} rows`}
+              </button>
+
+              <Link className="btn" to={`/client/maps/${encodeURIComponent(mapId)}`}>
+                Done
+              </Link>
+
+              <button
+                className="btn"
+                type="button"
+                onClick={clearMapData}
+                disabled={clearing}
+                style={{ marginLeft: "auto" }}
+              >
+                {clearing ? "Clearing…" : "Clear data"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {importChoiceOverlayOpen ? (
           <div

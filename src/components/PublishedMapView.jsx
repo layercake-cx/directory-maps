@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useMemo, useState } from "react";
 import DirectoryMap from "./DirectoryMap.jsx";
 import LogoImage from "./LogoImage.jsx";
+import { normalizePinSize } from "../lib/markerIcons";
 
 function buildSearchIndex(listing, groupName = "") {
   const parts = [
@@ -15,6 +16,92 @@ function buildSearchIndex(listing, groupName = "") {
     groupName,
   ].filter(Boolean);
   return parts.join(" ").toLowerCase();
+}
+
+function ListingCardContent({
+  listing,
+  buttonColor,
+  showSendMessage,
+  onOpenSendMessage,
+  zoomToSelectedAddress,
+  onClosePin,
+  extended,
+}) {
+  const notes = listing.notes_html ? String(listing.notes_html).trim() : "";
+  return (
+    <>
+      <button type="button" className="map-pin-overlay__close" onClick={onClosePin} aria-label="Close">
+        ×
+      </button>
+      <div className="map-pin-overlay__logo">
+        {listing.logo_url ? (
+          <LogoImage
+            src={listing.logo_url}
+            wrapClassName="map-pin-overlay__image-wrap"
+            imgClassName="map-pin-overlay__image"
+            maxWidth={280}
+            maxHeight={90}
+          />
+        ) : (
+          <div className="map-pin-overlay__logo-placeholder">Logo</div>
+        )}
+      </div>
+      <div className={`map-pin-overlay__body${extended ? " map-pin-overlay__body--extended" : ""}`}>
+        <h3 className="map-pin-overlay__name">{listing.name || "—"}</h3>
+        {listing.address ? (
+          <p className="map-pin-overlay__row map-pin-overlay__address">
+            <button type="button" className="map-pin-overlay__address-btn" onClick={zoomToSelectedAddress}>
+              {listing.address}
+            </button>
+          </p>
+        ) : null}
+        {listing.email ? (
+          <p className="map-pin-overlay__row">
+            <span>Email: </span>
+            <a href={`mailto:${listing.email}`}>{listing.email}</a>
+          </p>
+        ) : null}
+        {listing.phone ? (
+          <p className="map-pin-overlay__row">
+            <span>Phone: </span>
+            {listing.phone}
+          </p>
+        ) : null}
+        {extended && notes ? (
+          <div className="map-pin-overlay__notes">
+            {listing.allow_html ? (
+              <div className="map-pin-overlay__notes-html" dangerouslySetInnerHTML={{ __html: notes }} />
+            ) : (
+              <div className="map-pin-overlay__notes-plain">{notes}</div>
+            )}
+          </div>
+        ) : null}
+        <div className="map-pin-overlay__actions" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {listing.website_url ? (
+            <a
+              href={listing.website_url.startsWith("http") ? listing.website_url : `https://${listing.website_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="map-pin-overlay__visit-btn"
+              style={{ backgroundColor: buttonColor }}
+            >
+              Visit website
+            </a>
+          ) : null}
+          {showSendMessage && listing.email ? (
+            <button
+              type="button"
+              className="map-pin-overlay__visit-btn"
+              style={{ backgroundColor: buttonColor }}
+              onClick={onOpenSendMessage}
+            >
+              Send message
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /**
@@ -47,6 +134,8 @@ export default function PublishedMapView({
   setClampedPanelPosition,
   pinOverlayRef,
   onSelectMarker,
+  /** Called when map pans/zooms while a listing panel is open — keeps overlay aligned to the pin */
+  onMarkerScreenPosition,
   onClosePin,
   centerOnListingId = null,
   setCenterOnListingId,
@@ -58,12 +147,24 @@ export default function PublishedMapView({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [openGroupIds, setOpenGroupIds] = useState(new Set());
+  const [hiddenGroupIds, setHiddenGroupIds] = useState(new Set());
 
   const panelBg = theme.panelBg ?? "rgba(228, 240, 255, 0.88)";
   const panelLinkColor = theme.panelLinkColor ?? "#4A9BAA";
   const buttonColor = theme.buttonColor ?? markerColor ?? "#4A9BAA";
+  const pinDetailLayout = theme.pinDetailLayout === "drawer" ? "drawer" : "map";
+  const panelBorderRadius = Math.max(0, Math.min(28, Number(theme.panelBorderRadius) || 12));
+  const pinSize = normalizePinSize(theme.pinSize);
 
   const list = listingsWithColor ?? listings;
+
+  const effectiveListings = useMemo(() => {
+    if (!list) return [];
+    return list.filter((l) => {
+      const key = l.group_id ?? null;
+      return !hiddenGroupIds.has(key);
+    });
+  }, [list, hiddenGroupIds]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
@@ -72,11 +173,11 @@ export default function PublishedMapView({
   }, [groups]);
 
   const searchIndex = useMemo(() => {
-    return (listings || []).map((listing) => ({
+    return (effectiveListings || []).map((listing) => ({
       listing,
       searchText: buildSearchIndex(listing, groupNameById.get(listing.group_id) || ""),
     }));
-  }, [listings, groupNameById]);
+  }, [effectiveListings, groupNameById]);
 
   const suggestions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -111,6 +212,15 @@ export default function PublishedMapView({
     });
   }
 
+  function toggleGroupVisibility(id) {
+    setHiddenGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function selectFromList(listing) {
     onSelectMarker(listing, null);
     if (setCenterOnListingId) setCenterOnListingId(listing.id);
@@ -122,6 +232,10 @@ export default function PublishedMapView({
   }
 
   useLayoutEffect(() => {
+    if (pinDetailLayout === "drawer") {
+      setClampedPanelPosition?.(null);
+      return;
+    }
     if (!selectedMarkerPoint || !pinOverlayRef?.current) return;
     const el = pinOverlayRef.current;
     const parent = el.offsetParent;
@@ -136,7 +250,7 @@ export default function PublishedMapView({
     const gap = 31;
     const right = containerW - selectedMarkerPoint.x + gap;
     setClampedPanelPosition?.({ top, right });
-  }, [selectedMarkerPoint, selectedListing, pinOverlayRef, setClampedPanelPosition]);
+  }, [pinDetailLayout, selectedMarkerPoint, selectedListing, pinOverlayRef, setClampedPanelPosition]);
 
   return (
     <div
@@ -146,6 +260,7 @@ export default function PublishedMapView({
         position: "relative",
         ["--panel-bg"]: panelBg,
         ["--panel-link"]: panelLinkColor,
+        ["--panel-radius"]: `${panelBorderRadius}px`,
       }}
     >
       <DirectoryMap
@@ -153,7 +268,7 @@ export default function PublishedMapView({
         center={center}
         zoom={zoom}
         mapTypeId={mapTypeId}
-        listings={list}
+        listings={effectiveListings}
         onSelect={onSelectMarker}
         centerOnListingId={centerOnListingId}
         defaultMarkerColor={markerColor}
@@ -165,7 +280,10 @@ export default function PublishedMapView({
         pinBorderColor={pinBorderColor}
         pinBorderSize={pinBorderSize}
         pinFaviconUrl={pinFaviconUrl}
+        pinSize={pinSize}
         height="100%"
+        screenOverlayListing={pinDetailLayout === "map" ? selectedListing : null}
+        onScreenOverlayPosition={onMarkerScreenPosition}
       />
 
       {showListPanel && (
@@ -180,6 +298,15 @@ export default function PublishedMapView({
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const first = suggestions[0];
+                  if (first) {
+                    e.preventDefault();
+                    selectFromList(first);
+                  }
+                }
+              }}
               aria-label="Search listings"
             />
             {searchFocused && suggestions.length > 0 && (
@@ -205,8 +332,8 @@ export default function PublishedMapView({
           <div className="embed-list-panel__groups">
             {(groups || []).map((gr) => {
               const entries = listingsByGroup.get(gr.id) || [];
-              if (entries.length === 0) return null;
               const isOpen = openGroupIds.has(gr.id);
+              const isHidden = hiddenGroupIds.has(gr.id);
               return (
                 <div key={gr.id} className="embed-list-panel__group">
                   <button
@@ -215,7 +342,16 @@ export default function PublishedMapView({
                     onClick={() => toggleGroup(gr.id)}
                     aria-expanded={isOpen}
                   >
-                    <span className="embed-list-panel__group-name">{gr.name || "—"}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={!isHidden}
+                        onChange={() => toggleGroupVisibility(gr.id)}
+                        aria-label={isHidden ? `Show ${gr.name || "category"}` : `Hide ${gr.name || "category"}`}
+                        style={{ margin: 0 }}
+                      />
+                      <span className="embed-list-panel__group-name">{gr.name || "—"}</span>
+                    </span>
                     <span className="embed-list-panel__group-count">{entries.length}</span>
                     <span className="embed-list-panel__group-chevron" aria-hidden>
                       {isOpen ? "▼" : "▶"}
@@ -249,7 +385,16 @@ export default function PublishedMapView({
                   onClick={() => toggleGroup("ungrouped")}
                   aria-expanded={openGroupIds.has("ungrouped")}
                 >
-                  <span className="embed-list-panel__group-name">Ungrouped</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={!hiddenGroupIds.has(null)}
+                      onChange={() => toggleGroupVisibility(null)}
+                      aria-label={hiddenGroupIds.has(null) ? "Show ungrouped category" : "Hide ungrouped category"}
+                      style={{ margin: 0 }}
+                    />
+                    <span className="embed-list-panel__group-name">Ungrouped</span>
+                  </span>
                   <span className="embed-list-panel__group-count">
                     {(listingsByGroup.get(null) || []).length}
                   </span>
@@ -281,7 +426,7 @@ export default function PublishedMapView({
         </div>
       )}
 
-      {selectedListing ? (
+      {selectedListing && pinDetailLayout === "map" ? (
         <div
           ref={pinOverlayRef}
           className="map-pin-overlay"
@@ -300,78 +445,32 @@ export default function PublishedMapView({
               : undefined
           }
         >
-          <button
-            type="button"
-            className="map-pin-overlay__close"
-            onClick={onClosePin}
-            aria-label="Close"
-          >
-            ×
-          </button>
-          <div className="map-pin-overlay__logo">
-            {selectedListing.logo_url ? (
-              <LogoImage
-                src={selectedListing.logo_url}
-                wrapClassName="map-pin-overlay__image-wrap"
-                imgClassName="map-pin-overlay__image"
-                maxWidth={280}
-                maxHeight={90}
+          <ListingCardContent
+            listing={selectedListing}
+            buttonColor={buttonColor}
+            showSendMessage={showSendMessage}
+            onOpenSendMessage={onOpenSendMessage}
+            zoomToSelectedAddress={zoomToSelectedAddress}
+            onClosePin={onClosePin}
+            extended={false}
+          />
+        </div>
+      ) : null}
+
+      {selectedListing && pinDetailLayout === "drawer" ? (
+        <div className="map-pin-drawer map-pin-drawer--open" role="presentation">
+          <button type="button" className="map-pin-drawer__backdrop" onClick={onClosePin} aria-label="Close listing" />
+          <div className="map-pin-drawer__sheet" role="dialog" aria-label="Listing details">
+            <div ref={pinOverlayRef} className="map-pin-overlay map-pin-overlay--in-drawer">
+              <ListingCardContent
+                listing={selectedListing}
+                buttonColor={buttonColor}
+                showSendMessage={showSendMessage}
+                onOpenSendMessage={onOpenSendMessage}
+                zoomToSelectedAddress={zoomToSelectedAddress}
+                onClosePin={onClosePin}
+                extended
               />
-            ) : (
-              <div className="map-pin-overlay__logo-placeholder">Logo</div>
-            )}
-          </div>
-          <div className="map-pin-overlay__body">
-            <h3 className="map-pin-overlay__name">{selectedListing.name || "—"}</h3>
-            {selectedListing.address ? (
-              <p className="map-pin-overlay__row map-pin-overlay__address">
-                <button
-                  type="button"
-                  className="map-pin-overlay__address-btn"
-                  onClick={zoomToSelectedAddress}
-                >
-                  {selectedListing.address}
-                </button>
-              </p>
-            ) : null}
-            {selectedListing.email ? (
-              <p className="map-pin-overlay__row">
-                <span>Email: </span>
-                <a href={`mailto:${selectedListing.email}`}>{selectedListing.email}</a>
-              </p>
-            ) : null}
-            {selectedListing.phone ? (
-              <p className="map-pin-overlay__row">
-                <span>Phone: </span>
-                {selectedListing.phone}
-              </p>
-            ) : null}
-            <div className="map-pin-overlay__actions" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {selectedListing.website_url ? (
-                <a
-                  href={
-                    selectedListing.website_url.startsWith("http")
-                      ? selectedListing.website_url
-                      : `https://${selectedListing.website_url}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="map-pin-overlay__visit-btn"
-                  style={{ backgroundColor: buttonColor }}
-                >
-                  Visit website
-                </a>
-              ) : null}
-              {showSendMessage && selectedListing.email ? (
-                <button
-                  type="button"
-                  className="map-pin-overlay__visit-btn"
-                  style={{ backgroundColor: buttonColor }}
-                  onClick={onOpenSendMessage}
-                >
-                  Send message
-                </button>
-              ) : null}
             </div>
           </div>
         </div>

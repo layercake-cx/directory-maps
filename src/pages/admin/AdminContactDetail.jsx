@@ -10,6 +10,12 @@ export default function AdminContactDetail() {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editIsPrimary, setEditIsPrimary] = useState(false);
+  const [editCanManageMaps, setEditCanManageMaps] = useState(false);
+  const [editCanManageUsers, setEditCanManageUsers] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -21,7 +27,7 @@ export default function AdminContactDetail() {
 
         const { data: c, error: ce } = await supabase
           .from("contacts")
-          .select("id, client_id, user_id, email, name, is_primary, created_at, updated_at")
+          .select("id, client_id, user_id, email, name, is_primary, can_manage_maps, can_manage_users, created_at, updated_at")
           .eq("id", contactId)
           .eq("client_id", clientId)
           .maybeSingle();
@@ -35,6 +41,11 @@ export default function AdminContactDetail() {
         }
 
         setContact(c);
+        setEditEmail(c.email ?? "");
+        setEditName(c.name ?? "");
+        setEditIsPrimary(!!c.is_primary);
+        setEditCanManageMaps(!!c.can_manage_maps);
+        setEditCanManageUsers(!!c.can_manage_users);
 
         const { data: clientData, error: clientError } = await supabase
           .from("clients")
@@ -55,6 +66,44 @@ export default function AdminContactDetail() {
     load();
     return () => { mounted = false; };
   }, [clientId, contactId]);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!contact) return;
+    setErr("");
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("contacts")
+        .update({
+          email: editEmail.trim(),
+          name: editName.trim() || null,
+          is_primary: editIsPrimary,
+          can_manage_maps: editCanManageMaps,
+          can_manage_users: editCanManageUsers,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contactId)
+        .eq("client_id", clientId);
+      if (error) throw error;
+      setContact((prev) =>
+        prev
+          ? {
+              ...prev,
+              email: editEmail.trim(),
+              name: editName.trim() || null,
+              is_primary: editIsPrimary,
+              can_manage_maps: editCanManageMaps,
+              can_manage_users: editCanManageUsers,
+            }
+          : null
+      );
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <AdminLayout
@@ -78,36 +127,57 @@ export default function AdminContactDetail() {
         {err ? <p>{err}</p> : null}
 
         {contact && client && !loading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <h2 style={{ margin: "0 0 8px 0" }}>Contact details</h2>
-            <div style={{ fontSize: 13 }}>
-              <div style={{ marginBottom: 8 }}>
-                <strong>Customer:</strong>{" "}
-                <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
-                {client.slug ? ` (${client.slug})` : ""}
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <h2 style={{ margin: "0 0 8px 0" }}>Edit contact</h2>
+            <div style={{ fontSize: 13, marginBottom: 8 }}>
+              <strong>Customer:</strong>{" "}
+              <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
+              {client.slug ? ` (${client.slug})` : ""}
+              {" · "}
+              <span style={{ opacity: 0.75 }}>Has login: {contact.user_id ? "Yes" : "No"}</span>
+              {contact.user_id ? ` · User ID: ${contact.user_id}` : ""}
+            </div>
+
+            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, marginBottom: 4, color: "var(--lc-muted)" }}>Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  required
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", boxSizing: "border-box" }}
+                />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <strong>Email:</strong> {contact.email}
+              <div>
+                <label style={{ display: "block", fontSize: 12, marginBottom: 4, color: "var(--lc-muted)" }}>Name (optional)</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", boxSizing: "border-box" }}
+                />
               </div>
-              {contact.name ? (
-                <div style={{ marginBottom: 8 }}>
-                  <strong>Name:</strong> {contact.name}
-                </div>
-              ) : null}
-              <div style={{ marginBottom: 8 }}>
-                <strong>Has login:</strong> {contact.user_id ? "Yes" : "No (dummy/placeholder)"}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={editIsPrimary} onChange={(e) => setEditIsPrimary(e.target.checked)} />
+                  Primary contact
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={editCanManageMaps} onChange={(e) => setEditCanManageMaps(e.target.checked)} />
+                  Manage maps
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={editCanManageUsers} onChange={(e) => setEditCanManageUsers(e.target.checked)} />
+                  Manage users
+                </label>
               </div>
-              {contact.user_id ? (
-                <div style={{ marginBottom: 8, fontSize: 12, opacity: 0.8 }}>
-                  <strong>User ID:</strong> {contact.user_id}
-                </div>
-              ) : null}
-              <div style={{ marginBottom: 8 }}>
-                <strong>Primary contact:</strong> {contact.is_primary ? "Yes" : "No"}
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>
-                Contact ID: {contact.id}
-              </div>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </form>
+
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
+              Contact ID: {contact.id}
             </div>
           </div>
         ) : null}

@@ -7,6 +7,7 @@ import SiteFooter from "./components/SiteFooter.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { supabase } from "./lib/supabase";
 import { getImpersonatedClientId, stopImpersonatingClient } from "./lib/clientAuth";
+import { AuthProvider } from "./context/AuthContext.jsx";
 import "./style.css";
 
 function ImpersonationBar() {
@@ -97,7 +98,7 @@ function ImpersonationBar() {
 function Layout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
-  const isClientMapArea = location.pathname.startsWith("/client/maps/");
+  const isClientMapArea = location.pathname.startsWith("/client/maps/") && !location.pathname.endsWith("/new");
   const isEmbed = location.pathname === "/embed";
   const showSiteHeader = !isAdmin && !isClientMapArea;
   const showFooter = !isEmbed;
@@ -115,7 +116,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErrorBoundary>
       <HashRouter>
-        <Layout />
+        <AuthProvider>
+          <Layout />
+        </AuthProvider>
       </HashRouter>
     </ErrorBoundary>
   </React.StrictMode>

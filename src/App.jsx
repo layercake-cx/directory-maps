@@ -23,7 +23,9 @@ import AdminMaps from "./pages/admin/AdminMaps.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
 import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
 
+import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
+import ClientUsers from "./pages/client/ClientUsers.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -43,42 +45,17 @@ export default function App() {
         path="/client"
         element={
           <ClientGate>
-            <ClientDashboard />
+            <ClientLayout />
           </ClientGate>
         }
-      />
-      <Route
-        path="/client/maps/new"
-        element={
-          <ClientGate>
-            <ClientMapNew />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId"
-        element={
-          <ClientGate>
-            <ClientMapDashboard />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId/data"
-        element={
-          <ClientGate>
-            <ClientMapData />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId/listings"
-        element={
-          <ClientGate>
-            <ClientMapListings />
-          </ClientGate>
-        }
-      />
+      >
+        <Route index element={<ClientDashboard />} />
+        <Route path="users" element={<ClientUsers />} />
+        <Route path="maps/new" element={<ClientMapNew />} />
+        <Route path="maps/:mapId" element={<ClientMapDashboard />} />
+        <Route path="maps/:mapId/data" element={<ClientMapData />} />
+        <Route path="maps/:mapId/listings" element={<ClientMapListings />} />
+      </Route>
 
       {/* Admin root -> clients */}
       <Route path="/admin" element={<Navigate to="/admin/clients" replace />} />

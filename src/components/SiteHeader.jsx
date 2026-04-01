@@ -1,20 +1,85 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import BrandLogo from "./BrandLogo.jsx";
+import { signOut } from "../lib/auth";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function SiteHeader() {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { user } = useAuth();
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+      setMenuOpen(false);
+      navigate("/");
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <header className="site-header">
       <div className="site-header__inner">
         <BrandLogo to="/" className="site-header__brand" />
 
         <nav className="site-header__nav">
-          <Link to="/login" className="site-header__navLink">
-            Log in
-          </Link>
-          <Link to="/signup" className="site-header__navLink site-header__navLink--primary">
-            Sign up
-          </Link>
+          {!user && (
+            <>
+              <Link to="/login" className="site-header__navLink">
+                Log in
+              </Link>
+              <Link to="/signup" className="site-header__navLink site-header__navLink--primary">
+                Sign up
+              </Link>
+            </>
+          )}
+
+          {user && (
+            <div className="site-header__account">
+              <button
+                type="button"
+                className="site-header__navLink site-header__navLink--account"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                My account
+              </button>
+              {menuOpen && (
+                <div className="site-header__accountMenu" role="menu">
+                  <button
+                    type="button"
+                    className="site-header__accountItem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/client");
+                    }}
+                  >
+                    My details
+                  </button>
+                  <button
+                    type="button"
+                    className="site-header__accountItem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/client");
+                    }}
+                  >
+                    My subscription
+                  </button>
+                  <button
+                    type="button"
+                    className="site-header__accountItem"
+                    onClick={handleSignOut}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </nav>
       </div>
     </header>

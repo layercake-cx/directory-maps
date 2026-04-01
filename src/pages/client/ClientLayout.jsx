@@ -1,0 +1,121 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { signOut } from "../../lib/auth";
+import BrandLogo from "../../components/BrandLogo.jsx";
+import { ClientProvider, getClientAndContact } from "../../context/ClientContext.jsx";
+import "../admin/admin.css";
+
+const CLIENT_NAV = [
+  { label: "My Maps", path: "/client" },
+  { label: "Users", path: "/client/users" },
+];
+
+export default function ClientLayout() {
+  const location = useLocation();
+  const pathname = location.pathname || "/";
+
+  const [client, setClient] = useState(null);
+  const [contact, setContact] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErr("");
+      const { client: c, contact: ct } = await getClientAndContact();
+      setClient(c);
+      setContact(ct);
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+      setClient(null);
+      setContact(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function handleSignOut() {
+    signOut().catch(() => {});
+  }
+
+  if (loading) {
+    return (
+      <div className="page-main">
+        <p>Loading…</p>
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="page-main">
+        <div className="admin-card" style={{ maxWidth: 560 }}>
+          <p>{err}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (client === null) {
+    return (
+      <div className="page-main">
+        <div className="admin-card" style={{ maxWidth: 560 }}>
+          <h2 style={{ marginTop: 0 }}>Admin account</h2>
+          <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
+          <p>
+            Use the <a href="#/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
+            client account to use the client portal.
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <a href="#/admin/clients" className="btn btn-primary">
+              Go to Admin
+            </a>
+            <button type="button" className="btn" onClick={handleSignOut}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const canManageUsers = contact?.is_primary || contact?.can_manage_users;
+  const navItems = CLIENT_NAV.filter((item) => (item.path === "/client/users" ? canManageUsers : true));
+
+  const isMapDetailRoute = pathname.startsWith("/client/maps/");
+
+  return (
+    <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
+      <>
+        <nav className="client-nav" aria-label="Client sections">
+          <div className="client-nav__inner">
+            {navItems.map(({ label, path }) => {
+              const isActive =
+                path === "/client"
+                  ? pathname === "/client" ||
+                    pathname === "/client/" ||
+                    (pathname.startsWith("/client/") && !pathname.startsWith("/client/users"))
+                  : pathname === path || pathname.startsWith(path + "/");
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`client-nav__link ${isActive ? "client-nav__link--active" : ""}`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
+      </>
+    </ClientProvider>
+  );
+}
