@@ -8,15 +8,20 @@ export default function ClientGate({ children }) {
 
   useEffect(() => {
     if (initializing) return;
-    if (user) return;
-
-    const currentHash = typeof window !== "undefined" ? window.location.hash : "";
-    const redirect = currentHash || "/client";
-    navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
+    if (!user) {
+      const currentHash = typeof window !== "undefined" ? window.location.hash : "";
+      const redirect = currentHash || "/client";
+      navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
+      return;
+    }
+    if (!user.email_confirmed_at) {
+      navigate("/login?needsVerification=1", { replace: true });
+    }
   }, [initializing, user, navigate]);
 
   if (initializing) return <div className="page-main">Loading…</div>;
   if (!user) return null;
+  if (!user.email_confirmed_at) return null;
   return children;
 }
 

@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
 import { ClientProvider, getClientAndContact } from "../../context/ClientContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import "../admin/admin.css";
 
 const CLIENT_NAV = [
@@ -13,6 +14,7 @@ const CLIENT_NAV = [
 export default function ClientLayout() {
   const location = useLocation();
   const pathname = location.pathname || "/";
+  const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError } = useAuth();
 
   const [client, setClient] = useState(null);
   const [contact, setContact] = useState(null);
@@ -43,7 +45,7 @@ export default function ClientLayout() {
     signOut().catch(() => {});
   }
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="page-main">
         <p>Loading…</p>
@@ -62,18 +64,57 @@ export default function ClientLayout() {
   }
 
   if (client === null) {
+    if (signupProvisionError) {
+      return (
+        <div className="page-main">
+          <div className="admin-card" style={{ maxWidth: 560 }}>
+            <h2 style={{ marginTop: 0 }}>Could not finish signup</h2>
+            <p>{signupProvisionError}</p>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button type="button" className="btn btn-primary" onClick={() => clearSignupProvisionError()}>
+                Dismiss
+              </button>
+              <button type="button" className="btn" onClick={handleSignOut}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (isAdmin) {
+      return (
+        <div className="page-main">
+          <div className="admin-card" style={{ maxWidth: 560 }}>
+            <h2 style={{ marginTop: 0 }}>Admin account</h2>
+            <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
+            <p>
+              Use the <a href="#/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
+              client account to use the client portal.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <a href="#/admin/clients" className="btn btn-primary">
+                Go to Admin
+              </a>
+              <button type="button" className="btn" onClick={handleSignOut}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="page-main">
         <div className="admin-card" style={{ maxWidth: 560 }}>
-          <h2 style={{ marginTop: 0 }}>Admin account</h2>
-          <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
+          <h2 style={{ marginTop: 0 }}>No organisation linked</h2>
           <p>
-            Use the <a href="#/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
-            client account to use the client portal.
+            Your account is not linked to an organisation yet. If you just signed up with Google or LinkedIn, create an
+            organisation using email sign-up, or contact support.
           </p>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <a href="#/admin/clients" className="btn btn-primary">
-              Go to Admin
+            <a href="#/signup" className="btn btn-primary">
+              Sign up with email
             </a>
             <button type="button" className="btn" onClick={handleSignOut}>
               Sign out

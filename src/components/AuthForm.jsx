@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { getOAuthRedirectUrl } from "../lib/authHelpers";
+import { getEmailAuthRedirectUrl } from "../lib/authHelpers";
 
 function slugify(input) {
   return (input || "")
@@ -15,25 +15,8 @@ export default function AuthForm({ mode, onSuccess }) {
   const isSignUp = mode === "signup";
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-
-  async function handleOAuth(provider) {
-    setMsg("");
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: getOAuthRedirectUrl() },
-      });
-      if (error) setMsg(error.message);
-    } catch (e) {
-      setMsg(e?.message ?? String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -41,6 +24,12 @@ export default function AuthForm({ mode, onSuccess }) {
     setLoading(true);
 
     try {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        setMsg("Email is required.");
+        return;
+      }
+
       if (isSignUp) {
         const cleanOrg = orgName.trim();
         if (!cleanOrg) {
@@ -52,54 +41,44 @@ export default function AuthForm({ mode, onSuccess }) {
           setMsg("Could not generate a slug from that organisation name.");
           return;
         }
-        const { data: existing, error: slugError } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("slug", slug)
-          .maybeSingle();
-        if (slugError) throw slugError;
-        if (existing) {
+        const { data: slugOk, error: rpcErr } = await supabase.rpc("is_client_slug_available", { p_slug: slug });
+        if (rpcErr) throw rpcErr;
+        if (slugOk === false) {
           setMsg("That organisation name is already in use. Please choose a different name.");
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signInWithOtp({
+          email: trimmedEmail,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: getEmailAuthRedirectUrl(),
+            data: {
+              signup_org_name: cleanOrg,
+              signup_org_slug: slug,
+            },
+          },
+        });
         if (error) {
           setMsg(error.message);
           return;
         }
-        if (data?.user) {
-          const clientId = crypto.randomUUID();
-          const { error: clientError } = await supabase.from("clients").insert({
-            id: clientId,
-            name: cleanOrg,
-            slug,
-          });
-          if (clientError) {
-            setMsg(clientError.message ?? "Account created but there was a problem saving organisation details.");
-            return;
-          }
-          const { error: contactError } = await supabase.from("contacts").insert({
-            client_id: clientId,
-            user_id: data.user.id,
-            email: email.trim(),
-            is_primary: true,
-          });
-          if (contactError) {
-            setMsg(contactError.message ?? "Organisation created but there was a problem linking your contact.");
-            return;
-          }
-          setMsg("Account created. Check your email for confirmation if required, then sign in.");
-          onSuccess?.();
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          setMsg(error.message);
-          return;
-        }
-        onSuccess?.();
+        setMsg("Check your email for the sign-up link. You must verify your email before your account is active.");
+        return;
       }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: getEmailAuthRedirectUrl(),
+        },
+      });
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+      setMsg("If an account exists for this email, we sent a sign-in link. Check your inbox.");
     } catch (e) {
       setMsg(e?.message ?? String(e));
     } finally {
@@ -109,29 +88,6 @@ export default function AuthForm({ mode, onSuccess }) {
 
   return (
     <div className="auth-form">
-      <div className="auth-form__sso">
-        <button
-          type="button"
-          className="auth-form__ssoBtn"
-          onClick={() => handleOAuth("google")}
-          disabled={loading}
-        >
-          Continue with Google
-        </button>
-        <button
-          type="button"
-          className="auth-form__ssoBtn"
-          onClick={() => handleOAuth("linkedin_oidc")}
-          disabled={loading}
-        >
-          Continue with LinkedIn
-        </button>
-      </div>
-
-      <div className="auth-form__divider">
-        <span>or</span>
-      </div>
-
       <form onSubmit={handleSubmit} className="auth-form__form">
         {isSignUp && (
           <>
@@ -154,18 +110,10 @@ export default function AuthForm({ mode, onSuccess }) {
           required
           className="auth-form__input"
           placeholder="you@example.com"
-        />
-        <label className="auth-form__label">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="auth-form__input"
-          placeholder={isSignUp ? "Min 6 characters" : ""}
+          autoComplete="email"
         />
         <button type="submit" className="btn btn-primary auth-form__submit" disabled={loading}>
-          {loading ? (isSignUp ? "Creating account…" : "Logging in…") : isSignUp ? "Create account" : "Log in"}
+          {loading ? "Sending..." : isSignUp ? "Email me a sign-up link" : "Email me a sign-in link"}
         </button>
       </form>
 

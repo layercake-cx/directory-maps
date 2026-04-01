@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase, hasSupabaseConfig } from "../lib/supabase";
 import { getMyRole } from "../lib/auth";
+import { provisionClientFromPendingMetadata } from "../lib/provisionClientSignup";
 
 const AuthContext = createContext(null);
 
@@ -18,11 +19,30 @@ export function AuthProvider({ children }) {
     role: null,
     roleLoading: false,
     error: null,
+    signupProvisionError: null,
   });
+
+  const runSignupProvision = useCallback(async (user) => {
+    if (!user) {
+      setState((s) => ({ ...s, signupProvisionError: null }));
+      return;
+    }
+    try {
+      const result = await provisionClientFromPendingMetadata(user);
+      if (result?.ok === false && result?.message) {
+        setState((s) => ({ ...s, signupProvisionError: result.message }));
+      } else {
+        setState((s) => ({ ...s, signupProvisionError: null }));
+      }
+    } catch (e) {
+      const raw = e?.message ?? String(e);
+      setState((s) => ({ ...s, signupProvisionError: raw }));
+    }
+  }, []);
 
   const loadRole = useCallback(async (user) => {
     if (!user) {
-      setState((s) => ({ ...s, role: null, roleLoading: false, error: null }));
+      setState((s) => ({ ...s, role: null, roleLoading: false, error: null, signupProvisionError: null }));
       return;
     }
 
@@ -41,7 +61,14 @@ export function AuthProvider({ children }) {
 
     async function init() {
       if (!hasSupabaseConfig) {
-        setState((s) => ({ ...s, initializing: false, user: null, session: null, role: null }));
+        setState((s) => ({
+          ...s,
+          initializing: false,
+          user: null,
+          session: null,
+          role: null,
+          signupProvisionError: null,
+        }));
         return;
       }
 
@@ -50,8 +77,10 @@ export function AuthProvider({ children }) {
         const session = data?.session ?? null;
         const user = session?.user ?? null;
         if (!mounted) return;
-        setState((s) => ({ ...s, initializing: false, session, user }));
+        await runSignupProvision(user);
         await loadRole(user);
+        if (!mounted) return;
+        setState((s) => ({ ...s, initializing: false, session, user }));
       } catch (e) {
         if (!mounted) return;
         const raw = e?.message ?? String(e);
@@ -62,9 +91,9 @@ export function AuthProvider({ children }) {
     init();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // NOTE: We rely on session.user for "is user signed in" decisions to avoid extra auth round-trips.
-      // Also clear role immediately to avoid brief "previous user role" flicker.
+      // NOTE: Provision org/contact before exposing user to routes so /client never loads without a contact.
       const user = session?.user ?? null;
+      await runSignupProvision(user);
       setState((s) => ({
         ...s,
         session,
@@ -80,7 +109,11 @@ export function AuthProvider({ children }) {
       mounted = false;
       sub?.subscription?.unsubscribe?.();
     };
-  }, [loadRole]);
+  }, [loadRole, runSignupProvision]);
+
+  const clearSignupProvisionError = useCallback(() => {
+    setState((s) => ({ ...s, signupProvisionError: null }));
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -88,8 +121,9 @@ export function AuthProvider({ children }) {
       isAuthed: !!state.user,
       isAdmin: state.role === "admin",
       reloadRole: () => loadRole(state.user),
+      clearSignupProvisionError,
     }),
-    [loadRole, state]
+    [clearSignupProvisionError, loadRole, state]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
