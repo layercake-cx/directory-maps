@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthForm from "../components/AuthForm.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 export default function Login() {
   const navigate = useNavigate();

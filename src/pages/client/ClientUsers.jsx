@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { useClient } from "../../context/ClientContext.jsx";
+import { useClient } from "../../hooks/useClient.js";
 
 export default function ClientUsers() {
   const { client, contact, refetch } = useClient();

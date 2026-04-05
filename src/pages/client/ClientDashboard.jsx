@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { useClient } from "../../context/ClientContext.jsx";
+import { useClient } from "../../hooks/useClient.js";
 
 export default function ClientDashboard() {
   const { client, contact } = useClient();
@@ -35,9 +35,10 @@ export default function ClientDashboard() {
   }, [client?.id]);
 
   const primaryContactLabel = contact?.email || contact?.name || null;
+  const showEmptyWelcome = !loading && maps.length === 0;
 
   return (
-    <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
+    <div className="client-dashboard" style={{ marginTop: 16, display: "grid", gap: 16 }}>
       {/* Slim summary panel */}
       <div
         className="admin-card"
@@ -68,19 +69,17 @@ export default function ClientDashboard() {
             </div>
           ) : null}
           <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
-            {maps.length === 0
-              ? "You don’t have any maps yet. Create your first map to get started."
+            {showEmptyWelcome
+              ? "You’re on My Maps — create your first map below to get started."
               : `You currently have ${maps.length} map${maps.length === 1 ? "" : "s"}.`}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => navigate("/client/maps/new")}
-          >
-            {maps.length === 0 ? "Get started – create a map" : "Create new map"}
-          </button>
+          {!showEmptyWelcome ? (
+            <button type="button" className="btn btn-primary" onClick={() => navigate("/client/maps/new")}>
+              Create new map
+            </button>
+          ) : null}
           {err ? (
             <span style={{ fontSize: 12, color: "#b91c1c", maxWidth: 260, textAlign: "right" }}>
               {err}
@@ -89,17 +88,33 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* Maps list, full-width */}
-      <div className="admin-card" style={{ margin: 0 }}>
-        {loading ? <p>Loading…</p> : null}
+      {/* Maps list + empty-state overlay */}
+      <div
+        className="admin-card client-dashboard__mapsRegion"
+        style={{ margin: 0, position: "relative", minHeight: showEmptyWelcome ? "min(62vh, 520px)" : undefined }}
+      >
+        {loading ? <p style={{ margin: 0 }}>Loading…</p> : null}
 
-        {!loading && maps.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.8 }}>
-            You do not have any maps yet. Click &quot;Get started – create a map&quot; to build your first directory map.
-          </p>
+        {showEmptyWelcome ? (
+          <div className="client-dashboard__emptyOverlay" aria-hidden={false}>
+            <div className="client-dashboard__emptyCard">
+              <h2 className="client-dashboard__emptyTitle">Welcome to My Maps</h2>
+              <p className="client-dashboard__emptyText">
+                Create your first directory map to add listings, customise pins and colours, and embed the map on your
+                website.
+              </p>
+              <button
+                type="button"
+                className="btn client-dashboard__emptyCta"
+                onClick={() => navigate("/client/maps/new")}
+              >
+                Create your first map
+              </button>
+            </div>
+          </div>
         ) : null}
 
-        {maps.length ? (
+        {!showEmptyWelcome && maps.length > 0 ? (
           <table className="admin-table" style={{ marginTop: 0 }}>
             <thead>
               <tr>

@@ -1,15 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, hasSupabaseConfig } from "../lib/supabase";
-import { getMyRole } from "../lib/auth";
+import { getMyRole, getSession } from "../lib/auth";
 import { provisionClientFromPendingMetadata } from "../lib/provisionClientSignup";
-
-const AuthContext = createContext(null);
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
+import { AuthContext } from "./authContext.js";
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
@@ -21,6 +14,8 @@ export function AuthProvider({ children }) {
     error: null,
     signupProvisionError: null,
   });
+  /** Bumps after signup provisioning runs so ClientLayout can refetch contact. */
+  const [provisionVersion, setProvisionVersion] = useState(0);
 
   const runSignupProvision = useCallback(async (user) => {
     if (!user) {
@@ -73,14 +68,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session ?? null;
+        const session = await getSession();
         const user = session?.user ?? null;
         if (!mounted) return;
+        // Mark auth ready before provisioning so magic-link landings never spin forever if DB/RPC is slow.
+        setState((s) => ({ ...s, initializing: false, session, user }));
         await runSignupProvision(user);
         await loadRole(user);
-        if (!mounted) return;
-        setState((s) => ({ ...s, initializing: false, session, user }));
+        setProvisionVersion((n) => n + 1);
       } catch (e) {
         if (!mounted) return;
         const raw = e?.message ?? String(e);
@@ -90,19 +85,40 @@ export function AuthProvider({ children }) {
 
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // NOTE: Provision org/contact before exposing user to routes so /client never loads without a contact.
+    // Sync handler only — async work must not run inside this callback (Supabase holds an auth lock here;
+    // awaiting getSession/loadRole deadlocks or breaks SIGNED_OUT). See GoTrueClient.onAuthStateChange docs.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // Tab refocus / background refresh emits TOKEN_REFRESHED with a new access token but same user.
+      // Running the full path cleared role, set roleLoading, and bumped provisionVersion → ClientLayout
+      // showed "Loading…" and refetched client for several seconds. Identity did not change.
+      if (event === "TOKEN_REFRESHED") {
+        setState((s) => ({
+          ...s,
+          session,
+          initializing: false,
+          user: session?.user ?? s.user,
+          error: null,
+        }));
+        return;
+      }
+
       const user = session?.user ?? null;
-      await runSignupProvision(user);
       setState((s) => ({
         ...s,
+        initializing: false,
         session,
         user,
         role: null,
         roleLoading: !!user,
         error: null,
       }));
-      await loadRole(user);
+      queueMicrotask(() => {
+        void (async () => {
+          await runSignupProvision(user);
+          await loadRole(user);
+          setProvisionVersion((n) => n + 1);
+        })();
+      });
     });
 
     return () => {
@@ -118,14 +134,14 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       ...state,
+      provisionVersion,
       isAuthed: !!state.user,
       isAdmin: state.role === "admin",
       reloadRole: () => loadRole(state.user),
       clearSignupProvisionError,
     }),
-    [clearSignupProvisionError, loadRole, state]
+    [clearSignupProvisionError, loadRole, provisionVersion, state]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-

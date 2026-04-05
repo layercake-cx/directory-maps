@@ -24,11 +24,8 @@ export async function provisionClientFromPendingMetadata(user) {
     return { ok: true, skipped: true };
   }
 
-  const { data: slugOk, error: rpcErr } = await supabase.rpc("is_client_slug_available", { p_slug: orgSlug });
-  if (rpcErr) throw rpcErr;
-  if (slugOk === false) {
-    return { ok: false, error: "slug_taken", message: "That organisation URL is no longer available. Please contact support." };
-  }
+  // Do not call is_client_slug_available here — it can hang on slow networks and blocked auth init.
+  // Uniqueness is enforced by idx_clients_slug; duplicate returns a clear error below.
 
   const clientId = crypto.randomUUID();
   const email = (user.email ?? "").trim() || "unknown@user.local";

@@ -1,4 +1,5 @@
 import React from "react";
+import { logClientError } from "../lib/errorLogger.js";
 
 export default class ErrorBoundary extends React.Component {
   state = { error: null };
@@ -11,6 +12,13 @@ export default class ErrorBoundary extends React.Component {
     if (typeof console !== "undefined" && console.error) {
       console.error("App error:", error, info?.componentStack);
     }
+    logClientError({
+      type: "react",
+      message: error?.message ?? String(error),
+      stack: error?.stack,
+      componentStack: info?.componentStack,
+      context: { boundary: "root" },
+    });
   }
 
   render() {

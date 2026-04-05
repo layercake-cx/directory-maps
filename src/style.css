@@ -939,6 +939,30 @@ a:hover {
   box-shadow: 0 0 0 2px rgba(15, 157, 168, 0.2);
 }
 
+.auth-form__checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--page-text);
+}
+
+.auth-form__checkboxRow input {
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.auth-form__checkboxRow a {
+  color: var(--brand-teal, #0f9da8);
+  text-decoration: underline;
+}
+
+.auth-form__checkboxRow a:hover {
+  text-decoration: underline;
+}
+
 .auth-form__submit {
   margin-top: 8px;
   padding: 12px;
@@ -960,6 +984,90 @@ a:hover {
   justify-content: center;
   align-items: flex-start;
   padding: 40px 24px;
+}
+
+/* Legal / terms (markdown body) */
+.auth-page__card.terms-page {
+  max-width: 720px;
+}
+
+.terms-page__markdown {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--page-text);
+}
+
+.terms-page__markdown h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  line-height: 1.25;
+}
+
+.terms-page__markdown h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+  line-height: 1.35;
+}
+
+.terms-page__markdown h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.4rem;
+}
+
+.terms-page__markdown p {
+  margin: 0 0 0.85rem;
+}
+
+.terms-page__markdown ul,
+.terms-page__markdown ol {
+  margin: 0 0 0.85rem;
+  padding-left: 1.35rem;
+}
+
+.terms-page__markdown li {
+  margin-bottom: 0.35rem;
+}
+
+.terms-page__markdown a {
+  color: var(--brand-teal, #0f9da8);
+  text-decoration: underline;
+}
+
+.terms-page__markdown a:hover {
+  text-decoration: underline;
+}
+
+.terms-page__markdown strong {
+  font-weight: 600;
+}
+
+.terms-page__markdown hr {
+  border: none;
+  border-top: 1px solid var(--lc-border, #e5e7eb);
+  margin: 1.5rem 0;
+}
+
+.terms-page__markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 0 0 1rem;
+}
+
+.terms-page__markdown th,
+.terms-page__markdown td {
+  border: 1px solid var(--lc-border, #e5e7eb);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.terms-page__markdown th {
+  background: #f9fafb;
+  font-weight: 600;
 }
 
 .auth-page__card {

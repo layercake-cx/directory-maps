@@ -2,8 +2,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
-import { ClientProvider, getClientAndContact } from "../../context/ClientContext.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { ClientProvider } from "../../context/ClientContext.jsx";
+import { getClientAndContact } from "../../lib/getClientAndContact.js";
+import { useAuth } from "../../hooks/useAuth.js";
 import "../admin/admin.css";
 
 const CLIENT_NAV = [
@@ -14,7 +15,7 @@ const CLIENT_NAV = [
 export default function ClientLayout() {
   const location = useLocation();
   const pathname = location.pathname || "/";
-  const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError } = useAuth();
+  const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
 
   const [client, setClient] = useState(null);
   const [contact, setContact] = useState(null);
@@ -39,7 +40,7 @@ export default function ClientLayout() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, provisionVersion]);
 
   function handleSignOut() {
     signOut().catch(() => {});
@@ -109,8 +110,8 @@ export default function ClientLayout() {
         <div className="admin-card" style={{ maxWidth: 560 }}>
           <h2 style={{ marginTop: 0 }}>No organisation linked</h2>
           <p>
-            Your account is not linked to an organisation yet. If you just signed up with Google or LinkedIn, create an
-            organisation using email sign-up, or contact support.
+            Your account is not linked to an organisation yet. Complete email sign-up from the link we sent you, or
+            contact support.
           </p>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <a href="#/signup" className="btn btn-primary">

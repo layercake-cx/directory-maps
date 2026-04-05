@@ -2,20 +2,25 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import BrandLogo from "./BrandLogo.jsx";
 import { signOut } from "../lib/auth";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 export default function SiteHeader() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const { user } = useAuth();
 
   async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
       await signOut();
       setMenuOpen(false);
       navigate("/");
     } catch {
-      // ignore
+      navigate("/");
+    } finally {
+      setSigningOut(false);
     }
   }
 
@@ -25,6 +30,10 @@ export default function SiteHeader() {
         <BrandLogo to="/" className="site-header__brand" />
 
         <nav className="site-header__nav">
+          <Link to="/pricing" className="site-header__navLink">
+            Pricing
+          </Link>
+
           {!user && (
             <>
               <Link to="/login" className="site-header__navLink">
@@ -41,17 +50,20 @@ export default function SiteHeader() {
               <button
                 type="button"
                 className="site-header__navLink site-header__navLink--account"
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={() => !signingOut && setMenuOpen((open) => !open)}
                 aria-haspopup="true"
                 aria-expanded={menuOpen}
+                aria-busy={signingOut}
+                disabled={signingOut}
               >
-                My account
+                {signingOut ? "Signing out…" : "My account"}
               </button>
               {menuOpen && (
                 <div className="site-header__accountMenu" role="menu">
                   <button
                     type="button"
                     className="site-header__accountItem"
+                    disabled={signingOut}
                     onClick={() => {
                       setMenuOpen(false);
                       navigate("/client");
@@ -62,6 +74,7 @@ export default function SiteHeader() {
                   <button
                     type="button"
                     className="site-header__accountItem"
+                    disabled={signingOut}
                     onClick={() => {
                       setMenuOpen(false);
                       navigate("/client");
@@ -73,8 +86,10 @@ export default function SiteHeader() {
                     type="button"
                     className="site-header__accountItem"
                     onClick={handleSignOut}
+                    disabled={signingOut}
+                    aria-busy={signingOut}
                   >
-                    Sign out
+                    {signingOut ? "Signing out…" : "Sign out"}
                   </button>
                 </div>
               )}
@@ -85,4 +100,3 @@ export default function SiteHeader() {
     </header>
   );
 }
-
