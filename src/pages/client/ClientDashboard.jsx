@@ -115,7 +115,7 @@ export default function ClientDashboard() {
           return;
         }
 
-        const isPrivileged = ct?.role === "owner" || ct?.role === "manager";
+        const isPrivileged = ct?.role === "owner" || ct?.role === "manager" || ct?.is_primary === true;
 
         if (isPrivileged) {
           const { data: ms, error: mErr } = await supabase
@@ -165,7 +165,7 @@ export default function ClientDashboard() {
     }
   }
 
-  const canManage = contact?.role === "owner" || contact?.role === "manager";
+  const canManage = contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
 
   if (!loading && client === null) {
     return (

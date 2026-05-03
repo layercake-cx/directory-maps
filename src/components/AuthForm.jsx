@@ -83,6 +83,7 @@ export default function AuthForm({ mode, onSuccess }) {
             user_id: data.user.id,
             email: email.trim(),
             is_primary: true,
+            role: "owner",
           });
           if (contactError) {
             setMsg(contactError.message ?? "Organisation created but there was a problem linking your contact.");
