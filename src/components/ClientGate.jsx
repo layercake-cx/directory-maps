@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { acceptPendingInvitation } from "../lib/inviteHelpers";
 
 export default function ClientGate({ children }) {
   const navigate = useNavigate();
@@ -24,7 +25,23 @@ export default function ClientGate({ children }) {
 
         if (!user) {
           setState({ loading: false, authed: false, error: "" });
-        } else {
+          return;
+        }
+
+        // Check whether this newly-logged-in user has a pending invitation.
+        // If they don't have a contact record yet, acceptPendingInvitation will
+        // create one for them and wire up their map permissions.
+        const { data: existingContact } = await supabase
+          .from("contacts")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!existingContact && user.email) {
+          await acceptPendingInvitation(user.id, user.email);
+        }
+
+        if (mounted) {
           setState({ loading: false, authed: true, error: "" });
         }
       } catch (e) {
@@ -58,4 +75,3 @@ export default function ClientGate({ children }) {
 
   return children;
 }
-

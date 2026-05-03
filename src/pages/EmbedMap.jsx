@@ -218,6 +218,17 @@ export default function EmbedMap() {
   if (!apiKey) return <div style={{ padding: 16 }}>Missing VITE_GOOGLE_MAPS_API_KEY</div>;
 
   const primaryColor = effectiveDefaults.markerColor || "#4A9BAA";
+  const buttonColor = (() => {
+    try {
+      const t =
+        typeof effectiveDefaults.themeSource === "string"
+          ? JSON.parse(effectiveDefaults.themeSource || "{}")
+          : effectiveDefaults.themeSource || {};
+      return (t.buttonColor && String(t.buttonColor).trim()) || primaryColor;
+    } catch (_) {
+      return primaryColor;
+    }
+  })();
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
@@ -485,7 +496,7 @@ export default function EmbedMap() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="map-pin-overlay__visit-btn"
-                  style={{ backgroundColor: primaryColor }}
+                  style={{ backgroundColor: buttonColor }}
                 >
                   Visit website
                 </a>

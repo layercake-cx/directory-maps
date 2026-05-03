@@ -110,6 +110,7 @@ export default function ClientMapDashboard() {
   const [pinBorderColor, setPinBorderColor] = useState("#ffffff");
   const [pinBorderSize, setPinBorderSize] = useState(0);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
+  const [buttonColor, setButtonColor] = useState("#4A9BAA");
 
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -241,6 +242,7 @@ export default function ClientMapDashboard() {
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
             setPinBorderSize(Math.max(0, Math.min(8, Number(theme.pinBorderSize) ?? 0)));
             setPinFaviconUrl(theme.pin_favicon_url ?? "");
+            setButtonColor(theme.buttonColor ?? "#4A9BAA");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -355,6 +357,7 @@ export default function ClientMapDashboard() {
         pinBorderColor: pinBorderColor || "#ffffff",
         pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
         pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+        buttonColor: (buttonColor || "").trim() || "#4A9BAA",
       };
       const payloadBase = {
         name: cleanName,
@@ -418,11 +421,12 @@ export default function ClientMapDashboard() {
           pinBorderColor: pinBorderColor || "#ffffff",
           pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+          buttonColor: (buttonColor || "").trim() || "#4A9BAA",
         };
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -950,6 +954,12 @@ export default function ClientMapDashboard() {
                       </div>
                     </Field>
                   )}
+                  <Field label="Website button colour">
+                    <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                      Colour of the &quot;Visit website&quot; button on the embedded map. Independent of pin colour.
+                    </div>
+                  </Field>
                   <div>
                     <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin</div>
                     <p style={{ fontSize: 12, opacity: 0.8, margin: "0 0 10px 0" }}>

@@ -13,12 +13,7 @@ function slugify(input) {
     .replace(/(^-|-$)/g, "");
 }
 
-/**
- * Returns the client record for the current user via their contact (user_id -> contact -> client).
- * If the user is an admin with no contact, returns null. Legacy: if no contact but a client
- * exists with id = user.id, we create a contact for that client and return the client.
- */
-async function getClientForUser() {
+async function getClientAndContactForUser() {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const user = userData?.user;
@@ -33,29 +28,29 @@ async function getClientForUser() {
       .select("id,name,slug,created_at,updated_at")
       .eq("id", impersonatedClientId)
       .single();
-    if (clientErr || !client) return null;
-    return { ...client, __impersonated: true };
+    if (clientErr || !client) return { client: null, contact: null };
+    return { client: { ...client, __impersonated: true }, contact: { role: "owner" } };
   }
 
   if (role === "admin") {
     const { data: contact } = await supabase
       .from("contacts")
-      .select("client_id")
+      .select("id, client_id, role, is_primary")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (!contact) return null;
+    if (!contact) return { client: null, contact: null };
     const { data: client, error: clientErr } = await supabase
       .from("clients")
       .select("id,name,slug,created_at,updated_at")
       .eq("id", contact.client_id)
       .single();
-    if (clientErr || !client) return null;
-    return client;
+    if (clientErr || !client) return { client: null, contact: null };
+    return { client, contact };
   }
 
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
-    .select("id, client_id")
+    .select("id, client_id, role, is_primary")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -67,9 +62,10 @@ async function getClientForUser() {
       .eq("id", contact.client_id)
       .single();
     if (clientErr) throw clientErr;
-    return client ?? null;
+    return { client: client ?? null, contact };
   }
 
+  // Legacy: client.id === user.id
   const { data: legacyClient, error: legacyErr } = await supabase
     .from("clients")
     .select("id,name,slug,created_at,updated_at")
@@ -78,22 +74,28 @@ async function getClientForUser() {
 
   if (legacyErr) throw legacyErr;
   if (legacyClient) {
-    await supabase.from("contacts").insert({
-      client_id: legacyClient.id,
-      user_id: user.id,
-      email: user.email ?? "Legacy contact",
-      is_primary: true,
-    });
-    return legacyClient;
+    const { data: newContact } = await supabase
+      .from("contacts")
+      .insert({
+        client_id: legacyClient.id,
+        user_id: user.id,
+        email: user.email ?? "Legacy contact",
+        is_primary: true,
+        role: "owner",
+      })
+      .select("id, client_id, role, is_primary")
+      .single();
+    return { client: legacyClient, contact: newContact ?? { role: "owner" } };
   }
 
-  return null;
+  return { client: null, contact: null };
 }
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
+  const [contact, setContact] = useState(null);
   const [maps, setMaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -104,22 +106,47 @@ export default function ClientDashboard() {
         setLoading(true);
         setErr("");
 
-        const c = await getClientForUser();
+        const { client: c, contact: ct } = await getClientAndContactForUser();
         setClient(c);
+        setContact(ct);
 
         if (c === null) {
           setMaps([]);
           return;
         }
 
-        const { data: ms, error: mErr } = await supabase
-          .from("maps")
-          .select("id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering")
-          .eq("client_id", c.id)
-          .order("name", { ascending: true });
+        const isPrivileged = ct?.role === "owner" || ct?.role === "manager";
 
-        if (mErr) throw mErr;
-        setMaps(ms ?? []);
+        if (isPrivileged) {
+          const { data: ms, error: mErr } = await supabase
+            .from("maps")
+            .select("id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering")
+            .eq("client_id", c.id)
+            .order("name", { ascending: true });
+          if (mErr) throw mErr;
+          setMaps(ms ?? []);
+        } else {
+          // member: only maps explicitly granted
+          const { data: perms, error: pErr } = await supabase
+            .from("contact_map_permissions")
+            .select("map_id")
+            .eq("contact_id", ct.id);
+          if (pErr) throw pErr;
+
+          const mapIds = (perms ?? []).map((p) => p.map_id);
+          if (mapIds.length === 0) {
+            setMaps([]);
+            return;
+          }
+
+          const { data: ms, error: mErr } = await supabase
+            .from("maps")
+            .select("id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering")
+            .in("id", mapIds)
+            .order("name", { ascending: true });
+          if (mErr) throw mErr;
+          setMaps(ms ?? []);
+        }
       } catch (e) {
         setErr(e?.message ?? String(e));
       } finally {
@@ -132,12 +159,14 @@ export default function ClientDashboard() {
     signOut().catch(() => {});
   }
 
+  const canManage = contact?.role === "owner" || contact?.role === "manager";
+
   if (!loading && client === null) {
     return (
       <div className="page-main">
         <div className="admin-card" style={{ maxWidth: 560 }}>
           <h2 style={{ marginTop: 0 }}>Admin account</h2>
-          <p>You’re signed in as an admin. Client accounts are not created for admin users.</p>
+          <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
           <p>Use the <a href="#/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a client account to use the client portal.</p>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <a href="#/admin/clients" className="btn btn-primary">Go to Admin</a>
@@ -168,9 +197,16 @@ export default function ClientDashboard() {
           ) : null}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="btn btn-primary" onClick={() => navigate("/client/maps/new")}>
-            New map
-          </button>
+          {canManage && (
+            <button type="button" className="btn" onClick={() => navigate("/client/team")}>
+              Team
+            </button>
+          )}
+          {canManage && (
+            <button type="button" className="btn btn-primary" onClick={() => navigate("/client/maps/new")}>
+              New map
+            </button>
+          )}
           <button type="button" className="btn" onClick={handleSignOut}>
             Sign out
           </button>
@@ -182,7 +218,11 @@ export default function ClientDashboard() {
         {err ? <p>{err}</p> : null}
 
         {!loading && maps.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.8 }}>You do not have any maps yet. Create one to get started.</p>
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            {canManage
+              ? "You do not have any maps yet. Create one to get started."
+              : "You have not been granted access to any maps yet."}
+          </p>
         ) : null}
 
         {maps.length ? (
@@ -220,4 +260,3 @@ export default function ClientDashboard() {
     </div>
   );
 }
-
