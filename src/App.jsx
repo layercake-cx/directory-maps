@@ -21,6 +21,7 @@ import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
 
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
+import ClientTeam from "./pages/client/ClientTeam.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -41,6 +42,14 @@ export default function App() {
         element={
           <ClientGate>
             <ClientDashboard />
+          </ClientGate>
+        }
+      />
+      <Route
+        path="/client/team"
+        element={
+          <ClientGate>
+            <ClientTeam />
           </ClientGate>
         }
       />
