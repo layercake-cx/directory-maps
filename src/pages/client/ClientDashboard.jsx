@@ -155,8 +155,14 @@ export default function ClientDashboard() {
     })();
   }, []);
 
-  function handleSignOut() {
-    signOut().catch(() => {});
+  async function handleSignOut() {
+    try {
+      await signOut();
+      navigate("/login", { replace: true });
+    } catch {
+      // If sign-out fails, force a hard redirect so the user isn't stuck.
+      window.location.replace("/#/login");
+    }
   }
 
   const canManage = contact?.role === "owner" || contact?.role === "manager";

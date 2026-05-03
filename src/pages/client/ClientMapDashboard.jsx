@@ -565,7 +565,13 @@ export default function ClientMapDashboard() {
           <button className="btn btn-primary" type="button" onClick={saveMap} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
-          <button onClick={signOut} type="button">
+          <button
+            onClick={async () => {
+              try { await signOut(); } catch {}
+              navigate("/login", { replace: true });
+            }}
+            type="button"
+          >
             Sign out
           </button>
         </>
