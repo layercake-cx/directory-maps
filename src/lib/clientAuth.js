@@ -22,7 +22,7 @@ export async function getContactForCurrentUser() {
 }
 
 export function canManageOrg(contact) {
-  return contact?.role === "owner" || contact?.role === "manager";
+  return contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
 }
 
 /**
