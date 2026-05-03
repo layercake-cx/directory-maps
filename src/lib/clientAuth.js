@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
+export const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
 
 /**
  * Returns the full contact record for the current user, including role.
@@ -22,7 +22,7 @@ export async function getContactForCurrentUser() {
 }
 
 export function canManageOrg(contact) {
-  return contact?.role === "owner" || contact?.role === "manager";
+  return contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
 }
 
 /**

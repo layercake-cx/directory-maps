@@ -115,7 +115,7 @@ export default function ClientDashboard() {
           return;
         }
 
-        const isPrivileged = ct?.role === "owner" || ct?.role === "manager";
+        const isPrivileged = ct?.role === "owner" || ct?.role === "manager" || ct?.is_primary === true;
 
         if (isPrivileged) {
           const { data: ms, error: mErr } = await supabase
@@ -155,11 +155,17 @@ export default function ClientDashboard() {
     })();
   }, []);
 
-  function handleSignOut() {
-    signOut().catch(() => {});
+  async function handleSignOut() {
+    try {
+      await signOut();
+      navigate("/login", { replace: true });
+    } catch {
+      // If sign-out fails, force a hard redirect so the user isn't stuck.
+      window.location.replace("/#/login");
+    }
   }
 
-  const canManage = contact?.role === "owner" || contact?.role === "manager";
+  const canManage = contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
 
   if (!loading && client === null) {
     return (

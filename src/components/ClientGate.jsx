@@ -14,7 +14,7 @@ export default function ClientGate({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    async function run() {
+    async function checkAuth(event) {
       try {
         setState((s) => ({ ...s, loading: true, error: "" }));
 
@@ -28,17 +28,18 @@ export default function ClientGate({ children }) {
           return;
         }
 
-        // Check whether this newly-logged-in user has a pending invitation.
-        // If they don't have a contact record yet, acceptPendingInvitation will
-        // create one for them and wire up their map permissions.
-        const { data: existingContact } = await supabase
-          .from("contacts")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        // Only attempt invitation acceptance on a genuine new sign-in, not on
+        // token refreshes or session restores — avoids redundant DB queries.
+        if (event === "SIGNED_IN" && user.email) {
+          const { data: existingContact } = await supabase
+            .from("contacts")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-        if (!existingContact && user.email) {
-          await acceptPendingInvitation(user.id, user.email);
+          if (!existingContact) {
+            await acceptPendingInvitation(user.id, user.email);
+          }
         }
 
         if (mounted) {
@@ -46,17 +47,15 @@ export default function ClientGate({ children }) {
         }
       } catch (e) {
         if (mounted) {
-          setState({
-            loading: false,
-            authed: false,
-            error: e?.message ?? String(e),
-          });
+          setState({ loading: false, authed: false, error: e?.message ?? String(e) });
         }
       }
     }
 
-    run();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => run());
+    // Initial check — pass null so invitation acceptance is skipped on load.
+    checkAuth(null);
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => checkAuth(event));
 
     return () => {
       mounted = false;
