@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getMyRole, signOut } from "../lib/auth";
 
 export default function AdminGate({ children }) {
+  const navigate = useNavigate();
   const [state, setState] = useState({
     loading: true,
     authed: false,
@@ -65,9 +67,9 @@ export default function AdminGate({ children }) {
   async function doSignOut() {
     try {
       await signOut();
+      navigate("/login", { replace: true });
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(e);
+      setState((s) => ({ ...s, error: e?.message ?? "Sign-out failed." }));
     }
   }
 
@@ -88,10 +90,19 @@ export default function AdminGate({ children }) {
     return (
       <div style={{ padding: 24, maxWidth: 560 }}>
         <h2 style={{ marginTop: 0 }}>Admin access required</h2>
-        <p>You are signed in, but your account is not an admin.</p>
-        <button onClick={doSignOut} style={{ padding: "10px 14px" }}>
-          Sign out
-        </button>
+        <p>You are signed in, but your account does not have admin access.</p>
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={() => navigate("/client")}
+            style={{ padding: "10px 14px" }}
+          >
+            Go to client portal
+          </button>
+          <button type="button" onClick={doSignOut} style={{ padding: "10px 14px" }}>
+            Sign out
+          </button>
+        </div>
         {state.error ? <p style={{ marginTop: 12 }}>{state.error}</p> : null}
       </div>
     );
@@ -108,12 +119,7 @@ function PasswordForm() {
   async function signIn(e) {
     e.preventDefault();
     setMsg("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setMsg(error.message);
   }
 
@@ -127,7 +133,6 @@ function PasswordForm() {
         required
         style={{ padding: 10, width: "100%", marginBottom: 12 }}
       />
-
       <label style={{ display: "block", marginBottom: 8 }}>Password</label>
       <input
         value={password}
@@ -136,11 +141,9 @@ function PasswordForm() {
         required
         style={{ padding: 10, width: "100%", marginBottom: 12 }}
       />
-
       <button type="submit" style={{ padding: "10px 14px" }}>
         Sign in
       </button>
-
       {msg ? <p style={{ marginTop: 12 }}>{msg}</p> : null}
     </form>
   );

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
+export const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
 
 /**
  * Returns the full contact record for the current user, including role.
