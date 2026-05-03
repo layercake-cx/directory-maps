@@ -24,7 +24,7 @@ export default function ClientTeam() {
   const [inviting, setInviting] = useState(false);
   const [msg, setMsg] = useState({ text: "", error: false });
 
-  const isOwner = myContact?.role === "owner";
+  const isOwner = myContact?.role === "owner" || myContact?.is_primary === true;
 
   useEffect(() => {
     load();
