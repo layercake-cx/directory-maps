@@ -99,7 +99,7 @@ function Layout() {
   const isAdmin = location.pathname.startsWith("/admin");
   const isClientMapArea = location.pathname.startsWith("/client/maps/");
   const isEmbed = location.pathname === "/embed";
-  const showSiteHeader = !isAdmin && !isClientMapArea;
+  const showSiteHeader = !isAdmin && !isClientMapArea && !isEmbed;
   const showFooter = !isEmbed;
   return (
     <div className="layout-root">

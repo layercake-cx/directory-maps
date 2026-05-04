@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut, getMyRole } from "../../lib/auth";
 import { getImpersonatedClientId } from "../../lib/clientAuth";
-import BrandLogo from "../../components/BrandLogo.jsx";
 
 function slugify(input) {
   return (input || "")
@@ -189,7 +188,6 @@ export default function ClientDashboard() {
   return (
     <div className="page-main">
       <header className="client-dashboard-header">
-        <BrandLogo to="/client" className="client-dashboard-header__brand" />
         <div className="client-dashboard-header__main">
           <h1 style={{ margin: "0 0 4px 0" }}>{client?.name || "Your maps"}</h1>
           {client?.slug ? (

@@ -35,7 +35,7 @@ a:hover {
 
 /* Shared page layout */
 .page-main {
-  max-width: 1120px;
+  max-width: 1230px;
   margin: 16px auto 40px;
   padding: 0 16px;
 }
@@ -48,7 +48,7 @@ a:hover {
 }
 
 .site-header__inner {
-  max-width: 1120px;
+  max-width: 1230px;
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -103,6 +103,23 @@ a:hover {
 .site-header__navLink--primary:hover {
   background: #fff;
   color: var(--brand-teal-dark);
+}
+
+.site-header__navBtn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.site-header__navBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Client map dashboard tabs */
@@ -888,7 +905,7 @@ a:hover {
   padding: 28px 16px 32px;
 }
 .site-footer__inner {
-  max-width: 1120px;
+  max-width: 1230px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
