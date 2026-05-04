@@ -19,6 +19,9 @@ import AdminMapNew from "./pages/admin/AdminMapNew.jsx";
 import AdminMapDashboard from "./pages/admin/AdminMapDashboard.jsx";
 import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
+import AdminMaps from "./pages/admin/AdminMaps.jsx";
+import AdminUsers from "./pages/admin/AdminUsers.jsx";
+import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
 
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
 import ClientTeam from "./pages/client/ClientTeam.jsx";
@@ -99,6 +102,16 @@ export default function App() {
         }
       />
 
+      {/* Admin · Maps (searchable list) */}
+      <Route
+        path="/admin/maps"
+        element={
+          <AdminGate>
+            <AdminMaps />
+          </AdminGate>
+        }
+      />
+
       {/* Admin · Legacy listings */}
       <Route
         path="/admin/listings"
@@ -174,6 +187,24 @@ export default function App() {
         element={
           <AdminGate>
             <AdminMapListings />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <AdminGate>
+            <AdminUsers />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/deployments"
+        element={
+          <AdminGate>
+            <AdminDeployments />
           </AdminGate>
         }
       />

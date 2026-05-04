@@ -3,15 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
-import DirectoryMap from "../../components/DirectoryMap.jsx";
+import PublishedMapView from "../../components/PublishedMapView.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl } from "../../lib/markerIcons";
 
-const TABS = ["detail", "design", "data", "groups", "publish"];
+const TABS = ["detail", "design", "data", "groups", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
   { id: "roadmap_dark", label: "Roadmap (Dark)" },
+  { id: "roadmap_muted", label: "Roadmap (Muted)" },
   { id: "satellite", label: "Satellite" },
   { id: "hybrid", label: "Hybrid" },
   { id: "terrain", label: "Terrain" },
@@ -108,6 +109,8 @@ export default function AdminMapDashboard() {
   const [defaultLng, setDefaultLng] = useState("");
   const [defaultZoom, setDefaultZoom] = useState("");
   const [showListPanel, setShowListPanel] = useState(true);
+  const [showSearch, setShowSearch] = useState(true);
+  const [showGroupDropdowns, setShowGroupDropdowns] = useState(true);
   const [enableClustering, setEnableClustering] = useState(true);
   const [clusterRadius, setClusterRadius] = useState(80);
   const [markerStyle, setMarkerStyle] = useState("pin");
@@ -118,6 +121,9 @@ export default function AdminMapDashboard() {
   const [pinBorderSize, setPinBorderSize] = useState(0);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
   const [buttonColor, setButtonColor] = useState("#4A9BAA");
+  const [panelBackgroundColor, setPanelBackgroundColor] = useState("#e4f0ff");
+  const [panelBackgroundOpacity, setPanelBackgroundOpacity] = useState(0.88);
+  const [panelLinkColor, setPanelLinkColor] = useState("#4A9BAA");
 
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -126,6 +132,7 @@ export default function AdminMapDashboard() {
   const [selectedListing, setSelectedListing] = useState(null);
   const [selectedMarkerPoint, setSelectedMarkerPoint] = useState(null);
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
+  const [centerOnListingId, setCenterOnListingId] = useState(null);
   const pinOverlayRef = useRef(null);
   const [publishedConfig, setPublishedConfig] = useState(null);
   const [publishedAt, setPublishedAt] = useState(null);
@@ -258,9 +265,14 @@ export default function AdminMapDashboard() {
             const theme = typeof m.theme_json === "string" ? JSON.parse(m.theme_json || "{}") : m.theme_json || {};
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
-            setPinBorderSize(Math.max(0, Math.min(8, Number(theme.pinBorderSize) ?? 0)));
+            setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
             setPinFaviconUrl(theme.pin_favicon_url ?? "");
             setButtonColor(theme.buttonColor ?? "#4A9BAA");
+            setPanelBackgroundColor(theme.panelBackgroundColor ?? "#e4f0ff");
+            setPanelBackgroundOpacity(theme.panelBackgroundOpacity ?? 0.88);
+            setPanelLinkColor(theme.panelLinkColor ?? "#4A9BAA");
+            setShowSearch(theme.showSearch !== false);
+            setShowGroupDropdowns(theme.showGroupDropdowns !== false);
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -362,9 +374,14 @@ export default function AdminMapDashboard() {
           ...existingTheme,
           clusterColor: clusterColor || "#4A9BAA",
           pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+          pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
           buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+          panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+          panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+          showSearch,
+          showGroupDropdowns,
         };
         const payloadBase = {
           name: cleanName,
@@ -485,14 +502,19 @@ export default function AdminMapDashboard() {
           ...base,
           clusterColor: clusterColor || "#4A9BAA",
           pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(8, Number(pinBorderSize) || 0)),
+          pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
           buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#e4f0ff",
+          panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+          panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+          showSearch,
+          showGroupDropdowns,
         };
         return base;
       })(),
     }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor],
+    [defaultLat, defaultLng, defaultZoom, showListPanel, showSearch, showGroupDropdowns, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelLinkColor],
   );
 
   const hasUnpublishedChanges = useMemo(() => {
@@ -500,6 +522,20 @@ export default function AdminMapDashboard() {
     const b = publishedConfig || null;
     return JSON.stringify(a) !== JSON.stringify(b);
   }, [currentPublishConfig, publishedConfig]);
+
+  const editTheme = useMemo(() => {
+    const hex = (panelBackgroundColor || "#e4f0ff").trim().replace(/^#/, "");
+    const m = hex.match(/.{2}/g);
+    const r = m ? parseInt(m[0], 16) : 228;
+    const g = m ? parseInt(m[1], 16) : 240;
+    const b = m ? parseInt(m[2], 16) : 255;
+    const a = Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88));
+    return {
+      panelBg: `rgba(${r},${g},${b},${a})`,
+      panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+      buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+    };
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor]);
 
   async function publishMap() {
     if (!map) return;
@@ -691,23 +727,89 @@ export default function AdminMapDashboard() {
 
   return (
     <AdminLayout
-      title={`${client?.name ?? "Client"} · ${map?.name ?? "Map"}`}
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+        { label: map?.name ?? "Map" },
+      ]}
       mainClassName="admin-main--map-page"
       rightActions={
         <>
           <button className="btn btn-primary" type="button" onClick={saveMap} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
-          <button onClick={signOut} type="button">
+          <button
+            onClick={async () => {
+              try { await signOut(); } catch {}
+              navigate("/login", { replace: true });
+            }}
+            type="button"
+          >
             Sign out
           </button>
         </>
       }
     >
       <div className="admin-map-page">
-        <div className="admin-map-page__toolbar">
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back</Link>
-          <div className="admin-map-page__toolbar-tabs">
+        <div className="admin-map-page__map-wrap">
+          {overlayTab ? (
+            <div
+              className="admin-map-overlay__backdrop"
+              onClick={closeOverlay}
+              onKeyDown={(e) => e.key === "Escape" && closeOverlay()}
+              aria-label="Close panel"
+              role="button"
+              tabIndex={0}
+            />
+          ) : null}
+          {apiKey ? (
+            <PublishedMapView
+              apiKey={apiKey}
+              center={mapCenter}
+              zoom={Number(defaultZoom) || 10}
+              mapTypeId={mapTypeId}
+              listings={listings}
+              groups={groups}
+              showListPanel={showListPanel}
+              showSearch={showSearch}
+              showGroupDropdowns={showGroupDropdowns}
+              enableClustering={enableClustering}
+              clusterRadius={clusterRadius}
+              markerStyle={markerStyle}
+              markerColor={markerColor}
+              customPinUrl={markerStyle === "custom" && customPinUrl ? customPinUrl : null}
+              clusterColor={clusterColor}
+              pinBorderColor={pinBorderColor}
+              pinBorderSize={pinBorderSize}
+              pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
+              theme={editTheme}
+              selectedListing={selectedListing}
+              selectedMarkerPoint={selectedMarkerPoint}
+              clampedPanelPosition={clampedPanelPosition}
+              setClampedPanelPosition={setClampedPanelPosition}
+              pinOverlayRef={pinOverlayRef}
+              onSelectMarker={(listing, point) => {
+                setSelectedListing(listing);
+                setSelectedMarkerPoint(point ?? null);
+                setClampedPanelPosition(null);
+              }}
+              onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
+              centerOnListingId={centerOnListingId}
+              setCenterOnListingId={setCenterOnListingId}
+              showSendMessage={false}
+              height="100%"
+              listingsWithColor={listingsWithColor}
+            />
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
+              Set VITE_GOOGLE_MAPS_API_KEY to show the map.
+            </div>
+          )}
+        </div>
+
+        <div className="admin-map-page__right">
+          <div className="admin-map-page__controls">
+            <h2 className="admin-map-page__controls-title">Map Settings</h2>
             {TABS.map((t) => (
               <button
                 key={t}
@@ -715,138 +817,59 @@ export default function AdminMapDashboard() {
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
-          </div>
-          {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
-          <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
-            <button
-              type="button"
-              className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
-              onClick={() => setMapOptionsOpen((o) => !o)}
-              aria-expanded={mapOptionsOpen}
-              aria-haspopup="true"
-            >
-              Map options
-            </button>
-            {mapOptionsOpen && (
-              <div className="admin-map-page__map-options-panel" role="menu">
-                {MAP_TYPES.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={mapTypeId === id}
-                    className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
-                    onClick={() => {
-                      setMapTypeId(id);
-                      setMapOptionsOpen(false);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button className="btn btn-primary" type="button" onClick={openEmbed}>
-            Launch map
-          </button>
-          <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/listings`}>
-            Listings
-          </Link>
-        </div>
-
-        <div className="admin-map-page__map-wrap">
-          {apiKey ? (
-            <DirectoryMap
-              apiKey={apiKey}
-              center={mapCenter}
-              zoom={Number(defaultZoom) || 10}
-              mapTypeId={mapTypeId}
-              listings={listingsWithColor}
-              onSelect={(listing, point) => {
-                setSelectedListing(listing);
-                setSelectedMarkerPoint(point ?? null);
-                setClampedPanelPosition(null);
-              }}
-              defaultMarkerColor={markerColor}
-              markerStyle={markerStyle}
-              customMarkerIconUrl={markerStyle === "custom" && customPinUrl ? customPinUrl : null}
-              height="100%"
-              enableClustering={enableClustering}
-              clusterRadius={clusterRadius}
-              clusterColor={clusterColor}
-              pinBorderColor={pinBorderColor}
-              pinBorderSize={pinBorderSize}
-              pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
-            />
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
-              Set VITE_GOOGLE_MAPS_API_KEY to show the map.
+            <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
+              <button
+                type="button"
+                className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
+                onClick={() => setMapOptionsOpen((o) => !o)}
+                aria-expanded={mapOptionsOpen}
+                aria-haspopup="true"
+              >
+                Map type
+              </button>
+              {mapOptionsOpen && (
+                <div className="admin-map-page__map-options-panel" role="menu">
+                  {MAP_TYPES.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={mapTypeId === id}
+                      className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
+                      onClick={() => {
+                        setMapTypeId(id);
+                        setMapOptionsOpen(false);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-
-          {selectedListing ? (
-            <div
-              ref={pinOverlayRef}
-              className="admin-map-pin-overlay"
-              role="dialog"
-              aria-label="Listing details"
-              style={
-                selectedMarkerPoint
-                  ? {
-                      left: "auto",
-                      right: clampedPanelPosition?.right ?? 0,
-                      top: clampedPanelPosition?.top ?? selectedMarkerPoint.y,
-                      bottom: "auto",
-                      transform: clampedPanelPosition != null ? "none" : "translateY(-50%)",
-                      maxWidth: "min(320px, calc(100% - 24px))",
-                    }
-                  : undefined
-              }
-            >
-              <button type="button" className="admin-map-pin-overlay__close" onClick={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }} aria-label="Close">×</button>
-              <div className="admin-map-pin-overlay__body">
-                {selectedListing.logo_url ? (
-                  <LogoImage
-                    src={selectedListing.logo_url}
-                    wrapClassName="admin-map-pin-overlay__image-wrap"
-                    imgClassName="admin-map-pin-overlay__image"
-                    maxWidth={280}
-                    maxHeight={80}
-                  />
-                ) : null}
-                <h3 className="admin-map-pin-overlay__name">{selectedListing.name || "—"}</h3>
-                {selectedListing.website_url ? (
-                  <p className="admin-map-pin-overlay__row">
-                    <a href={selectedListing.website_url.startsWith("http") ? selectedListing.website_url : `https://${selectedListing.website_url}`} target="_blank" rel="noopener noreferrer">Website</a>
-                  </p>
-                ) : null}
-                {selectedListing.email ? (
-                  <p className="admin-map-pin-overlay__row">
-                    <a href={`mailto:${selectedListing.email}`}>{selectedListing.email}</a>
-                  </p>
-                ) : null}
-                {selectedListing.phone ? (
-                  <p className="admin-map-pin-overlay__row">{selectedListing.phone}</p>
-                ) : null}
-              </div>
+            <div className="admin-map-page__controls-footer">
+              <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
+                Launch map
+              </button>
+              <Link to={`/admin/clients/${encodeURIComponent(clientId)}`} className="admin-map-page__control-btn">
+                Exit
+              </Link>
+              {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
             </div>
-          ) : null}
-        </div>
+          </div>
 
-        {/* Overlay */}
-        <div
-          className={`admin-map-overlay ${overlayTab ? "is-open" : ""}`}
-          aria-hidden={!overlayTab}
-        >
-          <div className="admin-map-overlay__backdrop" onClick={closeOverlay} aria-label="Close overlay" />
-          <div className="admin-map-overlay__panel" role="dialog" aria-label={overlayTab ? `${overlayTab} settings` : ""}>
+          <div
+            className={`admin-map-overlay__panel ${overlayTab ? "admin-map-overlay__panel--open" : ""}`}
+            role="dialog"
+            aria-label={overlayTab ? `${overlayTab} settings` : ""}
+            aria-hidden={!overlayTab}
+          >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1) : ""}
+                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×
@@ -934,124 +957,81 @@ export default function AdminMapDashboard() {
               )}
 
               {overlayTab === "design" && (
-                <div style={{ display: "grid", gap: 20 }}>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 10, opacity: 0.85 }}>Pin style</div>
-                    <div className="pin-style-grid">
-                      {PIN_STYLES.map(({ id, label }) => {
-                        const isSelected = markerStyle === id;
-                        const isCustom = id === "custom";
-                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                            onClick={() => setMarkerStyle(id)}
-                            aria-pressed={isSelected}
-                          >
-                            <div className="pin-style-option__preview">
-                              {src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}
-                            </div>
-                            <span className="pin-style-option__label">{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <Field label="Marker colour (default)">
-                    <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Applies to Pin, Dot, Circle. Changes update the map behind.</div>
-                  </Field>
-                  <Field label="Pin border">
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                      <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                      <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={8}
-                        step={1}
-                        value={pinBorderSize}
-                        onChange={(e) => setPinBorderSize(Number(e.target.value))}
-                        style={{ width: 80 }}
-                      />
-                      <span style={{ fontSize: 13 }}>{pinBorderSize}px</span>
-                    </div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>0 = no border. Updates the map as you change.</div>
-                  </Field>
-                  {(markerStyle === "pin" || markerStyle === "teardrop") && (
-                    <Field label="Image inside pin">
-                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                        <label className="btn" style={{ margin: 0 }}>
-                          {pinFaviconUrl ? "Change image…" : "Upload image"}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (file.size > 48 * 1024) {
-                                setErr("Image must be under 48KB (favicon-sized).");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setPinFaviconUrl(reader.result || "");
-                                setErr("");
-                              };
-                              reader.readAsDataURL(file);
-                              e.target.value = "";
-                            }}
-                            style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-                          />
-                        </label>
-                        {pinFaviconUrl && (
-                          <>
-                            <span style={{ fontSize: 12, opacity: 0.8 }} className="admin-pin-favicon-preview-wrap">
-                              <img src={pinFaviconUrl} alt="" style={{ maxWidth: 24, maxHeight: 24, objectFit: "contain", verticalAlign: "middle" }} />
-                            </span>
-                            <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button>
-                          </>
-                        )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Pins</h3>
+                      <div>
+                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Style</div>
+                        <div className="pin-style-grid">
+                          {PIN_STYLES.map(({ id, label }) => {
+                            const isSelected = markerStyle === id;
+                            const isCustom = id === "custom";
+                            const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
+                                onClick={() => setMarkerStyle(id)}
+                                aria-pressed={isSelected}
+                              >
+                                <div className="pin-style-option__preview">
+                                  {src ? <img src={src} alt="" aria-hidden /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}
+                                </div>
+                                <span className="pin-style-option__label">{label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Optional. Small image (favicon-sized, under 48KB) shown inside the pin. Use with Pin style only.</div>
-                    </Field>
-                  )}
-                  {enableClustering && (
-                    <Field label="Cluster colour">
-                      <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Colour of cluster circles when clustering is on.</div>
-                    </Field>
-                  )}
-                  <Field label="Website button colour">
-                    <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Colour of the &quot;Visit website&quot; button on the embedded map. Independent of pin colour.</div>
-                  </Field>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin</div>
-                    <p style={{ fontSize: 12, opacity: 0.8, margin: "0 0 10px 0" }}>SVG or PNG. Max 64×64 recommended. PNG colours are not changed by the map.</p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                      <input
-                        type="url"
-                        value={customPinUrl}
-                        onChange={(e) => setCustomPinUrl(e.target.value)}
-                        placeholder="Image URL (or upload below)"
-                        style={{ minWidth: 200, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)" }}
-                      />
-                      <label className="btn" style={{ margin: 0 }}>
-                        {customPinUploading ? "Uploading…" : "Upload SVG/PNG"}
-                        <input
-                          type="file"
-                          accept=".svg,.png,image/svg+xml,image/png"
-                          onChange={handleCustomPinFile}
-                          disabled={customPinUploading}
-                          style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-                        />
-                      </label>
+                      <Field label="Marker colour">
+                        <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
+                      </Field>
+                      <Field label="Pin border">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
+                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ width: 64 }} />
+                          <span style={{ fontSize: 12 }}>{pinBorderSize}px</span>
+                        </div>
+                      </Field>
+                      {(markerStyle === "pin" || markerStyle === "teardrop") && (
+                        <Field label="Image inside pin">
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                            <label className="btn" style={{ margin: 0 }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
+                            {pinFaviconUrl && <><span style={{ fontSize: 12, opacity: 0.8 }}><img src={pinFaviconUrl} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain", verticalAlign: "middle" }} /></span><button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button></>}
+                          </div>
+                        </Field>
+                      )}
+                      {enableClustering && <Field label="Cluster colour"><ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" /></Field>}
+                      <div>
+                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          <input type="url" value={customPinUrl} onChange={(e) => setCustomPinUrl(e.target.value)} placeholder="Optional" style={{ flex: "1", minWidth: 120, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--lc-border)" }} />
+                          <label className="btn" style={{ margin: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Panel</h3>
+                      <Field label="Background colour">
+                        <ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" />
+                      </Field>
+                      <Field label="Background opacity">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ width: 80 }} />
+                          <span style={{ fontSize: 12 }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
+                        </div>
+                      </Field>
+                      <Field label="Link colour">
+                        <ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" />
+                      </Field>
+                      <Field label="Website button colour">
+                        <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
+                      </Field>
                     </div>
                   </div>
-                  <div style={{ marginTop: 16 }}>
+                  <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
                     <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>
                       {saving ? "Saving…" : "Save"}
                     </button>
@@ -1148,7 +1128,7 @@ export default function AdminMapDashboard() {
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                             <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
                             <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                            <input type="range" min={0} max={8} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
+                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
                           </div>
                         </Field>
                         <Field label="Cluster colour">
@@ -1228,6 +1208,25 @@ export default function AdminMapDashboard() {
                     </button>
                     <button className="btn" type="button" onClick={openEmbed}>
                       Launch map
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {overlayTab === "search" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Control what appears in the list panel when the map is published.</p>
+                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={showSearch} onChange={(e) => setShowSearch(e.target.checked)} />
+                    Show search bar
+                  </label>
+                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={showGroupDropdowns} onChange={(e) => setShowGroupDropdowns(e.target.checked)} />
+                    Show group dropdowns
+                  </label>
+                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                    <button className="btn btn-primary" type="button" onClick={() => saveMap()} disabled={saving}>
+                      {saving ? "Saving…" : "Save"}
                     </button>
                   </div>
                 </div>

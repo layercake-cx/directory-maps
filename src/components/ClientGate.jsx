@@ -16,8 +16,6 @@ export default function ClientGate({ children }) {
 
     async function checkAuth(event) {
       try {
-        setState((s) => ({ ...s, loading: true, error: "" }));
-
         const { data } = await supabase.auth.getUser();
         const user = data?.user;
 

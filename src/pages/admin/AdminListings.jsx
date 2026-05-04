@@ -64,7 +64,7 @@ export default function AdminListings() {
 
   return (
     <AdminLayout
-      title="Admin · Listings"
+      breadcrumbs={[{ label: "Maps" }]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
