@@ -16,9 +16,9 @@
 }
 
 .admin-header {
-  background: var(--lc-brand);
+  background: var(--brand-teal, #0f9da8);
   color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .admin-header__inner {
@@ -36,20 +36,24 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  text-decoration: none;
+  color: inherit;
 }
 
-.admin-brand img {
-  height: 34px;
-  width: auto;
-  display: block;
+.admin-brand:hover {
+  opacity: 0.92;
 }
 
-.admin-title {
+.admin-brand .brand-logo__word {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+.admin-brand .brand-logo__by {
+  font-size: 16px;
+  font-weight: 400;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 .admin-actions {
@@ -76,6 +80,97 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+.admin-nav {
+  background: #0a181c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-nav__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-nav__link {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 10px 14px;
+  display: inline-block;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.admin-nav__link:hover {
+  color: #fff;
+}
+
+.admin-nav__link--active {
+  color: #fff;
+  border-bottom-color: var(--lc-brand, #4a9baa);
+}
+
+.admin-nav__link--superadmin {
+  background: #9ca3af;
+  color: #000;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border-bottom: none;
+}
+
+.admin-nav__link--superadmin:hover {
+  background: #d1d5db;
+  color: #000;
+}
+
+.admin-nav__link--superadmin.admin-nav__link--active {
+  background: #d1d5db;
+  color: #000;
+  border-bottom: none;
+}
+
+.admin-breadcrumbs {
+  background: var(--lc-bg);
+  border-bottom: 1px solid var(--lc-border);
+}
+
+.admin-breadcrumbs__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--lc-muted);
+}
+
+.admin-breadcrumbs__item {
+  display: inline;
+}
+
+.admin-breadcrumbs__sep {
+  margin: 0 6px;
+  color: var(--lc-border);
+}
+
+.admin-breadcrumbs__link {
+  color: var(--lc-muted);
+  text-decoration: none;
+}
+
+.admin-breadcrumbs__link:hover {
+  color: var(--lc-text);
+  text-decoration: underline;
+}
+
+.admin-breadcrumbs__current {
+  color: var(--lc-text);
+  font-weight: 500;
+}
+
 .admin-main {
   max-width: 1100px;
   margin: 0 auto;
@@ -86,7 +181,7 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 130px); /* header + nav + breadcrumbs */
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -303,20 +398,32 @@
   cursor: not-allowed;
 }
 
-/* Map-centric page: map fills the area, tabs at top open overlays */
+/* Map-centric page: map left, controls right (vertical), drawer pushes controls left when open */
 .admin-map-page {
   padding: 0;
   max-width: none;
   width: 100%;
   height: 100%;
   min-height: 0;
-  position: relative;
+  display: flex;
+  flex-direction: row;
 }
 
 .admin-map-page__map-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: var(--lc-border);
+}
+
+.admin-map-page__map-wrap > * {
   position: absolute;
   inset: 0;
-  background: var(--lc-border);
+}
+
+.admin-map-page__map-wrap > .admin-map-overlay__backdrop {
+  z-index: 5;
+  cursor: pointer;
 }
 
 .admin-map-page__map-wrap > div {
@@ -327,43 +434,89 @@
   box-sizing: border-box;
 }
 
-.admin-map-page__toolbar {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  right: auto;
-  z-index: 10;
+/* Right side: vertical controls + drawer */
+.admin-map-page__right {
+  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: row;
+  align-self: stretch;
+  background: var(--lc-card);
+  border-left: 1px solid var(--lc-border);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.06);
 }
 
-.admin-map-page__toolbar-msg {
-  font-size: 12px;
-  opacity: 0.9;
+.admin-map-page__controls {
+  width: 100px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 10px 8px;
+  border-left: 1px solid var(--lc-border);
+  height: 100%;
+  min-height: 0;
 }
 
-/* Map options pull-out (map type selector) */
+.admin-map-page__controls-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+}
+
+.admin-map-page__controls-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0 2px;
+}
+
+.admin-map-page__tab {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lc-muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  text-align: left;
+}
+
+.admin-map-page__tab:hover {
+  color: var(--lc-text);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.admin-map-page__tab.is-open {
+  color: var(--lc-brand);
+  background: rgba(74, 155, 170, 0.12);
+}
+
 .admin-map-page__map-options-wrap {
   position: relative;
 }
 
 .admin-map-page__map-options-btn {
-  padding: 8px 12px;
+  width: 100%;
+  padding: 8px 10px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 8px;
-  background: var(--lc-card);
+  border-radius: 6px;
+  background: transparent;
   border: 1px solid var(--lc-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   color: var(--lc-text);
   cursor: pointer;
+  text-align: left;
 }
 
 .admin-map-page__map-options-btn:hover {
-  background: #fff;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .admin-map-page__map-options-btn.is-open {
@@ -373,9 +526,10 @@
 
 .admin-map-page__map-options-panel {
   position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 6px;
+  top: 50%;
+  right: 100%;
+  transform: translateY(-50%);
+  margin-right: 8px;
   min-width: 140px;
   padding: 6px;
   background: var(--lc-card);
@@ -411,61 +565,41 @@
   font-weight: 600;
 }
 
-.admin-map-page__toolbar-tabs {
-  display: flex;
-  gap: 2px;
-  background: var(--lc-card);
-  padding: 4px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--lc-border);
-}
-
-.admin-map-page__tab {
-  padding: 8px 14px;
+.admin-map-page__control-btn {
+  width: 100%;
+  padding: 8px 10px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--lc-muted);
-  background: transparent;
-  border: none;
-  border-radius: 8px;
+  border-radius: 6px;
+  background: var(--lc-card);
+  border: 1px solid var(--lc-border);
+  color: var(--lc-text);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-}
-
-.admin-map-page__tab:hover {
-  color: var(--lc-text);
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.admin-map-page__tab.is-open {
-  color: var(--lc-brand);
-  background: rgba(74, 155, 170, 0.12);
-}
-
-.admin-map-page__toolbar .btn {
-  padding: 8px 12px;
-  font-size: 13px;
-  border-radius: 8px;
-  background: var(--lc-card);
-  border: 1px solid var(--lc-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.admin-map-page__toolbar a {
-  color: var(--lc-text);
   text-decoration: none;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--lc-card);
-  border: 1px solid var(--lc-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  font-weight: 600;
+  text-align: left;
+  display: block;
+  box-sizing: border-box;
 }
 
-.admin-map-page__toolbar a:hover {
+.admin-map-page__control-btn:hover {
   background: #fff;
+}
+
+.admin-map-page__control-btn--primary {
+  background: rgba(74, 155, 170, 0.12);
+  border-color: var(--lc-brand);
+  color: var(--lc-brand);
+}
+
+.admin-map-page__control-btn--primary:hover {
+  background: rgba(74, 155, 170, 0.2);
+}
+
+.admin-map-page__toolbar-msg {
+  font-size: 11px;
+  opacity: 0.9;
+  padding: 4px 0;
+  word-break: break-word;
 }
 
 /* Pin detail overlay (on map when a listing is clicked) */
@@ -479,7 +613,7 @@
   max-width: min(320px, calc(100vw - 48px));
   height: max-content;
   min-width: 0;
-  background: var(--lc-card);
+  background: transparent;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
   border: 1px solid var(--lc-border);
@@ -507,15 +641,22 @@
 }
 
 .admin-map-pin-overlay__body {
-  padding-right: 28px;
+  padding: 14px 28px 18px 14px;
   min-width: 0;
+  margin: 0 -14px -14px -14px;
+  border-radius: 0 0 12px 12px;
+  background: rgba(228, 240, 255, 0.88);
 }
 
 .admin-map-pin-overlay__image-wrap {
-  margin-bottom: 10px;
   display: flex;
   justify-content: center;
   align-items: center;
+  background: #ffffff;
+  padding: 10px 10px 20px;
+  margin: -14px -14px 0;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.08);
 }
 
 .admin-map-pin-overlay__image {
@@ -552,48 +693,29 @@
   text-decoration: underline;
 }
 
-/* Overlay panel (drawer) */
-.admin-map-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.admin-map-overlay.is-open {
-  pointer-events: auto;
-}
-
+/* Backdrop over map when drawer is open (inside map-wrap) */
 .admin-map-overlay__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0;
+  background: rgba(0, 0, 0, 0.25);
   transition: opacity 0.2s ease;
 }
 
-.admin-map-overlay.is-open .admin-map-overlay__backdrop {
-  opacity: 1;
-}
-
+/* Drawer panel: right of the control strip, pushes controls left when open */
 .admin-map-overlay__panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100%;
-  max-width: 420px;
+  width: 0;
+  min-width: 0;
   height: 100%;
+  overflow: hidden;
   background: var(--lc-card);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-  overflow: auto;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
+  transition: width 0.25s ease, min-width 0.25s ease;
 }
 
-.admin-map-overlay.is-open .admin-map-overlay__panel {
-  transform: translateX(0);
+.admin-map-overlay__panel--open {
+  width: 380px;
+  min-width: 380px;
+  overflow: auto;
 }
 
 .admin-map-overlay__header {

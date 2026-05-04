@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { HashRouter, useLocation } from "react-router-dom";
 import App from "./App.jsx";
 import SiteHeader from "./components/SiteHeader.jsx";
+import SiteFooter from "./components/SiteFooter.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { supabase } from "./lib/supabase";
 import { getImpersonatedClientId, stopImpersonatingClient } from "./lib/clientAuth";
@@ -97,13 +98,16 @@ function Layout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
   const isClientMapArea = location.pathname.startsWith("/client/maps/");
+  const isEmbed = location.pathname === "/embed";
   const showSiteHeader = !isAdmin && !isClientMapArea;
+  const showFooter = !isEmbed;
   return (
-    <>
+    <div className="layout-root">
       {!isAdmin && <ImpersonationBar />}
       {showSiteHeader && <SiteHeader />}
       <App />
-    </>
+      {showFooter && <SiteFooter />}
+    </div>
   );
 }
 

@@ -87,7 +87,7 @@ export default function AdminClientDetail() {
     const cleanSlug = slug.trim();
     const email = contactEmail.trim();
     const contactNameTrimmed = contactName.trim();
-    if (!cleanName) return setErr("Client name is required.");
+    if (!cleanName) return setErr("Customer name is required.");
     if (!cleanSlug) return setErr("Slug is required.");
     if (!email) return setErr("Primary contact email is required.");
 
@@ -132,7 +132,10 @@ export default function AdminClientDetail() {
 
   return (
     <AdminLayout
-      title="Admin · Client"
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -141,7 +144,7 @@ export default function AdminClientDetail() {
     >
       <div className="admin-card">
         <div style={{ marginBottom: 12 }}>
-          <Link to="/admin/clients">← Back to clients</Link>
+          <Link to="/admin/clients">← Back to customers</Link>
         </div>
 
         {loading ? (
@@ -161,7 +164,7 @@ export default function AdminClientDetail() {
                 className={`admin-map-tabs__tab ${activeTab === "client" ? "is-active" : ""}`}
                 onClick={() => setActiveTab("client")}
               >
-                Client & contact
+                Customer & contact
               </button>
             </div>
 
@@ -175,7 +178,7 @@ export default function AdminClientDetail() {
                 </div>
 
                 {maps.length === 0 ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>No maps yet for this client.</p>
+                  <p style={{ marginTop: 8, opacity: 0.8 }}>No maps yet for this customer.</p>
                 ) : (
                   <table className="admin-table" style={{ marginTop: 0 }}>
                     <thead>
@@ -215,14 +218,14 @@ export default function AdminClientDetail() {
             {activeTab === "client" && (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  <h2 style={{ margin: "0 0 8px 0" }}>Edit client</h2>
+                  <h2 style={{ margin: "0 0 8px 0" }}>Edit customer</h2>
                   <div style={{ fontSize: 12, opacity: 0.7 }}>ID: {client?.id ?? "—"}</div>
                 </div>
 
                 {err ? <p style={{ margin: "0 0 12px 0" }}>{err}</p> : null}
 
                 <form onSubmit={handleSave} style={{ display: "grid", gap: 14, maxWidth: 560 }}>
-                  <Field label="Client name">
+                  <Field label="Customer name">
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -262,8 +265,8 @@ export default function AdminClientDetail() {
                         <button
                           type="button"
                           className="admin-table__icon-btn"
-                          title="Impersonate client in portal"
-                          aria-label={`Impersonate client ${client.name}`}
+                          title="Impersonate customer in portal"
+                          aria-label={`Impersonate customer ${client.name}`}
                           onClick={() => {
                             const ok = window.confirm(`Are you sure you wish to impersonate ${client.name}?`);
                             if (!ok) return;

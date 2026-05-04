@@ -92,7 +92,11 @@ export default function AdminMapNew() {
 
   return (
     <AdminLayout
-      title="Admin · New map"
+      breadcrumbs={[
+        { label: "Customers", path: "/admin/clients" },
+        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
+        { label: "New map" },
+      ]}
       rightActions={
         <button onClick={signOut} type="button">
           Sign out
@@ -101,7 +105,7 @@ export default function AdminMapNew() {
     >
       <div className="admin-card" style={{ maxWidth: 760 }}>
         <div style={{ marginBottom: 12 }}>
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to client</Link>
+          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
         <h2 style={{ marginTop: 0 }}>
@@ -121,7 +125,7 @@ export default function AdminMapNew() {
                 placeholder={suggestedSlug || "e.g. uk-directory"}
               />
               <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                Unique within this client. Suggested: <strong>{suggestedSlug || "—"}</strong>
+                Unique within this customer. Suggested: <strong>{suggestedSlug || "—"}</strong>
               </div>
             </Field>
 
