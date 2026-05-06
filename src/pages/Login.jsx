@@ -26,8 +26,8 @@ export default function Login() {
             className="auth-page__sub"
             style={{ background: "rgba(59, 130, 246, 0.12)", padding: "12px 14px", borderRadius: 8, marginBottom: 16 }}
           >
-            Verify your email address to use the client portal. Check your inbox for the link or code we sent you, or
-            request a new sign-in link below.
+            Verify your email address to use the client portal. Check your inbox for the verification email, then sign in
+            with your email and password.
           </p>
         ) : null}
         <AuthForm mode="login" onSuccess={handleSuccess} />

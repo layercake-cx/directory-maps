@@ -2,12 +2,9 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
-  authOtpErrorHint,
   checkClientSlugAvailable,
-  OTP_REQUEST_TIMEOUT_MS,
   SLUG_RPC_WAIT_MS,
   getEmailAuthRedirectUrl,
-  shouldRetrySignUpOtpAsSignIn,
   withTimeout,
 } from "../lib/authHelpers";
 import { logClientError } from "../lib/errorLogger.js";
@@ -27,6 +24,7 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
   const isSplitSignup = isSignUp && variant === "split";
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
@@ -99,15 +97,11 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
           });
         }
 
-        let otpData;
-        let error;
-        let signInFallback = false;
-
-        ({ data: otpData, error } = await withTimeout(
-          supabase.auth.signInWithOtp({
+        const { data: signUpData, error } = await withTimeout(
+          supabase.auth.signUp({
             email: trimmedEmail,
+            password,
             options: {
-              shouldCreateUser: true,
               emailRedirectTo: redirectTo,
               data: {
                 signup_org_name: orgLabel,
@@ -118,81 +112,43 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
               },
             },
           }),
-          OTP_REQUEST_TIMEOUT_MS,
-          "Send sign-up email"
-        ));
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.debug("[auth] signUp OTP", { email: trimmedEmail, redirectTo, error, otpData, code: error?.code });
-        }
-
-        if (error && shouldRetrySignUpOtpAsSignIn(error)) {
-          signInFallback = true;
-          ({ data: otpData, error } = await withTimeout(
-            supabase.auth.signInWithOtp({
-              email: trimmedEmail,
-              options: {
-                shouldCreateUser: false,
-                emailRedirectTo: redirectTo,
-              },
-            }),
-            OTP_REQUEST_TIMEOUT_MS,
-            "Send sign-in email"
-          ));
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.debug("[auth] signUp→signIn OTP fallback", { email: trimmedEmail, redirectTo, error, otpData, code: error?.code });
-          }
-        }
+          30000,
+          "Create account"
+        );
 
         if (error) {
-          const redirectHint =
-            import.meta.env.DEV && error.message?.toLowerCase().includes("redirect")
-              ? ` Allowed redirect must include: ${redirectTo}`
-              : "";
           const codeHint = import.meta.env.DEV && error.code ? ` (${error.code})` : "";
-          setMsg(error.message + authOtpErrorHint(error) + redirectHint + codeHint);
+          setMsg(error.message + codeHint);
           return;
         }
-        const baseSignUpMsg = slugCheckSkipped
-          ? "Check your email for the sign-up link. You must verify your email before your account is active. We could not verify your organisation name in time; if that name is already taken, you will see an error after you confirm your email."
-          : "Check your email for the sign-up link. You must verify your email before your account is active.";
-        setMsg(
-          signInFallback
-            ? "An account with this email already exists. We sent a sign-in link instead—check your inbox."
-            : baseSignUpMsg
-        );
+        const needsEmailVerification = !signUpData?.session;
+        if (needsEmailVerification) {
+          const baseSignUpMsg = slugCheckSkipped
+            ? "Account created. Check your email to verify before logging in. We could not verify your organisation name in time; if that name is already taken, you will see an error after verification."
+            : "Account created. Check your email to verify your address before logging in.";
+          setMsg(baseSignUpMsg);
+          return;
+        }
+        setMsg("Account created and signed in.");
+        onSuccess?.();
         return;
       }
 
-      const { data: otpData, error } = await withTimeout(
-        supabase.auth.signInWithOtp({
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({
           email: trimmedEmail,
-          options: {
-            shouldCreateUser: false,
-            emailRedirectTo: redirectTo,
-          },
+          password,
         }),
-        OTP_REQUEST_TIMEOUT_MS,
-        "Send sign-in email"
+        30000,
+        "Sign in"
       );
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug("[auth] login OTP", { email: trimmedEmail, redirectTo, error, otpData });
-      }
       if (error) {
-        const redirectHint =
-          import.meta.env.DEV && error.message?.toLowerCase().includes("redirect")
-            ? ` Allowed redirect must include: ${redirectTo}`
-            : "";
         const codeHint = import.meta.env.DEV && error.code ? ` (${error.code})` : "";
-        setMsg(error.message + authOtpErrorHint(error) + redirectHint + codeHint);
+        setMsg(error.message + codeHint);
         return;
       }
-      setMsg(
-        "If an account exists for this email, we sent a sign-in link. " +
-          "If nothing arrives, use Sign up first (new emails get no message on Log in for privacy). Check spam."
-      );
+      setMsg("Signed in.");
+      onSuccess?.();
     } catch (e) {
       setMsg(e?.message ?? String(e));
     } finally {
@@ -253,6 +209,22 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
           </div>
           <div className="auth-float">
             <input
+              id="signup-password"
+              className="auth-float__input"
+              type="password"
+              placeholder=" "
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+            <label className="auth-float__label" htmlFor="signup-password">
+              Password (min 8 characters)
+            </label>
+          </div>
+          <div className="auth-float">
+            <input
               id="signup-company"
               className="auth-float__input"
               type="text"
@@ -280,7 +252,7 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
           </label>
 
           <button type="submit" className="signup-split__continue" disabled={loading}>
-            {loading ? "Sending…" : "Continue"}
+            {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
 
@@ -302,8 +274,19 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
           placeholder="you@example.com"
           autoComplete="email"
         />
+        <label className="auth-form__label">Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={8}
+          className="auth-form__input"
+          placeholder="Your password"
+          autoComplete="current-password"
+        />
         <button type="submit" className="btn btn-primary auth-form__submit" disabled={loading}>
-          {loading ? "Sending..." : "Email me a sign-in link"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
 
