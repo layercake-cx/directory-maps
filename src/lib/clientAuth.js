@@ -1,7 +1,30 @@
 import { supabase } from "./supabase";
 import { getSession } from "./auth";
 
-const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
+export const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
+
+/**
+ * Returns the full contact record for the current user, including role.
+ * Returns null if the user has no contact (e.g. platform admin).
+ */
+export async function getContactForCurrentUser() {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const user = userData?.user;
+  if (!user) return null;
+
+  const { data: contact } = await supabase
+    .from("contacts")
+    .select("id, client_id, role, is_primary, email, name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return contact ?? null;
+}
+
+export function canManageOrg(contact) {
+  return contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
+}
 
 /**
  * Returns the client id for the current user: contact.user_id -> contact.client_id.

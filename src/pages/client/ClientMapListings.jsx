@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
@@ -42,6 +42,7 @@ async function geocodeViaServer(supabaseClient, address) {
 
 export default function ClientMapListings() {
   const { mapId } = useParams();
+  const navigate = useNavigate();
 
   const [clientName, setClientName] = useState("");
   const [map, setMap] = useState(null);
@@ -214,7 +215,13 @@ export default function ClientMapListings() {
       backTo={`/client/maps/${encodeURIComponent(mapId)}`}
       backLabel="Back to map"
       rightActions={
-        <button onClick={signOut} type="button">
+        <button
+          onClick={async () => {
+            try { await signOut(); } catch {}
+            navigate("/login", { replace: true });
+          }}
+          type="button"
+        >
           Sign out
         </button>
       }
