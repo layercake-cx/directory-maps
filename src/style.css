@@ -20,6 +20,158 @@ body {
   color: var(--page-text);
 }
 
+/* /#/embed — fill iframe height (e.g. iframe height="800"); one vertical scroller on <html> */
+html.embed-map-page {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  /* Firefox: styled thumb/track when scrollbar is shown (OS may still use overlay scrollbars) */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(100, 116, 139, 0.85) rgba(241, 245, 249, 0.95);
+}
+
+html.embed-map-page body.embed-map-page {
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-sizing: border-box;
+  padding-bottom: 1px;
+}
+
+html.embed-map-page #root {
+  min-height: 100vh;
+}
+
+/* Embed: map uses 100vh (iframe viewport when embedded — not the top-level window) */
+.layout-root--embed {
+  min-height: 100vh;
+}
+
+/* Chromium / Safari: fixed-width track so the bar doesn’t collapse to overlay-only */
+html.embed-map-page::-webkit-scrollbar {
+  width: 12px;
+}
+
+html.embed-map-page::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 6px;
+  border: 3px solid rgba(241, 245, 249, 0.95);
+}
+
+html.embed-map-page::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.embed-map-root {
+  position: relative;
+  width: 100%;
+  /* vh = iframe’s viewport in embeds; avoids height:100% collapsing when ancestors have no explicit height */
+  height: 100vh;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Google Maps custom control: vertical zoom column (+, slider, −), ~40px to match default zoom UI */
+.directory-map-zoom-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 40px;
+  margin: 10px;
+  padding: 0;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.directory-map-zoom-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 40px;
+  color: #666;
+  cursor: pointer;
+  font-family: Roboto, Arial, sans-serif;
+}
+
+.directory-map-zoom-btn--fullscreen {
+  font-size: 16px;
+  line-height: 38px;
+}
+
+.directory-map-zoom-btn--locate {
+  font-size: 18px;
+  line-height: 38px;
+}
+
+.directory-map-zoom-btn:hover {
+  color: #333;
+  background: #f5f5f5;
+}
+
+.directory-map-zoom-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.directory-map-zoom-btn:focus-visible {
+  outline: 2px solid var(--brand-teal, #0f9da8);
+  outline-offset: -2px;
+}
+
+.directory-map-zoom-btn:last-child {
+  border-bottom: none;
+}
+
+.directory-map-zoom-slider-track-outer {
+  width: 40px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e8e8e8;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.directory-map-zoom-slider-input {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: 28px;
+  height: 100px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.directory-map-zoom-slider-input:focus-visible {
+  outline: 2px solid var(--brand-teal, #0f9da8);
+  outline-offset: 1px;
+}
+
+/* Fallback fullscreen mode for environments where Fullscreen API is blocked (e.g. some embeds). */
+.directory-map--pseudo-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 2147483000 !important;
+  border-radius: 0 !important;
+}
+
+body.directory-map-body--pseudo-fullscreen {
+  overflow: hidden !important;
+}
+
 a {
   color: inherit;
 }
@@ -35,9 +187,11 @@ a:hover {
 
 /* Shared page layout */
 .page-main {
-  max-width: 1120px;
+  width: 100%;
+  max-width: 1230px;
   margin: 16px auto 40px;
   padding: 0 16px;
+  box-sizing: border-box;
 }
 
 /* Global header */
@@ -48,7 +202,7 @@ a:hover {
 }
 
 .site-header__inner {
-  max-width: 1120px;
+  max-width: 1230px;
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -180,6 +334,42 @@ a:hover {
   min-width: 0;
 }
 
+/* Client portal nav (same styling as admin nav bar) */
+.client-nav {
+  background: #0a181c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.client-nav__inner {
+  max-width: 1230px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.client-nav__link {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 10px 14px;
+  display: inline-block;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.client-nav__link:hover {
+  color: #fff;
+}
+
+.client-nav__link--active {
+  color: #fff;
+  border-bottom-color: var(--brand-teal);
+}
+
 /* Pin detail overlay (embed map – when a listing marker is clicked) */
 .map-pin-overlay {
   position: absolute;
@@ -191,12 +381,97 @@ a:hover {
   max-width: min(340px, calc(100vw - 48px));
   height: max-content;
   background: transparent;
-  border-radius: 12px;
+  border-radius: var(--panel-radius, 12px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(229, 231, 235, 0.8);
   padding: 14px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* Listing detail as slide-in drawer (theme: pinDetailLayout = drawer) */
+.map-pin-drawer {
+  position: absolute;
+  inset: 0;
+  z-index: 1001;
+  pointer-events: none;
+}
+
+.map-pin-drawer--open {
+  pointer-events: auto;
+}
+
+.map-pin-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.4);
+  cursor: pointer;
+}
+
+.map-pin-drawer__sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  pointer-events: none;
+}
+
+.map-pin-drawer__sheet > .map-pin-overlay--in-drawer {
+  pointer-events: auto;
+}
+
+.map-pin-overlay--in-drawer {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  top: 0;
+  right: 0;
+  margin: 12px 12px 12px auto;
+  max-width: min(400px, calc(100vw - 24px));
+  width: 100%;
+  height: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.map-pin-overlay--in-drawer .map-pin-overlay__body--extended {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.map-pin-overlay__notes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--page-text, #1f2937);
+}
+
+.map-pin-overlay__notes-plain {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.map-pin-overlay__notes-html {
+  word-wrap: break-word;
+}
+
+.map-pin-overlay__notes-html a {
+  color: var(--panel-link, var(--brand-teal));
 }
 
 .map-pin-overlay__close {
@@ -226,6 +501,7 @@ a:hover {
   justify-content: center;
   align-items: center;
   box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.08);
+  border-radius: var(--panel-radius, 12px) var(--panel-radius, 12px) 0 0;
 }
 
 .map-pin-overlay__body {
@@ -233,7 +509,7 @@ a:hover {
   padding-right: 30px;
   min-width: 0;
   margin: 0 -14px -14px -14px;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 var(--panel-radius, 12px) var(--panel-radius, 12px);
   background: var(--panel-bg, rgba(228, 240, 255, 0.88));
 }
 
@@ -346,7 +622,8 @@ a:hover {
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(229, 231, 235, 0.5);
-  overflow: hidden;
+  /* Must not clip the search suggestions popover (position:absolute, can extend to 80vh) */
+  overflow: visible;
 }
 
 .embed-list-panel__search-wrap {
@@ -379,13 +656,15 @@ a:hover {
   margin: 4px 0 0;
   padding: 6px 0;
   list-style: none;
-  background: rgba(255, 255, 255, 0.95);
+  /* Solid background so group rows don’t show through */
+  background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(229, 231, 235, 0.7);
-  max-height: 260px;
+  /* Up to 80% of viewport; content shorter than this does not stretch */
+  max-height: 80vh;
   overflow-y: auto;
-  z-index: 11;
+  z-index: 1100;
 }
 
 .embed-list-panel__suggestion {
@@ -402,10 +681,49 @@ a:hover {
   background: rgba(243, 244, 246, 0.8);
 }
 
+.embed-list-panel__suggestion--active,
+.embed-list-panel__suggestion--active:hover {
+  background: rgba(15, 157, 168, 0.12);
+  outline: none;
+}
+
+.embed-list-panel__suggestions-heading {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.embed-list-panel__places-label,
+.embed-list-panel__section-label {
+  display: block;
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.embed-list-panel__suggestion--place {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.embed-list-panel__suggestion--loading {
+  cursor: default;
+  color: #6b7280;
+  font-size: 12px;
+}
+
 .embed-list-panel__groups {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 8px 0;
+  border-radius: 0 0 12px 12px;
 }
 
 .embed-list-panel__group {
@@ -817,6 +1135,30 @@ a:hover {
   box-shadow: 0 0 0 2px rgba(15, 157, 168, 0.2);
 }
 
+.auth-form__checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--page-text);
+}
+
+.auth-form__checkboxRow input {
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.auth-form__checkboxRow a {
+  color: var(--brand-teal, #0f9da8);
+  text-decoration: underline;
+}
+
+.auth-form__checkboxRow a:hover {
+  text-decoration: underline;
+}
+
 .auth-form__submit {
   margin-top: 8px;
   padding: 12px;
@@ -838,6 +1180,90 @@ a:hover {
   justify-content: center;
   align-items: flex-start;
   padding: 40px 24px;
+}
+
+/* Legal / terms (markdown body) */
+.auth-page__card.terms-page {
+  max-width: 720px;
+}
+
+.terms-page__markdown {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--page-text);
+}
+
+.terms-page__markdown h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  line-height: 1.25;
+}
+
+.terms-page__markdown h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+  line-height: 1.35;
+}
+
+.terms-page__markdown h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.4rem;
+}
+
+.terms-page__markdown p {
+  margin: 0 0 0.85rem;
+}
+
+.terms-page__markdown ul,
+.terms-page__markdown ol {
+  margin: 0 0 0.85rem;
+  padding-left: 1.35rem;
+}
+
+.terms-page__markdown li {
+  margin-bottom: 0.35rem;
+}
+
+.terms-page__markdown a {
+  color: var(--brand-teal, #0f9da8);
+  text-decoration: underline;
+}
+
+.terms-page__markdown a:hover {
+  text-decoration: underline;
+}
+
+.terms-page__markdown strong {
+  font-weight: 600;
+}
+
+.terms-page__markdown hr {
+  border: none;
+  border-top: 1px solid var(--lc-border, #e5e7eb);
+  margin: 1.5rem 0;
+}
+
+.terms-page__markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 0 0 1rem;
+}
+
+.terms-page__markdown th,
+.terms-page__markdown td {
+  border: 1px solid var(--lc-border, #e5e7eb);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.terms-page__markdown th {
+  background: #f9fafb;
+  font-weight: 600;
 }
 
 .auth-page__card {
@@ -888,7 +1314,7 @@ a:hover {
   padding: 28px 16px 32px;
 }
 .site-footer__inner {
-  max-width: 1120px;
+  max-width: 1230px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -924,4 +1350,41 @@ a:hover {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Sync overlay — covers a position:relative card */
+.sync-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sync-overlay {
+    background: rgba(30, 30, 28, 0.78);
+  }
+}
+
+.sync-overlay__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #1a56db;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.sync-overlay__label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
+  letter-spacing: 0.01em;
 }

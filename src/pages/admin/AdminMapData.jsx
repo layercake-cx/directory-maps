@@ -106,6 +106,7 @@ export default function AdminMapData() {
   const [err, setErr] = useState("");
   const [importChoiceOverlayOpen, setImportChoiceOverlayOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [activeTab, setActiveTab] = useState("drive"); // "drive" | "spreadsheet"
 
   useEffect(() => {
     (async () => {
@@ -507,118 +508,147 @@ const objs = raw.slice(1).map((row) => {
           </div>
         </div>
 
-        <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-          <div className="admin-card" style={{ padding: 12, borderRadius: 12, border: "1px solid var(--lc-border)" }}>
-            <h3 style={{ margin: 0, fontSize: 15 }}>Google Sheet sync (nightly)</h3>
-            <p style={{ margin: "8px 0 0 0", fontSize: 13, opacity: 0.8 }}>
-              Connect a Google Sheet for this map. Required columns: <strong>id</strong>, <strong>name</strong>.
-            </p>
+        <div style={{ marginTop: 16 }}>
+          <div className="admin-map-tabs" style={{ marginBottom: 12 }}>
+            <button
+              type="button"
+              className={`admin-map-tabs__tab ${activeTab === "drive" ? "is-active" : ""}`}
+              onClick={() => setActiveTab("drive")}
+            >
+              Automated Google Drive integration
+            </button>
+            <button
+              type="button"
+              className={`admin-map-tabs__tab ${activeTab === "spreadsheet" ? "is-active" : ""}`}
+              onClick={() => setActiveTab("spreadsheet")}
+            >
+              Spreadsheet / CSV
+            </button>
+          </div>
 
-            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <button className="btn btn-primary" type="button" onClick={connectGoogle} disabled={connecting}>
-                {connecting ? "Connecting…" : "Connect Google Drive"}
-              </button>
-              <button className="btn" type="button" onClick={refreshSheetStatus}>
-                Refresh status
-              </button>
-            </div>
+          {activeTab === "drive" && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div className="admin-card" style={{ padding: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 15 }}>Google Sheet sync (nightly)</h3>
+                <p style={{ margin: "8px 0 0 0", fontSize: 13, opacity: 0.8 }}>
+                  Connect a Google Sheet for this map. Required columns: <strong>id</strong>, <strong>name</strong>.
+                </p>
 
-            {!sheetStatus?.connected ? (
-              <p style={{ margin: "10px 0 0 0", fontSize: 13, color: "var(--lc-fg-muted)" }}>
-                Click <strong>Connect Google Drive</strong> above and sign in with the Google account that has access to your sheet. Then come back here and paste the sheet URL.
-              </p>
-            ) : null}
-            <div style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 560 }}>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>Spreadsheet URL or ID</div>
-              <input
-                value={spreadsheetInput}
-                onChange={(e) => {
-                  setSpreadsheetInput(e.target.value);
-                  if (sheetErr && !getSpreadsheetIdError(e.target.value)) setSheetErr("");
-                }}
-                placeholder="Paste Google Sheet URL (…/spreadsheets/d/<id>/…) or the raw id"
-                disabled={!sheetStatus?.connected}
-              />
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={configureSpreadsheet}
-                  disabled={configuring || !spreadsheetInput.trim() || !sheetStatus?.connected}
-                >
-                  {configuring ? "Saving…" : "Use this sheet"}
-                </button>
-                {pickerApiKey ? (
-                  <span style={{ fontSize: 12, opacity: 0.7 }}>
-                    (Optional) Set `VITE_GOOGLE_API_KEY` for Drive picker later.
-                  </span>
+                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <button className="btn btn-primary" type="button" onClick={connectGoogle} disabled={connecting}>
+                    {connecting ? "Connecting…" : "Connect Google Drive"}
+                  </button>
+                  <button className="btn" type="button" onClick={refreshSheetStatus}>
+                    Refresh status
+                  </button>
+                </div>
+
+                {!sheetStatus?.connected ? (
+                  <p style={{ margin: "10px 0 0 0", fontSize: 13, opacity: 0.8 }}>
+                    Click <strong>Connect Google Drive</strong> above and sign in with the Google account that has access
+                    to your sheet. Then come back here and paste the sheet URL.
+                  </p>
                 ) : null}
-              </div>
-            </div>
+                <div style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 560 }}>
+                  <div style={{ fontSize: 13, opacity: 0.85 }}>Spreadsheet URL or ID</div>
+                  <input
+                    value={spreadsheetInput}
+                    onChange={(e) => {
+                      setSpreadsheetInput(e.target.value);
+                      if (sheetErr && !getSpreadsheetIdError(e.target.value)) setSheetErr("");
+                    }}
+                    placeholder="Paste Google Sheet URL (…/spreadsheets/d/<id>/…) or the raw id"
+                    disabled={!sheetStatus?.connected}
+                  />
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={configureSpreadsheet}
+                      disabled={configuring || !spreadsheetInput.trim() || !sheetStatus?.connected}
+                    >
+                      {configuring ? "Saving…" : "Use this sheet"}
+                    </button>
+                    {pickerApiKey ? (
+                      <span style={{ fontSize: 12, opacity: 0.7 }}>
+                        (Optional) Set <code>VITE_GOOGLE_API_KEY</code> for Drive picker later.
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
 
-            {sheetMsg ? <p style={{ margin: "10px 0 0 0" }}>{sheetMsg}</p> : null}
-            {sheetErr ? <pre style={{ margin: "10px 0 0 0", whiteSpace: "pre-wrap" }}>{sheetErr}</pre> : null}
-            {sheetStatus ? (
-              <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>
-                Status:{" "}
-                <strong>
-                  {sheetStatus.connected
-                    ? sheetStatus.configured
-                      ? sheetStatus.ok
-                        ? "Validated"
-                        : "Needs attention"
-                      : "Connected (pick a sheet)"
-                    : "Not connected"}
-                </strong>
-                {sheetStatus.issues?.length ? (
-                  <div style={{ marginTop: 6 }}>
-                    Issues:
-                    <ul style={{ margin: "6px 0 0 18px" }}>
-                      {sheetStatus.issues.slice(0, 10).map((x) => (
-                        <li key={x}>{x}</li>
-                      ))}
-                    </ul>
+                {sheetMsg ? <p style={{ margin: "10px 0 0 0" }}>{sheetMsg}</p> : null}
+                {sheetErr ? <pre style={{ margin: "10px 0 0 0", whiteSpace: "pre-wrap" }}>{sheetErr}</pre> : null}
+                {sheetStatus ? (
+                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>
+                    Status:{" "}
+                    <strong>
+                      {sheetStatus.connected
+                        ? sheetStatus.configured
+                          ? sheetStatus.ok
+                            ? "Validated"
+                            : "Needs attention"
+                          : "Connected (pick a sheet)"
+                        : "Not connected"}
+                    </strong>
+                    {sheetStatus.issues?.length ? (
+                      <div style={{ marginTop: 6 }}>
+                        Issues:
+                        <ul style={{ margin: "6px 0 0 18px" }}>
+                          {sheetStatus.issues.slice(0, 10).map((x) => (
+                            <li key={x}>{x}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
-            ) : null}
-          </div>
+            </div>
+          )}
 
-          <div>
-            <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>Upload CSV</div>
-            <input type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
-            {fileErr ? <p style={{ marginTop: 8 }}>{fileErr}</p> : null}
-          </div>
+          {activeTab === "spreadsheet" && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>Upload CSV</div>
+                <input type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
+                {fileErr ? <p style={{ marginTop: 8 }}>{fileErr}</p> : null}
+              </div>
 
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" checked={geocodeMissing} onChange={(e) => setGeocodeMissing(e.target.checked)} />
-            Geocode rows missing lat/lng
-          </label>
+              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <input type="checkbox" checked={geocodeMissing} onChange={(e) => setGeocodeMissing(e.target.checked)} />
+                Geocode rows missing lat/lng
+              </label>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={() => setImportChoiceOverlayOpen(true)}
-              disabled={importing || rows.length === 0}
-            >
-              {importing ? "Importing…" : `Import ${rows.length} rows`}
-            </button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={() => setImportChoiceOverlayOpen(true)}
+                  disabled={importing || rows.length === 0}
+                >
+                  {importing ? "Importing…" : `Import ${rows.length} rows`}
+                </button>
 
-            <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}>
-              Done
-            </Link>
+                <Link
+                  className="btn"
+                  to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}
+                >
+                  Done
+                </Link>
 
-            <button
-              className="btn"
-              type="button"
-              onClick={clearMapData}
-              disabled={clearing}
-              style={{ marginLeft: "auto" }}
-            >
-              {clearing ? "Clearing…" : "Clear data"}
-            </button>
-          </div>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={clearMapData}
+                  disabled={clearing}
+                  style={{ marginLeft: "auto" }}
+                >
+                  {clearing ? "Clearing…" : "Clear data"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {importChoiceOverlayOpen ? (
             <div

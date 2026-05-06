@@ -7,6 +7,7 @@ const ADMIN_NAV = [
   { label: "Customers", path: "/admin/clients" },
   { label: "Maps", path: "/admin/maps" },
   { label: "Admin Users", path: "/admin/users" },
+  { label: "Error log", path: "/admin/error-log" },
   { label: "Deployments", path: "/admin/deployments", superadmin: true },
 ];
 

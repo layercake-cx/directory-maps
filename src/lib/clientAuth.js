@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getSession } from "./auth";
 
 export const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
 
@@ -30,9 +31,8 @@ export function canManageOrg(contact) {
  * Legacy: if no contact, returns client.id when client.id === user.id (pre-contact schema).
  */
 export async function getClientIdForCurrentUser() {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  const user = userData?.user;
+  const session = await getSession();
+  const user = session?.user ?? null;
   if (!user) throw new Error("Not signed in.");
 
   const { data: contact } = await supabase

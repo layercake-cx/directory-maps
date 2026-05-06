@@ -41,3 +41,28 @@ export async function requireAdmin(req: Request) {
   return user;
 }
 
+/** Allows admins OR client contacts who have is_primary or can_manage_maps for the given map. */
+export async function requireMapAccess(req: Request, mapId: string) {
+  const user = await requireUser(req);
+  const service = createServiceClient();
+
+  const { data: profile } = await service.from("profiles").select("role").eq("user_id", user.id).maybeSingle();
+  if (profile?.role === "admin") return user;
+
+  const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
+  if (!map) throw new Error("Map not found");
+
+  const { data: contact } = await service
+    .from("contacts")
+    .select("is_primary, can_manage_maps")
+    .eq("client_id", map.client_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!contact) throw new Error("Access denied");
+  if (!contact.is_primary && !contact.can_manage_maps) {
+    throw new Error("You need 'Manage maps' permission to configure data sources");
+  }
+  return user;
+}
+

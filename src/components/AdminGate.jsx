@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase, hasSupabaseConfig } from "../lib/supabase";
-import { getMyRole, signOut } from "../lib/auth";
+import React, { useState } from "react";
+import { hasSupabaseConfig, supabase } from "../lib/supabase";
+import { signOut } from "../lib/auth";
+import { useAuth } from "../hooks/useAuth.js";
 
 function isNetworkError(e) {
   const msg = (e?.message ?? String(e)).toLowerCase();
@@ -19,86 +19,20 @@ function networkErrorHelp() {
 }
 
 export default function AdminGate({ children }) {
-  const navigate = useNavigate();
-  const [state, setState] = useState({
-    loading: true,
-    authed: false,
-    isAdmin: false,
-    error: "",
-    errorDetail: null,
-  });
-
-  useEffect(() => {
-    let mounted = true;
-    const timeoutMs = 15000;
-
-    async function run(isInitial) {
-      try {
-        if (isInitial) {
-          setState((s) => ({ ...s, loading: true, error: "", errorDetail: null }));
-        }
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Session check timed out. Check network and Supabase configuration.")), timeoutMs)
-        );
-        const work = (async () => {
-          const { data } = await supabase.auth.getUser();
-          const user = data?.user;
-          if (!user) return { user: null, role: null };
-          const role = await getMyRole();
-          return { user, role };
-        })();
-        const { user, role } = await Promise.race([work, timeoutPromise]);
-
-        if (!mounted) return;
-        if (!user) {
-          setState({ loading: false, authed: false, isAdmin: false, error: "", errorDetail: null });
-          return;
-        }
-        setState({
-          loading: false,
-          authed: true,
-          isAdmin: role === "admin",
-          error: "",
-          errorDetail: null,
-        });
-      } catch (e) {
-        if (mounted) {
-          const raw = e?.message ?? String(e);
-          setState({
-            loading: false,
-            authed: false,
-            isAdmin: false,
-            error: isNetworkError(e) ? "Network error connecting to Supabase." : raw,
-            errorDetail: isNetworkError(e) ? raw : null,
-          });
-        }
-      }
-    }
-
-    run(true);
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      run(false);
-    });
-
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe?.();
-    };
-  }, []);
+  const { initializing, user, role, roleLoading, error } = useAuth();
 
   async function doSignOut() {
     try {
       await signOut();
-      navigate("/login", { replace: true });
     } catch (e) {
-      setState((s) => ({ ...s, error: e?.message ?? "Sign-out failed." }));
+      // eslint-disable-next-line no-console
+      console.error(e);
     }
   }
+  if (initializing || roleLoading) return <div style={{ padding: 24 }}>Loading…</div>;
 
-  if (state.loading) return <div style={{ padding: 24 }}>Loading…</div>;
-
-  if (!state.authed) {
+  if (!user) {
+    const authError = error;
     return (
       <div style={{ padding: 24, maxWidth: 560 }}>
         <h2 style={{ marginTop: 0 }}>Admin sign-in</h2>
@@ -110,35 +44,25 @@ export default function AdminGate({ children }) {
           </p>
         )}
         <PasswordForm onNetworkErrorHelp={networkErrorHelp} />
-        {state.error ? (
+        {authError ? (
           <div style={{ marginTop: 12, padding: 12, background: "rgba(185, 28, 28, 0.08)", borderRadius: 8, border: "1px solid #b91c1c" }}>
-            <p style={{ margin: 0 }}>{state.error}</p>
-            {state.errorDetail ? <p style={{ margin: "8px 0 0", fontSize: 13, opacity: 0.9 }}>{state.errorDetail}</p> : null}
-            {isNetworkError({ message: state.error }) ? <p style={{ margin: "8px 0 0", fontSize: 13 }}>{networkErrorHelp()}</p> : null}
+            <p style={{ margin: 0 }}>{authError}</p>
+            {isNetworkError({ message: authError }) ? <p style={{ margin: "8px 0 0", fontSize: 13 }}>{networkErrorHelp()}</p> : null}
           </div>
         ) : null}
       </div>
     );
   }
 
-  if (!state.isAdmin) {
+  if (role !== "admin") {
     return (
       <div style={{ padding: 24, maxWidth: 560 }}>
         <h2 style={{ marginTop: 0 }}>Admin access required</h2>
-        <p>You are signed in, but your account does not have admin access.</p>
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button
-            type="button"
-            onClick={() => navigate("/client")}
-            style={{ padding: "10px 14px" }}
-          >
-            Go to client portal
-          </button>
-          <button type="button" onClick={doSignOut} style={{ padding: "10px 14px" }}>
-            Sign out
-          </button>
-        </div>
-        {state.error ? <p style={{ marginTop: 12 }}>{state.error}</p> : null}
+        <p>You are signed in, but your account is not an admin.</p>
+        <button onClick={doSignOut} style={{ padding: "10px 14px" }}>
+          Sign out
+        </button>
+        {error ? <p style={{ marginTop: 12 }}>{error}</p> : null}
       </div>
     );
   }
@@ -188,6 +112,7 @@ function PasswordForm({ onNetworkErrorHelp }) {
         required
         style={{ padding: 10, width: "100%", marginBottom: 12 }}
       />
+
       <label style={{ display: "block", marginBottom: 8 }}>Password</label>
       <input
         value={password}
@@ -196,6 +121,7 @@ function PasswordForm({ onNetworkErrorHelp }) {
         required
         style={{ padding: 10, width: "100%", marginBottom: 12 }}
       />
+
       <button type="submit" style={{ padding: "10px 14px" }}>
         Sign in
       </button>

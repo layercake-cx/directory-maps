@@ -6,15 +6,21 @@ const hasConfig = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
 
 let supabaseInstance;
 try {
-  supabaseInstance = createClient(
-    hasConfig ? supabaseUrl : "https://placeholder.supabase.co",
-    hasConfig ? supabaseAnonKey : "placeholder-key"
-  );
+  supabaseInstance = createClient(hasConfig ? supabaseUrl : "https://placeholder.supabase.co", hasConfig ? supabaseAnonKey : "placeholder-key", {
+    auth: {
+      flowType: "pkce",
+      detectSessionInUrl: true,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
 } catch (err) {
   if (typeof console !== "undefined" && console.error) {
     console.error("Supabase init failed:", err);
   }
-  supabaseInstance = createClient("https://placeholder.supabase.co", "placeholder-key");
+  supabaseInstance = createClient("https://placeholder.supabase.co", "placeholder-key", {
+    auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+  });
 }
 
 export const supabase = supabaseInstance;

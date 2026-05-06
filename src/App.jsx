@@ -7,6 +7,8 @@ import ClientGate from "./components/ClientGate.jsx";
 import PublicMap from "./pages/PublicMap.jsx";
 import Login from "./pages/Login.jsx";
 import SignUp from "./pages/SignUp.jsx";
+import Pricing from "./pages/Pricing.jsx";
+import Terms from "./pages/Terms.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
@@ -22,9 +24,11 @@ import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
 import AdminMaps from "./pages/admin/AdminMaps.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
 import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
+import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 
+import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
-import ClientTeam from "./pages/client/ClientTeam.jsx";
+import ClientTeam from "./pages/client/ClientUsers.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -35,8 +39,10 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<PublicMap />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/embed" element={<EmbedMap />} />
 
       {/* Client portal */}
@@ -44,50 +50,17 @@ export default function App() {
         path="/client"
         element={
           <ClientGate>
-            <ClientDashboard />
+            <ClientLayout />
           </ClientGate>
         }
-      />
-      <Route
-        path="/client/team"
-        element={
-          <ClientGate>
-            <ClientTeam />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/new"
-        element={
-          <ClientGate>
-            <ClientMapNew />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId"
-        element={
-          <ClientGate>
-            <ClientMapDashboard />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId/data"
-        element={
-          <ClientGate>
-            <ClientMapData />
-          </ClientGate>
-        }
-      />
-      <Route
-        path="/client/maps/:mapId/listings"
-        element={
-          <ClientGate>
-            <ClientMapListings />
-          </ClientGate>
-        }
-      />
+      >
+        <Route index element={<ClientDashboard />} />
+        <Route path="team" element={<ClientTeam />} />
+        <Route path="maps/new" element={<ClientMapNew />} />
+        <Route path="maps/:mapId" element={<ClientMapDashboard />} />
+        <Route path="maps/:mapId/data" element={<ClientMapData />} />
+        <Route path="maps/:mapId/listings" element={<ClientMapListings />} />
+      </Route>
 
       {/* Admin root -> clients */}
       <Route path="/admin" element={<Navigate to="/admin/clients" replace />} />
@@ -205,6 +178,15 @@ export default function App() {
         element={
           <AdminGate>
             <AdminDeployments />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/error-log"
+        element={
+          <AdminGate>
+            <AdminErrorLogs />
           </AdminGate>
         }
       />

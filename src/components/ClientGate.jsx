@@ -1,74 +1,27 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { acceptPendingInvitation } from "../lib/inviteHelpers";
+import { useAuth } from "../hooks/useAuth.js";
 
 export default function ClientGate({ children }) {
   const navigate = useNavigate();
-  const [state, setState] = useState({
-    loading: true,
-    authed: false,
-    error: "",
-  });
+  const { initializing, user } = useAuth();
 
   useEffect(() => {
-    let mounted = true;
-
-    async function checkAuth(event) {
-      try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
-
-        if (!mounted) return;
-
-        if (!user) {
-          setState({ loading: false, authed: false, error: "" });
-          return;
-        }
-
-        // Only attempt invitation acceptance on a genuine new sign-in, not on
-        // token refreshes or session restores — avoids redundant DB queries.
-        if (event === "SIGNED_IN" && user.email) {
-          const { data: existingContact } = await supabase
-            .from("contacts")
-            .select("id")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (!existingContact) {
-            await acceptPendingInvitation(user.id, user.email);
-          }
-        }
-
-        if (mounted) {
-          setState({ loading: false, authed: true, error: "" });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState({ loading: false, authed: false, error: e?.message ?? String(e) });
-        }
-      }
+    if (initializing) return;
+    if (!user) {
+      const currentHash = typeof window !== "undefined" ? window.location.hash : "";
+      const redirect = currentHash || "/client";
+      navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
+      return;
     }
+    if (!user.email_confirmed_at) {
+      navigate("/login?needsVerification=1", { replace: true });
+    }
+  }, [initializing, user, navigate]);
 
-    // Initial check — pass null so invitation acceptance is skipped on load.
-    checkAuth(null);
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => checkAuth(event));
-
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  if (state.loading) return <div className="page-main">Loading…</div>;
-
-  if (!state.authed) {
-    const currentHash = typeof window !== "undefined" ? window.location.hash : "";
-    const redirect = currentHash || "/client";
-    navigate(`/login?redirect=${encodeURIComponent(redirect)}`, { replace: true });
-    return null;
-  }
-
+  if (initializing) return <div className="page-main">Loading…</div>;
+  if (!user) return null;
+  if (!user.email_confirmed_at) return null;
   return children;
 }
+
