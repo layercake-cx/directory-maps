@@ -105,6 +105,229 @@ function latLngToMapDivPixel(map, lat, lng) {
   return { x, y };
 }
 
+function attachZoomSliderControl(map, showZoomSlider) {
+  if (!showZoomSlider || !window.google?.maps) return () => {};
+  const { ControlPosition } = window.google.maps;
+  const doc = map.getDiv()?.ownerDocument || document;
+  const body = doc.body;
+  let pseudoFullscreen = false;
+
+  const wrap = document.createElement("div");
+  wrap.className = "directory-map-zoom-slider-wrap";
+
+  const btnLocate = document.createElement("button");
+  btnLocate.type = "button";
+  btnLocate.className = "directory-map-zoom-btn directory-map-zoom-btn--locate";
+  btnLocate.setAttribute("aria-label", "Locate me");
+  btnLocate.textContent = "◎";
+
+  const btnFullscreen = document.createElement("button");
+  btnFullscreen.type = "button";
+  btnFullscreen.className = "directory-map-zoom-btn directory-map-zoom-btn--fullscreen";
+  btnFullscreen.setAttribute("aria-label", "Toggle fullscreen");
+  btnFullscreen.textContent = "⛶";
+
+  const btnPlus = document.createElement("button");
+  btnPlus.type = "button";
+  btnPlus.className = "directory-map-zoom-btn";
+  btnPlus.setAttribute("aria-label", "Zoom in");
+  btnPlus.textContent = "+";
+
+  const trackOuter = document.createElement("div");
+  trackOuter.className = "directory-map-zoom-slider-track-outer";
+
+  const input = document.createElement("input");
+  input.type = "range";
+  input.className = "directory-map-zoom-slider-input";
+  input.setAttribute("aria-label", "Map zoom level");
+  input.setAttribute("orient", "vertical");
+
+  const btnMinus = document.createElement("button");
+  btnMinus.type = "button";
+  btnMinus.className = "directory-map-zoom-btn";
+  btnMinus.setAttribute("aria-label", "Zoom out");
+  btnMinus.textContent = "\u2212";
+
+  trackOuter.appendChild(input);
+  wrap.appendChild(btnLocate);
+  wrap.appendChild(btnFullscreen);
+  wrap.appendChild(btnPlus);
+  wrap.appendChild(trackOuter);
+  wrap.appendChild(btnMinus);
+
+  function readLimits() {
+    let min = 0;
+    let max = 22;
+    try {
+      const mn = typeof map.getMinZoom === "function" ? map.getMinZoom() : map.get("minZoom");
+      const mx = typeof map.getMaxZoom === "function" ? map.getMaxZoom() : map.get("maxZoom");
+      if (typeof mn === "number" && !Number.isNaN(mn)) min = mn;
+      if (typeof mx === "number" && !Number.isNaN(mx)) max = mx;
+    } catch (_) {
+      /* keep defaults */
+    }
+    return { min, max };
+  }
+
+  function syncFromMap() {
+    const { min, max } = readLimits();
+    const z = map.getZoom();
+    if (z == null) return;
+    const rounded = Math.round(z);
+    const clamped = Math.min(max, Math.max(min, rounded));
+    input.min = String(min);
+    input.max = String(max);
+    input.step = "1";
+    input.value = String(clamped);
+  }
+
+  function stepZoom(delta) {
+    const { min, max } = readLimits();
+    const z = map.getZoom();
+    if (z == null) return;
+    const next = Math.min(max, Math.max(min, Math.round(z) + delta));
+    map.setZoom(next);
+  }
+
+  function onInput() {
+    const v = Number(input.value);
+    if (Number.isNaN(v)) return;
+    map.setZoom(v);
+  }
+
+  const onPlus = () => stepZoom(1);
+  const onMinus = () => stepZoom(-1);
+  const updateFullscreenButton = () => {
+    const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement || pseudoFullscreen);
+    btnFullscreen.textContent = active ? "⤫" : "⛶";
+    btnFullscreen.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+  };
+  const exitPseudoFullscreen = () => {
+    if (!pseudoFullscreen) return;
+    const div = map.getDiv();
+    if (div) div.classList.remove("directory-map--pseudo-fullscreen");
+    if (body) body.classList.remove("directory-map-body--pseudo-fullscreen");
+    pseudoFullscreen = false;
+  };
+  const enterPseudoFullscreen = () => {
+    const div = map.getDiv();
+    if (!div) return false;
+    div.classList.add("directory-map--pseudo-fullscreen");
+    if (body) body.classList.add("directory-map-body--pseudo-fullscreen");
+    pseudoFullscreen = true;
+    return true;
+  };
+  const onFullscreen = async () => {
+    const target = map.getDiv();
+    if (!target) return;
+    const active = doc.fullscreenElement || doc.webkitFullscreenElement;
+    if (active) {
+      if (typeof doc.exitFullscreen === "function") {
+        await doc.exitFullscreen();
+      } else if (typeof doc.webkitExitFullscreen === "function") {
+        doc.webkitExitFullscreen();
+      } else {
+        exitPseudoFullscreen();
+      }
+      updateFullscreenButton();
+      return;
+    }
+    if (pseudoFullscreen) {
+      exitPseudoFullscreen();
+      updateFullscreenButton();
+      return;
+    }
+
+    // Prefer real fullscreen; fall back to pseudo fullscreen when blocked (common in embeds without allowfullscreen).
+    const candidates = [
+      target,
+      target.parentElement,
+      doc.documentElement,
+    ].filter(Boolean);
+    for (const el of candidates) {
+      try {
+        if (typeof el.requestFullscreen === "function") {
+          await el.requestFullscreen();
+          updateFullscreenButton();
+          return;
+        }
+        if (typeof el.webkitRequestFullscreen === "function") {
+          el.webkitRequestFullscreen();
+          updateFullscreenButton();
+          return;
+        }
+      } catch (_) {
+        // Try next candidate.
+      }
+    }
+
+    if (enterPseudoFullscreen()) {
+      updateFullscreenButton();
+    }
+  };
+  const onLocate = () => {
+    if (!navigator.geolocation) return;
+    btnLocate.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude);
+        const lng = Number(pos.coords.longitude);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+          map.panTo({ lat, lng });
+          const z = map.getZoom() ?? 0;
+          if (z < 14) map.setZoom(14);
+        }
+        btnLocate.disabled = false;
+      },
+      () => {
+        btnLocate.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  };
+  const onFullscreenChanged = () => {
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      exitPseudoFullscreen();
+    }
+    updateFullscreenButton();
+  };
+
+  btnLocate.addEventListener("click", onLocate);
+  btnFullscreen.addEventListener("click", onFullscreen);
+  btnPlus.addEventListener("click", onPlus);
+  btnMinus.addEventListener("click", onMinus);
+  input.addEventListener("input", onInput);
+  doc.addEventListener("fullscreenchange", onFullscreenChanged);
+  doc.addEventListener("webkitfullscreenchange", onFullscreenChanged);
+
+  const zoomListener = map.addListener("zoom_changed", syncFromMap);
+  const idleListener = map.addListener("idle", syncFromMap);
+
+  map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+  syncFromMap();
+  updateFullscreenButton();
+
+  return () => {
+    doc.removeEventListener("fullscreenchange", onFullscreenChanged);
+    doc.removeEventListener("webkitfullscreenchange", onFullscreenChanged);
+    exitPseudoFullscreen();
+    btnLocate.removeEventListener("click", onLocate);
+    btnFullscreen.removeEventListener("click", onFullscreen);
+    btnPlus.removeEventListener("click", onPlus);
+    btnMinus.removeEventListener("click", onMinus);
+    input.removeEventListener("input", onInput);
+    window.google.maps.event.removeListener(zoomListener);
+    window.google.maps.event.removeListener(idleListener);
+    const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
+    for (let i = controls.getLength() - 1; i >= 0; i--) {
+      if (controls.getAt(i) === wrap) {
+        controls.removeAt(i);
+        break;
+      }
+    }
+  };
+}
+
 function registerCustomMapTypes(map) {
   if (!window.google?.maps?.StyledMapType) return;
   if (map.mapTypes.get("roadmap_silver")) return;
@@ -139,6 +362,18 @@ export default function DirectoryMap({
   /** When set (e.g. listing detail panel open), keep updating screen position on pan/zoom */
   screenOverlayListing = null,
   onScreenOverlayPosition,
+  /** `greedy` captures wheel/trackpad for zoom; `cooperative` lets the page scroll (use Ctrl/Cmd+wheel to zoom). */
+  /** `cooperative`: wheel/trackpad scroll does not zoom the map (use Ctrl+scroll to zoom); pinch/2-finger gestures still zoom/pan. `greedy`: wheel zooms the map. */
+  gestureHandling = "cooperative",
+  /** Slider next to the default +/- zoom controls */
+  showZoomSlider = true,
+  /**
+   * When set (new `id` each time), pans/zooms or fits bounds — e.g. geocoded country/place from search.
+   * `bounds` preferred for countries/regions; else `center` + `zoom`.
+   */
+  cameraRequest = null,
+  /** Padding passed to `fitBounds` so the list panel doesn’t cover the result */
+  mapFitBoundsPadding = null,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -188,12 +423,12 @@ export default function DirectoryMap({
           mapTypeId: initialMapType,
           mapTypeControl: false,
           streetViewControl: false,
-          fullscreenControl: true,
+          fullscreenControl: !showZoomSlider,
           fullscreenControlOptions: { position: ControlPosition.RIGHT_BOTTOM },
-          zoomControl: true,
+          zoomControl: !showZoomSlider,
           zoomControlOptions: { position: ControlPosition.RIGHT_BOTTOM },
-          gestureHandling: "greedy",
-          scrollwheel: true,
+          gestureHandling,
+          scrollwheel: gestureHandling === "greedy",
         });
         registerCustomMapTypes(mapRef.current);
       }
@@ -209,6 +444,46 @@ export default function DirectoryMap({
       cancelled = true;
     };
   }, [apiKey, mapTypeId]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps) return;
+    mapRef.current.setOptions({
+      gestureHandling,
+      scrollwheel: gestureHandling === "greedy",
+      fullscreenControl: !showZoomSlider,
+      zoomControl: !showZoomSlider,
+    });
+  }, [mapReady, gestureHandling, showZoomSlider]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps) return;
+    return attachZoomSliderControl(mapRef.current, showZoomSlider);
+  }, [mapReady, showZoomSlider]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps || !cameraRequest) return;
+    const map = mapRef.current;
+    const pad = mapFitBoundsPadding ?? { top: 40, right: 40, bottom: 40, left: 40 };
+
+    if (cameraRequest.bounds) {
+      const b = cameraRequest.bounds;
+      map.fitBounds(
+        {
+          north: b.north,
+          south: b.south,
+          east: b.east,
+          west: b.west,
+        },
+        pad
+      );
+    } else if (cameraRequest.center) {
+      map.panTo(cameraRequest.center);
+      if (typeof cameraRequest.zoom === "number") {
+        map.setZoom(cameraRequest.zoom);
+      }
+    }
+    // mapFitBoundsPadding: use latest from render when cameraRequest updates (omit from deps to avoid refitting every render)
+  }, [mapReady, cameraRequest]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps || !onScreenOverlayPosition) return;

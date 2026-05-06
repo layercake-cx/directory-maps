@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
+import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 
 export default function EmbedMap() {
   const [params] = useSearchParams();
@@ -17,6 +18,8 @@ export default function EmbedMap() {
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
+  /** Normalized publication snapshot (map + group styling); listings stay live. */
+  const [publicationConfig, setPublicationConfig] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
   const [centerOnListingId, setCenterOnListingId] = useState(null);
   const [selectedMarkerPoint, setSelectedMarkerPoint] = useState(null);
@@ -35,6 +38,15 @@ export default function EmbedMap() {
   const [contactFormError, setContactFormError] = useState("");
 
   useEffect(() => {
+    document.documentElement.classList.add("embed-map-page");
+    document.body.classList.add("embed-map-page");
+    return () => {
+      document.documentElement.classList.remove("embed-map-page");
+      document.body.classList.remove("embed-map-page");
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -51,22 +63,32 @@ export default function EmbedMap() {
           supabase
             .from("maps")
             .select(
-              "id,name,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,marker_style,marker_color,theme_json,cluster_radius,custom_pin_url,published_config,published_at",
+              "id,name,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,marker_style,marker_color,theme_json,cluster_radius,custom_pin_url,published_config,published_at,current_publication_id",
             )
             .eq("id", mapId)
             .single(),
           supabase.from("public_listings").select("*").eq("map_id", mapId),
-          supabase.from("groups").select("id,name,sort_order,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase
+            .from("groups")
+            .select("id,name,sort_order,color,theme_json")
+            .eq("map_id", mapId)
+            .order("sort_order", { ascending: true }),
         ]);
 
         let mapRow = m;
         let mapErr = mErr;
-        const msg = String(mapErr?.message || "");
-        if (mapErr && (msg.includes("cluster_radius") || msg.includes("custom_pin_url") || msg.includes("published_"))) {
+        let msg = String(mapErr?.message || "");
+        if (
+          mapErr &&
+          (msg.includes("cluster_radius") ||
+            msg.includes("custom_pin_url") ||
+            msg.includes("published_") ||
+            msg.includes("current_publication"))
+        ) {
           const { data: fallback, error: mErr2 } = await supabase
             .from("maps")
             .select(
-              "id,name,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,marker_style,marker_color,theme_json",
+              "id,name,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,marker_style,marker_color,theme_json,published_config,published_at",
             )
             .eq("id", mapId)
             .single();
@@ -79,10 +101,26 @@ export default function EmbedMap() {
         if (lErr) throw lErr;
         if (gErr) throw gErr;
 
+        let resolvedPublication = null;
+        if (mapRow?.current_publication_id) {
+          const { data: pubRow, error: pubErr } = await supabase
+            .from("map_publications")
+            .select("config")
+            .eq("id", mapRow.current_publication_id)
+            .single();
+          if (!pubErr && pubRow?.config) {
+            resolvedPublication = normalizePublicationConfig(pubRow.config);
+          }
+        }
+        if (!resolvedPublication && mapRow?.published_config) {
+          resolvedPublication = normalizePublicationConfig(mapRow.published_config);
+        }
+
         if (!cancelled) {
           setMap(mapRow);
           setListings(l ?? []);
           setGroups(g ?? []);
+          setPublicationConfig(resolvedPublication);
         }
       } catch (e) {
         if (!cancelled) setErr(e.message ?? String(e));
@@ -96,44 +134,33 @@ export default function EmbedMap() {
     };
   }, [mapId]);
 
-  const publishedConfig = useMemo(() => {
-    if (!map?.published_config) return null;
-    const raw = map.published_config;
-    if (typeof raw === "string") {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return null;
-      }
+  const groupsForEmbed = useMemo(() => {
+    const pubGroups = publicationConfig?.groups;
+    if (!pubGroups) {
+      return (groups || []).map((gr) => ({ ...gr, theme_json: null, color: null }));
     }
-    if (typeof raw === "object" && raw !== null) return raw;
-    return null;
-  }, [map]);
+    return (groups || []).map((gr) => mergeGroupWithPublication(gr, pubGroups));
+  }, [groups, publicationConfig]);
 
   const effectiveDefaults = useMemo(() => {
-    const src = publishedConfig || map || {};
+    const src = publicationConfig?.map || {};
     return {
-      lat: Number(src.default_lat ?? map?.default_lat ?? 0),
-      lng: Number(src.default_lng ?? map?.default_lng ?? 0),
-      zoom: Number(src.default_zoom ?? map?.default_zoom ?? 3),
-      showListPanel: (src.show_list_panel ?? map?.show_list_panel) !== false,
-      enableClustering: !!(src.enable_clustering ?? map?.enable_clustering),
-      markerStyle: src.marker_style ?? map?.marker_style ?? "pin",
-      markerColor: src.marker_color ?? map?.marker_color ?? "#4A9BAA",
-      clusterRadius:
-        typeof src.cluster_radius === "number"
-          ? src.cluster_radius
-          : typeof map?.cluster_radius === "number"
-          ? map.cluster_radius
-          : 80,
-      customPinUrl: src.custom_pin_url ?? map?.custom_pin_url ?? null,
-      themeSource: src.theme_json ?? map?.theme_json ?? null,
+      lat: Number(src.default_lat ?? 0),
+      lng: Number(src.default_lng ?? 0),
+      zoom: Number(src.default_zoom ?? 3),
+      showListPanel: src.show_list_panel !== false,
+      enableClustering: !!src.enable_clustering,
+      markerStyle: src.marker_style ?? "pin",
+      markerColor: src.marker_color ?? "#4A9BAA",
+      clusterRadius: typeof src.cluster_radius === "number" ? src.cluster_radius : 80,
+      customPinUrl: src.custom_pin_url ?? null,
+      themeSource: src.theme_json ?? null,
     };
-  }, [publishedConfig, map]);
+  }, [publicationConfig]);
 
   const listingsWithOverrides = useMemo(() => {
     const overridesById = new Map();
-    (groups || []).forEach((gr) => {
+    (groupsForEmbed || []).forEach((gr) => {
       if (!gr.id) return;
       const raw = gr.theme_json;
       const theme =
@@ -178,11 +205,18 @@ export default function EmbedMap() {
         group_pin_size: o.pinSize != null && o.pinSize !== "" ? o.pinSize : null,
       };
     });
-  }, [listings, groups]);
+  }, [listings, groupsForEmbed]);
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (err) return <div style={{ padding: 16 }}>{err}</div>;
   if (!map) return <div style={{ padding: 16 }}>Map not found.</div>;
+  if (!publicationConfig) {
+    return (
+      <div style={{ padding: 16 }}>
+        This map has not been published yet. Open the dashboard, publish the map, then reload this embed.
+      </div>
+    );
+  }
   if (!apiKey) return <div style={{ padding: 16 }}>Missing VITE_GOOGLE_MAPS_API_KEY</div>;
 
   const primaryColor = effectiveDefaults.markerColor || "#4A9BAA";
@@ -221,44 +255,47 @@ export default function EmbedMap() {
 
   return (
     <>
-      <PublishedMapView
-        apiKey={apiKey}
-        center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
-        zoom={effectiveDefaults.zoom}
-        listings={listings}
-        listingsWithColor={listingsWithOverrides}
-        groups={groups}
-        showListPanel={effectiveDefaults.showListPanel}
-        showSearch={parsedTheme.showSearch !== false}
-        showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
-        enableClustering={effectiveDefaults.enableClustering}
-        clusterRadius={effectiveDefaults.clusterRadius}
-        markerStyle={effectiveDefaults.markerStyle}
-        markerColor={effectiveDefaults.markerColor}
-        customPinUrl={effectiveDefaults.customPinUrl}
-        clusterColor={parsedTheme.clusterColor || "#4A9BAA"}
-        pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
-        pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
-        pinFaviconUrl={(parsedTheme.pin_favicon_url && String(parsedTheme.pin_favicon_url).trim()) || null}
-        theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
-        selectedListing={selectedListing}
-        selectedMarkerPoint={selectedMarkerPoint}
-        clampedPanelPosition={clampedPanelPosition}
-        setClampedPanelPosition={setClampedPanelPosition}
-        pinOverlayRef={pinOverlayRef}
-        onMarkerScreenPosition={setSelectedMarkerPoint}
-        onSelectMarker={(listing, point) => {
-          setSelectedListing(listing);
-          setSelectedMarkerPoint(point ?? null);
-          setClampedPanelPosition(null);
-        }}
-        onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
-        centerOnListingId={centerOnListingId}
-        setCenterOnListingId={setCenterOnListingId}
-        showSendMessage={true}
-        onOpenSendMessage={() => { setMessageDrawerOpen(true); setContactFormSent(false); setContactFormError(""); }}
-        height="100vh"
-      />
+      <div className="embed-map-root">
+        <PublishedMapView
+          apiKey={apiKey}
+          center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
+          zoom={effectiveDefaults.zoom}
+          listings={listings}
+          listingsWithColor={listingsWithOverrides}
+          groups={groupsForEmbed}
+          showListPanel={effectiveDefaults.showListPanel}
+          showSearch={parsedTheme.showSearch !== false}
+          showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
+          enableClustering={effectiveDefaults.enableClustering}
+          clusterRadius={effectiveDefaults.clusterRadius}
+          markerStyle={effectiveDefaults.markerStyle}
+          markerColor={effectiveDefaults.markerColor}
+          customPinUrl={effectiveDefaults.customPinUrl}
+          clusterColor={parsedTheme.clusterColor || "#4A9BAA"}
+          pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
+          pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
+          pinFaviconUrl={(parsedTheme.pin_favicon_url && String(parsedTheme.pin_favicon_url).trim()) || null}
+          theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
+          selectedListing={selectedListing}
+          selectedMarkerPoint={selectedMarkerPoint}
+          clampedPanelPosition={clampedPanelPosition}
+          setClampedPanelPosition={setClampedPanelPosition}
+          pinOverlayRef={pinOverlayRef}
+          onMarkerScreenPosition={setSelectedMarkerPoint}
+          onSelectMarker={(listing, point) => {
+            setSelectedListing(listing);
+            setSelectedMarkerPoint(point ?? null);
+            setClampedPanelPosition(null);
+          }}
+          onClosePin={() => { setSelectedListing(null); setSelectedMarkerPoint(null); setClampedPanelPosition(null); }}
+          centerOnListingId={centerOnListingId}
+          setCenterOnListingId={setCenterOnListingId}
+          showSendMessage={true}
+          onOpenSendMessage={() => { setMessageDrawerOpen(true); setContactFormSent(false); setContactFormError(""); }}
+          height="100vh"
+          gestureHandling="cooperative"
+        />
+      </div>
 
       {/* Message drawer */}
       <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen}>

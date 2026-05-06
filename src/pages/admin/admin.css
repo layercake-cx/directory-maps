@@ -6,7 +6,79 @@
   --lc-border: #e5e7eb;
   --lc-text: #111827;
   --lc-muted: #6b7280;
+
+  /* Button tokens — kept in sync with Mantine theme */
+  --btn-radius: 8px;
+  --btn-font-size: 13.5px;
+  --btn-font-weight: 600;
+  --btn-height-sm: 30px;
+  --btn-height-md: 36px;
+  --btn-pad-sm: 0 14px;
+  --btn-pad-md: 0 18px;
 }
+
+/* ── Global buttons ───────────────────────────────────────────── */
+.btn,
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--btn-height-md);
+  padding: var(--btn-pad-md);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+.btn:hover:not(:disabled),
+a.btn:hover {
+  background: #f3f4f6;
+  border-color: #b6bac1;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary,
+a.btn-primary {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled),
+a.btn-primary:hover {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #fff;
+}
+.btn-sm {
+  height: var(--btn-height-sm);
+  padding: var(--btn-pad-sm);
+  font-size: 12.5px;
+}
+.btn-danger {
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+/* Legacy scoped overrides — keep specificity in check */
+.admin-controls .btn { height: var(--btn-height-md); padding: var(--btn-pad-md); }
+.admin-controls .btn-primary { background: #111827; border-color: #111827; color: #fff; }
+.admin-controls .btn-primary:hover { background: #1f2937; border-color: #1f2937; filter: none; }
 
 .admin-shell {
   min-height: 100vh;
@@ -990,7 +1062,7 @@
 }
 
 .client-dashboard__emptyCard {
-  max-width: 440px;
+  max-width: 560px;
   text-align: center;
   padding: 36px 32px 40px;
   background: #fff;

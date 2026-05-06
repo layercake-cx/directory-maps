@@ -28,7 +28,7 @@ import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
-import ClientUsers from "./pages/client/ClientUsers.jsx";
+import ClientTeam from "./pages/client/ClientUsers.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -55,7 +55,7 @@ export default function App() {
         }
       >
         <Route index element={<ClientDashboard />} />
-        <Route path="users" element={<ClientUsers />} />
+        <Route path="team" element={<ClientTeam />} />
         <Route path="maps/new" element={<ClientMapNew />} />
         <Route path="maps/:mapId" element={<ClientMapDashboard />} />
         <Route path="maps/:mapId/data" element={<ClientMapData />} />

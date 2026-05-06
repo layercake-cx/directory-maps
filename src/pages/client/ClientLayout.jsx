@@ -9,7 +9,7 @@ import "../admin/admin.css";
 
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
-  { label: "Users", path: "/client/users" },
+  { label: "Team", path: "/client/team" },
 ];
 
 export default function ClientLayout() {
@@ -127,7 +127,7 @@ export default function ClientLayout() {
   }
 
   const canManageUsers = contact?.is_primary || contact?.can_manage_users;
-  const navItems = CLIENT_NAV.filter((item) => (item.path === "/client/users" ? canManageUsers : true));
+  const navItems = CLIENT_NAV.filter((item) => (item.path === "/client/team" ? canManageUsers : true));
 
   const isMapDetailRoute = pathname.startsWith("/client/maps/");
 
@@ -141,7 +141,7 @@ export default function ClientLayout() {
                 path === "/client"
                   ? pathname === "/client" ||
                     pathname === "/client/" ||
-                    (pathname.startsWith("/client/") && !pathname.startsWith("/client/users"))
+                    (pathname.startsWith("/client/") && !pathname.startsWith("/client/team"))
                   : pathname === path || pathname.startsWith(path + "/");
               return (
                 <Link

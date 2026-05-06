@@ -6,6 +6,11 @@ import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale } from "../../lib/markerIcons";
+import {
+  buildPublicationConfig,
+  normalizePublicationConfig,
+  publicationConfigsEqual,
+} from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
 import "../admin/admin.css";
 
@@ -22,6 +27,7 @@ const MAP_TYPES = [
 const PIN_STYLES = [
   { id: "pin", label: "Pin" },
   { id: "teardrop", label: "Teardrop" },
+  { id: "ringpin", label: "Ring pin" },
   { id: "dot", label: "Dot" },
   { id: "circle", label: "Circle" },
   { id: "custom", label: "Custom" },
@@ -130,9 +136,13 @@ export default function ClientMapDashboard() {
   const [clampedPanelPosition, setClampedPanelPosition] = useState(null);
   const [centerOnListingId, setCenterOnListingId] = useState(null);
   const pinOverlayRef = useRef(null);
-  const [publishedConfig, setPublishedConfig] = useState(null);
+  const [publishedSnapshot, setPublishedSnapshot] = useState(null);
+  const [publicationHistory, setPublicationHistory] = useState([]);
+  const [publishNote, setPublishNote] = useState("");
   const [publishedAt, setPublishedAt] = useState(null);
   const [publishing, setPublishing] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
   const [mapTypeId, setMapTypeId] = useState("roadmap");
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
@@ -162,7 +172,7 @@ export default function ClientMapDashboard() {
     return `<iframe
   src="${embedSrc}"
   width="100%"
-  height="700"
+  height="800"
   style="border:0;border-radius:12px"
   loading="lazy">
 </iframe>`;
@@ -230,6 +240,69 @@ export default function ClientMapDashboard() {
     });
   }, [listings, groupOverridesById]);
 
+  const draftPublicationConfig = useMemo(
+    () =>
+      buildPublicationConfig({
+        groups,
+        defaultLat,
+        defaultLng,
+        defaultZoom,
+        showListPanel,
+        enableClustering,
+        clusterRadius,
+        markerStyle,
+        markerColor,
+        customPinUrl,
+        clusterColor,
+        pinBorderColor,
+        pinBorderSize,
+        pinFaviconUrl,
+        buttonColor,
+        panelBackgroundColor,
+        panelBackgroundOpacity,
+        panelBorderRadius,
+        pinDetailLayout,
+        panelLinkColor,
+        pinSize,
+        showSearch,
+        showGroupDropdowns,
+        mapThemeJsonBase: map?.theme_json,
+      }),
+    [
+      groups,
+      defaultLat,
+      defaultLng,
+      defaultZoom,
+      showListPanel,
+      enableClustering,
+      clusterRadius,
+      markerStyle,
+      markerColor,
+      customPinUrl,
+      clusterColor,
+      pinBorderColor,
+      pinBorderSize,
+      pinFaviconUrl,
+      buttonColor,
+      panelBackgroundColor,
+      panelBackgroundOpacity,
+      panelBorderRadius,
+      pinDetailLayout,
+      panelLinkColor,
+      pinSize,
+      showSearch,
+      showGroupDropdowns,
+      map?.theme_json,
+    ],
+  );
+
+  const hasUnpublishedChanges = useMemo(() => {
+    const draft = draftPublicationConfig;
+    const pub = publishedSnapshot;
+    if (!pub) return true;
+    return !publicationConfigsEqual(draft, pub);
+  }, [draftPublicationConfig, publishedSnapshot]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -249,7 +322,11 @@ export default function ClientMapDashboard() {
         let m = null;
         const [{ data: c, error: ce }, { data: g, error: ge }, { data: l, error: le }] = await Promise.all([
           supabase.from("clients").select("id,name,slug").eq("id", currentClientId).single(),
-          supabase.from("groups").select("id,name,color,theme_json").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase
+            .from("groups")
+            .select("id,name,sort_order,color,theme_json")
+            .eq("map_id", mapId)
+            .order("sort_order", { ascending: true }),
           supabase
             .from("listings")
             .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone")
@@ -262,14 +339,20 @@ export default function ClientMapDashboard() {
         const { data: mapRow, error: me } = await supabase
           .from("maps")
           .select(
-            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at",
+            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at,current_publication_id",
           )
           .eq("id", mapId)
           .eq("client_id", currentClientId)
           .single();
 
         const msg = String(me?.message || "");
-        if (me && (msg.includes("cluster_radius") || msg.includes("custom_pin_url") || msg.includes("published_"))) {
+        if (
+          me &&
+          (msg.includes("cluster_radius") ||
+            msg.includes("custom_pin_url") ||
+            msg.includes("published_") ||
+            msg.includes("current_publication"))
+        ) {
           const { data: mapRowFallback, error: me2 } = await supabase
             .from("maps")
             .select(
@@ -324,20 +407,44 @@ export default function ClientMapDashboard() {
             setPinSize("medium");
           }
         try {
-          const raw = m.published_config;
-          let parsed = null;
-          if (raw) {
+          let snapshot = null;
+          let pubAt = m.published_at ?? null;
+          if (m.current_publication_id) {
+            const { data: pub, error: pubErr } = await supabase
+              .from("map_publications")
+              .select("config,published_at")
+              .eq("id", m.current_publication_id)
+              .single();
+            if (!pubErr && pub?.config) {
+              snapshot = normalizePublicationConfig(pub.config);
+              pubAt = pub.published_at;
+            }
+          }
+          if (!snapshot && m.published_config) {
+            const raw = m.published_config;
+            let parsed = null;
             if (typeof raw === "string") {
-              parsed = JSON.parse(raw);
+              try {
+                parsed = JSON.parse(raw);
+              } catch {
+                parsed = null;
+              }
             } else if (typeof raw === "object") {
               parsed = raw;
             }
+            snapshot = normalizePublicationConfig(parsed);
           }
-          setPublishedConfig(parsed);
+          setPublishedSnapshot(snapshot);
+          setPublishedAt(pubAt);
+          const { data: hist, error: histErr } = await supabase.rpc("list_map_publications", {
+            p_map_id: mapId,
+          });
+          if (!histErr) setPublicationHistory(hist ?? []);
+          else setPublicationHistory([]);
         } catch {
-          setPublishedConfig(null);
+          setPublishedSnapshot(null);
+          setPublicationHistory([]);
         }
-        setPublishedAt(m.published_at ?? null);
         }
       } catch (e) {
         if (!cancelled) setErr(e.message ?? String(e));
@@ -458,57 +565,6 @@ export default function ClientMapDashboard() {
     }
   }
 
-  const currentPublishConfig = useMemo(
-    () => ({
-      default_lat: Number(defaultLat) || null,
-      default_lng: Number(defaultLng) || null,
-      default_zoom: Number(defaultZoom) || null,
-      show_list_panel: showListPanel,
-      enable_clustering: enableClustering,
-      cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)),
-      marker_style: markerStyle,
-      marker_color: markerColor,
-      custom_pin_url: customPinUrl || null,
-      theme_json: (() => {
-        if (!map?.theme_json && !clusterColor && !pinBorderColor && !pinBorderSize && !(pinFaviconUrl || "").trim()) return null;
-        let base =
-          !map?.theme_json || typeof map.theme_json === "string"
-            ? (() => {
-                try {
-                  return JSON.parse(map?.theme_json || "{}");
-                } catch {
-                  return {};
-                }
-              })()
-            : map.theme_json || {};
-        base = {
-          ...base,
-          clusterColor: clusterColor || "#4A9BAA",
-          pinBorderColor: pinBorderColor || "#ffffff",
-          pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
-          pin_favicon_url: (pinFaviconUrl || "").trim() || null,
-          pinSize: normalizePinSize(pinSize),
-          buttonColor: (buttonColor || "").trim() || "#4A9BAA",
-          panelBackgroundColor: (panelBackgroundColor || "").trim() || "#ffffff",
-          panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
-          panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
-          pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
-          panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
-          showSearch,
-          showGroupDropdowns,
-        };
-        return base;
-      })(),
-    }),
-    [defaultLat, defaultLng, defaultZoom, showListPanel, showSearch, showGroupDropdowns, enableClustering, clusterRadius, markerStyle, markerColor, customPinUrl, map, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, pinSize],
-  );
-
-  const hasUnpublishedChanges = useMemo(() => {
-    const a = currentPublishConfig;
-    const b = publishedConfig || null;
-    return JSON.stringify(a) !== JSON.stringify(b);
-  }, [currentPublishConfig, publishedConfig]);
-
   const editTheme = useMemo(() => {
     const hex = (panelBackgroundColor || "#ffffff").trim().replace(/^#/, "");
     const m = hex.match(/.{2}/g);
@@ -531,24 +587,167 @@ export default function ClientMapDashboard() {
     try {
       setPublishing(true);
       setErr("");
-      const payloadFull = {
-        published_config: currentPublishConfig,
-        published_at: new Date().toISOString(),
-      };
-      let { error } = await supabase.from("maps").update(payloadFull).eq("id", mapId);
-      const msg = String(error?.message || "");
-      if (error && msg.includes("published_")) {
-        ({ error } = await supabase.from("maps").update({ published_config: currentPublishConfig }).eq("id", mapId));
-      }
+      const draftConfig = draftPublicationConfig;
+      const { data, error } = await supabase.rpc("publish_map", {
+        p_map_id: mapId,
+        p_config: draftConfig,
+        p_note: publishNote.trim() || null,
+      });
       if (error) throw error;
-      setPublishedConfig(currentPublishConfig);
-      setPublishedAt(payloadFull.published_at ?? null);
+      setPublishedSnapshot(normalizePublicationConfig(data.config));
+      setPublishedAt(data.published_at);
+      setPublishNote("");
+      setMap((prev) =>
+        prev
+          ? {
+              ...prev,
+              current_publication_id: data.id,
+              published_config: data.config?.map ?? draftConfig.map,
+              published_at: data.published_at,
+            }
+          : prev,
+      );
+      const { data: hist } = await supabase.rpc("list_map_publications", { p_map_id: mapId });
+      setPublicationHistory(hist ?? []);
       setMsg("Published.");
       window.setTimeout(() => setMsg(""), 2000);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function rollbackToPublication(pubRowId) {
+    try {
+      setRollingBack(true);
+      setErr("");
+      const { data, error } = await supabase.rpc("rollback_map_to", {
+        p_map_id: mapId,
+        p_publication_id: pubRowId,
+      });
+      if (error) throw error;
+      setPublishedSnapshot(normalizePublicationConfig(data.config));
+      setPublishedAt(data.published_at);
+      setMap((prev) =>
+        prev
+          ? {
+              ...prev,
+              current_publication_id: data.id,
+              published_config: data.config?.map,
+              published_at: data.published_at,
+            }
+          : prev,
+      );
+      const { data: hist } = await supabase.rpc("list_map_publications", { p_map_id: mapId });
+      setPublicationHistory(hist ?? []);
+      setMsg("Restored that version as current. Use “Discard draft” to reset the editor.");
+      window.setTimeout(() => setMsg(""), 3200);
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    } finally {
+      setRollingBack(false);
+    }
+  }
+
+  async function discardDraft() {
+    const cfg = publishedSnapshot;
+    if (!cfg?.map) return;
+    try {
+      setDiscarding(true);
+      setErr("");
+      const m = cfg.map;
+      const themeJson =
+        typeof m.theme_json === "string"
+          ? (() => {
+              try {
+                return JSON.parse(m.theme_json || "{}");
+              } catch {
+                return {};
+              }
+            })()
+          : m.theme_json || {};
+
+      const payloadBase = {
+        default_lat: m.default_lat,
+        default_lng: m.default_lng,
+        default_zoom: m.default_zoom,
+        show_list_panel: m.show_list_panel,
+        enable_clustering: m.enable_clustering,
+        marker_style: m.marker_style,
+        marker_color: m.marker_color,
+        theme_json: themeJson,
+      };
+      const payloadWithExtras = {
+        ...payloadBase,
+        cluster_radius: Math.max(20, Math.min(200, Number(m.cluster_radius) || 80)),
+        custom_pin_url: m.custom_pin_url ?? null,
+      };
+      let { error } = await supabase.from("maps").update(payloadWithExtras).eq("id", mapId);
+      const msg = String(error?.message || "");
+      if (error && (msg.includes("cluster_radius") || msg.includes("custom_pin_url"))) {
+        ({ error } = await supabase.from("maps").update(payloadBase).eq("id", mapId));
+      }
+      if (error) throw error;
+
+      for (const gr of groups || []) {
+        const snap = cfg.groups?.byId?.[gr.id] ?? cfg.groups?.byName?.[gr.name];
+        const { error: gErr } = await supabase
+          .from("groups")
+          .update({
+            color: snap?.color ?? null,
+            theme_json: snap?.theme_json ?? null,
+          })
+          .eq("id", gr.id)
+          .eq("map_id", mapId);
+        if (gErr) throw gErr;
+      }
+
+      setDefaultLat(String(m.default_lat ?? ""));
+      setDefaultLng(String(m.default_lng ?? ""));
+      setDefaultZoom(String(m.default_zoom ?? ""));
+      setShowListPanel(m.show_list_panel !== false);
+      setEnableClustering(!!m.enable_clustering);
+      setClusterRadius(m.cluster_radius ?? 80);
+      setMarkerStyle(m.marker_style ?? "pin");
+      setMarkerColor(m.marker_color ?? "#4A9BAA");
+      setCustomPinUrl(m.custom_pin_url ?? "");
+      setClusterColor(themeJson.clusterColor ?? "#4A9BAA");
+      setPinBorderColor(themeJson.pinBorderColor ?? "#ffffff");
+      setPinBorderSize(Math.max(0, Math.min(15, Number(themeJson.pinBorderSize) ?? 0)));
+      setPinFaviconUrl(themeJson.pin_favicon_url ?? "");
+      setButtonColor(themeJson.buttonColor ?? "#4A9BAA");
+      setPanelBackgroundColor(themeJson.panelBackgroundColor ?? "#ffffff");
+      setPanelBackgroundOpacity(themeJson.panelBackgroundOpacity ?? 0.88);
+      setPanelBorderRadius(Math.max(0, Math.min(28, Number(themeJson.panelBorderRadius) ?? 12)));
+      setPinDetailLayout(themeJson.pinDetailLayout === "drawer" ? "drawer" : "map");
+      setPanelLinkColor(themeJson.panelLinkColor ?? "#4A9BAA");
+      setPinSize(normalizePinSize(themeJson.pinSize));
+      setShowSearch(themeJson.showSearch !== false);
+      setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
+
+      const { data: gReload } = await supabase
+        .from("groups")
+        .select("id,name,sort_order,color,theme_json")
+        .eq("map_id", mapId)
+        .order("sort_order", { ascending: true });
+      setGroups(gReload ?? []);
+
+      setMap((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...payloadWithExtras,
+              theme_json: themeJson,
+            }
+          : prev,
+      );
+      setMsg("Draft discarded — editor matches the published version.");
+      window.setTimeout(() => setMsg(""), 2200);
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    } finally {
+      setDiscarding(false);
     }
   }
 
@@ -903,7 +1102,7 @@ export default function ClientMapDashboard() {
                           {PIN_STYLES.map(({ id, label }) => {
                             const isSelected = markerStyle === id;
                             const isCustom = id === "custom";
-                            const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
+                            const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop" || id === "ringpin") ? pinFaviconUrl : undefined }) : null;
                             return (
                               <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
                                 <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
@@ -940,7 +1139,7 @@ export default function ClientMapDashboard() {
                           <span style={{ fontSize: 12 }}>{pinBorderSize}px</span>
                         </div>
                       </Field>
-                      {(markerStyle === "pin" || markerStyle === "teardrop") && (
+                      {(markerStyle === "pin" || markerStyle === "teardrop" || markerStyle === "ringpin") && (
                         <Field label="Image inside pin">
                           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                             <label className="btn" style={{ margin: 0 }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
@@ -1055,18 +1254,91 @@ export default function ClientMapDashboard() {
                               Last published: <strong>{new Date(publishedAt).toLocaleString()}</strong>
                             </>
                           ) : (
-                            "This map has not been published yet."
+                            "This map has not been published yet. Embeds stay blank until you publish."
                           )}
                         </div>
-                        <button
-                          className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
-                          type="button"
-                          onClick={publishMap}
-                          disabled={!hasUnpublishedChanges || publishing}
-                        >
-                          {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
-                        </button>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={discardDraft}
+                            disabled={discarding || !publishedSnapshot || !hasUnpublishedChanges}
+                          >
+                            {discarding ? "Resetting…" : "Discard draft"}
+                          </button>
+                          <button
+                            className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
+                            type="button"
+                            onClick={publishMap}
+                            disabled={!hasUnpublishedChanges || publishing}
+                          >
+                            {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
+                          </button>
+                        </div>
                       </div>
+                      <label style={{ display: "grid", gap: 6 }}>
+                        <span style={{ fontSize: 13, opacity: 0.85 }}>Publish note (optional)</span>
+                        <input
+                          type="text"
+                          value={publishNote}
+                          onChange={(e) => setPublishNote(e.target.value)}
+                          placeholder="e.g. Launch checklist complete"
+                          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", maxWidth: 420 }}
+                        />
+                      </label>
+                      <div style={{ fontSize: 12, opacity: 0.75 }}>
+                        Saving stores draft settings only. Publishing versions what embeds show for map layout and group styling;
+                        synced listing data updates live.
+                      </div>
+                      {publicationHistory.length > 0 ? (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          <div style={{ fontSize: 13, opacity: 0.85 }}>Publish history</div>
+                          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+                            {publicationHistory.map((row) => {
+                              const isCurrent = row.id === map?.current_publication_id;
+                              return (
+                                <li
+                                  key={row.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                    flexWrap: "wrap",
+                                    padding: "8px 10px",
+                                    border: "1px solid var(--lc-border)",
+                                    borderRadius: 10,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  <span>
+                                    <strong>v{row.version}</strong>
+                                    {" · "}
+                                    {new Date(row.published_at).toLocaleString()}
+                                    {row.note ? ` · ${row.note}` : ""}
+                                    {isCurrent ? (
+                                      <>
+                                        {" "}
+                                        <span style={{ opacity: 0.85 }}>(current)</span>
+                                      </>
+                                    ) : null}
+                                  </span>
+                                  {!isCurrent ? (
+                                    <button
+                                      type="button"
+                                      className="btn"
+                                      disabled={rollingBack}
+                                      onClick={() => rollbackToPublication(row.id)}
+                                    >
+                                      Restore
+                                    </button>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ) : null}
                       <div>
                         <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed URL</div>
                         <code

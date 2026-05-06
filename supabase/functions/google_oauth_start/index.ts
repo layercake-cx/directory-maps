@@ -1,16 +1,30 @@
-import { requireAdmin, createServiceClient } from "../_shared/supabase.ts";
+import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
 import { buildGoogleAuthUrl } from "../_shared/google.ts";
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, apikey, x-client-info",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
   try {
-    await requireAdmin(req);
     const { mapId, returnTo } = await req.json();
-    if (!mapId) return new Response("Missing mapId", { status: 400 });
+    await requireMapAccess(req, mapId);
+    if (!mapId) return json({ error: "Missing mapId" }, 400);
 
     const redirectUri = Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI");
     if (!redirectUri) throw new Error("Missing env var: GOOGLE_OAUTH_REDIRECT_URI");
 
-    // State is simple JSON; in production you should sign this.
     const state = btoa(
       JSON.stringify({
         mapId,
@@ -29,14 +43,11 @@ Deno.serve(async (req) => {
       ],
     });
 
-    // Create/ensure a placeholder row? We don't store anything yet (callback stores refresh_token).
-    // This is just to make sure map exists and edge function has permission.
     const service = createServiceClient();
     await service.from("maps").select("id").eq("id", mapId).maybeSingle();
 
-    return Response.json({ authUrl });
+    return json({ authUrl });
   } catch (e) {
-    return Response.json({ error: e?.message ?? String(e) }, { status: 500 });
+    return json({ error: e?.message ?? String(e) }, 500);
   }
 });
-

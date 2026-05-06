@@ -98,6 +98,18 @@ export async function fetchSpreadsheetMeta(accessToken: string, spreadsheetId: s
   };
 }
 
+export async function fetchDriveFileAsText(accessToken: string, fileId: string) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Drive file download failed: ${err}`);
+  }
+  return res.text();
+}
+
 export async function fetchSheetValues(accessToken: string, spreadsheetId: string, sheetName: string) {
   const range = `${sheetName}!A:Z`;
   const u = new URL(

@@ -96,13 +96,12 @@ function ImpersonationBar() {
 function Layout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
-  const isClientMapArea = location.pathname.startsWith("/client/maps/") && !location.pathname.endsWith("/new");
   const isEmbed = location.pathname === "/embed";
   const isSignUpSplit = location.pathname === "/signup";
-  const showSiteHeader = !isAdmin && !isClientMapArea && !isSignUpSplit;
+  const showSiteHeader = !isAdmin && !isSignUpSplit && !isEmbed;
   const showFooter = !isEmbed && !isSignUpSplit;
   return (
-    <div className="layout-root">
+    <div className={`layout-root${isEmbed ? " layout-root--embed" : ""}`}>
       {!isAdmin && <ImpersonationBar />}
       {showSiteHeader && <SiteHeader />}
       <App />

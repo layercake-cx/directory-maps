@@ -41,7 +41,7 @@ export default function ClientUsers() {
     })();
   }, [client?.id]);
 
-  async function handleAddUser(e) {
+  async function handleAddMember(e) {
     e.preventDefault();
     const email = addEmail.trim();
     const name = addName.trim() || null;
@@ -105,28 +105,28 @@ export default function ClientUsers() {
   if (!canManageUsers) {
     return (
       <div className="admin-card" style={{ marginTop: 16 }}>
-        <p>You don't have permission to manage users. Only the primary contact or users with "Manage users" can access this page.</p>
+        <p>You don't have permission to manage your team. Only the primary contact or team members with "Manage team" access can view this page.</p>
       </div>
     );
   }
 
   return (
     <div className="admin-card" style={{ marginTop: 16 }}>
-      <h2 style={{ margin: "0 0 16px 0", fontSize: 18 }}>Users</h2>
-      <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "var(--lc-muted)" }}>
-        Add users to your organisation and assign permissions. Users can be given "Manage maps" and/or "Manage users".
+      <h2 style={{ margin: "0 0 6px 0", fontSize: 18 }}>Team</h2>
+      <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--lc-muted)" }}>
+        Add team members and control what they can do. Members can be given access to manage maps and/or manage the team.
       </p>
 
       {err ? <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p> : null}
 
-      <form onSubmit={handleAddUser} style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+      <form onSubmit={handleAddMember} style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
         <div>
           <label style={{ display: "block", fontSize: 12, marginBottom: 4, color: "var(--lc-muted)" }}>Email</label>
           <input
             type="email"
             value={addEmail}
             onChange={(e) => setAddEmail(e.target.value)}
-            placeholder="user@example.com"
+            placeholder="colleague@example.com"
             style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--lc-border)", minWidth: 200 }}
           />
         </div>
@@ -154,11 +154,11 @@ export default function ClientUsers() {
               checked={addCanManageUsers}
               onChange={(e) => setAddCanManageUsers(e.target.checked)}
             />
-            Manage users
+            Manage team
           </label>
         </div>
         <button type="submit" className="btn btn-primary" disabled={adding}>
-          {adding ? "Adding…" : "Add user"}
+          {adding ? "Adding…" : "Add member"}
         </button>
       </form>
 
@@ -170,9 +170,9 @@ export default function ClientUsers() {
             <tr>
               <th>Email</th>
               <th>Name</th>
-              <th>Primary</th>
+              <th>Owner</th>
               <th>Manage maps</th>
-              <th>Manage users</th>
+              <th>Manage team</th>
               <th></th>
             </tr>
           </thead>
@@ -184,7 +184,7 @@ export default function ClientUsers() {
                 <td>{c.is_primary ? "Yes" : "—"}</td>
                 <td>
                   {c.is_primary ? (
-                    <span className="badge">Yes (primary)</span>
+                    <span className="badge">All access</span>
                   ) : (
                     <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <input
@@ -198,7 +198,7 @@ export default function ClientUsers() {
                 </td>
                 <td>
                   {c.is_primary ? (
-                    <span className="badge">Yes (primary)</span>
+                    <span className="badge">All access</span>
                   ) : (
                     <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <input
@@ -212,9 +212,9 @@ export default function ClientUsers() {
                 </td>
                 <td>
                   {c.user_id ? (
-                    <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Has login</span>
+                    <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Active</span>
                   ) : (
-                    <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Pending invite</span>
+                    <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Invite pending</span>
                   )}
                 </td>
               </tr>
@@ -224,7 +224,7 @@ export default function ClientUsers() {
       )}
 
       {!loading && contacts.length === 0 ? (
-        <p style={{ marginTop: 12, color: "var(--lc-muted)" }}>No users yet. Add one above.</p>
+        <p style={{ marginTop: 12, color: "var(--lc-muted)" }}>No team members yet. Add one above.</p>
       ) : null}
     </div>
   );
