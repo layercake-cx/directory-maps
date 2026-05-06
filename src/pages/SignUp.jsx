@@ -48,7 +48,7 @@ export default function SignUp() {
           <ul className="signup-split__list">
             <li>
               <CheckIcon />
-              <span>Verify your email from the link we send you</span>
+              <span>Create your password and verify your email</span>
             </li>
             <li>
               <CheckIcon />
@@ -69,8 +69,8 @@ export default function SignUp() {
         <div className="signup-split__card">
           <h1 className="signup-split__cardTitle">Sign up for free</h1>
           <p className="signup-split__cardSub">
-            Create your Layercake Maps account. We’ll email you a link to verify your address—then you can open My Maps
-            and start building.
+            Create your Layercake Maps account with email and password. We will email a verification link before first
+            login.
           </p>
           <AuthForm mode="signup" variant="split" />
           <p className="signup-split__footer">
