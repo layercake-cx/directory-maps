@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
@@ -14,8 +14,10 @@ const CLIENT_NAV = [
 
 export default function ClientLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const pathname = location.pathname || "/";
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
+  const kickedUnlinkedRef = useRef(false);
 
   const [client, setClient] = useState(null);
   const [contact, setContact] = useState(null);
@@ -41,6 +43,20 @@ export default function ClientLayout() {
   useEffect(() => {
     load();
   }, [load, provisionVersion]);
+
+  useEffect(() => {
+    if (loading || roleLoading) return;
+    if (isAdmin) return;
+    if (client !== null) return;
+    if (signupProvisionError) return;
+    if (kickedUnlinkedRef.current) return;
+    kickedUnlinkedRef.current = true;
+    signOut()
+      .catch(() => {})
+      .finally(() => {
+        navigate("/login?unlinked=1", { replace: true });
+      });
+  }, [loading, roleLoading, isAdmin, client, signupProvisionError, navigate]);
 
   function handleSignOut() {
     signOut().catch(() => {});

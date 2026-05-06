@@ -4,6 +4,30 @@ import { supabase } from "./supabase";
  * After email magic link / OTP, create clients + contacts from signup metadata (OTP sign-up only).
  * Idempotent: no-op if a contact already exists for this user.
  */
+function buildSlugCandidate(baseSlug, attempt) {
+  if (attempt === 0) return baseSlug;
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${baseSlug}-${suffix}`;
+}
+
+async function insertClientWithUniqueSlug(clientId, orgName, baseSlug) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const slugCandidate = buildSlugCandidate(baseSlug, attempt);
+    const { error } = await supabase.from("clients").insert({
+      id: clientId,
+      name: orgName,
+      slug: slugCandidate,
+    });
+    if (!error) return { ok: true, slug: slugCandidate };
+    if (error.code !== "23505") {
+      return { ok: false, error };
+    }
+    lastError = error;
+  }
+  return { ok: false, error: lastError ?? new Error("Could not allocate a unique organisation URL.") };
+}
+
 export async function provisionClientFromPendingMetadata(user) {
   if (!user?.id) return { ok: true, skipped: true };
 
@@ -30,17 +54,8 @@ export async function provisionClientFromPendingMetadata(user) {
   const clientId = crypto.randomUUID();
   const email = (user.email ?? "").trim() || "unknown@user.local";
 
-  const { error: clientError } = await supabase.from("clients").insert({
-    id: clientId,
-    name: orgName,
-    slug: orgSlug,
-  });
-  if (clientError) {
-    if (clientError.code === "23505") {
-      return { ok: false, error: "slug_taken", message: "That organisation URL is already in use. Please contact support." };
-    }
-    throw clientError;
-  }
+  const clientInsert = await insertClientWithUniqueSlug(clientId, orgName, orgSlug);
+  if (!clientInsert.ok) throw clientInsert.error;
 
   const { error: insContact } = await supabase.from("contacts").insert({
     client_id: clientId,
