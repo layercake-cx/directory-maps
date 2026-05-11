@@ -110,7 +110,38 @@ function Layout() {
   );
 }
 
+/**
+ * Supabase redirects with auth errors as both query params and hash fragments, e.g.
+ * ?error=access_denied&error_description=...#error=access_denied&...
+ * HashRouter can't route a hash that doesn't start with #/ — the page goes blank.
+ * Detect these early, clean the URL, and redirect to /login with the message.
+ */
+function useAuthErrorRedirect() {
+  useEffect(() => {
+    function extractAuthError() {
+      const qs = new URLSearchParams(window.location.search);
+      if (qs.get("error_description")) return qs.get("error_description");
+
+      const raw = window.location.hash.replace(/^#\/?/, "");
+      if (raw.startsWith("error=") || raw.includes("error_description=")) {
+        const hp = new URLSearchParams(raw);
+        return hp.get("error_description") || hp.get("error") || null;
+      }
+      return null;
+    }
+
+    const msg = extractAuthError();
+    if (msg) {
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState(null, "", clean + "#/login?authError=" + encodeURIComponent(msg));
+      window.location.reload();
+    }
+  }, []);
+}
+
 export default function Root() {
+  useAuthErrorRedirect();
+
   return (
     <React.StrictMode>
       <ErrorBoundary>
