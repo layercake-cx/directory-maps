@@ -7,6 +7,8 @@ import ClientGate from "./components/ClientGate.jsx";
 import PublicMap from "./pages/PublicMap.jsx";
 import Login from "./pages/Login.jsx";
 import SignUp from "./pages/SignUp.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import Pricing from "./pages/Pricing.jsx";
 import Terms from "./pages/Terms.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
@@ -42,6 +44,8 @@ export default function App() {
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/embed" element={<EmbedMap />} />
 
