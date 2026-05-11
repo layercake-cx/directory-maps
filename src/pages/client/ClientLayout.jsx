@@ -49,6 +49,8 @@ export default function ClientLayout() {
     if (isAdmin) return;
     if (client !== null) return;
     if (signupProvisionError) return;
+    // Don't kick when getClientAndContact threw — could be a transient DB/network error.
+    if (err) return;
     if (kickedUnlinkedRef.current) return;
     kickedUnlinkedRef.current = true;
     signOut()
@@ -56,7 +58,7 @@ export default function ClientLayout() {
       .finally(() => {
         navigate("/login?unlinked=1", { replace: true });
       });
-  }, [loading, roleLoading, isAdmin, client, signupProvisionError, navigate]);
+  }, [loading, roleLoading, isAdmin, client, signupProvisionError, err, navigate]);
 
   function handleSignOut() {
     signOut().catch(() => {});

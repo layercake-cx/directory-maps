@@ -13,13 +13,14 @@ export async function getContactForCurrentUser() {
   const user = userData?.user;
   if (!user) return null;
 
-  const { data: contact } = await supabase
+  const { data: contacts } = await supabase
     .from("contacts")
     .select("id, client_id, role, is_primary, email, name")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  return contact ?? null;
+  return contacts?.[0] ?? null;
 }
 
 export function canManageOrg(contact) {
@@ -35,12 +36,14 @@ export async function getClientIdForCurrentUser() {
   const user = session?.user ?? null;
   if (!user) throw new Error("Not signed in.");
 
-  const { data: contact } = await supabase
+  const { data: contacts } = await supabase
     .from("contacts")
     .select("client_id")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
+  const contact = contacts?.[0] ?? null;
   if (contact) return contact.client_id;
 
   const { data: legacyClient } = await supabase

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import { useAuth } from "../../hooks/useAuth.js";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale } from "../../lib/markerIcons";
@@ -88,6 +89,7 @@ function ColorRow({ value, onChange, ariaLabel }) {
 export default function ClientMapDashboard() {
   const { mapId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
@@ -160,9 +162,9 @@ export default function ClientMapDashboard() {
   const [contactFormError, setContactFormError] = useState("");
 
   // Placeholder for future real billing integration.
-  // For now (test payment wiring), always treat as not subscribed so pricing
-  // plans are shown when accessing the Publish tab.
-  const hasActiveSubscription = false;
+  // Layercake domain emails bypass the paywall for internal testing.
+  const emailDomain = (user?.email ?? "").split("@")[1] ?? "";
+  const hasActiveSubscription = emailDomain.toLowerCase().includes("layercake");
 
   const embedSrc = useMemo(() => {
     return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;

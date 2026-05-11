@@ -32,11 +32,13 @@ export async function getClientAndContact() {
   }
 
   if (role === "admin") {
-    const { data: contact } = await supabase
+    const { data: adminContacts } = await supabase
       .from("contacts")
       .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const contact = adminContacts?.[0] ?? null;
     if (!contact) return { client: null, contact: null };
     const { data: client, error: clientErr } = await supabase
       .from("clients")
@@ -47,13 +49,17 @@ export async function getClientAndContact() {
     return { client, contact };
   }
 
-  const { data: contact, error: contactError } = await supabase
+  // Use limit(1) instead of maybeSingle — a provisioning race on the verification-link
+  // landing page can create duplicate contacts; maybeSingle would throw in that case.
+  const { data: contacts, error: contactError } = await supabase
     .from("contacts")
     .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
   if (contactError) throw contactError;
+  const contact = contacts?.[0] ?? null;
   if (contact) {
     const { data: client, error: clientErr } = await supabase
       .from("clients")

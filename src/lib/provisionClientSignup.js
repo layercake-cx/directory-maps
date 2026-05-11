@@ -3,7 +3,13 @@ import { supabase } from "./supabase";
 /**
  * After email magic link / OTP, create clients + contacts from signup metadata (OTP sign-up only).
  * Idempotent: no-op if a contact already exists for this user.
+ *
+ * A mutex serialises concurrent calls (init + onAuthStateChange race on verification-link landing)
+ * so the second call sees the contact the first one created and skips gracefully.
  */
+
+let _provisionLock = null;
+
 function buildSlugCandidate(baseSlug, attempt) {
   if (attempt === 0) return baseSlug;
   const suffix = Math.random().toString(36).slice(2, 6);
@@ -38,6 +44,21 @@ export async function provisionClientFromPendingMetadata(user) {
     return { ok: true, skipped: true };
   }
 
+  // Serialise: if another call is already running, wait for it then re-check idempotency.
+  if (_provisionLock) {
+    try { await _provisionLock; } catch { /* ignore — we re-check below */ }
+  }
+
+  const run = _provisionUnsafe(user, orgName, orgSlug);
+  _provisionLock = run;
+  try {
+    return await run;
+  } finally {
+    if (_provisionLock === run) _provisionLock = null;
+  }
+}
+
+async function _provisionUnsafe(user, orgName, orgSlug) {
   const { data: existingContact, error: contactErr } = await supabase
     .from("contacts")
     .select("id")
@@ -47,9 +68,6 @@ export async function provisionClientFromPendingMetadata(user) {
   if (existingContact) {
     return { ok: true, skipped: true };
   }
-
-  // Do not call is_client_slug_available here — it can hang on slow networks and blocked auth init.
-  // Uniqueness is enforced by idx_clients_slug; duplicate returns a clear error below.
 
   const clientId = crypto.randomUUID();
   const email = (user.email ?? "").trim() || "unknown@user.local";
