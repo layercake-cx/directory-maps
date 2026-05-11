@@ -14,6 +14,11 @@ export function getEmailAuthRedirectUrl() {
   return getOAuthRedirectUrl();
 }
 
+export function getPasswordResetRedirectUrl() {
+  const base = typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
+  return `${base}#/reset-password`;
+}
+
 /**
  * Sign-up OTP can fail with duplicate-user style errors; retry with sign-in OTP (same email, no new user).
  * Does not apply to email_address_invalid — that is format/policy rejection, not "already registered".

@@ -102,6 +102,15 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      if (event === "PASSWORD_RECOVERY") {
+        const user = session?.user ?? null;
+        setState((s) => ({ ...s, initializing: false, session, user, error: null }));
+        if (typeof window !== "undefined" && !window.location.hash.includes("/reset-password")) {
+          window.location.replace("#/reset-password");
+        }
+        return;
+      }
+
       const user = session?.user ?? null;
       setState((s) => ({
         ...s,

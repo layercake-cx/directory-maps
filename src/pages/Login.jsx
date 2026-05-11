@@ -41,8 +41,11 @@ export default function Login() {
           </p>
         ) : null}
         <AuthForm mode="login" onSuccess={handleSuccess} />
-        <p className="auth-page__footer">
-          Don’t have an account? <Link to="/signup">Sign up</Link>
+        <p className="auth-page__footer" style={{ marginBottom: 8 }}>
+          <Link to="/forgot-password">Forgot your password?</Link>
+        </p>
+        <p className="auth-page__footer" style={{ marginTop: 0 }}>
+          Don&rsquo;t have an account? <Link to="/signup">Sign up</Link>
         </p>
       </div>
     </div>
