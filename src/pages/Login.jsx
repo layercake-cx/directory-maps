@@ -8,6 +8,7 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get("redirect") || "/client";
   const showUnlinkedBanner = searchParams.get("unlinked") === "1";
+  const authError = searchParams.get("authError");
   const { user } = useAuth();
   const showVerifyBanner =
     searchParams.get("needsVerification") === "1" || !!(user && !user.email_confirmed_at);
@@ -29,6 +30,16 @@ export default function Login() {
           >
             Verify your email address to use the client portal. Check your inbox for the verification email, then sign in
             with your email and password.
+          </p>
+        ) : null}
+        {authError ? (
+          <p
+            className="auth-page__sub"
+            style={{ background: "rgba(185, 28, 28, 0.12)", padding: "12px 14px", borderRadius: 8, marginBottom: 16 }}
+          >
+            {authError.includes("expired")
+              ? "This link has expired. Please request a new one, or log in if you've already verified."
+              : authError}
           </p>
         ) : null}
         {showUnlinkedBanner ? (
