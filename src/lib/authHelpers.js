@@ -11,7 +11,8 @@ export function getOAuthRedirectUrl() {
  * Add this exact URL (and localhost dev) to Supabase Auth → URL configuration → Redirect URLs.
  */
 export function getEmailAuthRedirectUrl() {
-  return getOAuthRedirectUrl();
+  const base = typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
+  return `${base}#/client?verified=1`;
 }
 
 export function getPasswordResetRedirectUrl() {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
@@ -15,9 +15,21 @@ const CLIENT_NAV = [
 export default function ClientLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const pathname = location.pathname || "/";
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
   const kickedUnlinkedRef = useRef(false);
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("verified") === "1") {
+      setShowVerifiedBanner(true);
+      searchParams.delete("verified");
+      setSearchParams(searchParams, { replace: true });
+      const t = setTimeout(() => setShowVerifiedBanner(false), 8000);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   const [client, setClient] = useState(null);
   const [contact, setContact] = useState(null);
@@ -46,10 +58,12 @@ export default function ClientLayout() {
 
   useEffect(() => {
     if (loading || roleLoading) return;
+    // Wait until at least one provisioning cycle has completed before deciding
+    // the user is unlinked — provisioning may still be creating the client.
+    if (provisionVersion === 0) return;
     if (isAdmin) return;
     if (client !== null) return;
     if (signupProvisionError) return;
-    // Don't kick when getClientAndContact threw — could be a transient DB/network error.
     if (err) return;
     if (kickedUnlinkedRef.current) return;
     kickedUnlinkedRef.current = true;
@@ -58,7 +72,7 @@ export default function ClientLayout() {
       .finally(() => {
         navigate("/login?unlinked=1", { replace: true });
       });
-  }, [loading, roleLoading, isAdmin, client, signupProvisionError, err, navigate]);
+  }, [loading, roleLoading, provisionVersion, isAdmin, client, signupProvisionError, err, navigate]);
 
   function handleSignOut() {
     signOut().catch(() => {});
@@ -152,6 +166,21 @@ export default function ClientLayout() {
   return (
     <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
       <>
+        {showVerifiedBanner && (
+          <div
+            style={{
+              background: "#ecfdf5",
+              color: "#065f46",
+              padding: "12px 20px",
+              fontSize: 14,
+              fontWeight: 500,
+              textAlign: "center",
+              borderBottom: "1px solid #a7f3d0",
+            }}
+          >
+            Email verified successfully — your account is ready to go.
+          </div>
+        )}
         <nav className="client-nav" aria-label="Client sections">
           <div className="client-nav__inner">
             {navItems.map(({ label, path }) => {
