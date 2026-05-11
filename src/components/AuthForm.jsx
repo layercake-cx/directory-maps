@@ -19,7 +19,7 @@ function slugify(input) {
     .replace(/(^-|-$)/g, "");
 }
 
-export default function AuthForm({ mode, onSuccess, variant = "default" }) {
+export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "default" }) {
   const isSignUp = mode === "signup";
   const isSplitSignup = isSignUp && variant === "split";
 
@@ -122,15 +122,18 @@ export default function AuthForm({ mode, onSuccess, variant = "default" }) {
           return;
         }
         const needsEmailVerification = !signUpData?.session;
-        if (needsEmailVerification) {
-          const baseSignUpMsg = slugCheckSkipped
-            ? "Account created. Check your email to verify before logging in. We could not verify your organisation name in time; if that name is already taken, you will see an error after verification."
-            : "Account created. Check your email to verify your address before logging in.";
-          setMsg(baseSignUpMsg);
-          return;
+        const slugNotice = slugCheckSkipped
+          ? "We could not verify your organisation name in time; if that name is already taken, you'll see an error after verification."
+          : null;
+        setMsg("");
+        onSubmitted?.({
+          email: trimmedEmail,
+          needsEmailVerification,
+          notice: slugNotice,
+        });
+        if (!needsEmailVerification) {
+          onSuccess?.();
         }
-        setMsg("Account created and signed in.");
-        onSuccess?.();
         return;
       }
 

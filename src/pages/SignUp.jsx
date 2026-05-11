@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo.jsx";
 import AuthForm from "../components/AuthForm.jsx";
@@ -19,7 +19,94 @@ function CheckIcon() {
   );
 }
 
+function SuccessBadge() {
+  return (
+    <div className="signup-success__badge" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="24" fill="currentColor" />
+        <path
+          d="M14 24.5l6.5 6.5L34 17.5"
+          stroke="#fff"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg className="signup-success__tip-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 5.5h13a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="m3.5 6.5 6.5 5 6.5-5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SignUpSuccess({ email, notice, needsEmailVerification, onReset }) {
+  const title = needsEmailVerification
+    ? "Check your email to finish signing up"
+    : "You're all set—welcome aboard";
+
+  return (
+    <div className="signup-success" role="status" aria-live="polite">
+      <SuccessBadge />
+      <p className="signup-success__eyebrow">Account created</p>
+      <h1 className="signup-success__title">{title}</h1>
+      {needsEmailVerification ? (
+        <>
+          <p className="signup-success__body">
+            We&rsquo;ve sent a verification link to
+            <br />
+            <strong className="signup-success__email">{email}</strong>
+          </p>
+          <p className="signup-success__body signup-success__body--muted">
+            Click the link in that email to confirm your address, then come back and log in to start building your map.
+          </p>
+
+          <div className="signup-success__tip">
+            <MailIcon />
+            <span>
+              Can&rsquo;t see it? Give it a minute, then check your spam or promotions folder.
+            </span>
+          </div>
+        </>
+      ) : (
+        <p className="signup-success__body">
+          Your account for <strong className="signup-success__email">{email}</strong> is ready. Log in to start building
+          your map.
+        </p>
+      )}
+
+      {notice ? <p className="signup-success__notice">{notice}</p> : null}
+
+      <div className="signup-success__actions">
+        <Link to="/login" className="signup-success__primary">
+          Go to log in
+        </Link>
+        <button type="button" className="signup-success__secondary" onClick={onReset}>
+          Use a different email
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SignUp() {
+  const [submitted, setSubmitted] = useState(null);
+
   return (
     <div className="signup-split">
       <div className="signup-split__left">
@@ -66,16 +153,41 @@ export default function SignUp() {
       </div>
 
       <div className="signup-split__right">
-        <div className="signup-split__card">
-          <h1 className="signup-split__cardTitle">Sign up for free</h1>
-          <p className="signup-split__cardSub">
-            Create your Layercake Maps account with email and password. We will email a verification link before first
-            login.
-          </p>
-          <AuthForm mode="signup" variant="split" />
-          <p className="signup-split__footer">
-            Already have an account? <Link to="/login">Log in</Link>
-          </p>
+        <div className={`signup-split__card${submitted ? " signup-split__card--success" : ""}`}>
+          {submitted ? (
+            <SignUpSuccess
+              email={submitted.email}
+              notice={submitted.notice}
+              needsEmailVerification={submitted.needsEmailVerification}
+              onReset={() => setSubmitted(null)}
+            />
+          ) : (
+            <>
+              <h1 className="signup-split__cardTitle">Sign up for free</h1>
+              <p className="signup-split__cardSub">
+                Create your Layercake Maps account with email and password. We will email a verification link before
+                first login.
+              </p>
+              <AuthForm
+                mode="signup"
+                variant="split"
+                onSubmitted={({ email, needsEmailVerification, notice }) =>
+                  setSubmitted({
+                    email,
+                    needsEmailVerification,
+                    notice:
+                      notice ||
+                      (needsEmailVerification
+                        ? null
+                        : "Your email is already verified—you can log in now."),
+                  })
+                }
+              />
+              <p className="signup-split__footer">
+                Already have an account? <Link to="/login">Log in</Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
