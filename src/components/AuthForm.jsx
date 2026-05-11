@@ -52,6 +52,8 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
       const redirectTo = getEmailAuthRedirectUrl();
 
       if (isSignUp) {
+        try { await supabase.auth.signOut(); } catch { /* ignore */ }
+
         if (!acceptedTerms) {
           setMsg("Please accept the terms and privacy notice to continue.");
           return;
