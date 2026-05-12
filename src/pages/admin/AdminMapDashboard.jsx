@@ -294,7 +294,7 @@ export default function AdminMapDashboard() {
         let m = null;
         const [{ data: c, error: ce }, { data: l, error: le }] = await Promise.all([
           supabase.from("clients").select("id,name,slug").eq("id", clientId).single(),
-          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone").eq("map_id", mapId),
+          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html").eq("map_id", mapId),
         ]);
         if (ce) throw ce;
         if (le) throw le;

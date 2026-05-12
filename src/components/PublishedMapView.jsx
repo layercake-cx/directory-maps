@@ -152,8 +152,8 @@ function ListingCardContent({
             </button>
           ) : null}
         </div>
-        {extended && notes ? (
-          <div className="map-pin-overlay__notes">
+        {notes ? (
+          <div className={`map-pin-overlay__notes${extended ? "" : " map-pin-overlay__notes--compact"}`}>
             {listing.allow_html ? (
               <div className="map-pin-overlay__notes-html" dangerouslySetInnerHTML={{ __html: notes }} />
             ) : (

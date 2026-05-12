@@ -331,7 +331,7 @@ export default function ClientMapDashboard() {
             .order("sort_order", { ascending: true }),
           supabase
             .from("listings")
-            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone")
+            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html")
             .eq("map_id", mapId),
         ]);
         if (ce) throw ce;

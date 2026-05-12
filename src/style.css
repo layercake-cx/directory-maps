@@ -461,6 +461,11 @@ a:hover {
   color: var(--page-text, #1f2937);
 }
 
+.map-pin-overlay__notes--compact {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
 .map-pin-overlay__notes-plain {
   white-space: pre-wrap;
   word-wrap: break-word;
