@@ -97,7 +97,7 @@ async function syncSource(
   const nameIdx = idx("name");
   if (idIdx < 0 || nameIdx < 0) throw new Error("Missing required columns: id, name");
 
-  const groupNameIdx = idx("group_name");
+  const groupNameIdx = idx("group_name") >= 0 ? idx("group_name") : idx("group");
 
   // Collect unique group names from the data
   const csvGroupNames = new Set<string>();
@@ -163,8 +163,12 @@ async function syncSource(
     if (Number.isNaN(lat as any)) lat = null;
     if (Number.isNaN(lng as any)) lng = null;
 
-    const groupName = String(get("group_name")).trim().toLowerCase();
-    const group_id = groupName ? groupLookup.get(groupName) ?? null : null;
+    const groupRaw = groupNameIdx >= 0 ? String(r[groupNameIdx] ?? "").trim().toLowerCase() : "";
+    const group_id = groupRaw ? groupLookup.get(groupRaw) ?? null : null;
+
+    const notesRaw = String(get("notes_html") || get("description")).trim() || null;
+    const explicitAllowHtml = boolish(get("allow_html"));
+    const hasHtmlTags = notesRaw ? /<[a-z][\s\S]*>/i.test(notesRaw) : false;
 
     const record: any = {
       id,
@@ -179,8 +183,8 @@ async function syncSource(
       email: String(get("email")).trim() || null,
       phone: String(get("phone")).trim() || null,
       logo_url: String(get("logo_url")).trim() || null,
-      notes_html: String(get("notes_html") || get("description")).trim() || null,
-      allow_html: boolish(get("allow_html")) ?? false,
+      notes_html: notesRaw,
+      allow_html: explicitAllowHtml ?? hasHtmlTags,
       group_id,
       is_active: boolish(get("is_active")) ?? true,
     };
@@ -199,10 +203,13 @@ async function syncSource(
     cleaned.push(record);
   }
 
-  const { error: upErr } = await service.from("listings").upsert(cleaned, { onConflict: "id" });
+  // Deduplicate by id — keep last occurrence (latest row wins)
+  const deduped = [...new Map(cleaned.map((r: any) => [r.id, r])).values()];
+
+  const { error: upErr } = await service.from("listings").upsert(deduped, { onConflict: "id" });
   if (upErr) throw upErr;
 
-  return cleaned.length;
+  return deduped.length;
 }
 
 Deno.serve(async (req) => {
