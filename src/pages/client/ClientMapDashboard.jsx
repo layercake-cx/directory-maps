@@ -489,6 +489,45 @@ export default function ClientMapDashboard() {
     window.open(`${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`, "_blank");
   }
 
+  function parseGroupThemeJson(raw) {
+    if (raw == null) return {};
+    if (typeof raw === "object" && !Array.isArray(raw)) return { ...raw };
+    if (typeof raw === "string") {
+      try {
+        const o = JSON.parse(raw || "{}");
+        return typeof o === "object" && o !== null && !Array.isArray(o) ? o : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  function effectiveCategoryPinColor(groupRow) {
+    const t = parseGroupThemeJson(groupRow.theme_json);
+    const v = t.marker_color ?? t.markerColor ?? groupRow.color ?? markerColor ?? "#4A9BAA";
+    return String(v).trim() || "#4A9BAA";
+  }
+
+  async function persistCategoryPinColor(groupRow, hex) {
+    try {
+      setErr("");
+      const t = parseGroupThemeJson(groupRow.theme_json);
+      const nextTheme = { ...t, marker_color: hex };
+      const { error } = await supabase
+        .from("groups")
+        .update({ color: hex, theme_json: nextTheme })
+        .eq("id", groupRow.id)
+        .eq("map_id", mapId);
+      if (error) throw error;
+      setGroups((prev) =>
+        (prev || []).map((g) => (g.id === groupRow.id ? { ...g, color: hex, theme_json: nextTheme } : g)),
+      );
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    }
+  }
+
   async function saveMap(e) {
     e?.preventDefault?.();
     setErr("");
@@ -1141,6 +1180,25 @@ export default function ClientMapDashboard() {
                         </div>
                       </Field>
                       <Field label="Marker colour"><ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" /></Field>
+                      {groups?.length ? (
+                        <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12, marginTop: 4 }}>
+                          <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Categories</h3>
+                          <p style={{ margin: "0 0 10px", fontSize: 12, lineHeight: 1.45, opacity: 0.82 }}>
+                            Pin colour per group (listings use the group from your data). Changes save immediately.
+                          </p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {groups.map((gr) => (
+                              <Field key={gr.id} label={gr.name || "Untitled group"}>
+                                <ColorRow
+                                  value={effectiveCategoryPinColor(gr)}
+                                  onChange={(v) => persistCategoryPinColor(gr, v)}
+                                  ariaLabel={`Pin colour for ${gr.name || "group"}`}
+                                />
+                              </Field>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       <Field label="Pin border">
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
