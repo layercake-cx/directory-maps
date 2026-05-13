@@ -368,7 +368,7 @@ export default function AdminMapDashboard() {
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
             setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
-            setPinFaviconUrl(theme.pin_favicon_url ?? "");
+            setPinFaviconUrl(String(theme.pin_favicon_url ?? theme.pinFaviconUrl ?? "").trim());
             setButtonColor(theme.buttonColor ?? "#4A9BAA");
             setPanelBackgroundColor(theme.panelBackgroundColor ?? "#ffffff");
             setPanelBackgroundOpacity(theme.panelBackgroundOpacity ?? 0.88);
@@ -520,6 +520,7 @@ export default function AdminMapDashboard() {
           showSearch,
           showGroupDropdowns,
         };
+        delete themeJson.pinFaviconUrl;
         const payloadBase = {
           name: cleanName,
           slug: finalSlug,
@@ -542,6 +543,8 @@ export default function AdminMapDashboard() {
           ({ error } = await supabase.from("maps").update(payloadBase).eq("id", mapId));
         }
         if (error) throw error;
+
+        setMap((prev) => (prev ? { ...prev, theme_json: themeJson } : prev));
 
       setMsg("Saved.");
       window.setTimeout(() => setMsg(""), 1600);
@@ -768,7 +771,7 @@ export default function AdminMapDashboard() {
       setClusterColor(themeJson.clusterColor ?? "#4A9BAA");
       setPinBorderColor(themeJson.pinBorderColor ?? "#ffffff");
       setPinBorderSize(Math.max(0, Math.min(15, Number(themeJson.pinBorderSize) ?? 0)));
-      setPinFaviconUrl(themeJson.pin_favicon_url ?? "");
+      setPinFaviconUrl(String(themeJson.pin_favicon_url ?? themeJson.pinFaviconUrl ?? "").trim());
       setButtonColor(themeJson.buttonColor ?? "#4A9BAA");
       setPanelBackgroundColor(themeJson.panelBackgroundColor ?? "#ffffff");
       setPanelBackgroundOpacity(themeJson.panelBackgroundOpacity ?? 0.88);
@@ -1331,8 +1334,8 @@ export default function AdminMapDashboard() {
                       {(markerStyle === "pin" || markerStyle === "teardrop" || markerStyle === "ringpin") && (
                         <Field label="Image inside pin">
                           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                            <label className="btn" style={{ margin: 0 }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
-                            {pinFaviconUrl && <><span style={{ fontSize: 12, opacity: 0.8 }}><img src={pinFaviconUrl} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain", verticalAlign: "middle" }} /></span><button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Clear</button></>}
+                            <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} /></label>
+                            {pinFaviconUrl && <><span style={{ fontSize: 12, opacity: 0.8 }}><img src={pinFaviconUrl} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain", verticalAlign: "middle" }} /></span><button type="button" className="btn" style={{ margin: 0, position: "relative", zIndex: 1 }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPinFaviconUrl(""); }}>Clear</button></>}
                           </div>
                         </Field>
                       )}

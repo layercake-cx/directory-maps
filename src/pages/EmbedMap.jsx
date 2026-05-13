@@ -274,7 +274,10 @@ export default function EmbedMap() {
           clusterColor={parsedTheme.clusterColor || "#4A9BAA"}
           pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
           pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
-          pinFaviconUrl={(parsedTheme.pin_favicon_url && String(parsedTheme.pin_favicon_url).trim()) || null}
+          pinFaviconUrl={(() => {
+            const u = parsedTheme.pin_favicon_url ?? parsedTheme.pinFaviconUrl;
+            return u && String(u).trim() ? String(u).trim() : null;
+          })()}
           theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
           selectedListing={selectedListing}
           selectedMarkerPoint={selectedMarkerPoint}

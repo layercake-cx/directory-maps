@@ -92,6 +92,8 @@ export function buildPublicationConfig(params) {
     showSearch,
     showGroupDropdowns,
   };
+  // Legacy camelCase key could keep the icon after clear if still present in jsonb.
+  delete theme_json.pinFaviconUrl;
 
   const map = {
     default_lat: Number(defaultLat) || null,
