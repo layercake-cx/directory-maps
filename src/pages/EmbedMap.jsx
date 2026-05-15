@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { createMapEngagementRecorder } from "../lib/mapEngagement.js";
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
@@ -207,6 +208,16 @@ export default function EmbedMap() {
     });
   }, [listings, groupsForEmbed]);
 
+  const recordEngagement = useMemo(
+    () => (map?.id ? createMapEngagementRecorder({ supabase, mapId: map.id, surface: "embed" }) : null),
+    [map?.id],
+  );
+
+  useEffect(() => {
+    if (!recordEngagement || !map?.id || !publicationConfig) return;
+    recordEngagement("session_start", {});
+  }, [recordEngagement, map?.id, publicationConfig]);
+
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (err) return <div style={{ padding: 16 }}>{err}</div>;
   if (!map) return <div style={{ padding: 16 }}>Map not found.</div>;
@@ -263,6 +274,7 @@ export default function EmbedMap() {
           listings={listings}
           listingsWithColor={listingsWithOverrides}
           groups={groupsForEmbed}
+          recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}
           showSearch={parsedTheme.showSearch !== false}
           showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
@@ -343,6 +355,7 @@ export default function EmbedMap() {
                   });
                   if (error) throw error;
                   if (data?.error) throw new Error(data.error);
+                  recordEngagement?.("message_sent", { listingId: selectedListing.id });
                   setContactFormSent(true);
                   setContactForm({ name: "", email: "", phone: "", message: "", testToEmail: contactForm.testToEmail });
                 } catch (err) {

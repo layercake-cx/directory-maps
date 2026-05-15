@@ -88,6 +88,7 @@ function ListingCardContent({
   zoomToSelectedAddress,
   onClosePin,
   extended,
+  recordEngagement,
 }) {
   const notes = listing.notes_html ? String(listing.notes_html).trim() : "";
   return (
@@ -120,7 +121,12 @@ function ListingCardContent({
         {listing.email ? (
           <p className="map-pin-overlay__row">
             <span>Email: </span>
-            <a href={`mailto:${listing.email}`}>{listing.email}</a>
+            <a
+              href={`mailto:${listing.email}`}
+              onClick={() => recordEngagement?.("email_click", { listingId: listing.id })}
+            >
+              {listing.email}
+            </a>
           </p>
         ) : null}
         {listing.phone ? (
@@ -137,6 +143,7 @@ function ListingCardContent({
               rel="noopener noreferrer"
               className="map-pin-overlay__visit-btn"
               style={{ backgroundColor: buttonColor }}
+              onClick={() => recordEngagement?.("website_click", { listingId: listing.id })}
             >
               Visit website
             </a>
@@ -146,7 +153,10 @@ function ListingCardContent({
               type="button"
               className="map-pin-overlay__visit-btn"
               style={{ backgroundColor: buttonColor }}
-              onClick={onOpenSendMessage}
+              onClick={() => {
+                recordEngagement?.("message_compose_open", { listingId: listing.id });
+                onOpenSendMessage?.();
+              }}
             >
               Send message
             </button>
@@ -207,6 +217,8 @@ export default function PublishedMapView({
   listingsWithColor, // optional: listings with group color applied (for admin/client); falls back to listings
   /** @see DirectoryMap — `cooperative` avoids wheel zoom over the map while keeping pinch/2-finger zoom; embed passes this explicitly */
   gestureHandling = "cooperative",
+  /** Optional: e.g. {@link createMapEngagementRecorder} from embed for analytics */
+  recordEngagement,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -217,6 +229,10 @@ export default function PublishedMapView({
   const [cameraRequest, setCameraRequest] = useState(null);
   const cameraSeqRef = useRef(0);
   const searchWrapRef = useRef(null);
+  /** Skip duplicate listing_panel_open when list pick triggers DirectoryMap center + onSelect with pixel */
+  const suppressListingOpenEngagementRef = useRef(false);
+  /** Dedupe debounced search query events per session */
+  const lastSearchQueryLoggedRef = useRef("");
   /** Combined keyboard highlight: 0…places-1 = geocode rows, places… = directory listings (-1 = none) */
   const [searchHighlightIndex, setSearchHighlightIndex] = useState(-1);
 
@@ -268,6 +284,36 @@ export default function PublishedMapView({
       .map(({ listing }) => listing)
       .slice(0, 10);
   }, [searchIndex, searchQuery]);
+
+  function recordSearchEngagement(action, extra = {}) {
+    if (!recordEngagement) return;
+    const query = searchQuery.trim().slice(0, 500);
+    if (!query) return;
+    recordEngagement("search", {
+      meta: { query, action, ...extra },
+    });
+  }
+
+  useEffect(() => {
+    if (!recordEngagement) return;
+    const query = searchQuery.trim();
+    if (query.length < 2) return;
+    const handle = window.setTimeout(() => {
+      if (searchQuery.trim() !== query) return;
+      if (lastSearchQueryLoggedRef.current === query) return;
+      lastSearchQueryLoggedRef.current = query;
+      recordSearchEngagement("query", {
+        listing_count: suggestions.length,
+        place_count: placeSuggestions.length,
+      });
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery, recordEngagement, suggestions.length, placeSuggestions.length]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) lastSearchQueryLoggedRef.current = "";
+  }, [searchQuery]);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -333,8 +379,14 @@ export default function PublishedMapView({
   function toggleGroup(id) {
     setOpenGroupIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        recordEngagement?.("directory_group_expand", {
+          meta: { group_id: id === "ungrouped" ? "ungrouped" : id },
+        });
+      }
       return next;
     });
   }
@@ -348,17 +400,36 @@ export default function PublishedMapView({
     });
   }
 
-  function selectFromList(listing) {
+  function selectFromList(listing, source, { skipSearchRecord = false } = {}) {
+    if (source === "search" && !skipSearchRecord) {
+      recordSearchEngagement("select_listing", { listing_id: listing?.id ?? null });
+    }
+    recordEngagement?.("listing_panel_open", { listingId: listing?.id, meta: { source } });
     onSelectMarker(listing, null);
+    suppressListingOpenEngagementRef.current = true;
     if (setCenterOnListingId) setCenterOnListingId(listing.id);
     setSearchQuery("");
+  }
+
+  function handleDirectoryMapSelect(listing, point) {
+    if (suppressListingOpenEngagementRef.current) {
+      suppressListingOpenEngagementRef.current = false;
+    } else if (recordEngagement && listing?.id) {
+      recordEngagement("listing_panel_open", { listingId: listing.id, meta: { source: "marker" } });
+    }
+    onSelectMarker(listing, point);
   }
 
   function zoomToSelectedAddress() {
     if (selectedListing && setCenterOnListingId) setCenterOnListingId(selectedListing.id);
   }
 
-  function selectPlaceFromGeocode(place) {
+  function selectPlaceFromGeocode(place, { skipSearchRecord = false } = {}) {
+    if (!skipSearchRecord) {
+      recordSearchEngagement("select_place", {
+        place_address: place?.formattedAddress ?? null,
+      });
+    }
     cameraSeqRef.current += 1;
     const id = cameraSeqRef.current;
     if (place.viewport) {
@@ -437,21 +508,43 @@ export default function PublishedMapView({
   }, [searchHighlightIndex, searchDropdownOpen, searchNavTotal]);
 
   function applySearchEnter() {
+    const query = searchQuery.trim();
+    if (!query) return;
     const firstListing = suggestions[0];
     const firstPlace = placeSuggestions[0];
     if (searchHighlightIndex >= 0 && searchNavTotal > 0) {
       const pCount = placeSuggestions.length;
       if (searchHighlightIndex < pCount) {
-        selectPlaceFromGeocode(placeSuggestions[searchHighlightIndex]);
+        const place = placeSuggestions[searchHighlightIndex];
+        recordSearchEngagement("submit", {
+          result: "place",
+          place_address: place?.formattedAddress ?? null,
+        });
+        selectPlaceFromGeocode(place, { skipSearchRecord: true });
       } else {
-        selectFromList(suggestions[searchHighlightIndex - pCount]);
+        const listing = suggestions[searchHighlightIndex - pCount];
+        recordSearchEngagement("submit", {
+          result: "listing",
+          listing_id: listing?.id ?? null,
+        });
+        selectFromList(listing, "search", { skipSearchRecord: true });
       }
       return;
     }
     if (firstPlace) {
-      selectPlaceFromGeocode(firstPlace);
+      recordSearchEngagement("submit", {
+        result: "place",
+        place_address: firstPlace.formattedAddress ?? null,
+      });
+      selectPlaceFromGeocode(firstPlace, { skipSearchRecord: true });
     } else if (firstListing) {
-      selectFromList(firstListing);
+      recordSearchEngagement("submit", {
+        result: "listing",
+        listing_id: firstListing.id ?? null,
+      });
+      selectFromList(firstListing, "search", { skipSearchRecord: true });
+    } else {
+      recordSearchEngagement("submit", { result: "none" });
     }
   }
 
@@ -472,7 +565,7 @@ export default function PublishedMapView({
         zoom={zoom}
         mapTypeId={mapTypeId}
         listings={effectiveListings}
-        onSelect={onSelectMarker}
+        onSelect={handleDirectoryMapSelect}
         centerOnListingId={centerOnListingId}
         defaultMarkerColor={markerColor}
         markerStyle={markerStyle}
@@ -528,9 +621,11 @@ export default function PublishedMapView({
                 }
 
                 if (e.key === "Enter") {
+                  e.preventDefault();
                   if (navTotal > 0) {
-                    e.preventDefault();
                     applySearchEnter();
+                  } else if (searchQuery.trim().length >= 2) {
+                    recordSearchEngagement("submit", { result: "none" });
                   }
                 }
               }}
@@ -589,10 +684,10 @@ export default function PublishedMapView({
                           role="option"
                           aria-selected={searchHighlightIndex === gIdx}
                           onMouseEnter={() => setSearchHighlightIndex(gIdx)}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectFromList(listing);
-                          }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectFromList(listing, "search");
+                      }}
                         >
                           {listing.name || "—"}
                         </li>
@@ -641,7 +736,7 @@ export default function PublishedMapView({
                             <button
                               type="button"
                               className="embed-list-panel__entry"
-                              onClick={() => selectFromList(listing)}
+                              onClick={() => selectFromList(listing, "list_panel")}
                             >
                               {listing.name || "—"}
                             </button>
@@ -686,7 +781,7 @@ export default function PublishedMapView({
                           <button
                             type="button"
                             className="embed-list-panel__entry"
-                            onClick={() => selectFromList(listing)}
+                            onClick={() => selectFromList(listing, "list_panel")}
                           >
                             {listing.name || "—"}
                           </button>
@@ -729,6 +824,7 @@ export default function PublishedMapView({
             zoomToSelectedAddress={zoomToSelectedAddress}
             onClosePin={onClosePin}
             extended={false}
+            recordEngagement={recordEngagement}
           />
         </div>
       ) : null}
@@ -746,6 +842,7 @@ export default function PublishedMapView({
                 zoomToSelectedAddress={zoomToSelectedAddress}
                 onClosePin={onClosePin}
                 extended
+                recordEngagement={recordEngagement}
               />
             </div>
           </div>
