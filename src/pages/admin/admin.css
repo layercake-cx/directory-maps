@@ -6,6 +6,8 @@
   --lc-border: #e5e7eb;
   --lc-text: #111827;
   --lc-muted: #6b7280;
+  --page-header-color: #000;
+  --page-heading-color: var(--brand-teal, #0f9da8);
 
   /* Button tokens — kept in sync with Mantine theme */
   --btn-radius: 8px;
@@ -88,9 +90,9 @@ a.btn-primary:hover {
 }
 
 .admin-header {
-  background: var(--brand-teal, #0f9da8);
+  background: var(--page-header-color);
   color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .admin-header__inner {
@@ -247,6 +249,11 @@ a.btn-primary:hover {
   max-width: 1200px;
   margin: 0 auto;
   padding: 18px 16px 40px;
+}
+
+:where(.admin-main) h1,
+:where(.admin-main) h2 {
+  color: var(--page-heading-color);
 }
 
 .admin-main--map-page {
@@ -504,6 +511,7 @@ a.btn-primary:hover {
   margin: 0 0 12px 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--page-heading-color);
 }
 
 .admin-modal__message {
@@ -630,6 +638,7 @@ a.btn-primary:hover {
   font-weight: 700;
   line-height: 1.2;
   padding: 0 2px;
+  color: var(--page-heading-color);
 }
 
 .admin-map-page__tab {
@@ -865,14 +874,15 @@ a.btn-primary:hover {
   overflow: hidden;
   background: var(--lc-card);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  border-radius: 14px 0 0 14px;
   display: flex;
   flex-direction: column;
   transition: width 0.25s ease, min-width 0.25s ease;
 }
 
 .admin-map-overlay__panel--open {
-  width: 380px;
-  min-width: 380px;
+  width: 400px;
+  min-width: 400px;
   overflow: auto;
 }
 
@@ -883,12 +893,14 @@ a.btn-primary:hover {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  margin-bottom: 6px;
 }
 
 .admin-map-overlay__title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--page-heading-color);
 }
 
 .admin-map-overlay__close {
