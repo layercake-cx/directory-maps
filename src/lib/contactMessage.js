@@ -9,6 +9,7 @@ export function formatContactMessageError(err) {
   if (
     /failed to send a request to the edge function/i.test(msg) ||
     /failed to fetch/i.test(msg) ||
+    /networkerror/i.test(msg) ||
     /network error/i.test(msg) ||
     /could not reach the edge function/i.test(msg) ||
     err?.name === "EdgeFunctionNetworkError"

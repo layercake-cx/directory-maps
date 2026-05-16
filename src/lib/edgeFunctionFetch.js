@@ -22,7 +22,6 @@ async function buildHeaders(supabase, { requireAuth }) {
     } = await supabase.auth.getSession();
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
-      if (anonKey) headers.apikey = anonKey;
       return headers;
     }
   }
@@ -31,10 +30,10 @@ async function buildHeaders(supabase, { requireAuth }) {
     throw new Error("You must be signed in.");
   }
 
-  // Public functions (--no-verify-jwt): still send apikey so the gateway accepts publishable keys.
+  // Do not set `apikey` header — Supabase CORS only allows Authorization + Content-Type;
+  // browsers block the request with NetworkError if apikey is sent on cross-origin fetch.
   if (anonKey) {
     headers.Authorization = `Bearer ${anonKey}`;
-    headers.apikey = anonKey;
   }
 
   return headers;
