@@ -1033,6 +1033,119 @@ a.btn-primary:hover {
   color: var(--lc-brand-dark, var(--lc-text));
 }
 
+/* ── Compact colour picker row (map overlay design/panels/groups tabs) ── */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.color-swatch {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--lc-border);
+  /* checkerboard makes white/light swatches legible against a white panel */
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
+.color-swatch__fill {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.color-swatch__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  min-width: 0;
+  min-height: 0;
+}
+
+.color-hex-input {
+  width: 90px;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  border-radius: 6px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  min-height: auto;
+}
+
+/* Override min-width:280px for inputs inside the map overlay panel so nothing overflows */
+.admin-map-overlay__body .admin-controls input:not([type="radio"]):not([type="checkbox"]) {
+  min-width: 0;
+  min-height: auto;
+}
+
+/* Range sliders inside the overlay body should never get the 280px treatment */
+.admin-map-overlay__body input[type="range"] {
+  min-width: 0;
+  min-height: auto;
+  padding: 0;
+}
+
+/* ── Overlay panel section cards ── */
+.panel-section {
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid var(--lc-border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-section__title {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #374151;
+}
+
+/* Auto-save draft status indicator */
+.draft-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  align-self: flex-start;
+  font-weight: 500;
+}
+
+.draft-status--saving {
+  color: var(--lc-muted);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.draft-status--saved {
+  color: #166534;
+  background: #dcfce7;
+}
+
 /* Map preview in Design tab */
 .design-preview-map {
   margin-top: 20px;
