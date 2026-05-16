@@ -3,6 +3,8 @@
   --brand-teal-dark: #0a6e76;
   --page-bg: #f3f4f6;
   --page-text: #111827;
+  --page-header-color: #000;
+  --page-heading-color: var(--brand-teal, #0f9da8);
 
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   line-height: 1.5;
@@ -194,9 +196,15 @@ a:hover {
   box-sizing: border-box;
 }
 
+/* Page titles (low specificity so module classes can override, e.g. MapsView dark mode) */
+:where(.page-main) h1,
+:where(.page-main) h2 {
+  color: var(--page-heading-color);
+}
+
 /* Global header */
 .site-header {
-  background: var(--brand-teal);
+  background: var(--page-header-color);
   color: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
@@ -321,23 +329,23 @@ a:hover {
 .client-dashboard-header__brand .brand-logo__word {
   font-size: 17px;
   font-weight: 700;
-  color: var(--brand-teal);
+  color: var(--page-heading-color);
 }
 .client-dashboard-header__brand .brand-logo__by {
   font-size: 17px;
   font-weight: 400;
   font-style: italic;
-  color: var(--brand-teal);
+  color: var(--page-heading-color);
 }
 .client-dashboard-header__main {
   flex: 1;
   min-width: 0;
 }
 
-/* Client portal nav (same styling as admin nav bar) */
+/* Client portal nav */
 .client-nav {
-  background: #0a181c;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #4a9ba9;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .client-nav__inner {
@@ -367,7 +375,7 @@ a:hover {
 
 .client-nav__link--active {
   color: #fff;
-  border-bottom-color: var(--brand-teal);
+  border-bottom-color: #fff;
 }
 
 /* Pin detail overlay (embed map – when a listing marker is clicked) */
@@ -1281,6 +1289,7 @@ a:hover {
   margin: 0 0 6px 0;
   font-size: 1.5rem;
   font-weight: 600;
+  color: var(--page-heading-color);
 }
 
 .auth-page__sub {

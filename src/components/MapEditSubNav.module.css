@@ -19,8 +19,8 @@
 
 /* Standalone sub-nav bar (client portal) */
 .subNav {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: #eaf5f6;
+  border-bottom: 1px solid #c8e6ea;
 }
 
 .subNavInner {
@@ -90,6 +90,6 @@
 }
 
 .subNavTabActive {
-  color: #111827;
-  border-bottom-color: var(--brand-teal, #0f9da8);
+  color: #1a363b;
+  border-bottom-color: #4a9ba9;
 }
