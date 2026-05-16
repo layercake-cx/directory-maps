@@ -1,3 +1,4 @@
+/* Inline variant (admin nav bar) */
 .divider {
   color: rgba(255, 255, 255, 0.35);
   font-weight: 400;
@@ -14,4 +15,81 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Standalone sub-nav bar (client portal) */
+.subNav {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.subNavInner {
+  max-width: 1230px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.subNavLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  color: #6b7280;
+  text-decoration: none;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.12s, background 0.12s;
+}
+
+.backLink:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.subNavMapName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subNavTabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.subNavTab {
+  color: #6b7280;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13.5px;
+  padding: 11px 12px;
+  display: inline-block;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.subNavTab:hover {
+  color: #111827;
+}
+
+.subNavTabActive {
+  color: #111827;
+  border-bottom-color: var(--brand-teal, #0f9da8);
 }

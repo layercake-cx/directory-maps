@@ -210,9 +210,10 @@ export default function ClientLayout() {
                 </Link>
               );
             })}
-            <MapEditSubNav linkClassName="client-nav__link" />
           </div>
         </nav>
+
+        {isMapDetailRoute && <MapEditSubNav standalone />}
 
         {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
       </>
