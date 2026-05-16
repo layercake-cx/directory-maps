@@ -1,0 +1,88 @@
+/* Inner layout inside global .page-main (max-width 1230px) */
+.page {
+  font-family: "DM Sans", "Poppins", system-ui, sans-serif;
+  padding: 8px 0 16px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.headerMain {
+  min-width: 0;
+}
+
+.backLink {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--lc-muted, #6b7280);
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+
+.backLink:hover {
+  color: var(--lc-text, #111827);
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--lc-text, #111827);
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.emptyPage {
+  text-align: center;
+  padding: 48px 16px;
+  background: var(--lc-card, #fff);
+  border: 1px solid var(--lc-border, #e5e7eb);
+  border-radius: 12px;
+}
+
+.emptyPage h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.emptyPage p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lc-muted, #6b7280);
+}

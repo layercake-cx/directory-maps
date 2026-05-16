@@ -11,8 +11,9 @@ import {
   normalizePublicationConfig,
   publicationConfigsEqual,
 } from "../../lib/mapPublication.js";
+import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
 
-const TABS = ["detail", "design", "panels", "data", "groups", "publish", "search"];
+const TABS = ["detail", "design", "panels", "groups", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -1415,20 +1416,6 @@ export default function AdminMapDashboard() {
                 </div>
               )}
 
-              {overlayTab === "data" && (
-                <div style={{ display: "grid", gap: 12 }}>
-                  <p style={{ margin: 0, opacity: 0.9 }}>
-                    Upload a spreadsheet or connect a Google Sheet to populate listings. Missing coordinates can be geocoded during import.
-                  </p>
-                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/data`}>
-                    Manage data
-                  </Link>
-                  <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}/listings`}>
-                    View listings
-                  </Link>
-                </div>
-              )}
-
               {overlayTab === "groups" && (
                 <div style={{ display: "grid", gap: 14 }}>
                   <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder groups. Order is used in the embed map search bar.</p>
@@ -1793,7 +1780,7 @@ export default function AdminMapDashboard() {
             ) : null}
             {contactFormSent ? (
               <div className="embed-message-drawer__success">
-                <p>Your message has been sent. A copy has been emailed to you.</p>
+                <p>Your message has been sent. You have been CC&apos;d on the email.</p>
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -1818,20 +1805,19 @@ export default function AdminMapDashboard() {
                 setContactFormError("");
                   setContactFormSubmitting(true);
                   try {
-                    const { data, error } = await supabase.functions.invoke("send_contact_message", {
-                      body: {
-                        toEmail: isProductionEnv
-                          ? selectedListing.email
-                          : (contactForm.testToEmail || "").trim(),
-                        listingName: selectedListing.name || "",
-                        senderName: (contactForm.name || "").trim(),
-                        senderEmail: (contactForm.email || "").trim(),
-                        senderPhone: (contactForm.phone || "").trim(),
-                        message: (contactForm.message || "").trim(),
-                      },
+                    await submitContactMessage(supabase, {
+                      mapId,
+                      listingId: selectedListing.id,
+                      listingName: selectedListing.name || "",
+                      toEmail: isProductionEnv
+                        ? selectedListing.email
+                        : (contactForm.testToEmail || "").trim(),
+                      senderName: (contactForm.name || "").trim(),
+                      senderEmail: (contactForm.email || "").trim(),
+                      senderPhone: (contactForm.phone || "").trim(),
+                      message: (contactForm.message || "").trim(),
+                      surface: "admin_preview",
                     });
-                    if (error) throw error;
-                    if (data?.error) throw new Error(data.error);
                     setContactFormSent(true);
                     setContactForm({
                       name: "",
@@ -1841,7 +1827,7 @@ export default function AdminMapDashboard() {
                       testToEmail: contactForm.testToEmail,
                     });
                   } catch (err) {
-                    setContactFormError(err?.message ?? "Failed to send message. Try again.");
+                    setContactFormError(formatContactMessageError(err));
                   } finally {
                     setContactFormSubmitting(false);
                   }

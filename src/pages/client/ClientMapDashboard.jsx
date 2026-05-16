@@ -13,9 +13,16 @@ import {
   publicationConfigsEqual,
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
+import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
 import "../admin/admin.css";
 
-const TABS = ["detail", "design", "panels", "data", "publish", "search"];
+const TABS = ["detail", "design", "panels", "categories", "publish", "search"];
+
+function tabLabel(t) {
+  if (t === "detail") return "General";
+  if (t === "categories") return "Categories";
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -149,6 +156,11 @@ export default function ClientMapDashboard() {
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
 
+  const [reorderedGroupIds, setReorderedGroupIds] = useState(null);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [groupEditDesign, setGroupEditDesign] = useState(null);
+  const [savingGroups, setSavingGroups] = useState(false);
+
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -212,11 +224,12 @@ export default function ClientMapDashboard() {
       m.set(g.id, {
         marker_style: theme.marker_style ?? theme.markerStyle ?? null,
         marker_color: theme.marker_color ?? theme.markerColor ?? g.color ?? null,
+        pinBorderColor: theme.pinBorderColor ?? null,
+        pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+        clusterColor: theme.clusterColor ?? null,
         custom_pin_url: theme.custom_pin_url ?? null,
         pin_favicon_url: theme.pin_favicon_url ?? null,
         pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
-        pinBorderColor: theme.pinBorderColor ?? null,
-        pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
         pinSize:
           theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
       });
@@ -224,9 +237,39 @@ export default function ClientMapDashboard() {
     return m;
   }, [groups]);
 
+  const globalDesignForGroup = useMemo(
+    () => ({
+      marker_style: markerStyle,
+      marker_color: markerColor,
+      pinBorderColor,
+      pinBorderSize,
+      clusterColor,
+      custom_pin_url: customPinUrl || null,
+      pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+      pinSize: normalizePinSize(pinSize),
+    }),
+    [markerStyle, markerColor, pinBorderColor, pinBorderSize, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
+  );
+
   const listingsWithColor = useMemo(() => {
     return (listings || []).map((l) => {
-      const overrides = l.group_id ? groupOverridesById.get(l.group_id) || {} : {};
+      let overrides = l.group_id ? groupOverridesById.get(l.group_id) || {} : {};
+      if (editingGroupId && groupEditDesign && l.group_id === editingGroupId) {
+        const e = groupEditDesign;
+        const g = globalDesignForGroup;
+        const favMode = e.pin_favicon_mode ?? "inherit";
+        overrides = {
+          marker_style: e.marker_style ?? g.marker_style,
+          marker_color: e.marker_color ?? g.marker_color,
+          pinBorderColor: e.pinBorderColor ?? g.pinBorderColor,
+          pinBorderSize: e.pinBorderSize != null ? e.pinBorderSize : g.pinBorderSize,
+          clusterColor: e.clusterColor ?? g.clusterColor,
+          custom_pin_url: e.custom_pin_url ?? g.custom_pin_url,
+          pin_favicon_url: favMode === "custom" ? (e.pin_favicon_url || null) : null,
+          pin_favicon_mode: favMode,
+          pinSize: e.pinSize != null ? normalizePinSize(e.pinSize) : g.pinSize,
+        };
+      }
       return {
         ...l,
         group_color: overrides.marker_color || null,
@@ -240,12 +283,21 @@ export default function ClientMapDashboard() {
         group_pin_size: overrides.pinSize != null && overrides.pinSize !== "" ? overrides.pinSize : null,
       };
     });
-  }, [listings, groupOverridesById]);
+  }, [listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup]);
+
+  const orderedGroupsList = useMemo(() => {
+    const list = groups || [];
+    if (reorderedGroupIds && reorderedGroupIds.length === list.length) {
+      const byId = new Map(list.map((g) => [g.id, g]));
+      return reorderedGroupIds.map((id) => byId.get(id)).filter(Boolean);
+    }
+    return list;
+  }, [groups, reorderedGroupIds]);
 
   const draftPublicationConfig = useMemo(
     () =>
       buildPublicationConfig({
-        groups,
+        groups: orderedGroupsList,
         defaultLat,
         defaultLng,
         defaultZoom,
@@ -271,7 +323,7 @@ export default function ClientMapDashboard() {
         mapThemeJsonBase: map?.theme_json,
       }),
     [
-      groups,
+      orderedGroupsList,
       defaultLat,
       defaultLng,
       defaultZoom,
@@ -489,42 +541,142 @@ export default function ClientMapDashboard() {
     window.open(`${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`, "_blank");
   }
 
-  function parseGroupThemeJson(raw) {
-    if (raw == null) return {};
-    if (typeof raw === "object" && !Array.isArray(raw)) return { ...raw };
-    if (typeof raw === "string") {
-      try {
-        const o = JSON.parse(raw || "{}");
-        return typeof o === "object" && o !== null && !Array.isArray(o) ? o : {};
-      } catch {
-        return {};
-      }
-    }
-    return {};
+  function handleGroupDragStart(e, index) {
+    e.dataTransfer.setData("text/plain", String(index));
+    e.dataTransfer.effectAllowed = "move";
+  }
+  function handleGroupDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+  function handleGroupDrop(e, dropIndex) {
+    e.preventDefault();
+    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+    if (Number.isNaN(fromIndex) || fromIndex === dropIndex) return;
+    const ids = reorderedGroupIds ?? (groups || []).map((g) => g.id);
+    const next = [...ids];
+    const [removed] = next.splice(fromIndex, 1);
+    next.splice(dropIndex, 0, removed);
+    setReorderedGroupIds(next);
   }
 
-  function effectiveCategoryPinColor(groupRow) {
-    const t = parseGroupThemeJson(groupRow.theme_json);
-    const v = t.marker_color ?? t.markerColor ?? groupRow.color ?? markerColor ?? "#4A9BAA";
-    return String(v).trim() || "#4A9BAA";
-  }
-
-  async function persistCategoryPinColor(groupRow, hex) {
+  async function saveGroupsOrder() {
+    const order = reorderedGroupIds ?? (groups || []).map((g) => g.id);
+    if (!order.length) return;
     try {
+      setSavingGroups(true);
       setErr("");
-      const t = parseGroupThemeJson(groupRow.theme_json);
-      const nextTheme = { ...t, marker_color: hex };
-      const { error } = await supabase
+      for (let i = 0; i < order.length; i++) {
+        const { error } = await supabase.from("groups").update({ sort_order: i }).eq("id", order[i]).eq("map_id", mapId);
+        if (error) throw error;
+      }
+      setReorderedGroupIds(null);
+      const { data } = await supabase
         .from("groups")
-        .update({ color: hex, theme_json: nextTheme })
-        .eq("id", groupRow.id)
-        .eq("map_id", mapId);
-      if (error) throw error;
-      setGroups((prev) =>
-        (prev || []).map((g) => (g.id === groupRow.id ? { ...g, color: hex, theme_json: nextTheme } : g)),
-      );
+        .select("id,name,sort_order,color,theme_json")
+        .eq("map_id", mapId)
+        .order("sort_order", { ascending: true });
+      if (data) setGroups(data);
+      setMsg("Category order saved.");
+      window.setTimeout(() => setMsg(""), 2000);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
+    } finally {
+      setSavingGroups(false);
+    }
+  }
+
+  function openGroupEdit(gr) {
+    setEditingGroupId(gr.id);
+    const raw = gr.theme_json;
+    if (!raw) {
+      setGroupEditDesign(null);
+      return;
+    }
+    const theme =
+      typeof raw === "string"
+        ? (() => {
+            try {
+              return JSON.parse(raw || "{}");
+            } catch {
+              return {};
+            }
+          })()
+        : raw || {};
+    setGroupEditDesign({
+      marker_style: theme.marker_style ?? theme.markerStyle ?? null,
+      marker_color: theme.marker_color ?? theme.markerColor ?? null,
+      pinBorderColor: theme.pinBorderColor ?? null,
+      pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+      clusterColor: theme.clusterColor ?? null,
+      custom_pin_url: theme.custom_pin_url ?? null,
+      pin_favicon_url: theme.pin_favicon_url ?? null,
+      pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
+      pinSize: theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
+    });
+  }
+  function closeGroupEdit() {
+    setEditingGroupId(null);
+    setGroupEditDesign(null);
+  }
+  function resetGroupDesign() {
+    setGroupEditDesign(null);
+  }
+  async function saveGroupDesign() {
+    if (!editingGroupId) return;
+    try {
+      setSavingGroups(true);
+      setErr("");
+      const raw = groupEditDesign
+        ? {
+            marker_style: groupEditDesign.marker_style ?? undefined,
+            marker_color: groupEditDesign.marker_color ?? undefined,
+            pinBorderColor: groupEditDesign.pinBorderColor ?? undefined,
+            pinBorderSize: groupEditDesign.pinBorderSize ?? undefined,
+            clusterColor: groupEditDesign.clusterColor ?? undefined,
+            custom_pin_url: groupEditDesign.custom_pin_url ?? undefined,
+            pin_favicon_url: groupEditDesign.pin_favicon_url ?? undefined,
+            pin_favicon_mode: groupEditDesign.pin_favicon_mode ?? undefined,
+            pinSize: groupEditDesign.pinSize != null ? normalizePinSize(groupEditDesign.pinSize) : undefined,
+          }
+        : null;
+      const theme_json = raw ? Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null)) : null;
+      const final = theme_json && Object.keys(theme_json).length ? theme_json : null;
+      const markerColorOverride = groupEditDesign?.marker_color ?? null;
+      const { error } = await supabase
+        .from("groups")
+        .update({
+          theme_json: final,
+          ...(markerColorOverride ? { color: markerColorOverride } : {}),
+        })
+        .eq("id", editingGroupId)
+        .eq("map_id", mapId);
+      if (error) {
+        if (String(error.message || "").includes("theme_json")) {
+          setErr("Category design overrides need the theme_json column on groups. Run migration 20260314100000_add_groups_theme_json.sql");
+          setSavingGroups(false);
+          return;
+        }
+        throw error;
+      }
+      setGroups((prev) =>
+        (prev || []).map((g) =>
+          g.id === editingGroupId
+            ? {
+                ...g,
+                theme_json: final,
+                ...(markerColorOverride ? { color: markerColorOverride } : {}),
+              }
+            : g,
+        ),
+      );
+      setMsg("Category design saved.");
+      window.setTimeout(() => setMsg(""), 2000);
+      closeGroupEdit();
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    } finally {
+      setSavingGroups(false);
     }
   }
 
@@ -977,7 +1129,7 @@ export default function ClientMapDashboard() {
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
+                {tabLabel(t)}
               </button>
             ))}
             {(!listings || listings.length === 0) && (
@@ -1042,7 +1194,7 @@ export default function ClientMapDashboard() {
           >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
+                {overlayTab ? tabLabel(overlayTab) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×
@@ -1180,25 +1332,6 @@ export default function ClientMapDashboard() {
                         </div>
                       </Field>
                       <Field label="Marker colour"><ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" /></Field>
-                      {groups?.length ? (
-                        <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12, marginTop: 4 }}>
-                          <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Categories</h3>
-                          <p style={{ margin: "0 0 10px", fontSize: 12, lineHeight: 1.45, opacity: 0.82 }}>
-                            Pin colour per group (listings use the group from your data). Changes save immediately.
-                          </p>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            {groups.map((gr) => (
-                              <Field key={gr.id} label={gr.name || "Untitled group"}>
-                                <ColorRow
-                                  value={effectiveCategoryPinColor(gr)}
-                                  onChange={(v) => persistCategoryPinColor(gr, v)}
-                                  ariaLabel={`Pin colour for ${gr.name || "group"}`}
-                                />
-                              </Field>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
                       <Field label="Pin border">
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
@@ -1280,18 +1413,234 @@ export default function ClientMapDashboard() {
                 </div>
               )}
 
-              {overlayTab === "data" && (
-                <div style={{ display: "grid", gap: 12 }}>
-                  <p style={{ margin: 0, opacity: 0.9 }}>
-                    Upload a spreadsheet or connect a Google Sheet to populate listings. Missing coordinates can be geocoded during
-                    import.
-                  </p>
-                  <Link className="btn btn-primary" to={`/client/maps/${encodeURIComponent(mapId)}/data`}>
-                    Manage data
-                  </Link>
+
+              {overlayTab === "categories" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder categories. Order is used in the embed map search bar.</p>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {orderedGroupsList.map((gr, index) => (
+                      <li
+                        key={gr.id}
+                        draggable
+                        onDragStart={(e) => handleGroupDragStart(e, index)}
+                        onDragOver={handleGroupDragOver}
+                        onDrop={(e) => handleGroupDrop(e, index)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "10px 12px",
+                          background: "var(--lc-card)",
+                          border: "1px solid var(--lc-border)",
+                          borderRadius: 10,
+                          cursor: "grab",
+                        }}
+                      >
+                        <span style={{ opacity: 0.6, cursor: "grab" }} aria-hidden>⋮⋮</span>
+                        <span style={{ flex: 1, fontWeight: 600 }}>{gr.name || "—"}</span>
+                        <button type="button" className="btn" onClick={() => openGroupEdit(gr)}>Edit design</button>
+                      </li>
+                    ))}
+                  </ul>
+                  {orderedGroupsList.length === 0 && <p style={{ margin: 0, opacity: 0.8 }}>No categories yet. Add categories when importing data.</p>}
+                  <div>
+                    <button type="button" className="btn btn-primary" onClick={saveGroupsOrder} disabled={savingGroups || orderedGroupsList.length === 0}>
+                      {savingGroups ? "Saving…" : "Save order"}
+                    </button>
+                  </div>
+
+                  {editingGroupId && (
+                    <div style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--lc-border)" }}>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>Category design overrides</h3>
+                      <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.85 }}>
+                        Editing:{" "}
+                        <strong>{groups.find((g) => g.id === editingGroupId)?.name || "Untitled category"}</strong>
+                      </p>
+                      <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this category's pins. Leave as default to use map design.</p>
+                      <div style={{ display: "grid", gap: 14 }}>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin style</div>
+                          <div className="pin-style-grid">
+                            {PIN_STYLES.map(({ id, label }) => {
+                              const val = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
+                              const isSelected = val === id;
+                              const isCustom = id === "custom";
+                              const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
+                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop" || id === "ringpin") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
+                                  ? groupEditDesign?.pin_favicon_url
+                                  : (groupEditDesign?.pin_favicon_mode ?? "inherit") === "off"
+                                    ? undefined
+                                    : globalDesignForGroup.pin_favicon_url || undefined) : undefined }) : null;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
+                                  onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }))}
+                                  aria-pressed={isSelected}
+                                >
+                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                                  <span className="pin-style-option__label">{label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <Field label="Pin size">
+                          <div style={{ width: "100%" }}>
+                            <div className="pin-size-segmented" role="group" aria-label="Pin size for this category">
+                              {["small", "medium", "large"].map((id) => {
+                                const effective = normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize);
+                                return (
+                                  <button
+                                    key={id}
+                                    type="button"
+                                    className={`pin-size-segmented__btn${effective === id ? " is-selected" : ""}`}
+                                    onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: id }))}
+                                    aria-pressed={effective === id}
+                                  >
+                                    {id.charAt(0).toUpperCase() + id.slice(1)}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {groupEditDesign?.pinSize != null ? (
+                              <button
+                                type="button"
+                                className="btn"
+                                style={{ marginTop: 8 }}
+                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: null }))}
+                              >
+                                Use map default
+                              </button>
+                            ) : null}
+                          </div>
+                        </Field>
+                        <Field label="Marker colour">
+                          <ColorRow
+                            value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
+                            onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
+                            ariaLabel="Pin colour"
+                          />
+                        </Field>
+                        <Field label="Pin border">
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                            <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
+                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
+                          </div>
+                        </Field>
+                        {enableClustering && (
+                        <Field label="Cluster colour">
+                          <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
+                        </Field>
+                        )}
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
+                          <input
+                            type="url"
+                            value={groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url ?? ""}
+                            onChange={(e) =>
+                              setGroupEditDesign((p) => ({ ...(p || {}), custom_pin_url: e.target.value || null }))
+                            }
+                            placeholder="Optional"
+                            style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)" }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Inside icon</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
+                            {["inherit", "off", "custom"].map((mode) => (
+                              <label key={mode} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <input
+                                  type="radio"
+                                  name="group-pin-favicon-mode"
+                                  value={mode}
+                                  checked={(groupEditDesign?.pin_favicon_mode ?? "inherit") === mode}
+                                  onChange={() =>
+                                    setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: mode }))
+                                  }
+                                />
+                                {mode === "inherit"
+                                  ? "Use map default"
+                                  : mode === "off"
+                                  ? "Turn off inside icon"
+                                  : "Use custom image URL"}
+                              </label>
+                            ))}
+                          </div>
+                          {(groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom" && (
+                            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                                <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
+                                  {groupEditDesign?.pin_favicon_url ? "Change image…" : "Upload image"}
+                                  <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      if (file.size > 48 * 1024) {
+                                        setErr("Image must be under 48KB.");
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = () => {
+                                        setGroupEditDesign((p) => ({
+                                          ...(p || {}),
+                                          pin_favicon_mode: "custom",
+                                          pin_favicon_url: reader.result || "",
+                                        }));
+                                        setErr("");
+                                      };
+                                      reader.readAsDataURL(file);
+                                      e.target.value = "";
+                                    }}
+                                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+                                  />
+                                </label>
+                                {groupEditDesign?.pin_favicon_url ? (
+                                  <>
+                                    <img src={groupEditDesign.pin_favicon_url} alt="" style={{ maxWidth: 24, maxHeight: 24, objectFit: "contain" }} />
+                                    <button
+                                      type="button"
+                                      className="btn"
+                                      onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_url: null }))}
+                                    >
+                                      Clear
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
+                              <input
+                                type="url"
+                                value={groupEditDesign?.pin_favicon_url ?? ""}
+                                onChange={(e) =>
+                                  setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_url: e.target.value || null }))
+                                }
+                                placeholder="Or paste https://…/icon.png"
+                                style={{
+                                  width: "100%",
+                                  padding: "8px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid var(--lc-border)",
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>
+                          <button type="button" className="btn btn-primary" onClick={saveGroupDesign} disabled={savingGroups}>Save</button>
+                          <button type="button" className="btn" onClick={closeGroupEdit}>Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
+              
               {overlayTab === "publish" && (
                 <div style={{ display: "grid", gap: 14 }}>
                   {!hasActiveSubscription ? (
@@ -1499,7 +1848,7 @@ export default function ClientMapDashboard() {
             ) : null}
             {contactFormSent ? (
               <div className="embed-message-drawer__success">
-                <p>Your message has been sent. A copy has been emailed to you.</p>
+                <p>Your message has been sent. You have been CC&apos;d on the email.</p>
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -1524,20 +1873,19 @@ export default function ClientMapDashboard() {
                 setContactFormError("");
                   setContactFormSubmitting(true);
                   try {
-                    const { data, error } = await supabase.functions.invoke("send_contact_message", {
-                      body: {
-                        toEmail: isProductionEnv
-                          ? selectedListing.email
-                          : (contactForm.testToEmail || "").trim(),
-                        listingName: selectedListing.name || "",
-                        senderName: (contactForm.name || "").trim(),
-                        senderEmail: (contactForm.email || "").trim(),
-                        senderPhone: (contactForm.phone || "").trim(),
-                        message: (contactForm.message || "").trim(),
-                      },
+                    await submitContactMessage(supabase, {
+                      mapId,
+                      listingId: selectedListing.id,
+                      listingName: selectedListing.name || "",
+                      toEmail: isProductionEnv
+                        ? selectedListing.email
+                        : (contactForm.testToEmail || "").trim(),
+                      senderName: (contactForm.name || "").trim(),
+                      senderEmail: (contactForm.email || "").trim(),
+                      senderPhone: (contactForm.phone || "").trim(),
+                      message: (contactForm.message || "").trim(),
+                      surface: "client_preview",
                     });
-                    if (error) throw error;
-                    if (data?.error) throw new Error(data.error);
                     setContactFormSent(true);
                     setContactForm({
                       name: "",
@@ -1547,7 +1895,7 @@ export default function ClientMapDashboard() {
                       testToEmail: contactForm.testToEmail,
                     });
                   } catch (err) {
-                    setContactFormError(err?.message ?? "Failed to send message. Try again.");
+                    setContactFormError(formatContactMessageError(err));
                   } finally {
                     setContactFormSubmitting(false);
                   }
