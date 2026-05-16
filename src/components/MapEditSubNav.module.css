@@ -19,7 +19,7 @@
 
 /* Standalone sub-nav bar (client portal) */
 .subNav {
-  background: #eaf5f6;
+  background: linear-gradient(to bottom, #d4eef1, #ffffff);
   border-bottom: 1px solid #c8e6ea;
 }
 

@@ -438,6 +438,7 @@ a:hover {
 .client-nav {
   background: #4a9ba9;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(74, 155, 169, 0.35);
 }
 
 .client-nav__inner {
@@ -450,9 +451,9 @@ a:hover {
 }
 
 .client-nav__link {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 700;
   font-size: 14px;
   padding: 10px 14px;
   display: inline-block;
