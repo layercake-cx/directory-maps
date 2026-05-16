@@ -10,7 +10,8 @@ export function formatContactMessageError(err) {
     /failed to send a request to the edge function/i.test(msg) ||
     /failed to fetch/i.test(msg) ||
     /network error/i.test(msg) ||
-    err?.name === "FunctionsFetchError"
+    /could not reach the edge function/i.test(msg) ||
+    err?.name === "EdgeFunctionNetworkError"
   ) {
     return `${msg}\n\n${EDGE_FUNCTION_DEPLOY_HINT}`;
   }

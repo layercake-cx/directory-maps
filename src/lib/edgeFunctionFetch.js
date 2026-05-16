@@ -1,6 +1,5 @@
 /**
  * Call Supabase Edge Functions via fetch (reliable with publishable keys + --no-verify-jwt).
- * Prefer this over supabase.functions.invoke for public functions; use requireAuth for logged-in-only functions.
  */
 
 function getBaseUrl() {
@@ -9,31 +8,36 @@ function getBaseUrl() {
   return baseUrl;
 }
 
-async function authHeaders(supabase, { requireAuth }) {
+function getAnonKey() {
+  return import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
+}
+
+async function buildHeaders(supabase, { requireAuth }) {
   const headers = { "Content-Type": "application/json" };
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
+  const anonKey = getAnonKey();
 
-  if (!requireAuth) return headers;
-
-  if (!supabase) throw new Error("Supabase client required for authenticated functions.");
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`;
-    if (anonKey) headers.apikey = anonKey;
-    return headers;
+  if (supabase) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+      if (anonKey) headers.apikey = anonKey;
+      return headers;
+    }
   }
 
+  if (requireAuth) {
+    throw new Error("You must be signed in.");
+  }
+
+  // Public functions (--no-verify-jwt): still send apikey so the gateway accepts publishable keys.
   if (anonKey) {
     headers.Authorization = `Bearer ${anonKey}`;
     headers.apikey = anonKey;
-    return headers;
   }
 
-  throw new Error("You must be signed in.");
+  return headers;
 }
 
 /**
@@ -43,7 +47,7 @@ async function authHeaders(supabase, { requireAuth }) {
  */
 export async function invokeEdgeFunction(functionName, body, opts = {}) {
   const url = `${getBaseUrl()}/functions/v1/${functionName}`;
-  const headers = await authHeaders(opts.supabase, { requireAuth: !!opts.requireAuth });
+  const headers = await buildHeaders(opts.supabase, { requireAuth: !!opts.requireAuth });
 
   let res;
   try {
@@ -53,16 +57,32 @@ export async function invokeEdgeFunction(functionName, body, opts = {}) {
       body: JSON.stringify(body),
     });
   } catch (e) {
-    const err = new Error(e?.message || "Network error");
-    err.name = "FunctionsFetchError";
+    const err = new Error(
+      e?.message || "Network error — could not reach the Edge Function. Check your connection and ad blockers."
+    );
+    err.name = "EdgeFunctionNetworkError";
     throw err;
   }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = data?.error || data?.message || res.statusText || `HTTP ${res.status}`;
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    const msg = parseEdgeFunctionError(data, res.status);
+    throw new Error(msg);
   }
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) throw new Error(parseEdgeFunctionError(data, 200));
   return data;
+}
+
+function parseEdgeFunctionError(data, status) {
+  const raw = data?.error ?? data?.message ?? "";
+  if (typeof raw === "string") {
+    try {
+      const inner = JSON.parse(raw);
+      if (inner?.message) return inner.message;
+    } catch {
+      /* plain string */
+    }
+    return raw;
+  }
+  return `Request failed (HTTP ${status})`;
 }
