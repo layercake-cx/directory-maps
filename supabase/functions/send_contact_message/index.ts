@@ -105,7 +105,14 @@ Deno.serve(async (req) => {
       html: htmlToContact,
     });
     if (!sent.ok) {
-      return jsonResponse({ error: sent.error ?? "Failed to send email to recipient." }, 500);
+      let errMsg = sent.error ?? "Failed to send email to recipient.";
+      try {
+        const parsed = JSON.parse(errMsg);
+        if (typeof parsed?.message === "string") errMsg = parsed.message;
+      } catch {
+        /* use raw */
+      }
+      return jsonResponse({ error: errMsg }, 500);
     }
 
     return jsonResponse({ ok: true, sentToContact: true, ccSender: true });
