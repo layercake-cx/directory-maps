@@ -35,9 +35,7 @@ const MAP_TYPES = [
 const PIN_STYLES = [
   { id: "pin", label: "Pin" },
   { id: "teardrop", label: "Teardrop" },
-  { id: "ringpin", label: "Ring pin" },
   { id: "dot", label: "Dot" },
-  { id: "circle", label: "Circle" },
   { id: "custom", label: "Custom" },
 ];
 
@@ -52,43 +50,27 @@ function Field({ label, children }) {
   );
 }
 
-const EYEDROPPER_ICON = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 19l-2 2-4-4-2-2 2-2 4 4 2 2z" />
-    <path d="M18 13l-1.5 1.5 2 2 1.5-1.5-2-2z" />
-    <path d="M4 8L2 6l6-6 2 2-6 6z" />
-    <path d="M14 4l2 2-4 4-2-2 4-4z" />
-  </svg>
-);
 
 function ColorRow({ value, onChange, ariaLabel }) {
-  const colorInputRef = React.useRef(null);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
-      <input
-        ref={colorInputRef}
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: 28, height: 28, padding: 0, border: "1px solid var(--lc-border)", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}
-        aria-label={ariaLabel}
-      />
+    <div className="color-row">
+      <label className="color-swatch" title="Click to pick colour">
+        <span className="color-swatch__fill" style={{ background: value }} />
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="color-swatch__input"
+          aria-label={ariaLabel}
+        />
+      </label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{ width: 72, padding: "6px 8px", fontSize: 12, border: "1px solid var(--lc-border)", borderRadius: 6 }}
+        className="color-hex-input"
         aria-label={`${ariaLabel} hex`}
       />
-      <button
-        type="button"
-        onClick={() => colorInputRef.current?.click()}
-        title="Pick colour"
-        aria-label="Open colour picker"
-        style={{ padding: 6, border: "1px solid var(--lc-border)", borderRadius: 6, background: "var(--lc-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-      >
-        {EYEDROPPER_ICON}
-      </button>
     </div>
   );
 }
@@ -172,6 +154,12 @@ export default function ClientMapDashboard() {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
+
+  // Draft auto-save for design/panels fields
+  const isLoadedRef = useRef(false);
+  const draftTimerRef = useRef(null);
+  const saveDraftThemeRef = useRef(null);
+  const [draftStatus, setDraftStatus] = useState(""); // "" | "saving" | "saved"
 
   // Placeholder for future real billing integration.
   // Layercake domain emails bypass the paywall for internal testing.
@@ -523,6 +511,23 @@ export default function ClientMapDashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mapOptionsOpen]);
 
+  // Mark as loaded one tick after loading finishes so initial state-setting doesn't trigger auto-save
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => { isLoadedRef.current = true; }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
+  // Auto-save design/theme fields to draft whenever they change
+  useEffect(() => {
+    if (!isLoadedRef.current || !mapId) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor]);
+
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
   }
@@ -764,6 +769,43 @@ export default function ClientMapDashboard() {
       setSaving(false);
     }
   }
+
+  async function saveDraftTheme() {
+    if (!mapId) return;
+    setDraftStatus("saving");
+    try {
+      const existingTheme = !map?.theme_json ? {} : typeof map.theme_json === "string" ? (() => { try { return JSON.parse(map.theme_json); } catch (_) { return {}; } })() : map.theme_json;
+      const themeJson = {
+        ...existingTheme,
+        clusterColor: clusterColor || "#4A9BAA",
+        pinBorderColor: pinBorderColor || "#ffffff",
+        pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
+        pin_favicon_url: (pinFaviconUrl || "").trim() || null,
+        pinSize: normalizePinSize(pinSize),
+        buttonColor: (buttonColor || "").trim() || "#4A9BAA",
+        panelBackgroundColor: (panelBackgroundColor || "").trim() || "#ffffff",
+        panelBackgroundOpacity: Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88)),
+        panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
+        pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
+        panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
+        showSearch,
+        showGroupDropdowns,
+      };
+      delete themeJson.pinFaviconUrl;
+      const payload = { marker_style: markerStyle, marker_color: markerColor, theme_json: themeJson };
+      let { error } = await supabase.from("maps").update({ ...payload, custom_pin_url: customPinUrl || null }).eq("id", mapId);
+      if (error && String(error.message || "").includes("custom_pin_url")) {
+        ({ error } = await supabase.from("maps").update(payload).eq("id", mapId));
+      }
+      if (error) throw error;
+      setMap((prev) => prev ? { ...prev, theme_json: themeJson } : prev);
+      setDraftStatus("saved");
+      setTimeout(() => setDraftStatus(""), 2500);
+    } catch (_) {
+      setDraftStatus("");
+    }
+  }
+  saveDraftThemeRef.current = saveDraftTheme;
 
   const editTheme = useMemo(() => {
     const hex = (panelBackgroundColor || "#ffffff").trim().replace(/^#/, "");
@@ -1293,122 +1335,130 @@ export default function ClientMapDashboard() {
               )}
 
               {overlayTab === "design" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, opacity: 0.9 }}>Pins</h3>
-                      <div>
-                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Style</div>
-                        <div className="pin-style-grid">
-                          {PIN_STYLES.map(({ id, label }) => {
-                            const isSelected = markerStyle === id;
-                            const isCustom = id === "custom";
-                            const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop" || id === "ringpin") ? pinFaviconUrl : undefined }) : null;
-                            return (
-                              <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
-                                <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
-                                <span className="pin-style-option__label">{label}</span>
-                              </button>
-                            );
-                          })}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Style</p>
+                    <div className="pin-style-grid">
+                      {PIN_STYLES.map(({ id, label }) => {
+                        const isSelected = markerStyle === id;
+                        const isCustom = id === "custom";
+                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
+                        return (
+                          <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
+                            <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                            <span className="pin-style-option__label">{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {markerStyle === "custom" && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="url" value={customPinUrl} onChange={(e) => setCustomPinUrl(e.target.value)} placeholder="Custom pin URL" style={{ flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--lc-border)" }} />
+                        <label className="btn" style={{ margin: 0, flexShrink: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
+                      </div>
+                    )}
+                    <div className="pin-size-segmented" role="group" aria-label="Pin size">
+                      {[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }].map(({ id, label: szLabel }) => (
+                        <button key={id} type="button" className={`pin-size-segmented__btn${pinSize === id ? " is-selected" : ""}`} onClick={() => setPinSize(id)} aria-pressed={pinSize === id}>{szLabel}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Colours</p>
+                    <Field label="Marker colour">
+                      <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
+                    </Field>
+                    <Field label="Border colour">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
                         </div>
                       </div>
-                      <Field label="Pin size">
-                        <div className="pin-size-segmented" role="group" aria-label="Pin size">
-                          {[
-                            { id: "small", label: "Small" },
-                            { id: "medium", label: "Medium" },
-                            { id: "large", label: "Large" },
-                          ].map(({ id, label: szLabel }) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className={`pin-size-segmented__btn${pinSize === id ? " is-selected" : ""}`}
-                              onClick={() => setPinSize(id)}
-                              aria-pressed={pinSize === id}
-                            >
-                              {szLabel}
-                            </button>
-                          ))}
-                        </div>
+                    </Field>
+                    {enableClustering && (
+                      <Field label="Cluster colour">
+                        <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
                       </Field>
-                      <Field label="Marker colour"><ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" /></Field>
-                      <Field label="Pin border">
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ width: 64 }} />
-                          <span style={{ fontSize: 12 }}>{pinBorderSize}px</span>
-                        </div>
-                      </Field>
-                      {(markerStyle === "pin" || markerStyle === "teardrop" || markerStyle === "ringpin") && (
-                        <Field label="Image inside pin">
-                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                            <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>{pinFaviconUrl ? "Change…" : "Upload"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} /></label>
-                            {pinFaviconUrl && <><span style={{ fontSize: 12, opacity: 0.8 }}><img src={pinFaviconUrl} alt="" style={{ maxWidth: 20, maxHeight: 20, objectFit: "contain", verticalAlign: "middle" }} /></span><button type="button" className="btn" style={{ margin: 0, position: "relative", zIndex: 1 }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPinFaviconUrl(""); }}>Clear</button></>}
-                          </div>
-                        </Field>
-                      )}
-                      {enableClustering && <Field label="Cluster colour"><ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" /></Field>}
-                      <div>
-                        <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          <input type="url" value={customPinUrl} onChange={(e) => setCustomPinUrl(e.target.value)} placeholder="Optional" style={{ flex: "1", minWidth: 120, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--lc-border)" }} />
-                          <label className="btn" style={{ margin: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
-                        </div>
+                    )}
+                  </div>
+
+                  {(markerStyle === "pin" || markerStyle === "teardrop") && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Pin icon</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {pinFaviconUrl && <img src={pinFaviconUrl} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />}
+                        <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
+                          {pinFaviconUrl ? "Change…" : "Upload icon"}
+                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
+                        </label>
+                        {pinFaviconUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Remove</button>}
                       </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
-                    <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {overlayTab === "panels" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
                   <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-                    Style the listing detail panel and choose whether it appears beside the pin on the map or in a side drawer (drawer
-                    mode shows extended description text when you have added it in Data).
+                    Style the listing detail panel and choose whether it appears beside the pin on the map or in a side drawer (drawer mode shows extended description text when you have added it in Data).
                   </p>
-                  <Field label="Listing detail display">
-                    <div className="panel-detail-layout-options">
-                      <label
-                        className={`panel-detail-layout-option${pinDetailLayout === "map" ? " is-selected" : ""}`}
-                      >
-                        <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "map"} onChange={() => setPinDetailLayout("map")} />
-                        <span className="panel-detail-layout-option__text">
-                          <span className="panel-detail-layout-option__title">Map panel</span>
-                          <span className="panel-detail-layout-option__desc">Floating card next to the pin on the map.</span>
-                        </span>
-                      </label>
-                      <label
-                        className={`panel-detail-layout-option${pinDetailLayout === "drawer" ? " is-selected" : ""}`}
-                      >
-                        <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "drawer"} onChange={() => setPinDetailLayout("drawer")} />
-                        <span className="panel-detail-layout-option__text">
-                          <span className="panel-detail-layout-option__title">Side drawer</span>
-                          <span className="panel-detail-layout-option__desc">
-                            Slides in from the edge with a scrollable area for descriptions and full details.
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Layout</p>
+                    <Field label="Listing detail display">
+                      <div className="panel-detail-layout-options">
+                        <label className={`panel-detail-layout-option${pinDetailLayout === "map" ? " is-selected" : ""}`}>
+                          <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "map"} onChange={() => setPinDetailLayout("map")} />
+                          <span className="panel-detail-layout-option__text">
+                            <span className="panel-detail-layout-option__title">Map panel</span>
+                            <span className="panel-detail-layout-option__desc">Floating card next to the pin on the map.</span>
                           </span>
-                        </span>
-                      </label>
-                    </div>
-                  </Field>
-                  <Field label="Panel background colour"><ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" /></Field>
-                  <Field label="Translucency">
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ width: 120 }} />
-                      <span style={{ fontSize: 12 }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
-                    </div>
-                  </Field>
-                  <Field label="Corner roundness">
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <input type="range" min={0} max={28} step={1} value={panelBorderRadius} onChange={(e) => setPanelBorderRadius(Number(e.target.value))} style={{ width: 120 }} />
-                      <span style={{ fontSize: 12 }}>{panelBorderRadius}px</span>
-                    </div>
-                  </Field>
-                  <Field label="Link colour"><ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" /></Field>
-                  <Field label="Website button colour"><ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" /></Field>
-                  <div style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
-                    <button className="btn btn-primary" type="button" onClick={(e) => { e.preventDefault(); saveMap({ preventDefault: () => {} }); }} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                        </label>
+                        <label className={`panel-detail-layout-option${pinDetailLayout === "drawer" ? " is-selected" : ""}`}>
+                          <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "drawer"} onChange={() => setPinDetailLayout("drawer")} />
+                          <span className="panel-detail-layout-option__text">
+                            <span className="panel-detail-layout-option__title">Side drawer</span>
+                            <span className="panel-detail-layout-option__desc">Slides in from the edge with a scrollable area for descriptions and full details.</span>
+                          </span>
+                        </label>
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Appearance</p>
+                    <Field label="Background colour">
+                      <ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" />
+                    </Field>
+                    <Field label="Translucency">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
+                      </div>
+                    </Field>
+                    <Field label="Corner roundness">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={28} step={1} value={panelBorderRadius} onChange={(e) => setPanelBorderRadius(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{panelBorderRadius}px</span>
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Colours</p>
+                    <Field label="Link colour">
+                      <ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" />
+                    </Field>
+                    <Field label="Button colour">
+                      <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
+                    </Field>
                   </div>
                 </div>
               )}
@@ -1466,7 +1516,7 @@ export default function ClientMapDashboard() {
                               const isSelected = val === id;
                               const isCustom = id === "custom";
                               const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop" || id === "ringpin") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
+                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
                                   ? groupEditDesign?.pin_favicon_url
                                   : (groupEditDesign?.pin_favicon_mode ?? "inherit") === "off"
                                     ? undefined
