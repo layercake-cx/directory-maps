@@ -267,6 +267,98 @@ a:hover {
   color: var(--brand-teal-dark);
 }
 
+/* Account avatar trigger */
+.site-header__account {
+  position: relative;
+}
+
+.site-header__accountTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px 4px 4px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.site-header__accountTrigger:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.site-header__accountAvatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Account dropdown */
+.site-header__accountMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  z-index: 200;
+}
+
+.site-header__accountEmail {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.site-header__accountDivider {
+  height: 1px;
+  background: #f3f4f6;
+}
+
+.site-header__accountItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #111827;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.site-header__accountItem:hover {
+  background: #f9fafb;
+}
+
+.site-header__accountItem--danger {
+  color: #dc2626;
+}
+
+.site-header__accountItem--danger:hover {
+  background: #fef2f2;
+}
+
 /* Client map dashboard tabs */
 .client-tabs {
   display: flex;
