@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { BarChart3 } from "lucide-react";
 import styles from "./MapsView.module.css";
 
 const PlusIcon = () => (
@@ -195,6 +196,16 @@ export default function MapsView({ maps = [], workspaceName, loading, error }) {
                           <span>{editedAt}</span>
                         </>
                       ) : null}
+                    </div>
+                    <div className={styles.cardActions}>
+                      <Link
+                        to={`/client/maps/${encodeURIComponent(map.id)}/stats`}
+                        className={styles.cardActionLink}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <BarChart3 size={12} strokeWidth={2} aria-hidden />
+                        Map Stats
+                      </Link>
                     </div>
                     <div className={styles.cardDetail} style={{ marginTop: 3 }}>
                       <Link

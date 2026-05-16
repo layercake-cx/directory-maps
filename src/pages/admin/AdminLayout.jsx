@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import BrandLogo from "../../components/BrandLogo.jsx";
+import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import "./admin.css";
 
 const ADMIN_NAV = [
@@ -42,6 +43,7 @@ export default function AdminLayout({ rightActions, children, mainClassName = ""
               </Link>
             );
           })}
+          <MapEditSubNav linkClassName="admin-nav__link" />
         </div>
       </nav>
 

@@ -103,13 +103,22 @@ List picks from the directory panel use `meta.source: "list_panel"`; map pin cli
 
 ## Setup
 
-Apply migrations to your Supabase project:
+Apply migrations to **each** Supabase project your app uses (production, staging/test, etc.). The table must exist on the project pointed to by `VITE_SUPABASE_URL` in `.env.local`.
+
+**Option A — Supabase CLI** (link the correct project first):
 
 ```bash
+supabase link --project-ref YOUR_STAGING_PROJECT_REF
 supabase db push
 ```
 
-Or run the SQL files in the Supabase SQL Editor if you manage migrations manually.
+**Option B — SQL Editor** (staging or when CLI history is out of sync):
+
+1. Open the **staging** project in [Supabase Dashboard](https://supabase.com/dashboard).
+2. SQL Editor → New query.
+3. Paste and run [`scripts/apply-map-engagement-events.sql`](../scripts/apply-map-engagement-events.sql).
+
+If you still see “Could not find the table … in the schema cache”, wait a minute or run `notify pgrst, 'reload schema';` again, then hard-refresh the app.
 
 Ensure the embed app has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` configured (same as the rest of the app).
 

@@ -1,0 +1,17 @@
+.divider {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 400;
+  padding: 0 6px;
+  user-select: none;
+}
+
+.mapName {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 10px 10px 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
+import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -9,7 +10,8 @@ import "../admin/admin.css";
 
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
-  { label: "Team", path: "/client/team" },
+  { label: "Team", path: "/client/team", requiresManageUsers: true },
+  { label: "Email", path: "/client/email", requiresManageMaps: true },
 ];
 
 export default function ClientLayout() {
@@ -159,7 +161,12 @@ export default function ClientLayout() {
   }
 
   const canManageUsers = contact?.is_primary || contact?.can_manage_users;
-  const navItems = CLIENT_NAV.filter((item) => (item.path === "/client/team" ? canManageUsers : true));
+  const canManageMaps = contact?.is_primary || contact?.can_manage_maps;
+  const navItems = CLIENT_NAV.filter((item) => {
+    if (item.requiresManageUsers) return canManageUsers;
+    if (item.requiresManageMaps) return canManageMaps;
+    return true;
+  });
 
   const isMapDetailRoute = pathname.startsWith("/client/maps/");
 
@@ -188,7 +195,10 @@ export default function ClientLayout() {
                 path === "/client"
                   ? pathname === "/client" ||
                     pathname === "/client/" ||
-                    (pathname.startsWith("/client/") && !pathname.startsWith("/client/team"))
+                    (pathname.startsWith("/client/") &&
+                      !pathname.startsWith("/client/team") &&
+                      !pathname.startsWith("/client/email") &&
+                      !pathname.startsWith("/client/maps/"))
                   : pathname === path || pathname.startsWith(path + "/");
               return (
                 <Link
@@ -200,6 +210,7 @@ export default function ClientLayout() {
                 </Link>
               );
             })}
+            <MapEditSubNav linkClassName="client-nav__link" />
           </div>
         </nav>
 

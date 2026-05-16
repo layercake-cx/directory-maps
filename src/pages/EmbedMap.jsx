@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { createMapEngagementRecorder } from "../lib/mapEngagement.js";
+import { formatContactMessageError, submitContactMessage } from "../lib/contactMessage.js";
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
@@ -325,7 +326,7 @@ export default function EmbedMap() {
           ) : null}
           {contactFormSent ? (
             <div className="embed-message-drawer__success">
-              <p>Your message has been sent. A copy has been emailed to you.</p>
+              <p>Your message has been sent. You have been CC&apos;d on the email.</p>
               <button type="button" className="btn btn-primary" onClick={() => { setMessageDrawerOpen(false); setContactFormSent(false); }}>Close</button>
             </div>
           ) : (
@@ -341,25 +342,24 @@ export default function EmbedMap() {
                 setContactFormError("");
                 setContactFormSubmitting(true);
                 try {
-                  const { data, error } = await supabase.functions.invoke("send_contact_message", {
-                    body: {
-                      toEmail: isProductionEnv
-                        ? selectedListing.email
-                        : (contactForm.testToEmail || "").trim(),
-                      listingName: selectedListing.name || "",
-                      senderName: (contactForm.name || "").trim(),
-                      senderEmail: (contactForm.email || "").trim(),
-                      senderPhone: (contactForm.phone || "").trim(),
-                      message: (contactForm.message || "").trim(),
-                    },
+                  await submitContactMessage(supabase, {
+                    mapId,
+                    listingId: selectedListing.id,
+                    listingName: selectedListing.name || "",
+                    toEmail: isProductionEnv
+                      ? selectedListing.email
+                      : (contactForm.testToEmail || "").trim(),
+                    senderName: (contactForm.name || "").trim(),
+                    senderEmail: (contactForm.email || "").trim(),
+                    senderPhone: (contactForm.phone || "").trim(),
+                    message: (contactForm.message || "").trim(),
+                    surface: "embed",
                   });
-                  if (error) throw error;
-                  if (data?.error) throw new Error(data.error);
                   recordEngagement?.("message_sent", { listingId: selectedListing.id });
                   setContactFormSent(true);
                   setContactForm({ name: "", email: "", phone: "", message: "", testToEmail: contactForm.testToEmail });
                 } catch (err) {
-                  setContactFormError(err?.message ?? "Failed to send message. Try again.");
+                  setContactFormError(formatContactMessageError(err));
                 } finally {
                   setContactFormSubmitting(false);
                 }

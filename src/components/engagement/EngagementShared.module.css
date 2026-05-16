@@ -1,0 +1,202 @@
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.metricCard {
+  background: var(--lc-card, #fff);
+  border: 1px solid var(--lc-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.metricLabel {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--lc-muted, #6b7280);
+}
+
+.metricValue {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--lc-text, #111827);
+  line-height: 1.1;
+}
+
+.dateRange {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.dateRangeLabel {
+  color: var(--lc-muted, #6b7280);
+}
+
+.dateRangeSelect {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--lc-border, #e5e7eb);
+  border-radius: 8px;
+  background: #fff;
+  font-family: inherit;
+  min-width: 140px;
+}
+
+.panel {
+  background: var(--lc-card, #fff);
+  border: 1px solid var(--lc-border, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 14px 16px 0;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lc-text, #111827);
+}
+
+.panelSubtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--lc-muted, #6b7280);
+}
+
+.panelBody {
+  padding: 12px 16px 16px;
+}
+
+.emptyChart {
+  margin: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--lc-muted, #6b7280);
+}
+
+.loadingWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px;
+  color: var(--lc-muted, #6b7280);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #378add;
+  border-radius: 50%;
+  animation: engagementSpin 0.7s linear infinite;
+}
+
+@keyframes engagementSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.funnelRow {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 2fr) 48px;
+  gap: 10px;
+  align-items: center;
+}
+
+.funnelLabelWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.funnelLabel {
+  font-size: 13px;
+  color: var(--lc-text, #111827);
+}
+
+.funnelCount {
+  font-size: 11px;
+  color: var(--lc-muted, #6b7280);
+}
+
+.funnelBarTrack {
+  height: 10px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.funnelBarFill {
+  height: 100%;
+  background: #378add;
+  border-radius: 999px;
+  min-width: 4px;
+  transition: width 0.2s ease;
+}
+
+.funnelRate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d9e75;
+  text-align: right;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--lc-border, #e5e7eb);
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--lc-muted, #6b7280);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chartWrap {
+  width: 100%;
+  height: 280px;
+}
+
+.chartLegend {
+  font-size: 12px;
+  color: var(--lc-muted, #6b7280);
+  margin-top: 8px;
+}

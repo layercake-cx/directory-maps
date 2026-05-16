@@ -31,10 +31,13 @@ import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
 import ClientTeam from "./pages/client/ClientUsers.jsx";
+import ClientEmail from "./pages/client/ClientEmail.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
 import ClientMapListings from "./pages/client/ClientMapListings.jsx";
+import MapStats from "./pages/client/MapStats.jsx";
+import ListingStats from "./pages/client/ListingStats.jsx";
 
 export default function App() {
   return (
@@ -60,10 +63,13 @@ export default function App() {
       >
         <Route index element={<ClientDashboard />} />
         <Route path="team" element={<ClientTeam />} />
+        <Route path="email" element={<ClientEmail />} />
         <Route path="maps/new" element={<ClientMapNew />} />
         <Route path="maps/:mapId" element={<ClientMapDashboard />} />
         <Route path="maps/:mapId/data" element={<ClientMapData />} />
         <Route path="maps/:mapId/listings" element={<ClientMapListings />} />
+        <Route path="maps/:mapId/stats" element={<MapStats />} />
+        <Route path="maps/:mapId/stats/listings/:listingId" element={<ListingStats />} />
       </Route>
 
       {/* Admin root -> clients */}

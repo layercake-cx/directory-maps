@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { invokeEdgeFunction } from "../lib/edgeFunctionFetch.js";
 
 const PLANS = [
   {
@@ -93,18 +94,14 @@ export default function PricingPlans({ originSection }) {
         .filter(Boolean)
         .join("\n");
 
-      const { data, error } = await supabase.functions.invoke("send_contact_message", {
-        body: {
-          toEmail: "info@example.com",
-          listingName: "Directory Maps – PoA enquiry",
-          senderName: name || organisation || email,
-          senderEmail: email,
-          senderPhone: "",
-          message: composed,
-        },
+      await invokeEdgeFunction("send_contact_message", {
+        toEmail: "info@example.com",
+        listingName: "Directory Maps – PoA enquiry",
+        senderName: name || organisation || email,
+        senderEmail: email,
+        senderPhone: "",
+        message: composed,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       setPoaSent(true);
       setPoaForm({
         name: "",
