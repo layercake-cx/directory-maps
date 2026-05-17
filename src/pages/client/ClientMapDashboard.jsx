@@ -164,6 +164,11 @@ export default function ClientMapDashboard() {
   const saveDraftThemeRef = useRef(null);
   const [draftStatus, setDraftStatus] = useState(""); // "" | "saving" | "saved"
 
+  // Draft auto-save for general fields
+  const draftGeneralTimerRef = useRef(null);
+  const saveDraftGeneralRef = useRef(null);
+  const [draftGeneralStatus, setDraftGeneralStatus] = useState("");
+
   // Placeholder for future real billing integration.
   // Layercake domain emails bypass the paywall for internal testing.
   const emailDomain = (user?.email ?? "").split("@")[1] ?? "";
@@ -532,6 +537,15 @@ export default function ClientMapDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor]);
 
+  // Auto-save general fields whenever they change
+  useEffect(() => {
+    if (!isLoadedRef.current || !mapId) return;
+    if (draftGeneralTimerRef.current) clearTimeout(draftGeneralTimerRef.current);
+    draftGeneralTimerRef.current = setTimeout(() => saveDraftGeneralRef.current?.(), 800);
+    return () => { if (draftGeneralTimerRef.current) clearTimeout(draftGeneralTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, slug, showListPanel, enableClustering, clusterRadius, centerLabel, defaultLat, defaultLng, defaultZoom]);
+
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
   }
@@ -811,6 +825,36 @@ export default function ClientMapDashboard() {
     }
   }
   saveDraftThemeRef.current = saveDraftTheme;
+
+  async function saveDraftGeneral() {
+    if (!mapId) return;
+    setDraftGeneralStatus("saving");
+    try {
+      const existingTheme = !map?.theme_json ? {} : typeof map.theme_json === "string" ? (() => { try { return JSON.parse(map.theme_json); } catch (_) { return {}; } })() : map.theme_json;
+      const themeJson = { ...existingTheme, centerLabel: centerLabel || undefined };
+      const payload = {
+        name: name.trim() || (map?.name ?? ""),
+        slug: slug.trim() || (map?.slug ?? ""),
+        default_lat: Number(defaultLat) || null,
+        default_lng: Number(defaultLng) || null,
+        default_zoom: Number(defaultZoom) || null,
+        show_list_panel: showListPanel,
+        enable_clustering: enableClustering,
+        theme_json: themeJson,
+      };
+      let { error } = await supabase.from("maps").update({ ...payload, cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)) }).eq("id", mapId);
+      if (error && String(error.message || "").includes("cluster_radius")) {
+        ({ error } = await supabase.from("maps").update(payload).eq("id", mapId));
+      }
+      if (error) throw error;
+      setMap((prev) => prev ? { ...prev, ...payload, theme_json: themeJson } : prev);
+      setDraftGeneralStatus("saved");
+      setTimeout(() => setDraftGeneralStatus(""), 2500);
+    } catch (_) {
+      setDraftGeneralStatus("");
+    }
+  }
+  saveDraftGeneralRef.current = saveDraftGeneral;
 
   const editTheme = useMemo(() => {
     const hex = (panelBackgroundColor || "#ffffff").trim().replace(/^#/, "");
@@ -1233,89 +1277,68 @@ export default function ClientMapDashboard() {
               {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
 
               {overlayTab === "detail" && (
-                <form onSubmit={saveMap}>
-                  <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftGeneralStatus && <div className={`draft-status draft-status--${draftGeneralStatus}`}>{draftGeneralStatus === "saving" ? "Saving…" : "✓ Saved"}</div>}
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Map</p>
                     <Field label="Map name">
                       <input value={name} onChange={(e) => setName(e.target.value)} />
                     </Field>
                     <Field label="Slug">
                       <input value={slug} onChange={(e) => setSlug(e.target.value)} />
                     </Field>
-                    <Field label="Map centre">
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          value={locationQuery}
-                          onChange={(e) => setLocationQuery(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
-                          placeholder="Search city, country or address…"
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={lookupLocation}
-                          disabled={geocoding}
-                          style={{ flexShrink: 0 }}
-                        >
-                          {geocoding ? "Searching…" : "Search"}
-                        </button>
-                      </div>
-                      {centerLabel && (
-                        <div style={{ fontSize: 12, color: "var(--lc-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                            <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
-                          </svg>
-                          {centerLabel}
-                        </div>
-                      )}
-                    </Field>
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={showListPanel}
-                          onChange={(e) => setShowListPanel(e.target.checked)}
-                        />
-                        Show list panel
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={enableClustering}
-                          onChange={(e) => setEnableClustering(e.target.checked)}
-                        />
-                        Enable clustering
-                      </label>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Location</p>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
+                        placeholder="Search city, country or address…"
+                        style={{ flex: 1, minWidth: 0 }}
+                      />
+                      <button className="btn" type="button" onClick={lookupLocation} disabled={geocoding} style={{ flexShrink: 0 }}>
+                        {geocoding ? "Searching…" : "Search"}
+                      </button>
                     </div>
-                    {enableClustering && (
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
-                          Clustering level (radius): <strong>{clusterRadius}</strong> px
-                        </div>
-                        <input
-                          type="range"
-                          min={40}
-                          max={200}
-                          step={10}
-                          value={clusterRadius}
-                          onChange={(e) => setClusterRadius(Number(e.target.value))}
-                          style={{ width: "100%", maxWidth: 280 }}
-                        />
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                          Higher = more grouping. Updates the map as you drag.
-                        </div>
+                    {centerLabel && (
+                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, background: "rgba(74,155,170,0.1)", border: "1px solid rgba(74,155,170,0.3)", borderRadius: 8, padding: "8px 12px" }}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: "var(--lc-brand)" }}>
+                          <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
+                        </svg>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--lc-brand)" }}>{centerLabel}</span>
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                      <button className="btn btn-primary" type="submit" disabled={saving}>
-                        {saving ? "Saving…" : "Save"}
-                      </button>
-                      <button className="btn" type="button" onClick={deleteMap} disabled={saving}>
-                        Delete map
-                      </button>
-                    </div>
                   </div>
-                </form>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Display</p>
+                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                      <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+                      Show list panel
+                    </label>
+                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                      <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
+                      Enable clustering
+                    </label>
+                    {enableClustering && (
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Clustering radius: <strong>{clusterRadius}px</strong></div>
+                        <input type="range" min={40} max={200} step={10} value={clusterRadius} onChange={(e) => setClusterRadius(Number(e.target.value))} style={{ width: "100%" }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Danger zone</p>
+                    <button className="btn btn-danger" type="button" onClick={deleteMap} disabled={saving}>
+                      Delete map
+                    </button>
+                  </div>
+                </div>
               )}
 
               {overlayTab === "design" && (
