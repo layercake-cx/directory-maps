@@ -1111,7 +1111,7 @@ export default function AdminMapDashboard() {
     >
       <div className="admin-map-page">
         <div className="admin-map-page__map-wrap">
-          {overlayTab ? (
+          {(overlayTab && overlayTab !== "publish") ? (
             <div
               className="admin-map-overlay__backdrop"
               onClick={closeOverlay}
