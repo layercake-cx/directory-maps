@@ -188,6 +188,37 @@ export default function ClientMapDashboard() {
 </iframe>`;
   }, [embedSrc]);
 
+  const [thumbSize, setThumbSize] = useState("medium");
+
+  const embedThumbnail = useMemo(() => {
+    const sizes = { small: [240, 160], medium: [360, 240], large: [480, 320] };
+    const [w, h] = sizes[thumbSize] || sizes.medium;
+    const iw = 1200, ih = Math.round(iw * (h / w));
+    const scale = (w / iw).toFixed(4);
+    const uid = `dm-lb-${String(mapId).replace(/[^a-z0-9]/gi, "")}`;
+    return `<style>
+.dm-thumb{width:${w}px;height:${h}px;position:relative;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.dm-thumb iframe{width:${iw}px;height:${ih}px;border:0;transform:scale(${scale});transform-origin:top left;pointer-events:none}
+.dm-thumb-cta{position:absolute;inset:0;background:linear-gradient(transparent 55%,rgba(0,0,0,.35));display:flex;align-items:flex-end;padding:12px}
+.dm-thumb-cta span{color:#fff;font:600 13px/1 system-ui,sans-serif;letter-spacing:.01em}
+.dm-lb{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.82);align-items:center;justify-content:center}
+.dm-lb.open{display:flex}
+.dm-lb-inner{position:relative;width:90vw;max-width:1200px;height:85vh;border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.dm-lb-close{position:absolute;top:12px;right:12px;z-index:1;width:34px;height:34px;border-radius:50%;background:#fff;border:none;font-size:20px;line-height:34px;text-align:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.dm-lb iframe{width:100%;height:100%;border:0}
+</style>
+<div class="dm-thumb" onclick="document.getElementById('${uid}').classList.add('open')">
+  <iframe src="${embedSrc}" loading="lazy" scrolling="no"></iframe>
+  <div class="dm-thumb-cta"><span>View map →</span></div>
+</div>
+<div class="dm-lb" id="${uid}" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="dm-lb-inner">
+    <button class="dm-lb-close" onclick="document.getElementById('${uid}').classList.remove('open')" aria-label="Close">×</button>
+    <iframe src="${embedSrc}" loading="lazy" allowfullscreen></iframe>
+  </div>
+</div>`;
+  }, [embedSrc, mapId, thumbSize]);
+
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
@@ -557,6 +588,12 @@ export default function ClientMapDashboard() {
   async function copyEmbed() {
     await navigator.clipboard.writeText(embedIframe);
     setMsg("Embed code copied.");
+    window.setTimeout(() => setMsg(""), 2000);
+  }
+
+  async function copyThumbnailEmbed() {
+    await navigator.clipboard.writeText(embedThumbnail);
+    setMsg("Thumbnail embed code copied.");
     window.setTimeout(() => setMsg(""), 1600);
   }
 
@@ -1827,8 +1864,8 @@ export default function ClientMapDashboard() {
                           {embedSrc}
                         </code>
                       </div>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed code</div>
+                      <div className="panel-section">
+                        <p className="panel-section__title">Full embed</p>
                         <pre
                           style={{
                             margin: 0,
@@ -1842,14 +1879,57 @@ export default function ClientMapDashboard() {
                         >
                           {embedIframe}
                         </pre>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <button className="btn" type="button" onClick={copyEmbed}>
+                            Copy code
+                          </button>
+                          <button className="btn" type="button" onClick={openEmbed}>
+                            Preview
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button className="btn" type="button" onClick={copyEmbed}>
-                          Copy embed code
-                        </button>
-                        <button className="btn" type="button" onClick={openEmbed}>
-                          Launch map
-                        </button>
+
+                      <div className="panel-section">
+                        <p className="panel-section__title">Thumbnail embed</p>
+                        <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--lc-muted)" }}>
+                          A clickable thumbnail that expands to the full map.
+                        </p>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                          {["small", "medium", "large"].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className={`btn btn-sm${thumbSize === s ? " btn-primary" : ""}`}
+                              onClick={() => setThumbSize(s)}
+                            >
+                              {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--lc-muted)", marginBottom: 8 }}>
+                          {thumbSize === "small" && "240 × 160 px"}
+                          {thumbSize === "medium" && "360 × 240 px"}
+                          {thumbSize === "large" && "480 × 320 px"}
+                        </div>
+                        <pre
+                          style={{
+                            margin: 0,
+                            padding: 10,
+                            border: "1px solid var(--lc-border)",
+                            borderRadius: 10,
+                            fontSize: 11,
+                            overflow: "auto",
+                            whiteSpace: "pre-wrap",
+                            maxHeight: 180,
+                          }}
+                        >
+                          {embedThumbnail}
+                        </pre>
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <button className="btn" type="button" onClick={copyThumbnailEmbed}>
+                            Copy code
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}
