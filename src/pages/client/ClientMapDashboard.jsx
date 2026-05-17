@@ -1251,6 +1251,180 @@ export default function ClientMapDashboard() {
           )}
         </div>
 
+        {overlayTab === "publish" && (
+          <div className="publish-page">
+            <div className="publish-page__inner">
+              {/* Back button */}
+              <button
+                type="button"
+                className="publish-page__back"
+                onClick={() => setOverlayTab(null)}
+              >
+                ← Back to map
+              </button>
+
+              {!hasActiveSubscription ? (
+                <PricingPlans originSection="Client publish tab" />
+              ) : (
+                <>
+                  {/* Header card */}
+                  <div className="publish-page__header-card">
+                    {/* Map thumbnail */}
+                    <div className="publish-page__map-thumb">
+                      <iframe
+                        src={embedSrc}
+                        title="Map preview"
+                        tabIndex={-1}
+                      />
+                    </div>
+
+                    {/* Meta + actions */}
+                    <div className="publish-page__header-meta">
+                      <h2 className="publish-page__map-name">{map?.name || "Untitled map"}</h2>
+                      <div style={{ fontSize: 13, color: "var(--lc-muted)" }}>
+                        {publishedAt ? (
+                          <>Last published: <strong style={{ color: "var(--lc-text)" }}>{new Date(publishedAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</strong></>
+                        ) : (
+                          "Not yet published"
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={publishNote}
+                        onChange={(e) => setPublishNote(e.target.value)}
+                        placeholder="Publish note (optional)"
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", fontSize: 13, boxSizing: "border-box" }}
+                      />
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={discardDraft}
+                          disabled={discarding || !publishedSnapshot || !hasUnpublishedChanges}
+                        >
+                          {discarding ? "Resetting…" : "Discard draft"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
+                          onClick={publishMap}
+                          disabled={!hasUnpublishedChanges || publishing}
+                        >
+                          {publishing ? "Publishing…" : hasUnpublishedChanges ? "▶ Publish changes" : "✓ Published"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Embed panels */}
+                  <div className="publish-page__embeds">
+                    <div className="panel-section">
+                      <p className="panel-section__title">Full embed</p>
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: 10,
+                          border: "1px solid var(--lc-border)",
+                          borderRadius: 10,
+                          fontSize: 12,
+                          overflow: "auto",
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {embedIframe}
+                      </pre>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button className="btn" type="button" onClick={copyEmbed}>Copy code</button>
+                        <button className="btn" type="button" onClick={openEmbed}>Preview</button>
+                      </div>
+                    </div>
+
+                    <div className="panel-section">
+                      <p className="panel-section__title">Thumbnail embed</p>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        {["small", "medium", "large"].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`btn btn-sm${thumbSize === s ? " btn-primary" : ""}`}
+                            onClick={() => setThumbSize(s)}
+                          >
+                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: 10,
+                          border: "1px solid var(--lc-border)",
+                          borderRadius: 10,
+                          fontSize: 11,
+                          overflow: "auto",
+                          whiteSpace: "pre-wrap",
+                          maxHeight: 180,
+                        }}
+                      >
+                        {embedThumbnail}
+                      </pre>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn" type="button" onClick={copyThumbnailEmbed}>Copy code</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Version history */}
+                  {publicationHistory.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 13, opacity: 0.7, fontWeight: 600, marginBottom: 10 }}>Version history</div>
+                      <div className="publish-page__versions">
+                        {publicationHistory.map((row) => {
+                          const isCurrent = row.id === map?.current_publication_id;
+                          const staticMapUrl = apiKey
+                            ? `https://maps.googleapis.com/maps/api/staticmap?center=${row.config?.default_lat ?? defaultLat},${row.config?.default_lng ?? defaultLng}&zoom=${row.config?.default_zoom ?? defaultZoom ?? 10}&size=160x90&scale=2&key=${apiKey}`
+                            : null;
+                          return (
+                            <div
+                              key={row.id}
+                              className={`publish-page__version-card${isCurrent ? " publish-page__version-card--current" : ""}`}
+                            >
+                              <div className="publish-page__version-thumb">
+                                {staticMapUrl ? (
+                                  <img src={staticMapUrl} alt={`v${row.version} map`} />
+                                ) : null}
+                              </div>
+                              <div className="publish-page__version-info">
+                                <div style={{ fontWeight: 700, fontSize: 13 }}>v{row.version}</div>
+                                <div style={{ fontSize: 11, color: "var(--lc-muted)" }}>
+                                  {new Date(row.published_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                                </div>
+                                {row.note ? <div style={{ fontSize: 11, color: "var(--lc-muted)" }}>{row.note}</div> : null}
+                                {isCurrent ? (
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--lc-brand)" }}>current</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{ marginTop: 4, fontSize: 11 }}
+                                    disabled={rollingBack}
+                                    onClick={() => rollbackToPublication(row.id)}
+                                  >
+                                    Restore
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="admin-map-page__right">
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
@@ -1297,7 +1471,7 @@ export default function ClientMapDashboard() {
           </div>
 
           <div
-            className={`admin-map-overlay__panel ${overlayTab ? "admin-map-overlay__panel--open" : ""}`}
+            className={`admin-map-overlay__panel ${(overlayTab && overlayTab !== "publish") ? "admin-map-overlay__panel--open" : ""}`}
             role="dialog"
             aria-label={overlayTab ? `${overlayTab} settings` : ""}
             aria-hidden={!overlayTab}
@@ -1734,207 +1908,8 @@ export default function ClientMapDashboard() {
                 </div>
               )}
 
-              
-              {overlayTab === "publish" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  {!hasActiveSubscription ? (
-                    <div style={{ display: "grid", gap: 16 }}>
-                      <div>
-                        <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.85 }}>
-                          To publish this map and use the embed, choose a subscription plan below. You can still design
-                          and preview your map without a plan.
-                        </p>
-                      </div>
-                      <PricingPlans originSection="Client publish tab" />
-                    </div>
-                  ) : (
-                    <>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div style={{ fontSize: 13, opacity: 0.85 }}>
-                          {publishedAt ? (
-                            <>
-                              Last published: <strong>{new Date(publishedAt).toLocaleString()}</strong>
-                            </>
-                          ) : (
-                            "This map has not been published yet. Embeds stay blank until you publish."
-                          )}
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={discardDraft}
-                            disabled={discarding || !publishedSnapshot || !hasUnpublishedChanges}
-                          >
-                            {discarding ? "Resetting…" : "Discard draft"}
-                          </button>
-                          <button
-                            className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
-                            type="button"
-                            onClick={publishMap}
-                            disabled={!hasUnpublishedChanges || publishing}
-                          >
-                            {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
-                          </button>
-                        </div>
-                      </div>
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span style={{ fontSize: 13, opacity: 0.85 }}>Publish note (optional)</span>
-                        <input
-                          type="text"
-                          value={publishNote}
-                          onChange={(e) => setPublishNote(e.target.value)}
-                          placeholder="e.g. Launch checklist complete"
-                          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", maxWidth: 420 }}
-                        />
-                      </label>
-                      <div style={{ fontSize: 12, opacity: 0.75 }}>
-                        Saving stores draft settings only. Publishing versions what embeds show for map layout and group styling;
-                        synced listing data updates live.
-                      </div>
-                      {publicationHistory.length > 0 ? (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          <div style={{ fontSize: 13, opacity: 0.85 }}>Publish history</div>
-                          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-                            {publicationHistory.map((row) => {
-                              const isCurrent = row.id === map?.current_publication_id;
-                              return (
-                                <li
-                                  key={row.id}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 10,
-                                    flexWrap: "wrap",
-                                    padding: "8px 10px",
-                                    border: "1px solid var(--lc-border)",
-                                    borderRadius: 10,
-                                    fontSize: 13,
-                                  }}
-                                >
-                                  <span>
-                                    <strong>v{row.version}</strong>
-                                    {" · "}
-                                    {new Date(row.published_at).toLocaleString()}
-                                    {row.note ? ` · ${row.note}` : ""}
-                                    {isCurrent ? (
-                                      <>
-                                        {" "}
-                                        <span style={{ opacity: 0.85 }}>(current)</span>
-                                      </>
-                                    ) : null}
-                                  </span>
-                                  {!isCurrent ? (
-                                    <button
-                                      type="button"
-                                      className="btn"
-                                      disabled={rollingBack}
-                                      onClick={() => rollbackToPublication(row.id)}
-                                    >
-                                      Restore
-                                    </button>
-                                  ) : null}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ) : null}
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed URL</div>
-                        <code
-                          style={{
-                            display: "block",
-                            padding: 10,
-                            border: "1px solid var(--lc-border)",
-                            borderRadius: 10,
-                            fontSize: 12,
-                            wordBreak: "break-all",
-                          }}
-                        >
-                          {embedSrc}
-                        </code>
-                      </div>
-                      <div className="panel-section">
-                        <p className="panel-section__title">Full embed</p>
-                        <pre
-                          style={{
-                            margin: 0,
-                            padding: 10,
-                            border: "1px solid var(--lc-border)",
-                            borderRadius: 10,
-                            fontSize: 12,
-                            overflow: "auto",
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
-                          {embedIframe}
-                        </pre>
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <button className="btn" type="button" onClick={copyEmbed}>
-                            Copy code
-                          </button>
-                          <button className="btn" type="button" onClick={openEmbed}>
-                            Preview
-                          </button>
-                        </div>
-                      </div>
 
-                      <div className="panel-section">
-                        <p className="panel-section__title">Thumbnail embed</p>
-                        <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--lc-muted)" }}>
-                          A clickable thumbnail that expands to the full map.
-                        </p>
-                        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                          {["small", "medium", "large"].map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className={`btn btn-sm${thumbSize === s ? " btn-primary" : ""}`}
-                              onClick={() => setThumbSize(s)}
-                            >
-                              {s.charAt(0).toUpperCase() + s.slice(1)}
-                            </button>
-                          ))}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--lc-muted)", marginBottom: 8 }}>
-                          {thumbSize === "small" && "240 × 160 px"}
-                          {thumbSize === "medium" && "360 × 240 px"}
-                          {thumbSize === "large" && "480 × 320 px"}
-                        </div>
-                        <pre
-                          style={{
-                            margin: 0,
-                            padding: 10,
-                            border: "1px solid var(--lc-border)",
-                            borderRadius: 10,
-                            fontSize: 11,
-                            overflow: "auto",
-                            whiteSpace: "pre-wrap",
-                            maxHeight: 180,
-                          }}
-                        >
-                          {embedThumbnail}
-                        </pre>
-                        <div style={{ display: "flex", gap: 10 }}>
-                          <button className="btn" type="button" onClick={copyThumbnailEmbed}>
-                            Copy code
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* publish content moved to full-page overlay below */}
 
               {overlayTab === "search" && (
                 <div style={{ display: "grid", gap: 14 }}>
