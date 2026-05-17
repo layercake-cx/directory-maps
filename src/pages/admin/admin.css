@@ -626,12 +626,17 @@ a.btn-primary:hover {
   overflow-y: auto;
 }
 
+.admin-map-page__controls-divider {
+  border: none;
+  border-top: 1px solid var(--lc-border);
+  margin: 4px 0;
+}
+
 .admin-map-page__controls-footer {
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 12px;
+  padding-top: 4px;
 }
 
 .admin-map-page__controls-title {
@@ -876,7 +881,6 @@ a.btn-primary:hover {
   overflow: hidden;
   background: var(--lc-card);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-  border-radius: 14px 0 0 14px;
   display: flex;
   flex-direction: column;
   transition: width 0.25s ease, min-width 0.25s ease;

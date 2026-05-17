@@ -1169,7 +1169,8 @@ export default function AdminMapDashboard() {
         <div className="admin-map-page__right">
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
-            {TABS.map((t) => (
+
+            {["detail", "search"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -1179,43 +1180,33 @@ export default function AdminMapDashboard() {
                 {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
-            <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
+
+            <hr className="admin-map-page__controls-divider" />
+
+            {["design", "panels", "groups"].map((t) => (
               <button
+                key={t}
                 type="button"
-                className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
-                onClick={() => setMapOptionsOpen((o) => !o)}
-                aria-expanded={mapOptionsOpen}
-                aria-haspopup="true"
+                className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
+                onClick={() => openOverlay(t)}
               >
-                Map type
+                {t === "design" ? "Pin Design" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
-              {mapOptionsOpen && (
-                <div className="admin-map-page__map-options-panel" role="menu">
-                  {MAP_TYPES.map(({ id, label }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={mapTypeId === id}
-                      className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
-                      onClick={() => {
-                        setMapTypeId(id);
-                        setMapOptionsOpen(false);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            ))}
+
+            <hr className="admin-map-page__controls-divider" />
+
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
-                Launch map
+                Preview Map
               </button>
-              <Link to={`/admin/clients/${encodeURIComponent(clientId)}`} className="admin-map-page__control-btn">
-                Exit
-              </Link>
+              <button
+                type="button"
+                className={`admin-map-page__control-btn ${overlayTab === "publish" ? "is-open" : ""}`}
+                onClick={() => openOverlay("publish")}
+              >
+                Publish Map
+              </button>
               {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
             </div>
           </div>
@@ -1228,7 +1219,7 @@ export default function AdminMapDashboard() {
           >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
+                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab === "design" ? "Pin Design" : overlayTab === "publish" ? "Publish Map" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×

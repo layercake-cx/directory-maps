@@ -20,7 +20,9 @@ const TABS = ["detail", "design", "panels", "categories", "publish", "search"];
 
 function tabLabel(t) {
   if (t === "detail") return "General";
+  if (t === "design") return "Pin Design";
   if (t === "categories") return "Categories";
+  if (t === "publish") return "Publish Map";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 const MAP_TYPES = [
@@ -1164,7 +1166,8 @@ export default function ClientMapDashboard() {
         <div className="admin-map-page__right">
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
-            {TABS.map((t) => (
+
+            {(["detail", "search"]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -1174,56 +1177,33 @@ export default function ClientMapDashboard() {
                 {tabLabel(t)}
               </button>
             ))}
-            {(!listings || listings.length === 0) && (
-              <div style={{ margin: "6px 0 8px 0", padding: "6px 8px", borderRadius: 8, background: "rgba(74,155,170,0.06)", fontSize: 11, lineHeight: 1.4 }}>
-                Start by loading your places in <strong>Data</strong> →{" "}
-                <button
-                  type="button"
-                  onClick={() => openOverlay("data")}
-                  style={{ border: "none", background: "none", padding: 0, margin: 0, color: "var(--lc-brand, #4A9BAA)", cursor: "pointer", font: "inherit" }}
-                >
-                  open data panel
-                </button>
-                .
-              </div>
-            )}
-            <div className="admin-map-page__map-options-wrap" ref={mapOptionsRef}>
+
+            <hr className="admin-map-page__controls-divider" />
+
+            {(["design", "panels", "categories"]).map((t) => (
               <button
+                key={t}
                 type="button"
-                className={`admin-map-page__map-options-btn ${mapOptionsOpen ? "is-open" : ""}`}
-                onClick={() => setMapOptionsOpen((o) => !o)}
-                aria-expanded={mapOptionsOpen}
-                aria-haspopup="true"
+                className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
+                onClick={() => openOverlay(t)}
               >
-                Map type
+                {tabLabel(t)}
               </button>
-              {mapOptionsOpen && (
-                <div className="admin-map-page__map-options-panel" role="menu">
-                  {MAP_TYPES.map(({ id, label }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={mapTypeId === id}
-                      className={`admin-map-page__map-options-item ${mapTypeId === id ? "is-selected" : ""}`}
-                      onClick={() => {
-                        setMapTypeId(id);
-                        setMapOptionsOpen(false);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            ))}
+
+            <hr className="admin-map-page__controls-divider" />
+
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
-                Launch map
+                Preview Map
               </button>
-              <Link to="/client" className="admin-map-page__control-btn">
-                Exit
-              </Link>
+              <button
+                type="button"
+                className={`admin-map-page__control-btn ${overlayTab === "publish" ? "is-open" : ""}`}
+                onClick={() => openOverlay("publish")}
+              >
+                Publish Map
+              </button>
               {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
             </div>
           </div>
