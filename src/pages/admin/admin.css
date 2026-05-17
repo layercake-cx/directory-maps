@@ -636,7 +636,7 @@ a.btn-primary:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 4px;
+  padding-top: 10px;
 }
 
 .admin-map-page__controls-title {
