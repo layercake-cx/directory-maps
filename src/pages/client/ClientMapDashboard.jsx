@@ -120,6 +120,7 @@ export default function ClientMapDashboard() {
   const [pinDetailLayout, setPinDetailLayout] = useState("map");
   const [panelLinkColor, setPanelLinkColor] = useState("#4A9BAA");
 
+  const [centerLabel, setCenterLabel] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
 
@@ -446,6 +447,7 @@ export default function ClientMapDashboard() {
             setPinSize(normalizePinSize(theme.pinSize));
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
+            setCenterLabel(theme.centerLabel ?? "");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -733,6 +735,7 @@ export default function ClientMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        centerLabel: centerLabel || undefined,
       };
       delete themeJson.pinFaviconUrl;
       const payloadBase = {
@@ -1013,10 +1016,11 @@ export default function ClientMapDashboard() {
       if (json.status !== "OK" || !json.results?.length) {
         throw new Error(`No results for "${q}" (status: ${json.status || "ERROR"})`);
       }
-      const loc = json.results[0].geometry.location;
+      const result = json.results[0];
+      const loc = result.geometry.location;
       setDefaultLat(String(loc.lat));
       setDefaultLng(String(loc.lng));
-      const approxType = json.results[0].types?.[0] || "";
+      const approxType = result.types?.[0] || "";
       const zoomGuess =
         approxType.includes("country") || approxType.includes("continent")
           ? 5
@@ -1024,8 +1028,11 @@ export default function ClientMapDashboard() {
           ? 7
           : 10;
       setDefaultZoom(String(zoomGuess));
-      setMsg(`Location set from "${q}".`);
-      window.setTimeout(() => setMsg(""), 2000);
+      const label = result.formatted_address || q;
+      setCenterLabel(label);
+      setLocationQuery("");
+      setMsg(`Map centred on ${label}.`);
+      window.setTimeout(() => setMsg(""), 3000);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
@@ -1234,36 +1241,33 @@ export default function ClientMapDashboard() {
                     <Field label="Slug">
                       <input value={slug} onChange={(e) => setSlug(e.target.value)} />
                     </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                      <Field label="Default lat">
-                        <input value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
-                      </Field>
-                      <Field label="Default lng">
-                        <input value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
-                      </Field>
-                      <Field label="Default zoom">
-                        <input value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
-                      </Field>
-                    </div>
-                    <Field label="Find location (city or country)">
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <Field label="Map centre">
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <input
                           value={locationQuery}
                           onChange={(e) => setLocationQuery(e.target.value)}
-                          placeholder="e.g. London, UK or Canada"
+                          onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
+                          placeholder="Search city, country or address…"
+                          style={{ flex: 1 }}
                         />
                         <button
                           className="btn"
                           type="button"
                           onClick={lookupLocation}
                           disabled={geocoding}
+                          style={{ flexShrink: 0 }}
                         >
                           {geocoding ? "Searching…" : "Search"}
                         </button>
                       </div>
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                        Looks up lat/lng using Google Geocoding and updates the defaults.
-                      </div>
+                      {centerLabel && (
+                        <div style={{ fontSize: 12, color: "var(--lc-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
+                          </svg>
+                          {centerLabel}
+                        </div>
+                      )}
                     </Field>
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                       <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
