@@ -1455,16 +1455,17 @@ export default function ClientMapDashboard() {
 
             <hr className="admin-map-page__controls-divider" />
 
+            <button
+              type="button"
+              className={`admin-map-page__tab ${overlayTab === "publish" ? "is-open" : ""}`}
+              onClick={() => openOverlay("publish")}
+            >
+              Publish Map
+            </button>
+
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
                 Preview Map
-              </button>
-              <button
-                type="button"
-                className={`admin-map-page__control-btn ${overlayTab === "publish" ? "is-open" : ""}`}
-                onClick={() => openOverlay("publish")}
-              >
-                Publish Map
               </button>
               {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
             </div>
