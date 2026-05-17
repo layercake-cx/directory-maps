@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import styles from "./MapEditSubNav.module.css";
+import { useMapDraft } from "../context/MapDraftContext.js";
 
 function parseMapEditRoute(pathname) {
   const client = pathname.match(/^\/client\/maps\/([^/]+)(?:\/(.*))?$/);
@@ -69,7 +70,7 @@ function InlineMapEditSubNav({ route, mapName, linkClassName }) {
 }
 
 /** Standalone variant — renders as its own bar below the primary nav */
-function StandaloneMapEditSubNav({ route, mapName }) {
+function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen }) {
   return (
     <nav className={styles.subNav} aria-label="Map sections">
       <div className={styles.subNavInner}>
@@ -84,7 +85,7 @@ function StandaloneMapEditSubNav({ route, mapName }) {
         <div className={styles.subNavTabs}>
           <Link
             to={route.designPath}
-            className={`${styles.subNavTab} ${route.isDesign ? styles.subNavTabActive : ""}`}
+            className={`${styles.subNavTab} ${route.isDesign && !isPublishOpen ? styles.subNavTabActive : ""}`}
           >
             Design
           </Link>
@@ -102,6 +103,13 @@ function StandaloneMapEditSubNav({ route, mapName }) {
               Stats
             </Link>
           ) : null}
+          <button
+            type="button"
+            onClick={onPublish}
+            className={`${styles.subNavTab} ${styles.subNavTabPublish} ${isPublishOpen ? styles.subNavTabActive : ""} ${hasDraft ? styles.subNavTabDraft : ""}`}
+          >
+            Publish Map
+          </button>
         </div>
       </div>
     </nav>
@@ -112,6 +120,7 @@ export default function MapEditSubNav({ linkClassName = "", standalone = false }
   const { pathname } = useLocation();
   const route = useMemo(() => parseMapEditRoute(pathname || "/"), [pathname]);
   const [mapName, setMapName] = useState("");
+  const { hasDraft, openPublishRef } = useMapDraft();
 
   useEffect(() => {
     if (!route?.mapId) {
@@ -129,7 +138,15 @@ export default function MapEditSubNav({ linkClassName = "", standalone = false }
   if (!route) return null;
 
   if (standalone) {
-    return <StandaloneMapEditSubNav route={route} mapName={mapName} />;
+    return (
+      <StandaloneMapEditSubNav
+        route={route}
+        mapName={mapName}
+        hasDraft={hasDraft}
+        onPublish={() => openPublishRef.current?.()}
+        isPublishOpen={false}
+      />
+    );
   }
 
   return <InlineMapEditSubNav route={route} mapName={mapName} linkClassName={linkClassName} />;

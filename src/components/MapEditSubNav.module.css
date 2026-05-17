@@ -93,3 +93,23 @@
   color: #1a363b;
   border-bottom-color: #4a9ba9;
 }
+
+.subNavTabPublish {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  margin-left: 8px;
+}
+
+.subNavTabDraft {
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border-radius: 6px 6px 0 0;
+  font-weight: 600;
+}
+
+.subNavTabDraft:hover {
+  background: rgba(234, 179, 8, 0.2);
+  color: #78350f;
+}

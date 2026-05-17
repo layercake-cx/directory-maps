@@ -4,6 +4,7 @@ import { signOut } from "../../lib/auth";
 import BrandLogo from "../../components/BrandLogo.jsx";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
+import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import "../admin/admin.css";
@@ -19,6 +20,8 @@ export default function ClientLayout() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const pathname = location.pathname || "/";
+  const [hasDraft, setHasDraft] = useState(false);
+  const openPublishRef = useRef(null);
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
   const kickedUnlinkedRef = useRef(false);
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
@@ -172,6 +175,7 @@ export default function ClientLayout() {
 
   return (
     <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
+      <MapDraftContext.Provider value={{ hasDraft, setHasDraft, openPublishRef }}>
       <>
         {showVerifiedBanner && (
           <div
@@ -217,6 +221,7 @@ export default function ClientLayout() {
 
         {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
       </>
+      </MapDraftContext.Provider>
     </ClientProvider>
   );
 }

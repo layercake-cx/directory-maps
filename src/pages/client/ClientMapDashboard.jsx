@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMapDraft } from "../../context/MapDraftContext.js";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
@@ -81,6 +82,7 @@ export default function ClientMapDashboard() {
   const { mapId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { setHasDraft, openPublishRef } = useMapDraft();
 
   const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
@@ -383,6 +385,9 @@ export default function ClientMapDashboard() {
     if (!pub) return true;
     return !publicationConfigsEqual(draft, pub);
   }, [draftPublicationConfig, publishedSnapshot]);
+
+  useEffect(() => { setHasDraft(hasUnpublishedChanges); }, [hasUnpublishedChanges, setHasDraft]);
+  useEffect(() => () => setHasDraft(false), [setHasDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -862,6 +867,7 @@ export default function ClientMapDashboard() {
     }
   }
   saveDraftThemeRef.current = saveDraftTheme;
+  openPublishRef.current = () => setOverlayTab("publish");
 
   async function saveDraftGeneral() {
     if (!mapId) return;
@@ -1452,16 +1458,6 @@ export default function ClientMapDashboard() {
                 {tabLabel(t)}
               </button>
             ))}
-
-            <hr className="admin-map-page__controls-divider" />
-
-            <button
-              type="button"
-              className={`admin-map-page__tab ${overlayTab === "publish" ? "is-open" : ""}`}
-              onClick={() => openOverlay("publish")}
-            >
-              Publish Map
-            </button>
 
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
