@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, hasSupabaseConfig } from "../lib/supabase";
 import { getMyRole, getSession } from "../lib/auth";
 import { provisionClientFromPendingMetadata } from "../lib/provisionClientSignup";
@@ -16,6 +16,8 @@ export function AuthProvider({ children }) {
   });
   /** Bumps after signup provisioning runs so ClientLayout can refetch contact. */
   const [provisionVersion, setProvisionVersion] = useState(0);
+  /** User id we last ran provision + loadRole for (avoids iframe/tab duplicate auth events). */
+  const lastProvisionedUserIdRef = useRef(null);
 
   const runSignupProvision = useCallback(async (user) => {
     if (!user) {
@@ -75,6 +77,7 @@ export function AuthProvider({ children }) {
         setState((s) => ({ ...s, initializing: false, session, user }));
         await runSignupProvision(user);
         await loadRole(user);
+        lastProvisionedUserIdRef.current = user?.id ?? null;
         setProvisionVersion((n) => n + 1);
       } catch (e) {
         if (!mounted) return;
@@ -112,13 +115,49 @@ export function AuthProvider({ children }) {
       }
 
       const user = session?.user ?? null;
+      const userId = user?.id ?? null;
+
+      if (!userId) {
+        lastProvisionedUserIdRef.current = null;
+        setState((s) => ({
+          ...s,
+          initializing: false,
+          session,
+          user: null,
+          role: null,
+          roleLoading: false,
+          error: null,
+        }));
+        queueMicrotask(() => {
+          void (async () => {
+            await runSignupProvision(null);
+            await loadRole(null);
+            setProvisionVersion((n) => n + 1);
+          })();
+        });
+        return;
+      }
+
+      // Same user as last provision (e.g. INITIAL_SESSION from publish-preview iframe) — update session only.
+      if (userId === lastProvisionedUserIdRef.current) {
+        setState((s) => ({
+          ...s,
+          initializing: false,
+          session,
+          user,
+          error: null,
+        }));
+        return;
+      }
+
+      lastProvisionedUserIdRef.current = userId;
       setState((s) => ({
         ...s,
         initializing: false,
         session,
         user,
         role: null,
-        roleLoading: !!user,
+        roleLoading: true,
         error: null,
       }));
       queueMicrotask(() => {

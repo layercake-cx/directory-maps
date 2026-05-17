@@ -1206,7 +1206,7 @@ export default function AdminMapDashboard() {
             <button
               type="button"
               className={`admin-map-page__tab ${overlayTab === "publish" ? "is-open" : ""}`}
-              onClick={() => openOverlay("publish")}
+              onClick={() => setOverlayTab("publish")}
             >
               Publish Map
             </button>

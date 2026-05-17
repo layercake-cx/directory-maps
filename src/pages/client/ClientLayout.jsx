@@ -21,10 +21,34 @@ export default function ClientLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const pathname = location.pathname || "/";
   const [hasDraft, setHasDraft] = useState(false);
+  const [publishPanelOpen, setPublishPanelOpen] = useState(false);
   const openPublishRef = useRef(null);
+  const closePublishRef = useRef(null);
+  const migratedPanelParamRef = useRef(false);
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
   const kickedUnlinkedRef = useRef(false);
+  const clientLoadedRef = useRef(false);
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
+
+  const isMapDetailRoute = pathname.startsWith("/client/maps/");
+  const isMapDesignRoute = /^\/client\/maps\/[^/]+$/.test(pathname);
+
+  useEffect(() => {
+    if (!isMapDesignRoute) {
+      setPublishPanelOpen(false);
+    }
+  }, [isMapDesignRoute]);
+
+  // One-time: migrate legacy ?panel=publish off the URL (was causing HashRouter remount loops).
+  useEffect(() => {
+    if (!isMapDetailRoute || migratedPanelParamRef.current) return;
+    if (searchParams.get("panel") !== "publish") return;
+    migratedPanelParamRef.current = true;
+    setPublishPanelOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("panel");
+    setSearchParams(next, { replace: true });
+  }, [isMapDetailRoute, pathname, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
@@ -42,16 +66,19 @@ export default function ClientLayout() {
   const [err, setErr] = useState("");
 
   const load = useCallback(async () => {
+    const isBackgroundRefresh = clientLoadedRef.current;
     try {
-      setLoading(true);
+      if (!isBackgroundRefresh) setLoading(true);
       setErr("");
       const { client: c, contact: ct } = await getClientAndContact();
       setClient(c);
       setContact(ct);
+      clientLoadedRef.current = true;
     } catch (e) {
       setErr(e?.message ?? String(e));
       setClient(null);
       setContact(null);
+      clientLoadedRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -83,7 +110,7 @@ export default function ClientLayout() {
     signOut().catch(() => {});
   }
 
-  if (loading || roleLoading) {
+  if ((loading && client === null) || (roleLoading && client === null)) {
     return (
       <div className="page-main">
         <p>Loading…</p>
@@ -171,11 +198,18 @@ export default function ClientLayout() {
     return true;
   });
 
-  const isMapDetailRoute = pathname.startsWith("/client/maps/");
-
   return (
     <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
-      <MapDraftContext.Provider value={{ hasDraft, setHasDraft, openPublishRef }}>
+      <MapDraftContext.Provider
+        value={{
+          hasDraft,
+          setHasDraft,
+          publishPanelOpen,
+          setPublishPanelOpen,
+          openPublishRef,
+          closePublishRef,
+        }}
+      >
       <>
         {showVerifiedBanner && (
           <div

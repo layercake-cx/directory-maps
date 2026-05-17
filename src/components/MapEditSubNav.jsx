@@ -70,7 +70,7 @@ function InlineMapEditSubNav({ route, mapName, linkClassName }) {
 }
 
 /** Standalone variant — renders as its own bar below the primary nav */
-function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen }) {
+function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen, onLeavePublish }) {
   return (
     <nav className={styles.subNav} aria-label="Map sections">
       <div className={styles.subNavInner}>
@@ -86,12 +86,14 @@ function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublis
           <Link
             to={route.designPath}
             className={`${styles.subNavTab} ${route.isDesign && !isPublishOpen ? styles.subNavTabActive : ""}`}
+            onClick={onLeavePublish}
           >
             Design
           </Link>
           <Link
             to={route.dataPath}
             className={`${styles.subNavTab} ${route.isData ? styles.subNavTabActive : ""}`}
+            onClick={onLeavePublish}
           >
             Data
           </Link>
@@ -99,6 +101,7 @@ function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublis
             <Link
               to={route.statsPath}
               className={`${styles.subNavTab} ${route.isStats ? styles.subNavTabActive : ""}`}
+              onClick={onLeavePublish}
             >
               Stats
             </Link>
@@ -120,7 +123,7 @@ export default function MapEditSubNav({ linkClassName = "", standalone = false }
   const { pathname } = useLocation();
   const route = useMemo(() => parseMapEditRoute(pathname || "/"), [pathname]);
   const [mapName, setMapName] = useState("");
-  const { hasDraft, openPublishRef } = useMapDraft();
+  const { hasDraft, publishPanelOpen, openPublishRef, closePublishRef } = useMapDraft();
 
   useEffect(() => {
     if (!route?.mapId) {
@@ -144,7 +147,8 @@ export default function MapEditSubNav({ linkClassName = "", standalone = false }
         mapName={mapName}
         hasDraft={hasDraft}
         onPublish={() => openPublishRef.current?.()}
-        isPublishOpen={false}
+        isPublishOpen={publishPanelOpen}
+        onLeavePublish={() => closePublishRef.current?.()}
       />
     );
   }

@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
+import MapTileThumb from "../../components/MapTileThumb.jsx";
 import styles from "./MapsView.module.css";
 
 const PlusIcon = () => (
@@ -52,43 +53,6 @@ function formatEditedAt(updatedAt) {
 }
 
 const GRID_SLOTS = 6;
-
-const THUMB_W = 300;
-const THUMB_H = 130;
-const TILE = 256;
-
-function MapTileThumb({ lat, lng, zoom }) {
-  if (lat == null || lng == null) return <div className={styles.mapThumbFallback} />;
-  const z = Math.max(1, Math.min(18, Math.round(zoom ?? 12)));
-  const n = Math.pow(2, z);
-  const latRad = (lat * Math.PI) / 180;
-  const xf = ((lng + 180) / 360) * n;
-  const yf = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
-  const cx = Math.floor(xf), cy = Math.floor(yf);
-  const ox = THUMB_W / 2 - (xf - cx) * TILE;
-  const oy = THUMB_H / 2 - (yf - cy) * TILE;
-  const tiles = [];
-  for (let dy = -1; dy <= 2; dy++) {
-    for (let dx = -1; dx <= 2; dx++) {
-      const tx = ((cx + dx) % n + n) % n;
-      const ty = cy + dy;
-      if (ty < 0 || ty >= n) continue;
-      const left = ox + dx * TILE, top = oy + dy * TILE;
-      if (left + TILE < 0 || left > THUMB_W || top + TILE < 0 || top > THUMB_H) continue;
-      tiles.push({ tx, ty, left, top });
-    }
-  }
-  return (
-    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#e8e0d8" }}>
-      {tiles.map(({ tx, ty, left, top }) => (
-        <img key={`${tx}-${ty}`} src={`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`}
-          width={TILE} height={TILE} alt=""
-          style={{ position: "absolute", left, top, display: "block", userSelect: "none" }}
-          draggable={false} loading="lazy" />
-      ))}
-    </div>
-  );
-}
 
 function getDataSource(map) {
   const src = map.map_data_sources?.[0];

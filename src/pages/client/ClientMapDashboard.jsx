@@ -6,6 +6,7 @@ import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import { useAuth } from "../../hooks/useAuth.js";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
+import MapTileThumb from "../../components/MapTileThumb.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale } from "../../lib/markerIcons";
 import {
@@ -82,7 +83,9 @@ export default function ClientMapDashboard() {
   const { mapId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { setHasDraft, openPublishRef } = useMapDraft();
+  const { setHasDraft, publishPanelOpen, setPublishPanelOpen, openPublishRef, closePublishRef } =
+    useMapDraft();
+  const isPublishOpen = publishPanelOpen;
 
   const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
@@ -180,15 +183,22 @@ export default function ClientMapDashboard() {
     return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
   }, [mapId]);
 
+  const [embedWidth, setEmbedWidth] = useState("100");
+  const [embedWidthUnit, setEmbedWidthUnit] = useState("%");
+  const [embedHeight, setEmbedHeight] = useState("800");
+
   const embedIframe = useMemo(() => {
+    const w = String(embedWidth).trim() || "100";
+    const widthAttr = embedWidthUnit === "%" ? `${w}%` : `${w}px`;
+    const h = String(embedHeight).trim() || "800";
     return `<iframe
   src="${embedSrc}"
-  width="100%"
-  height="800"
+  width="${widthAttr}"
+  height="${h}"
   style="border:0;border-radius:12px"
   loading="lazy">
 </iframe>`;
-  }, [embedSrc]);
+  }, [embedSrc, embedWidth, embedWidthUnit, embedHeight]);
 
   const [thumbSize, setThumbSize] = useState("medium");
 
@@ -394,7 +404,8 @@ export default function ClientMapDashboard() {
 
     (async () => {
       try {
-        setLoading(true);
+        const isSameMapReload = map?.id === mapId;
+        if (!isSameMapReload) setLoading(true);
         setErr("");
         setMsg("");
 
@@ -582,7 +593,17 @@ export default function ClientMapDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, slug, showListPanel, enableClustering, clusterRadius, centerLabel, defaultLat, defaultLng, defaultZoom]);
 
+  function closePublishPanel() {
+    setPublishPanelOpen(false);
+  }
+
+  function openPublishPanel() {
+    setOverlayTab(null);
+    setPublishPanelOpen(true);
+  }
+
   function openOverlay(tab) {
+    if (isPublishOpen) closePublishPanel();
     setOverlayTab((current) => (current === tab ? null : tab));
   }
 
@@ -867,7 +888,16 @@ export default function ClientMapDashboard() {
     }
   }
   saveDraftThemeRef.current = saveDraftTheme;
-  openPublishRef.current = () => setOverlayTab("publish");
+  openPublishRef.current = openPublishPanel;
+  closePublishRef.current = closePublishPanel;
+
+  const prevMapIdRef = useRef(null);
+  useEffect(() => {
+    if (prevMapIdRef.current != null && prevMapIdRef.current !== mapId) {
+      closePublishPanel();
+    }
+    prevMapIdRef.current = mapId;
+  }, [mapId, setPublishPanelOpen]);
 
   async function saveDraftGeneral() {
     if (!mapId) return;
@@ -1181,13 +1211,13 @@ export default function ClientMapDashboard() {
     }
   }
 
-  if (loading) return <div className="page-main">Loading…</div>;
+  if (loading && !map) return <div className="page-main">Loading…</div>;
 
   return (
     <main className="admin-main admin-main--map-page">
       <div className="admin-map-page">
         <div className="admin-map-page__map-wrap">
-          {(overlayTab && overlayTab !== "publish") ? (
+          {overlayTab && !isPublishOpen ? (
             <div
               className="admin-map-overlay__backdrop"
               onClick={closeOverlay}
@@ -1197,7 +1227,7 @@ export default function ClientMapDashboard() {
               tabIndex={0}
             />
           ) : null}
-          {apiKey ? (
+          {!isPublishOpen && (apiKey ? (
             <PublishedMapView
               apiKey={apiKey}
               center={mapCenter}
@@ -1254,17 +1284,17 @@ export default function ClientMapDashboard() {
             >
               Set VITE_GOOGLE_MAPS_API_KEY to show the map.
             </div>
-          )}
+          ))}
         </div>
 
-        {overlayTab === "publish" && (
+        {isPublishOpen && (
           <div className="publish-page">
             <div className="publish-page__inner">
               {/* Back button */}
               <button
                 type="button"
                 className="publish-page__back"
-                onClick={() => setOverlayTab(null)}
+                onClick={closePublishPanel}
               >
                 ← Back to map
               </button>
@@ -1277,10 +1307,12 @@ export default function ClientMapDashboard() {
                   <div className="publish-page__header-card">
                     {/* Map thumbnail */}
                     <div className="publish-page__map-thumb">
-                      <iframe
-                        src={embedSrc}
-                        title="Map preview"
-                        tabIndex={-1}
+                      <MapTileThumb
+                        lat={defaultLat || map?.default_lat}
+                        lng={defaultLng || map?.default_lng}
+                        zoom={defaultZoom ?? map?.default_zoom}
+                        width={180}
+                        height={130}
                       />
                     </div>
 
@@ -1324,30 +1356,52 @@ export default function ClientMapDashboard() {
 
                   {/* Embed panels */}
                   <div className="publish-page__embeds">
-                    <div className="panel-section">
+                    <div className="panel-section publish-page__embed-panel">
                       <p className="panel-section__title">Full embed</p>
-                      <pre
-                        style={{
-                          margin: 0,
-                          padding: 10,
-                          border: "1px solid var(--lc-border)",
-                          borderRadius: 10,
-                          fontSize: 12,
-                          overflow: "auto",
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {embedIframe}
-                      </pre>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div className="publish-page__embed-controls">
+                        <label className="publish-page__embed-control">
+                          <span className="publish-page__embed-control-label">Width</span>
+                          <input
+                            type="number"
+                            className="publish-page__embed-control-input"
+                            min={1}
+                            max={embedWidthUnit === "%" ? 100 : 4000}
+                            value={embedWidth}
+                            onChange={(e) => setEmbedWidth(e.target.value)}
+                          />
+                          <select
+                            className="publish-page__embed-control-unit"
+                            value={embedWidthUnit}
+                            onChange={(e) => setEmbedWidthUnit(e.target.value)}
+                            aria-label="Width unit"
+                          >
+                            <option value="%">%</option>
+                            <option value="px">px</option>
+                          </select>
+                        </label>
+                        <label className="publish-page__embed-control">
+                          <span className="publish-page__embed-control-label">Height</span>
+                          <input
+                            type="number"
+                            className="publish-page__embed-control-input"
+                            min={200}
+                            max={2400}
+                            value={embedHeight}
+                            onChange={(e) => setEmbedHeight(e.target.value)}
+                          />
+                          <span className="publish-page__embed-control-suffix">px</span>
+                        </label>
+                      </div>
+                      <pre className="publish-page__embed-code">{embedIframe}</pre>
+                      <div className="publish-page__embed-actions">
                         <button className="btn" type="button" onClick={copyEmbed}>Copy code</button>
                         <button className="btn" type="button" onClick={openEmbed}>Preview</button>
                       </div>
                     </div>
 
-                    <div className="panel-section">
+                    <div className="panel-section publish-page__embed-panel">
                       <p className="panel-section__title">Thumbnail embed</p>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                      <div className="publish-page__thumb-size">
                         {["small", "medium", "large"].map((s) => (
                           <button
                             key={s}
@@ -1359,21 +1413,8 @@ export default function ClientMapDashboard() {
                           </button>
                         ))}
                       </div>
-                      <pre
-                        style={{
-                          margin: 0,
-                          padding: 10,
-                          border: "1px solid var(--lc-border)",
-                          borderRadius: 10,
-                          fontSize: 11,
-                          overflow: "auto",
-                          whiteSpace: "pre-wrap",
-                          maxHeight: 180,
-                        }}
-                      >
-                        {embedThumbnail}
-                      </pre>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <pre className="publish-page__embed-code publish-page__embed-code--thumb">{embedThumbnail}</pre>
+                      <div className="publish-page__embed-actions">
                         <button className="btn" type="button" onClick={copyThumbnailEmbed}>Copy code</button>
                       </div>
                     </div>
@@ -1381,49 +1422,63 @@ export default function ClientMapDashboard() {
 
                   {/* Version history */}
                   {publicationHistory.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 13, opacity: 0.7, fontWeight: 600, marginBottom: 10 }}>Version history</div>
-                      <div className="publish-page__versions">
-                        {publicationHistory.map((row) => {
-                          const isCurrent = row.id === map?.current_publication_id;
-                          const staticMapUrl = apiKey
-                            ? `https://maps.googleapis.com/maps/api/staticmap?center=${row.config?.default_lat ?? defaultLat},${row.config?.default_lng ?? defaultLng}&zoom=${row.config?.default_zoom ?? defaultZoom ?? 10}&size=160x90&scale=2&key=${apiKey}`
-                            : null;
-                          return (
-                            <div
-                              key={row.id}
-                              className={`publish-page__version-card${isCurrent ? " publish-page__version-card--current" : ""}`}
-                            >
-                              <div className="publish-page__version-thumb">
-                                {staticMapUrl ? (
-                                  <img src={staticMapUrl} alt={`v${row.version} map`} />
-                                ) : null}
-                              </div>
-                              <div className="publish-page__version-info">
-                                <div style={{ fontWeight: 700, fontSize: 13 }}>v{row.version}</div>
-                                <div style={{ fontSize: 11, color: "var(--lc-muted)" }}>
-                                  {new Date(row.published_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                                </div>
-                                {row.note ? <div style={{ fontSize: 11, color: "var(--lc-muted)" }}>{row.note}</div> : null}
-                                {isCurrent ? (
-                                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--lc-brand)" }}>current</span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{ marginTop: 4, fontSize: 11 }}
-                                    disabled={rollingBack}
-                                    onClick={() => rollbackToPublication(row.id)}
-                                  >
-                                    Restore
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                    <section className="publish-page__version-history">
+                      <h3 className="publish-page__version-history-title">Version history</h3>
+                      <div className="publish-page__version-table-wrap">
+                        <table className="publish-page__version-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Date</th>
+                              <th scope="col">Version</th>
+                              <th scope="col">Notes</th>
+                              <th scope="col">Restore</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {publicationHistory.map((row) => {
+                              const isCurrent = row.id === map?.current_publication_id;
+                              return (
+                                <tr
+                                  key={row.id}
+                                  className={isCurrent ? "publish-page__version-table-row--current" : undefined}
+                                >
+                                  <td data-label="Date">
+                                    {new Date(row.published_at).toLocaleString(undefined, {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </td>
+                                  <td data-label="Version">
+                                    <span className="publish-page__version-name">v{row.version}</span>
+                                    {isCurrent ? (
+                                      <span className="publish-page__version-current-badge">Current</span>
+                                    ) : null}
+                                  </td>
+                                  <td data-label="Notes">{row.note?.trim() || "—"}</td>
+                                  <td data-label="Restore" className="publish-page__version-table-actions">
+                                    {isCurrent ? (
+                                      <span className="publish-page__version-current-label">—</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        disabled={rollingBack}
+                                        onClick={() => rollbackToPublication(row.id)}
+                                      >
+                                        Restore
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
+                    </section>
                   )}
                 </>
               )}
@@ -1468,7 +1523,7 @@ export default function ClientMapDashboard() {
           </div>
 
           <div
-            className={`admin-map-overlay__panel ${(overlayTab && overlayTab !== "publish") ? "admin-map-overlay__panel--open" : ""}`}
+            className={`admin-map-overlay__panel ${overlayTab && !isPublishOpen ? "admin-map-overlay__panel--open" : ""}`}
             role="dialog"
             aria-label={overlayTab ? `${overlayTab} settings` : ""}
             aria-hidden={!overlayTab}
