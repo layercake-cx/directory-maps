@@ -27,7 +27,6 @@ const PIN_STYLES = [
   { id: "pin", label: "Pin" },
   { id: "teardrop", label: "Teardrop" },
   { id: "dot", label: "Dot" },
-  { id: "custom", label: "Custom" },
 ];
 
 function slugify(input) {
@@ -1332,12 +1331,6 @@ export default function AdminMapDashboard() {
                         );
                       })}
                     </div>
-                    {markerStyle === "custom" && (
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input type="url" value={customPinUrl} onChange={(e) => setCustomPinUrl(e.target.value)} placeholder="Custom pin URL" style={{ flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--lc-border)" }} />
-                        <label className="btn" style={{ margin: 0, flexShrink: 0 }}>{customPinUploading ? "…" : "Upload"}<input type="file" accept=".svg,.png,image/svg+xml,image/png" onChange={handleCustomPinFile} disabled={customPinUploading} style={{ position: "absolute", width: 0, height: 0, opacity: 0 }} /></label>
-                      </div>
-                    )}
                     <div className="pin-size-segmented" role="group" aria-label="Pin size">
                       {[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }].map(({ id, label: szLabel }) => (
                         <button key={id} type="button" className={`pin-size-segmented__btn${pinSize === id ? " is-selected" : ""}`} onClick={() => setPinSize(id)} aria-pressed={pinSize === id}>{szLabel}</button>
@@ -1347,23 +1340,26 @@ export default function AdminMapDashboard() {
 
                   <div className="panel-section">
                     <p className="panel-section__title">Colours</p>
-                    <Field label="Marker colour">
-                      <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
-                    </Field>
-                    <Field label="Border colour">
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
+                        <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                         <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
                           <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
                           <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
                         </div>
                       </div>
-                    </Field>
-                    {enableClustering && (
-                      <Field label="Cluster colour">
-                        <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                      </Field>
-                    )}
+                      {enableClustering && (
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
+                          <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {(markerStyle === "pin" || markerStyle === "teardrop") && (
@@ -1540,74 +1536,65 @@ export default function AdminMapDashboard() {
                             ) : null}
                           </div>
                         </Field>
-                        <Field label="Marker colour">
-                          <ColorRow
-                            value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
-                            onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
-                            ariaLabel="Pin colour"
-                          />
-                        </Field>
-                        <Field label="Pin border">
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                            <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
-                            <span style={{ fontSize: 13, opacity: 0.8 }}>Size:</span>
-                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ width: 80 }} />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
+                            <ColorRow
+                              value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
+                              onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
+                              ariaLabel="Pin colour"
+                            />
                           </div>
-                        </Field>
-                        <Field label="Cluster colour">
-                          <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
-                        </Field>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Custom pin URL</div>
-                          <input
-                            type="url"
-                            value={groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url ?? ""}
-                            onChange={(e) =>
-                              setGroupEditDesign((p) => ({ ...(p || {}), custom_pin_url: e.target.value || null }))
-                            }
-                            placeholder="Optional"
-                            style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)" }}
-                          />
+                          <div>
+                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
+                            <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                              <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
+                              <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
+                            </div>
+                          </div>
+                          {enableClustering && (
+                            <div>
+                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
+                              <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Inside icon</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
-                            {["inherit", "off", "custom"].map((mode) => (
-                              <label key={mode} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <input
-                                  type="radio"
-                                  name="group-pin-favicon-mode"
-                                  value={mode}
-                                  checked={(groupEditDesign?.pin_favicon_mode ?? "inherit") === mode}
-                                  onChange={() =>
-                                    setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: mode }))
-                                  }
-                                />
-                                {mode === "inherit"
-                                  ? "Use map default"
-                                  : mode === "off"
-                                  ? "Turn off inside icon"
-                                  : "Use custom image URL"}
-                              </label>
-                            ))}
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin icon</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            {groupEditDesign?.pin_favicon_url && (
+                              <img src={groupEditDesign.pin_favicon_url} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />
+                            )}
+                            <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
+                              {groupEditDesign?.pin_favicon_url ? "Change…" : "Upload icon"}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; }
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    setGroupEditDesign((p) => ({
+                                      ...(p || {}),
+                                      pin_favicon_mode: "custom",
+                                      pin_favicon_url: reader.result || "",
+                                    }));
+                                    setErr("");
+                                  };
+                                  reader.readAsDataURL(file);
+                                  e.target.value = "";
+                                }}
+                                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+                              />
+                            </label>
+                            {groupEditDesign?.pin_favicon_url && (
+                              <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "inherit", pin_favicon_url: null }))}>Remove</button>
+                            )}
                           </div>
-                          {(groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom" && (
-                            <input
-                              type="url"
-                              value={groupEditDesign?.pin_favicon_url ?? ""}
-                              onChange={(e) =>
-                                setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_url: e.target.value || null }))
-                              }
-                              placeholder="https://…/icon.png"
-                              style={{
-                                width: "100%",
-                                padding: "8px 12px",
-                                borderRadius: 10,
-                                border: "1px solid var(--lc-border)",
-                                marginTop: 8,
-                              }}
-                            />
-                          )}
+                          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>Overrides the map's default icon for this group's pins.</p>
                         </div>
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                           <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>

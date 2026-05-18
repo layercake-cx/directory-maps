@@ -1144,6 +1144,19 @@ a.btn-primary:hover {
   color: #374151;
 }
 
+/* ── Colours 2-column grid ── */
+.colours-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.colour-field-label {
+  font-size: 13px;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+
 /* Auto-save draft status indicator */
 .draft-status {
   font-size: 12px;
