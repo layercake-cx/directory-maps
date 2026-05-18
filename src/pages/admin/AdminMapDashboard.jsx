@@ -16,9 +16,10 @@ import { formatContactMessageError, submitContactMessage } from "../../lib/conta
 const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
-  { id: "roadmap_silver", label: "Roadmap (Silver)" },
-  { id: "roadmap_dark", label: "Roadmap (Dark)" },
-  { id: "roadmap_muted", label: "Roadmap (Muted)" },
+  { id: "roadmap_silver", label: "Silver" },
+  { id: "roadmap_dark", label: "Dark" },
+  { id: "roadmap_muted", label: "Muted" },
+  { id: "roadmap_atlas", label: "Atlas" },
   { id: "satellite", label: "Satellite" },
   { id: "hybrid", label: "Hybrid" },
   { id: "terrain", label: "Terrain" },
