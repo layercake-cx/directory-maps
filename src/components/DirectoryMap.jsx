@@ -399,6 +399,11 @@ export default function DirectoryMap({
   cameraRequest = null,
   /** Padding passed to `fitBounds` so the list panel doesn’t cover the result */
   mapFitBoundsPadding = null,
+  /** Zoom level applied when selecting a pin or centering on a listing. Street-level default. */
+  selectZoom = 15,
+  /** Horizontal pixel offset applied via panBy after centering on a selection. Positive shifts the
+   *  map center right so the pin appears left of center — use when a side panel occupies the right. */
+  selectPanOffsetX = 0,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -419,7 +424,8 @@ export default function DirectoryMap({
     const map = mapRef.current;
     const pos = { lat: Number(point.lat), lng: Number(point.lng) };
     map.setCenter(pos);
-    map.setZoom(12);
+    map.setZoom(selectZoom);
+    if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
 
     if (onSelect) {
       const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
@@ -635,7 +641,8 @@ export default function DirectoryMap({
           const pos = marker.getPosition();
           if (!pos) return;
           map.setCenter(pos);
-          map.setZoom(12);
+          map.setZoom(selectZoom);
+          if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
           if (!onSelect) return;
           const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
           if (pixel) onSelect(p, pixel);
