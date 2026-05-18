@@ -56,7 +56,10 @@ async function geocodeViaServer(supabaseClient, address) {
     const { data, error } = await supabaseClient.functions.invoke("geocode_address", {
       body: { address },
     });
-    if (error) return { ok: false, status: "ERROR", lat: null, lng: null };
+    if (error) {
+      const reason = error?.message || error?.context?.status || String(error);
+      return { ok: false, status: `ERROR:${reason}`, lat: null, lng: null };
+    }
     return {
       ok: !!data?.ok,
       status: data?.status || "ERROR",
@@ -64,7 +67,7 @@ async function geocodeViaServer(supabaseClient, address) {
       lng: data?.lng ?? null,
     };
   } catch (e) {
-    return { ok: false, status: "ERROR", lat: null, lng: null };
+    return { ok: false, status: `ERROR:${e?.message ?? String(e)}`, lat: null, lng: null };
   }
 }
 
