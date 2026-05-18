@@ -473,12 +473,16 @@ export default function ClientMapData() {
 
       const id = String(r.id ?? "").trim() || crypto.randomUUID();
 
-      const lat = String(r.lat ?? "").trim();
-      const lng = String(r.lng ?? "").trim();
+      const lat = String(r.lat ?? r.latitude ?? "").trim();
+      const lng = String(r.lng ?? r.longitude ?? r.long ?? "").trim();
       const latNum = lat === "" ? null : Number(lat);
       const lngNum = lng === "" ? null : Number(lng);
 
-      if ((latNum === null) !== (lngNum === null)) {
+      if (latNum !== null && isNaN(latNum)) {
+        errors.push(`Row ${rowNum}: lat is not a valid number`);
+      } else if (lngNum !== null && isNaN(lngNum)) {
+        errors.push(`Row ${rowNum}: lng is not a valid number`);
+      } else if ((latNum === null) !== (lngNum === null)) {
         errors.push(`Row ${rowNum}: provide both lat and lng, or leave both blank`);
       }
 
