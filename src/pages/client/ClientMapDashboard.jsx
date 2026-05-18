@@ -1548,6 +1548,8 @@ export default function ClientMapDashboard() {
               </button>
             ))}
 
+            <hr className="admin-map-page__controls-divider" />
+
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
                 Preview Map
