@@ -52,31 +52,20 @@ function boolish(v) {
 
 /** Geocode via Supabase Edge Function (avoids CORS; uses GOOGLE_GEOCODING_API_KEY on server). */
 async function geocodeViaServer(supabaseClient, address) {
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (!baseUrl) {
-    return { ok: false, status: "ERROR", lat: null, lng: null };
-  }
-  const url = `${baseUrl.replace(/\/$/, "")}/functions/v1/geocode_address`;
-  let res;
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
+    const { data, error } = await supabaseClient.functions.invoke("geocode_address", {
+      body: { address },
     });
+    if (error) return { ok: false, status: "ERROR", lat: null, lng: null };
+    return {
+      ok: !!data?.ok,
+      status: data?.status || "ERROR",
+      lat: data?.lat ?? null,
+      lng: data?.lng ?? null,
+    };
   } catch (e) {
     return { ok: false, status: "ERROR", lat: null, lng: null };
   }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return { ok: false, status: data?.status || "ERROR", lat: null, lng: null };
-  }
-  return {
-    ok: !!data.ok,
-    status: data.status || "ERROR",
-    lat: data.lat ?? null,
-    lng: data.lng ?? null,
-  };
 }
 
 export default function AdminMapData() {
