@@ -1313,6 +1313,10 @@ export default function AdminMapDashboard() {
                           {centerLabel}
                         </div>
                       )}
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Zoom level: <strong>{defaultZoom || 10}</strong></div>
+                        <input type="range" min={1} max={20} step={1} value={Number(defaultZoom) || 10} onChange={(e) => setDefaultZoom(String(e.target.value))} style={{ width: "100%" }} />
+                      </div>
                     </Field>
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                       <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
