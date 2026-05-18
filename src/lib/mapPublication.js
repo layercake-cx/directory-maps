@@ -73,6 +73,7 @@ export function buildPublicationConfig(params) {
     showSearch,
     showGroupDropdowns,
     mapThemeJsonBase,
+    mapTypeId,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -91,6 +92,7 @@ export function buildPublicationConfig(params) {
     panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
     showSearch,
     showGroupDropdowns,
+    mapTypeId: mapTypeId || "roadmap",
   };
   // Legacy camelCase key could keep the icon after clear if still present in jsonb.
   delete theme_json.pinFaviconUrl;

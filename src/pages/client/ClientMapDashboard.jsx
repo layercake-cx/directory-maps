@@ -81,6 +81,32 @@ function ColorRow({ value, onChange, ariaLabel }) {
   );
 }
 
+const MAP_STYLE_COLORS = {
+  roadmap:        { land: "#e8e4de", water: "#a8c8e8", road: "#ffffff", border: "#c8c0b0" },
+  roadmap_silver: { land: "#ebe3cd", water: "#b9d3c2", road: "#fdfcf8", border: "#c9b2a6" },
+  roadmap_dark:   { land: "#374151", water: "#17263c", road: "#4b5563", border: "#4a5568" },
+  roadmap_muted:  { land: "#e8e2d5", water: "#b8d4e3", road: "#f0ede6", border: "#8b8680" },
+  roadmap_atlas:  { land: "#cdb98a", water: "#8bbde0", road: "#d8c898", border: "#a0906a" },
+  satellite:      { land: "#2a3f28", water: "#1a3548", road: "#3d5a3d", border: "#1e2e1e" },
+  hybrid:         { land: "#2a3f28", water: "#1a3548", road: "#6b7280", border: "#374151" },
+  terrain:        { land: "#8aaa6a", water: "#7abadb", road: "#b8d4a8", border: "#6a8a5a" },
+};
+
+function MapStyleThumb({ styleId }) {
+  const c = MAP_STYLE_COLORS[styleId] || MAP_STYLE_COLORS.roadmap;
+  return (
+    <svg viewBox="0 0 90 56" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <rect width="90" height="56" fill={c.water} />
+      <polygon points="0,0 38,0 44,8 36,20 20,24 8,18 0,22" fill={c.land} />
+      <polygon points="42,0 90,0 90,22 78,28 64,20 52,24 44,14" fill={c.land} />
+      <polygon points="0,32 14,26 28,32 32,44 20,56 0,56" fill={c.land} />
+      <polygon points="56,30 72,24 90,30 90,56 52,56 50,42" fill={c.land} />
+      <path d="M16,18 Q30,10 44,14 Q58,18 68,20" stroke={c.road} strokeWidth="1.2" fill="none" opacity="0.7" />
+      <line x1="0" y1="28" x2="90" y2="28" stroke={c.border} strokeWidth="0.5" opacity="0.4" strokeDasharray="3,2" />
+    </svg>
+  );
+}
+
 export default function ClientMapDashboard() {
   const { mapId } = useParams();
   const navigate = useNavigate();
@@ -359,6 +385,7 @@ export default function ClientMapDashboard() {
         showSearch,
         showGroupDropdowns,
         mapThemeJsonBase: map?.theme_json,
+        mapTypeId,
       }),
     [
       orderedGroupsList,
@@ -384,6 +411,7 @@ export default function ClientMapDashboard() {
       pinSize,
       showSearch,
       showGroupDropdowns,
+      mapTypeId,
       map?.theme_json,
     ],
   );
@@ -586,7 +614,7 @@ export default function ClientMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId]);
 
   // Auto-save general fields whenever they change
   useEffect(() => {
@@ -1922,17 +1950,17 @@ export default function ClientMapDashboard() {
                   {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
                   <div className="panel-section">
                     <p className="panel-section__title">Background</p>
-                    <div className="pin-style-grid">
+                    <div className="map-style-grid">
                       {MAP_TYPES.map(({ id, label }) => (
                         <button
                           key={id}
                           type="button"
-                          className={`pin-style-option ${mapTypeId === id ? "is-selected" : ""}`}
+                          className={`map-style-option ${mapTypeId === id ? "is-selected" : ""}`}
                           onClick={() => setMapTypeId(id)}
                           aria-pressed={mapTypeId === id}
                         >
-                          <div className="pin-style-option__preview" style={{ fontSize: 11, color: "var(--lc-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>{id === "roadmap" ? "🗺" : id === "satellite" ? "🛰" : id === "hybrid" ? "🛰🗺" : id === "terrain" ? "⛰" : "🗺"}</div>
-                          <span className="pin-style-option__label">{label}</span>
+                          <span className="map-style-option__thumb"><MapStyleThumb styleId={id} /></span>
+                          <span className="map-style-option__label">{label}</span>
                         </button>
                       ))}
                     </div>
