@@ -81,6 +81,13 @@ async function fetchRows(
   return values.values ?? [];
 }
 
+async function stableId(mapId: string, name: string): Promise<string> {
+  const data = new TextEncoder().encode(`${mapId}:${name.trim().toLowerCase()}`);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  const h = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+}
+
 async function syncSource(
   service: ReturnType<typeof createServiceClient>,
   src: { map_id: string; refresh_token: string; spreadsheet_id: string; sheet_name: string | null; sheet_id: number | null },
@@ -143,9 +150,9 @@ async function syncSource(
   const cleaned: any[] = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i] ?? [];
-    const id = String(r[idIdx] ?? "").trim();
     const name = String(r[nameIdx] ?? "").trim();
-    if (!id || !name) continue;
+    if (!name) continue;
+    const id = String(r[idIdx] ?? "").trim() || await stableId(src.map_id, name);
 
     const get = (h: string) => {
       const j = idx(h);
