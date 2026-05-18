@@ -526,6 +526,9 @@ export default function ClientMapData() {
         if (delErr) throw new Error(`Delete existing failed: ${delErr.message}`);
       }
 
+      let geocodeOk = 0;
+      let geocodeFail = 0;
+      let geocodeFailReason = "";
       if (geocodeMissing) {
         for (let i = 0; i < cleaned.length; i++) {
           const r = cleaned[i];
@@ -543,6 +546,10 @@ export default function ClientMapData() {
           if (geo.ok) {
             r.lat = geo.lat;
             r.lng = geo.lng;
+            geocodeOk++;
+          } else {
+            geocodeFail++;
+            if (!geocodeFailReason) geocodeFailReason = geo.status || "ERROR";
           }
 
           await new Promise((res) => setTimeout(res, 150));
@@ -570,7 +577,11 @@ export default function ClientMapData() {
 
       if (error) throw new Error(`Upsert failed (${status}): ${error.message}`);
 
-      setMsg(`Imported ${data?.length ?? cleaned.length} rows into listings.`);
+      const importCount = data?.length ?? cleaned.length;
+      let msg = `Imported ${importCount} rows.`;
+      if (geocodeOk > 0) msg += ` Geocoded ${geocodeOk} addresses.`;
+      if (geocodeFail > 0) msg += ` ⚠ ${geocodeFail} rows could not be geocoded (${geocodeFailReason}) — check your Supabase GOOGLE_GEOCODING_API_KEY secret.`;
+      setMsg(msg);
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
