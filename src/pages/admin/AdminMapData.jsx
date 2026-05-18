@@ -437,20 +437,16 @@ const objs = raw.slice(1).map((row) => {
       if (error) throw new Error(`Upsert failed (${status}): ${error.message}`);
 
       const importCount = data?.length ?? cleaned.length;
-      setMsg(`Imported ${importCount} rows. Geocoding addresses…`);
 
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await supabase.functions.invoke("geocode_listings", {
           body: { mapId },
         });
         if (geoErr || geoData?.error) {
-          setMsg(`Imported ${importCount} rows. ⚠ Geocoding failed: ${geoData?.error ?? geoErr?.message}`);
+          setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}`);
         } else {
-          const { geocoded = 0, failed = 0 } = geoData ?? {};
-          let msg = `Imported ${importCount} rows.`;
-          if (geocoded > 0) msg += ` Geocoded ${geocoded} addresses.`;
-          if (failed > 0) msg += ` ⚠ ${failed} could not be geocoded (no address data).`;
-          setMsg(msg);
+          const queued = geoData?.queued ?? 0;
+          setMsg(`Imported ${importCount} rows. Geocoding ${queued} addresses in the background — pins will appear on the map shortly.`);
         }
       } else {
         setMsg(`Imported ${importCount} rows.`);

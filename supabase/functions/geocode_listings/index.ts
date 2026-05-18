@@ -28,6 +28,40 @@ async function geocode(apiKey: string, address: string) {
   return { ok: true, status: "OK", lat: loc.lat as number, lng: loc.lng as number };
 }
 
+async function runGeocoding(mapId: string, apiKey: string) {
+  const service = createServiceClient();
+
+  const { data: listings, error: fetchErr } = await service
+    .from("listings")
+    .select("id, address, postcode, country, name")
+    .eq("map_id", mapId)
+    .is("lat", null);
+
+  if (fetchErr) return;
+
+  for (const listing of listings ?? []) {
+    const parts = [listing.address, listing.postcode, listing.country].filter(Boolean);
+    const address = parts.length ? parts.join(", ") : listing.name;
+    if (!address) {
+      await service.from("listings").update({
+        geocode_status: "NO_ADDRESS",
+        geocoded_at: new Date().toISOString(),
+      }).eq("id", listing.id);
+      continue;
+    }
+
+    const geo = await geocode(apiKey, address);
+    const update: Record<string, unknown> = {
+      geocode_status: geo.ok ? "OK" : geo.status,
+      geocoded_at: new Date().toISOString(),
+    };
+    if (geo.ok) { update.lat = geo.lat; update.lng = geo.lng; }
+
+    await service.from("listings").update(update).eq("id", listing.id);
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
@@ -42,36 +76,17 @@ Deno.serve(async (req) => {
     if (!apiKey) return json({ error: "Geocoding API key not configured" }, 500);
 
     const service = createServiceClient();
-
-    const { data: listings, error: fetchErr } = await service
+    const { count } = await service
       .from("listings")
-      .select("id, address, postcode, country, name")
+      .select("id", { count: "exact", head: true })
       .eq("map_id", mapId)
       .is("lat", null);
 
-    if (fetchErr) return json({ error: fetchErr.message }, 500);
+    // Kick off geocoding in the background — browser gets an instant response
+    // @ts-ignore: EdgeRuntime is available in Supabase edge functions
+    EdgeRuntime.waitUntil(runGeocoding(mapId, apiKey));
 
-    let geocoded = 0;
-    let failed = 0;
-
-    for (const listing of listings ?? []) {
-      const parts = [listing.address, listing.postcode, listing.country].filter(Boolean);
-      const address = parts.length ? parts.join(", ") : listing.name;
-      if (!address) { failed++; continue; }
-
-      const geo = await geocode(apiKey, address);
-      const update: any = {
-        geocode_status: geo.ok ? "OK" : geo.status,
-        geocoded_at: new Date().toISOString(),
-      };
-      if (geo.ok) { update.lat = geo.lat; update.lng = geo.lng; geocoded++; }
-      else failed++;
-
-      await service.from("listings").update(update).eq("id", listing.id);
-      await new Promise((r) => setTimeout(r, 120));
-    }
-
-    return json({ ok: true, geocoded, failed });
+    return json({ ok: true, queued: count ?? 0 });
   } catch (e) {
     return json({ error: e?.message ?? String(e) }, 500);
   }
