@@ -25,6 +25,7 @@ export default function AdminClientDetail() {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [subscriptionActiveOverride, setSubscriptionActiveOverride] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
 
@@ -50,7 +51,11 @@ export default function AdminClientDetail() {
         { data: contactsData },
         { data: allContacts },
       ] = await Promise.all([
-        supabase.from("clients").select("id,name,slug,created_at,updated_at").eq("id", clientId).single(),
+        supabase
+          .from("clients")
+          .select("id,name,slug,subscription_active_override,created_at,updated_at")
+          .eq("id", clientId)
+          .single(),
         supabase
           .from("maps")
           .select("id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering")
@@ -82,6 +87,7 @@ export default function AdminClientDetail() {
       setPrimaryContact(primary);
       setName(c?.name ?? "");
       setSlug(c?.slug ?? "");
+      setSubscriptionActiveOverride(!!c?.subscription_active_override);
       setContactName(primary?.name ?? "");
       setContactEmail(primary?.email ?? "");
     } catch (e) {
@@ -111,7 +117,12 @@ export default function AdminClientDetail() {
 
       const { error: clientError } = await supabase
         .from("clients")
-        .update({ name: cleanName, slug: cleanSlug, updated_at: new Date().toISOString() })
+        .update({
+          name: cleanName,
+          slug: cleanSlug,
+          subscription_active_override: subscriptionActiveOverride,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", clientId);
 
       if (clientError) throw clientError;
@@ -320,6 +331,26 @@ export default function AdminClientDetail() {
                       style={{ padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
                     />
                   </Field>
+
+                  <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Billing</h3>
+                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
+                    Enable for customers who pay by invoice. They get publish and embed access without a Stripe
+                    subscription record.
+                  </p>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={subscriptionActiveOverride}
+                      onChange={(e) => setSubscriptionActiveOverride(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <strong>Pays by invoice</strong>
+                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
+                        Treat as an active paying customer (subscription override)
+                      </span>
+                    </span>
+                  </label>
 
                   <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Primary contact</h3>
                   <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>

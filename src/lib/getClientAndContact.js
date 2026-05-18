@@ -18,7 +18,7 @@ export async function getClientAndContact() {
   if (impersonatedClientId && role === "admin") {
     const { data: client, error: clientErr } = await supabase
       .from("clients")
-      .select("id,name,slug,created_at,updated_at")
+      .select("id,name,slug,subscription_active_override,created_at,updated_at")
       .eq("id", impersonatedClientId)
       .single();
     if (clientErr || !client) return { client: null, contact: null };
@@ -42,7 +42,7 @@ export async function getClientAndContact() {
     if (!contact) return { client: null, contact: null };
     const { data: client, error: clientErr } = await supabase
       .from("clients")
-      .select("id,name,slug,created_at,updated_at")
+      .select("id,name,slug,subscription_active_override,created_at,updated_at")
       .eq("id", contact.client_id)
       .single();
     if (clientErr || !client) return { client: null, contact: null };
@@ -63,7 +63,7 @@ export async function getClientAndContact() {
   if (contact) {
     const { data: client, error: clientErr } = await supabase
       .from("clients")
-      .select("id,name,slug,created_at,updated_at")
+      .select("id,name,slug,subscription_active_override,created_at,updated_at")
       .eq("id", contact.client_id)
       .single();
     if (clientErr) throw clientErr;
@@ -72,7 +72,7 @@ export async function getClientAndContact() {
 
   const { data: legacyClient, error: legacyErr } = await supabase
     .from("clients")
-    .select("id,name,slug,created_at,updated_at")
+    .select("id,name,slug,subscription_active_override,created_at,updated_at")
     .eq("id", user.id)
     .maybeSingle();
 
