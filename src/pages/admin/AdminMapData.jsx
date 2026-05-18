@@ -414,35 +414,6 @@ const objs = raw.slice(1).map((row) => {
         if (delErr) throw new Error(`Delete existing failed: ${delErr.message}`);
       }
 
-      let geocodeOk = 0;
-      let geocodeFail = 0;
-      let geocodeFailReason = "";
-      if (geocodeMissing) {
-        for (let i = 0; i < cleaned.length; i++) {
-          const r = cleaned[i];
-          if (r.lat != null && r.lng != null) continue;
-
-          const parts = [r.address, r.postcode, r.country].filter(Boolean);
-          const address = parts.length ? parts.join(", ") : (r.name || "").trim();
-          if (!address) continue;
-
-          const geo = await geocodeViaServer(supabase, address);
-
-          r.geocode_status = geo.ok ? "OK" : geo.status;
-          r.geocoded_at = new Date().toISOString();
-
-          if (geo.ok) {
-            r.lat = geo.lat;
-            r.lng = geo.lng;
-            geocodeOk++;
-          } else {
-            geocodeFail++;
-            if (!geocodeFailReason) geocodeFailReason = geo.status || "ERROR";
-          }
-
-          await new Promise((res) => setTimeout(res, 150));
-        }
-      }
 
       // Only send columns that exist on listings (avoids schema errors; requires migration 20250202000000 for geocoded_at)
       const LISTING_UPSERT_KEYS = [
@@ -466,10 +437,24 @@ const objs = raw.slice(1).map((row) => {
       if (error) throw new Error(`Upsert failed (${status}): ${error.message}`);
 
       const importCount = data?.length ?? cleaned.length;
-      let msg = `Imported ${importCount} rows.`;
-      if (geocodeOk > 0) msg += ` Geocoded ${geocodeOk} addresses.`;
-      if (geocodeFail > 0) msg += ` ⚠ ${geocodeFail} rows could not be geocoded (${geocodeFailReason}) — check your Supabase GOOGLE_GEOCODING_API_KEY secret.`;
-      setMsg(msg);
+      setMsg(`Imported ${importCount} rows. Geocoding addresses…`);
+
+      if (geocodeMissing) {
+        const { data: geoData, error: geoErr } = await supabase.functions.invoke("geocode_listings", {
+          body: { mapId },
+        });
+        if (geoErr || geoData?.error) {
+          setMsg(`Imported ${importCount} rows. ⚠ Geocoding failed: ${geoData?.error ?? geoErr?.message}`);
+        } else {
+          const { geocoded = 0, failed = 0 } = geoData ?? {};
+          let msg = `Imported ${importCount} rows.`;
+          if (geocoded > 0) msg += ` Geocoded ${geocoded} addresses.`;
+          if (failed > 0) msg += ` ⚠ ${failed} could not be geocoded (no address data).`;
+          setMsg(msg);
+        }
+      } else {
+        setMsg(`Imported ${importCount} rows.`);
+      }
     } catch (e) {
       setErr(e.message ?? String(e));
     } finally {
