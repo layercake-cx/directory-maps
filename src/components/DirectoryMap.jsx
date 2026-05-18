@@ -3,12 +3,15 @@ import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markercluste
 import { loadGoogleMaps } from "../lib/loadGoogleMaps";
 import { getMarkerIconUrl, getScaledMarkerAnchors, normalizePinSize } from "../lib/markerIcons";
 
-function clusterIconDataUrl(color) {
+function clusterIconDataUrl(color, opacity = 1) {
   const fill = color || "#4A9BAA";
+  const o = Math.max(0, Math.min(1, Number(opacity) || 1));
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r="20" fill="${fill}" opacity="0.85" stroke="white" stroke-width="2"/>
-      <circle cx="24" cy="24" r="14" fill="${fill}" opacity="0.5"/>
+      <g opacity="${o}">
+        <circle cx="24" cy="24" r="20" fill="${fill}" opacity="0.85" stroke="white" stroke-width="2"/>
+        <circle cx="24" cy="24" r="14" fill="${fill}" opacity="0.5"/>
+      </g>
     </svg>
   `.trim();
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
@@ -375,6 +378,7 @@ export default function DirectoryMap({
   enableClustering = false,
   clusterRadius = 80,
   clusterColor = "#4A9BAA",
+  clusterOpacity = 1,
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
   pinFaviconUrl = null,
@@ -655,7 +659,7 @@ export default function DirectoryMap({
           return new window.google.maps.Marker({
             position,
             icon: {
-              url: clusterIconDataUrl(clusterColorHex),
+              url: clusterIconDataUrl(clusterColorHex, clusterOpacity),
               scaledSize: new window.google.maps.Size(45, 45),
               anchor: new window.google.maps.Point(22, 22),
             },
@@ -696,6 +700,7 @@ export default function DirectoryMap({
     enableClustering,
     clusterRadius,
     clusterColor,
+    clusterOpacity,
     pinBorderColor,
     pinBorderSize,
     pinFaviconUrl,

@@ -196,6 +196,7 @@ export default function PublishedMapView({
   markerColor = "#4A9BAA",
   customPinUrl = null,
   clusterColor = "#4A9BAA",
+  clusterOpacity = 1,
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
   pinFaviconUrl = null,
@@ -573,6 +574,7 @@ export default function PublishedMapView({
         enableClustering={enableClustering}
         clusterRadius={clusterRadius}
         clusterColor={clusterColor}
+        clusterOpacity={clusterOpacity}
         pinBorderColor={pinBorderColor}
         pinBorderSize={pinBorderSize}
         pinFaviconUrl={pinFaviconUrl}

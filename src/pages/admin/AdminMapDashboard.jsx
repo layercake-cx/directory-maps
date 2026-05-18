@@ -133,6 +133,7 @@ export default function AdminMapDashboard() {
   const [markerColor, setMarkerColor] = useState("#4A9BAA");
   const [customPinUrl, setCustomPinUrl] = useState("");
   const [clusterColor, setClusterColor] = useState("#4A9BAA");
+  const [clusterOpacity, setClusterOpacity] = useState(100);
   const [pinBorderColor, setPinBorderColor] = useState("#ffffff");
   const [pinBorderSize, setPinBorderSize] = useState(0);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
@@ -382,6 +383,7 @@ export default function AdminMapDashboard() {
           try {
             const theme = typeof m.theme_json === "string" ? JSON.parse(m.theme_json || "{}") : m.theme_json || {};
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
+            setClusterOpacity(Math.round((theme.clusterOpacity ?? 1) * 100));
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
             setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
             setPinFaviconUrl(String(theme.pin_favicon_url ?? theme.pinFaviconUrl ?? "").trim());
@@ -398,6 +400,7 @@ export default function AdminMapDashboard() {
             setMapTypeId(theme.mapTypeId ?? "roadmap");
           } catch (_) {
             setClusterColor("#4A9BAA");
+            setClusterOpacity(100);
             setPinBorderColor("#ffffff");
             setPinBorderSize(0);
             setPinSize("medium");
@@ -499,7 +502,7 @@ export default function AdminMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId]);
 
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
@@ -542,6 +545,7 @@ export default function AdminMapDashboard() {
         const themeJson = {
           ...existingTheme,
           clusterColor: clusterColor || "#4A9BAA",
+          clusterOpacity: Math.max(0, Math.min(1, clusterOpacity / 100)),
           pinBorderColor: pinBorderColor || "#ffffff",
           pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
@@ -600,6 +604,7 @@ export default function AdminMapDashboard() {
       const themeJson = {
         ...existingTheme,
         clusterColor: clusterColor || "#4A9BAA",
+        clusterOpacity: Math.max(0, Math.min(1, clusterOpacity / 100)),
         pinBorderColor: pinBorderColor || "#ffffff",
         pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
         pin_favicon_url: (pinFaviconUrl || "").trim() || null,
@@ -846,6 +851,7 @@ export default function AdminMapDashboard() {
       setMarkerColor(m.marker_color ?? "#4A9BAA");
       setCustomPinUrl(m.custom_pin_url ?? "");
       setClusterColor(themeJson.clusterColor ?? "#4A9BAA");
+      setClusterOpacity(Math.round((themeJson.clusterOpacity ?? 1) * 100));
       setPinBorderColor(themeJson.pinBorderColor ?? "#ffffff");
       setPinBorderSize(Math.max(0, Math.min(15, Number(themeJson.pinBorderSize) ?? 0)));
       setPinFaviconUrl(String(themeJson.pin_favicon_url ?? themeJson.pinFaviconUrl ?? "").trim());
@@ -915,6 +921,7 @@ export default function AdminMapDashboard() {
         markerColor,
         customPinUrl,
         clusterColor,
+        clusterOpacity: clusterOpacity / 100,
         pinBorderColor,
         pinBorderSize,
         pinFaviconUrl,
@@ -942,6 +949,7 @@ export default function AdminMapDashboard() {
       markerColor,
       customPinUrl,
       clusterColor,
+      clusterOpacity,
       pinBorderColor,
       pinBorderSize,
       pinFaviconUrl,
@@ -1169,6 +1177,7 @@ export default function AdminMapDashboard() {
               markerColor={markerColor}
               customPinUrl={markerStyle === "custom" && customPinUrl ? customPinUrl : null}
               clusterColor={clusterColor}
+              clusterOpacity={clusterOpacity / 100}
               pinBorderColor={pinBorderColor}
               pinBorderSize={pinBorderSize}
               pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
@@ -1395,6 +1404,15 @@ export default function AdminMapDashboard() {
                         <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
                       </div>
                     </div>
+                    {enableClustering && (
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster transparency</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={100} step={1} value={clusterOpacity} onChange={(e) => setClusterOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{clusterOpacity}%</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {(markerStyle === "pin" || markerStyle === "teardrop") && (

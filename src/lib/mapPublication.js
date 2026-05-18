@@ -60,6 +60,7 @@ export function buildPublicationConfig(params) {
     markerColor,
     customPinUrl,
     clusterColor,
+    clusterOpacity,
     pinBorderColor,
     pinBorderSize,
     pinFaviconUrl,
@@ -80,6 +81,7 @@ export function buildPublicationConfig(params) {
   const theme_json = {
     ...baseTheme,
     clusterColor: clusterColor || "#4A9BAA",
+    clusterOpacity: Math.max(0, Math.min(1, Number(clusterOpacity) ?? 1)),
     pinBorderColor: pinBorderColor || "#ffffff",
     pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
     pin_favicon_url: (pinFaviconUrl || "").trim() || null,

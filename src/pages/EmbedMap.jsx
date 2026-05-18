@@ -285,6 +285,7 @@ export default function EmbedMap() {
           markerColor={effectiveDefaults.markerColor}
           customPinUrl={effectiveDefaults.customPinUrl}
           clusterColor={parsedTheme.clusterColor || "#4A9BAA"}
+          clusterOpacity={Math.max(0, Math.min(1, Number(parsedTheme.clusterOpacity) ?? 1))}
           pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
           pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
           pinFaviconUrl={(() => {
