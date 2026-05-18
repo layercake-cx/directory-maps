@@ -712,6 +712,8 @@ export default function DirectoryMap({
     pinBorderSize,
     pinFaviconUrl,
     pinSize,
+    selectZoom,
+    selectPanOffsetX,
   ]);
 
   return <div ref={elRef} style={{ width: "100%", height, borderRadius: 12 }} />;

@@ -585,7 +585,7 @@ export default function PublishedMapView({
         mapFitBoundsPadding={mapFitBoundsPadding}
         screenOverlayListing={pinDetailLayout === "map" ? selectedListing : null}
         onScreenOverlayPosition={onMarkerScreenPosition}
-        selectZoom={15}
+        selectZoom={17}
         selectPanOffsetX={pinDetailLayout === "drawer" ? 200 : 0}
       />
 
