@@ -15,15 +15,17 @@ import {
   publicationConfigsEqual,
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
+import { hasSubscriptionAccess } from "../../lib/subscriptionAccess.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
 import "../admin/admin.css";
 
-const TABS = ["detail", "design", "panels", "categories", "publish", "search"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search"];
 
 function tabLabel(t) {
   if (t === "detail") return "General";
   if (t === "design") return "Pin Design";
-  if (t === "categories") return "Categories";
+  if (t === "groups") return "Groups & Content";
+  if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
@@ -173,10 +175,7 @@ export default function ClientMapDashboard() {
   const saveDraftGeneralRef = useRef(null);
   const [draftGeneralStatus, setDraftGeneralStatus] = useState("");
 
-  // Placeholder for future real billing integration.
-  // Layercake domain emails bypass the paywall for internal testing.
-  const emailDomain = (user?.email ?? "").split("@")[1] ?? "";
-  const hasActiveSubscription = emailDomain.toLowerCase().includes("layercake");
+  const hasActiveSubscription = hasSubscriptionAccess({ client, userEmail: user?.email });
 
   const embedSrc = useMemo(() => {
     return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
@@ -417,7 +416,11 @@ export default function ClientMapDashboard() {
 
         let m = null;
         const [{ data: c, error: ce }, { data: g, error: ge }, { data: l, error: le }] = await Promise.all([
-          supabase.from("clients").select("id,name,slug").eq("id", currentClientId).single(),
+          supabase
+            .from("clients")
+            .select("id,name,slug,subscription_active_override")
+            .eq("id", currentClientId)
+            .single(),
           supabase
             .from("groups")
             .select("id,name,sort_order,color,theme_json")
@@ -499,6 +502,7 @@ export default function ClientMapDashboard() {
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
             setCenterLabel(theme.centerLabel ?? "");
+            setMapTypeId(theme.mapTypeId ?? "roadmap");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -812,6 +816,7 @@ export default function ClientMapDashboard() {
         showSearch,
         showGroupDropdowns,
         centerLabel: centerLabel || undefined,
+        mapTypeId,
       };
       delete themeJson.pinFaviconUrl;
       const payloadBase = {
@@ -871,6 +876,7 @@ export default function ClientMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        mapTypeId,
       };
       delete themeJson.pinFaviconUrl;
       const payload = { marker_style: markerStyle, marker_color: markerColor, theme_json: themeJson };
@@ -1502,7 +1508,7 @@ export default function ClientMapDashboard() {
 
             <hr className="admin-map-page__controls-divider" />
 
-            {(["design", "panels", "categories"]).map((t) => (
+            {(["design", "panels", "groups", "mapstyle"]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -1639,10 +1645,6 @@ export default function ClientMapDashboard() {
                       <div>
                         <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                         <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
-                        </div>
                       </div>
                       {enableClustering && (
                         <div>
@@ -1650,6 +1652,13 @@ export default function ClientMapDashboard() {
                           <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
                         </div>
                       )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1730,9 +1739,9 @@ export default function ClientMapDashboard() {
               )}
 
 
-              {overlayTab === "categories" && (
+              {overlayTab === "groups" && (
                 <div style={{ display: "grid", gap: 14 }}>
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder categories. Order is used in the embed map search bar.</p>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder groups. Order is used in the embed map search bar.</p>
                   <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                     {orderedGroupsList.map((gr, index) => (
                       <li
@@ -1758,7 +1767,7 @@ export default function ClientMapDashboard() {
                       </li>
                     ))}
                   </ul>
-                  {orderedGroupsList.length === 0 && <p style={{ margin: 0, opacity: 0.8 }}>No categories yet. Add categories when importing data.</p>}
+                  {orderedGroupsList.length === 0 && <p style={{ margin: 0, opacity: 0.8 }}>No groups yet. Add groups when importing data.</p>}
                   <div>
                     <button type="button" className="btn btn-primary" onClick={saveGroupsOrder} disabled={savingGroups || orderedGroupsList.length === 0}>
                       {savingGroups ? "Saving…" : "Save order"}
@@ -1767,12 +1776,12 @@ export default function ClientMapDashboard() {
 
                   {editingGroupId && (
                     <div style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--lc-border)" }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>Category design overrides</h3>
+                      <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>Group design overrides</h3>
                       <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.85 }}>
                         Editing:{" "}
-                        <strong>{groups.find((g) => g.id === editingGroupId)?.name || "Untitled category"}</strong>
+                        <strong>{groups.find((g) => g.id === editingGroupId)?.name || "Untitled group"}</strong>
                       </p>
-                      <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this category's pins. Leave as default to use map design.</p>
+                      <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this group's pins. Leave as default to use map design.</p>
                       <div style={{ display: "grid", gap: 14 }}>
                         <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin style</div>
@@ -1844,10 +1853,6 @@ export default function ClientMapDashboard() {
                           <div>
                             <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                             <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                              <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
-                              <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
-                            </div>
                           </div>
                           {enableClustering && (
                             <div>
@@ -1855,6 +1860,13 @@ export default function ClientMapDashboard() {
                               <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
                             </div>
                           )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
+                            <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin icon</div>
@@ -1903,6 +1915,29 @@ export default function ClientMapDashboard() {
                 </div>
               )}
 
+
+              {overlayTab === "mapstyle" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
+                  <div className="panel-section">
+                    <p className="panel-section__title">Background</p>
+                    <div className="pin-style-grid">
+                      {MAP_TYPES.map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`pin-style-option ${mapTypeId === id ? "is-selected" : ""}`}
+                          onClick={() => setMapTypeId(id)}
+                          aria-pressed={mapTypeId === id}
+                        >
+                          <div className="pin-style-option__preview" style={{ fontSize: 11, color: "var(--lc-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>{id === "roadmap" ? "🗺" : id === "satellite" ? "🛰" : id === "hybrid" ? "🛰🗺" : id === "terrain" ? "⛰" : "🗺"}</div>
+                          <span className="pin-style-option__label">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* publish content moved to full-page overlay below */}
 

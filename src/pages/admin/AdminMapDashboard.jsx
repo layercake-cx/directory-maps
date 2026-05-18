@@ -13,7 +13,7 @@ import {
 } from "../../lib/mapPublication.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
 
-const TABS = ["detail", "design", "panels", "groups", "publish", "search"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search"];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Roadmap (Silver)" },
@@ -368,6 +368,7 @@ export default function AdminMapDashboard() {
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
             setCenterLabel(theme.centerLabel ?? "");
+            setMapTypeId(theme.mapTypeId ?? "roadmap");
           } catch (_) {
             setClusterColor("#4A9BAA");
             setPinBorderColor("#ffffff");
@@ -527,6 +528,7 @@ export default function AdminMapDashboard() {
           showSearch,
           showGroupDropdowns,
           centerLabel: centerLabel || undefined,
+          mapTypeId,
         };
         delete themeJson.pinFaviconUrl;
         const payloadBase = {
@@ -583,6 +585,7 @@ export default function AdminMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        mapTypeId,
       };
       delete themeJson.pinFaviconUrl;
       const { error } = await supabase.from("maps").update({ marker_style: markerStyle, marker_color: markerColor, theme_json: themeJson }).eq("id", mapId);
@@ -1189,14 +1192,14 @@ export default function AdminMapDashboard() {
 
             <hr className="admin-map-page__controls-divider" />
 
-            {["design", "panels", "groups"].map((t) => (
+            {["design", "panels", "groups", "mapstyle"].map((t) => (
               <button
                 key={t}
                 type="button"
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t === "design" ? "Pin Design" : t.charAt(0).toUpperCase() + t.slice(1)}
+                {t === "design" ? "Pin Design" : t === "groups" ? "Groups & Content" : t === "mapstyle" ? "Map Style" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
 
@@ -1226,7 +1229,7 @@ export default function AdminMapDashboard() {
           >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab === "design" ? "Pin Design" : overlayTab === "publish" ? "Publish Map" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
+                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab === "design" ? "Pin Design" : overlayTab === "groups" ? "Groups & Content" : overlayTab === "mapstyle" ? "Map Style" : overlayTab === "publish" ? "Publish Map" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×
@@ -1348,10 +1351,6 @@ export default function AdminMapDashboard() {
                       <div>
                         <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                         <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
-                        </div>
                       </div>
                       {enableClustering && (
                         <div>
@@ -1359,6 +1358,13 @@ export default function AdminMapDashboard() {
                           <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
                         </div>
                       )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1548,10 +1554,6 @@ export default function AdminMapDashboard() {
                           <div>
                             <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                             <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                              <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
-                              <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
-                            </div>
                           </div>
                           {enableClustering && (
                             <div>
@@ -1559,6 +1561,13 @@ export default function AdminMapDashboard() {
                               <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
                             </div>
                           )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
+                            <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin icon</div>
@@ -1604,6 +1613,29 @@ export default function AdminMapDashboard() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {overlayTab === "mapstyle" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
+                  <div className="panel-section">
+                    <p className="panel-section__title">Background</p>
+                    <div className="pin-style-grid">
+                      {MAP_TYPES.map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`pin-style-option ${mapTypeId === id ? "is-selected" : ""}`}
+                          onClick={() => setMapTypeId(id)}
+                          aria-pressed={mapTypeId === id}
+                        >
+                          <div className="pin-style-option__preview" style={{ fontSize: 11, color: "var(--lc-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>{id === "roadmap" ? "🗺" : id === "satellite" ? "🛰" : id === "hybrid" ? "🛰🗺" : id === "terrain" ? "⛰" : "🗺"}</div>
+                          <span className="pin-style-option__label">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
