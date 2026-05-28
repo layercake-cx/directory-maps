@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { supabase, hasSupabaseConfig } from "../lib/supabase";
 import { getMyRole, getSession } from "../lib/auth";
 import { provisionClientFromPendingMetadata } from "../lib/provisionClientSignup";
+import { acceptPendingInvitation } from "../lib/inviteHelpers";
 import { AuthContext } from "./authContext.js";
 
 export function AuthProvider({ children }) {
@@ -18,6 +19,16 @@ export function AuthProvider({ children }) {
   const [provisionVersion, setProvisionVersion] = useState(0);
   /** User id we last ran provision + loadRole for (avoids iframe/tab duplicate auth events). */
   const lastProvisionedUserIdRef = useRef(null);
+
+  const runInvitationAccept = useCallback(async (user) => {
+    if (!user?.id) return;
+    try {
+      await acceptPendingInvitation();
+    } catch (e) {
+      const raw = e?.message ?? String(e);
+      setState((s) => ({ ...s, signupProvisionError: raw }));
+    }
+  }, []);
 
   const runSignupProvision = useCallback(async (user) => {
     if (!user) {
@@ -75,6 +86,7 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
         // Mark auth ready before provisioning so magic-link landings never spin forever if DB/RPC is slow.
         setState((s) => ({ ...s, initializing: false, session, user }));
+        await runInvitationAccept(user);
         await runSignupProvision(user);
         await loadRole(user);
         lastProvisionedUserIdRef.current = user?.id ?? null;
@@ -130,6 +142,7 @@ export function AuthProvider({ children }) {
         }));
         queueMicrotask(() => {
           void (async () => {
+            await runInvitationAccept(null);
             await runSignupProvision(null);
             await loadRole(null);
             setProvisionVersion((n) => n + 1);
@@ -162,6 +175,7 @@ export function AuthProvider({ children }) {
       }));
       queueMicrotask(() => {
         void (async () => {
+          await runInvitationAccept(user);
           await runSignupProvision(user);
           await loadRole(user);
           setProvisionVersion((n) => n + 1);
@@ -173,7 +187,7 @@ export function AuthProvider({ children }) {
       mounted = false;
       sub?.subscription?.unsubscribe?.();
     };
-  }, [loadRole, runSignupProvision]);
+  }, [loadRole, runInvitationAccept, runSignupProvision]);
 
   const clearSignupProvisionError = useCallback(() => {
     setState((s) => ({ ...s, signupProvisionError: null }));

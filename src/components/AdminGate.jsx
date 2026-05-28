@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { hasSupabaseConfig, supabase } from "../lib/supabase";
 import { signOut } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth.js";
+import { getPasswordResetRedirectUrl, withTimeout } from "../lib/authHelpers";
 
 function isNetworkError(e) {
   const msg = (e?.message ?? String(e)).toLowerCase();
@@ -75,6 +77,8 @@ function PasswordForm({ onNetworkErrorHelp }) {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [isNetworkErr, setIsNetworkErr] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
 
   async function signIn(e) {
     e.preventDefault();
@@ -102,6 +106,37 @@ function PasswordForm({ onNetworkErrorHelp }) {
     }
   }
 
+  async function sendResetLink() {
+    setResetMsg("");
+    setMsg("");
+    setIsNetworkErr(false);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setResetMsg("Enter your admin email first, then click Forgot password.");
+      return;
+    }
+
+    setSendingReset(true);
+    try {
+      const redirectTo = getPasswordResetRedirectUrl();
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo }),
+        30000,
+        "Admin password reset"
+      );
+      if (error) {
+        setResetMsg(error.message);
+        return;
+      }
+      setResetMsg(`If an account exists for ${trimmedEmail}, a password reset link has been sent.`);
+    } catch (e) {
+      setResetMsg(e?.message ?? String(e));
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
   return (
     <form onSubmit={signIn}>
       <label style={{ display: "block", marginBottom: 8 }}>Email</label>
@@ -125,11 +160,35 @@ function PasswordForm({ onNetworkErrorHelp }) {
       <button type="submit" style={{ padding: "10px 14px" }}>
         Sign in
       </button>
+      <button
+        type="button"
+        onClick={sendResetLink}
+        style={{ padding: "10px 14px", marginLeft: 8 }}
+        disabled={sendingReset}
+      >
+        {sendingReset ? "Sending..." : "Forgot password?"}
+      </button>
+      <p style={{ marginTop: 10, marginBottom: 0, fontSize: 13 }}>
+        You can also use the full reset page: <Link to="/forgot-password">Forgot password</Link>.
+      </p>
 
       {msg ? (
         <div style={{ marginTop: 12, padding: 12, background: "rgba(185, 28, 28, 0.08)", borderRadius: 8, border: "1px solid #b91c1c" }}>
           <p style={{ margin: 0 }}>{msg}</p>
           {isNetworkErr && onNetworkErrorHelp ? <p style={{ margin: "8px 0 0", fontSize: 13 }}>{onNetworkErrorHelp()}</p> : null}
+        </div>
+      ) : null}
+      {resetMsg ? (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            background: "rgba(59, 130, 246, 0.12)",
+            borderRadius: 8,
+            border: "1px solid rgba(59, 130, 246, 0.35)",
+          }}
+        >
+          <p style={{ margin: 0 }}>{resetMsg}</p>
         </div>
       ) : null}
     </form>

@@ -7,7 +7,7 @@ export function getOAuthRedirectUrl() {
 }
 
 /**
- * Same as OAuth: magic link / email OTP completes here so the session is established on the client portal route.
+ * Email verification after password signup redirects here so the session lands on the client portal route.
  * Add this exact URL (and localhost dev) to Supabase Auth → URL configuration → Redirect URLs.
  */
 export function getEmailAuthRedirectUrl() {

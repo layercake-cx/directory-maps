@@ -56,8 +56,42 @@
   gap: 16px;
 }
 
+.topRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.topRowLeft {
+  min-width: 0;
+}
+
+.topRowRight {
+  min-width: 0;
+}
+
+.listingNameLink {
+  color: var(--lc-text, #111827);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.listingNameLink:hover {
+  text-decoration: underline;
+}
+
+.numCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 960px) {
   .grid2 {
+    grid-template-columns: 1fr;
+  }
+
+  .topRow {
     grid-template-columns: 1fr;
   }
 }

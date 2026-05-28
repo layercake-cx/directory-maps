@@ -63,6 +63,7 @@ export function buildPublicationConfig(params) {
     clusterOpacity,
     pinBorderColor,
     pinBorderSize,
+    pinDropShadow,
     pinFaviconUrl,
     buttonColor,
     panelBackgroundColor,
@@ -75,6 +76,7 @@ export function buildPublicationConfig(params) {
     showGroupDropdowns,
     mapThemeJsonBase,
     mapTypeId,
+    mapStyleSettings,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -84,6 +86,7 @@ export function buildPublicationConfig(params) {
     clusterOpacity: Math.max(0, Math.min(1, Number(clusterOpacity) ?? 1)),
     pinBorderColor: pinBorderColor || "#ffffff",
     pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
+    pinDropShadow: Math.max(0, Math.min(30, Number(pinDropShadow) || 0)),
     pin_favicon_url: (pinFaviconUrl || "").trim() || null,
     pinSize,
     buttonColor: (buttonColor || "").trim() || "#4A9BAA",
@@ -95,6 +98,7 @@ export function buildPublicationConfig(params) {
     showSearch,
     showGroupDropdowns,
     mapTypeId: mapTypeId || "roadmap",
+    mapStyleSettings: mapStyleSettings || baseTheme.mapStyleSettings,
   };
   // Legacy camelCase key could keep the icon after clear if still present in jsonb.
   delete theme_json.pinFaviconUrl;

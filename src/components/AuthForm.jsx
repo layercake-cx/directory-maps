@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
@@ -7,6 +7,7 @@ import {
   getEmailAuthRedirectUrl,
   withTimeout,
 } from "../lib/authHelpers";
+import { completeInvitedSignup } from "../lib/inviteHelpers.js";
 import { logClientError } from "../lib/errorLogger.js";
 import { hasSupabaseConfig } from "../lib/supabase";
 
@@ -19,11 +20,20 @@ function slugify(input) {
     .replace(/(^-|-$)/g, "");
 }
 
-export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "default" }) {
+/**
+ * @param {object} props
+ * @param {'signup'|'login'} props.mode
+ * @param {() => void} [props.onSuccess]
+ * @param {(payload: object) => void} [props.onSubmitted]
+ * @param {'default'|'split'} [props.variant]
+ * @param {{ email: string, clientName: string, role: string, inviteId?: string }} [props.teamInvite] — join existing org (no new org signup)
+ */
+export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "default", teamInvite = null }) {
   const isSignUp = mode === "signup";
+  const isTeamInviteSignup = isSignUp && !!teamInvite;
   const isSplitSignup = isSignUp && variant === "split";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(teamInvite?.email ?? "");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -31,6 +41,10 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (teamInvite?.email) setEmail(teamInvite.email);
+  }, [teamInvite?.email]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -65,73 +79,131 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
           return;
         }
         const cleanFull = `${cleanFirst} ${cleanLast}`.trim();
-        const cleanCompany = company.trim();
-        const orgLabel = cleanCompany || cleanFull;
-        const slug = slugify(orgLabel);
-        if (!slug) {
-          setMsg("Could not generate an organisation URL from your name. Add a company name or use more letters.");
-          return;
+
+        if (isTeamInviteSignup) {
+          if (trimmedEmail.toLowerCase() !== teamInvite.email.trim().toLowerCase()) {
+            setMsg("Use the same email address this invitation was sent to.");
+            return;
+          }
         }
-        const slugCheck = await checkClientSlugAvailable(supabase, slug);
+
         let slugCheckSkipped = false;
-        if (slugCheck.status === "taken") {
-          setMsg(
-            "That name is already in use. Try a different company name, or add your company if you left it blank."
-          );
-          return;
-        }
-        if (slugCheck.status === "error") {
-          const er = slugCheck.error;
-          setMsg(
-            (er?.message ?? String(er)) +
-              (import.meta.env.DEV && er?.code ? ` (${er.code})` : "") +
-              " If the function is missing, apply the is_client_slug_available migration in Supabase."
-          );
-          return;
-        }
-        if (slugCheck.status === "skipped") {
-          slugCheckSkipped = true;
-          logClientError({
-            type: "slug_check.skipped",
-            severity: "warning",
-            message: `is_client_slug_available did not respond within ${SLUG_RPC_WAIT_MS / 1000}s; signup continued (duplicate slug handled after email).`,
-            context: { slug, step: "signup" },
-          });
+        let orgLabel = null;
+        let slug = null;
+
+        if (!isTeamInviteSignup) {
+          const cleanCompany = company.trim();
+          orgLabel = cleanCompany || cleanFull;
+          slug = slugify(orgLabel);
+          if (!slug) {
+            setMsg("Could not generate an organisation URL from your name. Add a company name or use more letters.");
+            return;
+          }
+          const slugCheck = await checkClientSlugAvailable(supabase, slug);
+          if (slugCheck.status === "taken") {
+            setMsg(
+              "That name is already in use. Try a different company name, or add your company if you left it blank."
+            );
+            return;
+          }
+          if (slugCheck.status === "error") {
+            const er = slugCheck.error;
+            setMsg(
+              (er?.message ?? String(er)) +
+                (import.meta.env.DEV && er?.code ? ` (${er.code})` : "") +
+                " If the function is missing, apply the is_client_slug_available migration in Supabase."
+            );
+            return;
+          }
+          if (slugCheck.status === "skipped") {
+            slugCheckSkipped = true;
+            logClientError({
+              type: "slug_check.skipped",
+              severity: "warning",
+              message: `is_client_slug_available did not respond within ${SLUG_RPC_WAIT_MS / 1000}s; signup continued (duplicate slug handled after email).`,
+              context: { slug, step: "signup" },
+            });
+          }
         }
 
-        const { data: signUpData, error } = await withTimeout(
-          supabase.auth.signUp({
-            email: trimmedEmail,
-            password,
-            options: {
-              emailRedirectTo: redirectTo,
-              data: {
-                signup_org_name: orgLabel,
-                signup_org_slug: slug,
-                full_name: cleanFull,
-                first_name: cleanFirst,
-                last_name: cleanLast,
+        const signUpMetadata = isTeamInviteSignup
+          ? {
+              full_name: cleanFull,
+              first_name: cleanFirst,
+              last_name: cleanLast,
+            }
+          : {
+              signup_org_name: orgLabel,
+              signup_org_slug: slug,
+              full_name: cleanFull,
+              first_name: cleanFirst,
+              last_name: cleanLast,
+            };
+
+        let needsEmailVerification = false;
+        if (isTeamInviteSignup) {
+          const inviteId = teamInvite?.inviteId ?? "";
+          if (!inviteId) {
+            setMsg("Invitation id is missing. Ask your team owner for a new invite link.");
+            return;
+          }
+          await withTimeout(
+            completeInvitedSignup({
+              invitationId: inviteId,
+              email: trimmedEmail,
+              password,
+              firstName: cleanFirst,
+              lastName: cleanLast,
+            }),
+            30000,
+            "Create invited account"
+          );
+          const { error: signInError } = await withTimeout(
+            supabase.auth.signInWithPassword({ email: trimmedEmail, password }),
+            30000,
+            "Sign in"
+          );
+          if (signInError) {
+            const codeHint = import.meta.env.DEV && signInError.code ? ` (${signInError.code})` : "";
+            setMsg(signInError.message + codeHint);
+            return;
+          }
+          needsEmailVerification = false;
+        } else {
+          const { data: signUpData, error } = await withTimeout(
+            supabase.auth.signUp({
+              email: trimmedEmail,
+              password,
+              options: {
+                emailRedirectTo: redirectTo,
+                data: signUpMetadata,
               },
-            },
-          }),
-          30000,
-          "Create account"
-        );
+            }),
+            30000,
+            "Create account"
+          );
 
-        if (error) {
-          const codeHint = import.meta.env.DEV && error.code ? ` (${error.code})` : "";
-          setMsg(error.message + codeHint);
-          return;
+          if (error) {
+            const codeHint = import.meta.env.DEV && error.code ? ` (${error.code})` : "";
+            setMsg(error.message + codeHint);
+            return;
+          }
+          needsEmailVerification = !signUpData?.session;
         }
-        const needsEmailVerification = !signUpData?.session;
-        const slugNotice = slugCheckSkipped
-          ? "We could not verify your organisation name in time; if that name is already taken, you'll see an error after verification."
+
+        const slugNotice =
+          !isTeamInviteSignup && slugCheckSkipped
+            ? "We could not verify your organisation name in time; if that name is already taken, you'll see an error after verification."
+            : null;
+        const teamNotice = isTeamInviteSignup
+          ? `Your account is ready. You can now use ${teamInvite.clientName}.`
           : null;
         setMsg("");
         onSubmitted?.({
           email: trimmedEmail,
           needsEmailVerification,
-          notice: slugNotice,
+          notice: teamNotice || slugNotice,
+          teamInvite: isTeamInviteSignup,
         });
         if (!needsEmailVerification) {
           onSuccess?.();
@@ -207,6 +279,7 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
+              readOnly={isTeamInviteSignup}
             />
             <label className="auth-float__label" htmlFor="signup-email">
               Email address
@@ -228,20 +301,22 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
               Password (min 8 characters)
             </label>
           </div>
-          <div className="auth-float">
-            <input
-              id="signup-company"
-              className="auth-float__input"
-              type="text"
-              placeholder=" "
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              autoComplete="organization"
-            />
-            <label className="auth-float__label" htmlFor="signup-company">
-              Company (optional)
-            </label>
-          </div>
+          {!isTeamInviteSignup ? (
+            <div className="auth-float">
+              <input
+                id="signup-company"
+                className="auth-float__input"
+                type="text"
+                placeholder=" "
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                autoComplete="organization"
+              />
+              <label className="auth-float__label" htmlFor="signup-company">
+                Company (optional)
+              </label>
+            </div>
+          ) : null}
 
           <label className="signup-split__terms">
             <input
@@ -257,7 +332,7 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
           </label>
 
           <button type="submit" className="signup-split__continue" disabled={loading}>
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? "Creating account..." : isTeamInviteSignup ? "Create account & join team" : "Create account"}
           </button>
         </form>
 
@@ -278,6 +353,7 @@ export default function AuthForm({ mode, onSuccess, onSubmitted, variant = "defa
           className="auth-form__input"
           placeholder="you@example.com"
           autoComplete="email"
+          readOnly={!!teamInvite}
         />
         <label className="auth-form__label">Password</label>
         <input

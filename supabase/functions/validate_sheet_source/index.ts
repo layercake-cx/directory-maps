@@ -1,5 +1,6 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
-import { refreshAccessToken, fetchSheetValues } from "../_shared/google.ts";
+import { refreshAccessToken, fetchSheetValues, fetchDriveFileAsText } from "../_shared/google.ts";
+import { parseCSV, validateSheetRows } from "../_shared/sheetData.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -12,12 +13,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json", ...CORS },
   });
-}
-
-const REQUIRED_HEADERS = ["id", "name"];
-
-function normalizeHeader(h: string) {
-  return String(h ?? "").trim().toLowerCase();
 }
 
 Deno.serve(async (req) => {
@@ -42,47 +37,26 @@ Deno.serve(async (req) => {
       return json({ connected: true, configured: false, last_sync_status: src.last_sync_status, last_sync_error: src.last_sync_error });
     }
 
-    // CSV / non-Google-Sheet files: sheet_id is null, skip Sheets API
-    if (src.sheet_id === null) {
-      return json({
-        connected: true, configured: true, ok: true, issues: [],
-        sheet: { spreadsheet_id: src.spreadsheet_id, sheet_name: src.sheet_name },
-        last_synced_at: src.last_synced_at, last_sync_status: src.last_sync_status, last_sync_error: src.last_sync_error,
-      });
-    }
-
     const { access_token } = await refreshAccessToken(src.refresh_token);
-    const values = await fetchSheetValues(access_token, src.spreadsheet_id, src.sheet_name);
-    const rows = values.values ?? [];
-    if (rows.length < 2) {
-      return json({ connected: true, configured: true, ok: false, issues: ["Sheet looks empty (needs header + at least 1 row)."] });
+    let rows: string[][] = [];
+    if (src.sheet_id === null) {
+      const text = await fetchDriveFileAsText(access_token, src.spreadsheet_id);
+      rows = parseCSV(text);
+    } else {
+      const values = await fetchSheetValues(access_token, src.spreadsheet_id, src.sheet_name);
+      rows = values.values ?? [];
     }
 
-    const headers = (rows[0] ?? []).map(normalizeHeader);
-    const missing = REQUIRED_HEADERS.filter((h) => !headers.includes(h));
-    const issues: string[] = [];
-    if (missing.length) issues.push(`Missing required column(s): ${missing.join(", ")}`);
-
-    const idIdx = headers.indexOf("id");
-    if (idIdx >= 0) {
-      const seen = new Set<string>();
-      for (let i = 1; i < Math.min(rows.length, 2001); i++) {
-        const id = String(rows[i]?.[idIdx] ?? "").trim();
-        if (!id) continue;
-        if (seen.has(id)) {
-          issues.push(`Duplicate id found: ${id}`);
-          break;
-        }
-        seen.add(id);
-      }
-    }
+    const validation = validateSheetRows(rows);
 
     return json({
       connected: true,
       configured: true,
-      ok: issues.length === 0,
-      issues,
-      headers,
+      ok: validation.ok,
+      issues: validation.issues,
+      headers: validation.headers,
+      dataRowCount: validation.dataRowCount,
+      rowsWithName: validation.rowsWithName,
       sample: rows.slice(1, 6),
       sheet: { spreadsheet_id: src.spreadsheet_id, sheet_name: src.sheet_name },
       last_synced_at: src.last_synced_at,

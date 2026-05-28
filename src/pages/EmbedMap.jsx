@@ -6,6 +6,7 @@ import { formatContactMessageError, submitContactMessage } from "../lib/contactM
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
+import { buildMapStyles, normalizeMapStyleSettings } from "../lib/mapStyleSettings.js";
 
 export default function EmbedMap() {
   const [params] = useSearchParams();
@@ -187,6 +188,7 @@ export default function EmbedMap() {
         pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
         pinBorderColor: theme.pinBorderColor ?? null,
         pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+        pinDropShadow: theme.pinDropShadow != null ? theme.pinDropShadow : null,
         pinSize:
           theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
       });
@@ -204,6 +206,8 @@ export default function EmbedMap() {
         group_pin_border_color: o.pinBorderColor || null,
         group_pin_border_size:
           typeof o.pinBorderSize === "number" ? o.pinBorderSize : null,
+        group_pin_drop_shadow:
+          typeof o.pinDropShadow === "number" ? o.pinDropShadow : null,
         group_pin_size: o.pinSize != null && o.pinSize !== "" ? o.pinSize : null,
       };
     });
@@ -264,6 +268,22 @@ export default function EmbedMap() {
       return {};
     }
   })();
+  const parsedMapTypeId = parsedTheme.mapTypeId ?? "roadmap";
+  const parsedMapStyleSettings = normalizeMapStyleSettings({
+    ...(parsedTheme.mapStyleSettings || {}),
+    baseType:
+      parsedTheme.mapStyleSettings?.baseType ??
+      (parsedMapTypeId === "satellite" || parsedMapTypeId === "hybrid" || parsedMapTypeId === "terrain"
+        ? parsedMapTypeId
+        : "roadmap"),
+  });
+  const embedMapStyles = buildMapStyles(
+    parsedMapStyleSettings.colors.land,
+    parsedMapStyleSettings.colors.water,
+    parsedMapStyleSettings.colors.roads,
+    parsedMapStyleSettings.detail,
+    parsedMapStyleSettings.overlays
+  );
 
   return (
     <>
@@ -272,6 +292,7 @@ export default function EmbedMap() {
           apiKey={apiKey}
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
+          mapTypeId={parsedMapTypeId}
           listings={listings}
           listingsWithColor={listingsWithOverrides}
           groups={groupsForEmbed}
@@ -288,10 +309,17 @@ export default function EmbedMap() {
           clusterOpacity={Math.max(0, Math.min(1, Number(parsedTheme.clusterOpacity) ?? 1))}
           pinBorderColor={parsedTheme.pinBorderColor || "#ffffff"}
           pinBorderSize={Math.max(0, Math.min(15, Number(parsedTheme.pinBorderSize) ?? 0))}
+          pinDropShadow={Math.max(0, Math.min(30, Number(parsedTheme.pinDropShadow ?? parsedTheme.pinDropShadowPx ?? 0) || 0))}
+          pinShadowDistance={Math.max(0, Math.min(30, Number(parsedTheme.pinShadowDistance ?? 20)))}
+          pinShadowOpacity={Math.max(0, Math.min(100, Number(parsedTheme.pinShadowOpacity ?? 100)))}
           pinFaviconUrl={(() => {
             const u = parsedTheme.pin_favicon_url ?? parsedTheme.pinFaviconUrl;
             return u && String(u).trim() ? String(u).trim() : null;
           })()}
+          mapStyles={embedMapStyles}
+          showTrafficLayer={parsedMapStyleSettings.overlays.traffic}
+          showTransitLayer={parsedMapStyleSettings.overlays.transit}
+          showBikeLayer={parsedMapStyleSettings.overlays.bikeLanes}
           theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
           selectedListing={selectedListing}
           selectedMarkerPoint={selectedMarkerPoint}

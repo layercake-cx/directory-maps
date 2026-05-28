@@ -25,7 +25,7 @@ create index if not exists idx_invitations_client_id
   on public.invitations(client_id);
 
 comment on table public.invitations is
-  'Pending team invites. Accepted when invited user first logs in. map_ids stored here are applied to contact_map_permissions on acceptance.';
+  'Pending team invites. Accepted when invited user signs up or logs in with password (same email). map_ids applied to contact_map_permissions on acceptance.';
 
 -- 3. Per-contact map access (used for member role; owners/managers bypass this)
 create table if not exists public.contact_map_permissions (

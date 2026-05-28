@@ -1,7 +1,8 @@
 import { supabase } from "./supabase";
 
 /**
- * After email magic link / OTP, create clients + contacts from signup metadata (OTP sign-up only).
+ * After email/password signup, create clients + contacts from signup metadata (new organisation sign-up only).
+ * Skipped when the user joins via a team invitation (no signup_org_* metadata).
  * Idempotent: no-op if a contact already exists for this user.
  *
  * A mutex serialises concurrent calls (init + onAuthStateChange race on verification-link landing)

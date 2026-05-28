@@ -101,3 +101,25 @@ Other supported columns match the CSV importer template:
 
 If `lat`/`lng` are missing, the sync will geocode using `GOOGLE_GEOCODING_API_KEY` when possible.
 
+## 7) Google Drive sync vs local CSV upload
+
+| Path | Where | Use when |
+|------|--------|----------|
+| **Google Drive** (Data → Google Drive tab) | File must live in **Google Drive** (Google Sheet or `.csv` stored in Drive) | You want nightly auto-sync or to keep editing in Sheets/Drive |
+| **Spreadsheet / CSV** tab | Upload from your computer | One-off import; file is **not** read by Drive sync |
+
+Drive sync does **not** read a CSV you only uploaded via the Spreadsheet / CSV tab.
+
+## 8) Troubleshooting “Synced 0 rows”
+
+After **Sync now**, the Data page should show a yellow or red message explaining what went wrong. Common causes:
+
+1. **Wrong tab** — CSV uploaded locally but sync expects a file **chosen in Google Drive**.
+2. **Missing headers** — First row must include columns **`id`** and **`name`** (case-insensitive; a UTF-8 BOM on the first column is OK).
+3. **Empty names** — Every data row needs a non-empty **name**; blank name rows are skipped.
+4. **No data rows** — Header row only, or file empty.
+5. **Semicolon CSV** — Comma-separated files are supported; semicolon-delimited exports (common in some locales) may parse as a single column — re-export as comma-separated or use a Google Sheet.
+6. **Not connected** — Connect Drive, pick a file, then sync. Validation runs when the page loads and lists issues before sync.
+
+Check **Issues detected** on the Data page and `last_sync_error` under the sync controls.
+

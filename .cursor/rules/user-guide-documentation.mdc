@@ -1,0 +1,30 @@
+---
+description: Keep docs/USER_GUIDE.md in sync when changing product features
+alwaysApply: true
+---
+
+# User guide documentation
+
+When you **build, change, or remove** a user-facing feature in Directory Maps, update **`docs/USER_GUIDE.md`** in the same task.
+
+## What to update
+
+- **New feature** — Add or extend a section with steps a client user would follow (routes, buttons, prerequisites).
+- **Changed behaviour** — Revise the affected section; remove outdated steps.
+- **Removed feature** — Delete or shorten the section; note deprecation if beta users need it.
+
+Also update when relevant:
+
+- **`docs/FEATURES.md`** — Inventory, maturity, or route reference.
+- **`docs/README.md`** — Only if the doc index or quick links change.
+
+## Style
+
+- Write for **client users**, not developers (no file paths in USER_GUIDE unless troubleshooting).
+- Use the app’s real labels and hash routes (e.g. `/#/client/team`).
+- Keep the **Quick reference** table at the bottom current.
+
+## Do not
+
+- Skip USER_GUIDE updates because the change “seems small.”
+- Put implementation detail in USER_GUIDE (that belongs in FEATURES.md or specialist docs).

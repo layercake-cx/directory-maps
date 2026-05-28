@@ -1,108 +1,96 @@
 import { supabase } from "./supabase";
+import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
-function getMagicLinkRedirectUrl() {
-  if (typeof window === "undefined") return "";
-  return window.location.origin + (window.location.pathname || "/");
+/**
+ * Build signup/login URLs for a pending team invitation (password auth).
+ */
+export function buildTeamInviteUrls(invitationId) {
+  const base =
+    typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
+  return {
+    signup: `${base}#/signup?invite=${invitationId}`,
+    login: `${base}#/login?invite=${invitationId}`,
+  };
 }
 
 /**
- * Send a team invitation: creates the invitations record then fires a magic-link OTP.
- * mapIds only matters for 'member' role — owners/managers see all maps anyway.
+ * Load invitation details for the public signup/login pages.
  */
-export async function sendInvitation({ clientId, email, role, invitedByContactId, mapIds = [] }) {
-  const normalised = email.trim().toLowerCase();
+export async function fetchTeamInvitationPreview(invitationId) {
+  if (!invitationId) return null;
 
-  const { data: existingInvite } = await supabase
-    .from("invitations")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("email", normalised)
-    .is("accepted_at", null)
-    .maybeSingle();
-
-  if (existingInvite) throw new Error("A pending invitation already exists for this email.");
-
-  const { data: existingContact } = await supabase
-    .from("contacts")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("email", normalised)
-    .maybeSingle();
-
-  if (existingContact) throw new Error("This email already belongs to a team member.");
-
-  const { data: invitation, error: invErr } = await supabase
-    .from("invitations")
-    .insert({
-      client_id: clientId,
-      email: normalised,
-      role,
-      invited_by_contact_id: invitedByContactId,
-      map_ids: mapIds,
-    })
-    .select("id")
-    .single();
-
-  if (invErr) throw invErr;
-
-  const { error: otpErr } = await supabase.auth.signInWithOtp({
-    email: normalised,
-    options: {
-      shouldCreateUser: true,
-      emailRedirectTo: getMagicLinkRedirectUrl(),
-    },
+  const { data, error } = await supabase.rpc("get_team_invitation_preview", {
+    p_invitation_id: invitationId,
   });
 
-  if (otpErr) {
-    await supabase.from("invitations").delete().eq("id", invitation.id);
-    throw otpErr;
-  }
-
-  return invitation;
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ?? null;
 }
 
 /**
- * Called after a user logs in. Looks for a pending invitation matching their email,
- * creates the contact + map permissions, and marks the invite accepted.
- * Returns the new contact record, or null if no invitation found.
+ * Complete signup from an invitation without secondary email verification.
  */
-export async function acceptPendingInvitation(userId, email) {
-  const normalised = email.trim().toLowerCase();
+export async function completeInvitedSignup({
+  invitationId,
+  email,
+  password,
+  firstName,
+  lastName,
+}) {
+  const data = await invokeEdgeFunction(
+    "complete_invited_signup",
+    {
+      invitationId,
+      email: email.trim(),
+      password,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+    },
+    { supabase, requireAuth: false }
+  );
 
-  const { data: invitation } = await supabase
-    .from("invitations")
-    .select("id, client_id, role, map_ids")
-    .eq("email", normalised)
-    .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle();
+  if (!data?.ok) {
+    throw new Error(data?.error ?? "Could not complete invitation signup.");
+  }
+  return data;
+}
 
-  if (!invitation) return null;
+/**
+ * Invite a team member: validates 1:1 rules, creates invitation, sends email.
+ */
+export async function sendInvitation({ clientId, email, role, mapIds = [] }) {
+  const data = await invokeEdgeFunction(
+    "send_team_invitation",
+    {
+      clientId,
+      email: email.trim(),
+      role,
+      mapIds: mapIds ?? [],
+    },
+    { supabase, requireAuth: true }
+  );
 
-  const { data: contact, error: contactErr } = await supabase
-    .from("contacts")
-    .insert({
-      client_id: invitation.client_id,
-      user_id: userId,
-      email: normalised,
-      role: invitation.role,
-      is_primary: false,
-    })
-    .select("id, client_id, role, is_primary, email, name")
-    .single();
-
-  if (contactErr) throw contactErr;
-
-  if (invitation.map_ids?.length) {
-    await supabase.from("contact_map_permissions").insert(
-      invitation.map_ids.map((mapId) => ({ contact_id: contact.id, map_id: mapId }))
-    );
+  const invitation = data?.invitation;
+  if (!invitation?.id) {
+    throw new Error(data?.error ?? "Invitation could not be created.");
   }
 
-  await supabase
-    .from("invitations")
-    .update({ accepted_at: new Date().toISOString() })
-    .eq("id", invitation.id);
+  return {
+    invitation,
+    urls: data.urls ?? buildTeamInviteUrls(invitation.id),
+    emailSent: !!data.emailSent,
+  };
+}
 
-  return contact;
+/**
+ * Called after login/signup — links pending invitation to the authenticated user.
+ */
+export async function acceptPendingInvitation() {
+  const { data, error } = await supabase.rpc("accept_team_invitation");
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ?? null;
 }

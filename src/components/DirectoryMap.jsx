@@ -382,6 +382,9 @@ export default function DirectoryMap({
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
   pinFaviconUrl = null,
+  pinDropShadow = 0,
+  pinShadowDistance = 20,
+  pinShadowOpacity = 100,
   /** small | medium | large — medium matches historical default marker scale */
   pinSize = "medium",
   /** When set (e.g. listing detail panel open), keep updating screen position on pan/zoom */
@@ -404,11 +407,18 @@ export default function DirectoryMap({
   /** Horizontal pixel offset applied via panBy after centering on a selection. Positive shifts the
    *  map center right so the pin appears left of center — use when a side panel occupies the right. */
   selectPanOffsetX = 0,
+  mapStyles = null,
+  showTrafficLayer = false,
+  showTransitLayer = false,
+  showBikeLayer = false,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef(new Map()); // id -> marker
   const clustererRef = useRef(null);
+  const trafficLayerRef = useRef(null);
+  const transitLayerRef = useRef(null);
+  const bikeLayerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
   const points = useMemo(
@@ -517,6 +527,33 @@ export default function DirectoryMap({
   }, [mapReady, cameraRequest]);
 
   useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps) return;
+    mapRef.current.setOptions({ styles: Array.isArray(mapStyles) ? mapStyles : null });
+  }, [mapReady, mapStyles]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !window.google?.maps) return;
+    const map = mapRef.current;
+    const mapsApi = window.google.maps;
+
+    if (!trafficLayerRef.current) trafficLayerRef.current = new mapsApi.TrafficLayer();
+    if (!transitLayerRef.current) transitLayerRef.current = new mapsApi.TransitLayer();
+    if (!bikeLayerRef.current) bikeLayerRef.current = new mapsApi.BicyclingLayer();
+
+    trafficLayerRef.current.setMap(showTrafficLayer ? map : null);
+    transitLayerRef.current.setMap(showTransitLayer ? map : null);
+    bikeLayerRef.current.setMap(showBikeLayer ? map : null);
+  }, [mapReady, showTrafficLayer, showTransitLayer, showBikeLayer]);
+
+  useEffect(() => {
+    return () => {
+      trafficLayerRef.current?.setMap(null);
+      transitLayerRef.current?.setMap(null);
+      bikeLayerRef.current?.setMap(null);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps || !onScreenOverlayPosition) return;
     const lat = screenOverlayListing?.lat;
     const lng = screenOverlayListing?.lng;
@@ -562,6 +599,7 @@ export default function DirectoryMap({
       faviconForMarker,
       borderColorForMarker,
       borderSizeForMarker,
+      dropShadowForMarker,
       pinSizeForMarker,
     ) => {
       const styleKey = styleForMarker === "custom" && customUrlForMarker ? "custom" : styleForMarker || "pin";
@@ -574,6 +612,9 @@ export default function DirectoryMap({
           pinBorderColor: borderColorForMarker,
           pinBorderSize: borderSizeForMarker,
           pinFaviconUrl: faviconForMarker || undefined,
+          pinDropShadowPx: dropShadowForMarker,
+          pinDropShadowDistance: pinShadowDistance,
+          pinDropShadowOpacity: pinShadowOpacity,
         }),
         scaledSize: new window.google.maps.Size(scaledSize.w, scaledSize.h),
         anchor: new window.google.maps.Point(anchor.x, anchor.y),
@@ -612,6 +653,8 @@ export default function DirectoryMap({
       const borderColorForListing = p.group_pin_border_color || pinBorderColor;
       const borderSizeForListing =
         typeof p.group_pin_border_size === "number" ? p.group_pin_border_size : pinBorderSize;
+      const dropShadowForListing =
+        typeof p.group_pin_drop_shadow === "number" ? p.group_pin_drop_shadow : pinDropShadow;
       const pinSizeForListing =
         p.group_pin_size != null && p.group_pin_size !== ""
           ? normalizePinSize(p.group_pin_size)
@@ -623,6 +666,7 @@ export default function DirectoryMap({
         faviconForListing,
         borderColorForListing,
         borderSizeForListing,
+        dropShadowForListing,
         pinSizeForListing,
       );
 
@@ -711,6 +755,9 @@ export default function DirectoryMap({
     pinBorderColor,
     pinBorderSize,
     pinFaviconUrl,
+    pinDropShadow,
+    pinShadowDistance,
+    pinShadowOpacity,
     pinSize,
     selectZoom,
     selectPanOffsetX,

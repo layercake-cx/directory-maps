@@ -66,6 +66,50 @@ const DONUT_EVENT_TYPES = [
   "message_sent",
 ];
 
+/** Listing-level interaction columns for Top listings table (map stats). */
+export const LISTING_INTERACTION_COLUMNS = [
+  { key: "listing_panel_open", label: "Opens" },
+  { key: "website_click", label: "Website" },
+  { key: "email_click", label: "Email" },
+  { key: "message_compose_open", label: "Compose" },
+  { key: "message_sent", label: "Sent" },
+];
+
+const LISTING_INTERACTION_KEYS = LISTING_INTERACTION_COLUMNS.map((c) => c.key);
+
+/**
+ * @param {EngagementEvent[]} events
+ * @param {Record<string, string>} listingNameById
+ * @param {number} [limit]
+ */
+export function deriveTopListings(events, listingNameById, limit = 25) {
+  const byId = new Map();
+
+  for (const e of events) {
+    const lid = e.listing_id;
+    if (!lid || !LISTING_INTERACTION_KEYS.includes(e.event_type)) continue;
+
+    if (!byId.has(lid)) {
+      byId.set(lid, Object.fromEntries(LISTING_INTERACTION_KEYS.map((k) => [k, 0])));
+    }
+    byId.get(lid)[e.event_type] += 1;
+  }
+
+  return [...byId.entries()]
+    .map(([listingId, counts]) => {
+      const total = LISTING_INTERACTION_KEYS.reduce((sum, k) => sum + counts[k], 0);
+      return {
+        listingId,
+        name: listingNameById[listingId] || "Unknown listing",
+        ...counts,
+        total,
+      };
+    })
+    .filter((row) => row.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+}
+
 function funnelRate(current, previous) {
   if (!previous) return null;
   return Math.round((current / previous) * 100);

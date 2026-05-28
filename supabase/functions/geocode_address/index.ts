@@ -1,4 +1,5 @@
-// Auth removed: requireUser was causing 401 (token/project mismatch). Caller is already behind app login.
+import { requireUser } from "../_shared/supabase.ts";
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -23,6 +24,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    await requireUser(req);
+
     const body = await req.json().catch(() => ({}));
     const address = typeof body?.address === "string" ? body.address.trim() : "";
     if (!address) {

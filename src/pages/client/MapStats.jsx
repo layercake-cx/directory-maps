@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import { useMapEngagement } from "../../hooks/useMapEngagement";
-import { parseDaysParam } from "../../lib/engagementAnalytics";
+import {
+  deriveTopListings,
+  LISTING_INTERACTION_COLUMNS,
+  parseDaysParam,
+} from "../../lib/engagementAnalytics";
 import { DailyEventsChart, DonutChart } from "../../components/engagement/EngagementCharts.jsx";
 import ListingSearchDropdown from "../../components/engagement/ListingSearchDropdown.jsx";
 import {
@@ -27,7 +31,20 @@ export default function MapStats() {
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
-  const { metrics, loading: engagementLoading, error: engagementError } = useMapEngagement(mapId, days);
+  const { metrics, events, loading: engagementLoading, error: engagementError } = useMapEngagement(
+    mapId,
+    days
+  );
+
+  const listingNameById = useMemo(
+    () => Object.fromEntries(listings.map((l) => [l.id, l.name])),
+    [listings]
+  );
+
+  const topListings = useMemo(
+    () => deriveTopListings(events, listingNameById),
+    [events, listingNameById]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +131,35 @@ export default function MapStats() {
     topResult: row.topResult,
   }));
 
+  const topListingColumns = [
+    {
+      key: "name",
+      label: "Listing",
+      render: (row) => (
+        <Link to={`/client/maps/${mapId}/stats/listings/${row.listingId}`} className={styles.listingNameLink}>
+          {row.name}
+        </Link>
+      ),
+    },
+    ...LISTING_INTERACTION_COLUMNS.map((col) => ({
+      key: col.key,
+      label: col.label,
+      className: styles.numCell,
+      render: (row) => row[col.key].toLocaleString(),
+    })),
+    {
+      key: "total",
+      label: "Total",
+      className: styles.numCell,
+      render: (row) => <strong>{row.total.toLocaleString()}</strong>,
+    },
+  ];
+
+  const topListingRows = topListings.map((row) => ({
+    id: row.listingId,
+    ...row,
+  }));
+
   return (
     <div className="page-main">
       <div className={styles.page}>
@@ -160,17 +206,34 @@ export default function MapStats() {
             <FunnelChart steps={metrics.funnel} />
           </Panel>
 
-          <Panel title="Top search queries" subtitle="Submitted searches (Enter or selection)">
-            <DataTable
-              columns={[
-                { key: "query", label: "Query" },
-                { key: "count", label: "Count" },
-                { key: "topResult", label: "Most common result" },
-              ]}
-              rows={searchRows}
-              emptyMessage="No submitted searches in this period."
-            />
-          </Panel>
+          <div className={styles.topRow}>
+            <Panel
+              className={styles.topRowLeft}
+              title="Top listings"
+              subtitle="Listing interactions in this period · sorted by total"
+            >
+              <DataTable
+                columns={topListingColumns}
+                rows={topListingRows}
+                emptyMessage="No listing interactions in this period."
+              />
+            </Panel>
+            <Panel
+              className={styles.topRowRight}
+              title="Top search queries"
+              subtitle="Submitted searches (Enter or selection)"
+            >
+              <DataTable
+                columns={[
+                  { key: "query", label: "Query" },
+                  { key: "count", label: "Count", className: styles.numCell },
+                  { key: "topResult", label: "Most common result" },
+                ]}
+                rows={searchRows}
+                emptyMessage="No submitted searches in this period."
+              />
+            </Panel>
+          </div>
         </div>
       )}
       </div>

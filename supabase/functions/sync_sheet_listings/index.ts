@@ -1,5 +1,6 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
 import { refreshAccessToken, fetchSheetValues, fetchDriveFileAsText } from "../_shared/google.ts";
+import { normalizeHeader, parseCSV, validateSheetRows } from "../_shared/sheetData.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -21,10 +22,6 @@ function boolish(v: unknown) {
   return null;
 }
 
-function normalizeHeader(h: string) {
-  return String(h ?? "").trim().toLowerCase();
-}
-
 async function geocodeGoogle(apiKey: string, address: string) {
   const url =
     "https://maps.googleapis.com/maps/api/geocode/json?address=" +
@@ -38,31 +35,6 @@ async function geocodeGoogle(apiKey: string, address: string) {
   }
   const loc = data.results[0].geometry.location;
   return { ok: true, status: "OK", lat: loc.lat as number, lng: loc.lng as number };
-}
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  const cols: string[] = [];
-  let cur = "", inQuote = false;
-
-  for (let i = 0; i <= text.length; i++) {
-    const ch = i < text.length ? text[i] : "\n";
-    if (ch === '"') {
-      if (inQuote && text[i + 1] === '"') { cur += '"'; i++; }
-      else inQuote = !inQuote;
-    } else if (ch === "," && !inQuote) {
-      cols.push(cur); cur = "";
-    } else if ((ch === "\n" || ch === "\r") && !inQuote) {
-      cols.push(cur); cur = "";
-      if (cols.length > 1 || cols[0] !== "") rows.push([...cols]);
-      cols.length = 0;
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-    } else {
-      cur += ch;
-    }
-  }
-
-  return rows;
 }
 
 async function fetchRows(
@@ -88,21 +60,35 @@ async function stableId(mapId: string, name: string): Promise<string> {
   return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
 }
 
+type SyncDiagnostics = {
+  rows: number;
+  dataRowCount: number;
+  skippedNoName: number;
+  warnings: string[];
+  headers: string[];
+};
+
 async function syncSource(
   service: ReturnType<typeof createServiceClient>,
   src: { map_id: string; refresh_token: string; spreadsheet_id: string; sheet_name: string | null; sheet_id: number | null },
   geocodeKey: string,
-) {
+): Promise<SyncDiagnostics> {
   const { access_token } = await refreshAccessToken(src.refresh_token);
   const rows = await fetchRows(access_token, src.spreadsheet_id, src.sheet_name, src.sheet_id);
 
+  const validation = validateSheetRows(rows);
+  if (!validation.ok && validation.issues.some((i) => i.includes("Missing required"))) {
+    throw new Error(validation.issues.join(" "));
+  }
   if (rows.length < 2) throw new Error("File is empty (needs header row + at least 1 data row)");
 
-  const headers = (rows[0] ?? []).map(normalizeHeader);
+  const headers = validation.headers;
   const idx = (name: string) => headers.indexOf(name);
   const idIdx = idx("id");
   const nameIdx = idx("name");
   if (idIdx < 0 || nameIdx < 0) throw new Error("Missing required columns: id, name");
+
+  let skippedNoName = 0;
 
   const groupNameIdx = idx("group_name") >= 0 ? idx("group_name") : idx("group");
 
@@ -151,7 +137,10 @@ async function syncSource(
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i] ?? [];
     const name = String(r[nameIdx] ?? "").trim();
-    if (!name) continue;
+    if (!name) {
+      skippedNoName++;
+      continue;
+    }
     const id = String(r[idIdx] ?? "").trim() || await stableId(src.map_id, name);
 
     const get = (h: string) => {
@@ -216,7 +205,21 @@ async function syncSource(
   const { error: upErr } = await service.from("listings").upsert(deduped, { onConflict: "id" });
   if (upErr) throw upErr;
 
-  return deduped.length;
+  const warnings = [...validation.issues];
+  if (skippedNoName > 0) {
+    warnings.push(`${skippedNoName} row(s) skipped because the name column was empty.`);
+  }
+  if (deduped.length === 0) {
+    warnings.push("No listings were imported. Add data rows with id and name, or use the Spreadsheet / CSV tab to upload a file directly.");
+  }
+
+  return {
+    rows: deduped.length,
+    dataRowCount: validation.dataRowCount,
+    skippedNoName,
+    warnings,
+    headers,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -253,6 +256,17 @@ Deno.serve(async (req) => {
 
   if (srcErr) return json({ error: srcErr.message }, 500);
 
+  if (targetMapId && (!sources || sources.length === 0)) {
+    return json({
+      ok: true,
+      results: [{
+        map_id: targetMapId,
+        ok: false,
+        error: "No enabled Google sync source for this map. Connect Google Drive, choose a spreadsheet or CSV file, then try again.",
+      }],
+    });
+  }
+
   const results: any[] = [];
 
   for (const src of sources ?? []) {
@@ -263,16 +277,26 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const rowCount = await syncSource(service, src as any, geocodeKey);
+      const syncResult = await syncSource(service, src as any, geocodeKey);
+      const syncWarning = syncResult.warnings.length ? syncResult.warnings.join(" ") : null;
 
       await service.from("map_data_sources").update({
         last_synced_at: new Date().toISOString(),
-        last_sync_status: "OK",
-        last_sync_error: null,
+        last_sync_status: syncResult.rows > 0 ? "OK" : "WARNING",
+        last_sync_error: syncWarning,
         updated_at: new Date().toISOString(),
       }).eq("map_id", src.map_id);
 
-      results.push({ map_id: src.map_id, ok: true, rows: rowCount, startedAt });
+      results.push({
+        map_id: src.map_id,
+        ok: true,
+        rows: syncResult.rows,
+        dataRowCount: syncResult.dataRowCount,
+        skippedNoName: syncResult.skippedNoName,
+        warnings: syncResult.warnings,
+        headers: syncResult.headers,
+        startedAt,
+      });
     } catch (e) {
       await service.from("map_data_sources").update({
         last_sync_status: "ERROR",

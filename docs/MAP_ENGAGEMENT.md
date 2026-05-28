@@ -1,6 +1,6 @@
 # Map engagement analytics
 
-Captures how visitors interact with **published embed maps** (public map views). Events are stored in Supabase for later reporting and dashboards. Visualization in the client portal is planned; this document describes what is recorded today and how it works.
+Captures how visitors interact with **published embed maps** (public map views). Events are stored in Supabase for reporting. The **client portal** exposes dashboards at `/#/client/maps/<mapId>/stats` (map overview) and `.../stats/listings/<listingId>` (per listing). This document describes what is recorded and how it works.
 
 ## Overview
 
@@ -184,11 +184,22 @@ const { data, error } = await supabase
 - Recording is **best-effort** (failed inserts do not block the UI).
 - Client/admin previews do not record events today, avoiding noise from editors testing maps.
 
+## Client portal dashboards
+
+| Route | Component | Contents |
+|-------|-----------|----------|
+| `/#/client/maps/:mapId/stats` | `MapStats.jsx` | Date range, metric cards, daily events chart, funnel, search terms table, listing picker |
+| `/#/client/maps/:mapId/stats/listings/:listingId` | `ListingStats.jsx` | Per-listing engagement breakdown |
+
+Hooks and charts: `src/hooks/useListingEngagement.js`, `src/components/engagement/*`.
+
+Admin map routes do **not** include a Stats tab today.
+
 ## Future work
 
-- Dashboard charts and tables per map (client portal).
 - Optional `client_preview` / `admin_preview` recording with a flag.
 - Aggregations (materialized views or scheduled rollups) if event volume grows.
+- CSV export of engagement data from the portal.
 
 ## Related files
 

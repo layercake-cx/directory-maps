@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth.js";
+import { recordAdminEvent } from "../lib/adminEvents.js";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [msg, setMsg] = useState("");
@@ -32,6 +33,19 @@ export default function ResetPassword() {
         setMsg(error.message);
         return;
       }
+      if (role === "admin") {
+        recordAdminEvent(supabase, {
+          eventType: "team_password_reset_completed",
+          source: "reset_password_page",
+          meta: {
+            actor_user_id: user?.id ?? null,
+            actor_contact_id: null,
+            actor_role: "admin",
+            actor_admin_scope: "platform_admin",
+            client_id: null,
+          },
+        });
+      }
       setDone(true);
     } catch (e) {
       setMsg(e?.message ?? String(e));
@@ -51,9 +65,9 @@ export default function ResetPassword() {
           <button
             type="button"
             className="btn btn-primary auth-form__submit"
-            onClick={() => navigate("/client")}
+            onClick={() => navigate(role === "admin" ? "/admin/clients" : "/client")}
           >
-            Continue to dashboard
+            Continue
           </button>
         </div>
       </div>

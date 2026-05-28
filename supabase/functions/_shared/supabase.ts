@@ -41,7 +41,7 @@ export async function requireAdmin(req: Request) {
   return user;
 }
 
-/** Allows admins OR client contacts who have is_primary or can_manage_maps for the given map. */
+/** Allows admins OR client contacts who are owner/manager/primary or can_manage_maps for the given map. */
 export async function requireMapAccess(req: Request, mapId: string) {
   const user = await requireUser(req);
   const service = createServiceClient();
@@ -54,13 +54,15 @@ export async function requireMapAccess(req: Request, mapId: string) {
 
   const { data: contact } = await service
     .from("contacts")
-    .select("is_primary, can_manage_maps")
+    .select("is_primary, can_manage_maps, role")
     .eq("client_id", map.client_id)
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (!contact) throw new Error("Access denied");
-  if (!contact.is_primary && !contact.can_manage_maps) {
+  const role = typeof contact.role === "string" ? contact.role : "";
+  const isManagerRole = role === "owner" || role === "manager";
+  if (!isManagerRole && !contact.is_primary && !contact.can_manage_maps) {
     throw new Error("You need 'Manage maps' permission to configure data sources");
   }
   return user;

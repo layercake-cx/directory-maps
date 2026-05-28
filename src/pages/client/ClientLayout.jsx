@@ -5,6 +5,7 @@ import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
 import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
+import { canManageOrg } from "../../lib/clientAuth.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { readHashSearchParams, replaceHashSearchParams } from "../../lib/hashSearchParams.js";
 import {
@@ -16,7 +17,7 @@ import "../admin/admin.css";
 
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
-  { label: "Team", path: "/client/team", requiresManageUsers: true },
+  { label: "Team", path: "/client/team", requiresManageOrg: true },
   { label: "Email", path: "/client/email", requiresManageMaps: true },
 ];
 
@@ -236,10 +237,9 @@ export default function ClientLayout() {
       );
     }
   } else {
-    const canManageUsers = contact?.is_primary || contact?.can_manage_users;
     const canManageMaps = contact?.is_primary || contact?.can_manage_maps;
     const navItems = CLIENT_NAV.filter((item) => {
-      if (item.requiresManageUsers) return canManageUsers;
+      if (item.requiresManageOrg) return canManageOrg(contact);
       if (item.requiresManageMaps) return canManageMaps;
       return true;
     });

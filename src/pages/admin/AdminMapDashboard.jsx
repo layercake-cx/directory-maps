@@ -11,9 +11,24 @@ import {
   normalizePublicationConfig,
   publicationConfigsEqual,
 } from "../../lib/mapPublication.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
+import {
+  buildMapStyles,
+  DEFAULT_MAP_STYLE_SETTINGS,
+  DETAIL_LEVEL_LABELS,
+  normalizeMapStyleSettings,
+} from "../../lib/mapStyleSettings.js";
 
+// Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
 const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search"];
+const PAGE_SIZE = 100;
+const LOGO_BG_SWATCHES = [
+  { label: "None", value: "" },
+  { label: "Light", value: "#d4d4d4" },
+  { label: "Mid", value: "#737373" },
+  { label: "Dark", value: "#1a1a1a" },
+];
 const MAP_TYPES = [
   { id: "roadmap", label: "Roadmap" },
   { id: "roadmap_silver", label: "Silver" },
@@ -24,11 +39,39 @@ const MAP_TYPES = [
   { id: "hybrid", label: "Hybrid" },
   { id: "terrain", label: "Terrain" },
 ];
+const BASE_TYPE_OPTIONS = [
+  { id: "roadmap", label: "Roadmap" },
+  { id: "satellite", label: "Satellite" },
+  { id: "hybrid", label: "Hybrid" },
+  { id: "terrain", label: "Terrain" },
+];
+const DETAIL_CONTROLS = [
+  { key: "poi", label: "Places of interest", description: "Restaurants, cafes, attractions" },
+  { key: "business", label: "Local businesses", description: "Shops, services, offices" },
+  { key: "transit", label: "Transit & transport", description: "Bus stops, stations, routes" },
+  { key: "roadLabels", label: "Road labels", description: "Street names and numbers" },
+  { key: "adminLabels", label: "Administrative labels", description: "Towns, counties, countries" },
+];
+const OVERLAY_CONTROLS = [
+  { key: "terrain", label: "Terrain & contours", description: "Show elevation shading and contour lines" },
+  { key: "traffic", label: "Traffic layer", description: "Live traffic conditions" },
+  { key: "transit", label: "Public transport routes", description: "Bus, rail and tube lines" },
+  { key: "bikeLanes", label: "Bike lanes", description: "Cycle paths and shared routes" },
+];
 const PIN_STYLES = [
   { id: "pin", label: "Pin" },
-  { id: "teardrop", label: "Teardrop" },
+  { id: "teardrop", label: "Rounded Pin" },
   { id: "dot", label: "Dot" },
 ];
+
+function tabLabel(t) {
+  if (t === "detail") return "General";
+  if (t === "design") return "Pin Design";
+  if (t === "groups") return "Groups & Content";
+  if (t === "mapstyle") return "Map Style";
+  if (t === "publish") return "Publish Map";
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 
 function slugify(input) {
   return (input || "")
@@ -86,6 +129,61 @@ const MAP_STYLE_COLORS = {
   terrain:        { land: "#8aaa6a", water: "#7abadb", road: "#b8d4a8", border: "#6a8a5a" },
 };
 
+const MAP_STYLE_PRESET_SETTINGS = {
+  roadmap: {
+    baseType: "roadmap",
+    colors: { land: "#e8e4de", water: "#a8c8e8", roads: "#ffffff" },
+    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
+    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
+  },
+  roadmap_silver: {
+    baseType: "roadmap",
+    colors: { land: "#ebe3cd", water: "#b9d3c2", roads: "#fdfcf8" },
+    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
+    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
+  },
+  roadmap_dark: {
+    baseType: "roadmap",
+    colors: { land: "#374151", water: "#17263c", roads: "#4b5563" },
+    detail: { poi: 1, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
+    overlays: { terrain: false, traffic: false, transit: true, bikeLanes: false },
+  },
+  roadmap_muted: {
+    baseType: "roadmap",
+    colors: { land: "#e8e2d5", water: "#b8d4e3", roads: "#f0ede6" },
+    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
+    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
+  },
+  roadmap_atlas: {
+    baseType: "roadmap",
+    colors: { land: "#cdb98a", water: "#8bbde0", roads: "#d8c898" },
+    detail: { poi: 0, business: 0, transit: 0, roadLabels: 0, adminLabels: 3 },
+    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
+  },
+  satellite: {
+    baseType: "satellite",
+    colors: { land: "#2a3f28", water: "#1a3548", roads: "#3d5a3d" },
+    detail: { poi: 1, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
+    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
+  },
+  hybrid: {
+    baseType: "hybrid",
+    colors: { land: "#2a3f28", water: "#1a3548", roads: "#6b7280" },
+    detail: { poi: 2, business: 2, transit: 2, roadLabels: 3, adminLabels: 3 },
+    overlays: { terrain: false, traffic: false, transit: true, bikeLanes: false },
+  },
+  terrain: {
+    baseType: "terrain",
+    colors: { land: "#8aaa6a", water: "#7abadb", roads: "#b8d4a8" },
+    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
+    overlays: { terrain: true, traffic: false, transit: false, bikeLanes: false },
+  },
+};
+
+function defaultPresetIdFromMapTypeId(mapTypeId) {
+  return MAP_STYLE_PRESET_SETTINGS[mapTypeId] ? mapTypeId : null;
+}
+
 function MapStyleThumb({ styleId }) {
   const c = MAP_STYLE_COLORS[styleId] || MAP_STYLE_COLORS.roadmap;
   return (
@@ -116,6 +214,8 @@ export default function AdminMapDashboard() {
   const [msg, setMsg] = useState("");
 
   const [overlayTab, setOverlayTab] = useState(null);
+  const [dataSearch, setDataSearch] = useState("");
+  const [dataPage, setDataPage] = useState(0);
 
   // form state
   const [name, setName] = useState("");
@@ -136,6 +236,9 @@ export default function AdminMapDashboard() {
   const [clusterOpacity, setClusterOpacity] = useState(100);
   const [pinBorderColor, setPinBorderColor] = useState("#ffffff");
   const [pinBorderSize, setPinBorderSize] = useState(0);
+  const [pinDropShadow, setPinDropShadow] = useState(0);
+  const [pinShadowDistance, setPinShadowDistance] = useState(20);
+  const [pinShadowOpacity, setPinShadowOpacity] = useState(100);
   const [pinFaviconUrl, setPinFaviconUrl] = useState("");
   const [buttonColor, setButtonColor] = useState("#4A9BAA");
   const [panelBackgroundColor, setPanelBackgroundColor] = useState("#ffffff");
@@ -162,6 +265,8 @@ export default function AdminMapDashboard() {
   const [discarding, setDiscarding] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   const [mapTypeId, setMapTypeId] = useState("roadmap");
+  const [mapStyleSettings, setMapStyleSettings] = useState(DEFAULT_MAP_STYLE_SETTINGS);
+  const [selectedMapStylePreset, setSelectedMapStylePreset] = useState(null);
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
 
@@ -169,6 +274,8 @@ export default function AdminMapDashboard() {
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [groupEditDesign, setGroupEditDesign] = useState(null);
   const [savingGroups, setSavingGroups] = useState(false);
+  const groupDraftTimerRef = useRef(null);
+  const groupDraftPrimedRef = useRef(false);
 
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
@@ -214,6 +321,31 @@ export default function AdminMapDashboard() {
     if (Number.isNaN(lat) || Number.isNaN(lng)) return { lat: 51.5074, lng: -0.1278 };
     return { lat, lng };
   }, [defaultLat, defaultLng]);
+  const liveMapStyles = useMemo(() => {
+    return buildMapStyles(
+      mapStyleSettings.colors.land,
+      mapStyleSettings.colors.water,
+      mapStyleSettings.colors.roads,
+      mapStyleSettings.detail,
+      mapStyleSettings.overlays
+    );
+  }, [mapStyleSettings]);
+
+  function updateMapStyleSettings(updater) {
+    setSelectedMapStylePreset(null);
+    setMapStyleSettings((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      return normalizeMapStyleSettings(next);
+    });
+  }
+
+  function applyMapStylePreset(presetId) {
+    const preset = MAP_STYLE_PRESET_SETTINGS[presetId];
+    if (!preset) return;
+    setSelectedMapStylePreset(presetId);
+    setMapTypeId(presetId);
+    setMapStyleSettings(normalizeMapStyleSettings(preset));
+  }
 
   const groupOverridesById = useMemo(() => {
     const m = new Map();
@@ -239,6 +371,7 @@ export default function AdminMapDashboard() {
         marker_color: theme.marker_color ?? theme.markerColor ?? null,
         pinBorderColor: theme.pinBorderColor ?? null,
         pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+        pinDropShadow: theme.pinDropShadow != null ? theme.pinDropShadow : null,
         clusterColor: theme.clusterColor ?? null,
         custom_pin_url: theme.custom_pin_url ?? null,
         pin_favicon_url: theme.pin_favicon_url ?? null,
@@ -256,12 +389,15 @@ export default function AdminMapDashboard() {
       marker_color: markerColor,
       pinBorderColor,
       pinBorderSize,
+      pinDropShadow,
+      pinShadowDistance,
+      pinShadowOpacity,
       clusterColor,
       custom_pin_url: customPinUrl || null,
       pin_favicon_url: (pinFaviconUrl || "").trim() || null,
       pinSize: normalizePinSize(pinSize),
     }),
-    [markerStyle, markerColor, pinBorderColor, pinBorderSize, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
+    [markerStyle, markerColor, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
   );
 
   const listingsWithColor = useMemo(() => {
@@ -276,6 +412,7 @@ export default function AdminMapDashboard() {
           marker_color: e.marker_color ?? g.marker_color,
           pinBorderColor: e.pinBorderColor ?? g.pinBorderColor,
           pinBorderSize: e.pinBorderSize != null ? e.pinBorderSize : g.pinBorderSize,
+          pinDropShadow: e.pinDropShadow != null ? e.pinDropShadow : g.pinDropShadow,
           clusterColor: e.clusterColor ?? g.clusterColor,
           custom_pin_url: e.custom_pin_url ?? g.custom_pin_url,
           pin_favicon_url: favMode === "custom" ? (e.pin_favicon_url || null) : null,
@@ -293,11 +430,54 @@ export default function AdminMapDashboard() {
         group_pin_border_color: overrides.pinBorderColor || null,
         group_pin_border_size:
           typeof overrides.pinBorderSize === "number" ? overrides.pinBorderSize : null,
+        group_pin_drop_shadow:
+          typeof overrides.pinDropShadow === "number" ? overrides.pinDropShadow : null,
         group_pin_size:
           overrides.pinSize != null && overrides.pinSize !== "" ? overrides.pinSize : null,
       };
     });
   }, [listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup]);
+
+  const groupNameById = useMemo(() => {
+    const m = new Map();
+    (groups || []).forEach((g) => m.set(g.id, g.name || "—"));
+    return m;
+  }, [groups]);
+
+  const filteredListings = useMemo(
+    () =>
+      (listings || []).filter((l) =>
+        !dataSearch.trim() ||
+        l.name?.toLowerCase().includes(dataSearch.toLowerCase()) ||
+        l.address?.toLowerCase().includes(dataSearch.toLowerCase())
+      ),
+    [listings, dataSearch]
+  );
+  const totalPages = Math.ceil(filteredListings.length / PAGE_SIZE);
+  const pageListings = useMemo(
+    () => filteredListings.slice(dataPage * PAGE_SIZE, (dataPage + 1) * PAGE_SIZE),
+    [filteredListings, dataPage]
+  );
+  const totalFilteredListings = filteredListings.length;
+  const dataStart = totalFilteredListings ? dataPage * PAGE_SIZE + 1 : 0;
+  const dataEnd = totalFilteredListings ? Math.min((dataPage + 1) * PAGE_SIZE, totalFilteredListings) : 0;
+
+  useEffect(() => {
+    const maxPage = totalPages > 0 ? totalPages - 1 : 0;
+    if (dataPage > maxPage) {
+      setDataPage(maxPage);
+    }
+  }, [dataPage, totalPages]);
+
+  async function updateListingLogoBg(listingId, newValue) {
+    const normalizedValue = newValue || null;
+    const { error } = await supabase.from("listings").update({ logo_bg: normalizedValue }).eq("id", listingId);
+    if (error) {
+      setErr(error.message || "Failed to update logo background.");
+      return;
+    }
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, logo_bg: normalizedValue } : l)));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -309,10 +489,20 @@ export default function AdminMapDashboard() {
         setMsg("");
 
         let m = null;
-        const [{ data: c, error: ce }, { data: l, error: le }] = await Promise.all([
+        const [{ data: c, error: ce }, listingsRes] = await Promise.all([
           supabase.from("clients").select("id,name,slug").eq("id", clientId).single(),
-          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html").eq("map_id", mapId),
+          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html,logo_bg").eq("map_id", mapId),
         ]);
+        let l = listingsRes.data;
+        let le = listingsRes.error;
+        if (le && String(le.message || "").includes("logo_bg")) {
+          const fallback = await supabase
+            .from("listings")
+            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html")
+            .eq("map_id", mapId);
+          l = (fallback.data || []).map((row) => ({ ...row, logo_bg: null }));
+          le = fallback.error;
+        }
         if (ce) throw ce;
         if (le) throw le;
 
@@ -386,6 +576,9 @@ export default function AdminMapDashboard() {
             setClusterOpacity(Math.round((theme.clusterOpacity ?? 1) * 100));
             setPinBorderColor(theme.pinBorderColor ?? "#ffffff");
             setPinBorderSize(Math.max(0, Math.min(15, Number(theme.pinBorderSize) ?? 0)));
+            setPinDropShadow(Math.max(0, Math.min(30, Number(theme.pinDropShadow ?? theme.pinDropShadowPx ?? 0) ?? 0)));
+            setPinShadowDistance(Math.max(0, Math.min(30, Number(theme.pinShadowDistance ?? 20))));
+            setPinShadowOpacity(Math.max(0, Math.min(100, Number(theme.pinShadowOpacity ?? 100))));
             setPinFaviconUrl(String(theme.pin_favicon_url ?? theme.pinFaviconUrl ?? "").trim());
             setButtonColor(theme.buttonColor ?? "#4A9BAA");
             setPanelBackgroundColor(theme.panelBackgroundColor ?? "#ffffff");
@@ -397,13 +590,31 @@ export default function AdminMapDashboard() {
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
             setCenterLabel(theme.centerLabel ?? "");
-            setMapTypeId(theme.mapTypeId ?? "roadmap");
+            const loadedMapTypeId = theme.mapTypeId ?? "roadmap";
+            const normalizedMapStyleSettings = normalizeMapStyleSettings({
+              ...DEFAULT_MAP_STYLE_SETTINGS,
+              ...(theme.mapStyleSettings || {}),
+              baseType:
+                theme.mapStyleSettings?.baseType ??
+                (loadedMapTypeId === "satellite" ||
+                loadedMapTypeId === "hybrid" ||
+                loadedMapTypeId === "terrain"
+                  ? loadedMapTypeId
+                  : "roadmap"),
+            });
+            setMapTypeId(loadedMapTypeId);
+            setMapStyleSettings(normalizedMapStyleSettings);
+            setSelectedMapStylePreset(defaultPresetIdFromMapTypeId(loadedMapTypeId));
           } catch (_) {
             setClusterColor("#4A9BAA");
             setClusterOpacity(100);
             setPinBorderColor("#ffffff");
             setPinBorderSize(0);
+            setPinDropShadow(0);
             setPinSize("medium");
+            setMapTypeId("roadmap");
+            setMapStyleSettings(DEFAULT_MAP_STYLE_SETTINGS);
+            setSelectedMapStylePreset("roadmap");
           }
           try {
             let snapshot = null;
@@ -502,7 +713,7 @@ export default function AdminMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings]);
 
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
@@ -548,6 +759,9 @@ export default function AdminMapDashboard() {
           clusterOpacity: Math.max(0, Math.min(1, clusterOpacity / 100)),
           pinBorderColor: pinBorderColor || "#ffffff",
           pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
+          pinDropShadow: Math.max(0, Math.min(30, Number(pinDropShadow) || 0)),
+          pinShadowDistance: Math.max(0, Math.min(30, Number(pinShadowDistance) || 0)),
+          pinShadowOpacity: Math.max(0, Math.min(100, Number(pinShadowOpacity) || 0)),
           pin_favicon_url: (pinFaviconUrl || "").trim() || null,
           pinSize: normalizePinSize(pinSize),
           buttonColor: (buttonColor || "").trim() || "#4A9BAA",
@@ -560,6 +774,7 @@ export default function AdminMapDashboard() {
           showGroupDropdowns,
           centerLabel: centerLabel || undefined,
           mapTypeId,
+          mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
         };
         delete themeJson.pinFaviconUrl;
         const payloadBase = {
@@ -607,6 +822,9 @@ export default function AdminMapDashboard() {
         clusterOpacity: Math.max(0, Math.min(1, clusterOpacity / 100)),
         pinBorderColor: pinBorderColor || "#ffffff",
         pinBorderSize: Math.max(0, Math.min(15, Number(pinBorderSize) || 0)),
+        pinDropShadow: Math.max(0, Math.min(30, Number(pinDropShadow) || 0)),
+        pinShadowDistance: Math.max(0, Math.min(30, Number(pinShadowDistance) || 0)),
+        pinShadowOpacity: Math.max(0, Math.min(100, Number(pinShadowOpacity) || 0)),
         pin_favicon_url: (pinFaviconUrl || "").trim() || null,
         pinSize: normalizePinSize(pinSize),
         buttonColor: (buttonColor || "").trim() || "#4A9BAA",
@@ -618,6 +836,7 @@ export default function AdminMapDashboard() {
         showSearch,
         showGroupDropdowns,
         mapTypeId,
+        mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
       };
       delete themeJson.pinFaviconUrl;
       const { error } = await supabase.from("maps").update({ marker_style: markerStyle, marker_color: markerColor, theme_json: themeJson }).eq("id", mapId);
@@ -741,9 +960,36 @@ export default function AdminMapDashboard() {
       );
       const { data: hist } = await supabase.rpc("list_map_publications", { p_map_id: mapId });
       setPublicationHistory(hist ?? []);
+      recordAdminEvent(supabase, {
+        eventType: "map_published",
+        source: "admin_map",
+        clientId,
+        mapId,
+        meta: {
+          client_id: clientId,
+          map_id: mapId,
+          publication_id: data.id,
+          note_present: Boolean(publishNote.trim()),
+          actor_admin_scope: "platform_admin",
+          source: "admin_map",
+        },
+      });
       setMsg("Published.");
       window.setTimeout(() => setMsg(""), 2000);
     } catch (e2) {
+      recordAdminEvent(supabase, {
+        eventType: "map_publish_failed",
+        source: "admin_map",
+        clientId,
+        mapId,
+        meta: {
+          client_id: clientId,
+          map_id: mapId,
+          error: e2.message ?? String(e2),
+          actor_admin_scope: "platform_admin",
+          source: "admin_map",
+        },
+      });
       setErr(e2.message ?? String(e2));
     } finally {
       setPublishing(false);
@@ -854,6 +1100,9 @@ export default function AdminMapDashboard() {
       setClusterOpacity(Math.round((themeJson.clusterOpacity ?? 1) * 100));
       setPinBorderColor(themeJson.pinBorderColor ?? "#ffffff");
       setPinBorderSize(Math.max(0, Math.min(15, Number(themeJson.pinBorderSize) ?? 0)));
+      setPinDropShadow(Math.max(0, Math.min(30, Number(themeJson.pinDropShadow ?? themeJson.pinDropShadowPx ?? 0) ?? 0)));
+      setPinShadowDistance(Math.max(0, Math.min(30, Number(themeJson.pinShadowDistance ?? 20))));
+      setPinShadowOpacity(Math.max(0, Math.min(100, Number(themeJson.pinShadowOpacity ?? 100))));
       setPinFaviconUrl(String(themeJson.pin_favicon_url ?? themeJson.pinFaviconUrl ?? "").trim());
       setButtonColor(themeJson.buttonColor ?? "#4A9BAA");
       setPanelBackgroundColor(themeJson.panelBackgroundColor ?? "#ffffff");
@@ -864,6 +1113,22 @@ export default function AdminMapDashboard() {
       setPinSize(normalizePinSize(themeJson.pinSize));
       setShowSearch(themeJson.showSearch !== false);
       setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
+      const restoredMapTypeId = themeJson.mapTypeId ?? "roadmap";
+      setMapTypeId(restoredMapTypeId);
+      setMapStyleSettings(
+        normalizeMapStyleSettings({
+          ...DEFAULT_MAP_STYLE_SETTINGS,
+          ...(themeJson.mapStyleSettings || {}),
+          baseType:
+            themeJson.mapStyleSettings?.baseType ??
+            (restoredMapTypeId === "satellite" ||
+            restoredMapTypeId === "hybrid" ||
+            restoredMapTypeId === "terrain"
+              ? restoredMapTypeId
+              : "roadmap"),
+        })
+      );
+      setSelectedMapStylePreset(defaultPresetIdFromMapTypeId(restoredMapTypeId));
 
       const { data: gReload, error: gre } = await supabase
         .from("groups")
@@ -924,6 +1189,9 @@ export default function AdminMapDashboard() {
         clusterOpacity: clusterOpacity / 100,
         pinBorderColor,
         pinBorderSize,
+        pinDropShadow,
+        pinShadowDistance,
+        pinShadowOpacity,
         pinFaviconUrl,
         buttonColor,
         panelBackgroundColor,
@@ -936,6 +1204,7 @@ export default function AdminMapDashboard() {
         showGroupDropdowns,
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
+        mapStyleSettings,
       }),
     [
       orderedGroupsList,
@@ -952,6 +1221,9 @@ export default function AdminMapDashboard() {
       clusterOpacity,
       pinBorderColor,
       pinBorderSize,
+      pinDropShadow,
+      pinShadowDistance,
+      pinShadowOpacity,
       pinFaviconUrl,
       buttonColor,
       panelBackgroundColor,
@@ -963,6 +1235,7 @@ export default function AdminMapDashboard() {
       showSearch,
       showGroupDropdowns,
       mapTypeId,
+      mapStyleSettings,
       map?.theme_json,
     ],
   );
@@ -1016,6 +1289,7 @@ export default function AdminMapDashboard() {
   }
 
   function openGroupEdit(gr) {
+    groupDraftPrimedRef.current = false;
     setEditingGroupId(gr.id);
     const raw = gr.theme_json;
     if (!raw) {
@@ -1037,6 +1311,7 @@ export default function AdminMapDashboard() {
       marker_color: theme.marker_color ?? theme.markerColor ?? null,
       pinBorderColor: theme.pinBorderColor ?? null,
       pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
+      pinDropShadow: theme.pinDropShadow != null ? theme.pinDropShadow : null,
       clusterColor: theme.clusterColor ?? null,
       custom_pin_url: theme.custom_pin_url ?? null,
       pin_favicon_url: theme.pin_favicon_url ?? null,
@@ -1045,13 +1320,16 @@ export default function AdminMapDashboard() {
     });
   }
   function closeGroupEdit() {
+    if (groupDraftTimerRef.current) clearTimeout(groupDraftTimerRef.current);
+    groupDraftTimerRef.current = null;
+    groupDraftPrimedRef.current = false;
     setEditingGroupId(null);
     setGroupEditDesign(null);
   }
   function resetGroupDesign() {
     setGroupEditDesign(null);
   }
-  async function saveGroupDesign() {
+  async function saveGroupDesign({ silent = false } = {}) {
     if (!editingGroupId) return;
     try {
       setSavingGroups(true);
@@ -1062,6 +1340,7 @@ export default function AdminMapDashboard() {
             marker_color: groupEditDesign.marker_color ?? undefined,
             pinBorderColor: groupEditDesign.pinBorderColor ?? undefined,
             pinBorderSize: groupEditDesign.pinBorderSize ?? undefined,
+          pinDropShadow: groupEditDesign.pinDropShadow ?? undefined,
             clusterColor: groupEditDesign.clusterColor ?? undefined,
             custom_pin_url: groupEditDesign.custom_pin_url ?? undefined,
             pin_favicon_url: groupEditDesign.pin_favicon_url ?? undefined,
@@ -1083,15 +1362,32 @@ export default function AdminMapDashboard() {
       setGroups((prev) =>
         (prev || []).map((g) => (g.id === editingGroupId ? { ...g, theme_json: final } : g))
       );
-      setMsg("Group design saved.");
-      window.setTimeout(() => setMsg(""), 2000);
-      closeGroupEdit();
+      if (!silent) {
+        setMsg("Group design saved.");
+        window.setTimeout(() => setMsg(""), 2000);
+      }
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
       setSavingGroups(false);
     }
   }
+
+  useEffect(() => {
+    if (!editingGroupId) return;
+    if (!groupDraftPrimedRef.current) {
+      groupDraftPrimedRef.current = true;
+      return;
+    }
+    if (groupDraftTimerRef.current) clearTimeout(groupDraftTimerRef.current);
+    groupDraftTimerRef.current = setTimeout(() => {
+      saveGroupDesign({ silent: true });
+    }, 700);
+    return () => {
+      if (groupDraftTimerRef.current) clearTimeout(groupDraftTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingGroupId, groupEditDesign]);
 
   async function handleCustomPinFile(e) {
     const file = e?.target?.files?.[0];
@@ -1180,7 +1476,14 @@ export default function AdminMapDashboard() {
               clusterOpacity={clusterOpacity / 100}
               pinBorderColor={pinBorderColor}
               pinBorderSize={pinBorderSize}
+              pinDropShadow={pinDropShadow}
+              pinShadowDistance={pinShadowDistance}
+              pinShadowOpacity={pinShadowOpacity}
               pinFaviconUrl={(pinFaviconUrl || "").trim() || null}
+              mapStyles={liveMapStyles}
+              showTrafficLayer={mapStyleSettings.overlays.traffic}
+              showTransitLayer={mapStyleSettings.overlays.transit}
+              showBikeLayer={mapStyleSettings.overlays.bikeLanes}
               theme={editTheme}
               selectedListing={selectedListing}
               selectedMarkerPoint={selectedMarkerPoint}
@@ -1224,7 +1527,7 @@ export default function AdminMapDashboard() {
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t === "detail" ? "General" : t.charAt(0).toUpperCase() + t.slice(1)}
+                {tabLabel(t)}
               </button>
             ))}
 
@@ -1237,7 +1540,7 @@ export default function AdminMapDashboard() {
                 className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
                 onClick={() => openOverlay(t)}
               >
-                {t === "design" ? "Pin Design" : t === "groups" ? "Groups & Content" : t === "mapstyle" ? "Map Style" : t.charAt(0).toUpperCase() + t.slice(1)}
+                {tabLabel(t)}
               </button>
             ))}
 
@@ -1267,7 +1570,7 @@ export default function AdminMapDashboard() {
           >
             <header className="admin-map-overlay__header">
               <h2 className="admin-map-overlay__title">
-                {overlayTab ? (overlayTab === "detail" ? "General" : overlayTab === "design" ? "Pin Design" : overlayTab === "groups" ? "Groups & Content" : overlayTab === "mapstyle" ? "Map Style" : overlayTab === "publish" ? "Publish Map" : overlayTab.charAt(0).toUpperCase() + overlayTab.slice(1)) : ""}
+                {overlayTab ? tabLabel(overlayTab) : ""}
               </h2>
               <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
                 ×
@@ -1365,7 +1668,7 @@ export default function AdminMapDashboard() {
                       {PIN_STYLES.map(({ id, label }) => {
                         const isSelected = markerStyle === id;
                         const isCustom = id === "custom";
-                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined }) : null;
+                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined, dropShadowPx: pinDropShadow, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity }) : null;
                         return (
                           <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
                             <div className="pin-style-option__preview">
@@ -1417,6 +1720,31 @@ export default function AdminMapDashboard() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Drop Shadow</p>
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
+                      </div>
+                    </div>
                   </div>
 
                   {(markerStyle === "pin" || markerStyle === "teardrop") && (
@@ -1547,7 +1875,11 @@ export default function AdminMapDashboard() {
                               const isSelected = val === id;
                               const isCustom = id === "custom";
                               const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? (globalDesignForGroup.pin_favicon_url || undefined) : undefined }) : null;
+                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, dropShadowPx: groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow, pinFaviconUrl: (id === "pin" || id === "teardrop") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
+                                  ? groupEditDesign?.pin_favicon_url
+                                  : (groupEditDesign?.pin_favicon_mode ?? "inherit") === "off"
+                                    ? undefined
+                                    : globalDesignForGroup.pin_favicon_url || undefined) : undefined }) : null;
                               return (
                                 <button
                                   key={id}
@@ -1621,6 +1953,13 @@ export default function AdminMapDashboard() {
                           </div>
                         </div>
                         <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Drop shadow (bottom)</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="range" min={0} max={30} step={1} value={groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinDropShadow: Number(e.target.value) }))} style={{ flex: 1 }} />
+                            <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow}px</span>
+                          </div>
+                        </div>
+                        <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin icon</div>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             {groupEditDesign?.pin_favicon_url && (
@@ -1650,15 +1989,32 @@ export default function AdminMapDashboard() {
                                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
                               />
                             </label>
-                            {groupEditDesign?.pin_favicon_url && (
-                              <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "inherit", pin_favicon_url: null }))}>Remove</button>
+                            {(groupEditDesign?.pin_favicon_mode ?? "inherit") !== "off" && (
+                              <button
+                                type="button"
+                                className="btn"
+                                style={{ margin: 0 }}
+                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "off", pin_favicon_url: null }))}
+                              >
+                                No icon
+                              </button>
+                            )}
+                            {(groupEditDesign?.pin_favicon_mode ?? "inherit") !== "inherit" && (
+                              <button
+                                type="button"
+                                className="btn"
+                                style={{ margin: 0 }}
+                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "inherit", pin_favicon_url: null }))}
+                              >
+                                Use map default
+                              </button>
                             )}
                           </div>
                           <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>Overrides the map's default icon for this group's pins.</p>
                         </div>
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                           <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>
-                          <button type="button" className="btn btn-primary" onClick={saveGroupDesign} disabled={savingGroups}>Save</button>
+                          {savingGroups ? <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Saving…</span> : null}
                           <button type="button" className="btn" onClick={closeGroupEdit}>Cancel</button>
                         </div>
                       </div>
@@ -1671,19 +2027,127 @@ export default function AdminMapDashboard() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
                   <div className="panel-section">
-                    <p className="panel-section__title">Background</p>
+                    <p className="panel-section__title">Presets</p>
                     <div className="map-style-grid">
                       {MAP_TYPES.map(({ id, label }) => (
                         <button
                           key={id}
                           type="button"
-                          className={`map-style-option ${mapTypeId === id ? "is-selected" : ""}`}
-                          onClick={() => setMapTypeId(id)}
-                          aria-pressed={mapTypeId === id}
+                          className={`map-style-option ${selectedMapStylePreset === id ? "is-selected" : ""}`}
+                          onClick={() => applyMapStylePreset(id)}
+                          aria-pressed={selectedMapStylePreset === id}
                         >
                           <span className="map-style-option__thumb"><MapStyleThumb styleId={id} /></span>
                           <span className="map-style-option__label">{label}</span>
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <p className="panel-section__title">Base type</p>
+                    <div className="map-style-grid map-style-grid--base-types">
+                      {BASE_TYPE_OPTIONS.map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`map-style-option ${mapStyleSettings.baseType === id ? "is-selected" : ""}`}
+                          onClick={() => {
+                            setMapTypeId(id);
+                            updateMapStyleSettings((prev) => ({ ...prev, baseType: id }));
+                          }}
+                          aria-pressed={mapStyleSettings.baseType === id}
+                        >
+                          <span className="map-style-option__thumb"><MapStyleThumb styleId={id} /></span>
+                          <span className="map-style-option__label">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <p className="panel-section__title">Colours</p>
+                    <div className="colours-grid">
+                      {[
+                        { key: "land", label: "Land" },
+                        { key: "water", label: "Water" },
+                        { key: "roads", label: "Roads" },
+                      ].map((field) => (
+                        <div key={field.key}>
+                          <div className="colour-field-label">{field.label}</div>
+                          <ColorRow
+                            value={mapStyleSettings.colors[field.key]}
+                            onChange={(value) =>
+                              updateMapStyleSettings((prev) => ({
+                                ...prev,
+                                colors: {
+                                  ...prev.colors,
+                                  [field.key]: value,
+                                },
+                              }))
+                            }
+                            ariaLabel={`${field.label} colour`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <p className="panel-section__title">Map detail</p>
+                    <div className="map-detail-grid">
+                      {DETAIL_CONTROLS.map((control) => (
+                        <div key={control.key} className="map-detail-row">
+                          <div className="map-detail-row__labels">
+                            <div className="map-detail-row__title">{control.label}</div>
+                            <div className="map-detail-row__desc">{control.description}</div>
+                          </div>
+                          <div className="map-detail-row__control">
+                            <input
+                              type="range"
+                              min={0}
+                              max={3}
+                              step={1}
+                              value={mapStyleSettings.detail[control.key]}
+                              onChange={(event) => {
+                                const value = Number(event.target.value);
+                                updateMapStyleSettings((prev) => ({
+                                  ...prev,
+                                  detail: {
+                                    ...prev.detail,
+                                    [control.key]: value,
+                                  },
+                                }));
+                              }}
+                            />
+                            <span className="map-detail-row__value">
+                              {DETAIL_LEVEL_LABELS[mapStyleSettings.detail[control.key]]}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <p className="panel-section__title">Overlays</p>
+                    <div className="map-overlays-grid">
+                      {OVERLAY_CONTROLS.map((overlay) => (
+                        <label key={overlay.key} className="map-overlay-toggle">
+                          <span>
+                            <span className="map-overlay-toggle__title">{overlay.label}</span>
+                            <span className="map-overlay-toggle__desc">{overlay.description}</span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={mapStyleSettings.overlays[overlay.key]}
+                            onChange={(event) =>
+                              updateMapStyleSettings((prev) => ({
+                                ...prev,
+                                overlays: {
+                                  ...prev.overlays,
+                                  [overlay.key]: event.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -1842,6 +2306,143 @@ export default function AdminMapDashboard() {
                     <button className="btn btn-primary" type="button" onClick={() => saveMap()} disabled={saving}>
                       {saving ? "Saving…" : "Save"}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {overlayTab === "data" && (
+                <div style={{ display: "grid", gap: 12 }}>
+                  <input
+                    type="text"
+                    value={dataSearch}
+                    onChange={(e) => {
+                      setDataSearch(e.target.value);
+                      setDataPage(0);
+                    }}
+                    placeholder="Filter by name or address…"
+                  />
+                  <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)" }}>
+                          <th style={{ padding: "8px 10px" }}>Name</th>
+                          <th style={{ padding: "8px 10px" }}>Group</th>
+                          <th style={{ padding: "8px 10px" }}>Logo BG</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageListings.map((listing) => {
+                          const currentBg = listing.logo_bg || "";
+                          return (
+                            <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
+                              <td style={{ padding: "8px 10px" }}>{listing.name || "—"}</td>
+                              <td style={{ padding: "8px 10px" }}>{groupNameById.get(listing.group_id) || "—"}</td>
+                              <td style={{ padding: "8px 10px" }}>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  {currentBg ? (
+                                    <span
+                                      title={currentBg}
+                                      style={{
+                                        width: 12,
+                                        height: 12,
+                                        borderRadius: 2,
+                                        background: currentBg,
+                                        border: "1px solid rgba(0,0,0,0.2)",
+                                      }}
+                                    />
+                                  ) : (
+                                    <span style={{ opacity: 0.7 }}>—</span>
+                                  )}
+                                  {LOGO_BG_SWATCHES.map((swatch) => {
+                                    const selected = currentBg === swatch.value || (!currentBg && swatch.value === "");
+                                    return (
+                                      <button
+                                        key={swatch.label}
+                                        type="button"
+                                        onClick={() => updateListingLogoBg(listing.id, swatch.value)}
+                                        title={swatch.label}
+                                        style={{
+                                          width: 20,
+                                          height: 20,
+                                          borderRadius: 4,
+                                          border: selected ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.28)",
+                                          padding: 0,
+                                          background: swatch.value || "#fff",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          cursor: "pointer",
+                                          lineHeight: 1,
+                                        }}
+                                      >
+                                        {!swatch.value ? "✕" : ""}
+                                      </button>
+                                    );
+                                  })}
+                                  <label
+                                    title="Custom"
+                                    style={{
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 4,
+                                      border:
+                                        !LOGO_BG_SWATCHES.some((swatch) => swatch.value === currentBg) && currentBg
+                                          ? "2px solid #2563eb"
+                                          : "1px solid rgba(0,0,0,0.28)",
+                                      padding: 0,
+                                      overflow: "hidden",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      background: currentBg || "#fff",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    <input
+                                      type="color"
+                                      value={currentBg || "#d4d4d4"}
+                                      onChange={(e) => updateListingLogoBg(listing.id, e.target.value)}
+                                      style={{ width: 24, height: 24, border: "none", padding: 0, background: "transparent" }}
+                                      aria-label={`Custom logo background for ${listing.name || "listing"}`}
+                                    />
+                                  </label>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {pageListings.length === 0 && (
+                          <tr>
+                            <td colSpan={3} style={{ padding: "12px 10px", opacity: 0.8 }}>
+                              No listings found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, opacity: 0.85 }}>
+                      Showing {dataStart}-{dataEnd} of {totalFilteredListings} listings
+                    </span>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => setDataPage((p) => Math.max(0, p - 1))}
+                        disabled={dataPage <= 0}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => setDataPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))}
+                        disabled={dataPage >= Math.max(totalPages - 1, 0)}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

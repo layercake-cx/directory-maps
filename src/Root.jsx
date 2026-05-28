@@ -118,6 +118,51 @@ function Layout() {
  */
 function useAuthErrorRedirect() {
   useEffect(() => {
+    function normalizeSupabaseRecoveryQuery() {
+      const query = new URLSearchParams(window.location.search);
+      const hashPath = window.location.hash.replace(/^#/, "");
+      const alreadyOnReset =
+        hashPath.startsWith("/reset-password") || hashPath.startsWith("reset-password");
+      if (alreadyOnReset) return false;
+
+      const isRecoveryType = query.get("type") === "recovery";
+      const hasRecoveryParams =
+        query.has("token") || query.has("token_hash") || query.has("code") || query.has("access_token");
+      if (!isRecoveryType && !hasRecoveryParams) return false;
+
+      const next = query.toString() ? `#/reset-password?${query.toString()}` : "#/reset-password";
+      window.history.replaceState(null, "", window.location.pathname + next);
+      return true;
+    }
+
+    function normalizeSupabaseRecoveryHash() {
+      const rawHash = window.location.hash.replace(/^#/, "");
+      if (!rawHash) return false;
+
+      // Supabase recovery links may arrive as:
+      // - #access_token=...&type=recovery
+      // - #/access_token=...&type=recovery
+      const candidate = rawHash.startsWith("/") ? rawHash.slice(1) : rawHash;
+      const params = new URLSearchParams(candidate);
+      const hasAuthToken = !!params.get("access_token");
+      const isRecovery = params.get("type") === "recovery";
+      if (!hasAuthToken && !isRecovery) return false;
+
+      // Supabase can return #access_token=...&type=recovery, which HashRouter cannot match.
+      // Convert it to a real hash route so ResetPassword always renders.
+      const next = `#/reset-password?${params.toString()}`;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search + next);
+      return true;
+    }
+
+    if (normalizeSupabaseRecoveryQuery()) {
+      return;
+    }
+
+    if (normalizeSupabaseRecoveryHash()) {
+      return;
+    }
+
     function extractAuthError() {
       const qs = new URLSearchParams(window.location.search);
       if (qs.get("error_description")) return qs.get("error_description");

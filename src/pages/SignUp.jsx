@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo.jsx";
 import AuthForm from "../components/AuthForm.jsx";
+import { fetchTeamInvitationPreview } from "../lib/inviteHelpers.js";
 import "./auth-signup-split.css";
 
 function CheckIcon() {
@@ -55,10 +56,14 @@ function MailIcon() {
   );
 }
 
-function SignUpSuccess({ email, notice, needsEmailVerification, onReset }) {
+const ROLE_LABELS = { owner: "Owner", manager: "Manager", member: "Member" };
+
+function SignUpSuccess({ email, notice, needsEmailVerification, onReset, teamInvite }) {
   const title = needsEmailVerification
     ? "Check your email to finish signing up"
-    : "You're all set—welcome aboard";
+    : teamInvite
+      ? "You're all set—log in to join the team"
+      : "You're all set—welcome aboard";
 
   return (
     <div className="signup-success" role="status" aria-live="polite">
@@ -73,27 +78,32 @@ function SignUpSuccess({ email, notice, needsEmailVerification, onReset }) {
             <strong className="signup-success__email">{email}</strong>
           </p>
           <p className="signup-success__body signup-success__body--muted">
-            Click the link in that email to confirm your address, then come back and log in to start building your map.
+            {teamInvite
+              ? "Click the link in that email to confirm your address, then log in to join your team."
+              : "Click the link in that email to confirm your address, then come back and log in to start building your map."}
           </p>
 
           <div className="signup-success__tip">
             <MailIcon />
-            <span>
-              Can&rsquo;t see it? Give it a minute, then check your spam or promotions folder.
-            </span>
+            <p className="signup-success__tip-text">
+              Didn&rsquo;t get it? Check spam, or wait a minute and try again.
+            </p>
           </div>
         </>
       ) : (
         <p className="signup-success__body">
-          Your account for <strong className="signup-success__email">{email}</strong> is ready. Log in to start building
-          your map.
+          {teamInvite ? (
+            <>
+              Log in with <strong>{email}</strong> to open the client portal.
+            </>
+          ) : (
+            <>You can log in now with <strong>{email}</strong>.</>
+          )}
         </p>
       )}
-
-      {notice ? <p className="signup-success__notice">{notice}</p> : null}
-
+      {notice ? <p className="signup-success__body signup-success__body--muted">{notice}</p> : null}
       <div className="signup-success__actions">
-        <Link to="/login" className="signup-success__primary">
+        <Link to="/login" className="signup-split__continue" style={{ textAlign: "center", textDecoration: "none" }}>
           Go to log in
         </Link>
         <button type="button" className="signup-success__secondary" onClick={onReset}>
@@ -105,7 +115,59 @@ function SignUpSuccess({ email, notice, needsEmailVerification, onReset }) {
 }
 
 export default function SignUp() {
+  const [searchParams] = useSearchParams();
+  const inviteId = searchParams.get("invite");
   const [submitted, setSubmitted] = useState(null);
+  const [invitePreview, setInvitePreview] = useState(null);
+  const [inviteLoading, setInviteLoading] = useState(!!inviteId);
+  const [inviteError, setInviteError] = useState("");
+
+  useEffect(() => {
+    if (!inviteId) {
+      setInvitePreview(null);
+      setInviteLoading(false);
+      setInviteError("");
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setInviteLoading(true);
+        setInviteError("");
+        const row = await fetchTeamInvitationPreview(inviteId);
+        if (cancelled) return;
+        if (!row) {
+          setInviteError("This invitation is invalid or has expired. Ask your team owner for a new link.");
+          setInvitePreview(null);
+        } else {
+          setInvitePreview(row);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setInviteError(e?.message ?? String(e));
+          setInvitePreview(null);
+        }
+      } finally {
+        if (!cancelled) setInviteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteId]);
+
+  const teamInvite = invitePreview
+    ? {
+        email: invitePreview.email,
+        clientName: invitePreview.client_name,
+        role: invitePreview.role,
+          inviteId,
+      }
+    : null;
+
+  const roleLabel = teamInvite ? ROLE_LABELS[teamInvite.role] ?? teamInvite.role : null;
 
   return (
     <div className="signup-split">
@@ -114,77 +176,136 @@ export default function SignUp() {
           <div className="signup-split__logo">
             <BrandLogo to="/" />
           </div>
-          <h1 className="signup-split__headline">
-            Start your free account and put your directory on the map—no credit card required.
-          </h1>
-          <ul className="signup-split__list">
-            <li>
-              <CheckIcon />
-              <span>Build interactive maps with listings, pins, and your branding</span>
-            </li>
-            <li>
-              <CheckIcon />
-              <span>Sync data from spreadsheets and keep everything in one place</span>
-            </li>
-            <li>
-              <CheckIcon />
-              <span>Embed maps on your site and share with your team</span>
-            </li>
-          </ul>
-          <h2 className="signup-split__subhead">Get set up in minutes</h2>
-          <ul className="signup-split__list">
-            <li>
-              <CheckIcon />
-              <span>Create your password and verify your email</span>
-            </li>
-            <li>
-              <CheckIcon />
-              <span>Create your first map and add locations</span>
-            </li>
-            <li>
-              <CheckIcon />
-              <span>Publish and embed when you’re ready</span>
-            </li>
-          </ul>
+          {teamInvite ? (
+            <>
+              <h1 className="signup-split__headline">
+                Join <strong>{teamInvite.clientName}</strong> on Directory Maps
+              </h1>
+              <p className="signup-split__footnote" style={{ fontSize: 15, opacity: 0.9, marginBottom: 20 }}>
+                You&rsquo;ve been invited as a <strong>{roleLabel}</strong>. Create a password for{" "}
+                <strong>{teamInvite.email}</strong>, verify your email, then log in.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="signup-split__headline">
+                Start your free account and put your directory on the map—no credit card required.
+              </h1>
+              <ul className="signup-split__list">
+                <li>
+                  <CheckIcon />
+                  <span>Build interactive maps with listings, pins, and your branding</span>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <span>Sync data from spreadsheets and keep everything in one place</span>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <span>Embed maps on your site and share with your team</span>
+                </li>
+              </ul>
+              <h2 className="signup-split__subhead">Get set up in minutes</h2>
+              <ul className="signup-split__list">
+                <li>
+                  <CheckIcon />
+                  <span>Create your password and verify your email</span>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <span>Create your first map and add locations</span>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <span>Publish and embed when you’re ready</span>
+                </li>
+              </ul>
+            </>
+          )}
         </div>
-        <p className="signup-split__footnote">
-          Free tier limits may apply. Features and usage are subject to change—see Terms for details.
-        </p>
+        {!teamInvite ? (
+          <p className="signup-split__footnote">
+            Free tier limits may apply. Features and usage are subject to change—see Terms for details.
+          </p>
+        ) : null}
       </div>
 
       <div className="signup-split__right">
         <div className={`signup-split__card${submitted ? " signup-split__card--success" : ""}`}>
-          {submitted ? (
+          {inviteLoading ? (
+            <p>Loading invitation…</p>
+          ) : inviteError ? (
+            <div>
+              <h1 className="signup-split__cardTitle">Invitation not found</h1>
+              <p className="signup-split__cardSub">{inviteError}</p>
+              <p className="signup-split__footer" style={{ marginTop: 16 }}>
+                <Link to="/signup">Create a new organisation</Link>
+                {" · "}
+                <Link to="/login">Log in</Link>
+              </p>
+            </div>
+          ) : submitted ? (
             <SignUpSuccess
               email={submitted.email}
               notice={submitted.notice}
               needsEmailVerification={submitted.needsEmailVerification}
+              teamInvite={submitted.teamInvite}
               onReset={() => setSubmitted(null)}
             />
           ) : (
             <>
-              <h1 className="signup-split__cardTitle">Sign up for free</h1>
+              <h1 className="signup-split__cardTitle">
+                {teamInvite ? `Join ${teamInvite.clientName}` : "Sign up for free"}
+              </h1>
               <p className="signup-split__cardSub">
-                Create your Layercake Maps account with email and password. We will email a verification link before
-                first login.
+                {teamInvite
+                  ? "Create your account with email and password to join your team."
+                  : "Create your Layercake Maps account with email and password. We will email a verification link before first login."}
               </p>
+              {teamInvite ? (
+                <p
+                  className="auth-page__sub"
+                  style={{
+                    background: "rgba(59, 130, 246, 0.12)",
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    fontSize: 14,
+                  }}
+                >
+                  Already have an account?{" "}
+                  <Link to={`/login?invite=${inviteId}`}>Log in</Link> with {teamInvite.email} instead.
+                </p>
+              ) : null}
               <AuthForm
                 mode="signup"
                 variant="split"
-                onSubmitted={({ email, needsEmailVerification, notice }) =>
+                teamInvite={teamInvite}
+                onSubmitted={({ email, needsEmailVerification, notice, teamInvite: isTeam }) =>
                   setSubmitted({
                     email,
                     needsEmailVerification,
+                    teamInvite: isTeam,
                     notice:
                       notice ||
                       (needsEmailVerification
                         ? null
-                        : "Your email is already verified—you can log in now."),
+                        : isTeam
+                          ? "Log in to join your team."
+                          : "Your email is already verified—you can log in now."),
                   })
                 }
               />
               <p className="signup-split__footer">
-                Already have an account? <Link to="/login">Log in</Link>
+                {teamInvite ? (
+                  <>
+                    Already have an account? <Link to={`/login?invite=${inviteId}`}>Log in</Link>
+                  </>
+                ) : (
+                  <>
+                    Already have an account? <Link to="/login">Log in</Link>
+                  </>
+                )}
               </p>
             </>
           )}

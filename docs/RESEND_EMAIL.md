@@ -21,6 +21,13 @@ supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM="Directory Maps <noreply@
 ```bash
 supabase functions deploy send_contact_message --no-verify-jwt --project-ref YOUR_REF
 supabase functions deploy manage_client_email --no-verify-jwt --project-ref YOUR_REF
+supabase functions deploy send_team_invitation --project-ref YOUR_REF
+```
+
+Optional secret for invite links in email (defaults to `https://maps.layercake-cx.biz`):
+
+```bash
+supabase secrets set SITE_URL=https://maps.layercake-cx.biz --project-ref YOUR_REF
 ```
 
 Use `--no-verify-jwt` so the public embed and map preview can call `send_contact_message` without a logged-in JWT. (`manage_client_email` still checks auth inside the function.)
@@ -58,6 +65,7 @@ DNS is added at the client’s DNS host (Cloudflare, etc.). Resend’s [domain d
 |----------|------|------|
 | `send_contact_message` | Public (anon + JWT) | Send to listing, CC visitor; resolve From via `mapId` → client |
 | `manage_client_email` | Logged-in client/admin | `save`, `setup_domain`, `verify` / `refresh` |
+| `send_team_invitation` | Logged-in owner/manager | Create invite + send “join your team” email |
 
 ## Auth email (magic links)
 

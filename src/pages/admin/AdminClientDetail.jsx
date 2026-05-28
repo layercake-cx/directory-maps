@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { startImpersonatingClient } from "../../lib/clientAuth";
+import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 
 function Field({ label, children }) {
   return (
@@ -13,6 +14,15 @@ function Field({ label, children }) {
     </div>
   );
 }
+
+const TRASH_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
 
 export default function AdminClientDetail() {
   const { clientId } = useParams();
@@ -39,6 +49,11 @@ export default function AdminClientDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
+  const [usersWarning, setUsersWarning] = useState("");
+  const [contactToDelete, setContactToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingContact, setDeletingContact] = useState(false);
 
   async function load() {
     try {
@@ -159,29 +174,35 @@ export default function AdminClientDetail() {
   async function handleAddUser(e) {
     e.preventDefault();
     const email = addEmail.trim();
-    const nameVal = addName.trim() || null;
+    const nameVal = addName.trim();
     if (!email) {
       setErr("Email is required.");
       return;
     }
+    if (!nameVal) {
+      setErr("Name is required.");
+      return;
+    }
     setErr("");
+    setNotice("");
+    setUsersWarning("");
     setAdding(true);
     try {
-      const { error } = await supabase.from("contacts").insert({
-        client_id: clientId,
+      const result = await createAdminClientUser({
+        clientId,
         email,
         name: nameVal,
-        is_primary: false,
-        can_manage_maps: addCanManageMaps,
-        can_manage_users: addCanManageUsers,
+        canManageMaps: addCanManageMaps,
+        canManageUsers: addCanManageUsers,
       });
-      if (error) throw error;
+      setNotice(`Invitation sent to ${email}. The user will appear after they create their password and accept.`);
       setAddEmail("");
       setAddName("");
       setAddCanManageMaps(false);
       setAddCanManageUsers(false);
       await load();
     } catch (e) {
+      setNotice("");
       setErr(e?.message ?? String(e));
     } finally {
       setAdding(false);
@@ -190,6 +211,7 @@ export default function AdminClientDetail() {
 
   async function updateContactPermissions(contactId, can_manage_maps, can_manage_users) {
     setErr("");
+    setUsersWarning("");
     try {
       const { error } = await supabase
         .from("contacts")
@@ -202,6 +224,33 @@ export default function AdminClientDetail() {
       );
     } catch (e) {
       setErr(e?.message ?? String(e));
+    }
+  }
+
+  async function confirmDeleteContact() {
+    if (!contactToDelete || deleteConfirmText.trim().toLowerCase() !== "delete") return;
+    setErr("");
+    setUsersWarning("");
+    setDeletingContact(true);
+    try {
+      await deleteAdminClientUser({
+        clientId,
+        contactId: contactToDelete.id,
+      });
+      setContactToDelete(null);
+      setDeleteConfirmText("");
+      await load();
+    } catch (e) {
+      const raw = e?.message ?? String(e);
+      const assoc = e?.associatedClients;
+      if (Array.isArray(assoc) && assoc.length > 0) {
+        const names = assoc.map((c) => c.name || c.id).join(", ");
+        setUsersWarning(`This user is associated with another client and cannot be deleted. Associated clients: ${names}.`);
+      } else {
+        setErr(raw);
+      }
+    } finally {
+      setDeletingContact(false);
     }
   }
 
@@ -399,8 +448,9 @@ export default function AdminClientDetail() {
                     <input
                       value={addName}
                       onChange={(e) => setAddName(e.target.value)}
-                      placeholder="Name (optional)"
+                      placeholder="Name"
                       style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--lc-border)", minWidth: 140 }}
+                      required
                     />
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                       <input
@@ -425,6 +475,34 @@ export default function AdminClientDetail() {
                 </div>
 
                 {err ? <p style={{ margin: "0 0 12px 0", color: "#b91c1c" }}>{err}</p> : null}
+                {notice ? (
+                  <div
+                    style={{
+                      margin: "0 0 12px 0",
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      background: "rgba(59, 130, 246, 0.12)",
+                      color: "#1e40af",
+                    }}
+                  >
+                    {notice}
+                  </div>
+                ) : null}
+                {usersWarning ? (
+                  <div
+                    style={{
+                      margin: "0 0 12px 0",
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #b45309",
+                      background: "rgba(251, 191, 36, 0.18)",
+                      color: "#78350f",
+                    }}
+                  >
+                    {usersWarning}
+                  </div>
+                ) : null}
 
                 {contactsList.length === 0 ? (
                   <p style={{ marginTop: 8, opacity: 0.8 }}>No users yet. Add one above or set the primary contact in Customer details.</p>
@@ -438,6 +516,7 @@ export default function AdminClientDetail() {
                         <th>Manage maps</th>
                         <th>Manage users</th>
                         <th>Has login</th>
+                        <th></th>
                         <th></th>
                         <th></th>
                       </tr>
@@ -500,6 +579,20 @@ export default function AdminClientDetail() {
                               Edit
                             </Link>
                           </td>
+                          <td style={{ width: 44, textAlign: "right" }}>
+                            <button
+                              type="button"
+                              className="admin-table__delete-btn"
+                              onClick={() => {
+                                setContactToDelete({ id: c.id, email: c.email, name: c.name });
+                                setDeleteConfirmText("");
+                              }}
+                              title="Delete user"
+                              aria-label={`Delete user ${c.email}`}
+                            >
+                              {TRASH_ICON}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -510,6 +603,49 @@ export default function AdminClientDetail() {
           </>
         )}
       </div>
+      {contactToDelete ? (
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
+          <div className="admin-modal">
+            <h2 id="delete-user-title" className="admin-modal__title">Delete user</h2>
+            <p className="admin-modal__message">
+              Are you sure you want to remove &quot;{contactToDelete.name || contactToDelete.email}&quot; from this customer?
+              This cannot be undone.
+            </p>
+            <p className="admin-modal__hint">Type <strong>delete</strong> below to confirm.</p>
+            <input
+              type="text"
+              className="admin-modal__input"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="delete"
+              autoComplete="off"
+              autoFocus
+              aria-label="Type delete to confirm"
+            />
+            <div className="admin-modal__actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setContactToDelete(null);
+                  setDeleteConfirmText("");
+                }}
+                disabled={deletingContact}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={confirmDeleteContact}
+                disabled={deleteConfirmText.trim().toLowerCase() !== "delete" || deletingContact}
+              >
+                {deletingContact ? "Deleting…" : "Delete user"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminLayout>
   );
 }

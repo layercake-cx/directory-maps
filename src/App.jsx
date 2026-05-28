@@ -25,12 +25,14 @@ import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
 import AdminMaps from "./pages/admin/AdminMaps.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
+import AdminUserDetail from "./pages/admin/AdminUserDetail.jsx";
 import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
 import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
+import AdminUserActivity from "./pages/admin/AdminUserActivity.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
-import ClientTeam from "./pages/client/ClientUsers.jsx";
+import ClientTeam from "./pages/client/ClientTeam.jsx";
 import ClientEmail from "./pages/client/ClientEmail.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
@@ -182,6 +184,14 @@ export default function App() {
           </AdminGate>
         }
       />
+      <Route
+        path="/admin/users/:userId"
+        element={
+          <AdminGate>
+            <AdminUserDetail />
+          </AdminGate>
+        }
+      />
 
       <Route
         path="/admin/deployments"
@@ -200,6 +210,18 @@ export default function App() {
           </AdminGate>
         }
       />
+
+      <Route
+        path="/admin/user-activity"
+        element={
+          <AdminGate>
+            <AdminUserActivity />
+          </AdminGate>
+        }
+      />
+
+      {/* Fallback route to avoid blank screen on unknown hashes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

@@ -3,6 +3,16 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { Alert, Button, Badge, SegmentedControl, Loader, Overlay, Text, Group, Stack } from "@mantine/core";
 import { RefreshCw, FolderOpen, Unlink, FilePlus } from "lucide-react";
+import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
+
+// Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
+const PAGE_SIZE = 100;
+const LOGO_BG_SWATCHES = [
+  { label: "None", value: "" },
+  { label: "Light", value: "#d4d4d4" },
+  { label: "Mid", value: "#737373" },
+  { label: "Dark", value: "#1a1a1a" },
+];
 
 function parseCSV(text) {
   const rows = [];
@@ -76,6 +86,7 @@ export default function ClientMapData() {
 
   const [map, setMap] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [listings, setListings] = useState([]);
 
   const [sheetStatus, setSheetStatus] = useState(null);
   const [sheetMsg, setSheetMsg] = useState("");
@@ -103,18 +114,80 @@ export default function ClientMapData() {
   const [err, setErr] = useState("");
   const [importChoiceOverlayOpen, setImportChoiceOverlayOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const [activeTab, setActiveTab] = useState("drive"); // "drive" | "spreadsheet"
+  const [activeTab, setActiveTab] = useState("drive"); // "drive" | "spreadsheet" | "branding"
+  const [dataSearch, setDataSearch] = useState("");
+  const [dataPage, setDataPage] = useState(0);
+  const [integrationLinked, setIntegrationLinked] = useState(false);
+
+  async function fetchListingsWithLogoBgFallback() {
+    const withLogoBg = await supabase
+      .from("listings")
+      .select("id,name,address,group_id,logo_bg,logo_url")
+      .eq("map_id", mapId)
+      .order("name", { ascending: true });
+    if (!withLogoBg.error) return withLogoBg.data ?? [];
+    if (!String(withLogoBg.error.message || "").includes("logo_bg")) throw withLogoBg.error;
+    const fallback = await supabase
+      .from("listings")
+      .select("id,name,address,group_id,logo_url")
+      .eq("map_id", mapId)
+      .order("name", { ascending: true });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []).map((row) => ({ ...row, logo_bg: null }));
+  }
 
   useEffect(() => {
     (async () => {
-      const [{ data: m }, { data: g }] = await Promise.all([
-        supabase.from("maps").select("id,name").eq("id", mapId).single(),
-        supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
-      ]);
-      setMap(m ?? null);
-      setGroups(g ?? []);
+      try {
+        const [{ data: m }, { data: g }, { data: ds }, l] = await Promise.all([
+          supabase.from("maps").select("id,name").eq("id", mapId).single(),
+          supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
+          supabase
+            .from("map_data_sources")
+            .select("id")
+            .eq("map_id", mapId)
+            .eq("provider", "google_sheets")
+            .eq("enabled", true)
+            .limit(1),
+          fetchListingsWithLogoBgFallback(),
+        ]);
+        setMap(m ?? null);
+        setGroups(g ?? []);
+        setIntegrationLinked((ds?.length ?? 0) > 0);
+        setListings(l ?? []);
+      } catch (e) {
+        setErr(e?.message ?? String(e));
+      }
     })();
   }, [mapId]);
+
+  const groupNameById = useMemo(() => {
+    const m = new Map();
+    (groups || []).forEach((g) => m.set(g.id, g.name || "—"));
+    return m;
+  }, [groups]);
+  const filteredListings = useMemo(
+    () =>
+      (listings || []).filter((l) =>
+        !dataSearch.trim() ||
+        l.name?.toLowerCase().includes(dataSearch.toLowerCase()) ||
+        l.address?.toLowerCase().includes(dataSearch.toLowerCase())
+      ),
+    [listings, dataSearch]
+  );
+  const totalPages = Math.ceil(filteredListings.length / PAGE_SIZE);
+  const pageListings = useMemo(
+    () => filteredListings.slice(dataPage * PAGE_SIZE, (dataPage + 1) * PAGE_SIZE),
+    [filteredListings, dataPage]
+  );
+  const totalFilteredListings = filteredListings.length;
+  const dataStart = totalFilteredListings ? dataPage * PAGE_SIZE + 1 : 0;
+  const dataEnd = totalFilteredListings ? Math.min((dataPage + 1) * PAGE_SIZE, totalFilteredListings) : 0;
+
+  useEffect(() => {
+    const maxPage = totalPages > 0 ? totalPages - 1 : 0;
+    if (dataPage > maxPage) setDataPage(maxPage);
+  }, [dataPage, totalPages]);
 
   async function refreshSheetStatus() {
     try {
@@ -183,9 +256,15 @@ export default function ClientMapData() {
         const body = await error.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? body?.message ?? error.message);
       }
-      const result = data?.results?.[0];
-      if (result?.ok === false) throw new Error(result.error);
-      setSheetMsg(`Synced ${result?.rows ?? 0} rows`);
+      const formatted = formatSheetSyncResult(data, mapId);
+      if (formatted.type === "error") throw new Error(formatted.message);
+      if (formatted.type === "warning") {
+        setSheetErr(formatted.message);
+        setSheetMsg("");
+      } else {
+        setSheetErr("");
+        setSheetMsg(formatted.message);
+      }
       await refreshSheetStatus();
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
@@ -310,6 +389,7 @@ export default function ClientMapData() {
       const { error: groupsErr } = await supabase.from("groups").delete().eq("map_id", mapId);
       if (groupsErr) throw groupsErr;
       setGroups([]);
+      setListings([]);
       setMsg("All listings and groups for this map have been removed.");
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -554,12 +634,70 @@ export default function ClientMapData() {
       } else {
         setMsg(`Imported ${importCount} rows.`);
       }
+      const [{ data: g }, l] = await Promise.all([
+        supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
+        fetchListingsWithLogoBgFallback(),
+      ]);
+      setGroups(g ?? []);
+      setListings(l ?? []);
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
       setImporting(false);
     }
   }
+
+  async function updateListingLogoBg(listingId, newValue) {
+    const normalizedValue = newValue || null;
+    const { error } = await supabase.from("listings").update({ logo_bg: normalizedValue }).eq("id", listingId);
+    if (error) {
+      setErr(error.message || "Failed to update logo background.");
+      return;
+    }
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, logo_bg: normalizedValue } : l)));
+  }
+
+  async function stableListingId(mapIdValue, listingName) {
+    const data = new TextEncoder().encode(`${mapIdValue}:${String(listingName || "").trim().toLowerCase()}`);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    const hex = Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+
+  const [ingestionMethodMap, setIngestionMethodMap] = useState(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const out = new Map();
+      const rows = listings || [];
+      await Promise.all(
+        rows.map(async (listing) => {
+          let method = "Manual";
+          try {
+            if (integrationLinked) {
+              const expected = await stableListingId(mapId, listing.name || "");
+              if (expected === listing.id) method = "Integration";
+            }
+            if (
+              method === "Manual" &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(listing.id || ""))
+            ) {
+              method = "CSV";
+            }
+          } catch {
+            method = "Manual";
+          }
+          out.set(listing.id, method);
+        })
+      );
+      if (!cancelled) setIngestionMethodMap(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listings, integrationLinked, mapId]);
 
   return (
     <div className="page-main">
@@ -599,6 +737,13 @@ export default function ClientMapData() {
             onClick={() => setActiveTab("spreadsheet")}
           >
             Spreadsheet / CSV
+          </button>
+          <button
+            type="button"
+            className={`admin-map-tabs__tab ${activeTab === "branding" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("branding")}
+          >
+            Loaded Data
           </button>
         </div>
 
@@ -664,7 +809,18 @@ export default function ClientMapData() {
                           {sheetStatus.last_synced_at
                             ? `Last synced ${new Date(sheetStatus.last_synced_at).toLocaleString()}`
                             : "Never synced"}
+                          {sheetStatus.last_sync_status === "WARNING" ? " (with warnings)" : ""}
                         </Text>
+                        {sheetStatus.last_sync_error ? (
+                          <Text size="xs" c="orange" mt={4}>
+                            {sheetStatus.last_sync_error}
+                          </Text>
+                        ) : null}
+                        {sheetStatus.dataRowCount != null && sheetStatus.rowsWithName != null ? (
+                          <Text size="xs" c="dimmed" mt={4}>
+                            File preview: {sheetStatus.dataRowCount} data row(s), {sheetStatus.rowsWithName} with a name.
+                          </Text>
+                        ) : null}
                       </div>
 
                       <Group gap="xs" wrap="wrap">
@@ -842,6 +998,202 @@ export default function ClientMapData() {
                 Clear data
               </Button>
             </Group>
+          </div>
+        )}
+
+        {activeTab === "branding" && (
+          <div style={{ display: "grid", gap: 12 }}>
+            <input
+              type="text"
+              value={dataSearch}
+              onChange={(e) => {
+                setDataSearch(e.target.value);
+                setDataPage(0);
+              }}
+              placeholder="Filter by name or address…"
+              style={{ maxWidth: 460 }}
+            />
+            <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed", minWidth: 860 }}>
+                <colgroup>
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "32%" }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)" }}>
+                    <th style={{ padding: "8px 10px" }}>Name</th>
+                    <th style={{ padding: "8px 10px" }}>Group</th>
+                    <th style={{ padding: "8px 10px" }}>Ingestion</th>
+                    <th style={{ padding: "8px 10px" }}>Logo</th>
+                    <th style={{ padding: "8px 10px" }}>Logo BG</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageListings.map((listing) => {
+                    const currentBg = listing.logo_bg || "";
+                    return (
+                      <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
+                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={listing.name || "—"}>
+                          {listing.name || "—"}
+                        </td>
+                        <td
+                          style={{ padding: "8px 10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                          title={groupNameById.get(listing.group_id) || "—"}
+                        >
+                          {groupNameById.get(listing.group_id) || "—"}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>{ingestionMethodMap.get(listing.id) || "Manual"}</td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {listing.logo_url ? (
+                            <div
+                              title="Hover to preview"
+                              style={{
+                                width: 68,
+                                height: 48,
+                                background: currentBg || "transparent",
+                                borderRadius: currentBg ? 6 : 2,
+                                padding: currentBg ? "5px 8px" : 0,
+                                border: "1px solid var(--lc-border)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                overflow: "hidden",
+                                transition: "transform 120ms ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "scale(2)";
+                                e.currentTarget.style.transformOrigin = "left center";
+                                e.currentTarget.style.zIndex = "5";
+                                e.currentTarget.style.position = "relative";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.zIndex = "auto";
+                                e.currentTarget.style.position = "static";
+                              }}
+                            >
+                              <img
+                                src={listing.logo_url}
+                                alt={`${listing.name || "Listing"} logo`}
+                                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+                              />
+                            </div>
+                          ) : (
+                            <span style={{ opacity: 0.7 }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "nowrap", whiteSpace: "nowrap" }}>
+                            {currentBg ? (
+                              <span
+                                title={currentBg}
+                                style={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: 2,
+                                  background: currentBg,
+                                  border: "1px solid rgba(0,0,0,0.2)",
+                                }}
+                              />
+                            ) : (
+                              <span style={{ opacity: 0.7 }}>—</span>
+                            )}
+                            {LOGO_BG_SWATCHES.map((swatch) => {
+                              const selected = currentBg === swatch.value || (!currentBg && swatch.value === "");
+                              return (
+                                <button
+                                  key={swatch.label}
+                                  type="button"
+                                  onClick={() => updateListingLogoBg(listing.id, swatch.value)}
+                                  title={swatch.label}
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 4,
+                                    border: selected ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.28)",
+                                    padding: 0,
+                                    background: swatch.value || "#fff",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  {!swatch.value ? "✕" : ""}
+                                </button>
+                              );
+                            })}
+                            <label
+                              title="Custom"
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: 4,
+                                border:
+                                  !LOGO_BG_SWATCHES.some((swatch) => swatch.value === currentBg) && currentBg
+                                    ? "2px solid #2563eb"
+                                    : "1px solid rgba(0,0,0,0.28)",
+                                padding: 0,
+                                overflow: "hidden",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: currentBg || "#fff",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <input
+                                type="color"
+                                value={currentBg || "#d4d4d4"}
+                                onChange={(e) => updateListingLogoBg(listing.id, e.target.value)}
+                                style={{ width: 24, height: 24, border: "none", padding: 0, background: "transparent" }}
+                                aria-label={`Custom logo background for ${listing.name || "listing"}`}
+                              />
+                            </label>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {pageListings.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "12px 10px", opacity: 0.8 }}>
+                        No listings found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, opacity: 0.85 }}>
+                Showing {dataStart}-{dataEnd} of {totalFilteredListings} listings
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button
+                  size="xs"
+                  variant="default"
+                  type="button"
+                  onClick={() => setDataPage((p) => Math.max(0, p - 1))}
+                  disabled={dataPage <= 0}
+                >
+                  Prev
+                </Button>
+                <Button
+                  size="xs"
+                  variant="default"
+                  type="button"
+                  onClick={() => setDataPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))}
+                  disabled={dataPage >= Math.max(totalPages - 1, 0)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 

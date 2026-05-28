@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { signOut } from "../../lib/auth";
+import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 
 const DEPLOY_HOOK_PREVIEW = import.meta.env.VITE_DEPLOY_HOOK_PREVIEW || "";
@@ -20,8 +22,27 @@ export default function AdminDeployments() {
       try {
         const res = await fetch(DEPLOY_HOOK_PREVIEW, { method: "POST" });
         if (!res.ok) throw new Error(`Deploy hook returned ${res.status}`);
+        recordAdminEvent(supabase, {
+          eventType: "ops_deploy_hook_triggered",
+          source: "admin_ui",
+          meta: {
+            environment: "preview",
+            source: "admin_ui",
+            actor_admin_scope: "platform_admin",
+          },
+        });
         setMsg({ type: "success", text: "Deployment to test triggered. Check Vercel for the preview URL." });
       } catch (e) {
+        recordAdminEvent(supabase, {
+          eventType: "ops_deploy_hook_failed",
+          source: "admin_ui",
+          meta: {
+            environment: "preview",
+            source: "admin_ui",
+            actor_admin_scope: "platform_admin",
+            error: e?.message || "Failed to trigger deploy.",
+          },
+        });
         setMsg({ type: "error", text: e?.message || "Failed to trigger deploy." });
       } finally {
         setLoading((l) => ({ ...l, test: false }));
@@ -45,8 +66,27 @@ export default function AdminDeployments() {
       try {
         const res = await fetch(DEPLOY_HOOK_PRODUCTION, { method: "POST" });
         if (!res.ok) throw new Error(`Deploy hook returned ${res.status}`);
+        recordAdminEvent(supabase, {
+          eventType: "ops_deploy_hook_triggered",
+          source: "admin_ui",
+          meta: {
+            environment: "production",
+            source: "admin_ui",
+            actor_admin_scope: "platform_admin",
+          },
+        });
         setMsg({ type: "success", text: "Production deployment triggered. Check Vercel for status." });
       } catch (e) {
+        recordAdminEvent(supabase, {
+          eventType: "ops_deploy_hook_failed",
+          source: "admin_ui",
+          meta: {
+            environment: "production",
+            source: "admin_ui",
+            actor_admin_scope: "platform_admin",
+            error: e?.message || "Failed to trigger deploy.",
+          },
+        });
         setMsg({ type: "error", text: e?.message || "Failed to trigger deploy." });
       } finally {
         setLoading((l) => ({ ...l, live: false }));
