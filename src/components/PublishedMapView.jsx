@@ -85,7 +85,6 @@ function ListingCardContent({
   buttonColor,
   showSendMessage,
   onOpenSendMessage,
-  zoomToSelectedAddress,
   onClosePin,
   extended,
   recordEngagement,
@@ -96,7 +95,12 @@ function ListingCardContent({
       <button type="button" className="map-pin-overlay__close" onClick={onClosePin} aria-label="Close">
         ×
       </button>
-      <div className="map-pin-overlay__logo">
+      <div
+        className="map-pin-overlay__logo"
+        style={{
+          background: listing.logo_bg || "#ffffff",
+        }}
+      >
         {listing.logo_url ? (
           <LogoImage
             src={listing.logo_url}
@@ -111,11 +115,9 @@ function ListingCardContent({
       </div>
       <div className={`map-pin-overlay__body${extended ? " map-pin-overlay__body--extended" : ""}`}>
         <h3 className="map-pin-overlay__name">{listing.name || "—"}</h3>
-        {listing.address ? (
+        {(listing.address || listing.postcode || listing.country) ? (
           <p className="map-pin-overlay__row map-pin-overlay__address">
-            <button type="button" className="map-pin-overlay__address-btn" onClick={zoomToSelectedAddress}>
-              {listing.address}
-            </button>
+            {[listing.address, listing.postcode, listing.country].filter(Boolean).join(", ")}
           </p>
         ) : null}
         {listing.email ? (
@@ -200,6 +202,9 @@ export default function PublishedMapView({
   pinBorderColor = "#ffffff",
   pinBorderSize = 0,
   pinFaviconUrl = null,
+  pinDropShadow = 0,
+  pinShadowDistance = 20,
+  pinShadowOpacity = 100,
   theme = {},
   selectedListing,
   selectedMarkerPoint,
@@ -220,6 +225,10 @@ export default function PublishedMapView({
   gestureHandling = "cooperative",
   /** Optional: e.g. {@link createMapEngagementRecorder} from embed for analytics */
   recordEngagement,
+  mapStyles = null,
+  showTrafficLayer = false,
+  showTransitLayer = false,
+  showBikeLayer = false,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -421,10 +430,6 @@ export default function PublishedMapView({
     onSelectMarker(listing, point);
   }
 
-  function zoomToSelectedAddress() {
-    if (selectedListing && setCenterOnListingId) setCenterOnListingId(selectedListing.id);
-  }
-
   function selectPlaceFromGeocode(place, { skipSearchRecord = false } = {}) {
     if (!skipSearchRecord) {
       recordSearchEngagement("select_place", {
@@ -578,6 +583,9 @@ export default function PublishedMapView({
         pinBorderColor={pinBorderColor}
         pinBorderSize={pinBorderSize}
         pinFaviconUrl={pinFaviconUrl}
+        pinDropShadow={pinDropShadow}
+        pinShadowDistance={pinShadowDistance}
+        pinShadowOpacity={pinShadowOpacity}
         pinSize={pinSize}
         height="100%"
         gestureHandling={gestureHandling}
@@ -587,6 +595,10 @@ export default function PublishedMapView({
         onScreenOverlayPosition={onMarkerScreenPosition}
         selectZoom={17}
         selectPanOffsetX={pinDetailLayout === "drawer" ? 200 : 0}
+        mapStyles={mapStyles}
+        showTrafficLayer={showTrafficLayer}
+        showTransitLayer={showTransitLayer}
+        showBikeLayer={showBikeLayer}
       />
 
       {showListPanel && (
@@ -825,7 +837,6 @@ export default function PublishedMapView({
             buttonColor={buttonColor}
             showSendMessage={showSendMessage}
             onOpenSendMessage={onOpenSendMessage}
-            zoomToSelectedAddress={zoomToSelectedAddress}
             onClosePin={onClosePin}
             extended={false}
             recordEngagement={recordEngagement}
@@ -843,7 +854,6 @@ export default function PublishedMapView({
                 buttonColor={buttonColor}
                 showSendMessage={showSendMessage}
                 onOpenSendMessage={onOpenSendMessage}
-                zoomToSelectedAddress={zoomToSelectedAddress}
                 onClosePin={onClosePin}
                 extended
                 recordEngagement={recordEngagement}
