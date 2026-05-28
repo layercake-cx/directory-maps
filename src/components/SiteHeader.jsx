@@ -44,19 +44,10 @@ export default function SiteHeader() {
         <BrandLogo to="/" className="site-header__brand" />
 
         <nav className="site-header__nav">
-          <Link to="/pricing" className="site-header__navLink">
-            Pricing
-          </Link>
-
           {!user && (
-            <>
-              <Link to="/login" className="site-header__navLink">
-                Log in
-              </Link>
-              <Link to="/signup" className="site-header__navLink site-header__navLink--primary">
-                Sign up
-              </Link>
-            </>
+            <Link to="/login" className="site-header__navLink">
+              Log in
+            </Link>
           )}
 
           {user && (

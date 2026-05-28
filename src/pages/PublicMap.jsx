@@ -1,65 +1,130 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+const PILLARS = [
+  {
+    icon: "🎨",
+    title: "Highly customisable",
+    desc: "Pin styles, colours, shadows, cluster settings, panel design — all yours to control.",
+  },
+  {
+    icon: "🔗",
+    title: "Connect your data",
+    desc: "Upload a CSV or connect a Google Sheet and keep your map in sync automatically.",
+  },
+  {
+    icon: "🌐",
+    title: "Publish anywhere",
+    desc: "One line of embed code. Drop it into any website, CMS, or landing page.",
+  },
+];
+
 const FEATURES = [
   {
-    title: "Interactive maps",
-    description: "Embed Google Maps–based directories on your site. Visitors search, filter by group, and click pins for details.",
+    title: "Interactive Google Maps directories",
+    desc: "Visitors search, filter by category, and click pins for full listing details.",
   },
   {
-    title: "Your data, your brand",
-    description: "Upload your own listings via CSV or connect a Google Sheet. Geocode addresses, add logos and links.",
+    title: "Groups & per-group branding",
+    desc: "Organise listings into categories, with distinct pin colours and styles per group.",
   },
   {
-    title: "Groups & styling",
-    description: "Organise listings into groups, customise pin colours and styles per group, and control clustering.",
+    title: "CSV import & Google Sheets sync",
+    desc: "Import your data in seconds, or keep it live-synced from a spreadsheet on a schedule.",
   },
   {
-    title: "Client portal",
-    description: "Let clients create and manage their own maps, listings, and data—with optional Google Sheet sync.",
+    title: "Full design control",
+    desc: "Pin shape, size, border, shadow, cluster style, panel colours, and corner radius — all adjustable.",
   },
   {
-    title: "Embed anywhere",
-    description: "One link or iframe to drop into any website. Works on desktop and mobile.",
+    title: "Listing contact forms",
+    desc: "Visitors can message listings directly from the map. Messages go straight to the listing's inbox.",
+  },
+  {
+    title: "Embed anywhere in one line",
+    desc: "Works on any website or CMS. Responsive out of the box. Thumbnail and lightbox variants included.",
+  },
+  {
+    title: "Engagement analytics",
+    desc: "See which listings get the most clicks, searches, and contact requests.",
   },
 ];
 
 export default function PublicMap() {
   return (
     <div className="landing">
+
+      {/* Hero */}
       <section className="landing__hero">
-        <h1 className="landing__heroTitle">Directory Maps</h1>
+        <div className="beta-badge">
+          <span className="beta-badge__dot" />
+          Now in BETA
+        </div>
+        <h1 className="landing__heroTitle">
+          Beautiful map directories,<br />
+          <em>built for your business</em>
+        </h1>
         <p className="landing__heroSub">
-          Create and embed interactive map directories. Upload your data, organise by groups, and share one link.
+          Layercake Maps is a platform for creating, branding, and embedding
+          interactive location directories — without writing a line of code.
+          We're in early access and onboarding selected clients now.
         </p>
-        <Link to="/signup" className="landing__cta">
-          Register now
-        </Link>
+        <div className="landing__ctas">
+          <a
+            href="mailto:info@layercake-cx.biz?subject=I%27d%20like%20to%20know%20more%20about%20Layercake%20Maps"
+            className="landing__cta"
+          >
+            Enquire now
+          </a>
+          <a
+            href="mailto:info@layercake-cx.biz?subject=I%27m%20interested%20in%20becoming%20a%20BETA%20user%20of%20Layercake%20Maps"
+            className="landing__ctaSecondary"
+          >
+            Become a BETA user
+          </a>
+        </div>
       </section>
 
+      {/* Three pillars */}
+      <div className="landing__pillars">
+        {PILLARS.map((p) => (
+          <div className="pillar" key={p.title}>
+            <span className="pillar__icon">{p.icon}</span>
+            <p className="pillar__title">{p.title}</p>
+            <p className="pillar__desc">{p.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Feature checklist */}
       <section className="landing__features">
-        <h2 className="landing__featuresTitle">What you get</h2>
-        <ul className="landing__featuresList">
-          {FEATURES.map((f, i) => (
-            <li key={i} className="landing__feature">
-              <h3 className="landing__featureTitle">{f.title}</h3>
-              <p className="landing__featureDesc">{f.description}</p>
+        <p className="landing__featuresLabel">What's included</p>
+        <ul className="feature-list">
+          {FEATURES.map((f) => (
+            <li className="feature-list__item" key={f.title}>
+              <span className="feature-list__check">✓</span>
+              <span className="feature-list__text">
+                <strong>{f.title}</strong>
+                <span>{f.desc}</span>
+              </span>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="landing__footer">
+      {/* Footer */}
+      <footer className="landing__footer">
         <p className="landing__footerText">
-          Already have an account?{" "}
-          <Link to="/login" className="landing__footerLink">
-            Log in
-          </Link>
+          Already have an account?&ensp;
+          <Link to="/login" className="landing__footerLink">Log in</Link>
         </p>
         <p className="landing__footerMuted">
-          Admins: <a href="#/admin/clients">admin interface</a>
+          <Link to="/terms">Terms</Link>
+          {" · "}
+          <a href="#/admin/clients">Admin</a>
         </p>
-      </section>
+      </footer>
+
     </div>
   );
 }
