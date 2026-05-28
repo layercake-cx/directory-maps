@@ -2,6 +2,70 @@
 
 Instructions for AI agents (Cursor, Claude Code, etc.) working in this repository.
 
+## Git workflow (follow this every session, no exceptions)
+
+### 1 — Open: start on a branch, never on `main`
+
+At the very beginning of every session, check which branch you are on:
+
+```bash
+git status
+```
+
+If you are on `main` (or any other long-lived branch), **create a feature branch before writing a single line of code**:
+
+```bash
+git checkout -b feat/YYYY-MM-DD-short-description
+# e.g. feat/2026-06-01-logo-bg-toggle
+```
+
+Use the prefix that matches the work:
+- `feat/` — new user-facing feature
+- `fix/` — bug fix
+- `chore/` — tooling, deps, config, docs-only
+
+If the session covers several unrelated things, pick the dominant one for the branch name.
+
+### 2 — Develop: commit little and often
+
+- Commit after each logical unit of work (one feature, one fix, one migration file).
+- Write commit messages that explain *why*, not just *what*.
+- Never let a session end with uncommitted changes sitting in the working tree.
+- Follow the commit style in the existing log (`git log --oneline -10`).
+
+### 3 — Test: before opening the PR
+
+Before declaring work done, verify the affected feature works in the running app:
+- Start the dev server (`npm run dev`) and smoke-test the changed pages/flows.
+- Check the browser console — no new errors or warnings.
+- If a database migration was applied, run the post-migration verification block and confirm row counts are unchanged.
+
+### 4 — Close: open a PR, do not merge unilaterally
+
+When the work is done and tested:
+
+```bash
+git push -u origin HEAD
+gh pr create --title "…" --body "…"
+```
+
+- **Never push directly to `main`** — always go through a PR.
+- The PR body should say what changed, why, and how to verify it.
+- Add a `docs/DEPLOYMENTS.md` entry (see below) in the same branch before opening the PR.
+- Leave the PR open for the user to review and merge. Do not merge it yourself unless the user explicitly asks.
+
+### If you are mid-session and realise you are on `main`
+
+Stop immediately. Stash or commit your changes, then move them to a branch:
+
+```bash
+git stash
+git checkout -b feat/YYYY-MM-DD-description
+git stash pop
+```
+
+---
+
 ## Documentation
 
 When you **build, change, or remove** a user-facing feature:
