@@ -1249,6 +1249,11 @@ export default function ClientMapDashboard() {
       setPublicationHistory(hist ?? []);
       setMsg("Published.");
       window.setTimeout(() => setMsg(""), 2000);
+      // Fire-and-forget: generate static snapshot in the background.
+      // Does not block the publish UX; failures are silent to the user.
+      supabase.functions
+        .invoke("generate_map_snapshot", { body: { map_id: mapId } })
+        .catch((e) => console.warn("Snapshot generation failed (non-fatal):", e));
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {

@@ -8,6 +8,33 @@ import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 import { buildMapStyles, normalizeMapStyleSettings } from "../lib/mapStyleSettings.js";
 
+/**
+ * Attempt to load the static CDN snapshot for a map (schemaVersion 2).
+ * Returns the parsed snapshot object, or null if unavailable / timed out.
+ * Never throws — callers must handle null and fall back to live Supabase queries.
+ */
+async function fetchSnapshot(mapId) {
+  const base = import.meta.env.VITE_SNAPSHOT_BASE_URL;
+  if (!base) return null;
+
+  const url = `${base}/maps/${mapId}/snapshot.json`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000); // 3 s timeout
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Only accept schemaVersion 2 snapshots (contain listings)
+    if (data?.schemaVersion !== 2) return null;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export default function EmbedMap() {
   const [params] = useSearchParams();
   const mapId = params.get("map");
@@ -62,6 +89,28 @@ export default function EmbedMap() {
           return;
         }
 
+        // ── Try static CDN snapshot first ──────────────────────────────────
+        // If VITE_SNAPSHOT_BASE_URL is set and the snapshot file exists, we
+        // hydrate entirely from it — no Supabase queries needed for display.
+        // This keeps the map visible even during database outages.
+        const snapshot = await fetchSnapshot(mapId);
+
+        if (snapshot && !cancelled) {
+          const resolvedPublication = normalizePublicationConfig(snapshot.config);
+          // Build a minimal map-shape from the publication config so the rest
+          // of the component (which expects a `map` row) works unchanged.
+          const mapShape = {
+            id: mapId,
+            ...snapshot.config?.map,
+          };
+          setMap(mapShape);
+          setListings(snapshot.listings ?? []);
+          setGroups(snapshot.groups ?? []);
+          setPublicationConfig(resolvedPublication);
+          return; // skip Supabase queries entirely
+        }
+
+        // ── Fallback: live Supabase queries (original behaviour) ───────────
         const [{ data: m, error: mErr }, { data: l, error: lErr }, { data: g, error: gErr }] = await Promise.all([
           supabase
             .from("maps")
