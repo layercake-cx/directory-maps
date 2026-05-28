@@ -4,15 +4,30 @@ Instructions for AI agents (Cursor, Claude Code, etc.) working in this repositor
 
 ## Git workflow (follow this every session, no exceptions)
 
-### 1 — Open: start on a branch, never on `main`
+### 1 — Open: check for existing work, then start on a branch
 
-At the very beginning of every session, check which branch you are on:
+At the very beginning of every session, run these three checks and **report the results to the user before doing anything else**:
 
 ```bash
+# Where are we?
 git status
+
+# Any local branches that aren't main?
+git branch --sort=-committerdate | grep -v '^\* main$' | head -10
+
+# Any open PRs?
+gh pr list --state open
 ```
 
-If you are on `main` (or any other long-lived branch), **create a feature branch before writing a single line of code**:
+**If open branches or PRs exist, tell the user:**
+- List each open branch and its most recent commit message.
+- List each open PR with its title and URL.
+- Ask whether to continue on one of those branches or start a new one.
+- Do not create a new branch or write any code until the user has answered.
+
+This prevents stale branches accumulating and ensures work-in-progress isn't silently abandoned.
+
+**Once the user has confirmed the branch to work on** — or if there is nothing open — proceed. If starting fresh on `main`, create a feature branch before writing a single line of code:
 
 ```bash
 git checkout -b feat/YYYY-MM-DD-short-description
