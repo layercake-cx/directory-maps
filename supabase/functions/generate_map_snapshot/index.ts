@@ -46,7 +46,12 @@ async function uploadToBlob(pathname: string, data: unknown): Promise<string> {
       Authorization: `Bearer ${token}`,
       "x-api-version": "7",
       "Content-Type": "application/json",
-      // Ensure the CDN serves the freshest version immediately after upload
+      // Make the file publicly readable (no token needed to GET from CDN)
+      "x-access": "public",
+      // Deterministic path — no random suffix appended by Vercel Blob
+      // (required so the embed can construct the URL from map_id alone)
+      "x-add-random-suffix": "0",
+      // CDN edge caches for 1 year; origin revalidates on next upload
       "x-cache-control": "max-age=0, s-maxage=31536000",
     },
     body: JSON.stringify(data),
