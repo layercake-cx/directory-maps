@@ -168,7 +168,7 @@ export default function ClientMapData() {
   async function fetchListings() {
     const { data, error } = await supabase
       .from("listings")
-      .select("id,name,address,group_id,logo_bg,logo_url,source")
+      .select("id,name,address,group_id,logo_bg,logo_url,source,is_active")
       .eq("map_id", mapId)
       .order("name", { ascending: true });
     if (error) {
@@ -176,7 +176,7 @@ export default function ClientMapData() {
       if (String(error.message || "").includes("source")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_bg,logo_url")
+          .select("id,name,address,group_id,logo_bg,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -186,7 +186,7 @@ export default function ClientMapData() {
       if (String(error.message || "").includes("logo_bg")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_url")
+          .select("id,name,address,group_id,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
