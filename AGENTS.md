@@ -117,6 +117,28 @@ Every time you implement a meaningful change — feature, fix, migration, config
 
 Vite + React (HashRouter) · Supabase · Google Maps · Resend · Stripe (partial)
 
+## Edge Function deployments
+
+**Never deploy an Edge Function to production without explicit user confirmation.**
+
+Treat Edge Function deployments exactly like database migrations — staging first, production only after the user has verified staging and explicitly asked you to deploy to production.
+
+**Rules:**
+- Deploy to the **test project** (`beqejxneehilplrtpntn`) first.
+- Tell the user what was deployed and ask them to verify it works.
+- Only deploy to the **production project** (`gxixwdjfmegxcxfeflro`) when the user explicitly says to.
+- When deploying, always specify `--project-ref` to be explicit about the target. Never rely on whichever project happens to be linked.
+
+```bash
+# Staging only (default — always safe to do)
+supabase functions deploy <function_name> --project-ref beqejxneehilplrtpntn
+
+# Production — only after explicit user sign-off
+supabase functions deploy <function_name> --project-ref gxixwdjfmegxcxfeflro
+```
+
+---
+
 ## Database migrations (required reading before touching the schema)
 
 Full procedure: **`docs/DATABASE_MIGRATIONS.md`**
