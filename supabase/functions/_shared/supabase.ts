@@ -21,7 +21,17 @@ export function createAnonClient(req: Request) {
 export function createServiceClient() {
   const url = getEnv("SUPABASE_URL");
   const service = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-  return createClient(url, service);
+  return createClient(url, service, {
+    auth: {
+      // Disable session persistence and auto-refresh — not needed for server-side
+      // service-role clients and prevents the Realtime/auth background machinery
+      // from registering process.nextTick handlers that crash the Deno event loop
+      // on shutdown ("Deno.core.runMicrotasks() is not supported in this environment").
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 export async function requireUser(req: Request) {
