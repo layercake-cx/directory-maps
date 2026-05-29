@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, invokeFunction } from "../lib/supabase";
 import { invokeEdgeFunction } from "../lib/edgeFunctionFetch.js";
 
 const PLANS = [
@@ -52,7 +52,7 @@ export default function PricingPlans({ originSection }) {
       const baseUrl = window.location.origin;
       const success_url = `${baseUrl}/#/client`;
       const cancel_url = `${baseUrl}/#/client`;
-      const { data, error } = await supabase.functions.invoke("create_checkout_session", {
+      const { data, error } = await invokeFunction("create_checkout_session", {
         body: {
           plan: planId,
           billing,

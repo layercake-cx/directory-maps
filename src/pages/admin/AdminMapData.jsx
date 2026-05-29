@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, invokeFunction } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
@@ -260,7 +260,7 @@ export default function AdminMapData() {
     try {
       setSheetErr("");
       const [statusRes, srcRes] = await Promise.all([
-        supabase.functions.invoke("validate_sheet_source", { body: { mapId } }),
+        invokeFunction("validate_sheet_source", { body: { mapId } }),
         supabase.from("map_data_sources").select("sync_schedule").eq("map_id", mapId).eq("provider", "google_sheets").maybeSingle(),
       ]);
       if (statusRes.error) throw statusRes.error;
@@ -313,7 +313,7 @@ export default function AdminMapData() {
   async function syncNow() {
     try {
       setSyncing(true); setSheetErr(""); setSheetMsg("");
-      const { data, error } = await supabase.functions.invoke("sync_sheet_listings", { body: { mapId } });
+      const { data, error } = await invokeFunction("sync_sheet_listings", { body: { mapId } });
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? body?.message ?? error.message);
@@ -335,7 +335,7 @@ export default function AdminMapData() {
   async function loadSheets(query = "") {
     try {
       setSheetsLoading(true); setSheetsErr("");
-      const { data, error } = await supabase.functions.invoke("google_list_sheets", { body: { mapId, query } });
+      const { data, error } = await invokeFunction("google_list_sheets", { body: { mapId, query } });
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? body?.message ?? error.message);
@@ -353,7 +353,7 @@ export default function AdminMapData() {
     try {
       setConnecting(true); setSheetErr(""); setSheetMsg("");
       const returnTo = window.location.href;
-      const { data, error } = await supabase.functions.invoke("google_oauth_start", { body: { mapId, returnTo } });
+      const { data, error } = await invokeFunction("google_oauth_start", { body: { mapId, returnTo } });
       if (data?.error) throw new Error(data.error);
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
@@ -373,7 +373,7 @@ export default function AdminMapData() {
   async function selectSheet(spreadsheetId, mimeType, fileName) {
     try {
       setConfiguring(true); setSheetErr(""); setSheetMsg("");
-      const { data, error } = await supabase.functions.invoke("google_set_sheet_file", { body: { mapId, spreadsheetId, mimeType, fileName } });
+      const { data, error } = await invokeFunction("google_set_sheet_file", { body: { mapId, spreadsheetId, mimeType, fileName } });
       if (data?.error) throw new Error(data.error);
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
@@ -505,7 +505,7 @@ export default function AdminMapData() {
 
       const importCount = data?.length ?? cleaned.length;
       if (geocodeMissing) {
-        const { data: geoData, error: geoErr } = await supabase.functions.invoke("geocode_listings", { body: { mapId } });
+        const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });
         if (geoErr || geoData?.error) setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}`);
         else setMsg(`Imported ${importCount} rows. Geocoding ${geoData?.queued ?? 0} addresses in the background.`);
       } else {
