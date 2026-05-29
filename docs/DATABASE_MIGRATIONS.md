@@ -29,11 +29,13 @@ Use UTC time. Keep the description lowercase, underscored, descriptive:
 20260601120000_AddLogoBackground.sql            ✗  (wrong case)
 ```
 
-A paired rollback file lives alongside it:
+A paired rollback file lives alongside it, **prefixed with an underscore** so the
+Supabase CLI skips it (the CLI applies every `<timestamp>_name.sql` file it finds;
+rollback files must not match that pattern):
 
 ```
 supabase/migrations/20260601120000_add_listings_logo_bg.sql
-supabase/migrations/20260601120000_add_listings_logo_bg.rollback.sql
+supabase/migrations/_20260601120000_add_listings_logo_bg.rollback.sql
 ```
 
 ---
