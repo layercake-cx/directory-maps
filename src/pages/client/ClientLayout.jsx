@@ -201,11 +201,11 @@ export default function ClientLayout() {
             <h2 style={{ marginTop: 0 }}>Admin account</h2>
             <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
             <p>
-              Use the <a href="#/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
+              Use the <a href="/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
               client account to use the client portal.
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <a href="#/admin/clients" className="btn btn-primary">
+              <a href="/admin/clients" className="btn btn-primary">
                 Go to Admin
               </a>
               <button type="button" className="btn" onClick={handleSignOut}>
@@ -225,7 +225,7 @@ export default function ClientLayout() {
               contact support.
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <a href="#/signup" className="btn btn-primary">
+              <a href="/signup" className="btn btn-primary">
                 Sign up with email
               </a>
               <button type="button" className="btn" onClick={handleSignOut}>

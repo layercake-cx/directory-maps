@@ -121,7 +121,11 @@ export default function AdminMaps() {
               const adminMapUrl = m.client_id
                 ? `/admin/clients/${encodeURIComponent(m.client_id)}/maps/${encodeURIComponent(m.id)}`
                 : null;
-              const launchUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/#/embed?map=${encodeURIComponent(m.id)}`;
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const launchUrl =
+                client?.slug && m.slug
+                  ? `${origin}/${client.slug}/${m.slug}`
+                  : `${origin}/embed?map=${encodeURIComponent(m.id)}`;
               const listingCount = listingCountByMapId[m.id] ?? 0;
               return (
                 <tr key={m.id}>

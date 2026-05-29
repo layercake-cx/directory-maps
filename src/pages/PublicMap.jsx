@@ -121,7 +121,7 @@ export default function PublicMap() {
         <p className="landing__footerMuted">
           <Link to="/terms">Terms</Link>
           {" · "}
-          <a href="#/admin/clients">Admin</a>
+          <a href="/admin/clients">Admin</a>
         </p>
       </footer>
 

@@ -13,10 +13,17 @@
     <div id="root">Loading…</div>
     <noscript>Enable JavaScript to use this app.</noscript>
     <script>
-      // Ensure HashRouter has a path on root load (e.g. vercel.app/ or vercel.app/#)
-      if (!window.location.hash || window.location.hash === "#") {
-        window.location.replace(window.location.pathname + window.location.search + "#/");
-      }
+      // Redirect legacy hash-based URLs (e.g. /#/client/maps/123) to clean paths (/client/maps/123).
+      // The hash never reaches the server so this must run client-side before React mounts.
+      (function () {
+        var hash = window.location.hash;
+        if (hash.startsWith("#/")) {
+          var path = hash.slice(1); // "#/foo?bar=1" → "/foo?bar=1"
+          window.location.replace(
+            window.location.origin + path
+          );
+        }
+      })();
     </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

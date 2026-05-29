@@ -300,8 +300,13 @@ export default function AdminMapDashboard() {
   const finalSlug = (slug || suggestedSlug).trim();
 
   const embedSrc = useMemo(() => {
-    return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
-  }, [mapId]);
+    const clientSlug = client?.slug;
+    const mapSlug = slug || null;
+    if (clientSlug && mapSlug) {
+      return `${window.location.origin}/${clientSlug}/${mapSlug}`;
+    }
+    return `${window.location.origin}/embed?map=${encodeURIComponent(mapId)}`;
+  }, [mapId, client?.slug, slug]);
 
   const embedIframe = useMemo(() => {
     return `<iframe
@@ -731,7 +736,7 @@ export default function AdminMapDashboard() {
   }
 
   function openEmbed() {
-    window.open(`${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`, "_blank");
+    window.open(embedSrc, "_blank");
   }
 
   async function saveMap(e) {

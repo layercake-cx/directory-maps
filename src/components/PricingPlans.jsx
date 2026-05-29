@@ -50,8 +50,8 @@ export default function PricingPlans({ originSection }) {
     setLoadingPlanId(planId);
     try {
       const baseUrl = window.location.origin;
-      const success_url = `${baseUrl}/#/client`;
-      const cancel_url = `${baseUrl}/#/client`;
+      const success_url = `${baseUrl}/client`;
+      const cancel_url = `${baseUrl}/client`;
       const { data, error } = await invokeFunction("create_checkout_session", {
         body: {
           plan: planId,

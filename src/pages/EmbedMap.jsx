@@ -60,9 +60,9 @@ async function fetchSnapshot(mapId) {
   }
 }
 
-export default function EmbedMap() {
+export default function EmbedMap({ mapId: mapIdProp } = {}) {
   const [params] = useSearchParams();
-  const mapId = params.get("map");
+  const mapId = mapIdProp ?? params.get("map");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
@@ -110,7 +110,7 @@ export default function EmbedMap() {
         setErr("");
 
         if (!mapId) {
-          setErr("Missing map parameter. Use /#/embed?map=<MAP_ID>");
+          setErr("Missing map parameter. Use /embed?map=<MAP_ID>");
           return;
         }
 

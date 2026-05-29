@@ -303,8 +303,13 @@ export default function ClientMapDashboard() {
   const hasActiveSubscription = hasSubscriptionAccess({ client, userEmail: user?.email });
 
   const embedSrc = useMemo(() => {
-    return `${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`;
-  }, [mapId]);
+    const clientSlug = client?.slug;
+    const mapSlug = map?.slug;
+    if (clientSlug && mapSlug) {
+      return `${window.location.origin}/${clientSlug}/${mapSlug}`;
+    }
+    return `${window.location.origin}/embed?map=${encodeURIComponent(mapId)}`;
+  }, [mapId, client?.slug, map?.slug]);
 
   const [embedWidth, setEmbedWidth] = useState("100");
   const [embedWidthUnit, setEmbedWidthUnit] = useState("%");
@@ -863,7 +868,7 @@ export default function ClientMapDashboard() {
   }
 
   function openEmbed() {
-    window.open(`${window.location.origin}/#/embed?map=${encodeURIComponent(mapId)}`, "_blank");
+    window.open(embedSrc, "_blank");
   }
 
   function handleGroupDragStart(e, index) {

@@ -5,6 +5,7 @@ import AdminGate from "./components/AdminGate.jsx";
 import ClientGate from "./components/ClientGate.jsx";
 
 import PublicMap from "./pages/PublicMap.jsx";
+import SlugMap from "./pages/SlugMap.jsx";
 import Login from "./pages/Login.jsx";
 import SignUp from "./pages/SignUp.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
@@ -219,6 +220,9 @@ export default function App() {
           </AdminGate>
         }
       />
+
+      {/* Human-readable published map URLs: /:clientSlug/:mapSlug */}
+      <Route path="/:clientSlug/:mapSlug" element={<SlugMap />} />
 
       {/* Fallback route to avoid blank screen on unknown hashes */}
       <Route path="*" element={<Navigate to="/" replace />} />
