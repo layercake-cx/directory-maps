@@ -152,7 +152,8 @@ export default function ClientMapData() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [clearing, setClearing] = useState(false);
-  const [activeTab, setActiveTab] = useState("manual");
+  const [activeTab, setActiveTab] = useState(null); // null until load resolves mode
+  const [justDisconnected, setJustDisconnected] = useState(false);
   const [dataSearch, setDataSearch] = useState("");
   const [dataPage, setDataPage] = useState(0);
 
@@ -207,7 +208,9 @@ export default function ClientMapData() {
         ]);
         setMap(m ?? null);
         setGroups(g ?? []);
-        setIntegrationLinked((ds?.length ?? 0) > 0);
+        const linked = (ds?.length ?? 0) > 0;
+        setIntegrationLinked(linked);
+        setActiveTab(linked ? "drive" : "branding");
         setListings(l ?? []);
       } catch (e) {
         setErr(e?.message ?? String(e));
@@ -326,6 +329,8 @@ export default function ClientMapData() {
       if (error) throw error;
       setSheetStatus(null); setSheets([]); setShowPicker(false); setSheetMsg("");
       setIntegrationLinked(false);
+      setActiveTab("branding");
+      setJustDisconnected(true);
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
     } finally {
@@ -685,7 +690,9 @@ export default function ClientMapData() {
   // ── Tab switching with guard ──────────────────────────────────────────────
 
   function handleTabChange(tab) {
+    if (integrationLinked && (tab === "manual" || tab === "spreadsheet")) return;
     setMsg(""); setErr(""); setSheetErr(""); setSheetMsg("");
+    setJustDisconnected(false);
     setActiveTab(tab);
   }
 
@@ -693,11 +700,12 @@ export default function ClientMapData() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
+  const syncLockedReason = "Disconnect Google Drive to use this tab";
   const tabs = [
-    { id: "manual", label: "Manual entry", disabled: integrationLinked, disabledReason: "Disconnect your integration to edit entries manually" },
-    { id: "spreadsheet", label: "Upload CSV" },
+    { id: "branding", label: "Map data" },
+    { id: "manual", label: "Manual entry", disabled: integrationLinked, disabledReason: syncLockedReason },
+    { id: "spreadsheet", label: "Upload CSV", disabled: integrationLinked, disabledReason: syncLockedReason },
     { id: "drive", label: "Sync data" },
-    { id: "branding", label: "View listings" },
   ];
 
   return (
@@ -741,6 +749,18 @@ export default function ClientMapData() {
           </button>
         ))}
       </div>
+
+      {justDisconnected && (
+        <Alert color="teal" variant="light" mb="md" withCloseButton onClose={() => setJustDisconnected(false)}>
+          Google Drive disconnected. You can now edit listings manually or upload a CSV.
+        </Alert>
+      )}
+
+      {activeTab === null && (
+        <div style={{ padding: "40px 0", textAlign: "center", opacity: 0.5 }}>
+          <Loader size="sm" />
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           TAB: Integrations
@@ -959,6 +979,11 @@ export default function ClientMapData() {
 
       {activeTab === "spreadsheet" && (
         <div className="admin-card" style={{ padding: 20, display: "grid", gap: 16 }}>
+          {integrationLinked && (
+            <Alert color="yellow" variant="light" title="Sync is active">
+              Disconnect Google Drive to upload a CSV file.
+            </Alert>
+          )}
           <div>
             <Text size="sm" fw={600} mb={2}>Upload a CSV file</Text>
             <Text size="xs" c="dimmed" mb={12}>
@@ -1042,12 +1067,17 @@ export default function ClientMapData() {
 
       {activeTab === "manual" && (
         <div style={{ display: "grid", gap: 16 }}>
+          {integrationLinked && (
+            <Alert color="yellow" variant="light" title="Sync is active">
+              Disconnect Google Drive to edit listings manually.
+            </Alert>
+          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
               <Text size="sm" fw={600}>Manual entries</Text>
               <Text size="xs" c="dimmed">Add, edit, or remove individual listings by hand.</Text>
             </div>
-            <Button size="sm" leftSection={<Plus size={14} />} onClick={openNewManual}>
+            <Button size="sm" leftSection={<Plus size={14} />} onClick={openNewManual} disabled={integrationLinked}>
               Add entry
             </Button>
           </div>

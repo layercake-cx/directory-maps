@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
@@ -202,6 +202,7 @@ function MapStyleThumb({ styleId }) {
 export default function AdminMapDashboard() {
   const { clientId, mapId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [client, setClient] = useState(null);
   const [map, setMap] = useState(null);
@@ -213,7 +214,7 @@ export default function AdminMapDashboard() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  const [overlayTab, setOverlayTab] = useState(null);
+  const [overlayTab, setOverlayTab] = useState(location.state?.openTab ?? null);
   const [dataSearch, setDataSearch] = useState("");
   const [dataPage, setDataPage] = useState(0);
 
