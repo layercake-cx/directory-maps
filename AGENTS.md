@@ -165,6 +165,10 @@ Migration files live in `supabase/migrations/` and are named `YYYYMMDDHHMMSS_sho
 - Do not commit unless the user asks.
 - Auth is **email + password** for signup/login; team invites use invitation links to signup/login, not magic-link OTP.
 
+## Client vs admin parity
+
+Most user-facing pages exist in both a client portal version (`src/pages/client/`) and an admin version (`src/pages/admin/`). When asked to make a change to a map design view (or any other shared UI surface), **assume the request applies to both client and admin versions** and confirm this with the user before implementing. If the change is clearly admin-only or client-only from context, note that assumption explicitly.
+
 ## Admin event instrumentation (required for admin features)
 
 Whenever you **create or change an admin-only workflow** (admin pages, admin RPCs, Edge Functions used by admin, back-office tools), you must ensure the workflow includes **structured admin events** that mirror the existing *user engagement* event style:
