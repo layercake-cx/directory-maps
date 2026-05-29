@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
-import { FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
+import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 
 const PAGE_SIZE = 100;
@@ -295,6 +295,7 @@ export default function ClientMapData() {
       }
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      setSheetStatus((prev) => prev ?? { connected: false });
     }
   }
 
@@ -718,8 +719,8 @@ export default function ClientMapData() {
             <Badge size="md" variant="light" color={listings.length ? "teal" : "gray"}>
               {listings.length} {listings.length === 1 ? "listing" : "listings"}
             </Badge>
-            <Button size="sm" variant="default" onClick={downloadTemplate}>
-              Download template
+            <Button size="sm" variant="default" leftSection={<Download size={14} />} onClick={downloadTemplate}>
+              CSV template
             </Button>
           </div>
         </div>
