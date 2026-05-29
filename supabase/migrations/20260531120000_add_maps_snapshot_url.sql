@@ -31,11 +31,8 @@ begin
   end if;
 end $$;
 
--- CAPTURE PRE-STATE
-select count(*) as total_maps,
-       count(*) filter (where snapshot_url is not null) as maps_with_snapshot
-from public.maps;
--- Expected: maps_with_snapshot = 0 (column about to be added)
+-- CAPTURE PRE-STATE (column does not exist yet — just confirm row count)
+select count(*) as total_maps from public.maps;
 
 
 -- ============================================================
