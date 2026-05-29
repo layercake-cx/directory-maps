@@ -67,7 +67,7 @@ const PIN_STYLES = [
 function tabLabel(t) {
   if (t === "detail") return "General";
   if (t === "design") return "Pin Design";
-  if (t === "groups") return "Groups & Content";
+  if (t === "groups") return "Groups";
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   return t.charAt(0).toUpperCase() + t.slice(1);
@@ -1948,12 +1948,6 @@ export default function AdminMapDashboard() {
                             <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
                             <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
                           </div>
-                          {enableClustering && (
-                            <div>
-                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
-                              <ColorRow value={groupEditDesign?.clusterColor ?? globalDesignForGroup.clusterColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), clusterColor: v }))} ariaLabel="Cluster colour" />
-                            </div>
-                          )}
                         </div>
                         <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>

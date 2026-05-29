@@ -49,6 +49,24 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-05-29 — Production
+
+**Branch/commit:** `main` | _(current working session)_
+**Deployed by:** Claude Code
+
+### What changed
+- **Map settings panel — "Groups & Content" section renamed to "Groups"** — the tab/section label was updated in both the admin and client map dashboards.
+- **Group design editor — cluster colour option removed** — when editing a group's pin design, the "Cluster colour" colour picker is no longer shown. Cluster colour remains configurable at the global map level.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert the two label changes in `AdminMapDashboard.jsx` and `ClientMapDashboard.jsx` and redeploy.
+
+### Issues / notes
+None.
+
 ## 2026-05-31 — Staging
 
 **Branch/commit:** `feat/2026-05-28-static-map-snapshots` | _(current working session)_
