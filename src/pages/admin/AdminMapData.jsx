@@ -139,7 +139,7 @@ export default function AdminMapData() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [clearing, setClearing] = useState(false);
-  const [activeTab, setActiveTab] = useState("drive");
+  const [activeTab, setActiveTab] = useState("manual");
   const [dataSearch, setDataSearch] = useState("");
   const [dataPage, setDataPage] = useState(0);
   const [ingestionMethodMap, setIngestionMethodMap] = useState(new Map());
@@ -609,10 +609,10 @@ export default function AdminMapData() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const tabs = [
-    { id: "drive", label: "Integrations" },
+    { id: "manual", label: "Manual entry", disabled: integrationLinked, disabledReason: "Disconnect the integration to edit entries manually" },
     { id: "spreadsheet", label: "Upload CSV" },
-    { id: "manual", label: "Manual entries", disabled: integrationLinked, disabledReason: "Disconnect the integration to edit entries manually" },
-    { id: "branding", label: "View & edit data" },
+    { id: "drive", label: "Sync data" },
+    { id: "branding", label: "View listings" },
   ];
 
   return (
