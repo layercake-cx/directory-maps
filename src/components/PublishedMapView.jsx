@@ -268,6 +268,7 @@ export default function PublishedMapView({
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
+      if (l.is_active === false) return false;
       const key = l.group_id ?? null;
       return !hiddenGroupIds.has(key);
     });

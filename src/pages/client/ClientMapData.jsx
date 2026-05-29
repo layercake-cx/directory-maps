@@ -662,6 +662,13 @@ export default function ClientMapData() {
 
   // ── Logo BG ───────────────────────────────────────────────────────────────
 
+  async function updateListingActive(listingId, newValue) {
+    const { error } = await supabase.from("listings").update({ is_active: newValue }).eq("id", listingId);
+    if (error) { setErr(error.message || "Failed to update status."); return; }
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, is_active: newValue } : l)));
+    invokeFunction("generate_map_snapshot", { body: { map_id: mapId } }).catch(() => {});
+  }
+
   async function updateListingLogoBg(listingId, newValue) {
     const { error } = await supabase.from("listings").update({ logo_bg: newValue || null }).eq("id", listingId);
     if (error) { setErr(error.message || "Failed to update logo background."); return; }
@@ -1165,17 +1172,23 @@ export default function ClientMapData() {
           <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed", minWidth: 860 }}>
               <colgroup>
-                <col style={{ width: "22%" }} />
                 <col style={{ width: "20%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "36%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "2px" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "2px" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "32%" }} />
               </colgroup>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
                   <th style={{ padding: "9px 10px" }}>Name</th>
                   <th style={{ padding: "9px 10px" }}>Group</th>
                   <th style={{ padding: "9px 10px" }}>Source</th>
+                  <th style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
+                  <th style={{ padding: "9px 10px" }}>Status</th>
+                  <th style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
                   <th style={{ padding: "9px 10px" }}>Logo</th>
                   <th style={{ padding: "9px 10px" }}>Logo background</th>
                 </tr>
@@ -1193,6 +1206,30 @@ export default function ClientMapData() {
                         {groupNameById.get(listing.group_id) || "—"}
                       </td>
                       <td style={{ padding: "8px 10px" }}><SourceBadge source={src} /></td>
+                      <td style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
+                      <td style={{ padding: "8px 10px" }}>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={listing.is_active !== false}
+                          title={listing.is_active !== false ? "Visible on map — click to hide" : "Hidden from map — click to show"}
+                          onClick={() => updateListingActive(listing.id, listing.is_active === false)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", cursor: "pointer",
+                            width: 36, height: 20, borderRadius: 10, border: "none", padding: "0 2px",
+                            background: listing.is_active !== false ? "#22c55e" : "#d1d5db",
+                            transition: "background 150ms ease", flexShrink: 0,
+                          }}
+                        >
+                          <span style={{
+                            display: "block", width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                            transform: listing.is_active !== false ? "translateX(16px)" : "translateX(0)",
+                            transition: "transform 150ms ease",
+                          }} />
+                        </button>
+                      </td>
+                      <td style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
                       <td style={{ padding: "8px 10px" }}>
                         {listing.logo_url ? (
                           <div
@@ -1237,7 +1274,7 @@ export default function ClientMapData() {
                 })}
                 {pageListings.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
+                    <td colSpan={8} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
                       {dataSearch ? "No listings match your search." : "No listings loaded yet."}
                     </td>
                   </tr>
