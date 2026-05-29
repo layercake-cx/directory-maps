@@ -1,12 +1,37 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { createMapEngagementRecorder } from "../lib/mapEngagement.js";
 import { formatContactMessageError, submitContactMessage } from "../lib/contactMessage.js";
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 import { buildMapStyles, normalizeMapStyleSettings } from "../lib/mapStyleSettings.js";
+
+/**
+ * Anon-only Supabase client for the embed page.
+ *
+ * The shared `supabase` singleton (src/lib/supabase.js) persists the user's
+ * auth session in localStorage. When a logged-in admin or client tests the
+ * embed in the same browser, that singleton sends an authenticated JWT to
+ * PostgREST. The `map_engagement_events` insert policy is `to anon` only —
+ * authenticated users have no insert policy and get a 403.
+ *
+ * Using a separate client with `persistSession: false` means the embed always
+ * hits PostgREST as the anon role, matching real-world embed behaviour and
+ * keeping engagement inserts working regardless of the viewer's login state.
+ */
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL ?? "https://placeholder.supabase.co",
+  import.meta.env.VITE_SUPABASE_ANON_KEY ?? "placeholder-key",
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
 /**
  * Attempt to load the static CDN snapshot for a map (schemaVersion 2).
@@ -99,9 +124,11 @@ export default function EmbedMap() {
           const resolvedPublication = normalizePublicationConfig(snapshot.config);
           // Build a minimal map-shape from the publication config so the rest
           // of the component (which expects a `map` row) works unchanged.
+          // Spread first, then override id so the URL param always wins
+          // (guards against a snapshot config that carries its own id field).
           const mapShape = {
-            id: mapId,
             ...snapshot.config?.map,
+            id: mapId,
           };
           setMap(mapShape);
           setListings(snapshot.listings ?? []);
