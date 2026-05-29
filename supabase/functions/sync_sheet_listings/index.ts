@@ -183,6 +183,7 @@ async function syncSource(
       allow_html: explicitAllowHtml ?? hasHtmlTags,
       group_id,
       is_active: boolish(get("is_active")) ?? true,
+      source: "integration",
     };
 
     if ((record.lat == null || record.lng == null) && geocodeKey) {
@@ -297,6 +298,16 @@ Deno.serve(async (req) => {
         headers: syncResult.headers,
         startedAt,
       });
+
+      // Regenerate the public snapshot so the embed reflects the updated data
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      fetch(`${supabaseUrl}/functions/v1/generate_map_snapshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ map_id: src.map_id }),
+      }).catch(() => {}); // fire-and-forget; don't fail the sync if snapshot errors
+
     } catch (e) {
       await service.from("map_data_sources").update({
         last_sync_status: "ERROR",
