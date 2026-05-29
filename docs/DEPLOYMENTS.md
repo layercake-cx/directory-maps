@@ -49,6 +49,39 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-05-31 — Staging
+
+**Branch/commit:** `feat/2026-05-28-static-map-snapshots` | _(current working session)_
+**Deployed by:** Claude Code
+
+### What changed
+- **Static map snapshots** — on every publish, a new `generate_map_snapshot` Edge Function builds a self-contained JSON bundle (map config + all listings + groups) and uploads it to Vercel Blob at a deterministic path: `maps/<map_id>/snapshot.json`. The embed now tries this CDN URL first (3 s timeout); if it loads, Supabase is not queried at all for display data. If the snapshot is missing or times out, the embed falls back to the existing live Supabase queries — no change in behaviour for unpublished maps or maps without a snapshot yet.
+- **Why**: protect published maps from database outages and data disasters. Even if Supabase is completely down, visitor-facing embeds continue to render from the CDN copy. Contact forms and engagement analytics still require Supabase and degrade gracefully.
+- **`generate_map_snapshot` Edge Function** — accepts `{ map_id }` (one map) or `{ all: true }` (all published maps, for nightly cron). Uploads JSON to Vercel Blob, writes `snapshot_url` and `snapshot_generated_at` back to `maps`.
+- **Publish flow wired** — both `ClientMapDashboard` and `AdminMapDashboard` call the Edge Function fire-and-forget after a successful publish. Does not block the publish UX.
+- **Migration** — `20260531120000_add_maps_snapshot_url.sql` adds `snapshot_url text` and `snapshot_generated_at timestamptz` (both nullable) to `maps`.
+- **Env var** — `VITE_SNAPSHOT_BASE_URL` (Vite/Vercel env, public): base URL of the Vercel Blob store. `BLOB_READ_WRITE_TOKEN` (Supabase Edge Function secret only): write token for blob uploads.
+
+### Database migrations applied
+- `20260531120000_add_maps_snapshot_url.sql`
+
+### Rollback plan
+- Run `20260531120000_add_maps_snapshot_url.rollback.sql` to drop the two columns.
+- Remove `VITE_SNAPSHOT_BASE_URL` from Vercel env and redeploy, or revert `EmbedMap.jsx` — the fallback path is identical to the previous behaviour, so removing the snapshot URL simply means every embed falls through to Supabase as before.
+
+### Verified on staging
+- [ ] Dry-run passed for all migrations
+- [ ] Migrations applied and verified (row counts unchanged, RLS intact)
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+- Existing published maps will not have a snapshot until the next publish (or until a manual `{ all: true }` call to the Edge Function). During the transition window those maps continue to use live Supabase queries.
+- Vercel Blob must be enabled on the Vercel project before deploying. `BLOB_READ_WRITE_TOKEN` must be added to Supabase Edge Function secrets (Dashboard → Edge Functions → Secrets).
+- Nightly cron to call `{ all: true }` is not yet wired — recommended next step.
+
+---
+
 ## 2026-05-28 — Staging
 
 **Branch/commit:** `main` | _(current working session)_
