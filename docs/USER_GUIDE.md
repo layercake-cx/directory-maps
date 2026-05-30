@@ -88,9 +88,9 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | Panel | What you can change |
 |-------|---------------------|
 | **General** | Name, slug, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
-| **Pin Design** | Marker style (pin, rounded pin, dot), colour, custom pin image, drop shadow |
+| **Pin Design** | Marker style (pin, rounded pin, dot), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
 | **Panels** | Listing side panel layout and behaviour |
-| **Groups** | Categories for listings and group styling (changes save automatically while editing) |
+| **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
 | **Search** | How search works on the public embed |
@@ -108,6 +108,21 @@ Inside **Map Style** you can now customise the map in five sections:
 5. **Overlays** — Turn **Traffic**, **Public transport routes**, **Bike lanes**, and **Terrain & contours** on/off (**Traffic is off by default**).
 
 Changes appear in the live preview immediately and are saved as part of your map draft.
+
+### Co-located pins (same address)
+
+When two or more listings share the exact same address, the map handles them automatically:
+
+- At lower zoom levels they appear as a **cluster** showing the count.
+- Clicking the cluster **zooms to level 17** and then **fans the pins out** in a circle with connecting lines so each one is individually clickable.
+- If you are already at zoom 17 or above, clicking the cluster fans them out immediately.
+- Click any spread pin to open its listing. Click the map background or zoom out to collapse the fan.
+
+### Search panel
+
+- Each group shows a **colour swatch** (right-aligned, matching the group's marker colour and border) as a visual legend.
+- The **show/hide checkbox** for a group no longer expands or collapses its listing list — those are independent actions.
+- Subtle **divider lines** separate groups, and a soft gradient fades in at the top of a group's listing list when expanded.
 
 **Sub-navigation** (when editing a map):
 
