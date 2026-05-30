@@ -566,6 +566,7 @@ export default function ClientMapDashboard() {
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
         mapStyleSettings,
+        mapName: map?.name ?? null,
       }),
     [
       orderedGroupsList,
@@ -597,6 +598,7 @@ export default function ClientMapDashboard() {
       mapTypeId,
       mapStyleSettings,
       map?.theme_json,
+      map?.name,
     ],
   );
 

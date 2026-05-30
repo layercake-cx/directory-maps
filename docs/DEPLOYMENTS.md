@@ -51,6 +51,29 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-05-30 — Staging
 
+**Branch/commit:** `fix/2026-05-30-map-title-missing-in-embed`
+**Deployed by:** Claude Code
+
+### What changed
+- **Fixed map title not appearing in published embed views.** When a map had "Show map title" enabled, the title appeared correctly in the design-view preview (which reads directly from draft state) but was invisible in the published embed. The root cause: `buildPublicationConfig` never included the map `name` in the snapshot it writes to `map_publications`. When the embed loads from the CDN static snapshot, it builds the map object entirely from the published config — so `map.name` was always empty, and `PublishedMapView` requires both `showMapTitle` and a non-empty `mapName` to render the title. Fix: `name` is now included in the `map` object inside `buildPublicationConfig`, and both `AdminMapDashboard` and `ClientMapDashboard` pass it in. Maps republished after this deploy will show the title correctly in embeds.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert `src/lib/mapPublication.js`, `src/pages/admin/AdminMapDashboard.jsx`, `src/pages/client/ClientMapDashboard.jsx`. Existing published configs are unaffected; the fix only applies to configs written at publish time after this deploy.
+
+### Verified on staging
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] Map title visible in published embed after republishing
+
+### Issues / notes
+Maps published before this fix will still have no `name` in their snapshot config. They need to be republished once to populate the name.
+
+---
+
+## 2026-05-30 — Staging
+
 **Branch/commit:** `fix/2026-05-30-map-controls`
 **Deployed by:** Claude Code
 

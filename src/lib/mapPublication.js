@@ -78,6 +78,7 @@ export function buildPublicationConfig(params) {
     mapThemeJsonBase,
     mapTypeId,
     mapStyleSettings,
+    mapName,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -106,6 +107,7 @@ export function buildPublicationConfig(params) {
   delete theme_json.pinFaviconUrl;
 
   const map = {
+    name: mapName ?? null,
     default_lat: Number(defaultLat) || null,
     default_lng: Number(defaultLng) || null,
     default_zoom: Number(defaultZoom) || null,

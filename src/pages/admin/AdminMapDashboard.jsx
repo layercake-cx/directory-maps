@@ -1271,6 +1271,7 @@ export default function AdminMapDashboard() {
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
         mapStyleSettings,
+        mapName: map?.name ?? null,
       }),
     [
       orderedGroupsList,
@@ -1304,6 +1305,7 @@ export default function AdminMapDashboard() {
       mapTypeId,
       mapStyleSettings,
       map?.theme_json,
+      map?.name,
     ],
   );
 
