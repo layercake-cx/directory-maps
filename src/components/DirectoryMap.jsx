@@ -302,7 +302,21 @@ function attachZoomSliderControl(map, showZoomSlider) {
   const zoomListener = map.addListener("zoom_changed", syncFromMap);
   const idleListener = map.addListener("idle", syncFromMap);
 
-  map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+  // Append to the PublishedMapView root (data-map-fullscreen-root) so the wrap participates
+  // in the root stacking context and can appear above admin sidebar overlays (z-index:10).
+  // Fall back to Google Maps RIGHT_BOTTOM if no such ancestor exists (standalone DirectoryMap).
+  const portalRoot = map.getDiv().closest("[data-map-fullscreen-root]");
+  let usedPortal = false;
+  if (portalRoot) {
+    wrap.style.position = "absolute";
+    wrap.style.right = "0";
+    wrap.style.bottom = "0";
+    wrap.style.zIndex = "50";
+    portalRoot.appendChild(wrap);
+    usedPortal = true;
+  } else {
+    map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+  }
   syncFromMap();
   updateFullscreenButton();
 
@@ -316,11 +330,15 @@ function attachZoomSliderControl(map, showZoomSlider) {
     input.removeEventListener("input", onInput);
     window.google.maps.event.removeListener(zoomListener);
     window.google.maps.event.removeListener(idleListener);
-    const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
-    for (let i = controls.getLength() - 1; i >= 0; i--) {
-      if (controls.getAt(i) === wrap) {
-        controls.removeAt(i);
-        break;
+    if (usedPortal) {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    } else {
+      const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
+      for (let i = controls.getLength() - 1; i >= 0; i--) {
+        if (controls.getAt(i) === wrap) {
+          controls.removeAt(i);
+          break;
+        }
       }
     }
   };
