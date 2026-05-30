@@ -1514,14 +1514,7 @@ export default function AdminMapDashboard() {
       <div className="admin-map-page">
         <div className="admin-map-page__map-wrap">
           {(overlayTab && overlayTab !== "publish") ? (
-            <div
-              className="admin-map-overlay__backdrop"
-              onClick={closeOverlay}
-              onKeyDown={(e) => e.key === "Escape" && closeOverlay()}
-              aria-label="Close panel"
-              role="button"
-              tabIndex={0}
-            />
+            <div className="admin-map-overlay__backdrop" aria-hidden="true" />
           ) : null}
           {apiKey ? (
             <PublishedMapView
