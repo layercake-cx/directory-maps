@@ -6,7 +6,7 @@ Instructions for AI agents (Cursor, Claude Code, etc.) working in this repositor
 
 ### 1 — Open: check for existing work, then start on a branch
 
-At the very beginning of every session, run these three checks and **report the results to the user before doing anything else**:
+At the very beginning of every session — including sessions that begin with a "continued from previous conversation" summary — run these three checks and **report the results to the user before doing anything else**:
 
 ```bash
 # Where are we?
@@ -68,6 +68,10 @@ gh pr create --title "…" --body "…"
 - The PR body should say what changed, why, and how to verify it.
 - Add a `docs/DEPLOYMENTS.md` entry (see below) in the same branch before opening the PR.
 - Leave the PR open for the user to review and merge. Do not merge it yourself unless the user explicitly asks.
+
+### If you resumed a session from a summary and skipped the opening checks
+
+Stop immediately. Run the three opening checks now, report the results, and ask the user which branch to work on before continuing. If code has already been written on `main`, follow the recovery steps below.
 
 ### If you are mid-session and realise you are on `main`
 
