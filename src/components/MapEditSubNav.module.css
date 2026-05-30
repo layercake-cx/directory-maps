@@ -17,6 +17,42 @@
   white-space: nowrap;
 }
 
+/* Inline publish button (admin nav bar) */
+.subNavTabInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background 0.12s, color 0.12s;
+  margin-left: 4px;
+}
+
+.subNavTabInline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.subNavTabInlineActive {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.subNavTabInlineDraft {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.subNavTabInlineDraft:hover {
+  background: rgba(234, 179, 8, 0.3);
+  color: #fef3c7;
+}
+
 /* Standalone sub-nav bar (client portal) */
 .subNav {
   background: linear-gradient(to bottom, #e9f6f8, #ffffff);

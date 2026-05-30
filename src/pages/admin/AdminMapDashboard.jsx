@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
@@ -225,6 +226,7 @@ export default function AdminMapDashboard() {
   const [defaultLng, setDefaultLng] = useState("");
   const [defaultZoom, setDefaultZoom] = useState("");
   const [showListPanel, setShowListPanel] = useState(true);
+  const [showMapTitle, setShowMapTitle] = useState(false);
   const [showSearch, setShowSearch] = useState(true);
   const [showGroupDropdowns, setShowGroupDropdowns] = useState(true);
   const [enableClustering, setEnableClustering] = useState(true);
@@ -294,7 +296,11 @@ export default function AdminMapDashboard() {
   const isLoadedRef = useRef(false);
   const draftTimerRef = useRef(null);
   const saveDraftThemeRef = useRef(null);
+  const generalTimerRef = useRef(null);
+  const saveGeneralDraftRef = useRef(null);
   const [draftStatus, setDraftStatus] = useState(""); // "" | "saving" | "saved"
+  const openPublishRef = useRef(null);
+  const closePublishRef = useRef(null);
 
   const suggestedSlug = useMemo(() => slugify(name), [name]);
   const finalSlug = (slug || suggestedSlug).trim();
@@ -595,6 +601,7 @@ export default function AdminMapDashboard() {
             setPinSize(normalizePinSize(theme.pinSize));
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
+            setShowMapTitle(!!theme.showMapTitle);
             setCenterLabel(theme.centerLabel ?? "");
             const loadedMapTypeId = theme.mapTypeId ?? "roadmap";
             const normalizedMapStyleSettings = normalizeMapStyleSettings({
@@ -719,7 +726,16 @@ export default function AdminMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, showMapTitle, showSearch, showGroupDropdowns]);
+
+  // Auto-save general (map column) fields
+  useEffect(() => {
+    if (!isLoadedRef.current || !mapId) return;
+    if (generalTimerRef.current) clearTimeout(generalTimerRef.current);
+    generalTimerRef.current = setTimeout(() => saveGeneralDraftRef.current?.(), 800);
+    return () => { if (generalTimerRef.current) clearTimeout(generalTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, slug, defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius]);
 
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
@@ -728,6 +744,9 @@ export default function AdminMapDashboard() {
   function closeOverlay() {
     setOverlayTab(null);
   }
+
+  openPublishRef.current = () => setOverlayTab("publish");
+  closePublishRef.current = () => setOverlayTab(null);
 
   async function copyEmbed() {
     await navigator.clipboard.writeText(embedIframe);
@@ -778,6 +797,7 @@ export default function AdminMapDashboard() {
           panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
           showSearch,
           showGroupDropdowns,
+          showMapTitle: !!showMapTitle,
           centerLabel: centerLabel || undefined,
           mapTypeId,
           mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
@@ -841,6 +861,7 @@ export default function AdminMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        showMapTitle: !!showMapTitle,
         mapTypeId,
         mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
       };
@@ -857,6 +878,39 @@ export default function AdminMapDashboard() {
     }
   }
   saveDraftThemeRef.current = saveDraftTheme;
+
+  async function saveGeneralDraft() {
+    if (!mapId) return;
+    const cleanName = name.trim();
+    const resolvedSlug = (slug || suggestedSlug).trim();
+    if (!cleanName || !resolvedSlug) return;
+    const lat = Number(defaultLat);
+    const lng = Number(defaultLng);
+    const zoom = Number(defaultZoom);
+    if (Number.isNaN(lat) || Number.isNaN(lng) || !Number.isInteger(zoom) || zoom < 1 || zoom > 20) return;
+    setDraftStatus("saving");
+    try {
+      const payload = {
+        name: cleanName,
+        slug: resolvedSlug,
+        default_lat: lat,
+        default_lng: lng,
+        default_zoom: zoom,
+        show_list_panel: showListPanel,
+        enable_clustering: enableClustering,
+      };
+      let { error } = await supabase.from("maps").update({ ...payload, cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)) }).eq("id", mapId);
+      if (error && String(error.message || "").includes("cluster_radius")) {
+        ({ error } = await supabase.from("maps").update(payload).eq("id", mapId));
+      }
+      if (error) throw error;
+      setDraftStatus("saved");
+      setTimeout(() => setDraftStatus(""), 2500);
+    } catch (_) {
+      setDraftStatus("");
+    }
+  }
+  saveGeneralDraftRef.current = saveGeneralDraft;
 
   async function lookupLocation(e) {
     e?.preventDefault?.();
@@ -1123,6 +1177,7 @@ export default function AdminMapDashboard() {
       setPinSize(normalizePinSize(themeJson.pinSize));
       setShowSearch(themeJson.showSearch !== false);
       setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
+      setShowMapTitle(!!themeJson.showMapTitle);
       const restoredMapTypeId = themeJson.mapTypeId ?? "roadmap";
       setMapTypeId(restoredMapTypeId);
       setMapStyleSettings(
@@ -1212,6 +1267,7 @@ export default function AdminMapDashboard() {
         pinSize,
         showSearch,
         showGroupDropdowns,
+        showMapTitle,
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
         mapStyleSettings,
@@ -1244,6 +1300,7 @@ export default function AdminMapDashboard() {
       pinSize,
       showSearch,
       showGroupDropdowns,
+      showMapTitle,
       mapTypeId,
       mapStyleSettings,
       map?.theme_json,
@@ -1435,7 +1492,7 @@ export default function AdminMapDashboard() {
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
 
-  return (
+  const inner = (
     <AdminLayout
       breadcrumbs={[
         { label: "Customers", path: "/admin/clients" },
@@ -1475,6 +1532,8 @@ export default function AdminMapDashboard() {
               listings={listings}
               groups={groups}
               showListPanel={showListPanel}
+              showMapTitle={showMapTitle}
+              mapName={name}
               showSearch={showSearch}
               showGroupDropdowns={showGroupDropdowns}
               enableClustering={enableClustering}
@@ -1555,16 +1614,6 @@ export default function AdminMapDashboard() {
               </button>
             ))}
 
-            <hr className="admin-map-page__controls-divider" />
-
-            <button
-              type="button"
-              className={`admin-map-page__tab ${overlayTab === "publish" ? "is-open" : ""}`}
-              onClick={() => setOverlayTab("publish")}
-            >
-              Publish Map
-            </button>
-
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
                 Preview Map
@@ -1591,82 +1640,93 @@ export default function AdminMapDashboard() {
               {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
 
               {overlayTab === "detail" && (
-                <form onSubmit={saveMap}>
-                  <div style={{ display: "grid", gap: 12 }}>
-                    <Field label="Name">
-                      <input value={name} onChange={(e) => setName(e.target.value)} />
-                    </Field>
-                    <Field label="Slug">
-                      <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={suggestedSlug} />
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Suggested: <strong>{suggestedSlug || "—"}</strong></div>
-                    </Field>
-                    <Field label="Map centre">
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          value={locationQuery}
-                          onChange={(e) => setLocationQuery(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
-                          placeholder="Search city, country or address…"
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={lookupLocation}
-                          disabled={geocoding}
-                          style={{ flexShrink: 0 }}
-                        >
-                          {geocoding ? "Searching…" : "Search"}
-                        </button>
-                      </div>
-                      {centerLabel && (
-                        <div style={{ fontSize: 12, color: "var(--lc-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                            <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
-                          </svg>
-                          {centerLabel}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
+                    <div className="panel-section">
+                      <p className="panel-section__title">Map details</p>
+                      <Field label="Name">
+                        <input value={name} onChange={(e) => setName(e.target.value)} />
+                      </Field>
+                      <Field label="Slug">
+                        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={suggestedSlug} />
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Suggested: <strong>{suggestedSlug || "—"}</strong></div>
+                      </Field>
+                    </div>
+
+                    <div className="panel-section">
+                      <p className="panel-section__title">Default view</p>
+                      <Field label="Map centre">
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <input
+                            value={locationQuery}
+                            onChange={(e) => setLocationQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
+                            placeholder="Search city, country or address…"
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={lookupLocation}
+                            disabled={geocoding}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {geocoding ? "Searching…" : "Search"}
+                          </button>
                         </div>
-                      )}
-                      <div style={{ marginTop: 14 }}>
+                        {centerLabel && (
+                          <div style={{ fontSize: 12, color: "var(--lc-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                              <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
+                            </svg>
+                            {centerLabel}
+                          </div>
+                        )}
+                      </Field>
+                      <div>
                         <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Zoom level: <strong>{defaultZoom || 10}</strong></div>
                         <input type="range" min={1} max={20} step={1} value={Number(defaultZoom) || 10} onChange={(e) => setDefaultZoom(String(e.target.value))} style={{ width: "100%" }} />
                       </div>
-                    </Field>
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
-                        Show list panel
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
-                        Enable clustering
-                      </label>
                     </div>
-                    {enableClustering && (
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
-                          Clustering level (radius): <strong>{clusterRadius}</strong> px
-                        </div>
-                        <input
-                          type="range"
-                          min={40}
-                          max={200}
-                          step={10}
-                          value={clusterRadius}
-                          onChange={(e) => setClusterRadius(Number(e.target.value))}
-                          style={{ width: "100%", maxWidth: 280 }}
-                        />
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                          Higher = more grouping. Updates the map as you drag.
-                        </div>
+
+                    <div className="panel-section">
+                      <p className="panel-section__title">Display</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+                          Show list panel
+                        </label>
+                        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <input type="checkbox" checked={showMapTitle} onChange={(e) => setShowMapTitle(e.target.checked)} />
+                          Show map title
+                        </label>
+                        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
+                          Enable clustering
+                        </label>
                       </div>
-                    )}
-                    <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                      <button className="btn btn-primary" type="submit" disabled={saving}>Save</button>
-                      <button className="btn" type="button" onClick={deleteMap} disabled={saving}>Delete map</button>
+                      {enableClustering && (
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
+                            Clustering level (radius): <strong>{clusterRadius}</strong> px
+                          </div>
+                          <input
+                            type="range"
+                            min={40}
+                            max={200}
+                            step={10}
+                            value={clusterRadius}
+                            onChange={(e) => setClusterRadius(Number(e.target.value))}
+                            style={{ width: "100%", maxWidth: 280 }}
+                          />
+                          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                            Higher = more grouping. Updates the map as you drag.
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </form>
+
+                </div>
               )}
 
               {overlayTab === "design" && (
@@ -2632,5 +2692,18 @@ export default function AdminMapDashboard() {
         </div>
       </div>
     </AdminLayout>
+  );
+
+  return (
+    <MapDraftContext.Provider value={{
+      hasDraft: hasUnpublishedChanges,
+      setHasDraft: () => {},
+      publishPanelOpen: overlayTab === "publish",
+      setPublishPanelOpen: () => {},
+      openPublishRef,
+      closePublishRef,
+    }}>
+      {inner}
+    </MapDraftContext.Provider>
   );
 }

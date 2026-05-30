@@ -190,6 +190,8 @@ export default function PublishedMapView({
   listings = [],
   groups = [],
   showListPanel = true,
+  showMapTitle = false,
+  mapName = "",
   showSearch = true,
   showGroupDropdowns = true,
   enableClustering = true,
@@ -606,6 +608,9 @@ export default function PublishedMapView({
 
       {showListPanel && (
         <div className="embed-list-panel">
+          {showMapTitle && mapName && (
+            <div className="embed-list-panel__map-title">{mapName}</div>
+          )}
           {showSearch !== false && (
           <div className="embed-list-panel__search-wrap" ref={searchWrapRef}>
             <input

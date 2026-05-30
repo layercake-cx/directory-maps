@@ -49,6 +49,32 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-05-30 — Production
+
+**Branch/commit:** `feat/2026-05-30-map-title-general-settings-tidy`
+**Deployed by:** Claude Code
+
+### What changed
+- **Show map title option added.** General settings now includes a "Show map title" toggle. When on, the map's name appears above the search bar inside the list panel on the published embed. Stored in `theme_json.showMapTitle`; flows through to `buildPublicationConfig`, EmbedMap, and both admin/client dashboards.
+- **General settings tab restructured.** The flat form is now grouped into three `panel-section` boxes matching the Pin Design tab style: "Map details" (name, slug), "Default view" (centre, zoom), and "Display" (list panel, map title, clustering). The Save and Delete buttons are removed — the tab now auto-saves like all other design tabs, with a "✓ Draft saved" indicator.
+- **Publish button moved to top nav bar.** "Publish Map" is removed from the admin sidebar and now appears as a "Publish" button in the admin top navigation bar (between Data and the right actions), matching client portal behaviour. The button turns amber when unpublished draft changes exist. Wired via `MapDraftContext.Provider` wrapping the admin dashboard.
+
+### Database migrations applied
+None. `showMapTitle` is stored inside the existing `theme_json` jsonb column — no schema change required.
+
+### Rollback plan
+No database changes. Frontend rollback: revert to previous Vercel build or revert the branch.
+
+### Verified on staging
+- [x] No migrations — not applicable
+- [ ] Feature smoke-tested on the production URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+None expected. `showMapTitle` defaults to `false` so all existing maps are unaffected.
+
+---
+
 ## 2026-05-29 — Production
 
 **Branch/commit:** `main` | _(current working session)_
