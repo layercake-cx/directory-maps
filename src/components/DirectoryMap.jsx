@@ -411,15 +411,18 @@ export default function DirectoryMap({
   showTrafficLayer = false,
   showTransitLayer = false,
   showBikeLayer = false,
+  showZoomIndicator = false,
 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef(new Map()); // id -> marker
   const clustererRef = useRef(null);
+  const omsRef = useRef(null); // spiderfy cleanup handle
   const trafficLayerRef = useRef(null);
   const transitLayerRef = useRef(null);
   const bikeLayerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
+  const [currentZoomDisplay, setCurrentZoomDisplay] = useState(null);
 
   const points = useMemo(
     () => (listings || []).filter((l) => l.lat != null && l.lng != null),
@@ -674,28 +677,129 @@ export default function DirectoryMap({
       if (marker) {
         marker.setIcon(icon);
         marker.setTitle(p.name);
+        // Reset to original coords in case a previous spiderfy left it spread.
+        marker.setPosition({ lat: Number(p.lat), lng: Number(p.lng) });
       } else {
         marker = new window.google.maps.Marker({
           position: { lat: Number(p.lat), lng: Number(p.lng) },
           map: null,
           title: p.name,
           icon,
-        });
-        marker.addListener("click", () => {
-          const pos = marker.getPosition();
-          if (!pos) return;
-          map.setCenter(pos);
-          map.setZoom(selectZoom);
-          if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
-          if (!onSelect) return;
-          const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
-          if (pixel) onSelect(p, pixel);
-          else onSelect(p, null);
+          zIndex: 2000,
         });
         markersRef.current.set(p.id, marker);
       }
+      marker._listing = p;
       markerList.push(marker);
     });
+
+    // --- Spiderfy: fan out co-located pins so all are clickable ---
+    // Cleanup any previous spiderfy state before rebuilding.
+    if (omsRef.current) { omsRef.current.cleanup(); omsRef.current = null; }
+
+    const POS_PRECISION = 5; // ~1 m
+    const byPos = new Map();
+    markerList.forEach((m) => {
+      const pos = m.getPosition();
+      if (!pos) return;
+      const key = `${pos.lat().toFixed(POS_PRECISION)},${pos.lng().toFixed(POS_PRECISION)}`;
+      m._posKey = key; // store original key — stays valid even after position is spread
+      if (!byPos.has(key)) byPos.set(key, []);
+      byPos.get(key).push(m);
+    });
+
+    const spiderfied = new Map(); // posKey -> { legs, origPositions }
+
+    function unspiderfy() {
+      spiderfied.forEach(({ legs, origPositions, pulledFromClusterer }, key) => {
+        const markers = byPos.get(key) || [];
+        markers.forEach((m, i) => {
+          if (origPositions[i]) m.setPosition(origPositions[i]);
+          if (pulledFromClusterer) m.setMap(null); // return control to clusterer
+        });
+        legs.forEach((l) => l.setMap(null));
+        // Re-add to clusterer so it reclusters them at original positions.
+        if (pulledFromClusterer && clustererRef.current) {
+          clustererRef.current.addMarkers(markers);
+        }
+      });
+      spiderfied.clear();
+    }
+
+    function spiderfyGroup(posKey, centerLatLng) {
+      if (spiderfied.has(posKey)) return;
+      unspiderfy();
+      const markers = byPos.get(posKey) || [];
+      if (markers.length < 2) return;
+      const origPositions = markers.map((m) => m.getPosition());
+      const legs = [];
+      const count = markers.length;
+      const SPREAD_DEG = 0.00006 + count * 0.000008;
+
+      // If markers are currently managed by the clusterer (map=null), pull them out
+      // so we can show them directly on the map as spread pins.
+      const pulledFromClusterer = !!(clustererRef.current && markers[0]?.getMap() === null);
+      if (pulledFromClusterer) {
+        clustererRef.current.removeMarkers(markers);
+      }
+
+      markers.forEach((m, i) => {
+        const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+        const spreadLat = centerLatLng.lat() + SPREAD_DEG * Math.cos(angle);
+        const spreadLng = centerLatLng.lng() + SPREAD_DEG * Math.sin(angle) / Math.cos((centerLatLng.lat() * Math.PI) / 180);
+        const spreadPos = new window.google.maps.LatLng(spreadLat, spreadLng);
+        m.setPosition(spreadPos);
+        m.setMap(map); // show individually on the map
+        legs.push(new window.google.maps.Polyline({
+          path: [centerLatLng, spreadPos],
+          strokeColor: "#888",
+          strokeOpacity: 0.5,
+          strokeWeight: 1.5,
+          map,
+        }));
+      });
+      spiderfied.set(posKey, { legs, origPositions, pulledFromClusterer });
+    }
+
+    // Add click listeners, clearing any stale ones first.
+    markerList.forEach((m) => {
+      window.google.maps.event.clearListeners(m, "click");
+      m.addListener("click", () => {
+        const posKey = m._posKey; // always the original position key
+        const group = byPos.get(posKey) || [];
+
+        if (group.length > 1 && !spiderfied.has(posKey)) {
+          // Stack detected — fan out instead of selecting
+          const [lat, lng] = posKey.split(",").map(Number);
+          spiderfyGroup(posKey, new window.google.maps.LatLng(lat, lng));
+          return;
+        }
+
+        // Solo pin or already spread — open the listing
+        unspiderfy();
+        const p = m._listing;
+        if (!p) return;
+        const pos = m.getPosition();
+        if (!pos) return;
+        map.setCenter(pos);
+        map.setZoom(selectZoom);
+        if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
+        if (!onSelect) return;
+        const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
+        if (pixel) onSelect(p, pixel);
+        else onSelect(p, null);
+      });
+    });
+
+    const mapClickListener = map.addListener("click", unspiderfy);
+    const zoomListener = map.addListener("zoom_changed", unspiderfy);
+    omsRef.current = {
+      cleanup: () => {
+        unspiderfy();
+        window.google.maps.event.removeListener(mapClickListener);
+        window.google.maps.event.removeListener(zoomListener);
+      },
+    };
 
     if (enableClustering && markerList.length > 0) {
       const algorithm = new SuperClusterAlgorithm({
@@ -720,7 +824,7 @@ export default function DirectoryMap({
               fontSize: "13px",
               fontWeight: "bold",
             },
-            zIndex: 1000 + count,
+            zIndex: 3000 + count, // above individual pins (zIndex 2000) so cluster clicks register correctly
           });
         },
       };
@@ -731,16 +835,39 @@ export default function DirectoryMap({
         renderer,
         onClusterClick: (_event, cluster, m) => {
           const targetMap = m || map;
-          const pos = cluster.position;
           const currentZoom = targetMap.getZoom() ?? zoom ?? 10;
-          const nextZoom = Math.min(currentZoom + 2, 18);
-          targetMap.panTo(pos);
+          const clusterMarkers = cluster.markers || [];
+          // Same-address cluster: fan out at zoom 17+, else zoom to 17 and auto-fan on idle.
+          if (clusterMarkers.length > 1) {
+            const firstKey = clusterMarkers[0]?._posKey;
+            if (firstKey && clusterMarkers.every((mk) => mk._posKey === firstKey)) {
+              const [lat, lng] = firstKey.split(",").map(Number);
+              const center = new window.google.maps.LatLng(lat, lng);
+              if (currentZoom >= 17) {
+                spiderfyGroup(firstKey, center);
+              } else {
+                targetMap.panTo(cluster.position);
+                targetMap.setZoom(17);
+                // Auto-fan once the zoom animation completes.
+                const idleListener = targetMap.addListener("idle", () => {
+                  window.google.maps.event.removeListener(idleListener);
+                  spiderfyGroup(firstKey, center);
+                });
+              }
+              return;
+            }
+          }
+          // Mixed-address cluster — zoom in normally.
+          const nextZoom = Math.min(currentZoom + 3, 20);
+          targetMap.panTo(cluster.position);
           targetMap.setZoom(nextZoom);
         },
       });
     } else {
       markerList.forEach((marker) => marker.setMap(map));
     }
+
+    return () => { omsRef.current?.cleanup?.(); };
   }, [
     mapReady,
     points,
@@ -763,5 +890,35 @@ export default function DirectoryMap({
     selectPanOffsetX,
   ]);
 
-  return <div ref={elRef} style={{ width: "100%", height, borderRadius: 12 }} />;
+  useEffect(() => {
+    if (!mapReady || !showZoomIndicator || !mapRef.current || !window.google?.maps) return;
+    const map = mapRef.current;
+    setCurrentZoomDisplay(map.getZoom() ?? null);
+    const listener = map.addListener("zoom_changed", () => setCurrentZoomDisplay(map.getZoom() ?? null));
+    return () => window.google.maps.event.removeListener(listener);
+  }, [mapReady, showZoomIndicator]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height }}>
+      <div ref={elRef} style={{ width: "100%", height, borderRadius: 12 }} />
+      {showZoomIndicator && currentZoomDisplay != null && (
+        <div style={{
+          position: "absolute",
+          bottom: 8,
+          left: 8,
+          background: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          fontSize: 12,
+          fontFamily: "monospace",
+          padding: "2px 7px",
+          borderRadius: 4,
+          pointerEvents: "none",
+          zIndex: 10,
+          userSelect: "none",
+        }}>
+          zoom {currentZoomDisplay}
+        </div>
+      )}
+    </div>
+  );
 }

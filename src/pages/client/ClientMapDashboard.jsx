@@ -8,7 +8,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
-import { markerIconDataUrl, normalizePinSize, pinPreviewScale } from "../../lib/markerIcons";
+import { markerIconDataUrl, normalizePinSize, pinPreviewScale, MARKER_ANCHORS } from "../../lib/markerIcons";
 import {
   buildPublicationConfig,
   normalizePublicationConfig,
@@ -437,12 +437,14 @@ export default function ClientMapDashboard() {
       pinBorderColor,
       pinBorderSize,
       pinDropShadow,
+      pinShadowDistance,
+      pinShadowOpacity,
       clusterColor,
       custom_pin_url: customPinUrl || null,
       pin_favicon_url: (pinFaviconUrl || "").trim() || null,
       pinSize: normalizePinSize(pinSize),
     }),
-    [markerStyle, markerColor, pinBorderColor, pinBorderSize, pinDropShadow, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
+    [markerStyle, markerColor, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
   );
 
   const listingsWithColor = useMemo(() => {
@@ -1559,6 +1561,7 @@ export default function ClientMapDashboard() {
               showTrafficLayer={mapStyleSettings.overlays.traffic}
               showTransitLayer={mapStyleSettings.overlays.transit}
               showBikeLayer={mapStyleSettings.overlays.bikeLanes}
+              showZoomIndicator
               theme={editTheme}
               selectedListing={selectedListing}
               selectedMarkerPoint={selectedMarkerPoint}
@@ -1935,7 +1938,7 @@ export default function ClientMapDashboard() {
                         const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined, dropShadowPx: pinDropShadow, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity }) : null;
                         return (
                           <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
-                            <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                            <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
                             <span className="pin-style-option__label">{label}</span>
                           </button>
                         );
@@ -2129,16 +2132,16 @@ export default function ClientMapDashboard() {
                         <strong>{groups.find((g) => g.id === editingGroupId)?.name || "Untitled group"}</strong>
                       </p>
                       <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this group's pins. Leave as default to use map design.</p>
-                      <div style={{ display: "grid", gap: 14 }}>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin style</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div className="panel-section">
+                          <p className="panel-section__title">Style</p>
                           <div className="pin-style-grid">
                             {PIN_STYLES.map(({ id, label }) => {
                               const val = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
                               const isSelected = val === id;
                               const isCustom = id === "custom";
                               const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, dropShadowPx: groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow, pinFaviconUrl: (id === "pin" || id === "teardrop") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
+                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, dropShadowPx: globalDesignForGroup.pinDropShadow, dropShadowDistance: globalDesignForGroup.pinShadowDistance, dropShadowOpacity: globalDesignForGroup.pinShadowOpacity, pinFaviconUrl: (id === "pin" || id === "teardrop") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
                                   ? groupEditDesign?.pin_favicon_url
                                   : (groupEditDesign?.pin_favicon_mode ?? "inherit") === "off"
                                     ? undefined
@@ -2151,73 +2154,64 @@ export default function ClientMapDashboard() {
                                   onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }))}
                                   aria-pressed={isSelected}
                                 >
-                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center bottom" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
                                   <span className="pin-style-option__label">{label}</span>
                                 </button>
                               );
                             })}
                           </div>
+                          <div className="pin-size-segmented" role="group" aria-label="Pin size for this category">
+                            {["small", "medium", "large"].map((id) => {
+                              const effective = normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize);
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  className={`pin-size-segmented__btn${effective === id ? " is-selected" : ""}`}
+                                  onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: id }))}
+                                  aria-pressed={effective === id}
+                                >
+                                  {id.charAt(0).toUpperCase() + id.slice(1)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {groupEditDesign?.pinSize != null ? (
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: null }))}
+                            >
+                              Use map default
+                            </button>
+                          ) : null}
                         </div>
-                        <Field label="Pin size">
-                          <div style={{ width: "100%" }}>
-                            <div className="pin-size-segmented" role="group" aria-label="Pin size for this category">
-                              {["small", "medium", "large"].map((id) => {
-                                const effective = normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize);
-                                return (
-                                  <button
-                                    key={id}
-                                    type="button"
-                                    className={`pin-size-segmented__btn${effective === id ? " is-selected" : ""}`}
-                                    onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: id }))}
-                                    aria-pressed={effective === id}
-                                  >
-                                    {id.charAt(0).toUpperCase() + id.slice(1)}
-                                  </button>
-                                );
-                              })}
+                        <div className="panel-section">
+                          <p className="panel-section__title">Colours</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
+                              <ColorRow
+                                value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
+                                onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
+                                ariaLabel="Pin colour"
+                              />
                             </div>
-                            {groupEditDesign?.pinSize != null ? (
-                              <button
-                                type="button"
-                                className="btn"
-                                style={{ marginTop: 8 }}
-                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: null }))}
-                              >
-                                Use map default
-                              </button>
-                            ) : null}
-                          </div>
-                        </Field>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                          <div>
-                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
-                            <ColorRow
-                              value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
-                              onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
-                              ariaLabel="Pin colour"
-                            />
+                            <div>
+                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
+                              <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                            </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
-                            <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
+                              <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
-                            <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Drop shadow (bottom)</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input type="range" min={0} max={30} step={1} value={groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinDropShadow: Number(e.target.value) }))} style={{ flex: 1 }} />
-                            <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinDropShadow ?? globalDesignForGroup.pinDropShadow}px</span>
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Pin icon</div>
+                        <div className="panel-section">
+                          <p className="panel-section__title">Icon</p>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             {groupEditDesign?.pin_favicon_url && (
                               <img src={groupEditDesign.pin_favicon_url} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />
@@ -2267,7 +2261,7 @@ export default function ClientMapDashboard() {
                               </button>
                             )}
                           </div>
-                          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>Overrides the map's default icon for this category's pins.</p>
+                          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Overrides the map's default icon for this category's pins.</p>
                         </div>
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                           <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>

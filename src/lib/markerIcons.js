@@ -27,9 +27,11 @@ export function markerIconDataUrl(style, color, border = {}) {
     const strokeW = sw > 0 ? sw : 2;
     const strokeCol = sw > 0 ? stroke : "#ffffff";
     const safeDotRadius = Math.max(1, 10 - strokeW / 2);
-    const dotShadowRx = Math.max(3.8, 5 + dropShadowPx * 0.1) * 3;
-    const dotShadowRy = Math.max(1.4, 1.9 + dropShadowPx * 0.05) * 3;
-    const dotShadowCy = Math.min(12 + Math.min(baseShadowYOffset, 8), 23.5 - dotShadowRy);
+    // Canvas is 48 wide × 44 tall: circle is centred at cx=24, top 24px.
+    // Extra 12px either side of the circle gives the shadow room to spread without clipping.
+    const dotShadowRx = Math.max(11, 13 + dropShadowPx * 0.25);
+    const dotShadowRy = Math.max(3.5, 4.5 + dropShadowPx * 0.1);
+    const dotShadowCy = 12 + Math.max(12, Math.min(baseShadowYOffset, 28));
     const dotShadow = dropShadowPx > 0
       ? `
         <defs>
@@ -39,13 +41,13 @@ export function markerIconDataUrl(style, color, border = {}) {
             <stop offset="100%" stop-color="#000" stop-opacity="0"/>
           </radialGradient>
         </defs>
-        <ellipse cx="12" cy="${dotShadowCy}" rx="${dotShadowRx}" ry="${dotShadowRy}" fill="url(#pin-base-shadow-grad)"/>
+        <ellipse cx="24" cy="${dotShadowCy}" rx="${dotShadowRx}" ry="${dotShadowRy}" fill="url(#pin-base-shadow-grad)"/>
       `.trim()
       : "";
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="44" viewBox="0 0 48 44">
         ${dotShadow}
-        <circle cx="12" cy="12" r="${safeDotRadius}" fill="${fill}" stroke="${strokeCol}" stroke-width="${strokeW}"/>
+        <circle cx="24" cy="12" r="${safeDotRadius}" fill="${fill}" stroke="${strokeCol}" stroke-width="${strokeW}"/>
       </svg>
     `.trim();
     return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
@@ -164,7 +166,7 @@ export const MARKER_ANCHORS = {
   pin:      { scaledSize: { w: 39, h: 69 }, anchor: { x: 24, y: 54 } },
   // Rounded Pin tip is at SVG natural y=39 (group y=31 + 8px translate).
   teardrop: { scaledSize: { w: 39, h: 69 }, anchor: { x: 24, y: 39 } },
-  dot:      { scaledSize: { w: 24, h: 24 }, anchor: { x: 12, y: 12 } },
+  dot:      { scaledSize: { w: 48, h: 44 }, anchor: { x: 24, y: 12 } },
   custom:   { scaledSize: { w: 40, h: 40 }, anchor: { x: 20, y: 40 } },
 };
 

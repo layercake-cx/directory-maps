@@ -229,6 +229,7 @@ export default function PublishedMapView({
   showTrafficLayer = false,
   showTransitLayer = false,
   showBikeLayer = false,
+  showZoomIndicator = false,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -600,6 +601,7 @@ export default function PublishedMapView({
         showTrafficLayer={showTrafficLayer}
         showTransitLayer={showTransitLayer}
         showBikeLayer={showBikeLayer}
+        showZoomIndicator={showZoomIndicator}
       />
 
       {showListPanel && (
@@ -722,6 +724,9 @@ export default function PublishedMapView({
               const entries = listingsByGroup.get(gr.id) || [];
               const isOpen = openGroupIds.has(gr.id);
               const isHidden = hiddenGroupIds.has(gr.id);
+              const grTheme = typeof gr.theme_json === "string" ? JSON.parse(gr.theme_json || "null") : gr.theme_json;
+              const grColor = grTheme?.marker_color ?? gr.color ?? markerColor;
+              const grBorderColor = grTheme?.pinBorderColor ?? pinBorderColor;
               return (
                 <div key={gr.id} className="embed-list-panel__group">
                   <button
@@ -730,13 +735,14 @@ export default function PublishedMapView({
                     onClick={() => toggleGroup(gr.id)}
                     aria-expanded={isOpen}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                       <input
                         type="checkbox"
                         checked={!isHidden}
                         onChange={() => toggleGroupVisibility(gr.id)}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={isHidden ? `Show ${gr.name || "category"}` : `Hide ${gr.name || "category"}`}
-                        style={{ margin: 0 }}
+                        style={{ margin: 0, flexShrink: 0 }}
                       />
                       <span className="embed-list-panel__group-name">{gr.name || "—"}</span>
                     </span>
@@ -744,6 +750,7 @@ export default function PublishedMapView({
                     <span className="embed-list-panel__group-chevron" aria-hidden>
                       {isOpen ? "▼" : "▶"}
                     </span>
+                    <span style={{ width: 14, height: 14, borderRadius: 3, background: grColor, border: `2px solid ${grBorderColor}`, flexShrink: 0, display: "inline-block", boxSizing: "border-box" }} aria-hidden />
                   </button>
                   {isOpen && (
                     <div className="embed-list-panel__group-body">
@@ -773,13 +780,14 @@ export default function PublishedMapView({
                   onClick={() => toggleGroup("ungrouped")}
                   aria-expanded={openGroupIds.has("ungrouped")}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                     <input
                       type="checkbox"
                       checked={!hiddenGroupIds.has(null)}
                       onChange={() => toggleGroupVisibility(null)}
+                      onClick={(e) => e.stopPropagation()}
                       aria-label={hiddenGroupIds.has(null) ? "Show ungrouped category" : "Hide ungrouped category"}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, flexShrink: 0 }}
                     />
                     <span className="embed-list-panel__group-name">Ungrouped</span>
                   </span>

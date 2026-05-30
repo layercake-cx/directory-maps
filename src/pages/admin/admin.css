@@ -996,18 +996,18 @@ a.btn-primary:hover {
 }
 
 .pin-style-option__preview {
-  width: 20px;
-  height: 24px;
+  width: 32px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .pin-style-option__preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
 }
 
 .pin-style-option__label {
