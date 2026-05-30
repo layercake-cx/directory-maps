@@ -49,6 +49,30 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-05-30 — Staging
+
+**Branch/commit:** `feat/2026-05-30-map-title-general-settings-tidy`
+**Deployed by:** Claude Code
+
+### What changed
+- **Show map title toggle in client portal General tab.** The "Show map title" checkbox was present in the admin map General tab but missing from the client portal equivalent. It is now shown in the Display section alongside "Show list panel" and "Enable clustering", giving clients control over whether the map title appears on their embed.
+- **Removed delete map button from client portal General tab.** The "Danger zone" section containing the delete map button has been removed from the client portal General tab. Map deletion is an admin-only operation.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert `src/pages/client/ClientMapDashboard.jsx` to the previous commit.
+
+### Verified on staging
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+None.
+
+---
+
 ## 2026-05-30 — Production
 
 **Branch/commit:** `main` | `9cc9a9e`
