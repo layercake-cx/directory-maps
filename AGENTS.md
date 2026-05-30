@@ -121,6 +121,16 @@ Every time you implement a meaningful change — feature, fix, migration, config
 
 Vite + React (HashRouter) · Supabase · Google Maps · Resend · Stripe (partial)
 
+## Frontend deployment
+
+The frontend (Vite build) is hosted on **GitHub Pages** and deployed automatically by GitHub Actions on every push to `main`. No manual step is needed.
+
+- Workflow file: `.github/workflows/` — job name "Deploy to GitHub Pages"
+- Build command: `npm run build` (output: `dist/`)
+- VITE env vars are injected from GitHub repository secrets at build time (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_SNAPSHOT_BASE_URL`)
+- Check deploy status: `gh run list --limit 5`
+- A successful merge to `main` = deployed. Typical deploy time ~35 seconds.
+
 ## Edge Function deployments
 
 **Never deploy an Edge Function to production without explicit user confirmation.**
