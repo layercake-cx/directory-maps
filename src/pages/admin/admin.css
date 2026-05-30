@@ -609,6 +609,12 @@ a.btn-primary:hover {
   align-items: flex-start;
   background: transparent;
   z-index: 10;
+  /* Pass clicks through the transparent wrapper so map controls beneath remain clickable */
+  pointer-events: none;
+}
+
+.admin-map-page__right > * {
+  pointer-events: auto;
 }
 
 .admin-map-page__controls {
@@ -870,6 +876,7 @@ a.btn-primary:hover {
 .admin-map-overlay__backdrop {
   background: rgba(0, 0, 0, 0.25);
   transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
 /* Drawer panel: right of the control strip, pushes controls left when open */

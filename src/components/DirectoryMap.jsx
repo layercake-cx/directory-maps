@@ -137,12 +137,6 @@ function attachZoomSliderControl(map, showZoomSlider) {
   const wrap = document.createElement("div");
   wrap.className = "directory-map-zoom-slider-wrap";
 
-  const btnLocate = document.createElement("button");
-  btnLocate.type = "button";
-  btnLocate.className = "directory-map-zoom-btn directory-map-zoom-btn--locate";
-  btnLocate.setAttribute("aria-label", "Locate me");
-  btnLocate.textContent = "◎";
-
   const btnFullscreen = document.createElement("button");
   btnFullscreen.type = "button";
   btnFullscreen.className = "directory-map-zoom-btn directory-map-zoom-btn--fullscreen";
@@ -171,7 +165,6 @@ function attachZoomSliderControl(map, showZoomSlider) {
   btnMinus.textContent = "\u2212";
 
   trackOuter.appendChild(input);
-  wrap.appendChild(btnLocate);
   wrap.appendChild(btnFullscreen);
   wrap.appendChild(btnPlus);
   wrap.appendChild(trackOuter);
@@ -224,23 +217,28 @@ function attachZoomSliderControl(map, showZoomSlider) {
     btnFullscreen.textContent = active ? "⤫" : "⛶";
     btnFullscreen.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
   };
+  const getFullscreenTarget = () => {
+    const div = map.getDiv();
+    if (!div) return null;
+    return div.closest("[data-map-fullscreen-root]") || div;
+  };
   const exitPseudoFullscreen = () => {
     if (!pseudoFullscreen) return;
-    const div = map.getDiv();
-    if (div) div.classList.remove("directory-map--pseudo-fullscreen");
+    const target = getFullscreenTarget();
+    if (target) target.classList.remove("directory-map--pseudo-fullscreen");
     if (body) body.classList.remove("directory-map-body--pseudo-fullscreen");
     pseudoFullscreen = false;
   };
   const enterPseudoFullscreen = () => {
-    const div = map.getDiv();
-    if (!div) return false;
-    div.classList.add("directory-map--pseudo-fullscreen");
+    const target = getFullscreenTarget();
+    if (!target) return false;
+    target.classList.add("directory-map--pseudo-fullscreen");
     if (body) body.classList.add("directory-map-body--pseudo-fullscreen");
     pseudoFullscreen = true;
     return true;
   };
   const onFullscreen = async () => {
-    const target = map.getDiv();
+    const target = getFullscreenTarget();
     if (!target) return;
     const active = doc.fullscreenElement || doc.webkitFullscreenElement;
     if (active) {
@@ -287,26 +285,6 @@ function attachZoomSliderControl(map, showZoomSlider) {
       updateFullscreenButton();
     }
   };
-  const onLocate = () => {
-    if (!navigator.geolocation) return;
-    btnLocate.disabled = true;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = Number(pos.coords.latitude);
-        const lng = Number(pos.coords.longitude);
-        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-          map.panTo({ lat, lng });
-          const z = map.getZoom() ?? 0;
-          if (z < 14) map.setZoom(14);
-        }
-        btnLocate.disabled = false;
-      },
-      () => {
-        btnLocate.disabled = false;
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
-  };
   const onFullscreenChanged = () => {
     if (doc.fullscreenElement || doc.webkitFullscreenElement) {
       exitPseudoFullscreen();
@@ -314,7 +292,6 @@ function attachZoomSliderControl(map, showZoomSlider) {
     updateFullscreenButton();
   };
 
-  btnLocate.addEventListener("click", onLocate);
   btnFullscreen.addEventListener("click", onFullscreen);
   btnPlus.addEventListener("click", onPlus);
   btnMinus.addEventListener("click", onMinus);
@@ -325,7 +302,21 @@ function attachZoomSliderControl(map, showZoomSlider) {
   const zoomListener = map.addListener("zoom_changed", syncFromMap);
   const idleListener = map.addListener("idle", syncFromMap);
 
-  map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+  // Append to the PublishedMapView root (data-map-fullscreen-root) so the wrap participates
+  // in the root stacking context and can appear above admin sidebar overlays (z-index:10).
+  // Fall back to Google Maps RIGHT_BOTTOM if no such ancestor exists (standalone DirectoryMap).
+  const portalRoot = map.getDiv().closest("[data-map-fullscreen-root]");
+  let usedPortal = false;
+  if (portalRoot) {
+    wrap.style.position = "absolute";
+    wrap.style.right = "0";
+    wrap.style.bottom = "0";
+    wrap.style.zIndex = "50";
+    portalRoot.appendChild(wrap);
+    usedPortal = true;
+  } else {
+    map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+  }
   syncFromMap();
   updateFullscreenButton();
 
@@ -333,18 +324,21 @@ function attachZoomSliderControl(map, showZoomSlider) {
     doc.removeEventListener("fullscreenchange", onFullscreenChanged);
     doc.removeEventListener("webkitfullscreenchange", onFullscreenChanged);
     exitPseudoFullscreen();
-    btnLocate.removeEventListener("click", onLocate);
     btnFullscreen.removeEventListener("click", onFullscreen);
     btnPlus.removeEventListener("click", onPlus);
     btnMinus.removeEventListener("click", onMinus);
     input.removeEventListener("input", onInput);
     window.google.maps.event.removeListener(zoomListener);
     window.google.maps.event.removeListener(idleListener);
-    const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
-    for (let i = controls.getLength() - 1; i >= 0; i--) {
-      if (controls.getAt(i) === wrap) {
-        controls.removeAt(i);
-        break;
+    if (usedPortal) {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    } else {
+      const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
+      for (let i = controls.getLength() - 1; i >= 0; i--) {
+        if (controls.getAt(i) === wrap) {
+          controls.removeAt(i);
+          break;
+        }
       }
     }
   };

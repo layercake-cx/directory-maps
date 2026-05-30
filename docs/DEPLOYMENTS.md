@@ -51,6 +51,28 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-05-30 — Staging
 
+**Branch/commit:** `fix/2026-05-30-map-controls`
+**Deployed by:** Claude Code
+
+### What changed
+- **Removed "Locate me" button from map controls.** The ◎ locate-me button has been removed from the zoom slider control panel in all map views (embedded, public, design). Only fullscreen, +, slider, and − remain.
+- **Fixed fullscreen hiding the list panel, title, and search.** When the map was expanded to fullscreen (pseudo-fullscreen fallback), only the inner Google Maps canvas was fullscreened, leaving the list panel, map title, and search box behind at their original position. The fullscreen now targets the `PublishedMapView` root container (via a `data-map-fullscreen-root` attribute) so that the list panel is included inside the fullscreen view.
+- **Fixed map controls blocked in design/panels/groups/mapstyle views (admin and client).** A semi-transparent backdrop overlay (z-index 5) was sitting above the map whenever a settings panel was open, intercepting all clicks including the zoom slider, fullscreen, and +/− buttons. The backdrop is now `pointer-events: none` so map controls work while the panel is open. The close button (×) on the panel is the way to dismiss it.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert `src/components/DirectoryMap.jsx`, `src/components/PublishedMapView.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/pages/client/ClientMapDashboard.jsx`, `src/pages/admin/admin.css`, and `src/style.css`.
+
+### Verified on staging
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] No console errors or broken pages observed
+
+---
+
+## 2026-05-30 — Staging
+
 **Branch/commit:** `feat/2026-05-30-map-title-general-settings-tidy`
 **Deployed by:** Claude Code
 

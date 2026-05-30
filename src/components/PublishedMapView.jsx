@@ -560,6 +560,7 @@ export default function PublishedMapView({
 
   return (
     <div
+      data-map-fullscreen-root
       style={{
         width: "100%",
         height,

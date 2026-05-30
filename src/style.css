@@ -108,10 +108,7 @@ html.embed-map-page::-webkit-scrollbar-track {
   line-height: 38px;
 }
 
-.directory-map-zoom-btn--locate {
-  font-size: 18px;
-  line-height: 38px;
-}
+
 
 .directory-map-zoom-btn:hover {
   color: #333;
