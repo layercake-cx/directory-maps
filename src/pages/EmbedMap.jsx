@@ -376,6 +376,8 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           showListPanel={effectiveDefaults.showListPanel}
           showSearch={parsedTheme.showSearch !== false}
           showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
+          showMapTitle={!!parsedTheme.showMapTitle}
+          mapName={map?.name ?? ""}
           enableClustering={effectiveDefaults.enableClustering}
           clusterRadius={effectiveDefaults.clusterRadius}
           markerStyle={effectiveDefaults.markerStyle}

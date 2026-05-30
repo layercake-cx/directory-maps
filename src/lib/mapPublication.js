@@ -74,6 +74,7 @@ export function buildPublicationConfig(params) {
     pinSize,
     showSearch,
     showGroupDropdowns,
+    showMapTitle,
     mapThemeJsonBase,
     mapTypeId,
     mapStyleSettings,
@@ -97,6 +98,7 @@ export function buildPublicationConfig(params) {
     panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
     showSearch,
     showGroupDropdowns,
+    showMapTitle: !!showMapTitle,
     mapTypeId: mapTypeId || "roadmap",
     mapStyleSettings: mapStyleSettings || baseTheme.mapStyleSettings,
   };

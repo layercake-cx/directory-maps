@@ -55,16 +55,24 @@ function parseMapEditRoute(pathname) {
 function InlineMapEditSubNav({ route, mapName, linkClassName }) {
   const navLinkClass = (active) =>
     [linkClassName, active && linkClassName ? `${linkClassName}--active` : ""].filter(Boolean).join(" ");
+  const { hasDraft, publishPanelOpen, openPublishRef, closePublishRef } = useMapDraft();
 
   return (
     <>
       <span className={styles.divider} aria-hidden>|</span>
       <span className={styles.mapName} title={mapName}>{mapName}</span>
-      <Link to={route.designPath} className={navLinkClass(route.isDesign)}>Design</Link>
-      <Link to={route.dataPath} className={navLinkClass(route.isData)}>Data</Link>
+      <Link to={route.designPath} className={navLinkClass(route.isDesign)} onClick={() => closePublishRef.current?.()}>Design</Link>
+      <Link to={route.dataPath} className={navLinkClass(route.isData)} onClick={() => closePublishRef.current?.()}>Data</Link>
       {route.showStats ? (
         <Link to={route.statsPath} className={navLinkClass(route.isStats)}>Stats</Link>
       ) : null}
+      <button
+        type="button"
+        onClick={() => openPublishRef.current?.()}
+        className={`${styles.subNavTabInline} ${publishPanelOpen ? styles.subNavTabInlineActive : ""} ${hasDraft ? styles.subNavTabInlineDraft : ""}`}
+      >
+        Publish
+      </button>
     </>
   );
 }

@@ -87,7 +87,7 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 
 | Panel | What you can change |
 |-------|---------------------|
-| **General** | Name, slug, default center/zoom, list panel, clustering (saves automatically as you edit) |
+| **General** | Name, slug, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
 | **Pin Design** | Marker style (pin, rounded pin, dot), colour, custom pin image, drop shadow |
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings and group styling (changes save automatically while editing) |
@@ -95,7 +95,7 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
 | **Search** | How search works on the public embed |
 
-Use **Publish Map** in the header when you’re ready to go live. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
+Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 
 ### Map Style panel
 
@@ -152,7 +152,7 @@ In **Data** (`/#/client/maps/<id>/data`), open the **Loaded Data** tab to set a 
 
 ## Publishing and embedding
 
-1. Open the map designer and click **Publish Map**.
+1. Open the map designer and click **Publish** in the top navigation bar (turns amber when changes are pending).
 2. Add an optional publish note and confirm **Publish**.
 3. Copy the **embed URL** from the publish panel (`/#/embed?map=<MAP_ID>`).
 4. Use **Launch map** to open the live embed in a new tab.

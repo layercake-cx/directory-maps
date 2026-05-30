@@ -224,6 +224,7 @@ export default function ClientMapDashboard() {
   const [defaultLng, setDefaultLng] = useState("");
   const [defaultZoom, setDefaultZoom] = useState("");
   const [showListPanel, setShowListPanel] = useState(true);
+  const [showMapTitle, setShowMapTitle] = useState(false);
   const [showSearch, setShowSearch] = useState(true);
   const [showGroupDropdowns, setShowGroupDropdowns] = useState(true);
   const [enableClustering, setEnableClustering] = useState(true);
@@ -561,6 +562,7 @@ export default function ClientMapDashboard() {
         pinSize,
         showSearch,
         showGroupDropdowns,
+        showMapTitle,
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
         mapStyleSettings,
@@ -591,6 +593,7 @@ export default function ClientMapDashboard() {
       pinSize,
       showSearch,
       showGroupDropdowns,
+      showMapTitle,
       mapTypeId,
       mapStyleSettings,
       map?.theme_json,
@@ -725,6 +728,7 @@ export default function ClientMapDashboard() {
             setPinSize(normalizePinSize(theme.pinSize));
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
+            setShowMapTitle(!!theme.showMapTitle);
             setCenterLabel(theme.centerLabel ?? "");
             const loadedMapTypeId = theme.mapTypeId ?? "roadmap";
             const normalizedMapStyleSettings = normalizeMapStyleSettings({
@@ -1085,6 +1089,7 @@ export default function ClientMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        showMapTitle: !!showMapTitle,
         centerLabel: centerLabel || undefined,
         mapTypeId,
         mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
@@ -1379,6 +1384,7 @@ export default function ClientMapDashboard() {
       setPinSize(normalizePinSize(themeJson.pinSize));
       setShowSearch(themeJson.showSearch !== false);
       setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
+      setShowMapTitle(!!themeJson.showMapTitle);
       const restoredMapTypeId = themeJson.mapTypeId ?? "roadmap";
       setMapTypeId(restoredMapTypeId);
       setMapStyleSettings(
@@ -1542,6 +1548,8 @@ export default function ClientMapDashboard() {
               listings={listings}
               groups={groups}
               showListPanel={showListPanel}
+              showMapTitle={showMapTitle}
+              mapName={name}
               showSearch={showSearch}
               showGroupDropdowns={showGroupDropdowns}
               enableClustering={enableClustering}

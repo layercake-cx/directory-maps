@@ -718,6 +718,15 @@ a:hover {
   overflow: visible;
 }
 
+.embed-list-panel__map-title {
+  flex-shrink: 0;
+  padding: 14px 16px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lc-text, #111827);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+}
+
 .embed-list-panel__search-wrap {
   position: relative;
   flex-shrink: 0;
