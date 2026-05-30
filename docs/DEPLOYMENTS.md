@@ -49,6 +49,63 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-05-30 — Staging
+
+**Branch/commit:** `feat/2026-05-30-map-title-general-settings-tidy`
+**Deployed by:** Claude Code
+
+### What changed
+- **Show map title toggle in client portal General tab.** The "Show map title" checkbox was present in the admin map General tab but missing from the client portal equivalent. It is now shown in the Display section alongside "Show list panel" and "Enable clustering", giving clients control over whether the map title appears on their embed.
+- **Removed delete map button from client portal General tab.** The "Danger zone" section containing the delete map button has been removed from the client portal General tab. Map deletion is an admin-only operation.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert `src/pages/client/ClientMapDashboard.jsx` to the previous commit.
+
+### Verified on staging
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+None.
+
+---
+
+## 2026-05-30 — Production
+
+**Branch/commit:** `main` | `9cc9a9e`
+**Deployed by:** Claude Code
+
+### What changed
+- **Co-located pin spiderfy.** When two or more listings share the same address, clicking their cluster now fans the pins out in a circle with thin connecting legs so each one is individually clickable. At zoom < 17 the cluster zooms to level 17 first then auto-fans; at zoom ≥ 17 it fans immediately. Clicking the map, zooming, or selecting a listing collapses the spider. Works with clustering on or off.
+- **Pin style previews match map size.** The pin style selector grid in Pin Design now renders each option at its true proportional size (using `MARKER_ANCHORS` dimensions) so what you see in the preview matches what appears on the map.
+- **Group colour legend in search panel.** A small rounded square showing each group's marker colour (with border colour as an outline) appears right-aligned next to each group name in the embedded search/list panel.
+- **Search panel checkbox fix.** Clicking the show/hide checkbox for a group no longer also expands or collapses the group's listing list.
+- **Group edit drawer redesign.** The per-group design drawer now uses the same `panel-section` layout as Pin Design — sections for Style, Colours, and Icon, with consistent grey-box grouping and spacing.
+- **Drop shadow inheritance.** Group design overrides no longer have their own drop shadow controls; they inherit the global drop shadow configured in Pin Design.
+- **Search panel dividers and gradient.** Subtle divider lines now separate each group/category in the search panel. When a group's listings are revealed, a 20 px dark gradient fades in at the top.
+- **Pin z-index above clusters.** Individual pins render at z-index 2000; cluster bubbles at z-index 3000+. Clusters sit on top for correct click handling.
+- **Zoom level indicator.** Admin and client map designers now show a small "zoom N" badge at the bottom-left of the map for debugging. Hidden on the public embed.
+- **Dot pin shadow fix.** The dot-style pin SVG canvas was widened to 48×44 px to prevent the drop shadow ellipse from clipping horizontally.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+No database changes. Frontend rollback: redeploy the previous Vercel build (`5cd5a04`) or `git revert 9cc9a9e`.
+
+### Verified on staging
+- [x] No migrations — not applicable
+- [x] Feature smoke-tested on the production URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+The spiderfy implementation went through several iterations to resolve: stale click-listener accumulation (fixed with `clearListeners` before re-adding), cluster markers hiding individual markers when managed by MarkerClusterer (fixed by temporarily removing markers from clusterer during fan-out and re-adding on collapse), and the zoom-then-fan sequencing (achieved with a one-shot `idle` listener).
+
+---
+
 ## 2026-05-30 — Production
 
 **Branch/commit:** `main` | `9cc9a9e`

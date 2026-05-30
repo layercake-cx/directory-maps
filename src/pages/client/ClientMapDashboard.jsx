@@ -1913,6 +1913,10 @@ export default function ClientMapDashboard() {
                       Show list panel
                     </label>
                     <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                      <input type="checkbox" checked={showMapTitle} onChange={(e) => setShowMapTitle(e.target.checked)} />
+                      Show map title
+                    </label>
+                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
                       <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
                       Enable clustering
                     </label>
@@ -1922,13 +1926,6 @@ export default function ClientMapDashboard() {
                         <input type="range" min={40} max={200} step={10} value={clusterRadius} onChange={(e) => setClusterRadius(Number(e.target.value))} style={{ width: "100%" }} />
                       </div>
                     )}
-                  </div>
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Danger zone</p>
-                    <button className="btn btn-danger" type="button" onClick={deleteMap} disabled={saving}>
-                      Delete map
-                    </button>
                   </div>
                 </div>
               )}
