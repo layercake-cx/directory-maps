@@ -51,8 +51,10 @@ async function uploadToBlob(pathname: string, data: unknown): Promise<string> {
       // Deterministic path — no random suffix appended by Vercel Blob
       // (required so the embed can construct the URL from map_id alone)
       "x-add-random-suffix": "0",
-      // CDN edge caches for 1 year; origin revalidates on next upload
-      "x-cache-control": "max-age=0, s-maxage=31536000",
+      // No CDN caching — overwriting the same deterministic path doesn't
+      // purge edge caches, so a long s-maxage causes stale snapshots after
+      // every publish. Browsers also skip cache (max-age=0).
+      "x-cache-control": "max-age=0, s-maxage=0, must-revalidate",
     },
     body: JSON.stringify(data),
   });
