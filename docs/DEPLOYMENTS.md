@@ -47,6 +47,30 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-01 — Production
+
+**Branch/commit:** `fix/2026-06-01-oauth-callback-client-id` | PR #18
+**Deployed by:** Claude Code
+
+### What changed
+- Fixed a regression introduced by the sync history migration: connecting a new Google Drive source was throwing a not-null constraint error because `google_oauth_callback` didn't include `client_id` when upserting into `map_data_sources`. The fix looks up `client_id` from `maps` before the upsert.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Redeploy the previous `google_oauth_callback` Edge Function (the version before PR #18).
+- No database changes to reverse.
+
+### Verified on staging
+- [x] Dry-run passed for all migrations
+- [x] Migrations applied and verified (row counts unchanged, RLS intact)
+- [x] Feature smoke-tested — Google Drive connect confirmed working on staging before production deploy
+- [x] No console errors or broken pages observed
+
+### Issues / notes
+Caused by the `client_id NOT NULL` constraint added in `20260601000001_add_client_id_to_map_data_sources.sql`. All other write paths to `map_data_sources` go through `sync_sheet_listings` which already had `client_id` in scope. Only `google_oauth_callback` was missed.
+
 ---
 
 ## 2026-06-01 — Staging
