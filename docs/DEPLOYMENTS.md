@@ -49,6 +49,40 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-06-01 — Staging
+
+**Branch/commit:** `feat/2026-06-01-sync-history`
+**Deployed by:** Claude Code
+
+### What changed
+- **Sync history logging.** Every Google Sheets sync attempt (manual or scheduled) now writes a row to the new `sync_logs` table, recording start time, completion time, status (`running` / `success` / `warning` / `error`), row counts (total, inserted, updated), and structured error codes. This makes it possible to diagnose failed syncs without reading Edge Function logs.
+- **Sync History tab** added to the Data page in both the client portal (`/#/client/maps/:id/data`) and admin portal. The tab only appears when at least one sync log exists for the map.
+- **Sync error alert** on the client dashboard (`/#/client`): a red "Sync errors detected" banner lists each failed map with a link to its Sync History tab.
+- **Admin Sync log page** at `/#/admin/sync-log` — shows all sync logs across all maps with filters for client, status (errors only / all), and free-text search.
+- **`map_data_sources.client_id` column** added so the Edge Function can write `client_id` to sync logs without an extra join.
+- **`sync_sheet_listings` Edge Function** updated: inserts a `running` log on entry, updates to `success`/`warning`/`error` on completion, and emits `data_sync_completed` / `data_sync_failed` admin events.
+
+### Database migrations applied
+- `supabase/migrations/20260601000000_add_sync_logs.sql`
+- `supabase/migrations/20260601000001_add_client_id_to_map_data_sources.sql`
+
+### Rollback plan
+- Run `supabase/migrations/_20260601000000_add_sync_logs.rollback.sql` (`drop table if exists sync_logs`).
+- Run `supabase/migrations/_20260601000001_add_client_id_to_map_data_sources.rollback.sql` (`alter table map_data_sources drop column if exists client_id`).
+- Revert the frontend by redeploying the previous commit (or `git revert` the branch).
+- The Edge Function changes are backward-compatible; rolling back the frontend is sufficient if the table already exists.
+
+### Verified on staging
+- [ ] Dry-run passed for all migrations
+- [ ] Migrations applied and verified (row counts unchanged, RLS intact)
+- [ ] Feature smoke-tested on the Preview/staging URL
+- [ ] No console errors or broken pages observed
+
+### Issues / notes
+None — migrations are output only, not yet applied.
+
+---
+
 ## 2026-06-01 — Production
 
 **Branch/commit:** `main` | `70ac3ae`

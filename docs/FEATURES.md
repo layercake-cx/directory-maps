@@ -151,7 +151,11 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 
 **Coming soon (UI only):** OneDrive / iCloud badges on data page.
 
-Files: `ClientMapData.jsx`, `ClientMapListings.jsx`.
+**Sync history logging**
+
+Every Google Sheets sync attempt is recorded in the `sync_logs` table (status: `running` → `success` / `warning` / `error`, row counts, error codes). A **Sync History** tab appears on the Data page when at least one log exists. The client dashboard shows a red **Sync errors detected** alert linking to the relevant map's Sync History tab when any error-status sync is present for the org.
+
+Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistoryTable.jsx`.
 
 ### 4.5 Analytics (engagement)
 

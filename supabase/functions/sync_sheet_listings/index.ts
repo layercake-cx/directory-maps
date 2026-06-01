@@ -60,17 +60,28 @@ async function stableId(mapId: string, name: string): Promise<string> {
   return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
 }
 
+function deriveErrorCode(e: unknown): string {
+  const msg = String((e as any)?.message ?? e ?? "").toLowerCase();
+  if (msg.includes("missing required")) return "MISSING_COLUMNS";
+  if (msg.includes("empty")) return "SHEET_EMPTY";
+  if (msg.includes("no file selected")) return "NO_FILE";
+  if (msg.includes("fetch") || msg.includes("network")) return "NETWORK_ERROR";
+  return "UNKNOWN";
+}
+
 type SyncDiagnostics = {
   rows: number;
   dataRowCount: number;
   skippedNoName: number;
   warnings: string[];
   headers: string[];
+  insertCount: number;
+  updateCount: number;
 };
 
 async function syncSource(
   service: ReturnType<typeof createServiceClient>,
-  src: { map_id: string; refresh_token: string; spreadsheet_id: string; sheet_name: string | null; sheet_id: number | null },
+  src: { map_id: string; client_id: string; refresh_token: string; spreadsheet_id: string; sheet_name: string | null; sheet_id: number | null },
   geocodeKey: string,
 ): Promise<SyncDiagnostics> {
   const { access_token } = await refreshAccessToken(src.refresh_token);
@@ -203,6 +214,11 @@ async function syncSource(
   // Deduplicate by id — keep last occurrence (latest row wins)
   const deduped = [...new Map(cleaned.map((r: any) => [r.id, r])).values()];
 
+  const { data: existing } = await service.from("listings").select("id").eq("map_id", src.map_id);
+  const existingIds = new Set((existing ?? []).map((r: any) => r.id));
+  const insertCount = deduped.filter((r: any) => !existingIds.has(r.id)).length;
+  const updateCount = deduped.filter((r: any) => existingIds.has(r.id)).length;
+
   const { error: upErr } = await service.from("listings").upsert(deduped, { onConflict: "id" });
   if (upErr) throw upErr;
 
@@ -220,6 +236,8 @@ async function syncSource(
     skippedNoName,
     warnings,
     headers,
+    insertCount,
+    updateCount,
   };
 }
 
@@ -246,7 +264,7 @@ Deno.serve(async (req) => {
 
   let query = service
     .from("map_data_sources")
-    .select("map_id, refresh_token, spreadsheet_id, sheet_name, sheet_id")
+    .select("map_id, client_id, refresh_token, spreadsheet_id, sheet_name, sheet_id")
     .eq("provider", "google_sheets")
     .eq("enabled", true);
 
@@ -272,9 +290,27 @@ Deno.serve(async (req) => {
 
   for (const src of sources ?? []) {
     const startedAt = new Date().toISOString();
+
+    const { data: logRow } = await service.from("sync_logs").insert({
+      map_id: src.map_id,
+      client_id: src.client_id,
+      provider: "google_sheets",
+      started_at: startedAt,
+      status: "running",
+    }).select("id").single();
+    const logId = logRow?.id ?? null;
+
     try {
       if (!src.spreadsheet_id) {
         results.push({ map_id: src.map_id, ok: false, error: "No file selected" });
+        if (logId) {
+          await service.from("sync_logs").update({
+            status: "error",
+            completed_at: new Date().toISOString(),
+            error_code: "NO_FILE",
+            error_message: "No file selected",
+          }).eq("id", logId);
+        }
         continue;
       }
 
@@ -287,6 +323,29 @@ Deno.serve(async (req) => {
         last_sync_error: syncWarning,
         updated_at: new Date().toISOString(),
       }).eq("map_id", src.map_id);
+
+      if (logId) {
+        await service.from("sync_logs").update({
+          status: syncResult.warnings.length ? "warning" : "success",
+          completed_at: new Date().toISOString(),
+          total_rows: syncResult.rows,
+          inserted_count: syncResult.insertCount,
+          updated_count: syncResult.updateCount,
+        }).eq("id", logId);
+      }
+
+      service.from("admin_events").insert({
+        event_type: "data_sync_completed",
+        meta: {
+          actor_admin_scope: "platform_superadmin",
+          client_id: src.client_id,
+          map_id: src.map_id,
+          provider: "google_sheets",
+          rows_synced: syncResult.rows,
+          warnings: syncResult.warnings,
+          source: "edge_function",
+        }
+      }).then(() => {});
 
       results.push({
         map_id: src.map_id,
@@ -314,6 +373,29 @@ Deno.serve(async (req) => {
         last_sync_error: e?.message ?? String(e),
         updated_at: new Date().toISOString(),
       }).eq("map_id", src.map_id);
+
+      if (logId) {
+        await service.from("sync_logs").update({
+          status: "error",
+          completed_at: new Date().toISOString(),
+          error_code: deriveErrorCode(e),
+          error_message: e?.message ?? String(e),
+          error_detail: JSON.stringify(e),
+        }).eq("id", logId);
+      }
+
+      service.from("admin_events").insert({
+        event_type: "data_sync_failed",
+        meta: {
+          actor_admin_scope: "platform_superadmin",
+          client_id: src.client_id,
+          map_id: src.map_id,
+          provider: "google_sheets",
+          error: e?.message ?? String(e),
+          source: "edge_function",
+        }
+      }).then(() => {});
+
       results.push({ map_id: src.map_id, ok: false, error: e?.message ?? String(e), startedAt });
     }
   }
