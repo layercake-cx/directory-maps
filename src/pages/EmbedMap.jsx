@@ -42,7 +42,9 @@ async function fetchSnapshot(mapId) {
   const base = import.meta.env.VITE_SNAPSHOT_BASE_URL;
   if (!base) return null;
 
-  const url = `${base}/maps/${mapId}/snapshot.json`;
+  // Cache-bust with a per-load timestamp so stale CDN edge caches (which
+  // ignore the s-maxage=0 we now set on upload) are always bypassed.
+  const url = `${base}/maps/${mapId}/snapshot.json?t=${Date.now()}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000); // 3 s timeout
 
