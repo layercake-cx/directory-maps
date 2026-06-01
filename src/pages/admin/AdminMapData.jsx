@@ -6,6 +6,7 @@ import AdminLayout from "./AdminLayout.jsx";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
+import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -145,6 +146,9 @@ export default function AdminMapData() {
   const [dataPage, setDataPage] = useState(0);
   const [ingestionMethodMap, setIngestionMethodMap] = useState(new Map());
 
+  // ── Sync history ──────────────────────────────────────────────────────────
+  const [syncLogCount, setSyncLogCount] = useState(0);
+
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   async function fetchListings() {
@@ -180,12 +184,13 @@ export default function AdminMapData() {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data: c }, { data: m }, { data: g }, { data: ds }, l] = await Promise.all([
+        const [{ data: c }, { data: m }, { data: g }, { data: ds }, l, { count }] = await Promise.all([
           supabase.from("clients").select("id,name").eq("id", clientId).single(),
           supabase.from("maps").select("id,name").eq("id", mapId).single(),
           supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
           supabase.from("map_data_sources").select("id").eq("map_id", mapId).eq("provider", "google_sheets").eq("enabled", true).limit(1),
           fetchListings(),
+          supabase.from("sync_logs").select("id", { count: "exact", head: true }).eq("map_id", mapId),
         ]);
         setClient(c ?? null);
         setMap(m ?? null);
@@ -194,6 +199,7 @@ export default function AdminMapData() {
         setIntegrationLinked(linked);
         setActiveTab(linked ? "drive" : "branding");
         setListings(l ?? []);
+        setSyncLogCount(count ?? 0);
       } catch (e) {
         setErr(e?.message ?? String(e));
       }
@@ -631,6 +637,7 @@ export default function AdminMapData() {
     { id: "manual", label: "Manual entry", disabled: integrationLinked, disabledReason: syncLockedReason },
     { id: "spreadsheet", label: "Upload CSV", disabled: integrationLinked, disabledReason: syncLockedReason },
     { id: "drive", label: "Sync data" },
+    ...(syncLogCount > 0 ? [{ id: "sync_history", label: "Sync History" }] : []),
   ];
 
   return (
@@ -1176,6 +1183,20 @@ export default function AdminMapData() {
 
             {msg && <Alert color="green" variant="light">{msg}</Alert>}
             {err && <Alert color="red" variant="light">{err}</Alert>}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB: Sync History
+        ════════════════════════════════════════════════════════════════════ */}
+
+        {activeTab === "sync_history" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div>
+              <Text size="sm" fw={600}>Sync history</Text>
+              <Text size="xs" c="dimmed">A log of every Google Sheets sync attempt for this map.</Text>
+            </div>
+            <SyncHistoryTable mapId={mapId} />
           </div>
         )}
 

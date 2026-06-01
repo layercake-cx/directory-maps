@@ -163,6 +163,31 @@ In **Data** (`/#/client/maps/<id>/data`), open the **Loaded Data** tab to set a 
 
 **Listings** (`.../listings`) shows all entries with search and filters.
 
+### Sync History tab
+
+If your map has had at least one Google Sheets sync attempt, a **Sync History** tab appears on the Data page (`/#/client/maps/<id>/data`).
+
+The table shows each sync run with:
+
+| Column | Description |
+|--------|-------------|
+| Started | When the sync began |
+| Duration | How long it took (e.g. "3s", "1m 12s") |
+| Status | Success, Warning, Error, or Running |
+| Provider | Always "google_sheets" for now |
+| Total rows | Rows imported |
+| Inserted | New rows added |
+| Updated | Existing rows updated |
+| Error | First 80 characters of any error message |
+
+Click a row to expand it and see the full error code, message, and raw error detail.
+
+Pagination: 100 rows per page, with Prev / Next controls and a "Page X of Y" indicator.
+
+### Sync error alert on the dashboard
+
+If any sync run has failed for your organisation, a red **Sync errors detected** alert appears at the top of **My Maps** (`/#/client`). Each line shows the map name, how long ago the failure occurred, and a link directly to the Sync History tab for that map.
+
 ---
 
 ## Publishing and embedding

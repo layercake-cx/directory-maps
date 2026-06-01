@@ -30,6 +30,7 @@ import AdminUserDetail from "./pages/admin/AdminUserDetail.jsx";
 import AdminDeployments from "./pages/admin/AdminDeployments.jsx";
 import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 import AdminUserActivity from "./pages/admin/AdminUserActivity.jsx";
+import AdminSyncLog from "./pages/admin/AdminSyncLog.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
@@ -217,6 +218,15 @@ export default function App() {
         element={
           <AdminGate>
             <AdminUserActivity />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/sync-log"
+        element={
+          <AdminGate>
+            <AdminSyncLog />
           </AdminGate>
         }
       />
