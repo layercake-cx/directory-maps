@@ -29,9 +29,14 @@ Deno.serve(async (req) => {
     const email = await fetchGoogleUserEmail(tokens.access_token).catch(() => null);
 
     const service = createServiceClient();
+
+    const { data: map, error: mapErr } = await service.from("maps").select("client_id").eq("id", mapId).single();
+    if (mapErr) throw mapErr;
+
     const { error } = await service.from("map_data_sources").upsert(
       {
         map_id: mapId,
+        client_id: map.client_id,
         provider: "google_sheets",
         refresh_token: tokens.refresh_token,
         enabled: true,

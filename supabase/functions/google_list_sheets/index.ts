@@ -14,11 +14,18 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const FILE_MIME_TYPES = [
+  "application/vnd.google-apps.spreadsheet",
+  "text/csv",
+  "application/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   try {
-    const { mapId, query } = await req.json();
+    const { mapId, query, folderId } = await req.json();
     await requireMapAccess(req, mapId);
     if (!mapId) return json({ error: "Missing mapId" }, 400);
 
@@ -35,35 +42,50 @@ Deno.serve(async (req) => {
 
     const { access_token } = await refreshAccessToken(src.refresh_token);
 
-    const mimeTypes = [
-      "application/vnd.google-apps.spreadsheet",
-      "text/csv",
-      "application/csv",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ].map((m) => `mimeType='${m}'`).join(" or ");
+    const commonParams = {
+      fields: "files(id,name,mimeType,modifiedTime)",
+      pageSize: "100",
+      includeItemsFromAllDrives: "true",
+      supportsAllDrives: "true",
+      corpora: "allDrives",
+    };
 
-    const nameFilter = query?.trim()
-      ? ` and name contains '${query.trim().replace(/'/g, "\\'")}'`
-      : "";
+    if (query?.trim()) {
+      // Search mode: filter by accepted file types + name query, return flat file list
+      const mimeFilter = FILE_MIME_TYPES.map((m) => `mimeType='${m}'`).join(" or ");
+      const nameFilter = ` and name contains '${query.trim().replace(/'/g, "\\'")}'`;
+      const q = `(${mimeFilter}) and trashed=false${nameFilter}`;
 
-    const q = `(${mimeTypes}) and trashed=false${nameFilter}`;
+      const u = new URL("https://www.googleapis.com/drive/v3/files");
+      u.searchParams.set("q", q);
+      u.searchParams.set("orderBy", "modifiedTime desc");
+      Object.entries(commonParams).forEach(([k, v]) => u.searchParams.set(k, v));
+
+      const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${access_token}` } });
+      const driveData = await res.json();
+      if (!res.ok) throw new Error(`Drive API error: ${JSON.stringify(driveData)}`);
+
+      return json({ files: driveData.files ?? [] });
+    }
+
+    // Browse mode: list folders and accepted files inside the given folder (or root)
+    const parent = folderId ?? "root";
+    const q = `'${parent}' in parents and trashed=false`;
 
     const u = new URL("https://www.googleapis.com/drive/v3/files");
     u.searchParams.set("q", q);
-    u.searchParams.set("fields", "files(id,name,mimeType,modifiedTime)");
-    u.searchParams.set("orderBy", "modifiedTime desc");
-    u.searchParams.set("pageSize", "50");
-    u.searchParams.set("includeItemsFromAllDrives", "true");
-    u.searchParams.set("supportsAllDrives", "true");
-    u.searchParams.set("corpora", "allDrives");
+    u.searchParams.set("orderBy", "folder,name");
+    Object.entries(commonParams).forEach(([k, v]) => u.searchParams.set(k, v));
 
-    const res = await fetch(u.toString(), {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${access_token}` } });
     const driveData = await res.json();
     if (!res.ok) throw new Error(`Drive API error: ${JSON.stringify(driveData)}`);
 
-    return json({ files: driveData.files ?? [] });
+    const all: Array<{ id: string; name: string; mimeType: string; modifiedTime: string }> = driveData.files ?? [];
+    const folders = all.filter((f) => f.mimeType === "application/vnd.google-apps.folder");
+    const files = all.filter((f) => FILE_MIME_TYPES.includes(f.mimeType));
+
+    return json({ folders, files });
   } catch (e) {
     return json({ error: e?.message ?? String(e) }, 500);
   }

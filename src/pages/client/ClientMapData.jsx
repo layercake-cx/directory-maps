@@ -124,6 +124,9 @@ export default function ClientMapData() {
   const [configuring, setConfiguring] = useState(false);
   const [spreadsheetInput, setSpreadsheetInput] = useState("");
   const [sheets, setSheets] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [folderStack, setFolderStack] = useState([]);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
   const [sheetsLoading, setSheetsLoading] = useState(false);
   const [sheetsQuery, setSheetsQuery] = useState("");
   const [sheetsErr, setSheetsErr] = useState("");
@@ -333,7 +336,8 @@ export default function ClientMapData() {
       setConnecting(true); setSheetErr("");
       const { error } = await supabase.from("map_data_sources").delete().eq("map_id", mapId).eq("provider", "google_sheets");
       if (error) throw error;
-      setSheetStatus(null); setSheets([]); setShowPicker(false); setSheetMsg("");
+      setSheetStatus(null); setSheets([]); setFolders([]); setFolderStack([]); setCurrentFolderId(null);
+      setShowPicker(false); setSheetMsg("");
       setIntegrationLinked(false);
       setActiveTab("branding");
       setJustDisconnected(true);
@@ -366,21 +370,38 @@ export default function ClientMapData() {
     }
   }
 
-  async function loadSheets(query = "") {
+  async function loadSheets(query = "", folderId = currentFolderId) {
     try {
       setSheetsLoading(true); setSheetsErr("");
-      const { data, error } = await invokeFunction("google_list_sheets", { body: { mapId, query } });
+      const { data, error } = await invokeFunction("google_list_sheets", { body: { mapId, query, folderId } });
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? body?.message ?? error.message);
       }
       if (data?.error) throw new Error(data.error);
       setSheets(data?.files ?? []);
+      setFolders(data?.folders ?? []);
     } catch (e) {
       setSheetsErr(e?.message ?? String(e));
     } finally {
       setSheetsLoading(false);
     }
+  }
+
+  function navigateToFolder(folder) {
+    setFolderStack((prev) => [...prev, folder]);
+    setCurrentFolderId(folder.id);
+    setSheetsQuery("");
+    loadSheets("", folder.id);
+  }
+
+  function navigateUp(index) {
+    const newStack = index === -1 ? [] : folderStack.slice(0, index + 1);
+    const newFolderId = newStack.length ? newStack[newStack.length - 1].id : null;
+    setFolderStack(newStack);
+    setCurrentFolderId(newFolderId);
+    setSheetsQuery("");
+    loadSheets("", newFolderId);
   }
 
   async function connectGoogle() {
@@ -942,7 +963,7 @@ export default function ClientMapData() {
           {sheetStatus?.connected && showPicker && (
             <div className="admin-card" style={{ padding: 16 }}>
               {sheetStatus?.sheet?.spreadsheet_id && (
-                <button type="button" onClick={() => setShowPicker(false)} style={{ background: "none", border: "none", padding: 0, fontSize: 12, cursor: "pointer", opacity: 0.6, marginBottom: 10 }}>
+                <button type="button" onClick={() => { setShowPicker(false); setFolderStack([]); setCurrentFolderId(null); setSheetsQuery(""); }} style={{ background: "none", border: "none", padding: 0, fontSize: 12, cursor: "pointer", opacity: 0.6, marginBottom: 10 }}>
                   ← Back
                 </button>
               )}
@@ -953,24 +974,59 @@ export default function ClientMapData() {
                 placeholder="Search files…"
                 style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13, marginBottom: 8 }}
               />
+              {!sheetsQuery && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 8, fontSize: 12 }}>
+                  <button type="button" onClick={() => navigateUp(-1)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--mantine-color-blue-6)", fontSize: 12 }}>My Drive</button>
+                  {folderStack.map((f, i) => (
+                    <React.Fragment key={f.id}>
+                      <span style={{ opacity: 0.4 }}>›</span>
+                      {i < folderStack.length - 1
+                        ? <button type="button" onClick={() => navigateUp(i)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--mantine-color-blue-6)", fontSize: 12 }}>{f.name}</button>
+                        : <span style={{ opacity: 0.7 }}>{f.name}</span>
+                      }
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
               {sheetsErr ? (
                 <Alert color="red" variant="light" mb="xs">{sheetsErr}</Alert>
               ) : sheetsLoading ? (
                 <Text size="sm" c="dimmed">Loading…</Text>
-              ) : sheets.length === 0 ? (
-                <Text size="sm" c="dimmed">No files found.</Text>
+              ) : sheetsQuery ? (
+                sheets.length === 0 ? (
+                  <Text size="sm" c="dimmed">No files found.</Text>
+                ) : (
+                  <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
+                    {sheets.map((f, i) => (
+                      <button key={f.id} type="button" onClick={() => selectSheet(f.id, f.mimeType, f.name)} disabled={configuring}
+                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < sheets.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: configuring ? "wait" : "pointer", gap: 8 }}
+                      >
+                        <span style={{ fontSize: 13 }}>{f.name}</span>
+                        <span style={{ fontSize: 11, opacity: 0.5, whiteSpace: "nowrap" }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : folders.length === 0 && sheets.length === 0 ? (
+                <Text size="sm" c="dimmed">This folder is empty.</Text>
               ) : (
                 <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
-                  {sheets.map((f, i) => (
-                    <button
-                      key={f.id} type="button"
-                      onClick={() => selectSheet(f.id, f.mimeType, f.name)}
-                      disabled={configuring}
-                      style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < sheets.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: configuring ? "wait" : "pointer", gap: 8 }}
-                    >
-                      <span style={{ fontSize: 13 }}>{f.name}</span>
-                      <span style={{ fontSize: 11, opacity: 0.5, whiteSpace: "nowrap" }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ""}</span>
-                    </button>
+                  {[...folders.map((f) => ({ ...f, _type: "folder" })), ...sheets.map((f) => ({ ...f, _type: "file" }))].map((f, i, arr) => (
+                    f._type === "folder" ? (
+                      <button key={f.id} type="button" onClick={() => navigateToFolder(f)}
+                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: "pointer" }}
+                      >
+                        <FolderOpen size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13 }}>{f.name}</span>
+                      </button>
+                    ) : (
+                      <button key={f.id} type="button" onClick={() => selectSheet(f.id, f.mimeType, f.name)} disabled={configuring}
+                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: configuring ? "wait" : "pointer", gap: 8 }}
+                      >
+                        <span style={{ fontSize: 13 }}>{f.name}</span>
+                        <span style={{ fontSize: 11, opacity: 0.5, whiteSpace: "nowrap" }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ""}</span>
+                      </button>
+                    )
                   ))}
                 </div>
               )}
