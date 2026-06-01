@@ -771,8 +771,13 @@ a:hover {
   cursor: pointer;
   text-align: left;
   border: none;
+  border-bottom: 1px solid rgba(229, 231, 235, 0.6);
   width: 100%;
   background: none;
+}
+
+.embed-list-panel__suggestion:last-child {
+  border-bottom: none;
 }
 
 .embed-list-panel__suggestion:hover {
@@ -795,12 +800,13 @@ a:hover {
 .embed-list-panel__places-label,
 .embed-list-panel__section-label {
   display: block;
-  padding: 8px 14px 4px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 5px 14px;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #6b7280;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  background: #374151;
 }
 
 .embed-list-panel__suggestion--place {

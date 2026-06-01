@@ -672,6 +672,11 @@ export default function PublishedMapView({
                     Searching places…
                   </li>
                 ) : null}
+                {placeSuggestions.length > 0 && (
+                  <li className="embed-list-panel__suggestions-divider" aria-hidden>
+                    <span className="embed-list-panel__section-label">Location</span>
+                  </li>
+                )}
                 {placeSuggestions.map((place, pi) => (
                   <li
                     id={`embed-search-opt-${pi}`}
@@ -692,11 +697,9 @@ export default function PublishedMapView({
                 ))}
                 {suggestions.length > 0 ? (
                   <>
-                    {(placeSuggestions.length > 0 || placeSearchLoading) && (
-                      <li className="embed-list-panel__suggestions-divider" aria-hidden>
-                        <span className="embed-list-panel__section-label">Directory listings</span>
-                      </li>
-                    )}
+                    <li className="embed-list-panel__suggestions-divider" aria-hidden>
+                      <span className="embed-list-panel__section-label">Directory listings</span>
+                    </li>
                     {suggestions.map((listing, li) => {
                       const gIdx = placeSuggestions.length + li;
                       return (
