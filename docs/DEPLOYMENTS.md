@@ -49,6 +49,44 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ---
 
+## 2026-06-01 — Production
+
+**Branch/commit:** `main` | `70ac3ae`
+**Deployed by:** Claude Code
+
+### What changed
+- **Fixed map title still not appearing in embeds after republish (CDN cache bypass).** Even after fixing the snapshot to include `name` and setting `s-maxage=0` on new uploads, existing CDN edge nodes continued serving year-old snapshots because changing cache headers on a re-upload does not evict already-cached responses. The embed now appends `?t=<timestamp>` to every snapshot fetch, creating a unique cache key per page load that always hits Vercel Blob's origin directly, bypassing any stale edge cache permanently.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert the `?t=` line in `src/pages/EmbedMap.jsx` — embeds fall back to CDN-cached snapshots (which may be stale after a publish until cache naturally expires).
+
+### Verified on staging
+- [x] Map title now appears in published embed after enabling the toggle and publishing
+
+---
+
+## 2026-05-30 — Production
+
+**Branch/commit:** `main` | `ca8b42c`
+**Deployed by:** Claude Code
+
+### What changed
+- **Disabled CDN caching on snapshot uploads.** Changed `x-cache-control` from `max-age=0, s-maxage=31536000` to `max-age=0, s-maxage=0, must-revalidate` in `generate_map_snapshot` so future snapshot uploads are not cached by Vercel Blob's CDN edge nodes. Deployed to both staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`) Edge Function projects.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Redeploy the previous version of `generate_map_snapshot` to both Supabase projects.
+
+### Verified on staging
+- [x] Edge Function deployed successfully to staging and production
+
+---
+
 ## 2026-05-30 — Staging
 
 **Branch/commit:** `fix/2026-05-30-map-title-missing-in-embed`
