@@ -148,7 +148,7 @@ Open **Data** from the map sub-nav (`/#/client/maps/<id>/data`).
 
 ### Google Sheets
 
-Connect a Google account, pick a **file in Google Drive** (Google Sheet or CSV stored in Drive), validate columns, and sync. To import a CSV from your computer without Drive, use the **Spreadsheet / CSV** tab instead. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
+Connect a Google account, then browse your Drive folders to pick a file (Google Sheet or CSV stored in Drive) — the file picker shows folders you can open and navigate, with a breadcrumb trail to go back. Use the search box to find a file by name across all of Drive instead of browsing. Validate columns, then sync. To import a CSV from your computer without Drive, use the **Spreadsheet / CSV** tab instead. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
 
 ### Loaded Data (logo background per listing)
 
