@@ -93,7 +93,7 @@ flowchart LR
 |---------|-------|-------------|
 | My Maps | `/#/client` | Dashboard grid of maps, data-source badges, links to stats |
 | Team | `/#/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
-| Email settings | `/#/client/email` | Custom sending domain via Resend (requires map-management permission) |
+| Messaging | `/#/client/email` | Enable/disable messaging feature org-wide; configure custom sending domain via Resend; set contact-form prompt text (requires map-management permission) |
 | Map sub-nav | `/#/client/maps/:id/*` | Design · Data · Stats |
 
 Layout: `src/pages/client/ClientLayout.jsx` · Context: `ClientContext`, `getClientAndContact.js`.
@@ -220,7 +220,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Feature | Route | Description |
 |---------|-------|-------------|
 | Customers | `/admin/clients` | Search, create, delete clients; **impersonate** into client portal |
-| Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override` |
+| Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override`; secondary client nav (Maps · Customer details · Users · Messaging) |
 | New customer | `/admin/clients/new` | Create organisation (name + slug) |
 | Add customer user | `/admin/clients/:id` (Users tab) | Send invite to create account/set password; contact links after invite acceptance |
 | Contact detail | `/admin/clients/:id/contacts/:contactId` | Per-contact admin view |

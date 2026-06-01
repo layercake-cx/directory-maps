@@ -241,9 +241,36 @@ Invitations expire after **7 days** — send a new one if needed.
 
 ---
 
-## Custom email (optional)
+## Messaging
 
-Under **Email**, verify a domain so contact-form messages send from your organisation’s address. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
+The **Messaging** tab (`/#/client/email`) controls whether visitors can send messages to directory listings, and which sender address those messages come from.
+
+### Enable messaging
+
+At the top of the tab there is an **Enable messaging** toggle.
+
+- **Off (default):** the "Send message" button is hidden on all your published maps, regardless of what email addresses your listings contain.
+- **On:** the button appears on listings that have an email address.
+
+When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
+
+### Custom sending domain (optional)
+
+By default, messages are sent from the platform’s address. To send from your own address (e.g. `hello@yourcompany.com`):
+
+1. **Enable messaging** (step above).
+2. Under **From address**, enter your display name and email address, then click **Save**.
+3. Under **Domain & DNS**, click **Set up domain**. Resend registers your domain and generates DNS records.
+4. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
+   - Use the **copy button** next to each value to avoid transcription errors.
+   - DNS propagation can take up to 48 hours, though it’s usually minutes.
+5. Click **Check verification**. When the status badge turns green ("Verified"), messages will send from your address.
+
+**DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
+
+Until your domain is verified, messages fall back to the platform default sender. Submissions are always saved to Stats regardless of email delivery.
+
+See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ---
 
@@ -257,6 +284,8 @@ Under **Email**, verify a domain so contact-form messages send from your organis
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
+| Enable messaging | `/#/client/email` → Enable messaging toggle |
+| Configure custom sending domain | `/#/client/email` → Domain & DNS |
 | Invite team member | `/#/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 

@@ -47,6 +47,41 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-01 — Staging
+
+**Branch/commit:** `feat/2026-06-01-messaging-toggle-domain-admin-nav` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging toggle (org-level):** Clients can now enable or disable the "Send message" button across all their published maps via the Messaging tab. Previously the button always appeared on any listing with an email address. The toggle defaults to off for all existing clients — no visible change until they turn it on.
+- **Prompt message:** When messaging is enabled, clients must set a short prompt that appears above the contact form in the map (e.g. "Complete the form below and we'll pass your message on.").
+- **Custom sending domain — improved UX:** The Domain & DNS section now shows a step-by-step guidance block explaining where to find DNS settings, how to add the records, and propagation timings. Each DNS record value now has a copy-to-clipboard button to prevent transcription errors. A DMARC setup note is included.
+- **"Email" renamed to "Messaging"** across the client nav tab and page heading. Route unchanged (`/#/client/email`).
+- **Admin secondary client nav:** When viewing a customer in `/admin/clients/:id`, the tabs (Maps / Customer details / Users / Messaging) now render as a full-width nav strip below the breadcrumb trail instead of inside the card. This separates platform admin navigation from client-scoped navigation.
+- **Admin Messaging tab:** Admins see a read-only view of the client's messaging configuration (toggle state, prompt, from address, domain status, DNS records). The "Check verification" button is active so admins can trigger a DNS check for support purposes.
+
+### Database migrations applied
+- `20260601110000_add_messaging_to_clients.sql` — adds `messaging_enabled` (boolean, default false) and `messaging_prompt` (text) to `clients`; creates `client_messaging_settings` view for anon read access from the embed.
+
+### Rollback plan
+- Run `20260601110000_add_messaging_to_clients.rollback.sql` to drop the columns and view.
+- Revert the frontend: `git revert <merge commit>` and push to main.
+- No edge function changes; no data loss risk.
+
+### Verification checklist
+- [ ] Staging migration applied without error
+- [ ] Client Messaging tab renders — toggle, prompt field, DNS guidance visible
+- [ ] Toggle defaults to off on existing clients
+- [ ] Turning toggle on shows prompt field (required); turning it off hides it
+- [ ] Save emits `email_messaging_toggled` admin event
+- [ ] Embed hides "Send message" button when messaging_enabled = false
+- [ ] Embed shows prompt text above contact form when set
+- [ ] Admin customer detail → Messaging tab shows read-only config
+- [ ] Admin Messaging tab "Check verification" button works
+- [ ] Admin secondary client nav renders below breadcrumbs on `/admin/clients/:id`
+
+---
+
 ## 2026-06-01 — Staging (edge function only; frontend on main)
 
 **Branch/commit:** `feat/google-drive-folder-nav` | `c764034`

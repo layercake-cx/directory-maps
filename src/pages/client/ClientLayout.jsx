@@ -18,7 +18,7 @@ import "../admin/admin.css";
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
   { label: "Team", path: "/client/team", requiresManageOrg: true },
-  { label: "Email", path: "/client/email", requiresManageMaps: true },
+  { label: "Messaging", path: "/client/email", requiresManageMaps: true },
 ];
 
 function isClientMapDesignPath(pathname) {

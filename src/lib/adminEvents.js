@@ -54,6 +54,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "domain_setup_started",
     "domain_verified",
     "domain_verify_failed",
+    "messaging_toggled",
   ],
   billing: ["checkout_session_created", "checkout_failed"],
   ops: ["deploy_hook_triggered", "deploy_hook_failed"],
