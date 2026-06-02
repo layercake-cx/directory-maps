@@ -47,6 +47,85 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-02 — Production
+
+**Branch/commit:** `feat/2026-06-01-messaging-toggle-domain-admin-nav` | PR #20
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging toggle (org-level):** Clients can enable/disable the "Send message" contact button on their published maps. Defaults to off; no change for existing maps until enabled.
+- **Contact form prompt:** When messaging is on, clients set a prompt line shown above the form (e.g. "Fill in the form below and we'll pass your message on.").
+- **Test mode toggle (per-client DB setting):** Replaces the old `VITE_ENVIRONMENT` heuristic. A toggle in the Messaging tab controls whether the contact form sends to the real listing email or to a saved test recipient. Defaults to `true` (test mode on) so new clients are safe until they explicitly turn it off.
+- **Custom sending domain — improved UX:** DNS guidance block, copy-to-clipboard buttons, per-record verification status icons (✓ / ⏱ / ✕).
+- **Duplicate Resend domain registration fix:** Domain setup now checks for an existing Resend domain before creating a new one, preventing conflicting DKIM records.
+- **Async DNS verification:** Verification now polls Resend's GET endpoint every 3 s for up to 18 s (6 attempts) rather than doing a single immediate fetch, matching Resend's async model.
+- **Email address hidden when messaging is on:** When the "Send message" button is active on a listing, the raw email address is suppressed from the listing panel across embed, client design view, and admin design view.
+- **Listing edit form fixes:** Edit form now loads all saved fields (lat/lng, email, phone, website_url were missing). Lat/lng inputs now accept negative numbers (`type="text" inputMode="decimal"`).
+- **Groups — add group in listing edit form:** "+ Add group" link in the listing edit form lets users create a new group inline without leaving the flow.
+- **Admin secondary client nav:** Tabs below breadcrumb on `/admin/clients/:id`.
+
+### Database migrations applied
+- `20260601110000_add_messaging_to_clients.sql` — adds `messaging_enabled`, `messaging_prompt` to `clients`; creates `client_messaging_settings` view (anon-readable).
+- `20260602120000_add_email_test_mode.sql` — adds `email_test_mode` (bool, default true) and `email_test_recipient` (text) to `clients`; recreates `client_messaging_settings` view to include new columns.
+
+### Edge functions deployed
+- `manage_client_email` — deployed to production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+- Run `_20260602120000_add_email_test_mode.rollback.sql` (drops test-mode columns, restores previous view).
+- Run `_20260601110000_add_messaging_to_clients.rollback.sql` (drops messaging columns and view).
+- Revert the frontend: after PR #20 merges, `git revert <merge commit>` and push to `main`.
+- Redeploy the previous `manage_client_email` edge function version.
+
+### Verified on staging
+- [x] Both migrations applied to staging without error
+- [x] Verification flow confirmed working (MX + SPF turn green after DNS propagation)
+- [x] Test mode toggle persists and is read correctly on drawer open
+- [x] Email field hidden when messaging is enabled
+- [x] Listing edit form loads all saved fields
+- [x] Lat/lng accept negative numbers
+
+### Issues / notes
+- `supabase db push --project-ref` not supported in CLI v2.75.0. Workaround: temporarily relinked CLI to production (`supabase link --project-ref gxixwdjfmegxcxfeflro`), ran `db push --linked`, then relinked back to staging.
+- Resend eu-west-1 is now the only region used for domain registrations (env var `RESEND_DOMAIN_REGION` defaults to `eu-west-1`). `docs/DATA_AND_PRIVACY.md` updated to reflect this.
+
+---
+
+## 2026-06-01 — Staging
+
+**Branch/commit:** `feat/2026-06-01-messaging-toggle-domain-admin-nav` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging toggle (org-level):** Clients can now enable or disable the "Send message" button across all their published maps via the Messaging tab. Previously the button always appeared on any listing with an email address. The toggle defaults to off for all existing clients — no visible change until they turn it on.
+- **Prompt message:** When messaging is enabled, clients must set a short prompt that appears above the contact form in the map (e.g. "Complete the form below and we'll pass your message on.").
+- **Custom sending domain — improved UX:** The Domain & DNS section now shows a step-by-step guidance block explaining where to find DNS settings, how to add the records, and propagation timings. Each DNS record value now has a copy-to-clipboard button to prevent transcription errors. A DMARC setup note is included.
+- **"Email" renamed to "Messaging"** across the client nav tab and page heading. Route unchanged (`/#/client/email`).
+- **Admin secondary client nav:** When viewing a customer in `/admin/clients/:id`, the tabs (Maps / Customer details / Users / Messaging) now render as a full-width nav strip below the breadcrumb trail instead of inside the card. This separates platform admin navigation from client-scoped navigation.
+- **Admin Messaging tab:** Admins see a read-only view of the client's messaging configuration (toggle state, prompt, from address, domain status, DNS records). The "Check verification" button is active so admins can trigger a DNS check for support purposes.
+
+### Database migrations applied
+- `20260601110000_add_messaging_to_clients.sql` — adds `messaging_enabled` (boolean, default false) and `messaging_prompt` (text) to `clients`; creates `client_messaging_settings` view for anon read access from the embed.
+
+### Rollback plan
+- Run `20260601110000_add_messaging_to_clients.rollback.sql` to drop the columns and view.
+- Revert the frontend: `git revert <merge commit>` and push to main.
+- No edge function changes; no data loss risk.
+
+### Verification checklist
+- [ ] Staging migration applied without error
+- [ ] Client Messaging tab renders — toggle, prompt field, DNS guidance visible
+- [ ] Toggle defaults to off on existing clients
+- [ ] Turning toggle on shows prompt field (required); turning it off hides it
+- [ ] Save emits `email_messaging_toggled` admin event
+- [ ] Embed hides "Send message" button when messaging_enabled = false
+- [ ] Embed shows prompt text above contact form when set
+- [ ] Admin customer detail → Messaging tab shows read-only config
+- [ ] Admin Messaging tab "Check verification" button works
+- [ ] Admin secondary client nav renders below breadcrumbs on `/admin/clients/:id`
+
+---
+
 ## 2026-06-01 — Staging (edge function only; frontend on main)
 
 **Branch/commit:** `feat/google-drive-folder-nav` | `c764034`

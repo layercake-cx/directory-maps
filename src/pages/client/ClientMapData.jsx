@@ -151,6 +151,9 @@ export default function ClientMapData() {
   const [savingManual, setSavingManual] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
+  const [addGroupModal, setAddGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [savingGroup, setSavingGroup] = useState(false);
 
   // ── General UI ────────────────────────────────────────────────────────────
   const [msg, setMsg] = useState("");
@@ -175,7 +178,7 @@ export default function ClientMapData() {
   async function fetchListings() {
     const { data, error } = await supabase
       .from("listings")
-      .select("id,name,address,group_id,logo_bg,logo_url,source,is_active")
+      .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,logo_bg,logo_url,source,is_active")
       .eq("map_id", mapId)
       .order("name", { ascending: true });
     if (error) {
@@ -183,7 +186,7 @@ export default function ClientMapData() {
       if (String(error.message || "").includes("source")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_bg,logo_url,is_active")
+          .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,group_id,logo_bg,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -193,7 +196,7 @@ export default function ClientMapData() {
       if (String(error.message || "").includes("logo_bg")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_url,is_active")
+          .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,group_id,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -623,6 +626,31 @@ export default function ClientMapData() {
   }
 
   function closeManual() { setManualModal(null); setEditingListing(null); setManualErr(""); }
+
+  async function saveNewGroup(e) {
+    e.preventDefault();
+    const name = newGroupName.trim();
+    if (!name) return;
+    setSavingGroup(true);
+    try {
+      const nextOrder = groups.length > 0 ? Math.max(...groups.map((g) => g.sort_order ?? 0)) + 1 : 0;
+      const { data, error } = await supabase
+        .from("groups")
+        .insert({ map_id: mapId, name, sort_order: nextOrder })
+        .select("id,name,sort_order")
+        .single();
+      if (error) throw error;
+      setGroups((prev) => [...prev, data]);
+      mfSet("group_id", data.id);
+      setAddGroupModal(false);
+      setNewGroupName("");
+    } catch (err) {
+      // surface error in the group modal — keep it simple
+      alert(err?.message ?? "Failed to create group.");
+    } finally {
+      setSavingGroup(false);
+    }
+  }
 
   function mfSet(key, val) { setManualForm((prev) => ({ ...prev, [key]: val })); }
 
@@ -1429,20 +1457,51 @@ export default function ClientMapData() {
                   <input value={manualForm.address} onChange={(e) => mfSet("address", e.target.value)} placeholder="e.g. 1 Example Street, London" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Group</label>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <label style={{ fontSize: 13, fontWeight: 500 }}>Group</label>
+                    <button
+                      type="button"
+                      style={{ fontSize: 12, color: "var(--lc-brand, #4a9baa)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                      onClick={() => { setAddGroupModal(true); setNewGroupName(""); }}
+                    >
+                      + Add group
+                    </button>
+                  </div>
                   <select value={manualForm.group_id} onChange={(e) => mfSet("group_id", e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}>
                     <option value="">No group</option>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
+
+                  {addGroupModal && (
+                    <div style={{ marginTop: 8, padding: "12px 14px", background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>New group name</div>
+                      <form onSubmit={saveNewGroup} style={{ display: "flex", gap: 8 }}>
+                        <input
+                          autoFocus
+                          value={newGroupName}
+                          onChange={(e) => setNewGroupName(e.target.value)}
+                          placeholder="e.g. Cafés"
+                          style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 }}
+                          required
+                        />
+                        <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: "6px 14px" }} disabled={savingGroup}>
+                          {savingGroup ? "Saving…" : "Add"}
+                        </button>
+                        <button type="button" className="btn" style={{ fontSize: 13, padding: "6px 10px" }} onClick={() => setAddGroupModal(false)}>
+                          Cancel
+                        </button>
+                      </form>
+                    </div>
+                  )}
                 </div>
                 <Group gap="sm" grow>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Latitude</label>
-                    <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                    <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="text" inputMode="decimal" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Longitude</label>
-                    <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                    <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="text" inputMode="decimal" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
                   </div>
                 </Group>
                 <div>

@@ -245,6 +245,45 @@ a.btn-primary:hover {
   font-weight: 500;
 }
 
+.admin-client-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--lc-border);
+}
+
+.admin-client-nav__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.admin-client-nav__tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--lc-muted);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.admin-client-nav__tab:hover {
+  color: var(--lc-text);
+}
+
+.admin-client-nav__tab--active {
+  color: var(--lc-text);
+  border-bottom-color: var(--lc-brand, #4a9baa);
+  font-weight: 600;
+}
+
 .admin-main {
   max-width: 1200px;
   margin: 0 auto;

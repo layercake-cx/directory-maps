@@ -16,6 +16,21 @@ export function getResendApiKey(): string {
   return key;
 }
 
+/**
+ * Returns the API key for domain-management operations (create/verify domains).
+ * Resend restricts these to full-access keys; sending-only keys return
+ * "This API key is restricted to only send emails".
+ *
+ * Set RESEND_ADMIN_API_KEY to a full-access Resend key.
+ * Falls back to RESEND_API_KEY so existing single-key setups keep working
+ * (as long as that key has full access).
+ */
+export function getResendAdminApiKey(): string {
+  const key = Deno.env.get("RESEND_ADMIN_API_KEY") ?? Deno.env.get("RESEND_API_KEY") ?? "";
+  if (!key) throw new Error("RESEND_ADMIN_API_KEY (or RESEND_API_KEY) is not configured.");
+  return key;
+}
+
 export function getPlatformFrom(): string {
   const from = Deno.env.get("RESEND_FROM") ?? "";
   if (!from) throw new Error("RESEND_FROM is not configured.");
@@ -38,12 +53,12 @@ export function buildFromHeader(fromName: string | null | undefined, fromEmail: 
   return `${name} <${email}>`;
 }
 
-async function resendFetch(path: string, init: RequestInit = {}) {
-  const apiKey = getResendApiKey();
+async function resendFetch(path: string, init: RequestInit = {}, apiKey?: string) {
+  const key = apiKey ?? getResendApiKey();
   const res = await fetch(`${RESEND_API}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
@@ -66,19 +81,30 @@ async function resendFetch(path: string, init: RequestInit = {}) {
   return data;
 }
 
+/** Domain management — requires a full-access Resend key (RESEND_ADMIN_API_KEY). */
+export function getResendDomainRegion(): string {
+  // Default to eu-west-1 (Ireland) for EU data residency.
+  // Override by setting RESEND_DOMAIN_REGION in Supabase secrets.
+  return Deno.env.get("RESEND_DOMAIN_REGION") ?? "eu-west-1";
+}
+
 export async function resendCreateDomain(name: string) {
   return await resendFetch("/domains", {
     method: "POST",
-    body: JSON.stringify({ name }),
-  });
+    body: JSON.stringify({ name, region: getResendDomainRegion() }),
+  }, getResendAdminApiKey());
+}
+
+export async function resendListDomains() {
+  return await resendFetch("/domains", { method: "GET" }, getResendAdminApiKey());
 }
 
 export async function resendGetDomain(domainId: string) {
-  return await resendFetch(`/domains/${encodeURIComponent(domainId)}`, { method: "GET" });
+  return await resendFetch(`/domains/${encodeURIComponent(domainId)}`, { method: "GET" }, getResendAdminApiKey());
 }
 
 export async function resendVerifyDomain(domainId: string) {
-  return await resendFetch(`/domains/${encodeURIComponent(domainId)}/verify`, { method: "POST" });
+  return await resendFetch(`/domains/${encodeURIComponent(domainId)}/verify`, { method: "POST" }, getResendAdminApiKey());
 }
 
 export async function resendSendEmail(params: {

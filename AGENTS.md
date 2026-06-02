@@ -87,6 +87,17 @@ git stash pop
 
 ## Documentation
 
+### Third-party integrations and privacy
+
+Whenever you **add, change, or remove a third-party integration** (any external API, service, or SDK — including new environment variables or changed data flows), update **`docs/DATA_AND_PRIVACY.md`** in the same task. This document is the canonical record used to keep the privacy policy and client DPAs accurate.
+
+Specifically update it when:
+- A new external service is connected (new API, SDK, or webhook)
+- An existing integration changes what personal data it receives or where it processes it
+- An integration is removed
+- A provider's DPA terms or processing region change
+- A new environment variable points to an external service
+
 When you **build, change, or remove** a user-facing feature:
 
 1. Update **`docs/USER_GUIDE.md`** in the same change (steps, routes, quick reference).

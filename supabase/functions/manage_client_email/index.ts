@@ -3,6 +3,7 @@ import {
   extractEmailDomain,
   resendCreateDomain,
   resendGetDomain,
+  resendListDomains,
   resendVerifyDomain,
 } from "../_shared/resend.ts";
 
@@ -77,6 +78,27 @@ async function syncDomainFromResend(service: ReturnType<typeof createServiceClie
   return normalizeClientEmailRow(data as Record<string, unknown>);
 }
 
+/**
+ * Resend's verify endpoint is async — it queues a background DNS check and
+ * returns immediately with just { id }. Status updates arrive via webhook.
+ * We don't have a webhook, so we poll GET /domains/{id} until the overall
+ * domain status moves away from "not_started", or until we give up.
+ *
+ * Typical Resend check completes in 3–8 seconds for already-propagated DNS.
+ */
+async function pollUntilChecked(domainId: string, attempts = 6, intervalMs = 3000): Promise<Record<string, unknown>> {
+  for (let i = 0; i < attempts; i++) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    const remote = await resendGetDomain(domainId) as Record<string, unknown>;
+    const status = typeof remote?.status === "string" ? remote.status : "";
+    // "not_started" means the check hasn't run yet — keep polling.
+    // Any other status (pending, verified, failed) means the check has run.
+    if (status && status !== "not_started") return remote;
+  }
+  // Return whatever we have after exhausting retries.
+  return await resendGetDomain(domainId) as Record<string, unknown>;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -139,17 +161,31 @@ Deno.serve(async (req) => {
 
       let domainId = client.resend_domain_id as string | null;
       if (!domainId || client.email_domain !== domain) {
-        const created = await resendCreateDomain(domain);
-        domainId = typeof created?.id === "string" ? created.id : null;
-        if (!domainId) throw new Error("Resend did not return a domain id.");
+        // Before creating a new registration, check if this domain already exists
+        // in Resend under this account. Creating a duplicate produces a second
+        // registration with a different DKIM key, causing a conflict.
+        let existingId: string | null = null;
+        try {
+          const list = await resendListDomains() as { data?: Array<{ id: string; name: string }> };
+          const match = list?.data?.find((d) => d.name === domain);
+          if (match?.id) existingId = match.id;
+        } catch {
+          // If listing fails, fall through and attempt creation.
+        }
+
+        if (existingId) {
+          domainId = existingId;
+        } else {
+          const created = await resendCreateDomain(domain);
+          domainId = typeof created?.id === "string" ? created.id : null;
+          if (!domainId) throw new Error("Resend did not return a domain id.");
+        }
 
         await service
           .from("clients")
           .update({
             email_domain: domain,
             resend_domain_id: domainId,
-            email_domain_status: typeof created?.status === "string" ? created.status : "not_started",
-            email_dns_records: Array.isArray(created?.records) ? created.records : null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", clientId);
@@ -164,11 +200,36 @@ Deno.serve(async (req) => {
       if (!domainId) {
         return jsonResponse({ error: "Set up your domain first." }, 400);
       }
+
+      let remote: Record<string, unknown>;
       if (action === "verify") {
+        // Trigger Resend's async DNS check. The response is just { id } — no statuses yet.
         await resendVerifyDomain(domainId);
+        // Poll until Resend's check has run (status moves off "not_started"), up to ~18s.
+        remote = await pollUntilChecked(domainId);
+      } else {
+        remote = await resendGetDomain(domainId) as Record<string, unknown>;
       }
-      const email = await syncDomainFromResend(service, clientId, domainId);
-      return jsonResponse({ ok: true, email });
+
+      // Write whatever Resend now reports back to the DB.
+      const status = typeof remote?.status === "string" ? remote.status : "not_started";
+      const records = Array.isArray(remote?.records) ? remote.records : null;
+      const name = typeof remote?.name === "string" ? remote.name : null;
+
+      const { data, error: dbErr } = await service
+        .from("clients")
+        .update({
+          email_domain: name,
+          email_domain_status: status,
+          email_dns_records: records,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientId)
+        .select("email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records")
+        .single();
+      if (dbErr) throw dbErr;
+
+      return jsonResponse({ ok: true, email: normalizeClientEmailRow(data as Record<string, unknown>) });
     }
 
     return jsonResponse({ error: "Unknown action." }, 400);

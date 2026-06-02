@@ -204,6 +204,8 @@ export default function ClientMapDashboard() {
   const isPublishOpen = publishPanelOpen;
 
   const [client, setClient] = useState(null);
+  const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
+  const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -361,8 +363,12 @@ export default function ClientMapDashboard() {
   }, [embedSrc, mapId, thumbSize]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
+  // messagingTestMode / messagingTestRecipient are kept in dedicated state
+  // and fetched separately so they stay current even if the user changed
+  // the setting in the Messaging tab without remounting this page.
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -633,7 +639,7 @@ export default function ClientMapDashboard() {
         const [{ data: c, error: ce }, { data: g, error: ge }, listingsRes] = await Promise.all([
           supabase
             .from("clients")
-            .select("id,name,slug,subscription_active_override")
+            .select("id,name,slug,subscription_active_override,email_test_mode,email_test_recipient")
             .eq("id", currentClientId)
             .single(),
           supabase
@@ -694,6 +700,19 @@ export default function ClientMapDashboard() {
 
         if (!cancelled) {
           setClient(c);
+          // Fetch messaging test mode settings fresh from the view so they
+          // stay current even if the user changed them in the Messaging tab.
+          supabase
+            .from("client_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("client_id", currentClientId)
+            .single()
+            .then(({ data: ms }) => {
+              if (ms && !cancelled) {
+                setMessagingTestMode(ms.email_test_mode !== false);
+                setMessagingTestRecipient(ms.email_test_recipient ?? "");
+              }
+            });
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
@@ -1586,6 +1605,25 @@ export default function ClientMapDashboard() {
                 setMessageDrawerOpen(true);
                 setContactFormSent(false);
                 setContactFormError("");
+                // Re-fetch test mode settings so they reflect any changes
+                // made in the Messaging tab since this page loaded.
+                if (client?.id) {
+                  supabase
+                    .from("client_messaging_settings")
+                    .select("email_test_mode,email_test_recipient")
+                    .eq("client_id", client.id)
+                    .single()
+                    .then(({ data: ms }) => {
+                      if (ms) {
+                        setMessagingTestMode(ms.email_test_mode !== false);
+                        setMessagingTestRecipient(ms.email_test_recipient ?? "");
+                        setContactForm((f) => ({
+                          ...f,
+                          testToEmail: f.testToEmail || ms.email_test_recipient || "",
+                        }));
+                      }
+                    });
+                }
               }}
               height="100%"
               listingsWithColor={listingsWithColor}
@@ -2612,8 +2650,8 @@ export default function ClientMapDashboard() {
                 onSubmit={async (e) => {
                 e.preventDefault();
                 if (!selectedListing?.email) return;
-                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
-                  setContactFormError("Enter a test recipient email when in test/preview.");
+                if (messagingTestMode && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email to send in test mode.");
                   return;
                 }
                 setContactFormError("");
@@ -2623,9 +2661,9 @@ export default function ClientMapDashboard() {
                       mapId,
                       listingId: selectedListing.id,
                       listingName: selectedListing.name || "",
-                      toEmail: isProductionEnv
-                        ? selectedListing.email
-                        : (contactForm.testToEmail || "").trim(),
+                      toEmail: messagingTestMode
+                        ? contactForm.testToEmail.trim()
+                        : selectedListing.email,
                       senderName: (contactForm.name || "").trim(),
                       senderEmail: (contactForm.email || "").trim(),
                       senderPhone: (contactForm.phone || "").trim(),
@@ -2647,7 +2685,7 @@ export default function ClientMapDashboard() {
                   }
                 }}
               >
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <div
                     style={{
                       marginBottom: 10,
@@ -2661,7 +2699,7 @@ export default function ClientMapDashboard() {
                     <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
                   </div>
                 )}
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <label className="embed-message-drawer__label">
                     <span>Test recipient email</span>
                     <input
@@ -2673,7 +2711,7 @@ export default function ClientMapDashboard() {
                           testToEmail: e.target.value,
                         }))
                       }
-                      placeholder="test-recipient@example.com"
+                      placeholder={messagingTestRecipient || "test-recipient@example.com"}
                       required
                     />
                   </label>
