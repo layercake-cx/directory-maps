@@ -47,7 +47,7 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
-## 2026-06-02 — Staging (migration repair only)
+## 2026-06-02 — Staging + Production (migration repair only)
 
 **Branch/commit:** `chore/fix-duplicate-migration-timestamp`
 **Deployed by:** Claude Code
@@ -56,27 +56,22 @@ Anything that went differently from plan, any workarounds applied, anything the 
 - Two migration files that shared timestamp `20260529120000` confused the Supabase CLI. The `listings_source_column` migration was applied manually to staging and production but was never recorded in the CLI migration history.
 - The forward migration file is renamed from `20260529120000_listings_source_column.sql` → `20260529120001_listings_source_column.sql`, and its rollback from `_20260529120000_listings_source_column.rollback.sql` → `_20260529120001_listings_source_column.rollback.sql`. Header comments inside both files updated to match.
 - SQL content is unchanged — this is a filename-only fix.
-- `supabase migration repair --status applied 20260529120001` run against **staging** (`beqejxneehilplrtpntn`) so the CLI history now recognises the migration as applied.
+- `supabase migration repair --status applied 20260529120001` run against both **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`).
 
 ### Database migrations applied
-No new migrations applied. Repair command only:
-- `supabase migration repair --status applied 20260529120001 --project-ref beqejxneehilplrtpntn`
+No new migrations applied. Repair commands only:
+- `supabase migration repair --status applied 20260529120001` on staging (`beqejxneehilplrtpntn`)
+- `supabase migration repair --status applied 20260529120001` on production (`gxixwdjfmegxcxfeflro`)
 
 ### Rollback plan
-- If the rename causes issues, revert this branch and run `supabase migration repair --status reverted 20260529120001 --project-ref beqejxneehilplrtpntn` to remove the entry from staging CLI history.
-- **Production still needs a separate repair command** — see Issues/notes below. Do not run that until explicitly confirmed.
+- If the rename causes issues, revert this branch and run `supabase migration repair --status reverted 20260529120001` on both staging and production to remove the entry from CLI history.
 
 ### Verified on staging
-- [ ] `supabase migration repair` ran without error against staging
-- [ ] `supabase migration list --project-ref beqejxneehilplrtpntn` shows `20260529120001` as applied
-- [ ] No other migrations affected
-
-### Issues / notes
-- **Production DB still has the old timestamp recorded under `20260529120000`.** After this PR merges and is verified on staging, production will need its own repair command:
-  ```
-  supabase migration repair --status applied 20260529120001 --project-ref gxixwdjfmegxcxfeflro
-  ```
-  Do **not** run this until the user explicitly confirms.
+- [x] `supabase migration repair` ran without error on staging
+- [x] `supabase migration list` shows `20260529120001` as applied on staging
+- [x] `supabase migration repair` ran without error on production
+- [x] `supabase migration list` shows `20260529120001` as applied on production
+- [x] No other migrations affected
 
 ## 2026-06-01 — Staging (edge function only; frontend on main)
 
