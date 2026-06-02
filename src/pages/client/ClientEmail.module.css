@@ -207,6 +207,38 @@
   color: #4b5563;
 }
 
+/* ── Verify feedback banner ────────────────────────────── */
+
+.verifyBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.verifyBannerOk {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+
+.verifyBannerWarn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #78350f;
+}
+
+.verifyBannerIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+}
+
 /* ── DNS block ─────────────────────────────────────────── */
 
 .dnsBlock {

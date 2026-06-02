@@ -48,6 +48,8 @@ export default function ClientEmail() {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  // Separate state for verify feedback — shown inline next to the button, not at the top
+  const [verifyFeedback, setVerifyFeedback] = useState(null); // null | { ok: boolean, text: string }
 
   const [messagingEnabled, setMessagingEnabled] = useState(false);
   const [messagingPrompt, setMessagingPrompt] = useState("");
@@ -176,6 +178,7 @@ export default function ClientEmail() {
     if (!client?.id) return;
     setErr("");
     setMsg("");
+    setVerifyFeedback(null);
     setBusy("verify");
     try {
       const data = await invokeManageClientEmail({
@@ -183,13 +186,15 @@ export default function ClientEmail() {
         action: "verify",
       });
       applyEmailPayload(data.email);
-      setMsg(
-        data.email?.email_domain_status === "verified"
-          ? "Domain verified. Map messages will send from your address."
-          : "Verification checked. If DNS was just added, wait a few minutes and try again."
-      );
+      const verified = data.email?.email_domain_status === "verified";
+      setVerifyFeedback({
+        ok: verified,
+        text: verified
+          ? "Your domain records are correctly configured. Messages will now send from your address."
+          : "Your domain records cannot be verified yet, or changes are still propagating. Check that all records below are added exactly as shown, then try again — DNS can take up to 48 hours to take effect.",
+      });
     } catch (e) {
-      setErr(e?.message ?? String(e));
+      setVerifyFeedback({ ok: false, text: e?.message ?? String(e) });
     } finally {
       setBusy("");
     }
@@ -360,6 +365,25 @@ export default function ClientEmail() {
                   </button>
                 ) : null}
               </div>
+
+              {verifyFeedback && (
+                <div className={`${styles.verifyBanner} ${verifyFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
+                  <span className={styles.verifyBannerIcon} aria-hidden>
+                    {verifyFeedback.ok ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                    )}
+                  </span>
+                  <span>{verifyFeedback.text}</span>
+                </div>
+              )}
 
               {dnsRecords.length > 0 ? (
                 <div className={styles.dnsBlock}>
