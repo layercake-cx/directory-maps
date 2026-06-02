@@ -85,6 +85,8 @@ export default function ClientEmail() {
 
   const [messagingEnabled, setMessagingEnabled] = useState(false);
   const [messagingPrompt, setMessagingPrompt] = useState("");
+  const [emailTestMode, setEmailTestMode] = useState(true);
+  const [emailTestRecipient, setEmailTestRecipient] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromAddress, setFromAddress] = useState("");
   const [domainStatus, setDomainStatus] = useState("not_configured");
@@ -102,13 +104,15 @@ export default function ClientEmail() {
       const { data, error } = await supabase
         .from("clients")
         .select(
-          "messaging_enabled,messaging_prompt,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
+          "messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
         )
         .eq("id", client.id)
         .single();
       if (error) throw error;
       setMessagingEnabled(!!data?.messaging_enabled);
       setMessagingPrompt(data?.messaging_prompt ?? "");
+      setEmailTestMode(data?.email_test_mode !== false); // default true if null
+      setEmailTestRecipient(data?.email_test_recipient ?? "");
       setFromName(data?.email_from_name ?? "");
       setFromAddress(data?.email_from_address ?? "");
       setEmailDomain(data?.email_domain ?? "");
@@ -157,6 +161,32 @@ export default function ClientEmail() {
         meta: { client_id: client.id, enabled: messagingEnabled, source: "client_portal" },
       });
       setMsg(messagingEnabled ? "Messaging enabled." : "Messaging disabled.");
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function handleTestModeSave() {
+    if (!client?.id) return;
+    if (emailTestMode && !emailTestRecipient.trim()) {
+      setErr("A test recipient email is required when test mode is enabled.");
+      return;
+    }
+    setErr("");
+    setMsg("");
+    setBusy("testmode");
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          email_test_mode: emailTestMode,
+          email_test_recipient: emailTestMode ? emailTestRecipient.trim() : null,
+        })
+        .eq("id", client.id);
+      if (error) throw error;
+      setMsg(emailTestMode ? "Test mode enabled." : "Test mode disabled — emails will go to listing addresses.");
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -321,6 +351,60 @@ export default function ClientEmail() {
                   disabled={busy === "toggle"}
                 >
                   {busy === "toggle" ? "Saving…" : "Save messaging settings"}
+                </button>
+              </div>
+            </section>
+
+            {/* ── Test mode ───────────────────────────────────────── */}
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Test mode</h2>
+              <p className={styles.hint}>
+                When test mode is on, contact form messages are redirected to the test recipient below
+                instead of the listing&apos;s email address. Turn off when you&apos;re ready to go live.
+              </p>
+
+              <label className={styles.toggleRow}>
+                <div
+                  className={`${styles.toggle} ${emailTestMode ? styles.toggleOn : ""}`}
+                  onClick={() => setEmailTestMode((v) => !v)}
+                  role="switch"
+                  aria-checked={emailTestMode}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") setEmailTestMode((v) => !v); }}
+                >
+                  <div className={styles.toggleThumb} />
+                </div>
+                <span className={styles.toggleLabel}>
+                  {emailTestMode ? "Test mode is on" : "Test mode is off — emails go to listing addresses"}
+                </span>
+              </label>
+
+              {emailTestMode && (
+                <div className={styles.promptField}>
+                  <label className={styles.field}>
+                    <span>Test recipient email <span className={styles.required}>*</span></span>
+                    <input
+                      type="email"
+                      value={emailTestRecipient}
+                      onChange={(e) => setEmailTestRecipient(e.target.value)}
+                      placeholder="you@yourcompany.com"
+                      required
+                    />
+                    <span className={styles.hint} style={{ marginBottom: 0 }}>
+                      All contact form messages will be sent here instead of listing email addresses.
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleTestModeSave}
+                  disabled={busy === "testmode"}
+                >
+                  {busy === "testmode" ? "Saving…" : "Save test mode settings"}
                 </button>
               </div>
             </section>

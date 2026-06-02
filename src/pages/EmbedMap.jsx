@@ -84,6 +84,8 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
   const pinOverlayRef = useRef(null);
   const [messagingEnabled, setMessagingEnabled] = useState(true);
   const [messagingPrompt, setMessagingPrompt] = useState("");
+  const [messagingTestMode, setMessagingTestMode] = useState(true); // default safe
+  const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -147,12 +149,14 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           } else if (snapshotClientId) {
             const { data: ms } = await supabase
               .from("client_messaging_settings")
-              .select("messaging_enabled,messaging_prompt")
+              .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
               .eq("client_id", snapshotClientId)
               .single();
             if (ms && !cancelled) {
               setMessagingEnabled(!!ms.messaging_enabled);
               setMessagingPrompt(ms.messaging_prompt ?? "");
+              setMessagingTestMode(ms.email_test_mode !== false);
+              setMessagingTestRecipient(ms.email_test_recipient ?? "");
             }
           }
           // else: no client_id in snapshot — leave default (true) for backward compat
@@ -221,12 +225,14 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
         if (mapRow?.client_id && !cancelled) {
           const { data: ms } = await supabase
             .from("client_messaging_settings")
-            .select("messaging_enabled,messaging_prompt")
+            .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
             .eq("client_id", mapRow.client_id)
             .single();
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
             setMessagingPrompt(ms.messaging_prompt ?? "");
+            setMessagingTestMode(ms.email_test_mode !== false);
+            setMessagingTestRecipient(ms.email_test_recipient ?? "");
           }
         }
 
@@ -449,7 +455,13 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           centerOnListingId={centerOnListingId}
           setCenterOnListingId={setCenterOnListingId}
           showSendMessage={messagingEnabled}
-          onOpenSendMessage={() => { setMessageDrawerOpen(true); setContactFormSent(false); setContactFormError(""); }}
+          onOpenSendMessage={() => {
+            setMessageDrawerOpen(true);
+            setContactFormSent(false);
+            setContactFormError("");
+            // Pre-fill the test recipient with the saved default so user doesn't have to retype it
+            setContactForm((f) => ({ ...f, testToEmail: f.testToEmail || messagingTestRecipient }));
+          }}
           height="100vh"
           gestureHandling="cooperative"
         />
@@ -480,8 +492,8 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!selectedListing?.email) return;
-                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
-                  setContactFormError("Enter a test recipient email when in test/preview.");
+                if (messagingTestMode && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email to send in test mode.");
                   return;
                 }
                 setContactFormError("");
@@ -491,9 +503,9 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
                     mapId,
                     listingId: selectedListing.id,
                     listingName: selectedListing.name || "",
-                    toEmail: isProductionEnv
-                      ? selectedListing.email
-                      : (contactForm.testToEmail || "").trim(),
+                    toEmail: messagingTestMode
+                      ? contactForm.testToEmail.trim()
+                      : selectedListing.email,
                     senderName: (contactForm.name || "").trim(),
                     senderEmail: (contactForm.email || "").trim(),
                     senderPhone: (contactForm.phone || "").trim(),
@@ -510,7 +522,7 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
                 }
               }}
             >
-              {!isProductionEnv && (
+              {messagingTestMode && (
                 <div
                   style={{
                     marginBottom: 10,
@@ -524,7 +536,7 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
                   <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
                 </div>
               )}
-              {!isProductionEnv && (
+              {messagingTestMode && (
                 <label className="embed-message-drawer__label">
                   <span>Test recipient email</span>
                   <input
@@ -536,7 +548,7 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
                         testToEmail: e.target.value,
                       }))
                     }
-                    placeholder="test-recipient@example.com"
+                    placeholder={messagingTestRecipient || "test-recipient@example.com"}
                     required
                   />
                 </label>

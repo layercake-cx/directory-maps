@@ -361,8 +361,11 @@ export default function ClientMapDashboard() {
   }, [embedSrc, mapId, thumbSize]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
+  const messagingTestMode = client ? client.email_test_mode !== false : true;
+  const messagingTestRecipient = client?.email_test_recipient ?? "";
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -633,7 +636,7 @@ export default function ClientMapDashboard() {
         const [{ data: c, error: ce }, { data: g, error: ge }, listingsRes] = await Promise.all([
           supabase
             .from("clients")
-            .select("id,name,slug,subscription_active_override")
+            .select("id,name,slug,subscription_active_override,email_test_mode,email_test_recipient")
             .eq("id", currentClientId)
             .single(),
           supabase
@@ -2612,8 +2615,8 @@ export default function ClientMapDashboard() {
                 onSubmit={async (e) => {
                 e.preventDefault();
                 if (!selectedListing?.email) return;
-                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
-                  setContactFormError("Enter a test recipient email when in test/preview.");
+                if (messagingTestMode && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email to send in test mode.");
                   return;
                 }
                 setContactFormError("");
@@ -2623,9 +2626,9 @@ export default function ClientMapDashboard() {
                       mapId,
                       listingId: selectedListing.id,
                       listingName: selectedListing.name || "",
-                      toEmail: isProductionEnv
-                        ? selectedListing.email
-                        : (contactForm.testToEmail || "").trim(),
+                      toEmail: messagingTestMode
+                        ? contactForm.testToEmail.trim()
+                        : selectedListing.email,
                       senderName: (contactForm.name || "").trim(),
                       senderEmail: (contactForm.email || "").trim(),
                       senderPhone: (contactForm.phone || "").trim(),
@@ -2647,7 +2650,7 @@ export default function ClientMapDashboard() {
                   }
                 }}
               >
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <div
                     style={{
                       marginBottom: 10,
@@ -2661,7 +2664,7 @@ export default function ClientMapDashboard() {
                     <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
                   </div>
                 )}
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <label className="embed-message-drawer__label">
                     <span>Test recipient email</span>
                     <input
@@ -2673,7 +2676,7 @@ export default function ClientMapDashboard() {
                           testToEmail: e.target.value,
                         }))
                       }
-                      placeholder="test-recipient@example.com"
+                      placeholder={messagingTestRecipient || "test-recipient@example.com"}
                       required
                     />
                   </label>
