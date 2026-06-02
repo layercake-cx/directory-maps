@@ -1,9 +1,9 @@
 -- ============================================================
--- Migration: 20260529120000_listings_source_column
+-- Migration: 20260529120001_listings_source_column
 -- Description: Add source column to listings to track data origin
 --              (manual | csv | null=integration-inferred)
 -- Affected tables: listings
--- Rollback: _20260529120000_listings_source_column.rollback.sql
+-- Rollback: _20260529120001_listings_source_column.rollback.sql
 -- Author: Claude Code
 -- Date: 2026-05-29
 -- ============================================================

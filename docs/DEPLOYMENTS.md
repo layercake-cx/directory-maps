@@ -47,6 +47,37 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-02 — Staging (migration repair only)
+
+**Branch/commit:** `chore/fix-duplicate-migration-timestamp`
+**Deployed by:** Claude Code
+
+### What changed
+- Two migration files that shared timestamp `20260529120000` confused the Supabase CLI. The `listings_source_column` migration was applied manually to staging and production but was never recorded in the CLI migration history.
+- The forward migration file is renamed from `20260529120000_listings_source_column.sql` → `20260529120001_listings_source_column.sql`, and its rollback from `_20260529120000_listings_source_column.rollback.sql` → `_20260529120001_listings_source_column.rollback.sql`. Header comments inside both files updated to match.
+- SQL content is unchanged — this is a filename-only fix.
+- `supabase migration repair --status applied 20260529120001` run against **staging** (`beqejxneehilplrtpntn`) so the CLI history now recognises the migration as applied.
+
+### Database migrations applied
+No new migrations applied. Repair command only:
+- `supabase migration repair --status applied 20260529120001 --project-ref beqejxneehilplrtpntn`
+
+### Rollback plan
+- If the rename causes issues, revert this branch and run `supabase migration repair --status reverted 20260529120001 --project-ref beqejxneehilplrtpntn` to remove the entry from staging CLI history.
+- **Production still needs a separate repair command** — see Issues/notes below. Do not run that until explicitly confirmed.
+
+### Verified on staging
+- [ ] `supabase migration repair` ran without error against staging
+- [ ] `supabase migration list --project-ref beqejxneehilplrtpntn` shows `20260529120001` as applied
+- [ ] No other migrations affected
+
+### Issues / notes
+- **Production DB still has the old timestamp recorded under `20260529120000`.** After this PR merges and is verified on staging, production will need its own repair command:
+  ```
+  supabase migration repair --status applied 20260529120001 --project-ref gxixwdjfmegxcxfeflro
+  ```
+  Do **not** run this until the user explicitly confirms.
+
 ## 2026-06-01 — Staging (edge function only; frontend on main)
 
 **Branch/commit:** `feat/google-drive-folder-nav` | `c764034`
