@@ -1497,11 +1497,11 @@ export default function ClientMapData() {
                 <Group gap="sm" grow>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Latitude</label>
-                    <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                    <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="text" inputMode="decimal" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Longitude</label>
-                    <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                    <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="text" inputMode="decimal" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
                   </div>
                 </Group>
                 <div>
