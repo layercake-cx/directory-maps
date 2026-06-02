@@ -768,6 +768,7 @@ export default function AdminClientDetail() {
                               <th>Name / Host</th>
                               <th>Value</th>
                               <th>Priority</th>
+                              <th style={{ width: 44, textAlign: "center" }} title="Verification status">✓</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -777,6 +778,24 @@ export default function AdminClientDetail() {
                                 <td><code style={{ wordBreak: "break-all" }}>{row.name || "—"}</code></td>
                                 <td><code style={{ wordBreak: "break-all" }}>{row.value || "—"}</code></td>
                                 <td>{row.priority != null && row.priority !== "" ? row.priority : "—"}</td>
+                                <td style={{ textAlign: "center" }}>
+                                  {row.status === "verified" ? (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Verified" title="Verified">
+                                      <path d="M20 6L9 17l-5-5" />
+                                    </svg>
+                                  ) : row.status === "pending" ? (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Pending" title="Pending">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Not verified" title="Not verified">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <line x1="15" y1="9" x2="9" y2="15" />
+                                      <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>

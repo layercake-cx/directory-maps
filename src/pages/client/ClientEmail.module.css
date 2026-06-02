@@ -306,7 +306,7 @@
   font-weight: 600;
 }
 
-/* Column widths: Type | Name | Value | Priority */
+/* Column widths: Type | Name | Value | Priority | Status */
 .dnsTable th:nth-child(1),
 .dnsTable td:nth-child(1) { width: 110px; }
 
@@ -315,6 +315,10 @@
 
 .dnsTable th:nth-child(4),
 .dnsTable td:nth-child(4) { width: 72px; }
+
+/* Status column — thin, icon only */
+.dnsTable th:nth-child(5),
+.dnsTable td:nth-child(5) { width: 44px; text-align: center; }
 
 /* Value column fills remaining space (no explicit width needed with fixed layout) */
 
@@ -383,6 +387,39 @@
   font-weight: 600;
   color: #047857;
   white-space: nowrap;
+}
+
+/* ── DNS status column ─────────────────────────────────── */
+
+.dnsStatusTh {
+  font-size: 11px;
+  color: var(--lc-muted);
+  font-weight: 600;
+}
+
+.dnsStatusCell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.dnsStatusVerified,
+.dnsStatusPending,
+.dnsStatusNone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dnsStatusVerified {
+  color: #059669;
+}
+
+.dnsStatusPending {
+  color: #d97706;
+}
+
+.dnsStatusNone {
+  color: #d1d5db;
 }
 
 /* ── Footer note ───────────────────────────────────────── */

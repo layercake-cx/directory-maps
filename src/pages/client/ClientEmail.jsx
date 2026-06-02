@@ -42,6 +42,38 @@ function CopyButton({ value }) {
   );
 }
 
+function DnsStatusIcon({ status }) {
+  if (status === "verified") {
+    return (
+      <span className={styles.dnsStatusVerified} title="Verified">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Verified">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span className={styles.dnsStatusPending} title="Pending">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Pending">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </span>
+    );
+  }
+  // not_started or unknown
+  return (
+    <span className={styles.dnsStatusNone} title="Not verified">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Not verified">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+    </span>
+  );
+}
+
 export default function ClientEmail() {
   const { client, contact } = useClient();
   const [loading, setLoading] = useState(true);
@@ -421,6 +453,7 @@ export default function ClientEmail() {
                         <th>Name / Host</th>
                         <th>Value</th>
                         <th>Priority</th>
+                        <th className={styles.dnsStatusTh} title="Verification status">✓</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -442,6 +475,9 @@ export default function ClientEmail() {
                             </div>
                           </td>
                           <td>{row.priority != null && row.priority !== "" ? row.priority : "—"}</td>
+                          <td className={styles.dnsStatusCell}>
+                            <DnsStatusIcon status={row.status} />
+                          </td>
                         </tr>
                       ))}
                       {/* DMARC — recommended, not verified by Resend */}
@@ -464,6 +500,7 @@ export default function ClientEmail() {
                               <span className={styles.dmarcLabel}>Recommended</span>
                             </td>
                             <td>—</td>
+                            <td className={styles.dnsStatusCell}>—</td>
                           </tr>
                         );
                       })() : null}
