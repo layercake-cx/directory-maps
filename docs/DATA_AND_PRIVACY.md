@@ -64,7 +64,7 @@ Supabase projects are hosted on **AWS**. The region is chosen at project creatio
 
 **Role:** Transactional email delivery.
 
-**What it is:** Resend is a US-based email API service used to send three types of email from the platform.
+**What it is:** Resend is an email API service used to send three types of email from the platform. Layercake Maps registers sending domains in Resend's **EU (Ireland) region**, meaning email relay infrastructure for both the platform default domain and client custom domains is hosted in the EU.
 
 ### Emails sent and data involved
 
@@ -76,22 +76,27 @@ Supabase projects are hosted on **AWS**. The region is chosen at project creatio
 
 ### Processing location
 
-Resend processes email in **AWS us-east-1 (Northern Virginia, USA)**. The MX bounce-handling endpoint (`feedback-smtp.us-east-1.amazonses.com`) confirms this.
+| Domain type | Resend region | AWS region |
+|-------------|--------------|------------|
+| Platform default sending domain | EU (Ireland) | eu-west-1 |
+| Client custom sending domains | EU (Ireland) | eu-west-1 (default; overrideable via `RESEND_DOMAIN_REGION` secret) |
 
-- Email content is in transit through Resend's infrastructure.
-- Resend does not persistently store email body content beyond delivery.
-- **There is no EU-region option with Resend.** If a client requires EU-only email processing, an alternative provider (e.g. Mailgun EU, Postmark EU, Brevo) would need to be evaluated.
+- Email is relayed through Resend's infrastructure in **AWS eu-west-1 (Ireland)**.
+- The MX bounce-handling endpoint is `feedback-smtp.eu-west-1.amazonses.com`.
+- Email content is in transit through Resend's infrastructure. Resend does not persistently store email body content beyond delivery.
+
+> **Note:** The `RESEND_DOMAIN_REGION` environment secret controls which Resend region new client domains are registered in. It defaults to `eu-west-1`. If this is changed, update this document and assess the impact on EU data residency commitments.
 
 ### Legal basis & agreements
 
 - Resend is a **data processor** on behalf of Layercake Maps.
 - Resend provides a **DPA** — request via [resend.com/security](https://resend.com/security).
-- Transfer mechanism for EU personal data: Standard Contractual Clauses (SCCs) via Resend's DPA.
+- Transfer mechanism for EU personal data: email is processed within the EU (eu-west-1), so no cross-border transfer applies for relay. Resend's corporate entity is US-based; SCCs via Resend's DPA cover any residual processing outside the EU.
 - API keys: one **sending-only** key (`RESEND_API_KEY`) and one **full-access** key (`RESEND_ADMIN_API_KEY`) for domain management. Neither is stored in the browser.
 
 ### Client-facing note
 
-When a client configures a **custom sending domain**, Resend registers that domain on its infrastructure. The domain name (not any personal data) is sent to Resend. DNS records are stored on Resend's servers for verification purposes.
+When a client configures a **custom sending domain**, Resend registers that domain on its EU (Ireland) infrastructure. The domain name (not any personal data) is sent to Resend. DNS records are stored on Resend's servers for verification purposes.
 
 ---
 
@@ -261,7 +266,7 @@ Depends on the SMTP configuration in Supabase Auth settings:
 | Third party | Personal data shared | EU data processing | DPA available |
 |-------------|---------------------|--------------------|---------------|
 | **Supabase** | All platform user data, listing data, contact form submissions, engagement events | Depends on project region *(confirm)* | Yes |
-| **Resend** | Contact form content (visitor name/email/message), invitee email | No — US only | Yes (via request) |
+| **Resend** | Contact form content (visitor name/email/message), invitee email | **Yes — EU (Ireland, eu-west-1)** | Yes (via request) |
 | **Google Maps JS** | Visitor IP, referrer URL (by browser) | Partial (Google global infra) | Google's standard terms |
 | **Google Geocoding** | Listing addresses | No — Google global, US-routed | Via Google Cloud DPA |
 | **Google OAuth/Sheets** | OAuth refresh token, sheet listing content | No — Google global, US-routed | Via Google Cloud DPA |
@@ -312,4 +317,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-06-02. Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-06-02 (Resend region updated to EU/Ireland). Maintained by the Layercake Maps engineering and privacy team.*
