@@ -120,7 +120,7 @@ function ListingCardContent({
             {[listing.address, listing.postcode, listing.country].filter(Boolean).join(", ")}
           </p>
         ) : null}
-        {listing.email ? (
+        {listing.email && !showSendMessage ? (
           <p className="map-pin-overlay__row">
             <span>Email: </span>
             <a

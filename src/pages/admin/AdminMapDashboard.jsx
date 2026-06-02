@@ -206,6 +206,8 @@ export default function AdminMapDashboard() {
   const location = useLocation();
 
   const [client, setClient] = useState(null);
+  const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
+  const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -325,8 +327,10 @@ export default function AdminMapDashboard() {
   }, [embedSrc]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
+  // messagingTestMode / messagingTestRecipient held in dedicated state — see useState above.
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -502,7 +506,7 @@ export default function AdminMapDashboard() {
 
         let m = null;
         const [{ data: c, error: ce }, listingsRes] = await Promise.all([
-          supabase.from("clients").select("id,name,slug").eq("id", clientId).single(),
+          supabase.from("clients").select("id,name,slug,email_test_mode,email_test_recipient").eq("id", clientId).single(),
           supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html,logo_bg").eq("map_id", mapId),
         ]);
         let l = listingsRes.data;
@@ -567,6 +571,18 @@ export default function AdminMapDashboard() {
 
         if (!cancelled) {
           setClient(c);
+          // Fetch messaging test mode settings fresh from the view.
+          supabase
+            .from("client_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("client_id", clientId)
+            .single()
+            .then(({ data: ms }) => {
+              if (ms && !cancelled) {
+                setMessagingTestMode(ms.email_test_mode !== false);
+                setMessagingTestRecipient(ms.email_test_recipient ?? "");
+              }
+            });
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
@@ -1570,6 +1586,24 @@ export default function AdminMapDashboard() {
                 setMessageDrawerOpen(true);
                 setContactFormSent(false);
                 setContactFormError("");
+                // Re-fetch test mode settings in case they changed since page load.
+                if (clientId) {
+                  supabase
+                    .from("client_messaging_settings")
+                    .select("email_test_mode,email_test_recipient")
+                    .eq("client_id", clientId)
+                    .single()
+                    .then(({ data: ms }) => {
+                      if (ms) {
+                        setMessagingTestMode(ms.email_test_mode !== false);
+                        setMessagingTestRecipient(ms.email_test_recipient ?? "");
+                        setContactForm((f) => ({
+                          ...f,
+                          testToEmail: f.testToEmail || ms.email_test_recipient || "",
+                        }));
+                      }
+                    });
+                }
               }}
               height="100%"
               listingsWithColor={listingsWithColor}
@@ -2546,8 +2580,8 @@ export default function AdminMapDashboard() {
                 onSubmit={async (e) => {
                   e.preventDefault();
                 if (!selectedListing?.email) return;
-                if (!isProductionEnv && !contactForm.testToEmail.trim()) {
-                  setContactFormError("Enter a test recipient email when in test/preview.");
+                if (messagingTestMode && !contactForm.testToEmail.trim()) {
+                  setContactFormError("Enter a test recipient email to send in test mode.");
                   return;
                 }
                 setContactFormError("");
@@ -2557,9 +2591,9 @@ export default function AdminMapDashboard() {
                       mapId,
                       listingId: selectedListing.id,
                       listingName: selectedListing.name || "",
-                      toEmail: isProductionEnv
-                        ? selectedListing.email
-                        : (contactForm.testToEmail || "").trim(),
+                      toEmail: messagingTestMode
+                        ? contactForm.testToEmail.trim()
+                        : selectedListing.email,
                       senderName: (contactForm.name || "").trim(),
                       senderEmail: (contactForm.email || "").trim(),
                       senderPhone: (contactForm.phone || "").trim(),
@@ -2581,7 +2615,7 @@ export default function AdminMapDashboard() {
                   }
                 }}
               >
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <div
                     style={{
                       marginBottom: 10,
@@ -2595,7 +2629,7 @@ export default function AdminMapDashboard() {
                     <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
                   </div>
                 )}
-                {!isProductionEnv && (
+                {messagingTestMode && (
                   <label className="embed-message-drawer__label">
                     <span>Test recipient email</span>
                     <input
@@ -2607,7 +2641,7 @@ export default function AdminMapDashboard() {
                           testToEmail: e.target.value,
                         }))
                       }
-                      placeholder="test-recipient@example.com"
+                      placeholder={messagingTestRecipient || "test-recipient@example.com"}
                       required
                     />
                   </label>

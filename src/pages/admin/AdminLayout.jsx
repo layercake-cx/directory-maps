@@ -14,7 +14,26 @@ const ADMIN_NAV = [
   { label: "Deployments", path: "/admin/deployments", superadmin: true },
 ];
 
-export default function AdminLayout({ rightActions, children, mainClassName = "", breadcrumbs = [] }) {
+/**
+ * @param {{
+ *   rightActions?: React.ReactNode,
+ *   children: React.ReactNode,
+ *   mainClassName?: string,
+ *   breadcrumbs?: {label: string, path?: string}[],
+ *   clientNavItems?: {label: string, value: string}[],
+ *   activeClientTab?: string,
+ *   onClientTabChange?: (value: string) => void,
+ * }} props
+ */
+export default function AdminLayout({
+  rightActions,
+  children,
+  mainClassName = "",
+  breadcrumbs = [],
+  clientNavItems,
+  activeClientTab,
+  onClientTabChange,
+}) {
   const location = useLocation();
   const pathname = location.pathname || "/";
 
@@ -64,6 +83,23 @@ export default function AdminLayout({ rightActions, children, mainClassName = ""
             ))}
           </div>
         </div>
+      )}
+
+      {clientNavItems && clientNavItems.length > 0 && (
+        <nav className="admin-client-nav" aria-label="Client sections">
+          <div className="admin-client-nav__inner">
+            {clientNavItems.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                className={`admin-client-nav__tab${activeClientTab === value ? " admin-client-nav__tab--active" : ""}`}
+                onClick={() => onClientTabChange?.(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
       )}
 
       <main className={`admin-main ${mainClassName}`.trim()}>{children}</main>

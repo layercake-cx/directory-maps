@@ -998,9 +998,17 @@ a:hover {
 
 .embed-message-drawer__to {
   margin: 0;
-  padding: 8px 16px 12px;
+  padding: 8px 16px 4px;
   font-size: 13px;
   opacity: 0.85;
+}
+
+.embed-message-drawer__prompt {
+  margin: 0;
+  padding: 6px 16px 12px;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.45;
 }
 
 .embed-message-drawer__form,
