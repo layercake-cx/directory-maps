@@ -166,6 +166,9 @@ Deno.serve(async (req) => {
       }
       if (action === "verify") {
         await resendVerifyDomain(domainId);
+        // Resend's DNS check runs asynchronously — give it a moment before
+        // we GET the domain so the per-record statuses have time to update.
+        await new Promise((resolve) => setTimeout(resolve, 2500));
       }
       const email = await syncDomainFromResend(service, clientId, domainId);
       return jsonResponse({ ok: true, email });
