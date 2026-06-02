@@ -289,6 +289,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .dnsTable th,
@@ -303,6 +304,36 @@
   font-size: 12px;
   color: var(--lc-muted);
   font-weight: 600;
+}
+
+/* Column widths: Type | Name | Value | Priority */
+.dnsTable th:nth-child(1),
+.dnsTable td:nth-child(1) { width: 110px; }
+
+.dnsTable th:nth-child(2),
+.dnsTable td:nth-child(2) { width: 200px; }
+
+.dnsTable th:nth-child(4),
+.dnsTable td:nth-child(4) { width: 72px; }
+
+/* Value column fills remaining space (no explicit width needed with fixed layout) */
+
+.dnsRowDmarc td {
+  background: #f9fafb;
+  color: var(--lc-muted);
+}
+
+.dmarcLabel {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: #e5e7eb;
+  color: #374151;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-top: 6px;
+  vertical-align: middle;
 }
 
 .dnsValueCell {

@@ -408,10 +408,9 @@ export default function ClientEmail() {
                       </li>
                     </ol>
                     <p className={styles.dnsGuideNote}>
-                      <strong>DMARC (recommended):</strong> For the strongest deliverability, also add a{" "}
-                      <code>TXT</code> record: Name <code>_dmarc</code>, Value{" "}
-                      <code>v=DMARC1; p=none; rua=mailto:dmarc@{emailDomain || "yourdomain.com"}</code>. DMARC
-                      is not required for verification but protects your domain from spoofing.
+                      <strong>DMARC</strong> is included in the table below. It is not checked by our
+                      verification step but is strongly recommended — it protects your domain from spoofing
+                      and improves deliverability over time.
                     </p>
                   </div>
 
@@ -445,6 +444,29 @@ export default function ClientEmail() {
                           <td>{row.priority != null && row.priority !== "" ? row.priority : "—"}</td>
                         </tr>
                       ))}
+                      {/* DMARC — recommended, not verified by Resend */}
+                      {emailDomain ? (() => {
+                        const dmarcValue = `v=DMARC1; p=none; rua=mailto:dmarc@${emailDomain}`;
+                        return (
+                          <tr className={styles.dnsRowDmarc}>
+                            <td>
+                              <code>TXT</code>
+                              <span className={styles.recordKind}>DMARC</span>
+                            </td>
+                            <td>
+                              <code className={styles.dnsValue}>_dmarc.{emailDomain}</code>
+                            </td>
+                            <td>
+                              <div className={styles.dnsValueCell}>
+                                <code className={styles.dnsValue}>{dmarcValue}</code>
+                                <CopyButton value={dmarcValue} />
+                              </div>
+                              <span className={styles.dmarcLabel}>Recommended</span>
+                            </td>
+                            <td>—</td>
+                          </tr>
+                        );
+                      })() : null}
                     </tbody>
                   </table>
                 </div>
