@@ -402,7 +402,13 @@ export default function ClientEmail() {
                 ) : null}
               </div>
 
-              {verifyFeedback && (
+              {busy === "verify" && (
+                <p className={styles.verifyWaiting}>
+                  Checking your DNS records with Resend — this can take up to 20 seconds…
+                </p>
+              )}
+
+              {!busy && verifyFeedback && (
                 <div className={`${styles.verifyBanner} ${verifyFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
                   <span className={styles.verifyBannerIcon} aria-hidden>
                     {verifyFeedback.ok ? (

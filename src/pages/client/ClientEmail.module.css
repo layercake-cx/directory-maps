@@ -207,6 +207,15 @@
   color: #4b5563;
 }
 
+/* ── Verify waiting message ────────────────────────────── */
+
+.verifyWaiting {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--lc-muted);
+  font-style: italic;
+}
+
 /* ── Verify feedback banner ────────────────────────────── */
 
 .verifyBanner {
