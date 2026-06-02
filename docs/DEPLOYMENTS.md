@@ -47,6 +47,33 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-02 — Staging + Production (migration repair only)
+
+**Branch/commit:** `chore/fix-duplicate-migration-timestamp`
+**Deployed by:** Claude Code
+
+### What changed
+- Two migration files that shared timestamp `20260529120000` confused the Supabase CLI. The `listings_source_column` migration was applied manually to staging and production but was never recorded in the CLI migration history.
+- Rollback file renamed from `_20260529120000_listings_source_column.rollback.sql` → `_20260529120001_listings_source_column.rollback.sql`. Header comment updated to match. (The forward migration file was separately deleted from the repo on the messaging branch since the column already existed on all envs.)
+- `supabase migration repair --status applied 20260529120001` run against both **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`).
+
+### Database migrations applied
+No new migrations applied. Repair commands only:
+- `supabase migration repair --status applied 20260529120001` on staging (`beqejxneehilplrtpntn`)
+- `supabase migration repair --status applied 20260529120001` on production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+- Run `supabase migration repair --status reverted 20260529120001` on both staging and production to remove the entry from CLI history.
+
+### Verified on staging
+- [x] `supabase migration repair` ran without error on staging
+- [x] `supabase migration list` shows `20260529120001` as applied on staging
+- [x] `supabase migration repair` ran without error on production
+- [x] `supabase migration list` shows `20260529120001` as applied on production
+- [x] No other migrations affected
+
+---
+
 ## 2026-06-02 — Production
 
 **Branch/commit:** `feat/2026-06-01-messaging-toggle-domain-admin-nav` | PR #20
