@@ -204,6 +204,8 @@ export default function ClientMapDashboard() {
   const isPublishOpen = publishPanelOpen;
 
   const [client, setClient] = useState(null);
+  const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
+  const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -364,8 +366,9 @@ export default function ClientMapDashboard() {
   // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
-  const messagingTestMode = client ? client.email_test_mode !== false : true;
-  const messagingTestRecipient = client?.email_test_recipient ?? "";
+  // messagingTestMode / messagingTestRecipient are kept in dedicated state
+  // and fetched separately so they stay current even if the user changed
+  // the setting in the Messaging tab without remounting this page.
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -697,6 +700,19 @@ export default function ClientMapDashboard() {
 
         if (!cancelled) {
           setClient(c);
+          // Fetch messaging test mode settings fresh from the view so they
+          // stay current even if the user changed them in the Messaging tab.
+          supabase
+            .from("client_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("client_id", currentClientId)
+            .single()
+            .then(({ data: ms }) => {
+              if (ms && !cancelled) {
+                setMessagingTestMode(ms.email_test_mode !== false);
+                setMessagingTestRecipient(ms.email_test_recipient ?? "");
+              }
+            });
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
@@ -1589,6 +1605,25 @@ export default function ClientMapDashboard() {
                 setMessageDrawerOpen(true);
                 setContactFormSent(false);
                 setContactFormError("");
+                // Re-fetch test mode settings so they reflect any changes
+                // made in the Messaging tab since this page loaded.
+                if (client?.id) {
+                  supabase
+                    .from("client_messaging_settings")
+                    .select("email_test_mode,email_test_recipient")
+                    .eq("client_id", client.id)
+                    .single()
+                    .then(({ data: ms }) => {
+                      if (ms) {
+                        setMessagingTestMode(ms.email_test_mode !== false);
+                        setMessagingTestRecipient(ms.email_test_recipient ?? "");
+                        setContactForm((f) => ({
+                          ...f,
+                          testToEmail: f.testToEmail || ms.email_test_recipient || "",
+                        }));
+                      }
+                    });
+                }
               }}
               height="100%"
               listingsWithColor={listingsWithColor}

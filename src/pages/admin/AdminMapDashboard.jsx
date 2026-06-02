@@ -206,6 +206,8 @@ export default function AdminMapDashboard() {
   const location = useLocation();
 
   const [client, setClient] = useState(null);
+  const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
+  const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -328,8 +330,7 @@ export default function AdminMapDashboard() {
   // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
   const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
   const isProductionEnv = ENVIRONMENT === "production";
-  const messagingTestMode = client ? client.email_test_mode !== false : true;
-  const messagingTestRecipient = client?.email_test_recipient ?? "";
+  // messagingTestMode / messagingTestRecipient held in dedicated state — see useState above.
   const mapCenter = useMemo(() => {
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -570,6 +571,18 @@ export default function AdminMapDashboard() {
 
         if (!cancelled) {
           setClient(c);
+          // Fetch messaging test mode settings fresh from the view.
+          supabase
+            .from("client_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("client_id", clientId)
+            .single()
+            .then(({ data: ms }) => {
+              if (ms && !cancelled) {
+                setMessagingTestMode(ms.email_test_mode !== false);
+                setMessagingTestRecipient(ms.email_test_recipient ?? "");
+              }
+            });
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
@@ -1573,6 +1586,24 @@ export default function AdminMapDashboard() {
                 setMessageDrawerOpen(true);
                 setContactFormSent(false);
                 setContactFormError("");
+                // Re-fetch test mode settings in case they changed since page load.
+                if (clientId) {
+                  supabase
+                    .from("client_messaging_settings")
+                    .select("email_test_mode,email_test_recipient")
+                    .eq("client_id", clientId)
+                    .single()
+                    .then(({ data: ms }) => {
+                      if (ms) {
+                        setMessagingTestMode(ms.email_test_mode !== false);
+                        setMessagingTestRecipient(ms.email_test_recipient ?? "");
+                        setContactForm((f) => ({
+                          ...f,
+                          testToEmail: f.testToEmail || ms.email_test_recipient || "",
+                        }));
+                      }
+                    });
+                }
               }}
               height="100%"
               listingsWithColor={listingsWithColor}
