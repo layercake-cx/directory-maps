@@ -219,11 +219,15 @@ export default function ClientEmail() {
       });
       applyEmailPayload(data.email);
       const verified = data.email?.email_domain_status === "verified";
+      const anyVerified = Array.isArray(data.email?.email_dns_records) &&
+        data.email.email_dns_records.some((r) => r.status === "verified");
       setVerifyFeedback({
         ok: verified,
         text: verified
           ? "Your domain records are correctly configured. Messages will now send from your address."
-          : "Your domain records cannot be verified yet, or changes are still propagating. Check that all records below are added exactly as shown, then try again — DNS can take up to 48 hours to take effect.",
+          : anyVerified
+          ? "Some records are verified — check which rows still have a pending or unverified icon, then ensure those are added exactly as shown. DNS can take up to 48 hours to propagate."
+          : "No records could be verified yet. Make sure all records are added to your DNS provider exactly as shown below, then try again. DNS changes can take up to 48 hours to take effect.",
       });
     } catch (e) {
       setVerifyFeedback({ ok: false, text: e?.message ?? String(e) });
