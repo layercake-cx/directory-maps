@@ -3,6 +3,7 @@ import {
   extractEmailDomain,
   resendCreateDomain,
   resendGetDomain,
+  resendListDomains,
   resendVerifyDomain,
 } from "../_shared/resend.ts";
 
@@ -160,17 +161,31 @@ Deno.serve(async (req) => {
 
       let domainId = client.resend_domain_id as string | null;
       if (!domainId || client.email_domain !== domain) {
-        const created = await resendCreateDomain(domain);
-        domainId = typeof created?.id === "string" ? created.id : null;
-        if (!domainId) throw new Error("Resend did not return a domain id.");
+        // Before creating a new registration, check if this domain already exists
+        // in Resend under this account. Creating a duplicate produces a second
+        // registration with a different DKIM key, causing a conflict.
+        let existingId: string | null = null;
+        try {
+          const list = await resendListDomains() as { data?: Array<{ id: string; name: string }> };
+          const match = list?.data?.find((d) => d.name === domain);
+          if (match?.id) existingId = match.id;
+        } catch {
+          // If listing fails, fall through and attempt creation.
+        }
+
+        if (existingId) {
+          domainId = existingId;
+        } else {
+          const created = await resendCreateDomain(domain);
+          domainId = typeof created?.id === "string" ? created.id : null;
+          if (!domainId) throw new Error("Resend did not return a domain id.");
+        }
 
         await service
           .from("clients")
           .update({
             email_domain: domain,
             resend_domain_id: domainId,
-            email_domain_status: typeof created?.status === "string" ? created.status : "not_started",
-            email_dns_records: Array.isArray(created?.records) ? created.records : null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", clientId);

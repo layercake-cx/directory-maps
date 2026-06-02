@@ -82,11 +82,21 @@ async function resendFetch(path: string, init: RequestInit = {}, apiKey?: string
 }
 
 /** Domain management — requires a full-access Resend key (RESEND_ADMIN_API_KEY). */
+export function getResendDomainRegion(): string {
+  // Default to eu-west-1 (Ireland) for EU data residency.
+  // Override by setting RESEND_DOMAIN_REGION in Supabase secrets.
+  return Deno.env.get("RESEND_DOMAIN_REGION") ?? "eu-west-1";
+}
+
 export async function resendCreateDomain(name: string) {
   return await resendFetch("/domains", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, region: getResendDomainRegion() }),
   }, getResendAdminApiKey());
+}
+
+export async function resendListDomains() {
+  return await resendFetch("/domains", { method: "GET" }, getResendAdminApiKey());
 }
 
 export async function resendGetDomain(domainId: string) {
