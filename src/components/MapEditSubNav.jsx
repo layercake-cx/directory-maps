@@ -40,11 +40,11 @@ function parseMapEditRoute(pathname) {
       backLabel: "Client",
       designPath: base,
       dataPath: `${base}/data`,
-      statsPath: null,
-      showStats: false,
+      statsPath: `${base}/stats`,
+      showStats: true,
       isDesign: !rest,
       isData: rest === "data",
-      isStats: false,
+      isStats: rest === "stats" || rest.startsWith("stats/"),
     };
   }
 

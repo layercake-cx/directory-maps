@@ -47,6 +47,31 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-09 — Staging
+
+**Branch/commit:** `feat/2026-06-09-admin-map-stats` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Admin map Stats tab.** Platform admins editing a customer's map now see **Stats** in the map sub-nav (Design / Data / Stats / Publish), with the same engagement dashboards as the client portal — map overview and per-listing drill-down.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert admin stats routes and `MapEditSubNav` change, or redeploy the previous Vercel build.
+
+### Verified on staging
+- [ ] Stats tab visible on `/admin/clients/:id/maps/:mapId`
+- [ ] Map stats dashboard loads for a published map with engagement data
+- [ ] Listing stats drill-down from Top listings table and search dropdown
+- [ ] Client portal Stats unchanged
+
+### Issues / notes
+None.
+
+---
+
 ## 2026-06-09 — Production
 
 **Branch/commit:** `chore/layercake-favicon` | pending
