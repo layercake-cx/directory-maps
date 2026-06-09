@@ -9,11 +9,12 @@ On **each** Supabase project (test + production):
 1. Create a [Resend](https://resend.com) account and API key.
 2. Verify **your platform domain** in Resend (the domain in `RESEND_FROM`).
 3. Set Edge Function secrets:
-   - `RESEND_API_KEY` — API key (`re_…`)
+   - `RESEND_API_KEY` — sending API key (`re_…`)
+   - `RESEND_ADMIN_API_KEY` — **full-access** Resend key for domain create/verify (required for **Set up domain**; a send-only key fails)
    - `RESEND_FROM` — e.g. `Directory Maps <noreply@yourplatform.com>`
 
 ```bash
-supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM="Directory Maps <noreply@yourplatform.com>" --project-ref YOUR_REF
+supabase secrets set RESEND_API_KEY=re_xxx RESEND_ADMIN_API_KEY=re_xxx RESEND_FROM="Directory Maps <noreply@yourplatform.com>" --project-ref YOUR_REF
 ```
 
 4. Deploy functions:
@@ -79,4 +80,4 @@ Supabase Auth can stay on **SendGrid SMTP** (or move to Resend SMTP later). Map 
 | Email not configured (503) | `RESEND_API_KEY` + `RESEND_FROM` secrets |
 | Sends but From is platform address | Client domain not **verified** in `/client/email` |
 | Resend 403 / domain error | From domain must match verified Resend domain |
-| Row in DB, no email | `email_error` on second `map_contact_submissions` row; Edge Function logs |
+| Set up domain does nothing / no DNS rows | Deploy latest `manage_client_email`; set `RESEND_ADMIN_API_KEY` (full-access); check browser console and inline message under the button |

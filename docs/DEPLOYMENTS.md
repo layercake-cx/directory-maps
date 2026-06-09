@@ -49,6 +49,31 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Staging
 
+**Branch/commit:** `fix/2026-06-09-domain-setup-feedback` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Domain setup silent failure fix.** "Set up domain" could flip to Working… and back with no DNS table and no error. The edge function now persists DNS records from Resend's create/link response when GET returns empty, checks DB write errors, and retries GET once. The Messaging UI auto-saves the from address, shows inline success/warning feedback next to the button, and no longer requires messaging to be enabled before domain setup.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Redeploy previous `manage_client_email` edge function revision.
+- Revert frontend commit on `main`.
+
+### Verified on staging
+- [ ] Edge function deployed to test project
+- [ ] Set up domain shows DNS records or a clear error message
+- [ ] Admin Messaging tab behaves the same as client portal
+
+### Issues / notes
+Production needs `RESEND_ADMIN_API_KEY` (full-access Resend key) set on the Supabase project for domain create/list/verify. A send-only key returns an error from Resend.
+
+---
+
+## 2026-06-09 — Staging
+
 **Branch/commit:** `feat/2026-06-09-admin-messaging-parity` | pending
 **Deployed by:** Cursor
 

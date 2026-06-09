@@ -87,6 +87,7 @@ export default function MessagingSettings({
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [verifyFeedback, setVerifyFeedback] = useState(null);
+  const [setupFeedback, setSetupFeedback] = useState(null);
 
   const [messagingEnabled, setMessagingEnabled] = useState(false);
   const [messagingPrompt, setMessagingPrompt] = useState("");
@@ -121,7 +122,10 @@ export default function MessagingSettings({
       setEmailDomain(data?.email_domain ?? "");
       setDomainStatus(data?.email_domain_status ?? "not_configured");
       setDnsRecords(Array.isArray(data?.email_dns_records) ? data.email_dns_records : []);
-      setHasDomain(!!data?.resend_domain_id);
+      setHasDomain(
+        !!data?.resend_domain_id ||
+          (Array.isArray(data?.email_dns_records) && data.email_dns_records.length > 0)
+      );
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -140,7 +144,7 @@ export default function MessagingSettings({
     setEmailDomain(email.email_domain ?? "");
     setDomainStatus(email.email_domain_status ?? "not_configured");
     setDnsRecords(Array.isArray(email.email_dns_records) ? email.email_dns_records : []);
-    setHasDomain(!!email.resend_domain_id);
+    setHasDomain(!!email.resend_domain_id || (Array.isArray(email.email_dns_records) && email.email_dns_records.length > 0));
   }
 
   async function handleToggleSave() {
@@ -221,19 +225,53 @@ export default function MessagingSettings({
 
   async function handleSetupDomain() {
     if (!clientId) return;
+    if (!fromAddress.trim()) {
+      setSetupFeedback({
+        ok: false,
+        text: "Enter a from email address above before setting up the domain.",
+      });
+      return;
+    }
     setErr("");
     setMsg("");
+    setSetupFeedback(null);
     setBusy("setup");
     try {
+      const saved = await invokeManageClientEmail({
+        clientId,
+        action: "save",
+        fromName,
+        fromAddress,
+      });
+      applyEmailPayload(saved.email);
+
       const data = await invokeManageClientEmail({
         clientId,
         action: "setup_domain",
         fromAddress,
       });
+
+      if (!data?.email) {
+        throw new Error("Domain setup returned no data. Try again or contact support.");
+      }
+
       applyEmailPayload(data.email);
-      setMsg("Domain registered. Add the DNS records below, then check verification.");
+
+      const records = Array.isArray(data.email.email_dns_records) ? data.email.email_dns_records : [];
+      if (!records.length) {
+        setSetupFeedback({
+          ok: false,
+          text: "Domain was registered but no DNS records were returned. Try “Refresh DNS records”, or check that the manage_client_email edge function is deployed with a full-access Resend key.",
+        });
+        return;
+      }
+
+      setSetupFeedback({
+        ok: true,
+        text: "Domain registered. Add the DNS records below, then check verification.",
+      });
     } catch (e) {
-      setErr(e?.message ?? String(e));
+      setSetupFeedback({ ok: false, text: e?.message ?? String(e) });
     } finally {
       setBusy("");
     }
@@ -270,7 +308,6 @@ export default function MessagingSettings({
   }
 
   const tone = emailDomainStatusTone(domainStatus);
-  const domainSectionDisabled = !messagingEnabled;
 
   return (
     <>
@@ -407,12 +444,7 @@ export default function MessagingSettings({
             </div>
           </section>
 
-          <section className={`${styles.section} ${domainSectionDisabled ? styles.sectionDisabled : ""}`}>
-            {domainSectionDisabled && (
-              <p className={styles.disabledNote}>
-                Enable messaging above to configure your sending domain.
-              </p>
-            )}
+          <section className={styles.section}>
             <form onSubmit={handleSave}>
               <h2 className={styles.sectionTitle}>From address</h2>
               <p className={styles.hint}>
@@ -427,7 +459,6 @@ export default function MessagingSettings({
                     value={fromName}
                     onChange={(e) => setFromName(e.target.value)}
                     placeholder={clientName || "Your organisation"}
-                    disabled={domainSectionDisabled}
                   />
                 </label>
                 <label className={styles.field}>
@@ -438,17 +469,16 @@ export default function MessagingSettings({
                     onChange={(e) => setFromAddress(e.target.value)}
                     placeholder="hello@yourcompany.com"
                     required
-                    disabled={domainSectionDisabled}
                   />
                 </label>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={domainSectionDisabled || busy === "save"}>
+              <button type="submit" className="btn btn-primary" disabled={busy === "save"}>
                 {busy === "save" ? "Saving…" : "Save"}
               </button>
             </form>
           </section>
 
-          <section className={`${styles.section} ${domainSectionDisabled ? styles.sectionDisabled : ""}`}>
+          <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Domain &amp; DNS</h2>
               <span className={`${styles.badge} ${styles[`badge--${tone}`]}`}>
@@ -461,12 +491,19 @@ export default function MessagingSettings({
               </p>
             ) : null}
 
+            {!fromAddress.trim() ? (
+              <p className={styles.disabledNote}>
+                Domain cannot be configured until a from email address has been provided. Enter one in
+                the <strong>From address</strong> section above (Save is optional — Set up domain saves it automatically).
+              </p>
+            ) : null}
+
             <div className={styles.actions}>
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={handleSetupDomain}
-                disabled={domainSectionDisabled || !fromAddress.trim() || busy === "setup"}
+                disabled={!fromAddress.trim() || busy === "setup"}
               >
                 {busy === "setup" ? "Working…" : hasDomain ? "Refresh DNS records" : "Set up domain"}
               </button>
@@ -475,12 +512,18 @@ export default function MessagingSettings({
                   type="button"
                   className="btn"
                   onClick={handleVerify}
-                  disabled={domainSectionDisabled || busy === "verify"}
+                  disabled={busy === "verify"}
                 >
                   {busy === "verify" ? "Checking…" : "Check verification"}
                 </button>
               ) : null}
             </div>
+
+            {!busy && setupFeedback ? (
+              <div className={`${styles.verifyBanner} ${setupFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
+                <span>{setupFeedback.text}</span>
+              </div>
+            ) : null}
 
             {busy === "verify" && (
               <p className={styles.verifyWaiting}>
