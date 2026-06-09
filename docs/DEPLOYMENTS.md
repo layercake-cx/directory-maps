@@ -53,6 +53,40 @@ Anything that went differently from plan, any workarounds applied, anything the 
 **Deployed by:** Claude Code
 
 ### What changed
+- **Unified error logging + Teams alerts:** All app errors (frontend and Edge Functions) now flow through the `error_logs` table. A Postgres trigger (`trg_error_logs_notify_teams`) fires on every insert and posts to a Teams channel via Power Automate webhook. Skips `development` environment rows. Webhook URL stored in Supabase Vault as `teams_webhook_url` on both projects.
+- **Deep-link from Teams to error log:** Teams messages include a direct link to `/#/admin/error-log?id=<uuid>`. The error log page now reads the `id` param, scrolls to the matching row, highlights it in yellow, and auto-expands its details.
+- **Edge Functions log to error_logs:** `sync_sheet_listings` and `validate_sheet_source` now call `logEdgeFunctionError()` on failure, writing to `error_logs` so backend errors appear alongside frontend ones.
+
+### Database migrations applied
+- `20260609130000_error_logs_teams_notify.sql` — applied manually to both staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`) via SQL Editor
+
+### Edge Functions deployed
+- `validate_sheet_source` — both projects
+- `sync_sheet_listings` — both projects
+
+### Rollback plan
+- Run `20260609130000_error_logs_teams_notify.rollback.sql` on the database to drop the trigger and function.
+- Redeploy previous versions of `validate_sheet_source` and `sync_sheet_listings`.
+- Frontend rollback: revert commit or redeploy previous build.
+
+### Verified on staging
+- [x] Trigger fires on error_logs INSERT and posts to Teams
+- [x] Deep-link from Teams message opens error log page on correct highlighted row
+- [x] Edge Function errors flow through to error_logs
+
+### Issues / notes
+- `pg_net` extension was not enabled on either project — had to enable manually; migration updated to include `CREATE EXTENSION IF NOT EXISTS pg_net`.
+- Trigger was created disabled (`tgenabled = 0`) — enabled with `ALTER TABLE error_logs ENABLE TRIGGER trg_error_logs_notify_teams`.
+- Power Automate flow required manual configuration: replaced "Post card" action with "Post message", set message to `variables('Body')?['text']` expression.
+
+---
+
+## 2026-06-09 — Production
+
+**Branch/commit:** `fix/2026-06-09-google-oauth-remove-incremental-auth`
+**Deployed by:** Claude Code
+
+### What changed
 - **Google OAuth incremental auth removed:** Removed `include_granted_scopes=true` from the Google OAuth URL built in `google_oauth_start`. This parameter was triggering Google's "incremental authorization" flow, which presented Drive and Sheets scopes as optional unchecked checkboxes rather than required permissions. Users clicking through without ticking the boxes received tokens without `drive.readonly`, causing "insufficient authentication scopes" errors when syncing CSV files from Google Drive.
 - **Error message fix (frontend):** `refreshSheetStatus` in both `ClientMapData.jsx` and `AdminMapData.jsx` now properly extracts the actual error message from Edge Function 500 responses instead of showing the generic "Edge Function returned a non-2xx status code".
 
