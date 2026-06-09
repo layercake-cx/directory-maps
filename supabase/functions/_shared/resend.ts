@@ -111,6 +111,7 @@ export async function resendSendEmail(params: {
   from: string;
   to: string | string[];
   cc?: string | string[];
+  replyTo?: string | string[];
   subject: string;
   html: string;
 }) {
@@ -123,6 +124,9 @@ export async function resendSendEmail(params: {
   };
   if (params.cc) {
     payload.cc = Array.isArray(params.cc) ? params.cc : [params.cc];
+  }
+  if (params.replyTo) {
+    payload.reply_to = Array.isArray(params.replyTo) ? params.replyTo : [params.replyTo];
   }
   const res = await fetch(`${RESEND_API}/emails`, {
     method: "POST",

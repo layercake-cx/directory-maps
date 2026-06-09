@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
     if (!message) return jsonResponse({ error: "Message is required." }, 400);
 
     const from = await resolveFromAddress(mapId || null);
+    const replyTo = buildFromHeader(senderName, senderEmail);
 
     const htmlToContact = `
       <p>You have received a message via the directory map${listingName ? ` for <strong>${escapeHtml(listingName)}</strong>` : ""}.</p>
@@ -101,6 +102,7 @@ Deno.serve(async (req) => {
       from,
       to: toEmail,
       cc: senderEmail,
+      replyTo,
       subject: listingName ? `Message received for ${listingName}` : "You received a message",
       html: htmlToContact,
     });
