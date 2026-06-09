@@ -49,6 +49,53 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
+**Branch/commit:** `feat/2026-06-09-dns-setup-instructions` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Messaging DNS UX polish.** Setup instructions overlay (copy-ready email for DNS suppliers, signed off with the logged-in user's first name). Renamed **Verify DNS settings** (black primary button with status icon). Removed Refresh DNS records. When domain is verified, hides setup instructions, guidance banners, and the blue how-to box.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert merge commit on `main` (Vercel/GitHub Pages rollback).
+
+### Verified on staging
+- [ ] Setup instructions and verify flow on client portal and admin Messaging tab
+- [ ] Verified state hides instructional UI
+
+### Issues / notes
+Frontend-only deploy. No edge function changes.
+
+---
+
+## 2026-06-09 — Staging
+
+**Branch/commit:** `feat/2026-06-09-dns-setup-instructions` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **DNS setup instructions for suppliers.** Messaging → Domain & DNS: **Setup instructions** overlay with copy-ready email for IT/DNS providers; **Verify DNS settings** primary button; simplified post-verify UI.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert frontend commit on `main`.
+
+### Verified on staging
+- [ ] Setup instructions button appears after domain setup
+- [ ] Overlay copy includes all DNS records and suggested subject line
+- [ ] Works on client portal and admin Messaging tab
+
+### Issues / notes
+None.
+
+---
+
+## 2026-06-09 — Production
+
 **Branch/commit:** `fix/2026-06-09-domain-setup-feedback` | `c1d3acc`
 **Deployed by:** Cursor
 

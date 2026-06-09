@@ -190,7 +190,7 @@ Legacy `ClientUsers.jsx` (manual contact insert only) remains in the repo but is
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Domain setup | `/#/client/email` | Add DNS records, verify domain, set from-address for contact form emails |
+| Domain setup | `/#/client/email` | Add DNS records, verify domain, set from-address; **Setup instructions** copies email text for DNS suppliers |
 
 Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 

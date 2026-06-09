@@ -6,6 +6,7 @@ import {
   invokeManageClientEmail,
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
+import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupInstructions.js";
 import styles from "../pages/client/ClientEmail.module.css";
 
 function CopyButton({ value }) {
@@ -41,6 +42,49 @@ function CopyButton({ value }) {
   );
 }
 
+function domainVerifyButtonIconKind(status) {
+  if (status === "verified") return "success";
+  if (status === "failed" || status === "temporary_failure") return "error";
+  if (status === "pending" || status === "not_started" || status === "not_configured") return "warning";
+  return "warning";
+}
+
+function DomainVerifyButtonIcon({ status }) {
+  const kind = domainVerifyButtonIconKind(status);
+  const className = `${styles.verifyBtnIcon} ${styles[`verifyBtnIcon--${kind}`]}`;
+
+  if (kind === "success") {
+    return (
+      <span className={className} aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (kind === "warning") {
+    return (
+      <span className={className} aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </span>
+    );
+  }
+
+  return (
+    <span className={className} aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+    </span>
+  );
+}
+
 function DnsStatusIcon({ status }) {
   if (status === "verified") {
     return (
@@ -72,6 +116,80 @@ function DnsStatusIcon({ status }) {
   );
 }
 
+function SetupInstructionsOverlay({ open, onClose, text }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function onKeyDown(e) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) setCopied(false);
+  }, [open]);
+
+  if (!open) return null;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard not available
+    }
+  }
+
+  return (
+    <div
+      className={styles.instructionsOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dns-setup-instructions-title"
+      onClick={onClose}
+    >
+      <div className={styles.instructionsModal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.instructionsHeader}>
+          <h3 id="dns-setup-instructions-title" className={styles.instructionsTitle}>
+            Setup instructions
+          </h3>
+          <button
+            type="button"
+            className={styles.instructionsClose}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p className={styles.instructionsLead}>
+          Copy the text below and paste it into an email to whoever manages your DNS (IT support,
+          web agency, domain registrar, etc.).
+        </p>
+        <textarea
+          className={styles.instructionsText}
+          readOnly
+          value={text}
+          aria-label="DNS setup instructions for email"
+          onFocus={(e) => e.target.select()}
+        />
+        <div className={styles.instructionsActions}>
+          <button type="button" className="btn btn-primary" onClick={handleCopy}>
+            {copied ? "Copied" : "Copy to clipboard"}
+          </button>
+          <button type="button" className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Shared messaging / email domain settings for client portal and admin customer detail.
  * @param {{ clientId: string, clientName?: string, eventSource?: string, showPageTitle?: boolean }} props
@@ -99,6 +217,8 @@ export default function MessagingSettings({
   const [emailDomain, setEmailDomain] = useState("");
   const [dnsRecords, setDnsRecords] = useState([]);
   const [hasDomain, setHasDomain] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [senderFirstName, setSenderFirstName] = useState("");
 
   const loadEmail = useCallback(async () => {
     if (!clientId) return;
@@ -136,6 +256,12 @@ export default function MessagingSettings({
   useEffect(() => {
     loadEmail();
   }, [loadEmail]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSenderFirstName(resolveSenderFirstName(data.session?.user));
+    });
+  }, []);
 
   function applyEmailPayload(email) {
     if (!email) return;
@@ -261,14 +387,14 @@ export default function MessagingSettings({
       if (!records.length) {
         setSetupFeedback({
           ok: false,
-          text: "Domain was registered but no DNS records were returned. Try “Refresh DNS records”, or check that the manage_client_email edge function is deployed with a full-access Resend key.",
+          text: "Domain was registered but no DNS records were returned. Try Set up domain again, or check that the manage_client_email edge function is deployed with a full-access Resend key.",
         });
         return;
       }
 
       setSetupFeedback({
         ok: true,
-        text: "Domain registered. Add the DNS records below, then check verification.",
+        text: "Domain registered. Add the DNS records below, then verify DNS settings.",
       });
     } catch (e) {
       setSetupFeedback({ ok: false, text: e?.message ?? String(e) });
@@ -308,6 +434,13 @@ export default function MessagingSettings({
   }
 
   const tone = emailDomainStatusTone(domainStatus);
+  const domainVerified = domainStatus === "verified";
+  const setupInstructionsText = buildDnsSetupEmailText({
+    fromAddress,
+    emailDomain,
+    dnsRecords,
+    senderFirstName,
+  });
 
   return (
     <>
@@ -499,27 +632,43 @@ export default function MessagingSettings({
             ) : null}
 
             <div className={styles.actions}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSetupDomain}
-                disabled={!fromAddress.trim() || busy === "setup"}
-              >
-                {busy === "setup" ? "Working…" : hasDomain ? "Refresh DNS records" : "Set up domain"}
-              </button>
-              {hasDomain ? (
+              {!hasDomain || dnsRecords.length === 0 ? (
                 <button
                   type="button"
-                  className="btn"
-                  onClick={handleVerify}
-                  disabled={busy === "verify"}
+                  className="btn btn-primary"
+                  onClick={handleSetupDomain}
+                  disabled={!fromAddress.trim() || busy === "setup"}
                 >
-                  {busy === "verify" ? "Checking…" : "Check verification"}
+                  {busy === "setup" ? "Working…" : "Set up domain"}
                 </button>
+              ) : null}
+              {hasDomain ? (
+                <>
+                  <button
+                    type="button"
+                    className={`btn btn-primary ${styles.verifyBtn}`}
+                    onClick={handleVerify}
+                    disabled={busy === "verify"}
+                  >
+                    {busy !== "verify" ? <DomainVerifyButtonIcon status={domainStatus} /> : null}
+                    {busy === "verify" ? "Verifying…" : "Verify DNS settings"}
+                  </button>
+                  {domainStatus !== "verified" ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setInstructionsOpen(true)}
+                      disabled={dnsRecords.length === 0}
+                      title={dnsRecords.length === 0 ? "Set up the domain first to generate DNS records" : undefined}
+                    >
+                      Setup instructions
+                    </button>
+                  ) : null}
+                </>
               ) : null}
             </div>
 
-            {!busy && setupFeedback ? (
+            {!busy && setupFeedback && !domainVerified ? (
               <div className={`${styles.verifyBanner} ${setupFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
                 <span>{setupFeedback.text}</span>
               </div>
@@ -527,11 +676,11 @@ export default function MessagingSettings({
 
             {busy === "verify" && (
               <p className={styles.verifyWaiting}>
-                Checking your DNS records with Resend — this can take up to 20 seconds…
+                Verifying your DNS records with Resend — this can take up to 20 seconds…
               </p>
             )}
 
-            {!busy && verifyFeedback && (
+            {!busy && verifyFeedback && !domainVerified && (
               <div className={`${styles.verifyBanner} ${verifyFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
                 <span className={styles.verifyBannerIcon} aria-hidden>
                   {verifyFeedback.ok ? (
@@ -552,32 +701,34 @@ export default function MessagingSettings({
 
             {dnsRecords.length > 0 ? (
               <div className={styles.dnsBlock}>
-                <div className={styles.dnsGuide}>
-                  <h3 className={styles.dnsGuideTitle}>How to add these records</h3>
-                  <ol className={styles.dnsGuideSteps}>
-                    <li>
-                      <strong>Find your DNS provider.</strong> This is usually where you registered your
-                      domain (GoDaddy, Namecheap, 123-reg, etc.) or wherever you manage DNS — often
-                      Cloudflare. Log in and open the DNS settings for{" "}
-                      <strong>{emailDomain || "your domain"}</strong>.
-                    </li>
-                    <li>
-                      <strong>Add the records below exactly as shown.</strong> The records enable DKIM
-                      signing so your mail is trusted and allow Resend to send on your behalf. Use the copy
-                      button next to each value to avoid transcription errors.
-                    </li>
-                    <li>
-                      <strong>Wait for propagation.</strong> DNS changes can take up to 48 hours worldwide,
-                      though it&apos;s usually much faster (minutes to an hour). Once added, click &ldquo;Check
-                      verification&rdquo; to confirm they&apos;re live.
-                    </li>
-                  </ol>
-                  <p className={styles.dnsGuideNote}>
-                    <strong>DMARC</strong> is included in the table below. It is not checked by our
-                    verification step but is strongly recommended — it protects your domain from spoofing
-                    and improves deliverability over time.
-                  </p>
-                </div>
+                {!domainVerified ? (
+                  <div className={styles.dnsGuide}>
+                    <h3 className={styles.dnsGuideTitle}>How to add these records</h3>
+                    <ol className={styles.dnsGuideSteps}>
+                      <li>
+                        <strong>Find your DNS provider.</strong> This is usually where you registered your
+                        domain (GoDaddy, Namecheap, 123-reg, etc.) or wherever you manage DNS — often
+                        Cloudflare. Log in and open the DNS settings for{" "}
+                        <strong>{emailDomain || "your domain"}</strong>.
+                      </li>
+                      <li>
+                        <strong>Add the records below exactly as shown.</strong> The records enable DKIM
+                        signing so your mail is trusted and allow Resend to send on your behalf. Use the copy
+                        button next to each value to avoid transcription errors.
+                      </li>
+                      <li>
+                        <strong>Wait for propagation.</strong> DNS changes can take up to 48 hours worldwide,
+                        though it&apos;s usually much faster (minutes to an hour). Once added, click &ldquo;Verify
+                        DNS settings&rdquo; to confirm they&apos;re live.
+                      </li>
+                    </ol>
+                    <p className={styles.dnsGuideNote}>
+                      <strong>DMARC</strong> is included in the table below. It is not checked by our
+                      verification step but is strongly recommended — it protects your domain from spoofing
+                      and improves deliverability over time.
+                    </p>
+                  </div>
+                ) : null}
 
                 <table className={styles.dnsTable}>
                   <thead>
@@ -641,13 +792,21 @@ export default function MessagingSettings({
               </div>
             ) : null}
 
-            <p className={styles.note}>
-              Until your domain is verified, messages use the platform default sender. Submissions are
-              always saved under Stats regardless of email delivery.
-            </p>
+            {!domainVerified ? (
+              <p className={styles.note}>
+                Until your domain is verified, messages use the platform default sender. Submissions are
+                always saved under Stats regardless of email delivery.
+              </p>
+            ) : null}
           </section>
         </>
       )}
+
+      <SetupInstructionsOverlay
+        open={instructionsOpen}
+        onClose={() => setInstructionsOpen(false)}
+        text={setupInstructionsText}
+      />
     </>
   );
 }
