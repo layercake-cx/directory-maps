@@ -178,6 +178,43 @@
   margin-bottom: 16px;
 }
 
+.verifyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verifyBtnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.verifyBtnIcon--success {
+  color: #059669;
+}
+
+.verifyBtnIcon--warning {
+  color: #d97706;
+}
+
+.verifyBtnIcon--error {
+  color: #dc2626;
+}
+
+.verifyBtn.btn-primary .verifyBtnIcon--success {
+  color: #6ee7b7;
+}
+
+.verifyBtn.btn-primary .verifyBtnIcon--warning {
+  color: #fcd34d;
+}
+
+.verifyBtn.btn-primary .verifyBtnIcon--error {
+  color: #fca5a5;
+}
+
 /* ── Badges ────────────────────────────────────────────── */
 
 .badge {
@@ -438,4 +475,87 @@
   font-size: 12px;
   color: var(--lc-muted);
   line-height: 1.45;
+}
+
+/* ── Setup instructions overlay ──────────────────────────── */
+
+.instructionsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.instructionsModal {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  padding: 20px 22px;
+}
+
+.instructionsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.instructionsTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.instructionsClose {
+  appearance: none;
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--lc-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.instructionsClose:hover {
+  color: var(--lc-text);
+}
+
+.instructionsLead {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--lc-muted);
+  line-height: 1.5;
+}
+
+.instructionsText {
+  flex: 1;
+  min-height: 280px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
+  color: var(--lc-text);
+  background: #f9fafb;
+}
+
+.instructionsActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 }

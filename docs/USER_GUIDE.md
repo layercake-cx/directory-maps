@@ -263,7 +263,9 @@ By default, messages are sent from the platform’s address. To send from your o
 3. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
    - Use the **copy button** next to each value to avoid transcription errors.
    - DNS propagation can take up to 48 hours, though it’s usually minutes.
-4. Click **Check verification**. When the status badge turns green ("Verified"), messages will send from your address.
+4. Click **Verify DNS settings**. When the status badge turns green ("Verified"), messages will send from your address.
+
+If someone else manages your DNS (IT support, web agency, etc.), click **Setup instructions** (shown while verification is pending) to copy a ready-made email with all required DNS records.
 
 **DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
 
@@ -285,6 +287,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | View analytics | Map → Stats |
 | Enable messaging | `/#/client/email` → Enable messaging toggle |
 | Configure custom sending domain | `/#/client/email` → Domain & DNS |
+| Copy DNS setup email for IT supplier | `/#/client/email` → Domain & DNS → Setup instructions |
 | Invite team member | `/#/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 
@@ -301,7 +304,7 @@ When an admin creates a customer in `/#/admin/clients/new`, they only need:
 - Customer name
 - Customer slug (or leave blank to auto-suggest)
 
-On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: enable messaging, set the prompt, configure test mode, save the from address, set up DNS, and check verification.
+On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: enable messaging, set the prompt, configure test mode, save the from address, set up DNS, and verify DNS settings.
 
 From a customer’s **Users** tab, admins can add a user by entering:
 
