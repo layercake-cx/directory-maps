@@ -24,10 +24,20 @@ function baseContext(extra) {
  * @param {string} [payload.severity] - error | warning
  * @param {object} [payload.context] - merged into JSON context
  */
+// Known browser extension / environment noise — not app errors
+const IGNORED_PATTERNS = [
+  /Object Not Found Matching Id/i,          // password managers / extensions
+  /ResizeObserver loop limit exceeded/i,    // benign browser warning
+  /ResizeObserver loop completed/i,
+  /Cannot redefine property: googletag/i,   // ad blocker interference
+  /^Script error\.?$/i,                     // cross-origin script noise
+];
+
 export async function logClientError(payload) {
   const type = String(payload?.type ?? "unknown");
   const message = String(payload?.message ?? "").slice(0, 12000);
   if (!message && !payload?.stack) return;
+  if (IGNORED_PATTERNS.some((p) => p.test(message))) return;
 
   if (loggingDepth > 2) {
     if (typeof console !== "undefined" && console.error) {
