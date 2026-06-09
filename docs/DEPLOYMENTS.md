@@ -47,9 +47,34 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-09 — Production
+
+**Branch/commit:** `fix/2026-06-09-domain-setup-feedback` | `c1d3acc`
+**Deployed by:** Cursor
+
+### What changed
+- **Domain setup silent failure fix** (PR #26). Set up domain now persists DNS records from Resend create/link, retries GET when empty, surfaces inline errors in Messaging settings, and auto-saves the from address.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Redeploy previous `manage_client_email` edge function revision on `gxixwdjfmegxcxfeflro`.
+- Revert merge commit `c1d3acc` on `main` (Vercel/GitHub Pages rollback).
+
+### Verified on staging
+- [x] Edge function deployed to test project (`beqejxneehilplrtpntn`)
+- [ ] Set up domain shows DNS records or a clear error message (production smoke test pending)
+- [ ] Admin Messaging tab behaves the same as client portal
+
+### Issues / notes
+Production `manage_client_email` deployed. Frontend via Vercel on merge to `main`. Confirm `RESEND_ADMIN_API_KEY` is set on production Supabase if domain setup still fails.
+
+---
+
 ## 2026-06-09 — Staging
 
-**Branch/commit:** `fix/2026-06-09-domain-setup-feedback` | pending
+**Branch/commit:** `fix/2026-06-09-domain-setup-feedback` | `c1d3acc`
 **Deployed by:** Cursor
 
 ### What changed
