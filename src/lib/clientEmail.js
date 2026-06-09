@@ -32,3 +32,10 @@ export function emailDomainStatusTone(status) {
   if (status === "failed" || status === "temporary_failure") return "error";
   return "muted";
 }
+
+/** Matches RESEND_FROM in Supabase secrets; override with VITE_PLATFORM_FROM at build time. */
+export function getPlatformDefaultFromAddress() {
+  const configured = import.meta.env.VITE_PLATFORM_FROM?.trim();
+  if (configured) return configured;
+  return "Layercake Maps <noreply@layercake-cx.biz>";
+}

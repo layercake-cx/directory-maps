@@ -1,6 +1,6 @@
 .card {
   margin-top: 16px;
-  max-width: 920px;
+  max-width: none;
 }
 
 .title {
@@ -25,16 +25,85 @@
   margin: 0 0 12px;
 }
 
-.section {
-  margin-bottom: 32px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--lc-border);
+.messagingGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 
-.section:last-child {
-  border-bottom: none;
+@media (max-width: 900px) {
+  .messagingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panelBox {
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid var(--lc-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.panelBoxActive {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.panelBoxOff {
+  background: #fdf2f8;
+  border-color: #fbcfe8;
+}
+
+.panelBoxFull {
+  grid-column: 1 / -1;
+}
+
+.panelSubsection {
+  min-width: 0;
+}
+
+.panelDivider {
+  border: none;
+  border-top: 1px solid var(--lc-border);
+  margin: 20px 0;
+}
+
+.panelBoxFull .fieldRow,
+.panelBox .fieldRowInline {
+  flex-direction: row;
+}
+
+.panelBox .fieldRow {
+  flex-direction: column;
+}
+
+.panelBox .sectionTitle {
+  margin-top: 0;
+}
+
+.panelFooter {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.panelBox .field {
+  min-width: 0;
+}
+
+.panelBox .dnsBlock {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.section {
   margin-bottom: 0;
   padding-bottom: 0;
+  border-bottom: none;
 }
 
 .sectionDisabled {
@@ -175,7 +244,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .verifyBtn {

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import {
   emailDomainStatusLabel,
   emailDomainStatusTone,
+  getPlatformDefaultFromAddress,
   invokeManageClientEmail,
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
@@ -435,6 +436,7 @@ export default function MessagingSettings({
 
   const tone = emailDomainStatusTone(domainStatus);
   const domainVerified = domainStatus === "verified";
+  const platformDefaultFrom = getPlatformDefaultFromAddress();
   const setupInstructionsText = buildDnsSetupEmailText({
     fromAddress,
     emailDomain,
@@ -467,8 +469,8 @@ export default function MessagingSettings({
       {loading ? (
         <p>Loading…</p>
       ) : (
-        <>
-          <section className={styles.section}>
+        <div className={styles.messagingGrid}>
+          <section className={`${styles.panelBox} ${messagingEnabled ? styles.panelBoxActive : styles.panelBoxOff}`}>
             <h2 className={styles.sectionTitle}>Enable messaging</h2>
             <p className={styles.hint}>
               When on, a &ldquo;Send message&rdquo; button appears on listings that have an email address.
@@ -512,7 +514,7 @@ export default function MessagingSettings({
               </div>
             )}
 
-            <div style={{ marginTop: 16 }}>
+            <div className={styles.panelFooter}>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -524,7 +526,7 @@ export default function MessagingSettings({
             </div>
           </section>
 
-          <section className={styles.section}>
+          <section className={`${styles.panelBox} ${emailTestMode ? styles.panelBoxActive : ""}`}>
             <h2 className={styles.sectionTitle}>Test mode</h2>
             <p className={styles.hint}>
               When test mode is on, contact form messages are redirected to the test recipient below
@@ -565,7 +567,7 @@ export default function MessagingSettings({
               </div>
             )}
 
-            <div style={{ marginTop: 16 }}>
+            <div className={styles.panelFooter}>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -577,14 +579,15 @@ export default function MessagingSettings({
             </div>
           </section>
 
-          <section className={styles.section}>
-            <form onSubmit={handleSave}>
+          <section className={`${styles.panelBox} ${styles.panelBoxFull}`}>
+            <form onSubmit={handleSave} className={styles.panelSubsection}>
               <h2 className={styles.sectionTitle}>From address</h2>
               <p className={styles.hint}>
-                Use an address on a domain you control (e.g. <code>hello@yourcompany.com</code>). The
-                domain part must match the DNS setup below.
+                The address you want map contact emails to be sent from. Once saved, complete the domain
+                setup below — otherwise messages will send from the platform default,{" "}
+                <strong>{platformDefaultFrom}</strong>.
               </p>
-              <div className={styles.fieldRow}>
+              <div className={`${styles.fieldRow} ${styles.fieldRowInline}`}>
                 <label className={styles.field}>
                   <span>Display name</span>
                   <input
@@ -609,9 +612,10 @@ export default function MessagingSettings({
                 {busy === "save" ? "Saving…" : "Save"}
               </button>
             </form>
-          </section>
 
-          <section className={styles.section}>
+            <hr className={styles.panelDivider} />
+
+            <div className={styles.panelSubsection}>
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Domain &amp; DNS</h2>
               <span className={`${styles.badge} ${styles[`badge--${tone}`]}`}>
@@ -626,8 +630,8 @@ export default function MessagingSettings({
 
             {!fromAddress.trim() ? (
               <p className={styles.disabledNote}>
-                Domain cannot be configured until a from email address has been provided. Enter one in
-                the <strong>From address</strong> section above (Save is optional — Set up domain saves it automatically).
+                Enter a from email address above before setting up the domain (Save is optional — Set up
+                domain saves it automatically).
               </p>
             ) : null}
 
@@ -798,8 +802,9 @@ export default function MessagingSettings({
                 always saved under Stats regardless of email delivery.
               </p>
             ) : null}
+            </div>
           </section>
-        </>
+        </div>
       )}
 
       <SetupInstructionsOverlay

@@ -49,6 +49,29 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
+**Branch/commit:** `feat/2026-06-09-messaging-grid-layout` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Messaging page layout.** 2×2 grid with panel boxes: Enable messaging and Test mode side-by-side (green when on, pink when messaging off). From address merged into a full-width Domain & DNS panel. Improved from-address hint with platform default sender.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert merge commit on `main` (Vercel/GitHub Pages rollback).
+
+### Verified on staging
+- [ ] Grid layout on client portal and admin Messaging tab
+- [ ] Panel colours reflect toggle state
+
+### Issues / notes
+Optional `VITE_PLATFORM_FROM` env var for default sender label (should match `RESEND_FROM`).
+
+---
+
+## 2026-06-09 — Production
+
 **Branch/commit:** `feat/2026-06-09-dns-setup-instructions` | `07b0d78`
 **Deployed by:** Cursor
 
