@@ -4,6 +4,7 @@ import { supabase, invokeFunction } from "../../lib/supabase";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
+import { logClientError } from "../../lib/errorLogger.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 
 const PAGE_SIZE = 100;
@@ -301,7 +302,10 @@ export default function ClientMapData() {
         invokeFunction("validate_sheet_source", { body: { mapId } }),
         supabase.from("map_data_sources").select("sync_schedule").eq("map_id", mapId).eq("provider", "google_sheets").maybeSingle(),
       ]);
-      if (statusRes.error) throw statusRes.error;
+      if (statusRes.error) {
+        const body = await statusRes.error.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? body?.message ?? statusRes.error.message);
+      }
       setSheetStatus(statusRes.data ?? null);
       setSyncSchedule(srcRes.data?.sync_schedule ?? null);
       if (statusRes.data?.connected && !statusRes.data?.sheet?.spreadsheet_id) {
@@ -311,6 +315,7 @@ export default function ClientMapData() {
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
       setSheetStatus((prev) => prev ?? { connected: false });
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "refreshSheetStatus" } });
     }
   }
 
@@ -368,6 +373,7 @@ export default function ClientMapData() {
       await refreshSheetStatus();
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "syncNow" } });
     } finally {
       setSyncing(false);
     }
@@ -421,6 +427,7 @@ export default function ClientMapData() {
       window.location.assign(data.authUrl);
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_oauth", message: e?.message ?? String(e), context: { map_id: mapId, fn: "connectGoogle" } });
     } finally {
       setConnecting(false);
     }

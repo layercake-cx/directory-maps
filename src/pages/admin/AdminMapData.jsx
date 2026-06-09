@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, G
 import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
+import { logClientError } from "../../lib/errorLogger.js";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -275,7 +276,10 @@ export default function AdminMapData() {
         invokeFunction("validate_sheet_source", { body: { mapId } }),
         supabase.from("map_data_sources").select("sync_schedule").eq("map_id", mapId).eq("provider", "google_sheets").maybeSingle(),
       ]);
-      if (statusRes.error) throw statusRes.error;
+      if (statusRes.error) {
+        const body = await statusRes.error.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? body?.message ?? statusRes.error.message);
+      }
       setSheetStatus(statusRes.data ?? null);
       setSyncSchedule(srcRes.data?.sync_schedule ?? null);
       if (statusRes.data?.connected && !statusRes.data?.sheet?.spreadsheet_id) {
@@ -285,6 +289,7 @@ export default function AdminMapData() {
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
       setSheetStatus((prev) => prev ?? { connected: false });
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "refreshSheetStatus" } });
     }
   }
 
@@ -342,6 +347,7 @@ export default function AdminMapData() {
       await refreshSheetStatus();
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "syncNow" } });
     } finally {
       setSyncing(false);
     }
@@ -397,6 +403,7 @@ export default function AdminMapData() {
       window.location.assign(data.authUrl);
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_oauth", message: e?.message ?? String(e), context: { map_id: mapId, fn: "connectGoogle" } });
     } finally {
       setConnecting(false);
     }

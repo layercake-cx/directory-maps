@@ -1,6 +1,7 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
 import { refreshAccessToken, fetchSheetValues, fetchDriveFileAsText } from "../_shared/google.ts";
 import { parseCSV, validateSheetRows } from "../_shared/sheetData.ts";
+import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +65,7 @@ Deno.serve(async (req) => {
       last_sync_error: src.last_sync_error,
     });
   } catch (e) {
+    logEdgeFunctionError({ fn: "validate_sheet_source", message: e?.message ?? String(e) });
     return json({ error: e?.message ?? String(e) }, 500);
   }
 });
