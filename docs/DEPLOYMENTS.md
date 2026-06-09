@@ -10,6 +10,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-09 — Staging
 
+**Branch/commit:** `fix/2026-06-09-embed-allowfullscreen` | `901342b`
+**Deployed by:** Cursor
+
+### What changed
+- Default embed iframe code from the Publish panel now includes `allowfullscreen`, so the map fullscreen control can expand to the full browser window when embedded on a customer site (not just within the iframe box).
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert the frontend commit and redeploy the previous build.
+
+### Verified on staging
+- [ ] Copied embed code includes `allowfullscreen`
+- [ ] Fullscreen on an external page expands to browser window
+
+---
+
+## 2026-06-09 — Staging
+
 **Branch/commit:** `fix/2026-06-09-embed-chromeless` | `bcfda38`
 **Deployed by:** Cursor
 
