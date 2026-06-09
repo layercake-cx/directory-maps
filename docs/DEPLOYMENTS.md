@@ -47,6 +47,31 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-09 — Staging
+
+**Branch/commit:** `feat/2026-06-09-admin-map-subnav` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Admin map sub-nav separated from platform nav.** On routes like `/admin/clients/:id/maps/:mapId` (Design, Data, Listings), map tabs no longer appear inline in the dark platform admin bar. They render in a second light sub-nav bar below the breadcrumb trail — the same two-tier pattern as the client portal. Platform nav (Customers, Maps, Admin Users, etc.) stays on its own.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert `src/pages/admin/AdminLayout.jsx` or redeploy the previous Vercel build.
+
+### Verified on staging
+- [ ] Admin map design route shows platform nav + breadcrumb + standalone map sub-nav
+- [ ] Data and Listings routes show the same sub-nav
+- [ ] Customer detail (`/admin/clients/:id`) still shows client tabs strip only (no map sub-nav)
+- [ ] Platform-only pages (Customers list, Error log) unchanged
+
+### Issues / notes
+None.
+
+---
+
 ## 2026-06-02 — Staging + Production (migration repair only)
 
 **Branch/commit:** `chore/fix-duplicate-migration-timestamp`

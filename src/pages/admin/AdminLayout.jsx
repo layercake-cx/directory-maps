@@ -14,6 +14,11 @@ const ADMIN_NAV = [
   { label: "Deployments", path: "/admin/deployments", superadmin: true },
 ];
 
+/** Admin routes editing a specific client's map (Design / Data / Listings). */
+function isAdminClientMapRoute(pathname) {
+  return /^\/admin\/clients\/[^/]+\/maps\/[^/]+/.test(pathname || "");
+}
+
 /**
  * @param {{
  *   rightActions?: React.ReactNode,
@@ -36,6 +41,7 @@ export default function AdminLayout({
 }) {
   const location = useLocation();
   const pathname = location.pathname || "/";
+  const showMapSubNav = isAdminClientMapRoute(pathname);
 
   return (
     <div className="admin-shell">
@@ -64,7 +70,6 @@ export default function AdminLayout({
               </Link>
             );
           })}
-          <MapEditSubNav linkClassName="admin-nav__link" />
         </div>
       </nav>
 
@@ -101,6 +106,8 @@ export default function AdminLayout({
           </div>
         </nav>
       )}
+
+      {showMapSubNav && <MapEditSubNav standalone />}
 
       <main className={`admin-main ${mainClassName}`.trim()}>{children}</main>
     </div>
