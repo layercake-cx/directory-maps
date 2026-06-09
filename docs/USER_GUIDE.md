@@ -258,13 +258,12 @@ When you turn messaging on you must also set a **prompt message** — a short li
 
 By default, messages are sent from the platform’s address. To send from your own address (e.g. `hello@yourcompany.com`):
 
-1. **Enable messaging** (step above).
-2. Under **From address**, enter your display name and email address, then click **Save**.
-3. Under **Domain & DNS**, click **Set up domain**. Resend registers your domain and generates DNS records.
-4. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
+1. Under **From address**, enter your display name and email address. Click **Save**, or skip Save — **Set up domain** saves the address automatically.
+2. Under **Domain & DNS**, click **Set up domain**. Resend registers your domain and generates DNS records. If something goes wrong, a message appears directly under the button.
+3. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
    - Use the **copy button** next to each value to avoid transcription errors.
    - DNS propagation can take up to 48 hours, though it’s usually minutes.
-5. Click **Check verification**. When the status badge turns green ("Verified"), messages will send from your address.
+4. Click **Check verification**. When the status badge turns green ("Verified"), messages will send from your address.
 
 **DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
 

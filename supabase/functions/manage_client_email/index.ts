@@ -54,28 +54,57 @@ function normalizeClientEmailRow(row: Record<string, unknown> | null) {
   };
 }
 
-async function syncDomainFromResend(service: ReturnType<typeof createServiceClient>, clientId: string, domainId: string) {
-  const remote = await resendGetDomain(domainId);
-  const status = typeof remote?.status === "string" ? remote.status : "not_started";
-  const records = Array.isArray(remote?.records) ? remote.records : null;
-  const name = typeof remote?.name === "string" ? remote.name : null;
+function readResendDomainList(list: unknown): Array<{ id: string; name: string }> {
+  if (!list || typeof list !== "object") return [];
+  const rows = (list as { data?: unknown }).data;
+  return Array.isArray(rows) ? rows as Array<{ id: string; name: string }> : [];
+}
 
+function readResendDomainPayload(remote: unknown) {
+  if (!remote || typeof remote !== "object") {
+    return { name: null, status: "not_started", records: null as unknown[] | null };
+  }
+  const row = remote as Record<string, unknown>;
+  return {
+    name: typeof row.name === "string" ? row.name : null,
+    status: typeof row.status === "string" ? row.status : "not_started",
+    records: Array.isArray(row.records) ? row.records : null,
+  };
+}
+
+async function writeClientEmailFields(
+  service: ReturnType<typeof createServiceClient>,
+  clientId: string,
+  fields: Record<string, unknown>,
+) {
   const { data, error } = await service
     .from("clients")
-    .update({
-      email_domain: name,
-      email_domain_status: status,
-      email_dns_records: records,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...fields, updated_at: new Date().toISOString() })
     .eq("id", clientId)
     .select(
-      "email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
+      "email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records",
     )
     .single();
-
   if (error) throw error;
   return normalizeClientEmailRow(data as Record<string, unknown>);
+}
+
+async function syncDomainFromResend(service: ReturnType<typeof createServiceClient>, clientId: string, domainId: string) {
+  let remote = await resendGetDomain(domainId);
+  let { name, status, records } = readResendDomainPayload(remote);
+
+  // Resend occasionally returns an empty records array immediately after create/link.
+  if (!records?.length) {
+    await new Promise((r) => setTimeout(r, 1500));
+    remote = await resendGetDomain(domainId);
+    ({ name, status, records } = readResendDomainPayload(remote));
+  }
+
+  return await writeClientEmailFields(service, clientId, {
+    email_domain: name,
+    email_domain_status: status,
+    email_dns_records: records,
+  });
 }
 
 /**
@@ -160,14 +189,13 @@ Deno.serve(async (req) => {
       }
 
       let domainId = client.resend_domain_id as string | null;
+      let createPayload: ReturnType<typeof readResendDomainPayload> | null = null;
+
       if (!domainId || client.email_domain !== domain) {
-        // Before creating a new registration, check if this domain already exists
-        // in Resend under this account. Creating a duplicate produces a second
-        // registration with a different DKIM key, causing a conflict.
         let existingId: string | null = null;
         try {
-          const list = await resendListDomains() as { data?: Array<{ id: string; name: string }> };
-          const match = list?.data?.find((d) => d.name === domain);
+          const list = await resendListDomains();
+          const match = readResendDomainList(list).find((d) => d.name === domain);
           if (match?.id) existingId = match.id;
         } catch {
           // If listing fails, fall through and attempt creation.
@@ -175,23 +203,41 @@ Deno.serve(async (req) => {
 
         if (existingId) {
           domainId = existingId;
+          const existing = await resendGetDomain(existingId);
+          createPayload = readResendDomainPayload(existing);
         } else {
           const created = await resendCreateDomain(domain);
-          domainId = typeof created?.id === "string" ? created.id : null;
+          createPayload = readResendDomainPayload(created);
+          domainId = typeof (created as Record<string, unknown>)?.id === "string"
+            ? (created as Record<string, unknown>).id as string
+            : null;
           if (!domainId) throw new Error("Resend did not return a domain id.");
         }
 
-        await service
-          .from("clients")
-          .update({
-            email_domain: domain,
-            resend_domain_id: domainId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", clientId);
+        await writeClientEmailFields(service, clientId, {
+          email_domain: createPayload?.name ?? domain,
+          resend_domain_id: domainId,
+          email_domain_status: createPayload?.status ?? "not_started",
+          email_dns_records: createPayload?.records ?? null,
+        });
       }
 
-      const email = await syncDomainFromResend(service, clientId, domainId);
+      let email = await syncDomainFromResend(service, clientId, domainId);
+
+      // Resend includes DNS records on create; GET can occasionally return none immediately.
+      if (
+        createPayload?.records?.length &&
+        (!email?.email_dns_records || !Array.isArray(email.email_dns_records) || email.email_dns_records.length === 0)
+      ) {
+        email = await writeClientEmailFields(service, clientId, {
+          email_domain: createPayload.name ?? domain,
+          resend_domain_id: domainId,
+          email_domain_status: createPayload.status,
+          email_dns_records: createPayload.records,
+        });
+      }
+
+      if (!email) throw new Error("Domain setup completed but client email settings could not be loaded.");
       return jsonResponse({ ok: true, email });
     }
 
