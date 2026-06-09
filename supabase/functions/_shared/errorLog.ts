@@ -16,7 +16,7 @@ export async function logEdgeFunctionError(params: {
       type: "edge_function",
       severity: "error",
       message: String(params.message).slice(0, 12000),
-      environment: "production",
+      environment: Deno.env.get("ENVIRONMENT") ?? "production",
       context: { source: "edge_function", fn: params.fn, ...(params.context ?? {}) },
     });
   } catch {

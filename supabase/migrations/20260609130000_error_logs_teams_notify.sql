@@ -26,8 +26,8 @@ declare
   v_map_id      text;
   v_message     text;
 begin
-  -- Only fire for production errors (skip dev/staging noise)
-  if new.environment is distinct from 'production' then
+  -- Skip local development noise; fire for staging and production
+  if new.environment = 'development' then
     return new;
   end if;
 
