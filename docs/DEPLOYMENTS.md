@@ -49,6 +49,31 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
+**Branch/commit:** `fix/from-address-layout-reply-to` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **From address layout:** Display name and email fields side-by-side in equal 50/50 columns on Messaging settings.
+- **Map contact email Reply-To:** Listing notification emails now set Reply-To to the visitor's address (name + email when provided) so recipients can reply directly.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert frontend merge on `main`.
+- Redeploy previous `send_contact_message` edge function revision.
+
+### Verified on staging
+- [ ] From address fields render 50/50 on Messaging page
+- [ ] Contact form email Reply-To header is visitor address
+
+### Issues / notes
+Deploy `send_contact_message` to staging and production after merge.
+
+---
+
+## 2026-06-09 — Production
+
 **Branch/commit:** `feat/2026-06-09-messaging-grid-layout` | `9249aa6`
 **Deployed by:** Cursor
 

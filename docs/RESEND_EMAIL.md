@@ -1,6 +1,6 @@
 # Resend email (map contact form)
 
-Directory map **Send message** uses [Resend](https://resend.com) for transactional email. Submissions are always stored in `map_contact_submissions`; Resend delivers one email to the listing contact with the visitor CC'd.
+Directory map **Send message** uses [Resend](https://resend.com) for transactional email. Submissions are always stored in `map_contact_submissions`; Resend delivers one email to the listing contact with the visitor CC'd and **Reply-To** set to the visitor's address.
 
 ## Platform setup (you / ops)
 
@@ -64,7 +64,7 @@ DNS is added at the client’s DNS host (Cloudflare, etc.). Resend’s [domain d
 
 | Function | Auth | Role |
 |----------|------|------|
-| `send_contact_message` | Public (anon + JWT) | Send to listing, CC visitor; resolve From via `mapId` → client |
+| `send_contact_message` | Public (anon + JWT) | Send to listing, CC visitor, Reply-To visitor; resolve From via `mapId` → client |
 | `manage_client_email` | Logged-in client/admin | `save`, `setup_domain`, `verify` / `refresh` |
 | `send_team_invitation` | Logged-in owner/manager | Create invite + send “join your team” email |
 

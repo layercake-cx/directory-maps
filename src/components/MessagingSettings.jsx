@@ -587,7 +587,7 @@ export default function MessagingSettings({
                 setup below — otherwise messages will send from the platform default,{" "}
                 <strong>{platformDefaultFrom}</strong>.
               </p>
-              <div className={`${styles.fieldRow} ${styles.fieldRowInline}`}>
+              <div className={styles.fromAddressRow}>
                 <label className={styles.field}>
                   <span>Display name</span>
                   <input
