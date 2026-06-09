@@ -17,7 +17,6 @@ export function buildGoogleAuthUrl(params: {
   u.searchParams.set("access_type", "offline");
   u.searchParams.set("prompt", "consent");
   u.searchParams.set("scope", params.scopes.join(" "));
-  u.searchParams.set("include_granted_scopes", "true");
   u.searchParams.set("state", params.state);
   return u.toString();
 }

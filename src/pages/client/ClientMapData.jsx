@@ -301,7 +301,10 @@ export default function ClientMapData() {
         invokeFunction("validate_sheet_source", { body: { mapId } }),
         supabase.from("map_data_sources").select("sync_schedule").eq("map_id", mapId).eq("provider", "google_sheets").maybeSingle(),
       ]);
-      if (statusRes.error) throw statusRes.error;
+      if (statusRes.error) {
+        const body = await statusRes.error.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? body?.message ?? statusRes.error.message);
+      }
       setSheetStatus(statusRes.data ?? null);
       setSyncSchedule(srcRes.data?.sync_schedule ?? null);
       if (statusRes.data?.connected && !statusRes.data?.sheet?.spreadsheet_id) {

@@ -49,6 +49,35 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
+**Branch/commit:** `fix/2026-06-09-google-oauth-remove-incremental-auth`
+**Deployed by:** Claude Code
+
+### What changed
+- **Google OAuth incremental auth removed:** Removed `include_granted_scopes=true` from the Google OAuth URL built in `google_oauth_start`. This parameter was triggering Google's "incremental authorization" flow, which presented Drive and Sheets scopes as optional unchecked checkboxes rather than required permissions. Users clicking through without ticking the boxes received tokens without `drive.readonly`, causing "insufficient authentication scopes" errors when syncing CSV files from Google Drive.
+- **Error message fix (frontend):** `refreshSheetStatus` in both `ClientMapData.jsx` and `AdminMapData.jsx` now properly extracts the actual error message from Edge Function 500 responses instead of showing the generic "Edge Function returned a non-2xx status code".
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `google_oauth_start` (uses `_shared/google.ts`) — production project `gxixwdjfmegxcxfeflro`
+
+### Rollback plan
+- Redeploy the previous version of `google_oauth_start` from the prior commit.
+- The frontend error message fix is safe to leave in place regardless.
+
+### Verified on staging
+- [x] Feature smoke-tested on staging (google_oauth_start deployed to `beqejxneehilplrtpntn` and tested)
+- [x] Google consent screen now shows all scopes as required (no optional checkboxes)
+- [x] Sync working after re-authorization
+
+### Issues / notes
+Root cause investigation: the OAuth consent screen scopes had been cleared in GCP (likely via clicking through the Edit App wizard without re-ticking scopes). This combined with `include_granted_scopes` meant reconnecting silently issued tokens without `drive.readonly`. Fixed by re-adding scopes in GCP and removing incremental auth from the code.
+
+---
+
+## 2026-06-09 — Production
+
 **Branch/commit:** `fix/from-address-layout-reply-to` | `1fafbf3`
 **Deployed by:** Cursor
 
