@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-09 — Staging
 
-**Branch/commit:** `fix/2026-06-09-reduce-listing-select-zoom` | pending
+**Branch/commit:** `fix/2026-06-09-reduce-listing-select-zoom` | `cc5bd9c`
 **Deployed by:** Cursor
 
 ### What changed
