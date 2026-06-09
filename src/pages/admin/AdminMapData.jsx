@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, G
 import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
+import { logClientError } from "../../lib/errorLogger.js";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -288,6 +289,7 @@ export default function AdminMapData() {
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
       setSheetStatus((prev) => prev ?? { connected: false });
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "refreshSheetStatus" } });
     }
   }
 
@@ -345,6 +347,7 @@ export default function AdminMapData() {
       await refreshSheetStatus();
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "syncNow" } });
     } finally {
       setSyncing(false);
     }
@@ -400,6 +403,7 @@ export default function AdminMapData() {
       window.location.assign(data.authUrl);
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
+      logClientError({ type: "google_oauth", message: e?.message ?? String(e), context: { map_id: mapId, fn: "connectGoogle" } });
     } finally {
       setConnecting(false);
     }
