@@ -55,7 +55,7 @@ begin
     'Map: %s' || chr(10) ||
     'Route: %s' || chr(10) ||
     'Time: %s' || chr(10) ||
-    'View log: https://maps.layercake-cx.biz/#/admin/error-log',
+    'View log: https://maps.layercake-cx.biz/#/admin/error-log?id=' || new.id,
     upper(new.severity),
     new.type,
     new.message,

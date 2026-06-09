@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
@@ -14,10 +15,14 @@ function formatJson(v) {
 }
 
 export default function AdminErrorLogs() {
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get("id");
+  const highlightRef = useRef(null);
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = useState(() => highlightId ? { [highlightId]: true } : {});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +46,12 @@ export default function AdminErrorLogs() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current && !loading) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [rows, highlightId, loading]);
 
   function toggle(id) {
     setExpanded((s) => ({ ...s, [id]: !s[id] }));
@@ -91,7 +102,10 @@ export default function AdminErrorLogs() {
               <tbody>
                 {rows.map((r) => (
                   <React.Fragment key={r.id}>
-                    <tr>
+                    <tr
+                      ref={r.id === highlightId ? highlightRef : null}
+                      style={r.id === highlightId ? { background: "#fef9c3", outline: "2px solid #ca8a04" } : undefined}
+                    >
                       <td style={{ whiteSpace: "nowrap" }}>{r.created_at?.replace("T", " ").replace(/\.\d{3}Z?$/, "Z") ?? "—"}</td>
                       <td>{r.type}</td>
                       <td>{r.severity}</td>
