@@ -49,7 +49,7 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
-**Branch/commit:** `feat/2026-06-09-messaging-grid-layout` | pending
+**Branch/commit:** `feat/2026-06-09-messaging-grid-layout` | `9249aa6`
 **Deployed by:** Cursor
 
 ### What changed
