@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-09 — Staging
+
+**Branch/commit:** `fix/2026-06-09-embed-chromeless` | pending
+**Deployed by:** Cursor
+
+### What changed
+- Embedded maps no longer show the Layercake site header or footer inside the iframe.
+- Slug-based embed URLs (`/{client-slug}/{map-slug}`) are treated the same as `/embed?map=…` for layout purposes.
+- Embed pages are flush to the iframe viewport with no outer margin or padding.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert the frontend commit and redeploy the previous build.
+
+### Verified on staging
+- [ ] Embed iframe shows map only (no header/footer) for slug URLs
+- [ ] Embed iframe shows map only for `/embed?map=…`
+- [ ] Map fills iframe with no visible outer gap
+
+---
+
 ## How to write an entry
 
 Copy the template below. Fill in every section — use plain English, not jargon. If a section genuinely doesn't apply, write "None" rather than leaving it blank. Entries do not need to be long; clarity matters more than completeness.

@@ -36,16 +36,21 @@ html.embed-map-page body.embed-map-page {
   overflow-x: hidden;
   overflow-y: visible;
   box-sizing: border-box;
-  padding-bottom: 1px;
+  margin: 0;
+  padding: 0;
 }
 
 html.embed-map-page #root {
   min-height: 100vh;
 }
 
-/* Embed: map uses 100vh (iframe viewport when embedded — not the top-level window) */
+/* Embed: map fills iframe viewport with no site chrome or outer spacing */
 .layout-root--embed {
   min-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Chromium / Safari: fixed-width track so the bar doesn’t collapse to overlay-only */
@@ -66,10 +71,15 @@ html.embed-map-page::-webkit-scrollbar-track {
 .embed-map-root {
   position: relative;
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   /* vh = iframe’s viewport in embeds; avoids height:100% collapsing when ancestors have no explicit height */
   height: 100vh;
   min-height: 100vh;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Google Maps custom control: vertical zoom column (+, slider, −), ~40px to match default zoom UI */
