@@ -1,6 +1,7 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
 import { refreshAccessToken, fetchSheetValues, fetchDriveFileAsText } from "../_shared/google.ts";
 import { normalizeHeader, parseCSV, validateSheetRows } from "../_shared/sheetData.ts";
+import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -396,6 +397,7 @@ Deno.serve(async (req) => {
         }
       }).then(() => {});
 
+      logEdgeFunctionError({ fn: "sync_sheet_listings", message: e?.message ?? String(e), context: { map_id: src.map_id, client_id: src.client_id } });
       results.push({ map_id: src.map_id, ok: false, error: e?.message ?? String(e), startedAt });
     }
   }
