@@ -196,6 +196,7 @@ If any sync run has failed for your organisation, a red **Sync errors detected**
 2. Add an optional publish note and confirm **Publish**.
 3. Copy the **embed URL** from the publish panel (e.g. `/your-org/your-map` or `/embed?map=<MAP_ID>`). The live embed shows only the map — no Layercake header or footer.
 4. Use **Launch map** to open the live embed in a new tab.
+5. Paste the **embed code** on your site. Include `allowfullscreen` on the `<iframe>` so visitors can expand the map to the full browser window (without it, fullscreen only fills the iframe box).
 
 Only **published** maps are visible on the embed.
 

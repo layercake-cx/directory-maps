@@ -322,7 +322,8 @@ export default function AdminMapDashboard() {
   width="100%"
   height="800"
   style="border:0;border-radius:12px"
-  loading="lazy">
+  loading="lazy"
+  allowfullscreen>
 </iframe>`;
   }, [embedSrc]);
 

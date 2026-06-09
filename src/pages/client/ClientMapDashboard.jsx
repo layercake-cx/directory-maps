@@ -327,7 +327,8 @@ export default function ClientMapDashboard() {
   width="${widthAttr}"
   height="${h}"
   style="border:0;border-radius:12px"
-  loading="lazy">
+  loading="lazy"
+  allowfullscreen>
 </iframe>`;
   }, [embedSrc, embedWidth, embedWidthUnit, embedHeight]);
 
