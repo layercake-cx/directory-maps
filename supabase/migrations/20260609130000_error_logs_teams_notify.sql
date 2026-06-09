@@ -14,6 +14,8 @@
 -- ROLLBACK;
 -- ────────────────────────────────────────────────────────────────────────────
 
+create extension if not exists pg_net;
+
 create or replace function public.error_logs_notify_teams()
 returns trigger
 language plpgsql
