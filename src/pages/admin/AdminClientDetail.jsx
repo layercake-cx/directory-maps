@@ -1,15 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { startImpersonatingClient } from "../../lib/clientAuth";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
-import {
-  emailDomainStatusLabel,
-  emailDomainStatusTone,
-  invokeManageClientEmail,
-} from "../../lib/clientEmail.js";
+import MessagingSettings from "../../components/MessagingSettings.jsx";
 
 function Field({ label, children }) {
   return (
@@ -52,19 +48,6 @@ export default function AdminClientDetail() {
 
   const [activeTab, setActiveTab] = useState("maps");
 
-  // Messaging tab state (read-only view of client email config)
-  const [msgLoading, setMsgLoading] = useState(false);
-  const [msgErr, setMsgErr] = useState("");
-  const [msgMsg, setMsgMsg] = useState("");
-  const [msgBusy, setMsgBusy] = useState(false);
-  const [messagingEnabled, setMessagingEnabled] = useState(false);
-  const [messagingPrompt, setMessagingPrompt] = useState("");
-  const [fromName, setFromName] = useState("");
-  const [fromAddress, setFromAddress] = useState("");
-  const [domainStatus, setDomainStatus] = useState("not_configured");
-  const [emailDomain, setEmailDomain] = useState("");
-  const [dnsRecords, setDnsRecords] = useState([]);
-  const [hasDomain, setHasDomain] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -134,61 +117,6 @@ export default function AdminClientDetail() {
   useEffect(() => {
     load();
   }, [clientId]);
-
-  const loadMessaging = useCallback(async () => {
-    if (!clientId) return;
-    setMsgLoading(true);
-    setMsgErr("");
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("messaging_enabled,messaging_prompt,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records")
-        .eq("id", clientId)
-        .single();
-      if (error) throw error;
-      setMessagingEnabled(!!data?.messaging_enabled);
-      setMessagingPrompt(data?.messaging_prompt ?? "");
-      setFromName(data?.email_from_name ?? "");
-      setFromAddress(data?.email_from_address ?? "");
-      setEmailDomain(data?.email_domain ?? "");
-      setDomainStatus(data?.email_domain_status ?? "not_configured");
-      setDnsRecords(Array.isArray(data?.email_dns_records) ? data.email_dns_records : []);
-      setHasDomain(!!data?.resend_domain_id);
-    } catch (e) {
-      setMsgErr(e?.message ?? String(e));
-    } finally {
-      setMsgLoading(false);
-    }
-  }, [clientId]);
-
-  useEffect(() => {
-    if (activeTab === "messaging") loadMessaging();
-  }, [activeTab, loadMessaging]);
-
-  async function handleAdminVerify() {
-    if (!clientId) return;
-    setMsgErr("");
-    setMsgMsg("");
-    setMsgBusy(true);
-    try {
-      const data = await invokeManageClientEmail({ clientId, action: "verify" });
-      const email = data?.email;
-      if (email) {
-        setDomainStatus(email.email_domain_status ?? "not_configured");
-        setDnsRecords(Array.isArray(email.email_dns_records) ? email.email_dns_records : []);
-        setHasDomain(!!email.resend_domain_id);
-      }
-      setMsgMsg(
-        email?.email_domain_status === "verified"
-          ? "Domain verified."
-          : "Verification checked. DNS may still be propagating."
-      );
-    } catch (e) {
-      setMsgErr(e?.message ?? String(e));
-    } finally {
-      setMsgBusy(false);
-    }
-  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -663,148 +591,12 @@ export default function AdminClientDetail() {
             )}
 
             {activeTab === "messaging" && (
-              <div>
-                <div style={{ marginBottom: 16 }}>
-                  <h2 style={{ margin: "0 0 4px 0", fontSize: 18 }}>Messaging configuration</h2>
-                  <p style={{ margin: 0, fontSize: 13, color: "var(--lc-muted)" }}>
-                    Read-only view of this client&apos;s messaging settings. Use &ldquo;Check verification&rdquo; to trigger a DNS verification check.
-                  </p>
-                </div>
-
-                {msgErr ? <p style={{ color: "#b91c1c", margin: "0 0 12px" }}>{msgErr}</p> : null}
-                {msgMsg ? <p style={{ color: "#047857", margin: "0 0 12px" }}>{msgMsg}</p> : null}
-
-                {msgLoading ? (
-                  <p>Loading…</p>
-                ) : (
-                  <div style={{ display: "grid", gap: 20, maxWidth: 760 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>Messaging enabled:</span>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "3px 10px",
-                          borderRadius: 999,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          background: messagingEnabled ? "#ecfdf5" : "#f3f4f6",
-                          color: messagingEnabled ? "#047857" : "#4b5563",
-                        }}
-                      >
-                        {messagingEnabled ? "On" : "Off"}
-                      </span>
-                    </div>
-
-                    {messagingPrompt && (
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Prompt message:</div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            color: "var(--lc-muted)",
-                            background: "#f9fafb",
-                            border: "1px solid var(--lc-border)",
-                            borderRadius: 8,
-                            padding: "10px 14px",
-                          }}
-                        >
-                          {messagingPrompt}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>From address:</div>
-                      <div style={{ fontSize: 13 }}>
-                        {fromName ? <span style={{ fontWeight: 500 }}>{fromName}</span> : null}
-                        {fromName && fromAddress ? " — " : null}
-                        {fromAddress ? <code style={{ fontSize: 12 }}>{fromAddress}</code> : <span style={{ color: "var(--lc-muted)" }}>Not set</span>}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>Domain status:</span>
-                        {(() => {
-                          const tone = emailDomainStatusTone(domainStatus);
-                          const toneMap = {
-                            success: { bg: "#ecfdf5", color: "#047857" },
-                            warning: { bg: "#fffbeb", color: "#b45309" },
-                            error:   { bg: "#fef2f2", color: "#b91c1c" },
-                            muted:   { bg: "#f3f4f6", color: "#4b5563" },
-                          };
-                          const s = toneMap[tone] ?? toneMap.muted;
-                          return (
-                            <span style={{ padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color }}>
-                              {emailDomainStatusLabel(domainStatus)}
-                            </span>
-                          );
-                        })()}
-                        {hasDomain && (
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            onClick={handleAdminVerify}
-                            disabled={msgBusy}
-                          >
-                            {msgBusy ? "Checking…" : "Check verification"}
-                          </button>
-                        )}
-                      </div>
-                      {emailDomain ? (
-                        <div style={{ fontSize: 13, color: "var(--lc-muted)" }}>
-                          Domain: <strong>{emailDomain}</strong>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {dnsRecords.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>DNS records:</div>
-                        <table className="admin-table" style={{ marginTop: 0, fontSize: 12 }}>
-                          <thead>
-                            <tr>
-                              <th>Type</th>
-                              <th>Name / Host</th>
-                              <th>Value</th>
-                              <th>Priority</th>
-                              <th style={{ width: 44, textAlign: "center" }} title="Verification status">✓</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dnsRecords.map((row, i) => (
-                              <tr key={`${row.type}-${row.name}-${i}`}>
-                                <td><code>{row.type || "—"}</code></td>
-                                <td><code style={{ wordBreak: "break-all" }}>{row.name || "—"}</code></td>
-                                <td><code style={{ wordBreak: "break-all" }}>{row.value || "—"}</code></td>
-                                <td>{row.priority != null && row.priority !== "" ? row.priority : "—"}</td>
-                                <td style={{ textAlign: "center" }}>
-                                  {row.status === "verified" ? (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Verified" title="Verified">
-                                      <path d="M20 6L9 17l-5-5" />
-                                    </svg>
-                                  ) : row.status === "pending" ? (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Pending" title="Pending">
-                                      <circle cx="12" cy="12" r="10" />
-                                      <polyline points="12 6 12 12 16 14" />
-                                    </svg>
-                                  ) : (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Not verified" title="Not verified">
-                                      <circle cx="12" cy="12" r="10" />
-                                      <line x1="15" y1="9" x2="9" y2="15" />
-                                      <line x1="9" y1="9" x2="15" y2="15" />
-                                    </svg>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <MessagingSettings
+                clientId={clientId}
+                clientName={client?.name}
+                eventSource="admin_dashboard"
+                showPageTitle={false}
+              />
             )}
           </>
         )}

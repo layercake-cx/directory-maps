@@ -220,7 +220,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Feature | Route | Description |
 |---------|-------|-------------|
 | Customers | `/admin/clients` | Search, create, delete clients; **impersonate** into client portal |
-| Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override`; secondary client nav (Maps · Customer details · Users · Messaging) |
+| Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override`; secondary client nav (Maps · Customer details · Users · Messaging); **Messaging tab matches client portal** (toggle, test mode, domain/DNS) |
 | New customer | `/admin/clients/new` | Create organisation (name + slug) |
 | Add customer user | `/admin/clients/:id` (Users tab) | Send invite to create account/set password; contact links after invite acceptance |
 | Contact detail | `/admin/clients/:id/contacts/:contactId` | Per-contact admin view |
