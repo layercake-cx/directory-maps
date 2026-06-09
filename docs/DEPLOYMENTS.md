@@ -47,6 +47,30 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## Log
 
+## 2026-06-09 — Production
+
+**Branch/commit:** `chore/layercake-favicon` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Layercake favicon and page title.** Replaced the default Vite icon with the Layercake brand favicon (`public/favicon.png`) and added an Apple touch icon. Browser tab title updated from "directory-maps" to "Layercake Maps".
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert `index.html` and remove `public/favicon.png` / `public/apple-touch-icon.png`, or redeploy the previous Vercel build.
+
+### Verified on staging
+- [ ] Favicon appears in browser tab on maps.layercake-cx.biz
+- [ ] Page title shows "Layercake Maps"
+- [ ] Hard refresh clears any cached old vite.svg favicon
+
+### Issues / notes
+None.
+
+---
+
 ## 2026-06-09 — Staging
 
 **Branch/commit:** `feat/2026-06-09-admin-map-subnav` | pending
