@@ -302,6 +302,8 @@ When an admin creates a customer in `/#/admin/clients/new`, they only need:
 - Customer name
 - Customer slug (or leave blank to auto-suggest)
 
+On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: enable messaging, set the prompt, configure test mode, save the from address, set up DNS, and check verification.
+
 From a customer’s **Users** tab, admins can add a user by entering:
 
 - Email

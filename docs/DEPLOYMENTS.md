@@ -49,6 +49,29 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Staging
 
+**Branch/commit:** `feat/2026-06-09-admin-messaging-parity` | pending
+**Deployed by:** Cursor
+
+### What changed
+- **Admin Messaging tab parity.** The Messaging tab on `/admin/clients/:id` was read-only. Admins now get the full client portal controls (messaging toggle, prompt, test mode, from address, domain setup, DNS copy/verify) via shared `MessagingSettings` component.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert `MessagingSettings.jsx` and admin tab wiring, or redeploy previous Vercel build.
+
+### Verified on staging
+- [ ] Admin Messaging tab: all saves and domain actions work
+- [ ] Client portal Messaging unchanged
+
+### Issues / notes
+None.
+
+---
+
+## 2026-06-09 — Staging
+
 **Branch/commit:** `feat/2026-06-09-admin-map-stats` | pending
 **Deployed by:** Cursor
 
