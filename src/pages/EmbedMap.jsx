@@ -99,15 +99,6 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
   const [contactFormError, setContactFormError] = useState("");
 
   useEffect(() => {
-    document.documentElement.classList.add("embed-map-page");
-    document.body.classList.add("embed-map-page");
-    return () => {
-      document.documentElement.classList.remove("embed-map-page");
-      document.body.classList.remove("embed-map-page");
-    };
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
 
     (async () => {

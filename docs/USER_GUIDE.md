@@ -194,7 +194,7 @@ If any sync run has failed for your organisation, a red **Sync errors detected**
 
 1. Open the map designer and click **Publish** in the top navigation bar (turns amber when changes are pending).
 2. Add an optional publish note and confirm **Publish**.
-3. Copy the **embed URL** from the publish panel (`/#/embed?map=<MAP_ID>`).
+3. Copy the **embed URL** from the publish panel (e.g. `/your-org/your-map` or `/embed?map=<MAP_ID>`). The live embed shows only the map — no Layercake header or footer.
 4. Use **Launch map** to open the live embed in a new tab.
 
 Only **published** maps are visible on the embed.

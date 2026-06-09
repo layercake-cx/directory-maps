@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { supabase } from "./lib/supabase";
 import { getImpersonatedClientId, stopImpersonatingClient } from "./lib/clientAuth";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { isEmbedPath } from "./lib/embedRoutes.js";
 
 function ImpersonationBar() {
   const [clientName, setClientName] = useState("");
@@ -96,13 +97,27 @@ function ImpersonationBar() {
 function Layout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
-  const isEmbed = location.pathname === "/embed";
+  const isEmbed = isEmbedPath(location.pathname);
   const isSignUpSplit = location.pathname === "/signup";
   const showSiteHeader = !isAdmin && !isSignUpSplit && !isEmbed;
   const showFooter = !isEmbed && !isSignUpSplit;
+
+  useEffect(() => {
+    if (!isEmbed) {
+      document.documentElement.classList.remove("embed-map-page");
+      document.body.classList.remove("embed-map-page");
+      return;
+    }
+    document.documentElement.classList.add("embed-map-page");
+    document.body.classList.add("embed-map-page");
+    return () => {
+      document.documentElement.classList.remove("embed-map-page");
+      document.body.classList.remove("embed-map-page");
+    };
+  }, [isEmbed]);
   return (
     <div className={`layout-root${isEmbed ? " layout-root--embed" : ""}`}>
-      {!isAdmin && <ImpersonationBar />}
+      {!isAdmin && !isEmbed && <ImpersonationBar />}
       {showSiteHeader && <SiteHeader />}
       <App />
       {showFooter && <SiteFooter />}
