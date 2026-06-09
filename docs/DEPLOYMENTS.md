@@ -49,7 +49,7 @@ Anything that went differently from plan, any workarounds applied, anything the 
 
 ## 2026-06-09 — Production
 
-**Branch/commit:** `fix/from-address-layout-reply-to` | pending
+**Branch/commit:** `fix/from-address-layout-reply-to` | `1fafbf3`
 **Deployed by:** Cursor
 
 ### What changed
