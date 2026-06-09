@@ -10,6 +10,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-09 — Staging
 
+**Branch/commit:** `fix/2026-06-09-reduce-listing-select-zoom` | pending
+**Deployed by:** Cursor
+
+### What changed
+- Clicking a pin or a listing in the left panel zooms in two levels less (zoom 15 instead of 17), so the map stays at neighbourhood scale rather than street level.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert the frontend commit and redeploy the previous build.
+
+### Verified on staging
+- [ ] Pin click zooms to neighbourhood level, not street level
+- [ ] Left-panel listing click uses the same zoom
+
+---
+
+## 2026-06-09 — Staging
+
 **Branch/commit:** `fix/2026-06-09-embed-allowfullscreen` | `901342b`
 **Deployed by:** Cursor
 
