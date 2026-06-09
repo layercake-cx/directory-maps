@@ -287,10 +287,6 @@ export default function AdminClientDetail() {
       }
     >
       <div className="admin-card">
-        <div style={{ marginBottom: 12 }}>
-          <Link to="/admin/clients">← Back to customers</Link>
-        </div>
-
         {loading ? (
           <p>Loading…</p>
         ) : (
