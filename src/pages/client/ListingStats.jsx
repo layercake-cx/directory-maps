@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ExternalLink, Mail, MapPin, MessageSquare, Send } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import { getMapStatsRoutes } from "../../lib/statsRoutes";
 import { useListingEngagement } from "../../hooks/useListingEngagement";
 import { formatRelativeTime, parseDaysParam } from "../../lib/engagementAnalytics";
 import { ListingTrendChart } from "../../components/engagement/EngagementCharts.jsx";
@@ -36,7 +37,9 @@ function EventIcon({ eventType }) {
 }
 
 export default function ListingStats() {
-  const { mapId, listingId } = useParams();
+  const { mapId, listingId, clientId: adminClientId } = useParams();
+  const isAdmin = Boolean(adminClientId);
+  const routes = getMapStatsRoutes({ mapId, clientId: adminClientId });
   const [searchParams, setSearchParams] = useSearchParams();
   const days = parseDaysParam(searchParams.get("days"), 30);
 
@@ -58,8 +61,11 @@ export default function ListingStats() {
       try {
         setPageLoading(true);
         setPageError("");
-        const clientId = await getClientIdForCurrentUser();
-        if (!clientId) throw new Error("No client account linked.");
+        let expectedClientId = adminClientId;
+        if (!isAdmin) {
+          expectedClientId = await getClientIdForCurrentUser();
+          if (!expectedClientId) throw new Error("No client account linked.");
+        }
 
         const [{ data: l, error: le }, { data: m, error: me }] = await Promise.all([
           supabase.from("listings").select("id,name,map_id").eq("id", listingId).single(),
@@ -69,7 +75,13 @@ export default function ListingStats() {
         if (le) throw le;
         if (me) throw me;
         if (l.map_id !== mapId) throw new Error("Listing does not belong to this map.");
-        if (m.client_id !== clientId) throw new Error("This map does not belong to your account.");
+        if (m.client_id !== expectedClientId) {
+          throw new Error(
+            isAdmin
+              ? "This map does not belong to the selected customer."
+              : "This map does not belong to your account."
+          );
+        }
 
         if (!cancelled) {
           setListing(l);
@@ -85,7 +97,7 @@ export default function ListingStats() {
     return () => {
       cancelled = true;
     };
-  }, [mapId, listingId]);
+  }, [mapId, listingId, adminClientId, isAdmin]);
 
   function setDays(next) {
     const p = new URLSearchParams(searchParams);
@@ -94,27 +106,24 @@ export default function ListingStats() {
   }
 
   const loading = pageLoading || engagementLoading;
-  const statsBase = `/client/maps/${encodeURIComponent(mapId)}/stats`;
+  const statsBase = routes.statsBase;
+  const contentClass = isAdmin ? styles.page : `page-main ${styles.page}`;
 
   if (pageLoading) {
     return (
-      <div className="page-main">
-        <div className={styles.page}>
-          <LoadingState />
-        </div>
+      <div className={contentClass}>
+        <LoadingState />
       </div>
     );
   }
 
   if (pageError) {
     return (
-      <div className="page-main">
-        <div className={styles.page}>
-          <p className={styles.error}>{pageError}</p>
-          <Link to={statsBase} className="btn">
-            Back to map stats
-          </Link>
-        </div>
+      <div className={contentClass}>
+        <p className={styles.error}>{pageError}</p>
+        <Link to={statsBase} className="btn">
+          Back to map stats
+        </Link>
       </div>
     );
   }
@@ -129,8 +138,7 @@ export default function ListingStats() {
   const sourceMax = Math.max(...metrics.visitorsBySource.map((s) => s.count), 1);
 
   return (
-    <div className="page-main">
-      <div className={styles.page}>
+    <div className={contentClass}>
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <Link to={`${statsBase}?days=${days}`} className={styles.backLink}>
@@ -211,7 +219,6 @@ export default function ListingStats() {
           </Panel>
         </div>
       )}
-      </div>
     </div>
   );
 }

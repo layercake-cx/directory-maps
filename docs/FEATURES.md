@@ -225,7 +225,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Add customer user | `/admin/clients/:id` (Users tab) | Send invite to create account/set password; contact links after invite acceptance |
 | Contact detail | `/admin/clients/:id/contacts/:contactId` | Per-contact admin view |
 | All maps | `/admin/maps` | Cross-tenant map search |
-| Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, listings) — **no Stats tab** |
+| Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, stats, listings) |
 | Legacy listings | `/admin/listings` | Global listing browser (limit 1000) |
 | Admin users | `/admin/users` | List admin users; open profile with Details and Activities tabs |
 | User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map) |
@@ -372,6 +372,8 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/admin/clients` | `AdminClients` |
 | `/admin/maps` | `AdminMaps` |
 | `/admin/clients/:clientId/maps/:mapId` | `AdminMapDashboard` |
+| `/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` |
+| `/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` |
 | `/admin/user-activity` | `AdminUserActivity` |
 | `/admin/error-log` | `AdminErrorLogs` |
 | `/admin/deployments` | `AdminDeployments` |

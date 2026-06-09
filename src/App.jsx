@@ -24,6 +24,8 @@ import AdminMapNew from "./pages/admin/AdminMapNew.jsx";
 import AdminMapDashboard from "./pages/admin/AdminMapDashboard.jsx";
 import AdminMapData from "./pages/admin/AdminMapData.jsx";
 import AdminMapListings from "./pages/admin/AdminMapListings.jsx";
+import AdminMapStats from "./pages/admin/AdminMapStats.jsx";
+import AdminListingStats from "./pages/admin/AdminListingStats.jsx";
 import AdminMaps from "./pages/admin/AdminMaps.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
 import AdminUserDetail from "./pages/admin/AdminUserDetail.jsx";
@@ -174,6 +176,24 @@ export default function App() {
         element={
           <AdminGate>
             <AdminMapListings />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/clients/:clientId/maps/:mapId/stats"
+        element={
+          <AdminGate>
+            <AdminMapStats />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId"
+        element={
+          <AdminGate>
+            <AdminListingStats />
           </AdminGate>
         }
       />

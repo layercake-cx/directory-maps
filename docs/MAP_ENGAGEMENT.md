@@ -193,7 +193,10 @@ const { data, error } = await supabase
 
 Hooks and charts: `src/hooks/useListingEngagement.js`, `src/components/engagement/*`.
 
-Admin map routes do **not** include a Stats tab today.
+| `/#/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` → shared `MapStats` |
+| `/#/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` → shared `ListingStats` |
+
+Admin map routes include the same **Stats** tab and dashboards as the client portal (admins read engagement via `is_admin()` RLS).
 
 ## Future work
 

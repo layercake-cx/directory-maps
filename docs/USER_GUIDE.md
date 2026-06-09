@@ -295,7 +295,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 Users with **admin** access use `/#/admin` to manage customers, maps, and impersonation. Use impersonation to view a client’s portal as their organisation.
 
-**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, logs, and so on). When you open a customer (`/#/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/#/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, and **Publish Map** — matching the client portal layout.
+**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, logs, and so on). When you open a customer (`/#/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/#/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
 
 When an admin creates a customer in `/#/admin/clients/new`, they only need:
 

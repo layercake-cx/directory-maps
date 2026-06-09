@@ -3,13 +3,17 @@ import { useNavigate } from "react-router-dom";
 import styles from "./ListingSearchDropdown.module.css";
 
 /**
- * @param {{ listings: { id: string, name?: string }[], mapId: string, days: number }} props
+ * @param {{ listings: { id: string, name?: string }[], mapId: string, days: number, listingStatsPath?: (listingId: string) => string }} props
  */
-export default function ListingSearchDropdown({ listings, mapId, days }) {
+export default function ListingSearchDropdown({ listings, mapId, days, listingStatsPath }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+
+  const toListingStats = listingStatsPath
+    ?? ((listingId) =>
+      `/client/maps/${encodeURIComponent(mapId)}/stats/listings/${encodeURIComponent(listingId)}`);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,7 +33,7 @@ export default function ListingSearchDropdown({ listings, mapId, days }) {
   function goToListing(listingId) {
     setOpen(false);
     setQuery("");
-    navigate(`/client/maps/${encodeURIComponent(mapId)}/stats/listings/${encodeURIComponent(listingId)}?days=${days}`);
+    navigate(`${toListingStats(listingId)}?days=${days}`);
   }
 
   return (
