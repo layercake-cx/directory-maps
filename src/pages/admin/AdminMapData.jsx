@@ -72,10 +72,24 @@ function buildScheduleValue(freq, time) {
   return `daily:${hh}:00`;
 }
 
+// Dropdown options: stored as UTC HH:00, displayed in the user's local time.
+const SCHEDULE_HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
+  const d = new Date();
+  d.setUTCHours(h, 0, 0, 0);
+  return {
+    value: `${String(h).padStart(2, "0")}:00`,
+    label: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    sort: d.getHours() * 60 + d.getMinutes(),
+  };
+}).sort((a, b) => a.sort - b.sort);
+
+function localScheduleLabel(utcTime) {
+  return SCHEDULE_HOUR_OPTIONS.find((o) => o.value === utcTime)?.label ?? `${utcTime} UTC`;
+}
+
 function describeSchedule(freq, time) {
   if (freq === "manual") return "No automatic sync — run manually";
-  const hh = String((time || "02:00").split(":")[0]).padStart(2, "0");
-  return `Syncs daily at ${hh}:00 UTC`;
+  return `Syncs daily at ${localScheduleLabel(time || "02:00")} (your local time)`;
 }
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
@@ -824,12 +838,11 @@ export default function AdminMapData() {
                               disabled={savingSchedule}
                               style={{ fontSize: 13, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--lc-border)" }}
                             >
-                              {Array.from({ length: 24 }, (_, h) => {
-                                const t = `${String(h).padStart(2, "0")}:00`;
-                                return <option key={t} value={t}>{t}</option>;
-                              })}
+                              {SCHEDULE_HOUR_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
                             </select>
-                            <Text size="xs" c="dimmed">UTC</Text>
+                            <Text size="xs" c="dimmed">local time</Text>
                           </div>
                         )}
                         <Text size="xs" c="dimmed" mt={4}>{describeSchedule(schedFreq, schedTime)}</Text>
