@@ -70,7 +70,7 @@ flowchart TB
 | Sheets | Google Drive + Sheets APIs | Live listing sync via OAuth refresh tokens |
 | Email (app) | Resend REST API | Embed contact form, team invitations, optional client domains |
 | Billing (partial) | Stripe Checkout | Subscription sessions; enforcement still partial in app |
-| Cron (optional) | `pg_cron` + `pg_net` + Supabase Vault | Nightly `sync_sheet_listings` |
+| Cron (optional) | `pg_cron` + `pg_net` + Supabase Vault | Hourly dispatch of `sync_sheet_listings` for maps with a matching `sync_schedule = daily:HH:00` |
 
 ---
 
@@ -228,7 +228,7 @@ Set per project: `supabase secrets set KEY=value --project-ref <ref>` or Dashboa
 
 ### 7.4 Supabase Vault (database — cron only)
 
-Used if nightly sheet sync is scheduled via `pg_cron` + `pg_net`. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
+Used for daily sheet sync via `pg_cron` + `pg_net`. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
 
 | Vault secret name | Sensitivity | Purpose |
 |-------------------|-------------|---------|

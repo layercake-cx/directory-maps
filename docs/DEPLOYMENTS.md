@@ -10,6 +10,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-10 — Staging
 
+**Branch/commit:** `fix/2026-06-10-daily-sync-schedule`
+**Deployed by:** Cursor
+
+### What changed
+- **Google Drive auto-sync:** Removed the **Hourly** schedule option from the Data page (client and admin). Only **Off** and **Daily** remain; the daily run hour is now picked from an hour-only dropdown (UTC).
+- **Root cause fix:** The UI stored schedule values in `map_data_sources.sync_schedule`, but no `pg_cron` job ever invoked `sync_sheet_listings` with a matching schedule — scheduled syncs never ran and had to be triggered manually. A new migration registers an hourly dispatch cron job that POSTs `{"schedule": "daily"}`; the updated Edge Function syncs only the sources whose stored hour matches the current UTC hour.
+- Legacy `nightly` and `hourly` values are migrated to `daily:02:00`; existing `daily:HH:MM` values are snapped to `daily:HH:00`.
+
+### Database migrations applied
+- `supabase/migrations/20260610120000_sync_sheet_listings_daily_cron.sql` — normalise schedules, unschedule legacy jobs, schedule `sync-sheet-listings-daily-dispatch` (`0 * * * *`).
+
+### Edge Functions deployed
+- `sync_sheet_listings` — now resolves `{"schedule": "daily"}` to the current UTC hour (`daily:HH:00`) before filtering sources. Deploy to staging before/with the migration.
+
+### Rollback plan
+- Run `supabase/migrations/_20260610120000_sync_sheet_listings_daily_cron.rollback.sql` (unschedules the dispatch job).
+- Redeploy the previous `sync_sheet_listings` version and revert the frontend commit.
+
+### Verified on staging
+- [ ] Data → Google Drive shows Off / Daily only (no Hourly), with an hour dropdown
+- [ ] Map set to Daily at hour HH syncs automatically just after HH:00 UTC without clicking **Sync now**
+- [ ] Map with Off does not auto-sync
+- [ ] Vault secrets `project_url` and `anon_key` present (prerequisite for cron)
+
+---
+
+## 2026-06-10 — Staging
+
 **Branch/commit:** `fix/2026-06-10-hide-empty-groups-map-panel`
 **Deployed by:** Claude Code
 

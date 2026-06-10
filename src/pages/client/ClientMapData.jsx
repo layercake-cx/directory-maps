@@ -68,25 +68,27 @@ async function geocodeViaServer(supabaseClient, address) {
 // ─── Schedule helpers ────────────────────────────────────────────────────────
 
 function parseSchedule(raw) {
-  if (!raw || raw === "manual") return { freq: "manual", time: "09:00" };
-  if (raw === "nightly") return { freq: "daily", time: "00:00" }; // legacy
-  if (raw === "hourly") return { freq: "hourly", time: "09:00" };
-  if (raw.startsWith("daily:")) return { freq: "daily", time: raw.slice(6) || "09:00" };
-  return { freq: "manual", time: "09:00" };
+  if (!raw || raw === "manual") return { freq: "manual", time: "02:00" };
+  // Legacy values (nightly / hourly) — migrated to daily:02:00 in DB
+  if (raw === "nightly" || raw === "hourly") return { freq: "daily", time: "02:00" };
+  if (raw.startsWith("daily:")) {
+    const hh = (raw.slice(6).split(":")[0] || "02").padStart(2, "0");
+    return { freq: "daily", time: `${hh}:00` };
+  }
+  return { freq: "manual", time: "02:00" };
 }
 
 function buildScheduleValue(freq, time) {
   if (freq === "manual") return null;
-  if (freq === "hourly") return "hourly";
-  return `daily:${time}`;
+  // Cron dispatch matches on the hour, so snap to HH:00
+  const hh = String((time || "02:00").split(":")[0]).padStart(2, "0");
+  return `daily:${hh}:00`;
 }
 
 function describeSchedule(freq, time) {
   if (freq === "manual") return "No automatic sync — run manually";
-  if (freq === "hourly") return "Syncs every hour";
-  const [h, m] = (time || "09:00").split(":").map(Number);
-  const d = new Date(); d.setHours(h, m, 0, 0);
-  return `Syncs daily at ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  const hh = String((time || "02:00").split(":")[0]).padStart(2, "0");
+  return `Syncs daily at ${hh}:00 UTC`;
 }
 
 // ─── Source badge ────────────────────────────────────────────────────────────
@@ -905,20 +907,24 @@ export default function ClientMapData() {
                         disabled={savingSchedule}
                         data={[
                           { label: "Off", value: "manual" },
-                          { label: "Hourly", value: "hourly" },
                           { label: "Daily", value: "daily" },
                         ]}
                       />
                       {schedFreq === "daily" && (
                         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
                           <Text size="xs" c="dimmed">Run at</Text>
-                          <input
-                            type="time"
+                          <select
                             value={schedTime}
                             onChange={(e) => saveSchedule("daily", e.target.value)}
                             disabled={savingSchedule}
                             style={{ fontSize: 13, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--lc-border)" }}
-                          />
+                          >
+                            {Array.from({ length: 24 }, (_, h) => {
+                              const t = `${String(h).padStart(2, "0")}:00`;
+                              return <option key={t} value={t}>{t}</option>;
+                            })}
+                          </select>
+                          <Text size="xs" c="dimmed">UTC</Text>
                         </div>
                       )}
                       <Text size="xs" c="dimmed" mt={4}>{describeSchedule(schedFreq, schedTime)}</Text>

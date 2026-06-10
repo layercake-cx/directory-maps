@@ -147,7 +147,7 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 
 - OAuth via edge functions (`google_oauth_start`, `google_oauth_callback`).
 - Pick sheet, validate columns (`validate_sheet_source`), sync rows (`sync_sheet_listings`).
-- Optional nightly `pg_cron` schedule (see [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md)).
+- Optional daily `pg_cron` schedule per map with selectable UTC hour (Off / Daily in Data → Google Drive; see [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md)).
 
 **Coming soon (UI only):** OneDrive / iCloud badges on data page.
 

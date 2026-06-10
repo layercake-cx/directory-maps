@@ -256,6 +256,10 @@ Deno.serve(async (req) => {
     if (body?.mapId) {
       await requireMapAccess(req, body.mapId);
       targetMapId = body.mapId;
+    } else if (body?.schedule === "daily") {
+      // Hourly cron dispatch — sync only sources scheduled for the current UTC hour
+      const hh = String(new Date().getUTCHours()).padStart(2, "0");
+      targetSchedule = `daily:${hh}:00`;
     } else if (body?.schedule) {
       targetSchedule = body.schedule;
     }
