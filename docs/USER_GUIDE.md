@@ -123,6 +123,7 @@ When two or more listings share the exact same address, the map handles them aut
 - Each group shows a **colour swatch** (right-aligned, matching the group's marker colour and border) as a visual legend.
 - The **show/hide checkbox** for a group no longer expands or collapses its listing list — those are independent actions.
 - Subtle **divider lines** separate groups, and a soft gradient fades in at the top of a group's listing list when expanded.
+- Groups with **no active listings** are hidden from the panel automatically — they reappear if entries are added or activated.
 
 **Sub-navigation** (when editing a map):
 

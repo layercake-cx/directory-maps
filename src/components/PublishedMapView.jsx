@@ -731,6 +731,7 @@ export default function PublishedMapView({
           <div className="embed-list-panel__groups">
             {(groups || []).map((gr) => {
               const entries = listingsByGroup.get(gr.id) || [];
+              if (entries.length === 0) return null;
               const isOpen = openGroupIds.has(gr.id);
               const isHidden = hiddenGroupIds.has(gr.id);
               const grTheme = typeof gr.theme_json === "string" ? JSON.parse(gr.theme_json || "null") : gr.theme_json;

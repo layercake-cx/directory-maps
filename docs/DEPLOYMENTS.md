@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-10 — Staging
+
+**Branch/commit:** `fix/2026-06-10-hide-empty-groups-map-panel`
+**Deployed by:** Claude Code
+
+### What changed
+- Groups with no active listings are now hidden from the map view search panel. Previously they appeared with a count of 0. They reappear automatically if entries are added or activated.
+
+### Database migrations applied
+None.
+
+### Rollback plan
+- Revert the frontend commit and redeploy the previous build.
+
+### Verified on staging
+- [ ] Groups with 0 entries do not appear in the map panel group list
+- [ ] Groups with entries continue to appear as normal
+
+---
+
 ## 2026-06-09 — Staging
 
 **Branch/commit:** `fix/2026-06-09-reduce-listing-select-zoom` | `cc5bd9c`
