@@ -56,7 +56,9 @@ If you see "Failed to send a request to the Edge Function" in the app, the most 
 
 ## 5) Daily auto-sync (pg_cron)
 
-Maps set to **Daily** in Data → Google Drive store `sync_schedule = 'daily:HH:00'` (UTC hour). A `pg_cron` dispatch job runs at the top of every hour and invokes `sync_sheet_listings` with `{"schedule": "daily"}`; the Edge Function then syncs only the sources scheduled for the current UTC hour.
+Maps set to **Daily** in Data → Google Drive store `sync_schedule = 'daily:HH:00'` (UTC hour; the dropdown displays the equivalent local time). A `pg_cron` dispatch job runs at the top of every hour and invokes `sync_sheet_listings` with `{"schedule": "daily"}`; the Edge Function then syncs only the sources scheduled for the current UTC hour.
+
+Note: because the stored hour is UTC, the displayed local run time shifts by an hour when daylight saving starts or ends.
 
 **New environments:** apply migration `20260610120000_sync_sheet_listings_daily_cron.sql` (included in this repo) and ensure the current `sync_sheet_listings` Edge Function is deployed.
 

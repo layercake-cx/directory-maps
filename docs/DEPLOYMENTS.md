@@ -8,31 +8,52 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-06-10 — Staging
+## 2026-06-10 — Production
 
-**Branch/commit:** `fix/2026-06-10-daily-sync-schedule`
+**Branch/commit:** `fix/2026-06-10-schedule-local-time-display`
 **Deployed by:** Cursor
 
 ### What changed
-- **Google Drive auto-sync:** Removed the **Hourly** schedule option from the Data page (client and admin). Only **Off** and **Daily** remain; the daily run hour is now picked from an hour-only dropdown (UTC).
-- **Root cause fix:** The UI stored schedule values in `map_data_sources.sync_schedule`, but no `pg_cron` job ever invoked `sync_sheet_listings` with a matching schedule — scheduled syncs never ran and had to be triggered manually. A new migration registers an hourly dispatch cron job that POSTs `{"schedule": "daily"}`; the updated Edge Function syncs only the sources whose stored hour matches the current UTC hour.
-- Legacy `nightly` and `hourly` values are migrated to `daily:02:00`; existing `daily:HH:MM` values are snapped to `daily:HH:00`.
+- **Schedule times now display in local time.** The daily auto-sync hour dropdown and the "Syncs daily at …" description on the Data page (client and admin) now show the user's local time instead of UTC, matching the local-time "Last synced" timestamp next to them. The value is still stored as a UTC hour, so the actual run time is unaffected (and shifts by an hour on the display when DST changes).
 
 ### Database migrations applied
-- `supabase/migrations/20260610120000_sync_sheet_listings_daily_cron.sql` — normalise schedules, unschedule legacy jobs, schedule `sync-sheet-listings-daily-dispatch` (`0 * * * *`).
+None.
+
+### Rollback plan
+- Revert the frontend commit and redeploy the previous build.
+
+### Verified on production
+- [ ] Schedule dropdown shows local times (e.g. 05:00 for `daily:04:00` UTC during BST)
+- [ ] Description reads "Syncs daily at HH:00 (your local time)"
+
+---
+
+## 2026-06-10 — Production
+
+**Branch/commit:** `fix/2026-06-10-daily-sync-schedule` (PR #36)
+**Deployed by:** Cursor (Edge Function + frontend) / Damian (migration via SQL Editor)
+
+### What changed
+- **Google Drive auto-sync:** Removed the **Hourly** schedule option from the Data page (client and admin). Only **Off** and **Daily** remain; the daily run hour is now picked from an hour-only dropdown.
+- **Root cause fix:** The UI stored schedule values in `map_data_sources.sync_schedule`, but no `pg_cron` job ever invoked `sync_sheet_listings` with a matching schedule — scheduled syncs never ran and had to be triggered manually. A new migration registers an hourly dispatch cron job that POSTs `{"schedule": "daily"}`; the updated Edge Function syncs only the sources whose stored hour matches the current UTC hour.
+- Legacy `nightly` and `hourly` values are migrated to `daily:02:00`; existing `daily:HH:MM` values are snapped to `daily:HH:00`.
+- **Note:** contrary to the usual staging-first flow, the Vault secrets and migration were applied directly to **production** (staging received only the Edge Function deploy). Staging still needs the migration + Vault secrets for parity.
+
+### Database migrations applied
+- `supabase/migrations/20260610120000_sync_sheet_listings_daily_cron.sql` (production `gxixwdjfmegxcxfeflro`) — normalise schedules, unschedule legacy jobs, schedule `sync-sheet-listings-daily-dispatch` (`0 * * * *`). Verification block passed; row counts unchanged.
 
 ### Edge Functions deployed
-- `sync_sheet_listings` — now resolves `{"schedule": "daily"}` to the current UTC hour (`daily:HH:00`) before filtering sources. Deploy to staging before/with the migration.
+- `sync_sheet_listings` — deployed to both staging and production. Resolves `{"schedule": "daily"}` to the current UTC hour (`daily:HH:00`) before filtering sources.
 
 ### Rollback plan
 - Run `supabase/migrations/_20260610120000_sync_sheet_listings_daily_cron.rollback.sql` (unschedules the dispatch job).
 - Redeploy the previous `sync_sheet_listings` version and revert the frontend commit.
 
-### Verified on staging
-- [ ] Data → Google Drive shows Off / Daily only (no Hourly), with an hour dropdown
-- [ ] Map set to Daily at hour HH syncs automatically just after HH:00 UTC without clicking **Sync now**
-- [ ] Map with Off does not auto-sync
-- [ ] Vault secrets `project_url` and `anon_key` present (prerequisite for cron)
+### Verified on production
+- [x] Data → Google Drive shows Off / Daily only (no Hourly), with an hour dropdown
+- [x] Vault secrets `project_url` and `anon_key` present
+- [x] Hourly dispatch fires (cron.job_run_details + net._http_response 200) and correctly skips non-matching hours (`"results":[]`)
+- [x] Map scheduled at `daily:15:00` synced automatically at 15:00 UTC (Sync History row, no manual trigger — IAPCO map, 2026-06-10 16:01 BST)
 
 ---
 
