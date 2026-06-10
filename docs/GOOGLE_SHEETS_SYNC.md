@@ -54,37 +54,20 @@ supabase functions deploy
 
 If you see "Failed to send a request to the Edge Function" in the app, the most common cause is that these functions are not yet deployed to the same Supabase project your app uses (`VITE_SUPABASE_URL`).
 
-## 5) Nightly schedule (2:00am)
+## 5) Daily auto-sync (pg_cron)
 
-Use `pg_cron` + `pg_net` to invoke the sync function nightly. In Supabase SQL Editor:
+Maps set to **Daily** in Data → Google Drive store `sync_schedule = 'daily:HH:00'` (UTC hour). A `pg_cron` dispatch job runs at the top of every hour and invokes `sync_sheet_listings` with `{"schedule": "daily"}`; the Edge Function then syncs only the sources scheduled for the current UTC hour.
+
+**New environments:** apply migration `20260610120000_sync_sheet_listings_daily_cron.sql` (included in this repo) and ensure the current `sync_sheet_listings` Edge Function is deployed.
+
+**Prerequisite Vault secrets** (run in Supabase Dashboard → SQL Editor if not already created):
 
 ```sql
--- Enable extensions if needed
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
-create extension if not exists supabase_vault;
-
--- Store project URL + anon key in Vault
 select vault.create_secret('https://<YOUR_PROJECT_REF>.supabase.co', 'project_url');
 select vault.create_secret('<YOUR_SUPABASE_ANON_KEY>', 'anon_key');
-
--- Schedule nightly at 2am
-select cron.schedule(
-  'sync-sheet-listings-nightly',
-  '0 2 * * *',
-  $$
-  select net.http_post(
-    url:= (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
-          || '/functions/v1/sync_sheet_listings',
-    headers:=jsonb_build_object(
-      'Content-type', 'application/json',
-      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'anon_key')
-    ),
-    body:='{}'::jsonb
-  );
-  $$
-);
 ```
+
+The migration also removes the legacy `sync-sheet-listings-nightly` job (if present), which synced **all** enabled sources regardless of schedule and did not honour per-map daily times.
 
 ## 6) Sheet format
 
@@ -105,7 +88,7 @@ If `lat`/`lng` are missing, the sync will geocode using `GOOGLE_GEOCODING_API_KE
 
 | Path | Where | Use when |
 |------|--------|----------|
-| **Google Drive** (Data → Google Drive tab) | File must live in **Google Drive** (Google Sheet or `.csv` stored in Drive) | You want nightly auto-sync or to keep editing in Sheets/Drive |
+| **Google Drive** (Data → Google Drive tab) | File must live in **Google Drive** (Google Sheet or `.csv` stored in Drive) | You want daily auto-sync or to keep editing in Sheets/Drive |
 | **Spreadsheet / CSV** tab | Upload from your computer | One-off import; file is **not** read by Drive sync |
 
 Drive sync does **not** read a CSV you only uploaded via the Spreadsheet / CSV tab.
