@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-15 — Production
+
+**Branch/commit:** `feat/2026-06-15-sync-delete-removed-rows`
+**Deployed by:** Claude Code
+
+### What changed
+- **Delete listings removed from source data on sync.** Previously, syncing a Google Drive CSV/Sheet would upsert incoming rows but leave behind any listings that had been deleted from the source. Now, after upserting, the sync deletes any `listings` rows for the map whose `id` is not present in the incoming data. The deletion count is tracked in a new `deleted_count` column on `sync_logs` and in the `data_sync_completed` admin event as `rows_deleted`.
+
+### Database migrations applied
+- `20260615120000_add_deleted_count_to_sync_logs` — adds nullable `deleted_count int` column to `sync_logs`. Rollback: drop the column.
+- Also applied two previously-undeployed migrations to both staging and production: `20260609130000_error_logs_teams_notify` and `20260610120000_sync_sheet_listings_daily_cron`.
+
+### Edge Functions deployed
+- `sync_sheet_listings` → production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+- Redeploy previous `sync_sheet_listings` from `main` to stop deletions. Run rollback migration to drop `deleted_count` column (data loss: existing log rows will lose that field, acceptable). No listing data is at risk from rollback.
+
+### Verified
+- [x] Staging: migration applied cleanly, Edge Function deployed
+- [x] Production: migration applied cleanly, Edge Function deployed
+- [ ] Manual sync test: confirm stale listings are removed after source CSV is trimmed
+
+---
+
 ## 2026-06-15 — Staging
 
 **Branch/commit:** `fix/2026-06-15-hide-empty-group-lozenges`
