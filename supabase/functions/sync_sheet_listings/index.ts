@@ -78,6 +78,7 @@ type SyncDiagnostics = {
   headers: string[];
   insertCount: number;
   updateCount: number;
+  deleteCount: number;
 };
 
 async function syncSource(
@@ -217,11 +218,20 @@ async function syncSource(
 
   const { data: existing } = await service.from("listings").select("id").eq("map_id", src.map_id);
   const existingIds = new Set((existing ?? []).map((r: any) => r.id));
+  const incomingIds = new Set(deduped.map((r: any) => r.id));
   const insertCount = deduped.filter((r: any) => !existingIds.has(r.id)).length;
   const updateCount = deduped.filter((r: any) => existingIds.has(r.id)).length;
+  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
 
   const { error: upErr } = await service.from("listings").upsert(deduped, { onConflict: "id" });
   if (upErr) throw upErr;
+
+  let deleteCount = 0;
+  if (toDelete.length > 0) {
+    const { error: delErr } = await service.from("listings").delete().in("id", toDelete);
+    if (delErr) throw delErr;
+    deleteCount = toDelete.length;
+  }
 
   const warnings = [...validation.issues];
   if (skippedNoName > 0) {
@@ -239,6 +249,7 @@ async function syncSource(
     headers,
     insertCount,
     updateCount,
+    deleteCount,
   };
 }
 
@@ -336,6 +347,7 @@ Deno.serve(async (req) => {
           total_rows: syncResult.rows,
           inserted_count: syncResult.insertCount,
           updated_count: syncResult.updateCount,
+          deleted_count: syncResult.deleteCount,
         }).eq("id", logId);
       }
 
@@ -347,6 +359,7 @@ Deno.serve(async (req) => {
           map_id: src.map_id,
           provider: "google_sheets",
           rows_synced: syncResult.rows,
+          rows_deleted: syncResult.deleteCount,
           warnings: syncResult.warnings,
           source: "edge_function",
         }
@@ -358,6 +371,7 @@ Deno.serve(async (req) => {
         rows: syncResult.rows,
         dataRowCount: syncResult.dataRowCount,
         skippedNoName: syncResult.skippedNoName,
+        deleteCount: syncResult.deleteCount,
         warnings: syncResult.warnings,
         headers: syncResult.headers,
         startedAt,
