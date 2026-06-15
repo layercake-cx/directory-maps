@@ -203,6 +203,8 @@ If any sync run has failed for your organisation, a red **Sync errors detected**
 
 Only **published** maps are visible on the embed.
 
+**Fullscreen zoom:** Normally the map ignores mouse-wheel/trackpad scrolling so the surrounding page can still scroll (visitors zoom with the +/− buttons, or Ctrl/⌘ + scroll). When a visitor enters **fullscreen** (the ⛶ button), the standard Google Maps gestures take over — scroll-to-zoom, pinch-to-zoom and one-finger pan all work — and revert automatically on exit.
+
 ---
 
 ## Analytics (Stats)
