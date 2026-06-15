@@ -134,6 +134,23 @@ function attachZoomSliderControl(map, showZoomSlider) {
   const body = doc.body;
   let pseudoFullscreen = false;
 
+  // Remember the map's configured gesture handling so it can be restored when
+  // leaving fullscreen. In fullscreen there is no surrounding page to scroll,
+  // so we switch to "greedy" (scroll/pinch zoom, one-finger pan) like the
+  // native Google fullscreen control does.
+  const configuredGesture = map.get("gestureHandling") || "cooperative";
+  const applyGestureForFullscreen = () => {
+    const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement || pseudoFullscreen);
+    if (active) {
+      map.setOptions({ gestureHandling: "greedy", scrollwheel: true });
+    } else {
+      map.setOptions({
+        gestureHandling: configuredGesture,
+        scrollwheel: configuredGesture === "greedy",
+      });
+    }
+  };
+
   const wrap = document.createElement("div");
   wrap.className = "directory-map-zoom-slider-wrap";
 
@@ -216,6 +233,7 @@ function attachZoomSliderControl(map, showZoomSlider) {
     const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement || pseudoFullscreen);
     btnFullscreen.textContent = active ? "⤫" : "⛶";
     btnFullscreen.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+    applyGestureForFullscreen();
   };
   const getFullscreenTarget = () => {
     const div = map.getDiv();
@@ -485,9 +503,12 @@ export default function DirectoryMap({
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps) return;
+    // While fullscreen is active the zoom-slider control forces "greedy" gestures;
+    // don't stomp that here (e.g. if the gestureHandling prop changes mid-fullscreen).
+    const fsActive = !!(document.fullscreenElement || document.webkitFullscreenElement);
     mapRef.current.setOptions({
-      gestureHandling,
-      scrollwheel: gestureHandling === "greedy",
+      gestureHandling: fsActive ? "greedy" : gestureHandling,
+      scrollwheel: fsActive ? true : gestureHandling === "greedy",
       fullscreenControl: !showZoomSlider,
       zoomControl: !showZoomSlider,
     });

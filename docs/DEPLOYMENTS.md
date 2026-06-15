@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-15 — Staging
+
+**Branch/commit:** `feat/2026-06-15-fullscreen-greedy-gestures`
+**Deployed by:** Cursor
+
+### What changed
+- **Fullscreen now restores standard Google Maps gestures.** Outside fullscreen the map keeps "cooperative" gesture handling (mouse-wheel/trackpad scroll does not zoom the map, so the host page can still scroll; visitors zoom with +/− or Ctrl/⌘ + scroll). When a visitor enters fullscreen via the ⛶ button, the map switches to "greedy" — scroll-to-zoom, pinch-to-zoom and one-finger pan all work, matching the behaviour of Google's native fullscreen control. On exit it reverts to the map's configured gesture mode.
+- This applies everywhere the custom zoom-slider/fullscreen control appears (published embed, client and admin map dashboards), because the behaviour lives in the shared `DirectoryMap` control. Covers both the real Fullscreen API and the CSS pseudo-fullscreen fallback used in embeds where the Fullscreen API is blocked.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None.
+
+### Rollback plan
+- Revert the frontend commit on `feat/2026-06-15-fullscreen-greedy-gestures` and redeploy the previous build.
+
+### Verified on staging
+- [ ] Outside fullscreen, scroll over the map scrolls the page (no zoom); +/− and Ctrl/⌘+scroll zoom
+- [ ] Entering fullscreen enables scroll-to-zoom and one-finger pan
+- [ ] Exiting fullscreen reverts to non-scroll-zoom behaviour
+- [ ] Works in an embed iframe via the pseudo-fullscreen fallback
+
+---
+
 ## 2026-06-10 — Production
 
 **Branch/commit:** `fix/2026-06-10-schedule-local-time-display`
