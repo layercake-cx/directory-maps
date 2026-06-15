@@ -10,6 +10,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-15 — Production
 
+**Branch/commit:** `feat/2026-06-15-listing-panel-expand-scroll`
+**Deployed by:** Claude Code
+
+### What changed
+- **Listing panel expands to fit content.** The map-mode listing detail panel now grows vertically to fit its content up to 90% of the map height, then scrolls at the body level (logo and close button stay pinned). Previously the notes field had a fixed 120 px inner scroll window.
+- **Panel width increased by 60 px** (340 px → 400 px max-width) for more comfortable reading of longer notes.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None.
+
+### Rollback plan
+Revert commit. No data or schema changes.
+
+### Verified
+- [ ] Staging
+- [ ] Production
+
+---
+
+## 2026-06-15 — Production
+
 **Branch/commit:** `feat/2026-06-15-map-controls-top-right`
 **Deployed by:** Claude Code
 

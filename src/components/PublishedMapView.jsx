@@ -915,7 +915,7 @@ export default function PublishedMapView({
                   top: clampedPanelPosition?.top ?? selectedMarkerPoint.y,
                   bottom: "auto",
                   transform: clampedPanelPosition != null ? "none" : "translateY(-50%)",
-                  maxWidth: "min(340px, calc(100% - 24px))",
+                  maxWidth: "min(400px, calc(100% - 24px))",
                 }
               : undefined
           }
