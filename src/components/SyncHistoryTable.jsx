@@ -84,6 +84,7 @@ export default function SyncHistoryTable({ mapId }) {
                   <th style={{ padding: "9px 12px" }}>Total rows</th>
                   <th style={{ padding: "9px 12px" }}>Inserted</th>
                   <th style={{ padding: "9px 12px" }}>Updated</th>
+                  <th style={{ padding: "9px 12px" }}>Deleted</th>
                   <th style={{ padding: "9px 12px" }}>Error</th>
                 </tr>
               </thead>
@@ -114,11 +115,12 @@ export default function SyncHistoryTable({ mapId }) {
                         <td style={{ padding: "8px 12px" }}>{log.total_rows ?? "—"}</td>
                         <td style={{ padding: "8px 12px" }}>{log.inserted_count ?? "—"}</td>
                         <td style={{ padding: "8px 12px" }}>{log.updated_count ?? "—"}</td>
+                        <td style={{ padding: "8px 12px" }}>{log.deleted_count ?? "—"}</td>
                         <td style={{ padding: "8px 12px", opacity: 0.7 }}>{errTrunc}</td>
                       </tr>
                       {isExpanded && (
                         <tr style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                          <td colSpan={8} style={{ padding: "8px 12px 12px", background: "rgba(0,0,0,0.02)" }}>
+                          <td colSpan={9} style={{ padding: "8px 12px 12px", background: "rgba(0,0,0,0.02)" }}>
                             {log.error_code && (
                               <Text size="xs" mb={4}><strong>Error code:</strong> {log.error_code}</Text>
                             )}
