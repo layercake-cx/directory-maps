@@ -10,6 +10,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-15 — Production
 
+**Branch/commit:** `feat/2026-06-15-unverified-domain-display-name`
+**Deployed by:** Claude Code
+
+### What changed
+- **Contact message "from" name respects client Display Name before domain verification.** Previously, emails sent via `send_contact_message` always used the platform default (`Layercake Maps <noreply@layercake-cx.biz>`) when the client's domain was not yet verified. Now, if the client has configured a Display Name (`email_from_name`), that name is used as the sender display name even before domain verification — e.g. `Acme Corp <noreply@layercake-cx.biz>`. Verified domains continue to send from the client's own address as before.
+- **`parsePlatformFrom()` helper added** to `_shared/resend.ts` to split `RESEND_FROM` into its name and email parts.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `send_contact_message` → staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous version of `send_contact_message` from the prior commit. No data or schema changes.
+
+### Verified
+- [x] Staging
+- [x] Production
+
+---
+
+## 2026-06-15 — Production
+
 **Branch/commit:** `feat/2026-06-15-map-controls-top-right`
 **Deployed by:** Claude Code
 
