@@ -10,6 +10,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-15 — Staging
 
+**Branch/commit:** `fix/2026-06-15-hide-empty-group-lozenges`
+**Deployed by:** Claude Code
+
+### What changed
+- **Hide group lozenges with no entries.** In the search panel (admin, client portal, and published embed), group filter lozenges and Key items are no longer shown for groups that have zero active directory entries. Previously an empty group would still appear as a lozenge that, when clicked, would yield a blank listing panel. The Key section is also filtered to only show groups with at least one active listing. No schema or data changes.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None.
+
+### Rollback plan
+- Revert commit on `fix/2026-06-15-hide-empty-group-lozenges` and redeploy. No data changes to undo.
+
+### Verified on staging
+- [ ] Groups with entries still appear as lozenges
+- [ ] Groups with no active entries are hidden from the lozenge row and from the Key
+
+---
+
+## 2026-06-15 — Staging
+
 **Branch/commit:** `feat/2026-06-15-search-panel-redesign`
 **Deployed by:** Cursor
 
