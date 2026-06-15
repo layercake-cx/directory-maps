@@ -87,13 +87,13 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 
 | Panel | What you can change |
 |-------|---------------------|
-| **General** | Name, slug, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
+| **General** | Name, slug, **description**, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
 | **Pin Design** | Marker style (pin, rounded pin, dot), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
-| **Search** | How search works on the public embed |
+| **Search** | Upload a **logo**, style the search panel (background colour & transparency, listing background, border, and transparency), and set **Display options** (continent filter, Key) |
 
 Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 
@@ -118,12 +118,25 @@ When two or more listings share the exact same address, the map handles them aut
 - If you are already at zoom 17 or above, clicking the cluster fans them out immediately.
 - Click any spread pin to open its listing. Click the map background or zoom out to collapse the fan.
 
-### Search panel
+### Search panel (published map)
 
-- Each group shows a **colour swatch** (right-aligned, matching the group's marker colour and border) as a visual legend.
-- The **show/hide checkbox** for a group no longer expands or collapses its listing list — those are independent actions.
-- Subtle **divider lines** separate groups, and a soft gradient fades in at the top of a group's listing list when expanded.
-- Groups with **no active listings** are hidden from the panel automatically — they reappear if entries are added or activated.
+The search panel sits flush to the **top-left** of the published map, full height, and is laid out top to bottom as:
+
+1. **Logo** — the image you upload in the **Search** settings panel (optional).
+2. **Title** — your map name.
+3. **Description** — the text from the **General** panel's Description field (only shown if set).
+4. **Search & filter** — a search box (find listings or jump to a place/location), plus **filter lozenges** for each group. Tap a lozenge to show only that group on the map and in the list; tap again to clear. Lozenges use each group's colour and border. When the **continent filter** is enabled, a second row of continent chips appears (derived automatically from each listing's country); these combine with the group filters.
+5. **Key** *(optional)* — every group listed in your chosen group order with a colour square.
+6. **Listings** — all listings in **alphabetical order**, each showing the logo (left), organisation name, city and country, and its group label. This list scrolls to the bottom of the screen.
+
+**Styling the panel (Search settings):**
+
+- **Logo** — Upload an SVG, PNG, JPG or WebP (max 500 KB) with a live preview; use **Remove** to clear it.
+- **Background colour** and **Background transparency** — the panel's background.
+- **Search listing background colour**, **Search listing border**, and **Search listing transparency** — the appearance of each listing card.
+- **Display options** — toggle **Display continent filter** (off by default) and **Display Key** (on by default) on or off.
+
+All Search and Description settings save automatically to your draft and go live when you **Publish**.
 
 **Sub-navigation** (when editing a map):
 
@@ -288,6 +301,8 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Sign up / Sign in | `/#/signup`, `/#/login` |
 | View your maps | `/#/client` |
 | Create a map | My Maps → New map |
+| Add a map description | Map → Design → General → Description |
+| Upload search-panel logo & style it | Map → Design → Search |
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |

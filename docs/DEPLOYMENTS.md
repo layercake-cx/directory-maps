@@ -10,6 +10,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-15 — Staging
 
+**Branch/commit:** `feat/2026-06-15-search-panel-redesign`
+**Deployed by:** Cursor
+
+### What changed (follow-up: continent filter + display options)
+- **Continent filter in the search panel.** A second row of filter chips (one per continent present in the data) can now appear under the group lozenges. Continents are derived from each listing's free-text `country` via a new lookup (`src/lib/continents.js`) — no new data column. Selecting continents filters the listing list and the map markers, combining (AND) with the group lozenge filters.
+- **New "Display options" settings group** in the Search drawer (client + admin) with two on/off toggles: **Display continent filter** (default **off**) and **Display Key** (default **on**, preserving the existing always-shown Key). Stored in `theme_json` (`showContinentFilter`, `showKey`), auto-saved to draft, published via the snapshot.
+
+### What changed
+- **Redesigned the published-map search panel.** It now sits flush to the **top-left** of the map with square corners and full viewport height. Top-to-bottom layout: **logo → title → description → divider → "Search & filter" (search box + group filter lozenges) → divider → colour Key → divider → alphabetical listings**. Each listing row shows its logo (left, on its configured background), organisation name, city/country, and group label. The listings area scrolls to the bottom of the viewport.
+- **New behaviour:** group **filter lozenges** replace the old expandable group dropdowns. Tapping a lozenge filters both the listing list and the map markers to that group (multi-select); the old per-group show/hide checkboxes and the "Show search bar"/"Show group dropdowns" toggles are gone.
+- **New Search settings panel** (client + admin map designers): upload a **logo** (SVG/PNG/JPG/WebP, ≤500 KB, with preview), and set the panel **background colour + transparency**, plus **listing background colour, border colour, and transparency**.
+- **New General setting:** a **Description** long-text field beneath Slug, shown under the title in the search panel.
+- All new settings are stored in the map's `theme_json`, auto-saved to the draft as you edit, and published to the embed via the existing publish snapshot — **no schema change**. Logos upload to the existing `map-pins` storage bucket (`<mapId>/logo.<ext>`).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None.
+
+### Rollback plan
+- Revert the frontend commit on `feat/2026-06-15-search-panel-redesign` and redeploy the previous build. No data migration to undo; existing `theme_json` simply ignores the new keys on older code.
+
+### Verified on staging
+- [ ] Search panel renders flush top-left, square, full height
+- [ ] Logo upload + preview works; Remove clears it
+- [ ] Background/listing colour + transparency settings apply in preview and on the published embed
+- [ ] Description (General) shows under the title when set, hidden when empty
+- [ ] Group lozenges filter listings + markers; colour key matches group colours
+- [ ] Listings are alphabetical with logo / name / city, country / group label; list scrolls
+- [ ] Settings auto-save to draft and appear after Publish
+- [ ] Display options: toggling "Display continent filter" shows/hides the continent chips; chips filter listings + markers and combine with group filters
+- [ ] Display options: toggling "Display Key" shows/hides the colour key
+
+---
+
+## 2026-06-15 — Staging
+
 **Branch/commit:** `feat/2026-06-15-fullscreen-greedy-gestures`
 **Deployed by:** Cursor
 

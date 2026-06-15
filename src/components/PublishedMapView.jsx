@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import DirectoryMap from "./DirectoryMap.jsx";
 import LogoImage from "./LogoImage.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
+import { continentForCountry } from "../lib/continents";
 function buildSearchIndex(listing, groupName = "") {
   const parts = [
     listing.name,
@@ -190,10 +191,7 @@ export default function PublishedMapView({
   listings = [],
   groups = [],
   showListPanel = true,
-  showMapTitle = false,
   mapName = "",
-  showSearch = true,
-  showGroupDropdowns = true,
   enableClustering = true,
   clusterRadius = 80,
   markerStyle = "pin",
@@ -235,8 +233,10 @@ export default function PublishedMapView({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [openGroupIds, setOpenGroupIds] = useState(new Set());
-  const [hiddenGroupIds, setHiddenGroupIds] = useState(new Set());
+  /** Group ids selected as active filters. Empty set = show every group. */
+  const [activeGroupIds, setActiveGroupIds] = useState(() => new Set());
+  /** Continent names selected as active filters. Empty set = show every continent. */
+  const [activeContinents, setActiveContinents] = useState(() => new Set());
   const [placeSuggestions, setPlaceSuggestions] = useState([]);
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
   const [cameraRequest, setCameraRequest] = useState(null);
@@ -266,22 +266,80 @@ export default function PublishedMapView({
   const panelBorderRadius = Math.max(0, Math.min(28, Number(theme.panelBorderRadius) || 12));
   const pinSize = normalizePinSize(theme.pinSize);
 
+  // New search-panel theme settings (configured in the Search tab).
+  const logoUrl = (theme.logoUrl && String(theme.logoUrl).trim()) || "";
+  const description = (theme.description && String(theme.description).trim()) || "";
+  const searchPanelBg = theme.searchPanelBg ?? panelBg;
+  const listingBg = theme.listingBg ?? "#ffffff";
+  const listingBorder = theme.listingBorder ?? "#e5e7eb";
+  // Display options (Search tab): Key shows by default; continent filter is opt-in.
+  const showKey = theme.showKey !== false;
+  const showContinentFilter = theme.showContinentFilter === true;
+
   const list = listingsWithColor ?? listings;
+
+  /** Per-group display metadata (name + colours) resolved from group theme overrides. */
+  const groupMeta = useMemo(() => {
+    const m = new Map();
+    (groups || []).forEach((gr) => {
+      const grTheme =
+        typeof gr.theme_json === "string"
+          ? (() => {
+              try {
+                return JSON.parse(gr.theme_json || "null");
+              } catch {
+                return null;
+              }
+            })()
+          : gr.theme_json;
+      m.set(gr.id, {
+        name: gr.name || "",
+        color: grTheme?.marker_color ?? gr.color ?? markerColor,
+        border: grTheme?.pinBorderColor ?? pinBorderColor,
+      });
+    });
+    return m;
+  }, [groups, markerColor, pinBorderColor]);
+
+  /** Continents present across the active listings (for the continent filter chips). */
+  const continentsPresent = useMemo(() => {
+    const s = new Set();
+    (list || []).forEach((l) => {
+      if (l.is_active === false) return;
+      const c = continentForCountry(l.country);
+      if (c) s.add(c);
+    });
+    return [...s].sort();
+  }, [list]);
 
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
       if (l.is_active === false) return false;
-      const key = l.group_id ?? null;
-      return !hiddenGroupIds.has(key);
+      if (activeGroupIds.size > 0 && !(l.group_id != null && activeGroupIds.has(l.group_id))) return false;
+      if (activeContinents.size > 0) {
+        const c = continentForCountry(l.country);
+        if (!c || !activeContinents.has(c)) return false;
+      }
+      return true;
     });
-  }, [list, hiddenGroupIds]);
+  }, [list, activeGroupIds, activeContinents]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
     (groups || []).forEach((gr) => m.set(gr.id, gr.name || ""));
     return m;
   }, [groups]);
+
+  /** Flat, alphabetically-sorted listing list for the panel, filtered by group lozenges + search text. */
+  const visibleListings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const arr = (effectiveListings || []).slice();
+    const filtered = q
+      ? arr.filter((l) => buildSearchIndex(l, groupNameById.get(l.group_id) || "").includes(q))
+      : arr;
+    return filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [effectiveListings, searchQuery, groupNameById]);
 
   const searchIndex = useMemo(() => {
     return (effectiveListings || []).map((listing) => ({
@@ -375,41 +433,28 @@ export default function PublishedMapView({
     };
   }, [searchQuery, apiKey]);
 
-  const listingsByGroup = useMemo(() => {
-    const active = (listings || []).filter((l) => l.is_active !== false);
-    const byGroup = new Map();
-    byGroup.set(null, []);
-    (groups || []).forEach((gr) => byGroup.set(gr.id, []));
-    active.forEach((listing) => {
-      const key = listing.group_id ?? null;
-      if (!byGroup.has(key)) byGroup.set(key, []);
-      byGroup.get(key).push(listing);
-    });
-    groups.forEach((gr) => byGroup.get(gr.id)?.sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-    byGroup.get(null)?.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    return byGroup;
-  }, [listings, groups]);
-
-  function toggleGroup(id) {
-    setOpenGroupIds((prev) => {
+  function toggleGroupFilter(id) {
+    setActiveGroupIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
       } else {
         next.add(id);
-        recordEngagement?.("directory_group_expand", {
-          meta: { group_id: id === "ungrouped" ? "ungrouped" : id },
-        });
+        recordEngagement?.("directory_group_filter", { meta: { group_id: id } });
       }
       return next;
     });
   }
 
-  function toggleGroupVisibility(id) {
-    setHiddenGroupIds((prev) => {
+  function toggleContinent(name) {
+    setActiveContinents((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+        recordEngagement?.("directory_continent_filter", { meta: { continent: name } });
+      }
       return next;
     });
   }
@@ -568,6 +613,9 @@ export default function PublishedMapView({
         ["--panel-bg"]: panelBg,
         ["--panel-link"]: panelLinkColor,
         ["--panel-radius"]: `${panelBorderRadius}px`,
+        ["--search-panel-bg"]: searchPanelBg,
+        ["--listing-bg"]: listingBg,
+        ["--listing-border"]: listingBorder,
       }}
     >
       <DirectoryMap
@@ -609,10 +657,20 @@ export default function PublishedMapView({
 
       {showListPanel && (
         <div className="embed-list-panel">
-          {showMapTitle && mapName && (
-            <div className="embed-list-panel__map-title">{mapName}</div>
-          )}
-          {showSearch !== false && (
+          <div className="embed-list-panel__header">
+            {logoUrl ? (
+              <div className="embed-list-panel__logo">
+                <LogoImage src={logoUrl} wrapClassName="embed-list-panel__logo-wrap" imgClassName="embed-list-panel__logo-img" maxWidth={220} maxHeight={70} />
+              </div>
+            ) : null}
+            {mapName ? <div className="embed-list-panel__title">{mapName}</div> : null}
+            {description ? <div className="embed-list-panel__desc">{description}</div> : null}
+          </div>
+
+          <div className="embed-list-panel__divider" aria-hidden />
+
+          <div className="embed-list-panel__filter">
+            <div className="embed-list-panel__section-title">Search &amp; filter</div>
           <div className="embed-list-panel__search-wrap" ref={searchWrapRef}>
             <input
               type="text"
@@ -726,109 +784,111 @@ export default function PublishedMapView({
               </ul>
             )}
           </div>
-          )}
-          {showGroupDropdowns !== false && (
-          <div className="embed-list-panel__groups">
-            {(groups || []).map((gr) => {
-              const entries = listingsByGroup.get(gr.id) || [];
-              if (entries.length === 0) return null;
-              const isOpen = openGroupIds.has(gr.id);
-              const isHidden = hiddenGroupIds.has(gr.id);
-              const grTheme = typeof gr.theme_json === "string" ? JSON.parse(gr.theme_json || "null") : gr.theme_json;
-              const grColor = grTheme?.marker_color ?? gr.color ?? markerColor;
-              const grBorderColor = grTheme?.pinBorderColor ?? pinBorderColor;
-              return (
-                <div key={gr.id} className="embed-list-panel__group">
-                  <button
-                    type="button"
-                    className="embed-list-panel__group-head"
-                    onClick={() => toggleGroup(gr.id)}
-                    aria-expanded={isOpen}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={!isHidden}
-                        onChange={() => toggleGroupVisibility(gr.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={isHidden ? `Show ${gr.name || "category"}` : `Hide ${gr.name || "category"}`}
-                        style={{ margin: 0, flexShrink: 0 }}
-                      />
-                      <span className="embed-list-panel__group-name">{gr.name || "—"}</span>
-                    </span>
-                    <span className="embed-list-panel__group-count">{entries.length}</span>
-                    <span className="embed-list-panel__group-chevron" aria-hidden>
-                      {isOpen ? "▼" : "▶"}
-                    </span>
-                    <span style={{ width: 14, height: 14, borderRadius: 3, background: grColor, border: `2px solid ${grBorderColor}`, flexShrink: 0, display: "inline-block", boxSizing: "border-box" }} aria-hidden />
-                  </button>
-                  {isOpen && (
-                    <div className="embed-list-panel__group-body">
-                      <ul className="embed-list-panel__entries" role="list">
-                        {entries.map((listing) => (
-                          <li key={listing.id}>
-                            <button
-                              type="button"
-                              className="embed-list-panel__entry"
-                              onClick={() => selectFromList(listing, "list_panel")}
-                            >
-                              {listing.name || "—"}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {(listingsByGroup.get(null) || []).length > 0 && (
-              <div className="embed-list-panel__group">
-                <button
-                  type="button"
-                  className="embed-list-panel__group-head"
-                  onClick={() => toggleGroup("ungrouped")}
-                  aria-expanded={openGroupIds.has("ungrouped")}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={!hiddenGroupIds.has(null)}
-                      onChange={() => toggleGroupVisibility(null)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={hiddenGroupIds.has(null) ? "Show ungrouped category" : "Hide ungrouped category"}
-                      style={{ margin: 0, flexShrink: 0 }}
-                    />
-                    <span className="embed-list-panel__group-name">Ungrouped</span>
-                  </span>
-                  <span className="embed-list-panel__group-count">
-                    {(listingsByGroup.get(null) || []).length}
-                  </span>
-                  <span className="embed-list-panel__group-chevron" aria-hidden>
-                    {openGroupIds.has("ungrouped") ? "▼" : "▶"}
-                  </span>
-                </button>
-                {openGroupIds.has("ungrouped") && (
-                  <div className="embed-list-panel__group-body">
-                    <ul className="embed-list-panel__entries" role="list">
-                      {(listingsByGroup.get(null) || []).map((listing) => (
-                        <li key={listing.id}>
-                          <button
-                            type="button"
-                            className="embed-list-panel__entry"
-                            onClick={() => selectFromList(listing, "list_panel")}
-                          >
-                            {listing.name || "—"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+            {(groups || []).length > 0 && (
+              <div className="embed-list-panel__lozenges">
+                {(groups || []).map((gr) => {
+                  const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
+                  const active = activeGroupIds.has(gr.id);
+                  return (
+                    <button
+                      key={gr.id}
+                      type="button"
+                      className={`embed-list-panel__lozenge${active ? " embed-list-panel__lozenge--active" : ""}`}
+                      onClick={() => toggleGroupFilter(gr.id)}
+                      aria-pressed={active}
+                      title={active ? `Showing only ${meta.name}` : `Filter by ${meta.name}`}
+                      style={{
+                        background: active ? meta.color : "transparent",
+                        borderColor: active ? meta.border : meta.color,
+                        color: active ? "#ffffff" : "var(--page-text, #111827)",
+                      }}
+                    >
+                      {meta.name || "—"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {showContinentFilter && continentsPresent.length > 0 && (
+              <div className="embed-list-panel__lozenges embed-list-panel__lozenges--continents">
+                {continentsPresent.map((name) => {
+                  const active = activeContinents.has(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      className={`embed-list-panel__lozenge embed-list-panel__lozenge--continent${active ? " embed-list-panel__lozenge--active" : ""}`}
+                      onClick={() => toggleContinent(name)}
+                      aria-pressed={active}
+                      title={active ? `Showing only ${name}` : `Filter by ${name}`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
+
+          {showKey && (groups || []).length > 0 && (
+            <>
+              <div className="embed-list-panel__divider" aria-hidden />
+              <div className="embed-list-panel__key">
+                <div className="embed-list-panel__section-title">Key</div>
+                <ul className="embed-list-panel__key-list" role="list">
+                  {(groups || []).map((gr) => {
+                    const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
+                    return (
+                      <li key={gr.id} className="embed-list-panel__key-item">
+                        <span
+                          className="embed-list-panel__key-swatch"
+                          style={{ background: meta.color, borderColor: meta.border }}
+                          aria-hidden
+                        />
+                        <span className="embed-list-panel__key-label">{meta.name || "—"}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </>
           )}
+
+          <div className="embed-list-panel__divider" aria-hidden />
+
+          <div className="embed-list-panel__listings" role="list">
+            {visibleListings.map((listing) => {
+              const meta = listing.group_id ? groupMeta.get(listing.group_id) : null;
+              const locationLine = [listing.city, listing.country].filter(Boolean).join(", ");
+              return (
+                <button
+                  key={listing.id}
+                  type="button"
+                  className="embed-list-panel__listing"
+                  onClick={() => selectFromList(listing, "list_panel")}
+                >
+                  {listing.logo_url ? (
+                    <span className="embed-list-panel__listing-logo" style={{ background: listing.logo_bg || "#ffffff" }}>
+                      <LogoImage src={listing.logo_url} wrapClassName="embed-list-panel__listing-logo-wrap" imgClassName="embed-list-panel__listing-logo-img" maxWidth={48} maxHeight={48} />
+                    </span>
+                  ) : null}
+                  <span className="embed-list-panel__listing-body">
+                    <span className="embed-list-panel__listing-name">{listing.name || "—"}</span>
+                    {locationLine ? <span className="embed-list-panel__listing-loc">{locationLine}</span> : null}
+                    {meta?.name ? (
+                      <span className="embed-list-panel__listing-group">
+                        <span className="embed-list-panel__listing-group-dot" style={{ background: meta.color, borderColor: meta.border }} aria-hidden />
+                        {meta.name}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+            {visibleListings.length === 0 ? (
+              <div className="embed-list-panel__empty">No listings match your filters.</div>
+            ) : null}
+          </div>
         </div>
       )}
 

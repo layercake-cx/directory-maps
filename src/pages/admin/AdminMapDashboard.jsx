@@ -252,6 +252,18 @@ export default function AdminMapDashboard() {
   const [pinDetailLayout, setPinDetailLayout] = useState("map");
   const [panelLinkColor, setPanelLinkColor] = useState("#4A9BAA");
 
+  // Search panel settings (Search tab) + map description (General tab)
+  const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [searchPanelBgColor, setSearchPanelBgColor] = useState("#ffffff");
+  const [searchPanelBgOpacity, setSearchPanelBgOpacity] = useState(0.92);
+  const [listingBgColor, setListingBgColor] = useState("#ffffff");
+  const [listingBorderColor, setListingBorderColor] = useState("#e5e7eb");
+  const [listingOpacity, setListingOpacity] = useState(1);
+  const [showContinentFilter, setShowContinentFilter] = useState(false);
+  const [showKey, setShowKey] = useState(true);
+
   const [centerLabel, setCenterLabel] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -508,14 +520,14 @@ export default function AdminMapDashboard() {
         let m = null;
         const [{ data: c, error: ce }, listingsRes] = await Promise.all([
           supabase.from("clients").select("id,name,slug,email_test_mode,email_test_recipient").eq("id", clientId).single(),
-          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html,logo_bg").eq("map_id", mapId),
+          supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,country,notes_html,allow_html,logo_bg").eq("map_id", mapId),
         ]);
         let l = listingsRes.data;
         let le = listingsRes.error;
         if (le && String(le.message || "").includes("logo_bg")) {
           const fallback = await supabase
             .from("listings")
-            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,notes_html,allow_html")
+            .select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,country,notes_html,allow_html")
             .eq("map_id", mapId);
           l = (fallback.data || []).map((row) => ({ ...row, logo_bg: null }));
           le = fallback.error;
@@ -616,6 +628,15 @@ export default function AdminMapDashboard() {
             setPinDetailLayout(theme.pinDetailLayout === "drawer" ? "drawer" : "map");
             setPanelLinkColor(theme.panelLinkColor ?? "#4A9BAA");
             setPinSize(normalizePinSize(theme.pinSize));
+            setDescription(theme.description ?? "");
+            setLogoUrl(theme.logoUrl ?? "");
+            setSearchPanelBgColor(theme.searchPanelBgColor ?? "#ffffff");
+            setSearchPanelBgOpacity(theme.searchPanelBgOpacity ?? 0.92);
+            setListingBgColor(theme.listingBgColor ?? "#ffffff");
+            setListingBorderColor(theme.listingBorderColor ?? "#e5e7eb");
+            setListingOpacity(theme.listingOpacity ?? 1);
+            setShowContinentFilter(theme.showContinentFilter === true);
+            setShowKey(theme.showKey !== false);
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
             setShowMapTitle(!!theme.showMapTitle);
@@ -743,7 +764,7 @@ export default function AdminMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, showMapTitle, showSearch, showGroupDropdowns]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, showMapTitle, showSearch, showGroupDropdowns, logoUrl, searchPanelBgColor, searchPanelBgOpacity, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
 
   // Auto-save general (map column) fields
   useEffect(() => {
@@ -752,7 +773,7 @@ export default function AdminMapDashboard() {
     generalTimerRef.current = setTimeout(() => saveGeneralDraftRef.current?.(), 800);
     return () => { if (generalTimerRef.current) clearTimeout(generalTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, slug, defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius]);
+  }, [name, slug, description, defaultLat, defaultLng, defaultZoom, showListPanel, enableClustering, clusterRadius]);
 
   function openOverlay(tab) {
     setOverlayTab((current) => (current === tab ? null : tab));
@@ -814,6 +835,15 @@ export default function AdminMapDashboard() {
           panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
           showSearch,
           showGroupDropdowns,
+          logoUrl: (logoUrl || "").trim() || null,
+          description: typeof description === "string" ? description : null,
+          searchPanelBgColor: (searchPanelBgColor || "").trim() || "#ffffff",
+          searchPanelBgOpacity: Math.max(0, Math.min(1, Number(searchPanelBgOpacity) ?? 0.92)),
+          listingBgColor: (listingBgColor || "").trim() || "#ffffff",
+          listingBorderColor: (listingBorderColor || "").trim() || "#e5e7eb",
+          listingOpacity: Math.max(0, Math.min(1, Number(listingOpacity) ?? 1)),
+          showContinentFilter: !!showContinentFilter,
+          showKey: !!showKey,
           showMapTitle: !!showMapTitle,
           centerLabel: centerLabel || undefined,
           mapTypeId,
@@ -878,6 +908,14 @@ export default function AdminMapDashboard() {
         panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
         showSearch,
         showGroupDropdowns,
+        logoUrl: (logoUrl || "").trim() || null,
+        searchPanelBgColor: (searchPanelBgColor || "").trim() || "#ffffff",
+        searchPanelBgOpacity: Math.max(0, Math.min(1, Number(searchPanelBgOpacity) ?? 0.92)),
+        listingBgColor: (listingBgColor || "").trim() || "#ffffff",
+        listingBorderColor: (listingBorderColor || "").trim() || "#e5e7eb",
+        listingOpacity: Math.max(0, Math.min(1, Number(listingOpacity) ?? 1)),
+        showContinentFilter: !!showContinentFilter,
+        showKey: !!showKey,
         showMapTitle: !!showMapTitle,
         mapTypeId,
         mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
@@ -907,6 +945,11 @@ export default function AdminMapDashboard() {
     if (Number.isNaN(lat) || Number.isNaN(lng) || !Number.isInteger(zoom) || zoom < 1 || zoom > 20) return;
     setDraftStatus("saving");
     try {
+      const existingTheme = !map?.theme_json ? {} : typeof map.theme_json === "string" ? (() => { try { return JSON.parse(map.theme_json); } catch (_) { return {}; } })() : map.theme_json;
+      const themeJson = {
+        ...existingTheme,
+        description: typeof description === "string" ? description : (existingTheme.description ?? null),
+      };
       const payload = {
         name: cleanName,
         slug: resolvedSlug,
@@ -915,12 +958,14 @@ export default function AdminMapDashboard() {
         default_zoom: zoom,
         show_list_panel: showListPanel,
         enable_clustering: enableClustering,
+        theme_json: themeJson,
       };
       let { error } = await supabase.from("maps").update({ ...payload, cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)) }).eq("id", mapId);
       if (error && String(error.message || "").includes("cluster_radius")) {
         ({ error } = await supabase.from("maps").update(payload).eq("id", mapId));
       }
       if (error) throw error;
+      setMap((prev) => (prev ? { ...prev, ...payload, theme_json: themeJson } : prev));
       setDraftStatus("saved");
       setTimeout(() => setDraftStatus(""), 2500);
     } catch (_) {
@@ -994,21 +1039,31 @@ export default function AdminMapDashboard() {
   }
 
   const editTheme = useMemo(() => {
-    const hex = (panelBackgroundColor || "#ffffff").trim().replace(/^#/, "");
-    const m = hex.match(/.{2}/g);
-    const r = m ? parseInt(m[0], 16) : 255;
-    const g = m ? parseInt(m[1], 16) : 255;
-    const b = m ? parseInt(m[2], 16) : 255;
-    const a = Math.max(0, Math.min(1, Number(panelBackgroundOpacity) ?? 0.88));
+    const toRgba = (hexColor, opacity) => {
+      const hex = (hexColor || "#ffffff").trim().replace(/^#/, "");
+      const m = hex.match(/.{2}/g);
+      const r = m ? parseInt(m[0], 16) : 255;
+      const g = m ? parseInt(m[1], 16) : 255;
+      const b = m ? parseInt(m[2], 16) : 255;
+      const a = Math.max(0, Math.min(1, Number(opacity) ?? 1));
+      return `rgba(${r},${g},${b},${a})`;
+    };
     return {
-      panelBg: `rgba(${r},${g},${b},${a})`,
+      panelBg: toRgba(panelBackgroundColor, panelBackgroundOpacity ?? 0.88),
       panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
       buttonColor: (buttonColor || "").trim() || "#4A9BAA",
       pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
       panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
       pinSize: normalizePinSize(pinSize),
+      logoUrl: (logoUrl || "").trim(),
+      description: typeof description === "string" ? description : "",
+      searchPanelBg: toRgba(searchPanelBgColor, searchPanelBgOpacity ?? 0.92),
+      listingBg: toRgba(listingBgColor, listingOpacity ?? 1),
+      listingBorder: (listingBorderColor || "").trim() || "#e5e7eb",
+      showContinentFilter: !!showContinentFilter,
+      showKey: !!showKey,
     };
-  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize]);
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
 
   async function publishMap() {
     if (!map) return;
@@ -1192,6 +1247,15 @@ export default function AdminMapDashboard() {
       setPinDetailLayout(themeJson.pinDetailLayout === "drawer" ? "drawer" : "map");
       setPanelLinkColor(themeJson.panelLinkColor ?? "#4A9BAA");
       setPinSize(normalizePinSize(themeJson.pinSize));
+      setDescription(themeJson.description ?? "");
+      setLogoUrl(themeJson.logoUrl ?? "");
+      setSearchPanelBgColor(themeJson.searchPanelBgColor ?? "#ffffff");
+      setSearchPanelBgOpacity(themeJson.searchPanelBgOpacity ?? 0.92);
+      setListingBgColor(themeJson.listingBgColor ?? "#ffffff");
+      setListingBorderColor(themeJson.listingBorderColor ?? "#e5e7eb");
+      setListingOpacity(themeJson.listingOpacity ?? 1);
+      setShowContinentFilter(themeJson.showContinentFilter === true);
+      setShowKey(themeJson.showKey !== false);
       setShowSearch(themeJson.showSearch !== false);
       setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
       setShowMapTitle(!!themeJson.showMapTitle);
@@ -1289,6 +1353,15 @@ export default function AdminMapDashboard() {
         mapTypeId,
         mapStyleSettings,
         mapName: map?.name ?? null,
+        logoUrl,
+        description,
+        searchPanelBgColor,
+        searchPanelBgOpacity,
+        listingBgColor,
+        listingBorderColor,
+        listingOpacity,
+        showContinentFilter,
+        showKey,
       }),
     [
       orderedGroupsList,
@@ -1323,6 +1396,15 @@ export default function AdminMapDashboard() {
       mapStyleSettings,
       map?.theme_json,
       map?.name,
+      logoUrl,
+      description,
+      searchPanelBgColor,
+      searchPanelBgOpacity,
+      listingBgColor,
+      listingBorderColor,
+      listingOpacity,
+      showContinentFilter,
+      showKey,
     ],
   );
 
@@ -1474,6 +1556,40 @@ export default function AdminMapDashboard() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingGroupId, groupEditDesign]);
+
+  async function handleLogoFile(e) {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const name = (file.name || "").toLowerCase();
+    const extMatch = name.match(/\.(svg|png|jpe?g|webp)$/);
+    if (!extMatch) {
+      setErr("Use SVG, PNG, JPG or WebP for the logo.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 500 * 1024) {
+      setErr("Logo too large (max 500 KB).");
+      e.target.value = "";
+      return;
+    }
+    setErr("");
+    setLogoUploading(true);
+    try {
+      const ext = extMatch[1] === "jpeg" ? "jpg" : extMatch[1];
+      const path = `${mapId}/logo.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("map-pins").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("map-pins").getPublicUrl(path);
+      setLogoUrl(`${urlData.publicUrl}?v=${Date.now()}`);
+      setMsg("Logo uploaded.");
+      window.setTimeout(() => setMsg(""), 2000);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
+    }
+  }
 
   async function handleCustomPinFile(e) {
     const file = e?.target?.files?.[0];
@@ -1680,6 +1796,15 @@ export default function AdminMapDashboard() {
                       <Field label="Slug">
                         <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={suggestedSlug} />
                         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Suggested: <strong>{suggestedSlug || "—"}</strong></div>
+                      </Field>
+                      <Field label="Description">
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          rows={4}
+                          placeholder="Optional. Shown beneath the title in the search panel."
+                          style={{ width: "100%", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", fontSize: 14, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--lc-border)" }}
+                        />
                       </Field>
                     </div>
 
@@ -2378,20 +2503,69 @@ export default function AdminMapDashboard() {
               )}
 
               {overlayTab === "search" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Control what appears in the list panel when the map is published.</p>
-                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <input type="checkbox" checked={showSearch} onChange={(e) => setShowSearch(e.target.checked)} />
-                    Show search bar
-                  </label>
-                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <input type="checkbox" checked={showGroupDropdowns} onChange={(e) => setShowGroupDropdowns(e.target.checked)} />
-                    Show group dropdowns
-                  </label>
-                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                    <button className="btn btn-primary" type="button" onClick={() => saveMap()} disabled={saving}>
-                      {saving ? "Saving…" : "Save"}
-                    </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
+                    Configure the logo and styling of the search panel shown on the published map. Changes save automatically and go live on Publish.
+                  </p>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Logo</p>
+                    <Field label="Logo image">
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ width: 96, height: 56, borderRadius: 8, border: "1px solid var(--lc-border)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                          {logoUrl ? <LogoImage src={logoUrl} maxWidth={96} maxHeight={56} /> : <span style={{ fontSize: 11, opacity: 0.6 }}>No logo</span>}
+                        </div>
+                        <label className="btn" style={{ position: "relative", margin: 0, overflow: "hidden", cursor: "pointer" }}>
+                          {logoUploading ? "Uploading…" : logoUrl ? "Change…" : "Upload logo"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                            onChange={handleLogoFile}
+                            disabled={logoUploading}
+                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+                          />
+                        </label>
+                        {logoUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setLogoUrl("")}>Remove</button>}
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Search bar options</p>
+                    <Field label="Background colour">
+                      <ColorRow value={searchPanelBgColor} onChange={setSearchPanelBgColor} ariaLabel="Search panel background colour" />
+                    </Field>
+                    <Field label="Background transparency">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={1} step={0.05} value={searchPanelBgOpacity} onChange={(e) => setSearchPanelBgOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(searchPanelBgOpacity * 100)}%</span>
+                      </div>
+                    </Field>
+                    <Field label="Search listing background colour">
+                      <ColorRow value={listingBgColor} onChange={setListingBgColor} ariaLabel="Search listing background colour" />
+                    </Field>
+                    <Field label="Search listing border">
+                      <ColorRow value={listingBorderColor} onChange={setListingBorderColor} ariaLabel="Search listing border colour" />
+                    </Field>
+                    <Field label="Search listing transparency">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input type="range" min={0} max={1} step={0.05} value={listingOpacity} onChange={(e) => setListingOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(listingOpacity * 100)}%</span>
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Display options</p>
+                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                      <input type="checkbox" checked={showContinentFilter} onChange={(e) => setShowContinentFilter(e.target.checked)} />
+                      Display continent filter
+                    </label>
+                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                      <input type="checkbox" checked={showKey} onChange={(e) => setShowKey(e.target.checked)} />
+                      Display Key
+                    </label>
                   </div>
                 </div>
               )}

@@ -113,13 +113,13 @@ The map editor (`ClientMapDashboard.jsx`) is a **live preview** with overlay pan
 
 | Panel | Purpose |
 |-------|---------|
-| **General** | Name, slug, default lat/lng/zoom, list panel, clustering (auto-saved draft) |
+| **General** | Name, slug, **description** (long text, shown in the search panel), default lat/lng/zoom, list panel, clustering (auto-saved draft) |
 | **Pin Design** | Marker style (pin/rounded pin/dot), size, colour, border, favicon overlay, drop shadow; previews rendered at true map proportions |
 | **Panels** | Listing panel layout and content options |
 | **Groups** | Group definitions and per-group theme JSON |
 | **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |
 | **Publish Map** | Publish snapshot, version history, rollback, embed URL, subscription gate |
-| **Search** | Embed search behaviour settings |
+| **Search** | Search-panel logo upload + styling (panel background colour/transparency, listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft |
 
 **Publication system**
 
@@ -201,8 +201,10 @@ Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Feature | Route | Description |
 |---------|-------|-------------|
 | Embed map | `/#/embed?map=<MAP_ID>` | Full-screen published map; requires `published_at` |
+| Search panel | — | Flush top-left, full-height panel: logo, title, description, search box, group **filter lozenges**, colour key, and an alphabetical listings list (logo, name, city/country, group label) |
 | Search | — | Places + listing search; engagement events logged |
-| Directory groups | — | Expandable groups in side panel |
+| Group filtering | — | Lozenge tags filter listings + markers by group (multi-select); colour key legend |
+| Continent filtering | — | Optional continent chips (derived from listing country) filter listings + markers; combines with group filters |
 | Listing detail | — | Panel from marker, list, or search |
 | Contact visitor | — | “Send message” → `map_contact_submissions` + email via Resend |
 | Marker clustering | — | Configurable cluster radius; same-address clusters auto-spiderfy (fan out) on click |
