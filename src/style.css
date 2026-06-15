@@ -114,8 +114,9 @@ html.embed-map-page::-webkit-scrollbar-track {
 }
 
 .directory-map-zoom-btn--fullscreen {
-  font-size: 16px;
-  line-height: 38px;
+  font-size: 24px;
+  height: 48px;
+  line-height: 48px;
 }
 
 

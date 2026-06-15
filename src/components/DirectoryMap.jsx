@@ -158,6 +158,7 @@ function attachZoomSliderControl(map, showZoomSlider) {
   btnFullscreen.type = "button";
   btnFullscreen.className = "directory-map-zoom-btn directory-map-zoom-btn--fullscreen";
   btnFullscreen.setAttribute("aria-label", "Toggle fullscreen");
+  btnFullscreen.title = "Full screen";
   btnFullscreen.textContent = "⛶";
 
   const btnPlus = document.createElement("button");
@@ -233,6 +234,7 @@ function attachZoomSliderControl(map, showZoomSlider) {
     const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement || pseudoFullscreen);
     btnFullscreen.textContent = active ? "⤫" : "⛶";
     btnFullscreen.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+    btnFullscreen.title = active ? "Exit full screen" : "Full screen";
     applyGestureForFullscreen();
   };
   const getFullscreenTarget = () => {
@@ -328,12 +330,12 @@ function attachZoomSliderControl(map, showZoomSlider) {
   if (portalRoot) {
     wrap.style.position = "absolute";
     wrap.style.right = "0";
-    wrap.style.bottom = "0";
+    wrap.style.top = "0";
     wrap.style.zIndex = "50";
     portalRoot.appendChild(wrap);
     usedPortal = true;
   } else {
-    map.controls[ControlPosition.RIGHT_BOTTOM].push(wrap);
+    map.controls[ControlPosition.RIGHT_TOP].push(wrap);
   }
   syncFromMap();
   updateFullscreenButton();
@@ -480,9 +482,9 @@ export default function DirectoryMap({
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: !showZoomSlider,
-          fullscreenControlOptions: { position: ControlPosition.RIGHT_BOTTOM },
+          fullscreenControlOptions: { position: ControlPosition.RIGHT_TOP },
           zoomControl: !showZoomSlider,
-          zoomControlOptions: { position: ControlPosition.RIGHT_BOTTOM },
+          zoomControlOptions: { position: ControlPosition.RIGHT_TOP },
           gestureHandling,
           scrollwheel: gestureHandling === "greedy",
         });

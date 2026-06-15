@@ -10,6 +10,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-15 — Production
 
+**Branch/commit:** `feat/2026-06-15-map-controls-top-right`
+**Deployed by:** Claude Code
+
+### What changed
+- **Map controls moved to top-right.** The zoom + fullscreen control widget on published map views (and embed) now appears in the top-right corner of the map instead of the bottom-right, matching common map UI conventions.
+- **Fullscreen button more prominent.** Icon size increased (16px → 24px, button height 40px → 48px) and a "Full screen" tooltip added (updates to "Exit full screen" when active).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None.
+
+### Rollback plan
+Revert commit. No data or schema changes.
+
+### Verified
+- [ ] Staging
+- [ ] Production
+
+---
+
+## 2026-06-15 — Production
+
 **Branch/commit:** `feat/2026-06-15-sync-delete-removed-rows`
 **Deployed by:** Claude Code
 
