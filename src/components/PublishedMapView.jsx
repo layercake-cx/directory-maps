@@ -331,6 +331,15 @@ export default function PublishedMapView({
     return m;
   }, [groups]);
 
+  /** Group IDs that have at least one active listing — used to hide empty group lozenges. */
+  const groupIdsWithEntries = useMemo(() => {
+    const s = new Set();
+    (list || []).forEach((l) => {
+      if (l.is_active !== false && l.group_id != null) s.add(l.group_id);
+    });
+    return s;
+  }, [list]);
+
   /** Flat, alphabetically-sorted listing list for the panel, filtered by group lozenges + search text. */
   const visibleListings = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -784,9 +793,9 @@ export default function PublishedMapView({
               </ul>
             )}
           </div>
-            {(groups || []).length > 0 && (
+            {(groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
               <div className="embed-list-panel__lozenges">
-                {(groups || []).map((gr) => {
+                {(groups || []).filter((gr) => groupIdsWithEntries.has(gr.id)).map((gr) => {
                   const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
                   const active = activeGroupIds.has(gr.id);
                   return (
@@ -830,13 +839,13 @@ export default function PublishedMapView({
             )}
           </div>
 
-          {showKey && (groups || []).length > 0 && (
+          {showKey && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
             <>
               <div className="embed-list-panel__divider" aria-hidden />
               <div className="embed-list-panel__key">
                 <div className="embed-list-panel__section-title">Key</div>
                 <ul className="embed-list-panel__key-list" role="list">
-                  {(groups || []).map((gr) => {
+                  {(groups || []).filter((gr) => groupIdsWithEntries.has(gr.id)).map((gr) => {
                     const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
                     return (
                       <li key={gr.id} className="embed-list-panel__key-item">
