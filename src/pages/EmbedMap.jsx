@@ -367,6 +367,15 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
     return `rgba(${r},${g},${b},${a})`;
   };
   const panelBg = hexToRgba(panelBgHex, panelBgOpacity);
+  const searchPanelBgHex = (theme.searchPanelBgColor && String(theme.searchPanelBgColor).trim()) || "#ffffff";
+  const searchPanelBgOpacity = Math.max(0, Math.min(1, Number(theme.searchPanelBgOpacity) ?? 0.92));
+  const searchPanelBg = hexToRgba(searchPanelBgHex, searchPanelBgOpacity);
+  const listingBgHex = (theme.listingBgColor && String(theme.listingBgColor).trim()) || "#ffffff";
+  const listingOpacity = Math.max(0, Math.min(1, Number(theme.listingOpacity) ?? 1));
+  const listingBg = hexToRgba(listingBgHex, listingOpacity);
+  const listingBorder = (theme.listingBorderColor && String(theme.listingBorderColor).trim()) || "#e5e7eb";
+  const logoUrl = (theme.logoUrl && String(theme.logoUrl).trim()) || "";
+  const mapDescription = (theme.description && String(theme.description).trim()) || "";
   const parsedTheme = (() => {
     try {
       return typeof effectiveDefaults.themeSource === "string"
@@ -430,7 +439,7 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           showTrafficLayer={parsedMapStyleSettings.overlays.traffic}
           showTransitLayer={parsedMapStyleSettings.overlays.transit}
           showBikeLayer={parsedMapStyleSettings.overlays.bikeLanes}
-          theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize }}
+          theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize, logoUrl, description: mapDescription, searchPanelBg, listingBg, listingBorder, showContinentFilter: parsedTheme.showContinentFilter === true, showKey: parsedTheme.showKey !== false }}
           selectedListing={selectedListing}
           selectedMarkerPoint={selectedMarkerPoint}
           clampedPanelPosition={clampedPanelPosition}
