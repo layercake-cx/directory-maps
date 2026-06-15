@@ -1,7 +1,7 @@
 // Directory map contact form → Resend (listing To, visitor Cc).
 // Platform: RESEND_API_KEY, RESEND_FROM. Per-client verified domain overrides From when configured.
 import { createServiceClient } from "../_shared/supabase.ts";
-import { buildFromHeader, getPlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
+import { buildFromHeader, parsePlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,12 +26,14 @@ function escapeHtml(s: string): string {
 }
 
 async function resolveFromAddress(mapId: string | null): Promise<string> {
-  const platformFrom = getPlatformFrom();
-  if (!mapId) return platformFrom;
+  const { name: platformName, email: platformEmail } = parsePlatformFrom();
+  const fallbackName = platformName || "Layercake Maps";
+
+  if (!mapId) return buildFromHeader(fallbackName, platformEmail);
 
   const service = createServiceClient();
   const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
-  if (!map?.client_id) return platformFrom;
+  if (!map?.client_id) return buildFromHeader(fallbackName, platformEmail);
 
   const { data: client } = await service
     .from("clients")
@@ -47,7 +49,9 @@ async function resolveFromAddress(mapId: string | null): Promise<string> {
     return buildFromHeader(client.email_from_name, client.email_from_address);
   }
 
-  return platformFrom;
+  // Domain not yet verified: use platform address, but honour client's configured Display Name.
+  const displayName = (client?.email_from_name as string | null | undefined)?.trim() || fallbackName;
+  return buildFromHeader(displayName, platformEmail);
 }
 
 Deno.serve(async (req) => {

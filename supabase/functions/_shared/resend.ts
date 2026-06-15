@@ -37,6 +37,14 @@ export function getPlatformFrom(): string {
   return from;
 }
 
+/** Parses RESEND_FROM into its name and email parts. */
+export function parsePlatformFrom(): { name: string; email: string } {
+  const from = getPlatformFrom();
+  const match = from.match(/^(.+?)\s*<([^>]+)>\s*$/);
+  if (match) return { name: match[1].trim(), email: match[2].trim() };
+  return { name: "", email: from.trim() };
+}
+
 export function extractEmailDomain(email: string): string | null {
   const trimmed = email.trim().toLowerCase();
   const at = trimmed.lastIndexOf("@");
