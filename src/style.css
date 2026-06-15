@@ -485,10 +485,11 @@ a:hover {
   left: 12px;
   bottom: 12px;
   z-index: 1000;
-  display: inline-block;
+  display: flex;
+  flex-direction: column;
   width: max-content;
-  max-width: min(340px, calc(100vw - 48px));
-  height: max-content;
+  max-width: min(400px, calc(100vw - 48px));
+  max-height: 90%;
   background: transparent;
   border-radius: var(--panel-radius, 12px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
@@ -571,8 +572,7 @@ a:hover {
 }
 
 .map-pin-overlay__notes--compact {
-  max-height: 120px;
-  overflow-y: auto;
+  /* panel now expands and scrolls at body level */
 }
 
 .map-pin-overlay__notes-plain {
@@ -608,6 +608,7 @@ a:hover {
 }
 
 .map-pin-overlay__logo {
+  flex-shrink: 0;
   background: #ffffff;
   padding: 10px 10px 16px;
   margin: -14px -14px 0;
@@ -622,9 +623,11 @@ a:hover {
   padding: 14px 14px 18px;
   padding-right: 30px;
   min-width: 0;
+  min-height: 0;
   margin: 0 -14px -14px -14px;
   border-radius: 0 0 var(--panel-radius, 12px) var(--panel-radius, 12px);
   background: var(--panel-bg, rgba(228, 240, 255, 0.88));
+  overflow-y: auto;
 }
 
 .map-pin-overlay__image-wrap {
