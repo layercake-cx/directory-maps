@@ -1,7 +1,7 @@
 // Directory map contact form → Resend (listing To, visitor Cc).
 // Platform: RESEND_API_KEY, RESEND_FROM. Per-client verified domain overrides From when configured.
 import { createServiceClient } from "../_shared/supabase.ts";
-import { buildFromHeader, getPlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
+import { buildFromHeader, parsePlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,12 +41,15 @@ async function resolveClientEmailSettings(mapId: string | null): Promise<{
   messageIntro: string | null;
   messageSubject: string | null;
 }> {
-  const platformFrom = getPlatformFrom();
-  if (!mapId) return { from: platformFrom, messageIntro: null, messageSubject: null };
+  const { name: platformName, email: platformEmail } = parsePlatformFrom();
+  const fallbackName = platformName || "Layercake Maps";
+  const defaultFrom = buildFromHeader(fallbackName, platformEmail);
+
+  if (!mapId) return { from: defaultFrom, messageIntro: null, messageSubject: null };
 
   const service = createServiceClient();
   const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
-  if (!map?.client_id) return { from: platformFrom, messageIntro: null, messageSubject: null };
+  if (!map?.client_id) return { from: defaultFrom, messageIntro: null, messageSubject: null };
 
   const { data: client } = await service
     .from("clients")
@@ -54,13 +57,17 @@ async function resolveClientEmailSettings(mapId: string | null): Promise<{
     .eq("id", map.client_id)
     .maybeSingle();
 
-  let from = platformFrom;
+  let from: string;
   if (
     client?.email_domain_status === "verified" &&
     typeof client.email_from_address === "string" &&
     client.email_from_address.trim()
   ) {
     from = buildFromHeader(client.email_from_name, client.email_from_address);
+  } else {
+    // Domain not verified: platform sending address, client Display Name when configured.
+    const displayName = (client?.email_from_name as string | null | undefined)?.trim() || fallbackName;
+    from = buildFromHeader(displayName, platformEmail);
   }
 
   const messageIntro =

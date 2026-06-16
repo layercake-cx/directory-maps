@@ -311,7 +311,7 @@ If someone else manages your DNS (IT support, web agency, etc.), click **Setup i
 
 **DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
 
-Until your domain is verified, messages fall back to the platform default sender. Submissions are always saved to Stats regardless of email delivery.
+Until your domain is verified, messages send from the platform email address. If you have set a **Display name**, that name is shown as the sender instead of the platform default. Submissions are always saved to Stats regardless of email delivery.
 
 See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
