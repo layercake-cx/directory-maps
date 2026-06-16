@@ -5,7 +5,7 @@ import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { startImpersonatingClient } from "../../lib/clientAuth";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
-import MessagingSettings from "../../components/MessagingSettings.jsx";
+import MessagingPanel from "../../components/MessagingPanel.jsx";
 
 function Field({ label, children }) {
   return (
@@ -587,7 +587,7 @@ export default function AdminClientDetail() {
             )}
 
             {activeTab === "messaging" && (
-              <MessagingSettings
+              <MessagingPanel
                 clientId={clientId}
                 clientName={client?.name}
                 eventSource="admin_dashboard"

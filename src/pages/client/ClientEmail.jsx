@@ -1,6 +1,6 @@
 import React from "react";
 import { useClient } from "../../hooks/useClient.js";
-import MessagingSettings from "../../components/MessagingSettings.jsx";
+import MessagingPanel from "../../components/MessagingPanel.jsx";
 import styles from "./ClientEmail.module.css";
 
 export default function ClientEmail() {
@@ -23,7 +23,7 @@ export default function ClientEmail() {
   return (
     <div className="page-main">
       <div className={`admin-card ${styles.card}`}>
-        <MessagingSettings
+        <MessagingPanel
           clientId={client.id}
           clientName={client?.name}
           eventSource="client_portal"

@@ -193,13 +193,12 @@ function SetupInstructionsOverlay({ open, onClose, text }) {
 
 /**
  * Shared messaging / email domain settings for client portal and admin customer detail.
- * @param {{ clientId: string, clientName?: string, eventSource?: string, showPageTitle?: boolean }} props
+ * @param {{ clientId: string, clientName?: string, eventSource?: string }} props
  */
 export default function MessagingSettings({
   clientId,
   clientName = "",
   eventSource = "client_portal",
-  showPageTitle = true,
 }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -467,23 +466,6 @@ export default function MessagingSettings({
 
   return (
     <>
-      {showPageTitle ? (
-        <>
-          <h1 className={styles.title}>Messaging</h1>
-          <p className={styles.lead}>
-            Control whether visitors can send messages to directory listings, and configure the sender
-            address those messages come from.
-          </p>
-        </>
-      ) : (
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: "0 0 4px 0", fontSize: 18 }}>Messaging</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--lc-muted)" }}>
-            Configure messaging, test mode, and sending domain for this customer — same controls as the client portal.
-          </p>
-        </div>
-      )}
-
       {err ? <p className={styles.error}>{err}</p> : null}
       {msg ? <p className={styles.success}>{msg}</p> : null}
 

@@ -655,3 +655,160 @@
   gap: 10px;
   margin-top: 16px;
 }
+
+/* ── Messaging tabs / sent messages ─────────────────────── */
+
+.messagingTabs {
+  margin-bottom: 20px;
+}
+
+.messagesPanel {
+  min-width: 0;
+}
+
+.messagesHint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--lc-muted);
+  line-height: 1.45;
+}
+
+.messagesTableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--lc-border);
+  border-radius: 12px;
+}
+
+.messagesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 920px;
+}
+
+.messagesTable th,
+.messagesTable td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--lc-border);
+  vertical-align: top;
+}
+
+.messagesTable th {
+  font-size: 12px;
+  color: var(--lc-muted);
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.messagesTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.messagesWhen {
+  white-space: nowrap;
+}
+
+.messagesPerson {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.messagesPerson a {
+  color: var(--lc-brand, #4a9baa);
+  word-break: break-all;
+}
+
+.messagesMuted {
+  font-size: 12px;
+  color: var(--lc-muted);
+}
+
+.messagesEmail {
+  word-break: break-all;
+  max-width: 180px;
+}
+
+.messagesExpand {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.messagesExpand:hover {
+  color: var(--lc-brand, #4a9baa);
+}
+
+.messagesBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+.messagesBadge--success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.messagesBadge--error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.messagesSurface {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--lc-muted);
+}
+
+.messagesDetailRow td {
+  background: #f9fafb;
+}
+
+.messagesDetail {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.messagesDetail p,
+.messagesDetail pre {
+  margin: 6px 0 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.messagesDetail pre {
+  font-family: inherit;
+  font-size: 12px;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.messagesPager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.messagesPagerMeta {
+  font-size: 13px;
+  color: var(--lc-muted);
+}
