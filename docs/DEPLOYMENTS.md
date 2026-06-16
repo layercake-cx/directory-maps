@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-16 — Production
+
+**Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging → Sent messages tab.** Client portal and admin Messaging include **Settings** and **Sent messages** tabs. Submissions are listed from `map_contact_submissions` via `list_client_contact_submissions` RPC.
+- **Fix empty Sent messages list.** RLS and RPC permissions now match Messaging UI access (`can_manage_maps`, `is_primary`, owner/manager, platform admin).
+
+### Database migrations applied
+- `20260616170000_list_client_contact_submissions.sql` — applied to production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+- Run `_20260616170000_list_client_contact_submissions.rollback.sql` on production.
+- Revert frontend merge commit on `main`.
+
+### Verified
+- [x] Production migration applied 2026-06-16
+- [ ] Production smoke test — Sent messages tab lists submissions
+- [ ] Frontend merged to `main`
+
+---
+
 ## 2026-06-16 — Staging
 
 **Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending
