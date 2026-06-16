@@ -214,6 +214,8 @@ export default function MessagingSettings({
   const [emailTestRecipient, setEmailTestRecipient] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromAddress, setFromAddress] = useState("");
+  const [messageIntro, setMessageIntro] = useState("");
+  const [messageSubject, setMessageSubject] = useState("");
   const [domainStatus, setDomainStatus] = useState("not_configured");
   const [emailDomain, setEmailDomain] = useState("");
   const [dnsRecords, setDnsRecords] = useState([]);
@@ -229,7 +231,7 @@ export default function MessagingSettings({
       const { data, error } = await supabase
         .from("clients")
         .select(
-          "messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
+          "messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient,email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
         )
         .eq("id", clientId)
         .single();
@@ -240,6 +242,8 @@ export default function MessagingSettings({
       setEmailTestRecipient(data?.email_test_recipient ?? "");
       setFromName(data?.email_from_name ?? "");
       setFromAddress(data?.email_from_address ?? "");
+      setMessageIntro(data?.email_message_intro ?? "");
+      setMessageSubject(data?.email_message_subject ?? "");
       setEmailDomain(data?.email_domain ?? "");
       setDomainStatus(data?.email_domain_status ?? "not_configured");
       setDnsRecords(Array.isArray(data?.email_dns_records) ? data.email_dns_records : []);
@@ -268,6 +272,8 @@ export default function MessagingSettings({
     if (!email) return;
     setFromName(email.email_from_name ?? "");
     setFromAddress(email.email_from_address ?? "");
+    setMessageIntro(email.email_message_intro ?? "");
+    setMessageSubject(email.email_message_subject ?? "");
     setEmailDomain(email.email_domain ?? "");
     setDomainStatus(email.email_domain_status ?? "not_configured");
     setDnsRecords(Array.isArray(email.email_dns_records) ? email.email_dns_records : []);
@@ -331,6 +337,10 @@ export default function MessagingSettings({
   async function handleSave(e) {
     e.preventDefault();
     if (!clientId) return;
+    if (!messageSubject.trim()) {
+      setErr("Email subject is required.");
+      return;
+    }
     setErr("");
     setMsg("");
     setBusy("save");
@@ -340,6 +350,8 @@ export default function MessagingSettings({
         action: "save",
         fromName,
         fromAddress,
+        messageIntro: messageIntro.trim() || null,
+        messageSubject: messageSubject.trim(),
       });
       applyEmailPayload(data.email);
       setMsg("From address saved.");
@@ -359,6 +371,13 @@ export default function MessagingSettings({
       });
       return;
     }
+    if (!messageSubject.trim()) {
+      setSetupFeedback({
+        ok: false,
+        text: "Enter an email subject above before setting up the domain.",
+      });
+      return;
+    }
     setErr("");
     setMsg("");
     setSetupFeedback(null);
@@ -369,6 +388,8 @@ export default function MessagingSettings({
         action: "save",
         fromName,
         fromAddress,
+        messageIntro: messageIntro.trim() || null,
+        messageSubject: messageSubject.trim(),
       });
       applyEmailPayload(saved.email);
 
@@ -606,6 +627,39 @@ export default function MessagingSettings({
                     placeholder="hello@yourcompany.com"
                     required
                   />
+                </label>
+              </div>
+              <div className={styles.emailTemplateFields}>
+                <label className={styles.field}>
+                  <span>
+                    Email subject <span className={styles.required}>*</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={messageSubject}
+                    onChange={(e) => setMessageSubject(e.target.value)}
+                    placeholder="Message received for {listing}"
+                    required
+                  />
+                  <span className={styles.fieldHint}>
+                    Subject line for contact emails sent to listing addresses. Use{" "}
+                    <code>{`{listing}`}</code> for the listing name.
+                  </span>
+                </label>
+                <label className={styles.field}>
+                  <span>Email opening message</span>
+                  <textarea
+                    value={messageIntro}
+                    onChange={(e) => setMessageIntro(e.target.value)}
+                    placeholder="Optional — e.g. You have received a message via the directory map for {listing}."
+                    rows={3}
+                    className={styles.textarea}
+                  />
+                  <span className={styles.fieldHint}>
+                    Optional plain text at the top of the email body, above the visitor&apos;s name and
+                    message. Use <code>{`{listing}`}</code> for the listing name. Leave blank to omit
+                    an opening line.
+                  </span>
                 </label>
               </div>
               <button type="submit" className="btn btn-primary" disabled={busy === "save"}>

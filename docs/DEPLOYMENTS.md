@@ -8,9 +8,70 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-16 — Production
+
+**Branch/commit:** `feat/2026-06-16-email-message-intro` | pending frontend merge
+**Deployed by:** Claude Code
+
+### What changed
+- **Configurable contact email subject (required) and opening message (optional).** Messaging → From address lets organisations set the email subject and an optional opening line. Use `{listing}` for the listing name. Empty opening message omits the intro from the email body.
+- **Embed test mode fix** (PR #46) — frontend on `main`; backend unchanged for that item.
+
+### Database migrations applied
+- `20260616140000_add_email_message_intro.sql` — applied to production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+- `20260616150000_add_email_message_subject.sql` — applied to production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+
+### Edge functions deployed
+- `manage_client_email` — production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+- `send_contact_message` — production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+
+### Rollback plan
+- Run `_20260616150000_add_email_message_subject.rollback.sql`, then `_20260616140000_add_email_message_intro.rollback.sql` on production.
+- Redeploy previous edge function versions to production.
+- Revert frontend when merged.
+
+### Verified
+- [x] Production migrations applied without error
+- [x] Production edge functions deployed
+- [ ] Production smoke test — save subject/opening message, send contact email
+- [ ] Frontend merged to `main` (Messaging UI fields)
+
+---
+
 ## 2026-06-16 — Staging
 
-**Branch/commit:** `fix/2026-06-16-embed-test-mode` | pending
+**Branch/commit:** `feat/2026-06-16-email-message-intro` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Configurable email subject (required) and opening message (optional).** Organisations set the contact email subject and an optional opening line under Messaging → From address. Use `{listing}` for the listing name. Empty opening message omits the intro from the email body.
+- **Database:** `clients.email_message_intro`, `clients.email_message_subject` (nullable text).
+- **Edge functions:** `manage_client_email` (save/load; subject required on save), `send_contact_message` (custom subject; intro only when set).
+
+### Database migrations applied
+- `20260616140000_add_email_message_intro.sql` — applied to staging (`beqejxneehilplrtpntn`) 2026-06-16
+- `20260616150000_add_email_message_subject.sql` — applied to staging (`beqejxneehilplrtpntn`) 2026-06-16
+
+### Edge functions deployed
+- `manage_client_email` — deployed to staging (`beqejxneehilplrtpntn`) 2026-06-16 (updated with subject + intro support)
+- `send_contact_message` — deployed to staging (`beqejxneehilplrtpntn`) 2026-06-16 (updated with subject + intro support)
+
+### Rollback plan
+- Run `_20260616150000_add_email_message_subject.rollback.sql`, then `_20260616140000_add_email_message_intro.rollback.sql`.
+- Redeploy previous `manage_client_email` and `send_contact_message` versions.
+- Revert frontend commit on `main`.
+
+### Verified
+- [ ] Staging migration applied
+- [ ] Save custom subject and opening message; send test contact email — both appear correctly
+- [ ] Admin Messaging tab parity
+- [ ] Production
+
+---
+
+## 2026-06-16 — Staging
+
+**Branch/commit:** `fix/2026-06-16-embed-test-mode` | merged PR #46
 **Deployed by:** Claude Code
 
 ### What changed
