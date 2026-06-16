@@ -62,13 +62,30 @@ async function fetchSnapshot(mapId) {
   }
 }
 
+async function resolveMapClientId(supabaseClient, mapId) {
+  const { data } = await supabaseClient
+    .from("maps")
+    .select("client_id")
+    .eq("id", mapId)
+    .maybeSingle();
+  return data?.client_id ?? null;
+}
+
+async function fetchClientMessagingSettings(supabaseClient, clientId) {
+  if (!clientId) return null;
+  const { data } = await supabaseClient
+    .from("client_messaging_settings")
+    .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  return data;
+}
+
 export default function EmbedMap({ mapId: mapIdProp } = {}) {
   const [params] = useSearchParams();
   const mapId = mapIdProp ?? params.get("map");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "preview";
-  const isProductionEnv = ENVIRONMENT === "production";
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -86,6 +103,7 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
   const [messagingPrompt, setMessagingPrompt] = useState("");
   const [messagingTestMode, setMessagingTestMode] = useState(true); // default safe
   const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
+  const [clientId, setClientId] = useState(null);
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -131,26 +149,18 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           setListings(snapshot.listings ?? []);
           setGroups(snapshot.groups ?? []);
           setPublicationConfig(resolvedPublication);
-          // For snapshots, read messaging settings from snapshot config if present,
-          // otherwise fall through to a live lookup via client_id on the map shape.
-          const snapshotClientId = snapshot.config?.map?.client_id;
-          if (typeof snapshot.config?.messaging_enabled === "boolean") {
-            setMessagingEnabled(snapshot.config.messaging_enabled);
-            setMessagingPrompt(snapshot.config.messaging_prompt ?? "");
-          } else if (snapshotClientId) {
-            const { data: ms } = await supabase
-              .from("client_messaging_settings")
-              .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
-              .eq("client_id", snapshotClientId)
-              .single();
-            if (ms && !cancelled) {
-              setMessagingEnabled(!!ms.messaging_enabled);
-              setMessagingPrompt(ms.messaging_prompt ?? "");
-              setMessagingTestMode(ms.email_test_mode !== false);
-              setMessagingTestRecipient(ms.email_test_recipient ?? "");
-            }
+          // Publication snapshots omit client_id; resolve it live so messaging/test-mode
+          // settings always reflect the current org configuration.
+          const resolvedClientId =
+            snapshot.config?.map?.client_id ?? (await resolveMapClientId(supabase, mapId));
+          if (!cancelled) setClientId(resolvedClientId);
+          const ms = await fetchClientMessagingSettings(supabase, resolvedClientId);
+          if (ms && !cancelled) {
+            setMessagingEnabled(!!ms.messaging_enabled);
+            setMessagingPrompt(ms.messaging_prompt ?? "");
+            setMessagingTestMode(ms.email_test_mode !== false);
+            setMessagingTestRecipient(ms.email_test_recipient ?? "");
           }
-          // else: no client_id in snapshot — leave default (true) for backward compat
           return; // skip main Supabase queries
         }
 
@@ -213,18 +223,13 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
         }
 
         // ── Fetch messaging settings for the embed gate ────────────────────
-        if (mapRow?.client_id && !cancelled) {
-          const { data: ms } = await supabase
-            .from("client_messaging_settings")
-            .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
-            .eq("client_id", mapRow.client_id)
-            .single();
-          if (ms && !cancelled) {
-            setMessagingEnabled(!!ms.messaging_enabled);
-            setMessagingPrompt(ms.messaging_prompt ?? "");
-            setMessagingTestMode(ms.email_test_mode !== false);
-            setMessagingTestRecipient(ms.email_test_recipient ?? "");
-          }
+        if (!cancelled) setClientId(mapRow?.client_id ?? null);
+        const ms = await fetchClientMessagingSettings(supabase, mapRow?.client_id);
+        if (ms && !cancelled) {
+          setMessagingEnabled(!!ms.messaging_enabled);
+          setMessagingPrompt(ms.messaging_prompt ?? "");
+          setMessagingTestMode(ms.email_test_mode !== false);
+          setMessagingTestRecipient(ms.email_test_recipient ?? "");
         }
 
         if (!cancelled) {
@@ -459,8 +464,19 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
             setMessageDrawerOpen(true);
             setContactFormSent(false);
             setContactFormError("");
-            // Pre-fill the test recipient with the saved default so user doesn't have to retype it
-            setContactForm((f) => ({ ...f, testToEmail: f.testToEmail || messagingTestRecipient }));
+            if (clientId) {
+              fetchClientMessagingSettings(supabase, clientId).then((ms) => {
+                if (!ms) return;
+                setMessagingTestMode(ms.email_test_mode !== false);
+                setMessagingTestRecipient(ms.email_test_recipient ?? "");
+                setContactForm((f) => ({
+                  ...f,
+                  testToEmail: f.testToEmail || ms.email_test_recipient || "",
+                }));
+              });
+            } else {
+              setContactForm((f) => ({ ...f, testToEmail: f.testToEmail || messagingTestRecipient }));
+            }
           }}
           height="100vh"
           gestureHandling="cooperative"
