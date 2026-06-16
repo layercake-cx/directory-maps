@@ -262,9 +262,13 @@ Invitations expire after **7 days** — send a new one if needed.
 
 ## Messaging
 
-The **Messaging** tab (`/#/client/email`) controls whether visitors can send messages to directory listings, and which sender address those messages come from.
+The **Messaging** page (`/#/client/email`) has two tabs: **Settings** and **Sent messages**.
 
-### Enable messaging
+### Settings
+
+Use **Settings** to control whether visitors can send messages to directory listings, and which sender address those messages come from.
+
+#### Enable messaging
 
 At the top of the tab there is an **Enable messaging** toggle.
 
@@ -273,7 +277,7 @@ At the top of the tab there is an **Enable messaging** toggle.
 
 When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
 
-### Email subject and opening message
+#### Email subject and opening message
 
 Under **From address**, you can customise the subject line and the plain-text opening line of contact emails sent to listing addresses.
 
@@ -287,7 +291,7 @@ Under **From address**, you can customise the subject line and the plain-text op
 
 Click **Save** with your display name and email address to store both fields.
 
-### Test mode
+#### Test mode
 
 Use **Test mode** when you want to try the contact form without emailing real listing addresses.
 
@@ -296,7 +300,7 @@ Use **Test mode** when you want to try the contact form without emailing real li
 
 Click **Save test mode settings** after changing the toggle. The change applies on published embeds immediately — you do not need to republish the map.
 
-### Custom sending domain (optional)
+#### Custom sending domain (optional)
 
 By default, messages are sent from the platform’s address. To send from your own address (e.g. `hello@yourcompany.com`):
 
@@ -311,7 +315,13 @@ If someone else manages your DNS (IT support, web agency, etc.), click **Setup i
 
 **DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
 
-Until your domain is verified, messages send from the platform email address. If you have set a **Display name**, that name is shown as the sender instead of the platform default. Submissions are always saved to Stats regardless of email delivery.
+Until your domain is verified, messages send from the platform email address. If you have set a **Display name**, that name is shown as the sender instead of the platform default.
+
+### Sent messages
+
+Open the **Sent messages** tab to review contact form submissions from all your maps, newest first. Each row shows when the message was sent, which map and listing it relates to, the visitor’s details, the listing email it was sent to, and delivery status.
+
+Click a message preview to expand the full text. If email delivery failed, the row is marked **Send failed** and you can view the error detail.
 
 See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
@@ -329,11 +339,12 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
-| Enable messaging | `/#/client/email` → Enable messaging toggle |
-| Customise contact email subject and opening line | `/#/client/email` → From address → Email subject / Email opening message → Save |
-| Turn test mode off for live contact emails | `/#/client/email` → Test mode → Save test mode settings |
-| Configure custom sending domain | `/#/client/email` → Domain & DNS |
-| Copy DNS setup email for IT supplier | `/#/client/email` → Domain & DNS → Setup instructions |
+| Review sent contact messages | `/#/client/email` → Sent messages |
+| Enable messaging | `/#/client/email` → Settings → Enable messaging toggle |
+| Customise contact email subject and opening line | `/#/client/email` → Settings → From address → Email subject / Email opening message → Save |
+| Turn test mode off for live contact emails | `/#/client/email` → Settings → Test mode → Save test mode settings |
+| Configure custom sending domain | `/#/client/email` → Settings → Domain & DNS |
+| Copy DNS setup email for IT supplier | `/#/client/email` → Settings → Domain & DNS → Setup instructions |
 | Invite team member | `/#/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 
@@ -350,7 +361,7 @@ When an admin creates a customer in `/#/admin/clients/new`, they only need:
 - Customer name
 - Customer slug (or leave blank to auto-suggest)
 
-On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: enable messaging, set the prompt, configure test mode, save the from address, set up DNS, and verify DNS settings.
+On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: **Settings** (enable messaging, prompt, test mode, from address, DNS) and **Sent messages** (contact form log for that organisation).
 
 From a customer’s **Users** tab, admins can add a user by entering:
 

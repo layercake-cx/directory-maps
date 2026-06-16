@@ -10,6 +10,57 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-16 — Production
 
+**Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging → Sent messages tab.** Client portal and admin Messaging include **Settings** and **Sent messages** tabs. Submissions are listed from `map_contact_submissions` via `list_client_contact_submissions` RPC.
+- **Fix empty Sent messages list.** RLS and RPC permissions now match Messaging UI access (`can_manage_maps`, `is_primary`, owner/manager, platform admin).
+
+### Database migrations applied
+- `20260616170000_list_client_contact_submissions.sql` — applied to production (`gxixwdjfmegxcxfeflro`) 2026-06-16
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+- Run `_20260616170000_list_client_contact_submissions.rollback.sql` on production.
+- Revert frontend merge commit on `main`.
+
+### Verified
+- [x] Production migration applied 2026-06-16
+- [ ] Production smoke test — Sent messages tab lists submissions
+- [ ] Frontend merged to `main`
+
+---
+
+## 2026-06-16 — Staging
+
+**Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Messaging → Sent messages tab.** Contact form submissions were already stored in `map_contact_submissions`; the client portal and admin customer Messaging view now has two tabs: **Settings** (existing controls) and **Sent messages** (paginated table of submissions across the organisation’s maps, with expandable message text and send-failure status).
+- **Fix empty Sent messages list.** RLS on `map_contact_submissions` only allowed owner/manager or per-map permissions, but Messaging is gated on `can_manage_maps` / `is_primary`. Added `list_client_contact_submissions` RPC and aligned the select policy.
+
+### Database migrations applied
+- `20260616170000_list_client_contact_submissions.sql` — applied to staging (`beqejxneehilplrtpntn`) 2026-06-16
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert frontend commit on branch `feat/2026-06-16-messaging-sent-messages`.
+
+### Verified
+- [ ] Staging — Sent messages tab lists submissions for a test org
+- [ ] Staging — failed delivery shows Send failed badge when applicable
+- [ ] Frontend merged to `main`
+
+---
+
+## 2026-06-16 — Production
+
 **Branch/commit:** `fix/2026-06-16-unverified-domain-display-name` | pending
 **Deployed by:** Claude Code
 
@@ -20,14 +71,14 @@ A plain-English record of every deployment to staging and production. Newest ent
 None.
 
 ### Edge functions deployed
-- `send_contact_message` — staging then production (pending)
+- `send_contact_message` — staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`) 2026-06-16
 
 ### Rollback plan
 Redeploy previous `send_contact_message` from `main` parent commit.
 
 ### Verified
 - [ ] Staging — unverified client with Display name set sends as `Client Name <platform noreply>`
-- [ ] Production
+- [x] Production edge function redeployed 2026-06-16
 
 ---
 
