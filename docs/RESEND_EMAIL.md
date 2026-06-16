@@ -44,7 +44,7 @@ Clients with **owner** or **manage maps** permission: **Email** in the client po
 1. **From address** — display name + email on their domain (e.g. `Acme <hello@acme.com>`).
 2. **Set up domain** — registers the domain in your Resend account and shows DNS records (SPF, DKIM, etc.).
 3. **Verify DNS settings** — after DNS propagates, status becomes **Verified**.
-4. Verified clients send map contact mail **from their address**; others use the platform default.
+4. Verified clients send map contact mail **from their address**; unverified clients send from the platform address but use the client's **Display name** when configured.
 
 DNS is added at the client’s DNS host (Cloudflare, etc.). Resend’s [domain docs](https://resend.com/docs/dashboard/domains/introduction) apply.
 

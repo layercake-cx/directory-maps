@@ -10,7 +10,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-16 — Production
 
-**Branch/commit:** `feat/2026-06-16-email-message-intro` | pending frontend merge
+**Branch/commit:** `fix/2026-06-16-unverified-domain-display-name` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Restore Display Name on unverified-domain contact emails.** A fix on branch `feat/2026-06-15-unverified-domain-display-name` was deployed to production earlier but never merged to `main`. Redeploying `send_contact_message` from `main` (email subject/intro work) regressed behaviour: unverified clients always got the platform default sender name. Now, when domain is not verified, emails send from the platform address but use the client's configured **Display name** when set.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+- `send_contact_message` — staging then production (pending)
+
+### Rollback plan
+Redeploy previous `send_contact_message` from `main` parent commit.
+
+### Verified
+- [ ] Staging — unverified client with Display name set sends as `Client Name <platform noreply>`
+- [ ] Production
+
+---
+
+## 2026-06-16 — Production
+
+**Branch/commit:** `feat/2026-06-16-email-message-intro` | merged PR #47
 **Deployed by:** Claude Code
 
 ### What changed
