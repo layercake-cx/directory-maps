@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-16 — Staging
+
+**Branch/commit:** `fix/2026-06-16-embed-test-mode` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Embed test mode now reads live settings.** Published embeds that load from the CDN snapshot were stuck showing test mode (safe default) even after an organisation turned test mode off in Messaging settings. The embed now looks up the map’s organisation via `maps.client_id` and loads messaging/test-mode settings from `client_messaging_settings` on every page load (and refreshes test mode when the visitor opens Send message).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert the frontend commit on `main`. No schema or Edge Function changes.
+
+### Verified
+- [ ] Staging embed with test mode off — no test banner; message sends to listing email
+- [ ] Staging embed with test mode on — test banner and test recipient field shown
+- [ ] Production
+
+---
+
 ## 2026-06-15 — Production
 
 **Branch/commit:** `feat/2026-06-15-listing-panel-expand-scroll`

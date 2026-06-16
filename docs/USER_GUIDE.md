@@ -273,6 +273,15 @@ At the top of the tab there is an **Enable messaging** toggle.
 
 When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
 
+### Test mode
+
+Use **Test mode** when you want to try the contact form without emailing real listing addresses.
+
+- **On (default for new organisations):** the Send message form on your published embed shows a test banner and sends messages to the **test recipient email** you enter, not to the listing’s address.
+- **Off:** messages go to each listing’s email address. Turn test mode off when you are ready to go live.
+
+Click **Save test mode settings** after changing the toggle. The change applies on published embeds immediately — you do not need to republish the map.
+
 ### Custom sending domain (optional)
 
 By default, messages are sent from the platform’s address. To send from your own address (e.g. `hello@yourcompany.com`):
@@ -307,6 +316,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
 | Enable messaging | `/#/client/email` → Enable messaging toggle |
+| Turn test mode off for live contact emails | `/#/client/email` → Test mode → Save test mode settings |
 | Configure custom sending domain | `/#/client/email` → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/#/client/email` → Domain & DNS → Setup instructions |
 | Invite team member | `/#/client/team` → Send invitation email |
