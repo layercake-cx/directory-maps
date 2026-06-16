@@ -1,10 +1,10 @@
 import { supabase } from "./supabase";
 import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
-export async function invokeManageClientEmail({ clientId, action, fromName, fromAddress }) {
+export async function invokeManageClientEmail({ clientId, action, fromName, fromAddress, messageIntro, messageSubject }) {
   return invokeEdgeFunction(
     "manage_client_email",
-    { clientId, action, fromName, fromAddress },
+    { clientId, action, fromName, fromAddress, messageIntro, messageSubject },
     { supabase, requireAuth: true }
   );
 }

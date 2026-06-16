@@ -47,6 +47,8 @@ function normalizeClientEmailRow(row: Record<string, unknown> | null) {
   return {
     email_from_name: row.email_from_name ?? null,
     email_from_address: row.email_from_address ?? null,
+    email_message_intro: row.email_message_intro ?? null,
+    email_message_subject: row.email_message_subject ?? null,
     email_domain: row.email_domain ?? null,
     resend_domain_id: row.resend_domain_id ?? null,
     email_domain_status: row.email_domain_status ?? "not_configured",
@@ -82,7 +84,7 @@ async function writeClientEmailFields(
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq("id", clientId)
     .select(
-      "email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records",
+      "email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records",
     )
     .single();
   if (error) throw error;
@@ -148,7 +150,7 @@ Deno.serve(async (req) => {
     const { data: client, error: clientErr } = await service
       .from("clients")
       .select(
-        "id,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
+        "id,email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
       )
       .eq("id", clientId)
       .single();
@@ -157,21 +159,35 @@ Deno.serve(async (req) => {
     if (action === "save") {
       const fromName = typeof body?.fromName === "string" ? body.fromName.trim() : "";
       const fromAddress = typeof body?.fromAddress === "string" ? body.fromAddress.trim().toLowerCase() : "";
+      const messageIntro =
+        body?.messageIntro === null || body?.messageIntro === undefined
+          ? null
+          : typeof body?.messageIntro === "string"
+          ? body.messageIntro.trim() || null
+          : undefined;
+      const messageSubject = typeof body?.messageSubject === "string" ? body.messageSubject.trim() : "";
       if (!fromAddress) return jsonResponse({ error: "From email address is required." }, 400);
+      if (!messageSubject) return jsonResponse({ error: "Email subject is required." }, 400);
       const domain = extractEmailDomain(fromAddress);
       if (!domain) return jsonResponse({ error: "Enter a valid email address." }, 400);
 
+      const updateFields: Record<string, unknown> = {
+        email_from_name: fromName || null,
+        email_from_address: fromAddress,
+        email_domain: domain,
+        email_message_subject: messageSubject,
+        updated_at: new Date().toISOString(),
+      };
+      if (messageIntro !== undefined) {
+        updateFields.email_message_intro = messageIntro;
+      }
+
       const { data, error } = await service
         .from("clients")
-        .update({
-          email_from_name: fromName || null,
-          email_from_address: fromAddress,
-          email_domain: domain,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateFields)
         .eq("id", clientId)
         .select(
-          "email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records"
+          "email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
         )
         .single();
       if (error) throw error;
@@ -271,7 +287,7 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", clientId)
-        .select("email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records")
+        .select("email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records")
         .single();
       if (dbErr) throw dbErr;
 

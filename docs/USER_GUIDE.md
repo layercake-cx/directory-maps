@@ -273,6 +273,20 @@ At the top of the tab there is an **Enable messaging** toggle.
 
 When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
 
+### Email subject and opening message
+
+Under **From address**, you can customise the subject line and the plain-text opening line of contact emails sent to listing addresses.
+
+**Email subject** (required)
+- Use `{listing}` where you want the listing name to appear.
+
+**Email opening message** (optional)
+- Shown at the top of the email body, above the visitor’s name and message.
+- Use `{listing}` for the listing name.
+- Leave blank to omit an opening line from the email.
+
+Click **Save** with your display name and email address to store both fields.
+
 ### Test mode
 
 Use **Test mode** when you want to try the contact form without emailing real listing addresses.
@@ -316,6 +330,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
 | Enable messaging | `/#/client/email` → Enable messaging toggle |
+| Customise contact email subject and opening line | `/#/client/email` → From address → Email subject / Email opening message → Save |
 | Turn test mode off for live contact emails | `/#/client/email` → Test mode → Save test mode settings |
 | Configure custom sending domain | `/#/client/email` → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/#/client/email` → Domain & DNS → Setup instructions |

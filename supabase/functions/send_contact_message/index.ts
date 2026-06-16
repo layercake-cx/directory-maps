@@ -25,29 +25,50 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-async function resolveFromAddress(mapId: string | null): Promise<string> {
+const DEFAULT_MESSAGE_SUBJECT = "Message received for {listing}";
+
+function applyListingPlaceholder(template: string, listingName: string): string {
+  const listing = listingName.trim() || "the listing";
+  return template.replace(/\{listing\}/gi, listing);
+}
+
+function introToHtml(intro: string): string {
+  return `<p>${escapeHtml(intro).replace(/\n/g, "<br>")}</p>`;
+}
+
+async function resolveClientEmailSettings(mapId: string | null): Promise<{
+  from: string;
+  messageIntro: string | null;
+  messageSubject: string | null;
+}> {
   const platformFrom = getPlatformFrom();
-  if (!mapId) return platformFrom;
+  if (!mapId) return { from: platformFrom, messageIntro: null, messageSubject: null };
 
   const service = createServiceClient();
   const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
-  if (!map?.client_id) return platformFrom;
+  if (!map?.client_id) return { from: platformFrom, messageIntro: null, messageSubject: null };
 
   const { data: client } = await service
     .from("clients")
-    .select("email_from_name,email_from_address,email_domain_status")
+    .select("email_from_name,email_from_address,email_domain_status,email_message_intro,email_message_subject")
     .eq("id", map.client_id)
     .maybeSingle();
 
+  let from = platformFrom;
   if (
     client?.email_domain_status === "verified" &&
     typeof client.email_from_address === "string" &&
     client.email_from_address.trim()
   ) {
-    return buildFromHeader(client.email_from_name, client.email_from_address);
+    from = buildFromHeader(client.email_from_name, client.email_from_address);
   }
 
-  return platformFrom;
+  const messageIntro =
+    typeof client?.email_message_intro === "string" ? client.email_message_intro : null;
+  const messageSubject =
+    typeof client?.email_message_subject === "string" ? client.email_message_subject : null;
+
+  return { from, messageIntro, messageSubject };
 }
 
 Deno.serve(async (req) => {
@@ -85,12 +106,19 @@ Deno.serve(async (req) => {
     if (!senderEmail) return jsonResponse({ error: "Sender email is required." }, 400);
     if (!message) return jsonResponse({ error: "Message is required." }, 400);
 
-    const from = await resolveFromAddress(mapId || null);
+    const { from, messageIntro, messageSubject } = await resolveClientEmailSettings(mapId || null);
     const replyTo = buildFromHeader(senderName, senderEmail);
+    const subjectTemplate = messageSubject?.trim() || DEFAULT_MESSAGE_SUBJECT;
+    const subjectText = applyListingPlaceholder(subjectTemplate, listingName);
+    const introTemplate = messageIntro?.trim() ?? "";
+    const introHtml = introTemplate ? introToHtml(applyListingPlaceholder(introTemplate, listingName)) : "";
+    const introDivider = introHtml
+      ? `<hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>`
+      : "";
 
     const htmlToContact = `
-      <p>You have received a message via the directory map${listingName ? ` for <strong>${escapeHtml(listingName)}</strong>` : ""}.</p>
-      <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+      ${introHtml}
+      ${introDivider}
       <p><strong>From:</strong> ${escapeHtml(senderName || "—")}<br/>
       <strong>Email:</strong> ${escapeHtml(senderEmail)}<br/>
       ${senderPhone ? `<strong>Phone:</strong> ${escapeHtml(senderPhone)}<br/>` : ""}</p>
@@ -103,7 +131,7 @@ Deno.serve(async (req) => {
       to: toEmail,
       cc: senderEmail,
       replyTo,
-      subject: listingName ? `Message received for ${listingName}` : "You received a message",
+      subject: subjectText,
       html: htmlToContact,
     });
     if (!sent.ok) {

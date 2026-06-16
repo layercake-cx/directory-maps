@@ -82,7 +82,21 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.emailTemplateFields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.fieldHint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--lc-muted);
+  line-height: 1.45;
 }
 
 @media (max-width: 640px) {
