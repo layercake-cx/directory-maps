@@ -10,6 +10,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-17 — Staging
 
+**Branch/commit:** `feat/2026-06-17-responsive-embed-mobile-height` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Mobile search tray — hide Key section.** Removed the group colour Key from the mobile bottom sheet search tray (`isMobileSheet` check added to the `showKey` condition in `PublishedMapView`). The Key was taking up vertical space and blocking listing scroll on mobile. Desktop is unchanged.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert this commit. No schema changes.
+
+### Verified
+- [ ] Mobile: Key section no longer visible in the search tray
+- [ ] Mobile: listings scroll freely without Key in the way
+- [ ] Desktop: Key still visible as before
+
+---
+
+## 2026-06-17 — Staging
+
 **Branch/commit:** `feat/2026-06-17-mobile-bottom-sheet` | pending
 **Deployed by:** Claude Code
 
