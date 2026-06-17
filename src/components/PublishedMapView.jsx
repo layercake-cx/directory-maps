@@ -725,6 +725,7 @@ export default function PublishedMapView({
     },
   };
 
+  const hasSelectedListing = Boolean(selectedListing);
   useEffect(() => {
     const el = listingHandleRef.current;
     if (!el || !isMobileSheet) return;
@@ -741,7 +742,7 @@ export default function PublishedMapView({
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
     };
-  }, [isMobileSheet]);
+  }, [isMobileSheet, hasSelectedListing]);
 
   // Reset listing sheet position whenever a new listing opens
   useEffect(() => {
@@ -837,7 +838,7 @@ export default function PublishedMapView({
         onScreenOverlayPosition={onMarkerScreenPosition}
         selectZoom={15}
         selectPanOffsetX={isMobileSheet ? 0 : pinDetailLayout === "drawer" ? 200 : 0}
-        selectPanOffsetY={isMobileSheet ? Math.round((sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight) * 0.3) : 0}
+        selectPanOffsetY={isMobileSheet ? Math.round((sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight) * 0.15) : 0}
         mapStyles={mapStyles}
         showTrafficLayer={showTrafficLayer}
         showTransitLayer={showTransitLayer}
