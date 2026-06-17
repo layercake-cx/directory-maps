@@ -257,7 +257,7 @@ export default function PublishedMapView({
   const PEEK_PX = 108;
 
   // Listing detail bottom sheet (mobile only)
-  const [listingSheetY, setListingSheetY] = useState(null); // null = start position
+  const [listingSheetH, setListingSheetH] = useState(null); // null = default height (60% of container)
   const [isListingDragging, setIsListingDragging] = useState(false);
   const listingHandleRef = useRef(null);
   const listingTouchHandlerRef = useRef(null);
@@ -687,9 +687,8 @@ export default function PublishedMapView({
     }
   }
 
-  function getListingStartY() {
-    const h = getContainerH();
-    return h * 0.85 - h * 0.6; // shows 60% of container height
+  function getListingStartH() {
+    return getContainerH() * 0.6;
   }
 
   listingTouchHandlerRef.current = {
@@ -697,30 +696,27 @@ export default function PublishedMapView({
       el.setPointerCapture(e.pointerId);
       listingDragStartRef.current = {
         clientY: e.clientY,
-        startY: listingSheetY ?? getListingStartY(),
+        startH: listingSheetH ?? getListingStartH(),
       };
       setIsListingDragging(true);
     },
     onMove(e) {
       if (!listingDragStartRef.current) return;
+      // Dragging up (negative delta) increases height; dragging down decreases it.
       const delta = e.clientY - listingDragStartRef.current.clientY;
       const h = getContainerH();
-      const maxY = h * 0.85; // can drag all the way to bottom (triggers dismiss)
-      const newY = Math.max(0, Math.min(maxY, listingDragStartRef.current.startY + delta));
-      setListingSheetY(newY);
+      const newH = Math.max(80, Math.min(h * 0.92, listingDragStartRef.current.startH - delta));
+      setListingSheetH(newH);
     },
     onUp() {
       if (!listingDragStartRef.current) return;
       listingDragStartRef.current = null;
       setIsListingDragging(false);
-      const finalY = listingSheetY ?? getListingStartY();
-      const h = getContainerH();
-      // Dismiss if dragged near the bottom
-      if (finalY > h * 0.85 - 80) {
+      const finalH = listingSheetH ?? getListingStartH();
+      // Dismiss if dragged down to a sliver
+      if (finalH < 100) {
         onClosePin?.();
-        setListingSheetY(null);
-      } else {
-        setListingSheetY(finalY);
+        setListingSheetH(null);
       }
     },
   };
@@ -744,10 +740,10 @@ export default function PublishedMapView({
     };
   }, [isMobileSheet, hasSelectedListing]);
 
-  // Reset listing sheet position whenever a new listing opens
+  // Reset listing sheet height whenever a new listing opens
   useEffect(() => {
     if (selectedListing) {
-      setListingSheetY(null);
+      setListingSheetH(null);
       setIsListingDragging(false);
     }
   }, [selectedListing?.id]);
@@ -1121,8 +1117,8 @@ export default function PublishedMapView({
           role="dialog"
           aria-label="Listing details"
           style={{
-            transform: `translateY(${(listingSheetY ?? getListingStartY()).toFixed(1)}px)`,
-            transition: isListingDragging ? "none" : "transform 0.35s cubic-bezier(0.32,0.72,0,1)",
+            height: `${(listingSheetH ?? getListingStartH()).toFixed(1)}px`,
+            transition: isListingDragging ? "none" : "height 0.35s cubic-bezier(0.32,0.72,0,1)",
           }}
         >
           <div ref={listingHandleRef} className="map-pin-mobile-sheet__handle" aria-label="Drag to resize">
