@@ -1053,7 +1053,7 @@ export default function PublishedMapView({
             )}
           </div>
 
-          {showKey && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
+          {showKey && !isMobileSheet && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
             <>
               <div className="embed-list-panel__divider" aria-hidden />
               <div className="embed-list-panel__key">
