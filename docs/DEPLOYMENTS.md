@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-17 — Staging (stats timezone fix)
+
+**Branch/commit:** `fix/2026-06-17-stats-live-today` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Stats now include today's data.** Day-bucket keys and event-bucketing in the engagement analytics library were both using UTC dates (`.toISOString().slice(0, 10)`). For any timezone ahead of UTC, today's local date maps to a UTC date that never appeared in the key list, so today's events were silently dropped. Replaced with a `localDateStr` helper that uses the browser's local calendar date throughout — `buildDayKeys`, `deriveMapMetrics`, and `deriveListingMetrics` all updated.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert this commit. No schema changes.
+
+### Verified
+- [ ] Map stats page shows today's engagement data in the daily chart and metric cards
+
+---
+
 ## 2026-06-17 — Staging
 
 **Branch/commit:** `feat/2026-06-17-fullscreen-pulse-animation` | pending
