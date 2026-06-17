@@ -421,6 +421,9 @@ export default function DirectoryMap({
   /** Horizontal pixel offset applied via panBy after centering on a selection. Positive shifts the
    *  map center right so the pin appears left of center — use when a side panel occupies the right. */
   selectPanOffsetX = 0,
+  /** Vertical pixel offset applied via panBy after centering on a selection. Positive shifts the
+   *  marker upward on screen — use when a bottom sheet occupies the lower half. */
+  selectPanOffsetY = 0,
   mapStyles = null,
   showTrafficLayer = false,
   showTransitLayer = false,
@@ -452,7 +455,7 @@ export default function DirectoryMap({
     const pos = { lat: Number(point.lat), lng: Number(point.lng) };
     map.setCenter(pos);
     map.setZoom(selectZoom);
-    if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
+    if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
 
     if (onSelect) {
       const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
@@ -800,7 +803,7 @@ export default function DirectoryMap({
         if (!pos) return;
         map.setCenter(pos);
         map.setZoom(selectZoom);
-        if (selectPanOffsetX) map.panBy(selectPanOffsetX, 0);
+        if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
         if (!onSelect) return;
         const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
         if (pixel) onSelect(p, pixel);
@@ -905,6 +908,7 @@ export default function DirectoryMap({
     pinSize,
     selectZoom,
     selectPanOffsetX,
+    selectPanOffsetY,
   ]);
 
   useEffect(() => {
