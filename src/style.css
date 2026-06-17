@@ -1277,7 +1277,7 @@ a:hover {
     box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.16);
     z-index: 1050; /* above the search sheet (1000) */
     will-change: transform;
-    overflow: visible; /* allow close button to not be clipped */
+    overflow: hidden;
   }
 
   .map-pin-mobile-sheet__handle {
@@ -1305,6 +1305,7 @@ a:hover {
 
   .map-pin-mobile-sheet__body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
