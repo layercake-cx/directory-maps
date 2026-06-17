@@ -151,6 +151,15 @@ function attachZoomSliderControl(map, showZoomSlider) {
     }
   };
 
+  // Outer container holds the fullscreen button (its own box) above the zoom slider wrap.
+  // Keeping them separate means the glow animation on fsWrap is unclipped and stays tight
+  // around the fullscreen square, rather than spanning the full-height zoom panel.
+  const outerWrap = document.createElement("div");
+  outerWrap.className = "directory-map-zoom-outer-wrap";
+
+  const fsWrap = document.createElement("div");
+  fsWrap.className = "directory-map-fullscreen-btn-wrap";
+
   const wrap = document.createElement("div");
   wrap.className = "directory-map-zoom-slider-wrap";
 
@@ -183,10 +192,12 @@ function attachZoomSliderControl(map, showZoomSlider) {
   btnMinus.textContent = "\u2212";
 
   trackOuter.appendChild(input);
-  wrap.appendChild(btnFullscreen);
+  fsWrap.appendChild(btnFullscreen);
   wrap.appendChild(btnPlus);
   wrap.appendChild(trackOuter);
   wrap.appendChild(btnMinus);
+  outerWrap.appendChild(fsWrap);
+  outerWrap.appendChild(wrap);
 
   function readLimits() {
     let min = 0;
@@ -328,19 +339,35 @@ function attachZoomSliderControl(map, showZoomSlider) {
   const portalRoot = map.getDiv().closest("[data-map-fullscreen-root]");
   let usedPortal = false;
   if (portalRoot) {
-    wrap.style.position = "absolute";
-    wrap.style.right = "0";
-    wrap.style.top = "0";
-    wrap.style.zIndex = "50";
-    portalRoot.appendChild(wrap);
+    outerWrap.style.position = "absolute";
+    outerWrap.style.right = "0";
+    outerWrap.style.top = "0";
+    outerWrap.style.zIndex = "50";
+    portalRoot.appendChild(outerWrap);
     usedPortal = true;
   } else {
-    map.controls[ControlPosition.RIGHT_TOP].push(wrap);
+    map.controls[ControlPosition.RIGHT_TOP].push(outerWrap);
   }
   syncFromMap();
   updateFullscreenButton();
 
+  // Pulse fsWrap (the fullscreen button's own box) twice when it first enters the viewport.
+  // fsWrap has no overflow:hidden so the box-shadow glow is unclipped and stays tight around the square.
+  const pulseObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      fsWrap.classList.add("directory-map-fullscreen-btn-wrap--pulse");
+      fsWrap.addEventListener(
+        "animationend",
+        () => fsWrap.classList.remove("directory-map-fullscreen-btn-wrap--pulse"),
+        { once: true }
+      );
+      pulseObserver.disconnect();
+    }
+  }, { threshold: 0.5 });
+  pulseObserver.observe(fsWrap);
+
   return () => {
+    pulseObserver.disconnect();
     doc.removeEventListener("fullscreenchange", onFullscreenChanged);
     doc.removeEventListener("webkitfullscreenchange", onFullscreenChanged);
     exitPseudoFullscreen();
@@ -351,11 +378,11 @@ function attachZoomSliderControl(map, showZoomSlider) {
     window.google.maps.event.removeListener(zoomListener);
     window.google.maps.event.removeListener(idleListener);
     if (usedPortal) {
-      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      if (outerWrap.parentNode) outerWrap.parentNode.removeChild(outerWrap);
     } else {
-      const controls = map.controls[ControlPosition.RIGHT_BOTTOM];
+      const controls = map.controls[ControlPosition.RIGHT_TOP];
       for (let i = controls.getLength() - 1; i >= 0; i--) {
-        if (controls.getAt(i) === wrap) {
+        if (controls.getAt(i) === outerWrap) {
           controls.removeAt(i);
           break;
         }

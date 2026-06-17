@@ -10,6 +10,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-06-17 — Staging
 
+**Branch/commit:** `feat/2026-06-17-fullscreen-pulse-animation` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Fullscreen control pulse animation.** When the zoom/fullscreen control panel first enters the viewport, the fullscreen button square pulses with an orange glow twice (1.4 s per pulse) to draw the user's eye to it. Uses `IntersectionObserver` so it fires once on first visibility. The fullscreen button was moved into its own small wrapper (`directory-map-fullscreen-btn-wrap`) above the zoom slider, so the glow is isolated to that square rather than the full-height control panel. Works on both mobile and desktop.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert this commit. No schema changes.
+
+### Verified
+- [ ] Fullscreen button pulses orange twice on map load
+- [ ] Glow is contained to the fullscreen square, not the whole zoom panel
+
+---
+
+## 2026-06-17 — Staging
+
 **Branch/commit:** `feat/2026-06-17-responsive-embed-mobile-height` | pending
 **Deployed by:** Claude Code
 

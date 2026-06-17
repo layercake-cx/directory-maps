@@ -83,12 +83,26 @@ html.embed-map-page::-webkit-scrollbar-track {
 }
 
 /* Google Maps custom control: vertical zoom column (+, slider, −), ~40px to match default zoom UI */
+.directory-map-zoom-outer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin: 10px;
+  gap: 6px;
+}
+
+.directory-map-fullscreen-btn-wrap {
+  width: 40px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
 .directory-map-zoom-slider-wrap {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 40px;
-  margin: 10px;
   padding: 0;
   background: #fff;
   border-radius: 2px;
@@ -117,9 +131,17 @@ html.embed-map-page::-webkit-scrollbar-track {
   font-size: 24px;
   height: 48px;
   line-height: 48px;
+  border-bottom: none;
 }
 
+@keyframes directory-map-fullscreen-pulse {
+  0%   { box-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 0 0 2px rgba(255, 140, 0, 1); }
+  100% { box-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 0 18px 8px rgba(255, 140, 0, 0); }
+}
 
+.directory-map-fullscreen-btn-wrap--pulse {
+  animation: directory-map-fullscreen-pulse 1.4s ease-out 2;
+}
 
 .directory-map-zoom-btn:hover {
   color: #333;
