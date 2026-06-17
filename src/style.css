@@ -1273,7 +1273,7 @@ a:hover {
     right: 0;
     height: 85%;
     border-radius: 16px 16px 0 0;
-    background: var(--panel-bg, rgba(255, 255, 255, 0.98));
+    background: #fff;
     box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.16);
     z-index: 1050; /* above the search sheet (1000) */
     will-change: transform;
@@ -1288,6 +1288,8 @@ a:hover {
     cursor: grab;
     touch-action: none;
     user-select: none;
+    background: #fff;
+    border-radius: 16px 16px 0 0; /* extend white logo bg up to sheet corners */
   }
 
   .map-pin-mobile-sheet__handle:active {
@@ -1305,6 +1307,21 @@ a:hover {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Logo: flush to sheet edges, no top radius (handle above covers it) */
+  .map-pin-mobile-sheet .map-pin-overlay__logo {
+    margin: 0;
+    border-radius: 0;
+    padding: 8px 16px 16px;
+  }
+
+  /* Content body: solid bg, generous padding */
+  .map-pin-mobile-sheet .map-pin-overlay__body {
+    margin: 0;
+    padding: 15px;
+    background: #fff;
+    border-radius: 0;
   }
 
   /* The close button inside the listing card sits inside the sheet body */

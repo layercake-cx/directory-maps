@@ -689,7 +689,7 @@ export default function PublishedMapView({
 
   function getListingStartY() {
     const h = getContainerH();
-    return h * 0.85 - h * 0.5; // shows 50% of container height
+    return h * 0.85 - h * 0.6; // shows 60% of container height
   }
 
   listingTouchHandlerRef.current = {
@@ -837,7 +837,7 @@ export default function PublishedMapView({
         onScreenOverlayPosition={onMarkerScreenPosition}
         selectZoom={15}
         selectPanOffsetX={isMobileSheet ? 0 : pinDetailLayout === "drawer" ? 200 : 0}
-        selectPanOffsetY={isMobileSheet ? Math.round((sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight) * 0.25) : 0}
+        selectPanOffsetY={isMobileSheet ? Math.round((sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight) * 0.3) : 0}
         mapStyles={mapStyles}
         showTrafficLayer={showTrafficLayer}
         showTransitLayer={showTransitLayer}
