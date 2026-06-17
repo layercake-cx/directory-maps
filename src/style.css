@@ -1323,6 +1323,7 @@ a:hover {
     padding: 15px;
     background: #fff;
     border-radius: 0;
+    overflow: visible; /* outer body scrolls; kill nested scroll container so iOS doesn't swallow gestures */
   }
 
   /* The close button inside the listing card sits inside the sheet body */
