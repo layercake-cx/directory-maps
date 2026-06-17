@@ -19,6 +19,13 @@ export function getStartDate(days) {
   return start;
 }
 
+function localDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function buildDayKeys(days) {
   const keys = [];
   const d = new Date();
@@ -26,7 +33,7 @@ export function buildDayKeys(days) {
   for (let i = days - 1; i >= 0; i--) {
     const x = new Date(d);
     x.setDate(d.getDate() - i);
-    keys.push(x.toISOString().slice(0, 10));
+    keys.push(localDateStr(x));
   }
   return keys;
 }
@@ -135,7 +142,7 @@ export function deriveMapMetrics(events, days) {
   const searchSubmitMap = new Map();
 
   for (const e of events) {
-    const day = e.occurred_at?.slice(0, 10);
+    const day = e.occurred_at ? localDateStr(new Date(e.occurred_at)) : null;
     if (day && dailyBuckets.has(day)) {
       const b = dailyBuckets.get(day);
       b.events += 1;
@@ -277,7 +284,7 @@ export function deriveListingMetrics(events, days) {
   const sourceCounts = { marker: 0, list_panel: 0, search: 0 };
 
   for (const e of events) {
-    const day = e.occurred_at?.slice(0, 10);
+    const day = e.occurred_at ? localDateStr(new Date(e.occurred_at)) : null;
     const bucket = day && dailyBuckets.get(day);
 
     switch (e.event_type) {
