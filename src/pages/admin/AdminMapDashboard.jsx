@@ -329,15 +329,12 @@ export default function AdminMapDashboard() {
   }, [mapId, client?.slug, slug]);
 
   const embedIframe = useMemo(() => {
-    return `<iframe
-  src="${embedSrc}"
-  width="100%"
-  height="800"
-  style="border:0;border-radius:12px"
-  loading="lazy"
-  allowfullscreen>
-</iframe>`;
-  }, [embedSrc]);
+    const uid = `dm-e-${String(mapId).replace(/[^a-z0-9]/gi, "")}`;
+    return `<style>.${uid}{width:100%;height:800px}@media(max-width:767px){.${uid}{height:100vh;height:100dvh}}</style>
+<div class="${uid}">
+  <iframe src="${embedSrc}" width="100%" height="100%" style="border:0;border-radius:12px" loading="lazy" allowfullscreen></iframe>
+</div>`;
+  }, [embedSrc, mapId]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode

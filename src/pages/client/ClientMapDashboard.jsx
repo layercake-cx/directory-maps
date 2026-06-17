@@ -334,15 +334,12 @@ export default function ClientMapDashboard() {
     const w = String(embedWidth).trim() || "100";
     const widthAttr = embedWidthUnit === "%" ? `${w}%` : `${w}px`;
     const h = String(embedHeight).trim() || "800";
-    return `<iframe
-  src="${embedSrc}"
-  width="${widthAttr}"
-  height="${h}"
-  style="border:0;border-radius:12px"
-  loading="lazy"
-  allowfullscreen>
-</iframe>`;
-  }, [embedSrc, embedWidth, embedWidthUnit, embedHeight]);
+    const uid = `dm-e-${String(mapId).replace(/[^a-z0-9]/gi, "")}`;
+    return `<style>.${uid}{width:${widthAttr};height:${h}px}@media(max-width:767px){.${uid}{width:100%;height:100vh;height:100dvh}}</style>
+<div class="${uid}">
+  <iframe src="${embedSrc}" width="100%" height="100%" style="border:0;border-radius:12px" loading="lazy" allowfullscreen></iframe>
+</div>`;
+  }, [embedSrc, embedWidth, embedWidthUnit, embedHeight, mapId]);
 
   const [thumbSize, setThumbSize] = useState("medium");
 
