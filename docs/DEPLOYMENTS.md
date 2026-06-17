@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-17 — Staging
+
+**Branch/commit:** `feat/2026-06-17-mobile-bottom-sheet` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Mobile map view — bottom sheet panel.** On viewports ≤ 640 px wide the `embed-list-panel` (search + listings sidebar) no longer renders as a desktop-style left sidebar. Instead it becomes an Atlist-style bottom sheet: in **peek** state only a drag pill, the map name, and the search bar are visible at the bottom of the screen; tapping the handle or focusing the search bar snaps it to **half** (50 % of screen height); the user can then drag the handle freely between half and full (85 %). Releasing snaps to the nearest position. The map's fit-bounds padding is adjusted so auto-fit avoids the peek strip rather than the sidebar.
+- Desktop layout is entirely unchanged (CSS class only applied when `matchMedia("(max-width: 640px)")` matches).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert this branch. No schema changes.
+
+### Verified
+- [ ] Mobile: peek strip visible at bottom, map fills screen behind it
+- [ ] Mobile: tap handle or search → snaps to 50 %
+- [ ] Mobile: drag up/down → snaps to nearest position on release
+- [ ] Desktop: no visual change to the sidebar
+
+---
+
 ## 2026-06-16 — Production
 
 **Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending

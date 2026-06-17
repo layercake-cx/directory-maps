@@ -242,6 +242,16 @@ export default function PublishedMapView({
   const [cameraRequest, setCameraRequest] = useState(null);
   const cameraSeqRef = useRef(0);
   const searchWrapRef = useRef(null);
+
+  // Mobile bottom sheet
+  const [isMobileSheet, setIsMobileSheet] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches
+  );
+  const [sheetSnap, setSheetSnap] = useState("peek"); // 'peek' | 'half' | 'full'
+  const [dragY, setDragY] = useState(null); // null = snapped, number = live drag translateY
+  const sheetRef = useRef(null);
+  const dragStartRef = useRef(null);
+  const PEEK_PX = 120;
   /** Skip duplicate listing_panel_open when list pick triggers DirectoryMap center + onSelect with pixel */
   const suppressListingOpenEngagementRef = useRef(false);
   /** Dedupe debounced search query events per session */
@@ -250,13 +260,11 @@ export default function PublishedMapView({
   const [searchHighlightIndex, setSearchHighlightIndex] = useState(-1);
 
   const mapFitBoundsPadding = useMemo(
-    () => ({
-      top: 44,
-      right: 44,
-      bottom: 44,
-      left: showListPanel !== false ? 300 : 48,
-    }),
-    [showListPanel]
+    () =>
+      isMobileSheet
+        ? { top: 44, right: 44, bottom: PEEK_PX + 24, left: 44 }
+        : { top: 44, right: 44, bottom: 44, left: showListPanel !== false ? 300 : 48 },
+    [showListPanel, isMobileSheet]
   );
 
   const panelBg = theme.panelBg ?? "rgba(228, 240, 255, 0.88)";
@@ -563,6 +571,21 @@ export default function PublishedMapView({
     setSearchHighlightIndex(-1);
   }, [searchQuery, placeSuggestions.length, suggestions.length]);
 
+  // Mobile sheet: detect viewport width and reset snap on resize to desktop
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 640px)");
+    const update = ({ matches }) => {
+      setIsMobileSheet(matches);
+      if (!matches) {
+        setSheetSnap("peek");
+        setDragY(null);
+      }
+    };
+    update(mql);
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
   const searchNavTotal = placeSuggestions.length + suggestions.length;
 
   useEffect(() => {
@@ -570,6 +593,58 @@ export default function PublishedMapView({
     const el = document.getElementById(`embed-search-opt-${searchHighlightIndex}`);
     el?.scrollIntoView({ block: "nearest" });
   }, [searchHighlightIndex, searchDropdownOpen, searchNavTotal]);
+
+  function getContainerH() {
+    return sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight;
+  }
+
+  function getSnapY(snap) {
+    const h = getContainerH();
+    const sheetH = h * 0.85;
+    if (snap === "peek") return sheetH - PEEK_PX;
+    if (snap === "half") return sheetH - h * 0.5;
+    return 0; // full
+  }
+
+  function onHandleTouchStart(e) {
+    const touch = e.touches[0];
+    dragStartRef.current = {
+      clientY: touch.clientY,
+      startY: dragY ?? getSnapY(sheetSnap),
+    };
+  }
+
+  function onHandleTouchMove(e) {
+    if (!dragStartRef.current) return;
+    const touch = e.touches[0];
+    const delta = touch.clientY - dragStartRef.current.clientY;
+    const h = getContainerH();
+    const maxY = h * 0.85 - PEEK_PX;
+    const newY = Math.max(0, Math.min(maxY, dragStartRef.current.startY + delta));
+    setDragY(newY);
+  }
+
+  function onHandleTouchEnd() {
+    if (!dragStartRef.current) return;
+    const currentY = dragY ?? getSnapY(sheetSnap);
+    const h = getContainerH();
+    const sheetH = h * 0.85;
+    const snaps = [
+      { id: "full", y: 0 },
+      { id: "half", y: sheetH - h * 0.5 },
+      { id: "peek", y: sheetH - PEEK_PX },
+    ];
+    const nearest = snaps.reduce((a, b) =>
+      Math.abs(a.y - currentY) < Math.abs(b.y - currentY) ? a : b
+    );
+    setSheetSnap(nearest.id);
+    setDragY(null);
+    dragStartRef.current = null;
+  }
+
+  function expandSheet() {
+    if (isMobileSheet && sheetSnap === "peek") setSheetSnap("half");
+  }
 
   function applySearchEnter() {
     const query = searchQuery.trim();
@@ -665,7 +740,27 @@ export default function PublishedMapView({
       />
 
       {showListPanel && (
-        <div className="embed-list-panel">
+        <div
+          ref={sheetRef}
+          className={`embed-list-panel${isMobileSheet ? ` embed-list-panel--mobile-sheet embed-list-panel--snap-${sheetSnap}` : ""}`}
+          style={isMobileSheet ? {
+            transform: `translateY(${(dragY ?? getSnapY(sheetSnap)).toFixed(1)}px)`,
+            transition: dragY !== null ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+          } : undefined}
+        >
+          {isMobileSheet && (
+            <div
+              className="embed-list-panel__handle"
+              onTouchStart={onHandleTouchStart}
+              onTouchMove={onHandleTouchMove}
+              onTouchEnd={onHandleTouchEnd}
+              onClick={expandSheet}
+              aria-label={sheetSnap === "peek" ? "Show map panel" : "Drag to resize panel"}
+            >
+              <div className="embed-list-panel__handle-pill" />
+              {mapName && <div className="embed-list-panel__mobile-mapname">{mapName}</div>}
+            </div>
+          )}
           <div className="embed-list-panel__header">
             {logoUrl ? (
               <div className="embed-list-panel__logo">
@@ -687,7 +782,7 @@ export default function PublishedMapView({
               placeholder="Search listings or places…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
+              onFocus={() => { setSearchFocused(true); expandSheet(); }}
               onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
               onKeyDown={(e) => {
                 const navTotal = placeSuggestions.length + suggestions.length;
