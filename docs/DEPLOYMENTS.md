@@ -14,8 +14,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 **Deployed by:** Claude Code
 
 ### What changed
-- **Mobile map view — bottom sheet panel.** On viewports ≤ 640 px wide the `embed-list-panel` (search + listings sidebar) no longer renders as a desktop-style left sidebar. Instead it becomes an Atlist-style bottom sheet: in **peek** state only a drag pill, the map name, and the search bar are visible at the bottom of the screen; tapping the handle or focusing the search bar snaps it to **half** (50 % of screen height); the user can then drag the handle freely between half and full (85 %). Releasing snaps to the nearest position. The map's fit-bounds padding is adjusted so auto-fit avoids the peek strip rather than the sidebar.
-- Desktop layout is entirely unchanged (CSS class only applied when `matchMedia("(max-width: 640px)")` matches).
+- **Mobile map view — search bottom sheet.** On viewports ≤ 640 px wide the `embed-list-panel` (search + listings sidebar) becomes an Atlist-style bottom sheet anchored to the bottom of the screen. **Peek state**: only a drag handle and up-chevron visible (~108 px). Tapping snaps it to half height (50 %); dragging is free, snapping back to peek only if released within 60 px of the peek edge. Map name, logo, and description are hidden on mobile — only search bar, filter lozenges, key, and listings show. The map's fit-bounds padding avoids the peek strip rather than the sidebar. Uses Pointer Events API so drag works in both DevTools simulation and real touch.
+- **Mobile map view — listing detail bottom sheet.** Tapping a pin or listing on mobile collapses the search sheet to peek and opens a dedicated `map-pin-mobile-sheet` sliding up from 60 % screen height. It has a pill drag handle, scrollable body with 15 px padding, solid white background, and the logo background extends seamlessly to the sheet's rounded top corners. Dragging near the bottom dismisses it. The map pans so the selected pin sits just above the sheet. Zoom level on mobile is 17 (vs 15 on desktop) for a closer street-level view.
+- Desktop layout is entirely unchanged.
 
 ### Database migrations applied
 None.
@@ -28,9 +29,11 @@ Revert this branch. No schema changes.
 
 ### Verified
 - [ ] Mobile: peek strip visible at bottom, map fills screen behind it
-- [ ] Mobile: tap handle or search → snaps to 50 %
-- [ ] Mobile: drag up/down → snaps to nearest position on release
-- [ ] Desktop: no visual change to the sidebar
+- [ ] Mobile: tap handle → snaps to 50 %; drag freely; releases in place
+- [ ] Mobile: tap a listing → search collapses to peek, listing sheet slides up at 60 %
+- [ ] Mobile: listing sheet draggable; drag to bottom dismisses; pin visible above sheet
+- [ ] Mobile: zoom is visibly deeper than desktop when selecting a listing
+- [ ] Desktop: sidebar, overlay, and drawer behaviour unchanged
 
 ---
 
