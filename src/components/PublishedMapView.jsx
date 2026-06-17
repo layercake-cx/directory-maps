@@ -247,11 +247,14 @@ export default function PublishedMapView({
   const [isMobileSheet, setIsMobileSheet] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches
   );
-  const [sheetSnap, setSheetSnap] = useState("peek"); // 'peek' | 'half' | 'full'
-  const [dragY, setDragY] = useState(null); // null = snapped, number = live drag translateY
+  const [sheetSnap, setSheetSnap] = useState("peek"); // 'peek' | 'half'
+  const [dragY, setDragY] = useState(null); // null = at peek (snap), number = free-positioned Y
+  const [isDragging, setIsDragging] = useState(false);
   const sheetRef = useRef(null);
+  const handleRef = useRef(null); // touch drag target
+  const touchHandlerRef = useRef(null); // latest touch callbacks (avoids stale closures)
   const dragStartRef = useRef(null);
-  const PEEK_PX = 120;
+  const PEEK_PX = 108;
   /** Skip duplicate listing_panel_open when list pick triggers DirectoryMap center + onSelect with pixel */
   const suppressListingOpenEngagementRef = useRef(false);
   /** Dedupe debounced search query events per session */
@@ -598,52 +601,74 @@ export default function PublishedMapView({
     return sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight;
   }
 
-  function getSnapY(snap) {
-    const h = getContainerH();
-    const sheetH = h * 0.85;
-    if (snap === "peek") return sheetH - PEEK_PX;
-    if (snap === "half") return sheetH - h * 0.5;
-    return 0; // full
+  function getPeekY() {
+    return getContainerH() * 0.85 - PEEK_PX;
   }
 
-  function onHandleTouchStart(e) {
-    const touch = e.touches[0];
-    dragStartRef.current = {
-      clientY: touch.clientY,
-      startY: dragY ?? getSnapY(sheetSnap),
+  function getHalfY() {
+    const h = getContainerH();
+    return h * 0.85 - h * 0.5;
+  }
+
+  // Keep touch callbacks in a ref so the event listeners (attached once) never go stale.
+  // This ref is written on every render — no useCallback needed.
+  touchHandlerRef.current = {
+    onStart(e) {
+      const touch = e.touches[0];
+      dragStartRef.current = {
+        clientY: touch.clientY,
+        startY: dragY ?? getPeekY(),
+      };
+      setIsDragging(true);
+    },
+    onMove(e) {
+      e.preventDefault(); // requires passive:false — handled in the useEffect below
+      if (!dragStartRef.current) return;
+      const touch = e.touches[0];
+      const delta = touch.clientY - dragStartRef.current.clientY;
+      const maxY = getContainerH() * 0.85 - PEEK_PX;
+      const newY = Math.max(0, Math.min(maxY, dragStartRef.current.startY + delta));
+      setDragY(newY);
+    },
+    onEnd() {
+      if (!dragStartRef.current) return;
+      dragStartRef.current = null;
+      setIsDragging(false);
+      const finalY = dragY ?? getPeekY();
+      const peekY = getPeekY();
+      // Snap back to peek if released close to it; otherwise stay exactly where dropped.
+      if (Math.abs(finalY - peekY) < 60) {
+        setSheetSnap("peek");
+        setDragY(null);
+      } else {
+        setDragY(finalY);
+        setSheetSnap("half");
+      }
+    },
+  };
+
+  // Attach non-passive touchmove so e.preventDefault() can suppress native scroll.
+  useEffect(() => {
+    const el = handleRef.current;
+    if (!el || !isMobileSheet) return;
+    const onStart = (e) => touchHandlerRef.current.onStart(e);
+    const onMove = (e) => touchHandlerRef.current.onMove(e);
+    const onEnd = (e) => touchHandlerRef.current.onEnd(e);
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
     };
-  }
-
-  function onHandleTouchMove(e) {
-    if (!dragStartRef.current) return;
-    const touch = e.touches[0];
-    const delta = touch.clientY - dragStartRef.current.clientY;
-    const h = getContainerH();
-    const maxY = h * 0.85 - PEEK_PX;
-    const newY = Math.max(0, Math.min(maxY, dragStartRef.current.startY + delta));
-    setDragY(newY);
-  }
-
-  function onHandleTouchEnd() {
-    if (!dragStartRef.current) return;
-    const currentY = dragY ?? getSnapY(sheetSnap);
-    const h = getContainerH();
-    const sheetH = h * 0.85;
-    const snaps = [
-      { id: "full", y: 0 },
-      { id: "half", y: sheetH - h * 0.5 },
-      { id: "peek", y: sheetH - PEEK_PX },
-    ];
-    const nearest = snaps.reduce((a, b) =>
-      Math.abs(a.y - currentY) < Math.abs(b.y - currentY) ? a : b
-    );
-    setSheetSnap(nearest.id);
-    setDragY(null);
-    dragStartRef.current = null;
-  }
+  }, [isMobileSheet]);
 
   function expandSheet() {
-    if (isMobileSheet && sheetSnap === "peek") setSheetSnap("half");
+    if (isMobileSheet && sheetSnap === "peek" && dragY === null) {
+      setDragY(getHalfY());
+      setSheetSnap("half");
+    }
   }
 
   function applySearchEnter() {
@@ -744,21 +769,33 @@ export default function PublishedMapView({
           ref={sheetRef}
           className={`embed-list-panel${isMobileSheet ? ` embed-list-panel--mobile-sheet embed-list-panel--snap-${sheetSnap}` : ""}`}
           style={isMobileSheet ? {
-            transform: `translateY(${(dragY ?? getSnapY(sheetSnap)).toFixed(1)}px)`,
-            transition: dragY !== null ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+            transform: `translateY(${(dragY ?? getPeekY()).toFixed(1)}px)`,
+            transition: isDragging ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
           } : undefined}
         >
           {isMobileSheet && (
             <div
+              ref={handleRef}
               className="embed-list-panel__handle"
-              onTouchStart={onHandleTouchStart}
-              onTouchMove={onHandleTouchMove}
-              onTouchEnd={onHandleTouchEnd}
               onClick={expandSheet}
               aria-label={sheetSnap === "peek" ? "Show map panel" : "Drag to resize panel"}
             >
-              <div className="embed-list-panel__handle-pill" />
-              {mapName && <div className="embed-list-panel__mobile-mapname">{mapName}</div>}
+              {sheetSnap === "peek" && dragY === null ? (
+                <svg
+                  className="embed-list-panel__handle-chevron"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="4 16 12 8 20 16" />
+                </svg>
+              ) : (
+                <div className="embed-list-panel__handle-pill" />
+              )}
             </div>
           )}
           <div className="embed-list-panel__header">
