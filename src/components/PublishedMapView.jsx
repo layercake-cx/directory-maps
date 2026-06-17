@@ -242,6 +242,26 @@ export default function PublishedMapView({
   const [cameraRequest, setCameraRequest] = useState(null);
   const cameraSeqRef = useRef(0);
   const searchWrapRef = useRef(null);
+
+  // Mobile bottom sheet
+  const [isMobileSheet, setIsMobileSheet] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches
+  );
+  const [sheetSnap, setSheetSnap] = useState("peek"); // 'peek' | 'half'
+  const [dragY, setDragY] = useState(null); // null = at peek (snap), number = free-positioned Y
+  const [isDragging, setIsDragging] = useState(false);
+  const sheetRef = useRef(null);
+  const handleRef = useRef(null); // touch drag target
+  const touchHandlerRef = useRef(null); // latest touch callbacks (avoids stale closures)
+  const dragStartRef = useRef(null);
+  const PEEK_PX = 108;
+
+  // Listing detail bottom sheet (mobile only)
+  const [listingSheetY, setListingSheetY] = useState(null); // null = start position
+  const [isListingDragging, setIsListingDragging] = useState(false);
+  const listingHandleRef = useRef(null);
+  const listingTouchHandlerRef = useRef(null);
+  const listingDragStartRef = useRef(null);
   /** Skip duplicate listing_panel_open when list pick triggers DirectoryMap center + onSelect with pixel */
   const suppressListingOpenEngagementRef = useRef(false);
   /** Dedupe debounced search query events per session */
@@ -250,13 +270,11 @@ export default function PublishedMapView({
   const [searchHighlightIndex, setSearchHighlightIndex] = useState(-1);
 
   const mapFitBoundsPadding = useMemo(
-    () => ({
-      top: 44,
-      right: 44,
-      bottom: 44,
-      left: showListPanel !== false ? 300 : 48,
-    }),
-    [showListPanel]
+    () =>
+      isMobileSheet
+        ? { top: 44, right: 44, bottom: PEEK_PX + 24, left: 44 }
+        : { top: 44, right: 44, bottom: 44, left: showListPanel !== false ? 300 : 48 },
+    [showListPanel, isMobileSheet]
   );
 
   const panelBg = theme.panelBg ?? "rgba(228, 240, 255, 0.88)";
@@ -477,6 +495,10 @@ export default function PublishedMapView({
     suppressListingOpenEngagementRef.current = true;
     if (setCenterOnListingId) setCenterOnListingId(listing.id);
     setSearchQuery("");
+    if (isMobileSheet) {
+      setSheetSnap("peek");
+      setDragY(null);
+    }
   }
 
   function handleDirectoryMapSelect(listing, point) {
@@ -486,6 +508,11 @@ export default function PublishedMapView({
       recordEngagement("listing_panel_open", { listingId: listing.id, meta: { source: "marker" } });
     }
     onSelectMarker(listing, point);
+    if (isMobileSheet) {
+      setSearchQuery("");
+      setSheetSnap("peek");
+      setDragY(null);
+    }
   }
 
   function selectPlaceFromGeocode(place, { skipSearchRecord = false } = {}) {
@@ -511,7 +538,7 @@ export default function PublishedMapView({
   }
 
   useLayoutEffect(() => {
-    if (pinDetailLayout === "drawer") {
+    if (pinDetailLayout === "drawer" || isMobileSheet) {
       setClampedPanelPosition?.(null);
       return;
     }
@@ -563,6 +590,21 @@ export default function PublishedMapView({
     setSearchHighlightIndex(-1);
   }, [searchQuery, placeSuggestions.length, suggestions.length]);
 
+  // Mobile sheet: detect viewport width and reset snap on resize to desktop
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 640px)");
+    const update = ({ matches }) => {
+      setIsMobileSheet(matches);
+      if (!matches) {
+        setSheetSnap("peek");
+        setDragY(null);
+      }
+    };
+    update(mql);
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
   const searchNavTotal = placeSuggestions.length + suggestions.length;
 
   useEffect(() => {
@@ -570,6 +612,145 @@ export default function PublishedMapView({
     const el = document.getElementById(`embed-search-opt-${searchHighlightIndex}`);
     el?.scrollIntoView({ block: "nearest" });
   }, [searchHighlightIndex, searchDropdownOpen, searchNavTotal]);
+
+  function getContainerH() {
+    return sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight;
+  }
+
+  function getPeekY() {
+    return getContainerH() * 0.85 - PEEK_PX;
+  }
+
+  function getHalfY() {
+    const h = getContainerH();
+    return h * 0.85 - h * 0.5;
+  }
+
+  // Keep drag callbacks in a ref so the listeners (attached once) always read fresh state.
+  // Written on every render — no useCallback needed.
+  touchHandlerRef.current = {
+    onDown(e, el) {
+      el.setPointerCapture(e.pointerId); // keep receiving events even outside the element
+      dragStartRef.current = {
+        clientY: e.clientY,
+        startY: dragY ?? getPeekY(),
+      };
+      setIsDragging(true);
+    },
+    onMove(e) {
+      if (!dragStartRef.current) return;
+      const delta = e.clientY - dragStartRef.current.clientY;
+      const maxY = getContainerH() * 0.85 - PEEK_PX;
+      const newY = Math.max(0, Math.min(maxY, dragStartRef.current.startY + delta));
+      setDragY(newY);
+    },
+    onUp() {
+      if (!dragStartRef.current) return;
+      dragStartRef.current = null;
+      setIsDragging(false);
+      const finalY = dragY ?? getPeekY();
+      const peekY = getPeekY();
+      // Snap back to peek if released close to it; otherwise stay exactly where dropped.
+      if (Math.abs(finalY - peekY) < 60) {
+        setSheetSnap("peek");
+        setDragY(null);
+      } else {
+        setDragY(finalY);
+        setSheetSnap("half");
+      }
+    },
+  };
+
+  // Pointer events work for mouse (DevTools simulation) and touch (real devices).
+  useEffect(() => {
+    const el = handleRef.current;
+    if (!el || !isMobileSheet) return;
+    const onDown = (e) => touchHandlerRef.current.onDown(e, el);
+    const onMove = (e) => touchHandlerRef.current.onMove(e);
+    const onUp = (e) => touchHandlerRef.current.onUp(e);
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [isMobileSheet]);
+
+  function expandSheet() {
+    if (isMobileSheet && sheetSnap === "peek" && dragY === null) {
+      setDragY(getHalfY());
+      setSheetSnap("half");
+    }
+  }
+
+  function getListingStartY() {
+    const h = getContainerH();
+    return h * 0.85 - h * 0.6; // shows 60% of container height
+  }
+
+  listingTouchHandlerRef.current = {
+    onDown(e, el) {
+      el.setPointerCapture(e.pointerId);
+      listingDragStartRef.current = {
+        clientY: e.clientY,
+        startY: listingSheetY ?? getListingStartY(),
+      };
+      setIsListingDragging(true);
+    },
+    onMove(e) {
+      if (!listingDragStartRef.current) return;
+      const delta = e.clientY - listingDragStartRef.current.clientY;
+      const h = getContainerH();
+      const maxY = h * 0.85; // can drag all the way to bottom (triggers dismiss)
+      const newY = Math.max(0, Math.min(maxY, listingDragStartRef.current.startY + delta));
+      setListingSheetY(newY);
+    },
+    onUp() {
+      if (!listingDragStartRef.current) return;
+      listingDragStartRef.current = null;
+      setIsListingDragging(false);
+      const finalY = listingSheetY ?? getListingStartY();
+      const h = getContainerH();
+      // Dismiss if dragged near the bottom
+      if (finalY > h * 0.85 - 80) {
+        onClosePin?.();
+        setListingSheetY(null);
+      } else {
+        setListingSheetY(finalY);
+      }
+    },
+  };
+
+  const hasSelectedListing = Boolean(selectedListing);
+  useEffect(() => {
+    const el = listingHandleRef.current;
+    if (!el || !isMobileSheet) return;
+    const onDown = (e) => listingTouchHandlerRef.current.onDown(e, el);
+    const onMove = (e) => listingTouchHandlerRef.current.onMove(e);
+    const onUp = (e) => listingTouchHandlerRef.current.onUp(e);
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [isMobileSheet, hasSelectedListing]);
+
+  // Reset listing sheet position whenever a new listing opens
+  useEffect(() => {
+    if (selectedListing) {
+      setListingSheetY(null);
+      setIsListingDragging(false);
+    }
+  }, [selectedListing?.id]);
 
   function applySearchEnter() {
     const query = searchQuery.trim();
@@ -655,8 +836,9 @@ export default function PublishedMapView({
         mapFitBoundsPadding={mapFitBoundsPadding}
         screenOverlayListing={pinDetailLayout === "map" ? selectedListing : null}
         onScreenOverlayPosition={onMarkerScreenPosition}
-        selectZoom={15}
-        selectPanOffsetX={pinDetailLayout === "drawer" ? 200 : 0}
+        selectZoom={isMobileSheet ? 17 : 15}
+        selectPanOffsetX={isMobileSheet ? 0 : pinDetailLayout === "drawer" ? 200 : 0}
+        selectPanOffsetY={isMobileSheet ? Math.round((sheetRef.current?.offsetParent?.clientHeight ?? window.innerHeight) * 0.15) : 0}
         mapStyles={mapStyles}
         showTrafficLayer={showTrafficLayer}
         showTransitLayer={showTransitLayer}
@@ -665,7 +847,39 @@ export default function PublishedMapView({
       />
 
       {showListPanel && (
-        <div className="embed-list-panel">
+        <div
+          ref={sheetRef}
+          className={`embed-list-panel${isMobileSheet ? ` embed-list-panel--mobile-sheet embed-list-panel--snap-${sheetSnap}` : ""}`}
+          style={isMobileSheet ? {
+            transform: `translateY(${(dragY ?? getPeekY()).toFixed(1)}px)`,
+            transition: isDragging ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+          } : undefined}
+        >
+          {isMobileSheet && (
+            <div
+              ref={handleRef}
+              className="embed-list-panel__handle"
+              onClick={expandSheet}
+              aria-label={sheetSnap === "peek" ? "Show map panel" : "Drag to resize panel"}
+            >
+              {sheetSnap === "peek" && dragY === null ? (
+                <svg
+                  className="embed-list-panel__handle-chevron"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="4 16 12 8 20 16" />
+                </svg>
+              ) : (
+                <div className="embed-list-panel__handle-pill" />
+              )}
+            </div>
+          )}
           <div className="embed-list-panel__header">
             {logoUrl ? (
               <div className="embed-list-panel__logo">
@@ -687,7 +901,7 @@ export default function PublishedMapView({
               placeholder="Search listings or places…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
+              onFocus={() => { setSearchFocused(true); expandSheet(); }}
               onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
               onKeyDown={(e) => {
                 const navTotal = placeSuggestions.length + suggestions.length;
@@ -901,7 +1115,34 @@ export default function PublishedMapView({
         </div>
       )}
 
-      {selectedListing && pinDetailLayout === "map" ? (
+      {selectedListing && isMobileSheet ? (
+        <div
+          className="map-pin-mobile-sheet"
+          role="dialog"
+          aria-label="Listing details"
+          style={{
+            transform: `translateY(${(listingSheetY ?? getListingStartY()).toFixed(1)}px)`,
+            transition: isListingDragging ? "none" : "transform 0.35s cubic-bezier(0.32,0.72,0,1)",
+          }}
+        >
+          <div ref={listingHandleRef} className="map-pin-mobile-sheet__handle" aria-label="Drag to resize">
+            <div className="map-pin-mobile-sheet__pill" />
+          </div>
+          <div ref={pinOverlayRef} className="map-pin-mobile-sheet__body">
+            <ListingCardContent
+              listing={selectedListing}
+              buttonColor={buttonColor}
+              showSendMessage={showSendMessage}
+              onOpenSendMessage={onOpenSendMessage}
+              onClosePin={onClosePin}
+              extended
+              recordEngagement={recordEngagement}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {selectedListing && !isMobileSheet && pinDetailLayout === "map" ? (
         <div
           ref={pinOverlayRef}
           className="map-pin-overlay"
@@ -932,7 +1173,7 @@ export default function PublishedMapView({
         </div>
       ) : null}
 
-      {selectedListing && pinDetailLayout === "drawer" ? (
+      {selectedListing && !isMobileSheet && pinDetailLayout === "drawer" ? (
         <div className="map-pin-drawer map-pin-drawer--open" role="presentation">
           <button type="button" className="map-pin-drawer__backdrop" onClick={onClosePin} aria-label="Close listing" />
           <div className="map-pin-drawer__sheet" role="dialog" aria-label="Listing details">

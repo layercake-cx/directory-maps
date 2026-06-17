@@ -1149,6 +1149,190 @@ a:hover {
   background: rgba(243, 244, 246, 0.7);
 }
 
+/* ── Mobile bottom sheet ──────────────────────────────────────────────── */
+.embed-list-panel__handle {
+  display: none; /* hidden on desktop; shown only by mobile-sheet class */
+}
+
+.embed-list-panel--mobile-sheet {
+  position: absolute;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 85%;
+  max-height: 85%;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.16);
+  will-change: transform;
+  overflow: visible; /* keep dropdown unclipped */
+  /* Clip the sheet background to the rounded rect without hiding the dropdown */
+  /* Background clipping via a pseudo-element is not needed — border-radius on
+     the panel itself rounds the visible portion cleanly since overflow is visible
+     for the dropdown and the translateY hides below-fold content off-screen. */
+}
+
+@media (max-width: 640px) {
+  /* Drag handle */
+  .embed-list-panel__handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px 4px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    flex-shrink: 0;
+    order: 0;
+  }
+
+  .embed-list-panel__handle:active {
+    cursor: grabbing;
+  }
+
+  .embed-list-panel__handle-pill {
+    width: 40px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .embed-list-panel__handle-chevron {
+    width: 28px;
+    height: 28px;
+    color: rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+  }
+
+  /* Hide logo / title / description entirely on mobile — only search + filters + listings */
+  .embed-list-panel--mobile-sheet .embed-list-panel__header {
+    display: none;
+  }
+
+  /* Search filter is first below the handle */
+  .embed-list-panel--mobile-sheet .embed-list-panel__filter {
+    order: 1;
+    padding-top: 4px;
+  }
+
+  /* Dividers, key, listings appear after */
+  .embed-list-panel--mobile-sheet .embed-list-panel__divider {
+    order: 3;
+  }
+
+  .embed-list-panel--mobile-sheet .embed-list-panel__key {
+    order: 4;
+  }
+
+  .embed-list-panel--mobile-sheet .embed-list-panel__listings {
+    order: 5;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide "Search & filter" section label — redundant on mobile */
+  .embed-list-panel--mobile-sheet .embed-list-panel__section-title {
+    display: none;
+  }
+
+  /* Clip the visible panel background to the rounded top corners.
+     The panel itself uses overflow: visible for the search dropdown,
+     so we clip via a background pseudo-element instead. */
+  .embed-list-panel--mobile-sheet::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--search-panel-bg, var(--panel-bg, rgba(228, 240, 255, 0.92)));
+    border-radius: 16px 16px 0 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Override default panel background so ::before handles it */
+  .embed-list-panel--mobile-sheet {
+    background: transparent;
+  }
+}
+
+/* ── Mobile listing detail sheet ─────────────────────────────────────── */
+.map-pin-mobile-sheet {
+  display: none; /* only shown when isMobileSheet renders it */
+}
+
+@media (max-width: 640px) {
+  .map-pin-mobile-sheet {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 85%;
+    border-radius: 16px 16px 0 0;
+    background: #fff;
+    box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.16);
+    z-index: 1050; /* above the search sheet (1000) */
+    will-change: transform;
+    overflow: visible; /* allow close button to not be clipped */
+  }
+
+  .map-pin-mobile-sheet__handle {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    padding: 10px 16px 6px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    background: #fff;
+    border-radius: 16px 16px 0 0; /* extend white logo bg up to sheet corners */
+  }
+
+  .map-pin-mobile-sheet__handle:active {
+    cursor: grabbing;
+  }
+
+  .map-pin-mobile-sheet__pill {
+    width: 40px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+  }
+
+  .map-pin-mobile-sheet__body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Logo: flush to sheet edges, no top radius (handle above covers it) */
+  .map-pin-mobile-sheet .map-pin-overlay__logo {
+    margin: 0;
+    border-radius: 0;
+    padding: 8px 16px 16px;
+  }
+
+  /* Content body: solid bg, generous padding */
+  .map-pin-mobile-sheet .map-pin-overlay__body {
+    margin: 0;
+    padding: 15px;
+    background: #fff;
+    border-radius: 0;
+  }
+
+  /* The close button inside the listing card sits inside the sheet body */
+  .map-pin-mobile-sheet__body .map-pin-overlay__close {
+    position: sticky;
+    top: 0;
+    float: right;
+    z-index: 2;
+  }
+}
+
 /* Embed: message drawer (right-hand panel) */
 .embed-message-drawer {
   position: fixed;

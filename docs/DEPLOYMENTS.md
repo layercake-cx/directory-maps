@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-17 — Staging
+
+**Branch/commit:** `feat/2026-06-17-mobile-bottom-sheet` | pending
+**Deployed by:** Claude Code
+
+### What changed
+- **Mobile map view — search bottom sheet.** On viewports ≤ 640 px wide the `embed-list-panel` (search + listings sidebar) becomes an Atlist-style bottom sheet anchored to the bottom of the screen. **Peek state**: only a drag handle and up-chevron visible (~108 px). Tapping snaps it to half height (50 %); dragging is free, snapping back to peek only if released within 60 px of the peek edge. Map name, logo, and description are hidden on mobile — only search bar, filter lozenges, key, and listings show. The map's fit-bounds padding avoids the peek strip rather than the sidebar. Uses Pointer Events API so drag works in both DevTools simulation and real touch.
+- **Mobile map view — listing detail bottom sheet.** Tapping a pin or listing on mobile collapses the search sheet to peek and opens a dedicated `map-pin-mobile-sheet` sliding up from 60 % screen height. It has a pill drag handle, scrollable body with 15 px padding, solid white background, and the logo background extends seamlessly to the sheet's rounded top corners. Dragging near the bottom dismisses it. The map pans so the selected pin sits just above the sheet. Zoom level on mobile is 17 (vs 15 on desktop) for a closer street-level view.
+- Desktop layout is entirely unchanged.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert this branch. No schema changes.
+
+### Verified
+- [ ] Mobile: peek strip visible at bottom, map fills screen behind it
+- [ ] Mobile: tap handle → snaps to 50 %; drag freely; releases in place
+- [ ] Mobile: tap a listing → search collapses to peek, listing sheet slides up at 60 %
+- [ ] Mobile: listing sheet draggable; drag to bottom dismisses; pin visible above sheet
+- [ ] Mobile: zoom is visibly deeper than desktop when selecting a listing
+- [ ] Desktop: sidebar, overlay, and drawer behaviour unchanged
+
+---
+
 ## 2026-06-16 — Production
 
 **Branch/commit:** `feat/2026-06-16-messaging-sent-messages` | pending
