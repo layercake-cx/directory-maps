@@ -610,27 +610,25 @@ export default function PublishedMapView({
     return h * 0.85 - h * 0.5;
   }
 
-  // Keep touch callbacks in a ref so the event listeners (attached once) never go stale.
-  // This ref is written on every render — no useCallback needed.
+  // Keep drag callbacks in a ref so the listeners (attached once) always read fresh state.
+  // Written on every render — no useCallback needed.
   touchHandlerRef.current = {
-    onStart(e) {
-      const touch = e.touches[0];
+    onDown(e, el) {
+      el.setPointerCapture(e.pointerId); // keep receiving events even outside the element
       dragStartRef.current = {
-        clientY: touch.clientY,
+        clientY: e.clientY,
         startY: dragY ?? getPeekY(),
       };
       setIsDragging(true);
     },
     onMove(e) {
-      e.preventDefault(); // requires passive:false — handled in the useEffect below
       if (!dragStartRef.current) return;
-      const touch = e.touches[0];
-      const delta = touch.clientY - dragStartRef.current.clientY;
+      const delta = e.clientY - dragStartRef.current.clientY;
       const maxY = getContainerH() * 0.85 - PEEK_PX;
       const newY = Math.max(0, Math.min(maxY, dragStartRef.current.startY + delta));
       setDragY(newY);
     },
-    onEnd() {
+    onUp() {
       if (!dragStartRef.current) return;
       dragStartRef.current = null;
       setIsDragging(false);
@@ -647,20 +645,22 @@ export default function PublishedMapView({
     },
   };
 
-  // Attach non-passive touchmove so e.preventDefault() can suppress native scroll.
+  // Pointer events work for mouse (DevTools simulation) and touch (real devices).
   useEffect(() => {
     const el = handleRef.current;
     if (!el || !isMobileSheet) return;
-    const onStart = (e) => touchHandlerRef.current.onStart(e);
+    const onDown = (e) => touchHandlerRef.current.onDown(e, el);
     const onMove = (e) => touchHandlerRef.current.onMove(e);
-    const onEnd = (e) => touchHandlerRef.current.onEnd(e);
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd, { passive: true });
+    const onUp = (e) => touchHandlerRef.current.onUp(e);
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
     return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
     };
   }, [isMobileSheet]);
 
