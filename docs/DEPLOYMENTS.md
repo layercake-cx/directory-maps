@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-22 — Production (domain verify stuck at pending)
+
+**Branch/commit:** `fix/2026-06-22-domain-verify-pending-loop` | 8bd182e
+**Deployed by:** Claude Code
+
+### What changed
+- **Domain verification now resolves correctly instead of staying stuck at "Pending DNS".** Resend's verify endpoint is async — it immediately flips the domain to `"pending"` while its DNS check runs in the background. The old polling function treated `"pending"` as a terminal/completed state (it exited whenever status was anything other than `"not_started"`), so it wrote `"pending"` to the DB and returned before Resend finished checking. Fixed by polling only until a genuinely terminal status is returned: `"verified"`, `"failed"`, or `"temporary_failure"`. Also increased max poll attempts from 6 to 8 (24-second ceiling, well within the 60-second Edge Function limit).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+- `manage_client_email` — staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous version of `manage_client_email` from the Supabase dashboard. No schema changes.
+
+### Verified
+- [x] iapco.org domain verified successfully in production after deploying the fix
+
+---
+
 ## 2026-06-17 — Staging (stats timezone fix)
 
 **Branch/commit:** `fix/2026-06-17-stats-live-today` | pending
