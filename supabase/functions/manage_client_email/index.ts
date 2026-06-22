@@ -113,18 +113,19 @@ async function syncDomainFromResend(service: ReturnType<typeof createServiceClie
  * Resend's verify endpoint is async — it queues a background DNS check and
  * returns immediately with just { id }. Status updates arrive via webhook.
  * We don't have a webhook, so we poll GET /domains/{id} until the overall
- * domain status moves away from "not_started", or until we give up.
+ * domain status settles on a terminal state, or until we give up.
  *
- * Typical Resend check completes in 3–8 seconds for already-propagated DNS.
+ * Resend status lifecycle: not_started → pending → verified | failed | temporary_failure
+ * "pending" means Resend's check is still running — we must keep polling through it.
+ * Typical check completes in 3–8 seconds for already-propagated DNS.
  */
-async function pollUntilChecked(domainId: string, attempts = 6, intervalMs = 3000): Promise<Record<string, unknown>> {
+async function pollUntilChecked(domainId: string, attempts = 8, intervalMs = 3000): Promise<Record<string, unknown>> {
+  const terminalStatuses = ["verified", "failed", "temporary_failure"];
   for (let i = 0; i < attempts; i++) {
     await new Promise((r) => setTimeout(r, intervalMs));
     const remote = await resendGetDomain(domainId) as Record<string, unknown>;
     const status = typeof remote?.status === "string" ? remote.status : "";
-    // "not_started" means the check hasn't run yet — keep polling.
-    // Any other status (pending, verified, failed) means the check has run.
-    if (status && status !== "not_started") return remote;
+    if (terminalStatuses.includes(status)) return remote;
   }
   // Return whatever we have after exhausting retries.
   return await resendGetDomain(domainId) as Record<string, unknown>;
