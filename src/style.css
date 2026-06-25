@@ -1365,6 +1365,11 @@ a:hover {
   pointer-events: none;
 }
 
+/* Inside map fullscreen root so the drawer stays visible in native/pseudo fullscreen */
+[data-map-fullscreen-root] .embed-message-drawer {
+  position: absolute;
+}
+
 .embed-message-drawer--open {
   pointer-events: auto;
 }

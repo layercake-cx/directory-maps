@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-06-25 — Staging (message drawer in map fullscreen)
+
+**Branch/commit:** `fix/2026-06-25-message-drawer-fullscreen` | pending
+**Deployed by:** Cursor agent
+
+### What changed
+- **Send-message drawer stays visible when the map is in fullscreen.** The drawer was rendered outside the map’s fullscreen root, so the browser hid it whenever native or pseudo-fullscreen mode was active. It now renders inside `PublishedMapView` via a `mapOverlay` slot (client map editor, admin map editor, and public embed).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None.
+
+### Rollback plan
+Revert the branch commit; no schema or Edge Function changes.
+
+### Verified
+- [x] Production build passes locally
+- [ ] Manual smoke test: open listing → Send message → enter fullscreen → drawer still visible
+
+---
+
 ## 2026-06-22 — Production (domain verify stuck at pending)
 
 **Branch/commit:** `fix/2026-06-22-domain-verify-pending-loop` | 8bd182e
