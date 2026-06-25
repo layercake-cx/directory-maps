@@ -1624,6 +1624,192 @@ export default function AdminMapDashboard() {
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
 
+  const messageDrawer = (
+    <div
+      className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`}
+      aria-hidden={!messageDrawerOpen}
+    >
+      <div
+        className="embed-message-drawer__backdrop"
+        onClick={() => setMessageDrawerOpen(false)}
+        aria-label="Close"
+      />
+      <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
+        <div className="embed-message-drawer__header">
+          <h3 className="embed-message-drawer__title">Send message</h3>
+          <button
+            type="button"
+            className="embed-message-drawer__close"
+            onClick={() => setMessageDrawerOpen(false)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        {selectedListing ? (
+          <p className="embed-message-drawer__to">To: {selectedListing.name || "—"}</p>
+        ) : null}
+        {contactFormSent ? (
+          <div className="embed-message-drawer__success">
+            <p>Your message has been sent. You have been CC&apos;d on the email.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setMessageDrawerOpen(false);
+                setContactFormSent(false);
+              }}
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <form
+            className="embed-message-drawer__form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+            if (!selectedListing?.email) return;
+            if (messagingTestMode && !contactForm.testToEmail.trim()) {
+              setContactFormError("Enter a test recipient email to send in test mode.");
+              return;
+            }
+            setContactFormError("");
+              setContactFormSubmitting(true);
+              try {
+                await submitContactMessage(supabase, {
+                  mapId,
+                  listingId: selectedListing.id,
+                  listingName: selectedListing.name || "",
+                  toEmail: messagingTestMode
+                    ? contactForm.testToEmail.trim()
+                    : selectedListing.email,
+                  senderName: (contactForm.name || "").trim(),
+                  senderEmail: (contactForm.email || "").trim(),
+                  senderPhone: (contactForm.phone || "").trim(),
+                  message: (contactForm.message || "").trim(),
+                  surface: "admin_preview",
+                });
+                setContactFormSent(true);
+                setContactForm({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  message: "",
+                  testToEmail: contactForm.testToEmail,
+                });
+              } catch (err) {
+                setContactFormError(formatContactMessageError(err));
+              } finally {
+                setContactFormSubmitting(false);
+              }
+            }}
+          >
+            {messagingTestMode && (
+              <div
+                style={{
+                  marginBottom: 10,
+                  fontSize: 12,
+                  color: "#b45309",
+                  background: "#fef3c7",
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                }}
+              >
+                <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
+              </div>
+            )}
+            {messagingTestMode && (
+              <label className="embed-message-drawer__label">
+                <span>Test recipient email</span>
+                <input
+                  type="email"
+                  value={contactForm.testToEmail}
+                  onChange={(e) =>
+                    setContactForm((f) => ({
+                      ...f,
+                      testToEmail: e.target.value,
+                    }))
+                  }
+                  placeholder={messagingTestRecipient || "test-recipient@example.com"}
+                  required
+                />
+              </label>
+            )}
+            <label className="embed-message-drawer__label">
+              <span>Name</span>
+              <input
+                type="text"
+                value={contactForm.name}
+                onChange={(e) =>
+                  setContactForm((f) => ({
+                    ...f,
+                    name: e.target.value,
+                  }))
+                }
+                placeholder="Your name"
+              />
+            </label>
+            <label className="embed-message-drawer__label">
+              <span>Email</span>
+              <input
+                type="email"
+                value={contactForm.email}
+                onChange={(e) =>
+                  setContactForm((f) => ({
+                    ...f,
+                    email: e.target.value,
+                  }))
+                }
+                placeholder="your@email.com"
+                required
+              />
+            </label>
+            <label className="embed-message-drawer__label">
+              <span>Phone</span>
+              <input
+                type="tel"
+                value={contactForm.phone}
+                onChange={(e) =>
+                  setContactForm((f) => ({
+                    ...f,
+                    phone: e.target.value,
+                  }))
+                }
+                placeholder="Optional"
+              />
+            </label>
+            <label className="embed-message-drawer__label">
+              <span>Message</span>
+              <textarea
+                value={contactForm.message}
+                onChange={(e) =>
+                  setContactForm((f) => ({
+                    ...f,
+                    message: e.target.value,
+                  }))
+                }
+                placeholder="Your message…"
+                rows={4}
+                required
+              />
+            </label>
+            {contactFormError ? (
+              <p className="embed-message-drawer__error">{contactFormError}</p>
+            ) : null}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={contactFormSubmitting}
+              style={{ marginTop: 8 }}
+            >
+              {contactFormSubmitting ? "Sending…" : "Send message"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+
   const inner = (
     <AdminLayout
       breadcrumbs={[
@@ -1721,6 +1907,7 @@ export default function AdminMapDashboard() {
               }}
               height="100%"
               listingsWithColor={listingsWithColor}
+              mapOverlay={messageDrawer}
             />
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
@@ -2704,191 +2891,6 @@ export default function AdminMapDashboard() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Message drawer (same behaviour as embed) */}
-        <div
-          className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`}
-          aria-hidden={!messageDrawerOpen}
-        >
-          <div
-            className="embed-message-drawer__backdrop"
-            onClick={() => setMessageDrawerOpen(false)}
-            aria-label="Close"
-          />
-          <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
-            <div className="embed-message-drawer__header">
-              <h3 className="embed-message-drawer__title">Send message</h3>
-              <button
-                type="button"
-                className="embed-message-drawer__close"
-                onClick={() => setMessageDrawerOpen(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            {selectedListing ? (
-              <p className="embed-message-drawer__to">To: {selectedListing.name || "—"}</p>
-            ) : null}
-            {contactFormSent ? (
-              <div className="embed-message-drawer__success">
-                <p>Your message has been sent. You have been CC&apos;d on the email.</p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    setMessageDrawerOpen(false);
-                    setContactFormSent(false);
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <form
-                className="embed-message-drawer__form"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                if (!selectedListing?.email) return;
-                if (messagingTestMode && !contactForm.testToEmail.trim()) {
-                  setContactFormError("Enter a test recipient email to send in test mode.");
-                  return;
-                }
-                setContactFormError("");
-                  setContactFormSubmitting(true);
-                  try {
-                    await submitContactMessage(supabase, {
-                      mapId,
-                      listingId: selectedListing.id,
-                      listingName: selectedListing.name || "",
-                      toEmail: messagingTestMode
-                        ? contactForm.testToEmail.trim()
-                        : selectedListing.email,
-                      senderName: (contactForm.name || "").trim(),
-                      senderEmail: (contactForm.email || "").trim(),
-                      senderPhone: (contactForm.phone || "").trim(),
-                      message: (contactForm.message || "").trim(),
-                      surface: "admin_preview",
-                    });
-                    setContactFormSent(true);
-                    setContactForm({
-                      name: "",
-                      email: "",
-                      phone: "",
-                      message: "",
-                      testToEmail: contactForm.testToEmail,
-                    });
-                  } catch (err) {
-                    setContactFormError(formatContactMessageError(err));
-                  } finally {
-                    setContactFormSubmitting(false);
-                  }
-                }}
-              >
-                {messagingTestMode && (
-                  <div
-                    style={{
-                      marginBottom: 10,
-                      fontSize: 12,
-                      color: "#b45309",
-                      background: "#fef3c7",
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                    }}
-                  >
-                    <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
-                  </div>
-                )}
-                {messagingTestMode && (
-                  <label className="embed-message-drawer__label">
-                    <span>Test recipient email</span>
-                    <input
-                      type="email"
-                      value={contactForm.testToEmail}
-                      onChange={(e) =>
-                        setContactForm((f) => ({
-                          ...f,
-                          testToEmail: e.target.value,
-                        }))
-                      }
-                      placeholder={messagingTestRecipient || "test-recipient@example.com"}
-                      required
-                    />
-                  </label>
-                )}
-                <label className="embed-message-drawer__label">
-                  <span>Name</span>
-                  <input
-                    type="text"
-                    value={contactForm.name}
-                    onChange={(e) =>
-                      setContactForm((f) => ({
-                        ...f,
-                        name: e.target.value,
-                      }))
-                    }
-                    placeholder="Your name"
-                  />
-                </label>
-                <label className="embed-message-drawer__label">
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={contactForm.email}
-                    onChange={(e) =>
-                      setContactForm((f) => ({
-                        ...f,
-                        email: e.target.value,
-                      }))
-                    }
-                    placeholder="your@email.com"
-                    required
-                  />
-                </label>
-                <label className="embed-message-drawer__label">
-                  <span>Phone</span>
-                  <input
-                    type="tel"
-                    value={contactForm.phone}
-                    onChange={(e) =>
-                      setContactForm((f) => ({
-                        ...f,
-                        phone: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
-                </label>
-                <label className="embed-message-drawer__label">
-                  <span>Message</span>
-                  <textarea
-                    value={contactForm.message}
-                    onChange={(e) =>
-                      setContactForm((f) => ({
-                        ...f,
-                        message: e.target.value,
-                      }))
-                    }
-                    placeholder="Your message…"
-                    rows={4}
-                    required
-                  />
-                </label>
-                {contactFormError ? (
-                  <p className="embed-message-drawer__error">{contactFormError}</p>
-                ) : null}
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={contactFormSubmitting}
-                  style={{ marginTop: 8 }}
-                >
-                  {contactFormSubmitting ? "Sending…" : "Send message"}
-                </button>
-              </form>
-            )}
           </div>
         </div>
       </div>

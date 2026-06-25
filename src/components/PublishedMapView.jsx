@@ -230,6 +230,8 @@ export default function PublishedMapView({
   showTransitLayer = false,
   showBikeLayer = false,
   showZoomIndicator = false,
+  /** Overlays rendered inside the fullscreen root (e.g. message drawer) */
+  mapOverlay = null,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -1187,6 +1189,8 @@ export default function PublishedMapView({
           </div>
         </div>
       ) : null}
+
+      {mapOverlay}
     </div>
   );
 }
