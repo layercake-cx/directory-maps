@@ -8,34 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-07-02 — Staging (public founding-partner landing page)
+## 2026-07-02 — Production (public founding-partner landing page)
 
-**Branch/commit:** `feat/2026-07-02-public-landing-page` | pending
+**Branch/commit:** `feat/2026-07-02-public-landing-page` → merged to `main` at `3b5dae4` (PR [#60](https://github.com/layercake-cx/directory-maps/pull/60))
 **Deployed by:** Claude Code
 
 ### What changed
-- **New public, unauthenticated landing page at `/`**, replacing the previous minimal BETA homepage (`PublicMap.jsx`), pitching the Founding Partner beta programme to prospective association customers. Sections: nav, hero with an inline SVG map illustration, problem strip, who-it's-for chips, use-case grid, data-integration options, founding-partner beta panel, onboarding timeline, social proof, and a real signup form. Built with CSS Modules (`PublicMap.module.css`), matching the project's page-styling convention.
-- The route now opts out of the global `SiteHeader`/`SiteFooter` (same pattern as `/signup`) since the page ships its own nav and footer; a `Log in` link was added to the page's own nav so existing users still have a path in (not present in the original design reference — added because removing all header/footer chrome would otherwise remove the only login entry point on `/`).
-- Added a secondary brand accent token, `--brand-coral` / `--brand-coral-dark` (`src/style.css`), for this page's CTAs — flagged as a placeholder pending final brand sign-off, kept as a single token so the colour is a one-line change later. Reused the existing `--brand-teal` tokens rather than the reference file's own teal, to stay visually consistent with the rest of the live app.
+- **New public, unauthenticated landing page at `/`**, replacing the previous minimal BETA homepage (`PublicMap.jsx`), pitching the Founding Partner beta programme to prospective association customers. Sections: nav, hero with an inline SVG map illustration, problem strip, who-it's-for chips, use-case grid, data-integration options, founding-partner beta panel, onboarding timeline, a real testimonial (Martin Boyle, CEO of IAPCO), and a real signup form. Built with CSS Modules (`PublicMap.module.css`), matching the project's page-styling convention.
+- The route reuses the site's global `SiteHeader`/`SiteFooter` (black header, white text) rather than a bespoke nav/footer, for consistency with every other page. `SiteHeader` gained an optional `landingNav` prop (only true on `/`) that adds the Product / How it works / Founding partners links plus a white-bg/black-text "Become a founding partner" CTA alongside the existing Log in link.
+- Added a map-pin brand mark to `BrandLogo.jsx` (teal pin, white dot) — now shows site-wide wherever the wordmark appears (header, client dashboard header, pricing page), not just this page.
+- Added a secondary brand accent token, `--brand-coral` / `--brand-coral-dark` (`src/style.css`), for select CTAs (kept as a placeholder pending final brand sign-off, one-line change later). Production teal (`--brand-teal`) used throughout for visual consistency with the rest of the app rather than the reference file's own teal.
 - Added global `html { scroll-behavior: smooth }` (with a `prefers-reduced-motion` fallback) to support the page's in-page nav anchors (`#product`, `#data`, `#beta`, `#signup`).
 - Signup form ("Apply for a founding partner spot") inserts directly into a new `beta_signups` table via the Supabase JS client (anon insert policy) — no Edge Function needed. No admin UI was built to review submissions (out of scope); query the table directly via Supabase.
-- Fixed a pre-existing syntax error blocking the build entirely: `src/hooks/useListingEngagement.js` had a stray `bbimport` instead of `import` on line 1 (unrelated leftover from a prior session's uncommitted work, fixed with the user's confirmation so this change could be verified).
+- Fixed a specificity bug where the hero heading's centering margin was silently overridden by a broader `h1/h2/h3` reset, leaving it flush-left instead of centered.
+- Fixed a pre-existing syntax error blocking the build entirely: `src/hooks/useListingEngagement.js` had a stray `bbimport` instead of `import` on line 1 (unrelated leftover from a prior session's uncommitted work, fixed with the user's confirmation so this change could be verified). Left out of this PR/commit — three other unrelated WIP files (`AdminGate.jsx`, `authHelpers.js`, `ForgotPassword.jsx`, an OTP/password-reset error-hint improvement) were deliberately left uncommitted, at the user's request, for a future session.
 
 ### Database migrations applied
-- `supabase/migrations/20260702120000_beta_signups.sql` (+ rollback `_20260702120000_beta_signups.rollback.sql`) — creates `beta_signups` (id, submitted_at, first_name, last_name, organisation, work_email, message, source), RLS enabled, anon/authenticated insert, admin-only select. **Not yet applied to staging or production** — run the dry run, then apply to staging, verify, then production (see `docs/DATABASE_MIGRATIONS.md`).
+- `supabase/migrations/20260702120000_beta_signups.sql` (+ rollback `_20260702120000_beta_signups.rollback.sql`) — creates `beta_signups` (id, submitted_at, first_name, last_name, organisation, work_email, message, source), RLS enabled, anon/authenticated insert, admin-only select (`public.is_admin()`). **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)**, both via `supabase db push` with an explicit dry run first; the migration's own post-migration verification block passed on both (`VERIFY PASSED: beta_signups exists, RLS enabled, 3 policies present`).
 
 ### Edge functions deployed
 None.
 
 ### Rollback plan
-Revert the branch commit. If the migration was applied, run `_20260702120000_beta_signups.rollback.sql` (refuses to run if any rows have been inserted — back up first).
+Revert commit `3b5dae4` on `main`. To roll back the schema, run `_20260702120000_beta_signups.rollback.sql` against the target project (refuses to run if any rows have been inserted — back up first).
 
 ### Verified
 - [x] Production build passes locally (`npm run build`)
-- [x] Manual smoke test in preview: hero, all sections, and footer render correctly at desktop width; brand teal/coral tokens render correctly; no console errors
-- [x] Mobile (375px) smoke test: nav stacks correctly (fixed a wrapping/overflow bug found during testing), sections collapse to single column, onboarding timeline scrolls horizontally
-- [x] Signup form correctly calls Supabase and fails gracefully with a clear error ("Could not find the table 'public.beta_signups'") since the migration has not been applied yet — expected until staging migration runs
-- [ ] Signup form succeeds end-to-end once the `beta_signups` migration is applied to staging
+- [x] Manual smoke test in preview: hero, all sections, header, and footer render correctly at desktop and mobile (375px) widths; no console errors
+- [x] Signup form submitted successfully end-to-end against staging after the migration was applied (real success state, no errors)
+- [x] Migration dry-run + apply + self-verification passed on staging
+- [x] Migration dry-run + apply + self-verification passed on production
+- [x] Frontend deploy to production (`gh run list`) completed successfully after merging PR #60
+- [ ] Spot-check the live `beta_signups` row from the staging test submission via the Supabase dashboard (not done — Docker wasn't running locally to dump/verify directly; UI success state is the evidence on record)
 
 ---
 
