@@ -208,6 +208,63 @@ a.btn-primary:hover {
   border-bottom: none;
 }
 
+.admin-nav__dropdown {
+  position: relative;
+}
+
+.admin-nav__link--dropdown {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-nav__caret {
+  font-size: 10px;
+}
+
+.admin-nav__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 160px;
+  background: #0a181c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.admin-nav__menu-item {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.admin-nav__menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.admin-nav__menu-item--active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .admin-breadcrumbs {
   background: var(--lc-bg);
   border-bottom: 1px solid var(--lc-border);

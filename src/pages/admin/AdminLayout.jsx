@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import BrandLogo from "../../components/BrandLogo.jsx";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
@@ -8,11 +8,25 @@ const ADMIN_NAV = [
   { label: "Customers", path: "/admin/clients" },
   { label: "Maps", path: "/admin/maps" },
   { label: "Admin Users", path: "/admin/users" },
-  { label: "User activity", path: "/admin/user-activity" },
-  { label: "Error log", path: "/admin/error-log" },
-  { label: "Sync log", path: "/admin/sync-log" },
+  { label: "Leads", path: "/admin/leads" },
+  {
+    label: "Logs",
+    children: [
+      { label: "User activity", path: "/admin/user-activity" },
+      { label: "Error log", path: "/admin/error-log" },
+      { label: "Sync log", path: "/admin/sync-log" },
+    ],
+  },
   { label: "Deployments", path: "/admin/deployments", superadmin: true },
 ];
+
+function resolveHref(path) {
+  return path.startsWith("/") ? path : `/admin${path === "/" ? "" : path}`;
+}
+
+function isPathActive(pathname, href) {
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 /** Admin routes editing a specific client's map (Design / Data / Listings). */
 function isAdminClientMapRoute(pathname) {
@@ -43,6 +57,28 @@ export default function AdminLayout({
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
 
+  const [openMenu, setOpenMenu] = useState(null);
+  const navRef = useRef(null);
+
+  useEffect(() => {
+    setOpenMenu(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (navRef.current && !navRef.current.contains(e.target)) setOpenMenu(null);
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") setOpenMenu(null);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   return (
     <div className="admin-shell">
       <header className="admin-header">
@@ -55,11 +91,51 @@ export default function AdminLayout({
         </div>
       </header>
 
-      <nav className="admin-nav" aria-label="Admin sections">
+      <nav className="admin-nav" aria-label="Admin sections" ref={navRef}>
         <div className="admin-nav__inner">
-          {ADMIN_NAV.map(({ label, path, superadmin }) => {
-            const href = path.startsWith("/") ? path : `/admin${path === "/" ? "" : path}`;
-            const isActive = pathname === href || (pathname.startsWith(href + "/"));
+          {ADMIN_NAV.map((item) => {
+            if (item.children) {
+              const isOpen = openMenu === item.label;
+              const isChildActive = item.children.some(({ path }) =>
+                isPathActive(pathname, resolveHref(path))
+              );
+              return (
+                <div className="admin-nav__dropdown" key={item.label}>
+                  <button
+                    type="button"
+                    className={`admin-nav__link admin-nav__link--dropdown ${isChildActive ? "admin-nav__link--active" : ""}`}
+                    aria-haspopup="true"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenMenu(isOpen ? null : item.label)}
+                  >
+                    {item.label}
+                    <span className="admin-nav__caret" aria-hidden="true">▾</span>
+                  </button>
+                  {isOpen && (
+                    <div className="admin-nav__menu" role="menu">
+                      {item.children.map(({ label, path }) => {
+                        const href = resolveHref(path);
+                        const isActive = isPathActive(pathname, href);
+                        return (
+                          <Link
+                            key={href}
+                            to={href}
+                            role="menuitem"
+                            className={`admin-nav__menu-item ${isActive ? "admin-nav__menu-item--active" : ""}`}
+                          >
+                            {label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const { label, path, superadmin } = item;
+            const href = resolveHref(path);
+            const isActive = isPathActive(pathname, href);
             return (
               <Link
                 key={href}
