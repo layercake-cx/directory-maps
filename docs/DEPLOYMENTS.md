@@ -20,7 +20,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Updated `docs/USER_GUIDE.md` (admin navigation section + landing page section) and `docs/FEATURES.md` (admin route table) to describe the Logs dropdown and the Leads page.
 
 ### Database migrations applied
-- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`)** via `supabase db push`; the migration's own post-migration verification block passed (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`). **Not yet applied to production** — pending staging smoke test and explicit user sign-off.
+- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)** via `supabase db push`, on the user's explicit go-ahead; the migration's own post-migration verification block passed on both (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`). No interactive UI smoke test was done in this session (no admin credentials available) — verify the Leads page and status editing in the live app.
 
 ### Edge functions deployed
 None.
@@ -31,10 +31,11 @@ Revert this branch/commit before merge, or `git revert` the merge commit on `mai
 ### Verified
 - [x] Migration dry-run passed on staging (`supabase db push --dry-run`)
 - [x] Migration applied to staging, post-migration verification block passed
-- [ ] Leads page smoke-tested against staging (list renders, status edit persists, admin event recorded) — not yet done, no admin credentials available in this session
+- [ ] Leads page smoke-tested against staging or production (list renders, status edit persists, admin event recorded) — not yet done, no admin credentials available in this session
 - [ ] Logs dropdown smoke-tested (opens, closes on outside click/Escape, all three links navigate correctly, active-state highlighting works) — not yet done, same reason
 - [x] Production build passes locally (`npm run build`)
-- [ ] Migration applied to production (after explicit user sign-off)
+- [x] Migration dry-run passed on production (`supabase db push --dry-run`)
+- [x] Migration applied to production, post-migration verification block passed (user gave explicit go-ahead without a prior staging UI smoke test)
 
 ---
 
