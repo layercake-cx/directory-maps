@@ -99,6 +99,7 @@ function Layout() {
   const isAdmin = location.pathname.startsWith("/admin");
   const isEmbed = isEmbedPath(location.pathname);
   const isSignUpSplit = location.pathname === "/signup";
+  const isLandingPage = location.pathname === "/";
   const showSiteHeader = !isAdmin && !isSignUpSplit && !isEmbed;
   const showFooter = !isEmbed && !isSignUpSplit;
 
@@ -118,7 +119,7 @@ function Layout() {
   return (
     <div className={`layout-root${isEmbed ? " layout-root--embed" : ""}`}>
       {!isAdmin && !isEmbed && <ImpersonationBar />}
-      {showSiteHeader && <SiteHeader />}
+      {showSiteHeader && <SiteHeader landingNav={isLandingPage} />}
       <App />
       {showFooter && <SiteFooter />}
     </div>

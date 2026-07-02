@@ -24,6 +24,10 @@ Directory Maps lets you build interactive, Google Maps–based directories. You 
 
 ## Getting started
 
+### Public landing page
+
+The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its own "Apply for a founding partner spot" form captures name, organisation, work email, and a message into the `beta_signups` table (visible to platform admins only) — this is a pre-account lead-capture form, distinct from an in-app listing contact form.
+
 ### Sign up
 
 1. Open the site homepage and choose **Sign up** (or go to `/#/signup`).
