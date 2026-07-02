@@ -4,7 +4,13 @@ import BrandLogo from "./BrandLogo.jsx";
 import { signOut } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth.js";
 
-export default function SiteHeader() {
+const LANDING_NAV_LINKS = [
+  { href: "#product", label: "Product" },
+  { href: "#data", label: "How it works" },
+  { href: "#beta", label: "Founding partners" },
+];
+
+export default function SiteHeader({ landingNav = false }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -43,7 +49,23 @@ export default function SiteHeader() {
       <div className="site-header__inner">
         <BrandLogo to="/" className="site-header__brand" />
 
+        {landingNav && (
+          <nav className="site-header__landingNav" aria-label="Page sections">
+            {LANDING_NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        )}
+
         <nav className="site-header__nav">
+          {landingNav && (
+            <a href="#signup" className="site-header__navLink site-header__navLink--primary">
+              Become a founding partner
+            </a>
+          )}
+
           {!user && (
             <Link to="/login" className="site-header__navLink">
               Log in
