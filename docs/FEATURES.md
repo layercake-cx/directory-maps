@@ -230,8 +230,10 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, stats, listings) |
 | Legacy listings | `/admin/listings` | Global listing browser (limit 1000) |
 | Admin users | `/admin/users` | List admin users; open profile with Details and Activities tabs |
-| User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map) |
-| Error log | `/admin/error-log` | Client-reported errors in `error_logs` |
+| Leads | `/admin/leads` | Founding-partner enquiries from the public landing page (`beta_signups`); name, email, organisation, submission date; admin-editable status (To be actioned / In progress / Successful / Lost) |
+| Logs ▾ User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map) |
+| Logs ▾ Error log | `/admin/error-log` | Client-reported errors in `error_logs` |
+| Logs ▾ Sync log | `/admin/sync-log` | Google Sheets/Drive sync run history |
 | Deployments | `/admin/deployments` | Trigger Vercel deploy hooks or copy shell commands |
 
 **Impersonation:** Admin sets `dm_impersonated_client_id` in `localStorage`; crimson banner in `Root.jsx`; `getClientAndContact` resolves impersonated client.

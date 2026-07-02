@@ -1,4 +1,4 @@
-/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'} AdminEventCategory */
+/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'|'leads'} AdminEventCategory */
 
 /** Labels for filter UI (type = category). */
 export const ADMIN_EVENT_CATEGORY_LABELS = {
@@ -9,6 +9,7 @@ export const ADMIN_EVENT_CATEGORY_LABELS = {
   email: "Email",
   billing: "Billing",
   ops: "Operations",
+  leads: "Leads",
 };
 
 /** Known subtypes per category (subtype filter options). */
@@ -58,6 +59,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
   ],
   billing: ["checkout_session_created", "checkout_failed"],
   ops: ["deploy_hook_triggered", "deploy_hook_failed"],
+  leads: ["status_changed"],
 };
 
 const TWO_PART_PREFIXES = ["map_design", "map_publish"];

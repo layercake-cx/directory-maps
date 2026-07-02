@@ -214,6 +214,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Email**: `email_*`
   - **Billing**: `billing_*`
   - **Deploy / operations**: `ops_*`
+  - **Leads (pre-account enquiries)**: `leads_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -329,6 +330,12 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - `meta`: `environment` (`preview`/`production`), `source` (`admin_ui`)
 - **`ops_deploy_hook_failed`**
   - `meta`: `environment`, `error`
+
+#### Leads (pre-account enquiries)
+
+- **`leads_status_changed`**
+  - `meta`: `lead_id` (`beta_signups.id`), `from_status`, `to_status`, `source` (`admin_leads`)
+  - No `client_id` — leads are pre-account and not yet tied to an organisation.
 
 ### 4) Rule for future features
 

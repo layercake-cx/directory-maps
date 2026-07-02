@@ -26,7 +26,7 @@ Directory Maps lets you build interactive, Google Maps–based directories. You 
 
 ### Public landing page
 
-The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its own "Apply for a founding partner spot" form captures name, organisation, work email, and a message into the `beta_signups` table (visible to platform admins only) — this is a pre-account lead-capture form, distinct from an in-app listing contact form.
+The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its own "Apply for a founding partner spot" form captures name, organisation, work email, and a message into the `beta_signups` table — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Platform admins review these submissions on the **Leads** admin page (`/#/admin/leads`).
 
 ### Sign up
 
@@ -358,7 +358,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 Users with **admin** access use `/#/admin` to manage customers, maps, and impersonation. Use impersonation to view a client’s portal as their organisation.
 
-**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, logs, and so on). When you open a customer (`/#/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/#/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
+**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/#/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/#/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
 
 When an admin creates a customer in `/#/admin/clients/new`, they only need:
 
