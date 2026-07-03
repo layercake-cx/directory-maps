@@ -8,7 +8,7 @@ import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2,
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 import { logClientError } from "../../lib/errorLogger.js";
-import { openGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
+import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -300,6 +300,7 @@ export default function AdminMapData() {
   }
 
   useEffect(() => { refreshSheetStatus().catch(() => {}); }, [mapId]);
+  useEffect(() => { preloadGoogleDrivePicker(); }, []);
 
   async function saveSchedule(freq, time) {
     try {

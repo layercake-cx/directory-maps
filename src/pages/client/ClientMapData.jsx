@@ -5,7 +5,7 @@ import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, G
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import { logClientError } from "../../lib/errorLogger.js";
-import { openGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
+import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 
 const PAGE_SIZE = 100;
@@ -325,6 +325,7 @@ export default function ClientMapData() {
   }
 
   useEffect(() => { refreshSheetStatus().catch(() => {}); }, [mapId]);
+  useEffect(() => { preloadGoogleDrivePicker(); }, []);
 
   async function saveSchedule(freq, time) {
     try {
