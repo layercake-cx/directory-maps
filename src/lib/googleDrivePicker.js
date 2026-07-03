@@ -24,6 +24,19 @@ function loadGapiScript() {
   return gapiScriptPromise;
 }
 
+function waitForPickerNamespace(timeoutMs = 5000, intervalMs = 100) {
+  if (window.google?.picker) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const poll = () => {
+      if (window.google?.picker) return resolve();
+      if (Date.now() - start >= timeoutMs) return reject(new Error("Google Picker library failed to initialize"));
+      setTimeout(poll, intervalMs);
+    };
+    poll();
+  });
+}
+
 function loadPickerLibrary() {
   if (window.google?.picker) return Promise.resolve();
   if (!pickerLibraryPromise) {
@@ -31,14 +44,11 @@ function loadPickerLibrary() {
       .then(
         () =>
           new Promise((resolve, reject) => {
+            // gapi's own callback firing doesn't reliably mean window.google.picker is
+            // actually attached yet — real-world load can take well over a second, so
+            // poll for it with a real timeout instead of guessing a short fixed delay.
             window.gapi.load("picker", {
-              callback: () => {
-                // gapi's callback has fired, but google.picker isn't always attached
-                // to window the instant it does — a build()/setVisible() call made
-                // right on its heels intermittently surfaces as "The API developer
-                // key is invalid" even though the key is fine. Give it a tick.
-                setTimeout(() => (window.google?.picker ? resolve() : reject(new Error("Google Picker library failed to initialize"))), 50);
-              },
+              callback: () => waitForPickerNamespace().then(resolve, reject),
               onerror: () => reject(new Error("Failed to load Google Picker")),
             });
           })
@@ -49,6 +59,16 @@ function loadPickerLibrary() {
       });
   }
   return pickerLibraryPromise;
+}
+
+/**
+ * Best-effort background warm-up: call this as soon as a page that might open
+ * the Picker mounts, so the (sometimes slow) library load has real wall-clock
+ * time to finish before the user actually clicks the button. Never throws —
+ * failures here just mean the click-time load falls back to loading fresh.
+ */
+export function preloadGoogleDrivePicker() {
+  loadPickerLibrary().catch(() => {});
 }
 
 /**
