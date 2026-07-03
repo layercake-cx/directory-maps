@@ -32,6 +32,32 @@ Revert this commit, or `git revert` the merge commit on `main` after merge.
 
 ---
 
+## 2026-07-03 — Production (public /privacy page)
+
+**Branch/commit:** `feat/2026-07-03-privacy-policy-page` → merged to `main` (PR [#65](https://github.com/layercake-cx/directory-maps/pull/65))
+**Deployed by:** Claude Code
+
+### What changed
+- New public, unauthenticated page at `/privacy` (`src/pages/Privacy.jsx`), rendering `docs/MARKDOWN/Layercake_Maps_Privacy_Notice.md` via `react-markdown` — same pattern as the existing `/terms` page (`src/pages/Terms.jsx`), reusing its `terms-page` styling.
+- Needed as the privacy-policy URL required by Google's OAuth consent-screen verification (see the Google Drive/Sheets `invalid_grant` investigation — the app needs to move out of "Testing" publishing status, which requires a privacy policy link).
+- Content supplied by the user; the `[DATE]` placeholder in the source doc was filled in as 3 July 2026. This is a legal document — worth a human/legal read-through before treating it as final, this change only wires it up as a page.
+- Added rows to `docs/FEATURES.md` (public & marketing table, route reference table).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Confirmed rendering in production after merge (existing footer "Privacy Notice" link now resolves instead of dead-ending).
+- [ ] Legal content reviewed/approved by the user as final (currently as supplied, with only the date filled in)
+
+---
+
 ## 2026-07-02 — Staging (admin Logs dropdown + Leads page)
 
 **Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` (not yet merged)

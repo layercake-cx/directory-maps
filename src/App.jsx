@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import Pricing from "./pages/Pricing.jsx";
 import Terms from "./pages/Terms.jsx";
+import Privacy from "./pages/Privacy.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
@@ -57,6 +58,7 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/embed" element={<EmbedMap />} />
 
       {/* Client portal */}
