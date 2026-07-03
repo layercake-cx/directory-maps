@@ -102,7 +102,7 @@ flowchart TB
 | `google_oauth_start` | User JWT | User session | Google OAuth |
 | `google_oauth_callback` | User JWT | User session | Google OAuth |
 | `google_get_access_token` | User JWT | Map access | Google token refresh |
-| `google_list_sheets` | User JWT | Map access | Google Drive/Sheets |
+| `google_list_sheets` | User JWT | Map access | Google Drive/Sheets — **deprecated**, superseded by Google Picker (see [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md)) |
 | `google_set_sheet_file` | User JWT | Map access | Google Sheets |
 | `validate_sheet_source` | User JWT | Map access | Google Sheets |
 | `sync_sheet_listings` | Varies | Service / cron | Google Sheets + Geocoding |
@@ -182,7 +182,7 @@ Injected at **build** via `VITE_*` (embedded in client JS). Only use `VITE_` for
 | `VITE_SUPABASE_URL` | PUBLIC | Yes | Vercel, GitHub Actions | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | PUBLIC* | Yes | Vercel, GitHub Actions | Supabase anon key (*public by design; RLS must protect data) |
 | `VITE_GOOGLE_MAPS_API_KEY` | PUBLIC* | Yes | Vercel, GitHub Actions | Maps JS in browser (*restrict by HTTP referrer in Google Cloud) |
-| `VITE_GOOGLE_API_KEY` | PUBLIC* | Optional | Vercel | Google Picker (Sheets UI); can equal Maps key |
+| `VITE_GOOGLE_API_KEY` | PUBLIC* | Required for Sheets | Vercel | Google Picker widget (Data → Google Drive); restrict to Picker API + HTTP referrer in Google Cloud |
 | `VITE_ENVIRONMENT` | PUBLIC | Optional | Vercel | Label only (`preview` / `production`) |
 | `VITE_BASE_PATH` | PUBLIC | Optional | Vercel | Subpath deploys only (e.g. GitHub Pages) |
 | `VITE_DEPLOY_HOOK_PREVIEW` | SECRET | Optional | Vercel | Vercel deploy hook URL (test/preview) |
@@ -293,6 +293,7 @@ Organise **per environment** (e.g. `directory-maps / production`, `directory-map
 - [ ] `GOOGLE_GEOCODING_API_KEY`
 - [ ] `RESEND_API_KEY` + `RESEND_FROM`
 - [ ] `GOOGLE_OAUTH_CLIENT_ID` + `GOOGLE_OAUTH_CLIENT_SECRET` + redirect URI (if using Sheets)
+- [ ] `VITE_GOOGLE_API_KEY` (Picker API key, domain-restricted) — required for the Google Drive file picker
 - [ ] Auth SMTP / Supabase Auth mail settings
 - [ ] `STRIPE_SECRET_KEY` + price IDs (if using checkout)
 - [ ] `SITE_URL` (production app URL for invite emails)

@@ -8,6 +8,41 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-03 — Staging (Google Drive Picker migration, drops CASA requirement)
+
+**Branch/commit:** `feat/2026-07-03-google-drive-picker-migration` (not yet merged, not yet deployed)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** the app requested the `drive.readonly` OAuth scope (full read access to a user's Drive) to power an in-house Drive file browser. `drive.readonly` is a Google "restricted" scope requiring an annual CASA Tier 2 security assessment (~$540–1000+/year, a 134-item OWASP ASVS questionnaire, and an automated security scan) to keep using in production. `drive.file` (access only to files the user explicitly picks) is a "sensitive" scope — one-time verification review only, no CASA, no annual recert.
+- `supabase/functions/google_oauth_start/index.ts` now requests `drive.file` instead of `drive.readonly` (plus unchanged `spreadsheets.readonly`, `userinfo.email`).
+- `supabase/functions/google_get_access_token/index.ts` switched from `requireAdmin` to `requireMapAccess`, and gained CORS/OPTIONS handling — it now mints a short-lived access token for the *connecting user* (not just admins), used only to hand to Google's Picker widget in the browser. The stored `refresh_token` never leaves the server.
+- New shared module `src/lib/googleDrivePicker.js` lazy-loads Google's Picker JS (`apis.google.com/js/api.js`, `gapi.load('picker', …)`) and opens a Picker filtered to Sheets/CSV/Excel mime types; on selection it hands the file id/mimeType/name back to the caller, which passes it to the existing (unchanged) `google_set_sheet_file` endpoint.
+- Replaced the ~150-line custom Drive folder-browser UI (state: `folders`, `folderStack`, `currentFolderId`, `sheets`, `sheetsQuery`, `sheetsErr`, `sheetsLoading`, `showPicker`; handlers: `loadSheets`, `navigateToFolder`, `navigateUp`) in both `src/pages/client/ClientMapData.jsx` and `src/pages/admin/AdminMapData.jsx` with a single "Choose a file from Google Drive" button that opens the shared Picker. Also removed dead/unused `spreadsheetInput`/`getSpreadsheetIdError` state in `ClientMapData.jsx` that was part of the same cluster.
+- `supabase/functions/google_list_sheets/index.ts` (the old custom Drive browse/search endpoint) is deprecated in place — no longer called from the frontend, kept deployed temporarily as a rollback path, marked with a deprecation comment. To be deleted once this migration is verified in production.
+- New required frontend env var: `VITE_GOOGLE_API_KEY` (Google Cloud API key, Picker API enabled, domain-restricted) — without it the Picker button throws `Missing VITE_GOOGLE_API_KEY`.
+- Docs updated: `docs/GOOGLE_SHEETS_SYNC.md` (Picker setup steps, new API key), `docs/INTEGRATION_ARCHITECTURE.md` (function table, secrets table, go-live checklist), `docs/FEATURES.md` (edge function table), `docs/DATA_AND_PRIVACY.md` (scope description), `docs/USER_GUIDE.md` (user-facing connect flow description).
+- **No forced migration for existing connected customers** — refresh tokens keep the scope they were originally granted under, so nightly sync for already-connected maps (granted under `drive.readonly`) is unaffected. Only new connections, or a customer clicking "Change file"/reconnecting, go through the new `drive.file` + Picker flow.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+- `google_oauth_start` and `google_get_access_token` deployed to **staging** (`beqejxneehilplrtpntn`) only. Per `AGENTS.md`, production (`gxixwdjfmegxcxfeflro`) will not be touched until the user verifies staging and gives explicit go-ahead.
+
+### Rollback plan
+Revert this branch/commit before merge, or `git revert` the merge commit on `main` after merge. No schema changes to roll back. If already deployed to an environment: redeploy the previous version of `google_oauth_start` and `google_get_access_token` from the commit before this branch's changes (restores `drive.readonly` scope and admin-only token minting) — existing refresh tokens are unaffected either way.
+
+### Verified
+- [x] Production build passes locally (`npm run build`)
+- [ ] Google Cloud Console updated: Picker API enabled, domain-restricted API key created, OAuth consent screen scopes updated to drop `drive.readonly` / add `drive.file` — pending user action
+- [x] `google_oauth_start` and `google_get_access_token` deployed to staging
+- [ ] Interactive connect flow smoke-tested in both Client and Admin Data tabs against staging (Picker opens, file selection calls `google_set_sheet_file`, sync works)
+- [ ] Nightly cron sync confirmed still working for a legacy (`drive.readonly`-granted) connection and a newly-migrated (`drive.file`-granted) connection
+- [ ] Production deploy — not started, awaiting staging verification and explicit user go-ahead
+
+---
+
 ## 2026-07-02 — Staging (admin Logs dropdown + Leads page)
 
 **Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` (not yet merged)
