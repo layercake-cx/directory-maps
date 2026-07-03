@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, G
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import { logClientError } from "../../lib/errorLogger.js";
+import { openGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 
 const PAGE_SIZE = 100;
@@ -139,15 +140,7 @@ export default function ClientMapData() {
   const [sheetErr, setSheetErr] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [configuring, setConfiguring] = useState(false);
-  const [spreadsheetInput, setSpreadsheetInput] = useState("");
-  const [sheets, setSheets] = useState([]);
-  const [folders, setFolders] = useState([]);
-  const [folderStack, setFolderStack] = useState([]);
-  const [currentFolderId, setCurrentFolderId] = useState(null);
-  const [sheetsLoading, setSheetsLoading] = useState(false);
-  const [sheetsQuery, setSheetsQuery] = useState("");
-  const [sheetsErr, setSheetsErr] = useState("");
-  const [showPicker, setShowPicker] = useState(false);
+  const [openingPicker, setOpeningPicker] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncSchedule, setSyncSchedule] = useState(null);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -325,8 +318,7 @@ export default function ClientMapData() {
       setSheetStatus(statusRes.data ?? null);
       setSyncSchedule(srcRes.data?.sync_schedule ?? null);
       if (statusRes.data?.connected && !statusRes.data?.sheet?.spreadsheet_id) {
-        setShowPicker(true);
-        loadSheets();
+        openDrivePicker();
       }
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
@@ -360,8 +352,7 @@ export default function ClientMapData() {
       setConnecting(true); setSheetErr("");
       const { error } = await supabase.from("map_data_sources").delete().eq("map_id", mapId).eq("provider", "google_sheets");
       if (error) throw error;
-      setSheetStatus(null); setSheets([]); setFolders([]); setFolderStack([]); setCurrentFolderId(null);
-      setShowPicker(false); setSheetMsg("");
+      setSheetStatus(null); setSheetMsg("");
       setIntegrationLinked(false);
       setActiveTab("branding");
       setJustDisconnected(true);
@@ -395,38 +386,18 @@ export default function ClientMapData() {
     }
   }
 
-  async function loadSheets(query = "", folderId = currentFolderId) {
+  async function openDrivePicker() {
     try {
-      setSheetsLoading(true); setSheetsErr("");
-      const { data, error } = await invokeFunction("google_list_sheets", { body: { mapId, query, folderId } });
-      if (error) {
-        const body = await error.context?.json?.().catch(() => null);
-        throw new Error(body?.error ?? body?.message ?? error.message);
-      }
-      if (data?.error) throw new Error(data.error);
-      setSheets(data?.files ?? []);
-      setFolders(data?.folders ?? []);
+      setOpeningPicker(true); setSheetErr("");
+      await openGoogleDrivePicker({
+        mapId,
+        onPicked: (fileId, mimeType, fileName) => selectSheet(fileId, mimeType, fileName),
+      });
     } catch (e) {
-      setSheetsErr(e?.message ?? String(e));
+      setSheetErr(e?.message ?? String(e));
     } finally {
-      setSheetsLoading(false);
+      setOpeningPicker(false);
     }
-  }
-
-  function navigateToFolder(folder) {
-    setFolderStack((prev) => [...prev, folder]);
-    setCurrentFolderId(folder.id);
-    setSheetsQuery("");
-    loadSheets("", folder.id);
-  }
-
-  function navigateUp(index) {
-    const newStack = index === -1 ? [] : folderStack.slice(0, index + 1);
-    const newFolderId = newStack.length ? newStack[newStack.length - 1].id : null;
-    setFolderStack(newStack);
-    setCurrentFolderId(newFolderId);
-    setSheetsQuery("");
-    loadSheets("", newFolderId);
   }
 
   async function connectGoogle() {
@@ -458,7 +429,6 @@ export default function ClientMapData() {
         const body = await error.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? body?.message ?? error.message);
       }
-      setShowPicker(false);
       setSheetMsg(data.sheetName ? `Connected: ${data.sheetName}` : "File connected");
       await refreshSheetStatus();
     } catch (e) {
@@ -466,14 +436,6 @@ export default function ClientMapData() {
     } finally {
       setConfiguring(false);
     }
-  }
-
-  function getSpreadsheetIdError(value) {
-    const trimmed = (value || "").trim();
-    if (!trimmed) return null;
-    if (/drive\.google\.com\/file\/d\//i.test(trimmed))
-      return "That's a Drive file link, not a Sheet. Copy the URL from the Google Sheets address bar (docs.google.com/spreadsheets/d/…).";
-    return null;
   }
 
   // ── CSV functions ─────────────────────────────────────────────────────────
@@ -902,7 +864,7 @@ export default function ClientMapData() {
                   </Button>
                 )}
 
-                {sheetStatus?.connected && sheetStatus?.sheet?.spreadsheet_id && !showPicker && (
+                {sheetStatus?.connected && sheetStatus?.sheet?.spreadsheet_id && (
                   <Stack gap="sm">
                     <div style={{ padding: "8px 10px", background: "rgba(0,0,0,0.04)", borderRadius: 6 }}>
                       <Text size="xs" c="dimmed" mb={2}>Connected file</Text>
@@ -959,7 +921,7 @@ export default function ClientMapData() {
                       <Button size="xs" leftSection={<RefreshCw size={13} />} onClick={syncNow} disabled={syncing || connecting || configuring} loading={syncing}>
                         Sync now
                       </Button>
-                      <Button size="xs" variant="default" leftSection={<FolderOpen size={13} />} onClick={() => { setShowPicker(true); loadSheets(); }} disabled={syncing || connecting || configuring}>
+                      <Button size="xs" variant="default" leftSection={<FolderOpen size={13} />} onClick={openDrivePicker} disabled={syncing || connecting || configuring} loading={openingPicker}>
                         Change file
                       </Button>
                       <Button size="xs" variant="subtle" color="red" leftSection={<Unlink size={13} />} onClick={disconnectGoogle} disabled={syncing || connecting || configuring} loading={connecting}>
@@ -969,9 +931,9 @@ export default function ClientMapData() {
                   </Stack>
                 )}
 
-                {sheetStatus?.connected && !sheetStatus?.sheet?.spreadsheet_id && !showPicker && (
-                  <Button size="sm" variant="default" leftSection={<FilePlus size={14} />} onClick={() => { setShowPicker(true); loadSheets(); }} disabled={connecting || configuring}>
-                    Choose a file
+                {sheetStatus?.connected && !sheetStatus?.sheet?.spreadsheet_id && (
+                  <Button size="sm" variant="default" leftSection={<FilePlus size={14} />} onClick={openDrivePicker} disabled={connecting || configuring} loading={openingPicker}>
+                    Choose a file from Google Drive
                   </Button>
                 )}
               </Stack>
@@ -1012,80 +974,6 @@ export default function ClientMapData() {
               </Stack>
             </div>
           </div>
-
-          {/* File picker */}
-          {sheetStatus?.connected && showPicker && (
-            <div className="admin-card" style={{ padding: 16 }}>
-              {sheetStatus?.sheet?.spreadsheet_id && (
-                <button type="button" onClick={() => { setShowPicker(false); setFolderStack([]); setCurrentFolderId(null); setSheetsQuery(""); }} style={{ background: "none", border: "none", padding: 0, fontSize: 12, cursor: "pointer", opacity: 0.6, marginBottom: 10 }}>
-                  ← Back
-                </button>
-              )}
-              <Text size="sm" fw={500} mb={8}>Choose a file from Google Drive</Text>
-              <input
-                value={sheetsQuery}
-                onChange={(e) => { setSheetsQuery(e.target.value); loadSheets(e.target.value); }}
-                placeholder="Search files…"
-                style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13, marginBottom: 8 }}
-              />
-              {!sheetsQuery && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 8, fontSize: 12 }}>
-                  <button type="button" onClick={() => navigateUp(-1)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--mantine-color-blue-6)", fontSize: 12 }}>My Drive</button>
-                  {folderStack.map((f, i) => (
-                    <React.Fragment key={f.id}>
-                      <span style={{ opacity: 0.4 }}>›</span>
-                      {i < folderStack.length - 1
-                        ? <button type="button" onClick={() => navigateUp(i)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--mantine-color-blue-6)", fontSize: 12 }}>{f.name}</button>
-                        : <span style={{ opacity: 0.7 }}>{f.name}</span>
-                      }
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
-              {sheetsErr ? (
-                <Alert color="red" variant="light" mb="xs">{sheetsErr}</Alert>
-              ) : sheetsLoading ? (
-                <Text size="sm" c="dimmed">Loading…</Text>
-              ) : sheetsQuery ? (
-                sheets.length === 0 ? (
-                  <Text size="sm" c="dimmed">No files found.</Text>
-                ) : (
-                  <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
-                    {sheets.map((f, i) => (
-                      <button key={f.id} type="button" onClick={() => selectSheet(f.id, f.mimeType, f.name)} disabled={configuring}
-                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < sheets.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: configuring ? "wait" : "pointer", gap: 8 }}
-                      >
-                        <span style={{ fontSize: 13 }}>{f.name}</span>
-                        <span style={{ fontSize: 11, opacity: 0.5, whiteSpace: "nowrap" }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ""}</span>
-                      </button>
-                    ))}
-                  </div>
-                )
-              ) : folders.length === 0 && sheets.length === 0 ? (
-                <Text size="sm" c="dimmed">This folder is empty.</Text>
-              ) : (
-                <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
-                  {[...folders.map((f) => ({ ...f, _type: "folder" })), ...sheets.map((f) => ({ ...f, _type: "file" }))].map((f, i, arr) => (
-                    f._type === "folder" ? (
-                      <button key={f.id} type="button" onClick={() => navigateToFolder(f)}
-                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: "pointer" }}
-                      >
-                        <FolderOpen size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13 }}>{f.name}</span>
-                      </button>
-                    ) : (
-                      <button key={f.id} type="button" onClick={() => selectSheet(f.id, f.mimeType, f.name)} disabled={configuring}
-                        style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 === 0 ? "var(--lc-card)" : "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid var(--lc-border)" : "none", cursor: configuring ? "wait" : "pointer", gap: 8 }}
-                      >
-                        <span style={{ fontSize: 13 }}>{f.name}</span>
-                        <span style={{ fontSize: 11, opacity: 0.5, whiteSpace: "nowrap" }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ""}</span>
-                      </button>
-                    )
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {sheetErr && <Alert color="red" variant="light">{sheetErr}</Alert>}
           {sheetMsg && <Alert color="green" variant="light">{sheetMsg}</Alert>}

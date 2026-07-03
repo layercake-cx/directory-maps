@@ -167,7 +167,7 @@ Google Geocoding API is operated by **Google LLC (US)**. Requests are made serve
 | **OAuth refresh token** | Long-lived credential allowing Layercake Maps to read the connected Sheet | Supabase database (`map_data_sources.refresh_token`); encrypted at rest |
 | **Sheet content** | Listing data rows (name, address, phone, email, etc.) | Read at sync time; written into Supabase `listings` table |
 
-The **client authorises** Layercake Maps to read their specific sheet. The OAuth scope is read-only for Google Drive/Sheets. No Google account personal data (name, profile picture, etc.) is stored beyond what is needed to identify the connected file.
+The **client authorises** Layercake Maps to read their specific sheet. As of 2026-07-03, the Drive OAuth scope is `drive.file` (per-file access, granted only to the file the client explicitly picks via Google's own Picker widget) rather than a Drive-wide read scope; Sheets content is read via the `spreadsheets.readonly` scope. No Google account personal data (name, profile picture, etc.) is stored beyond what is needed to identify the connected file.
 
 ### Processing location
 

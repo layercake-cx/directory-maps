@@ -297,8 +297,9 @@ View: `public_listings` for anon-safe listing reads on embed.
 | `geocode_address` | Single-address geocode |
 | `geocode_listings` | Batch geocode for a map |
 | `google_oauth_start` / `google_oauth_callback` | Sheets OAuth |
-| `google_get_access_token` | Token refresh for sync |
-| `google_list_sheets` / `google_set_sheet_file` | Sheet picker |
+| `google_get_access_token` | Token refresh for sync + short-lived token for Google Picker |
+| `google_set_sheet_file` | Save the file picked via Google Picker |
+| `google_list_sheets` | Deprecated — superseded by Google Picker |
 | `validate_sheet_source` | Column validation |
 | `sync_sheet_listings` | Import + geocode from sheet |
 | `send_contact_message` | Resend email from embed form |

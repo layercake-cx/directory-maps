@@ -1,3 +1,8 @@
+// DEPRECATED (2026-07-03): superseded by the Google Picker flow (see
+// src/lib/googleDrivePicker.js + google_get_access_token). No longer called
+// from the frontend. Kept deployed during rollout as a rollback path for the
+// drive.file scope migration — safe to delete once that migration is verified
+// in production (see docs/GOOGLE_SHEETS_SYNC.md).
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
 import { refreshAccessToken, describeGoogleApiError } from "../_shared/google.ts";
 

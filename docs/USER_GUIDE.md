@@ -166,7 +166,7 @@ Open **Data** from the map sub-nav (`/#/client/maps/<id>/data`).
 
 ### Google Sheets
 
-Connect a Google account, then browse your Drive folders to pick a file (Google Sheet or CSV stored in Drive) — the file picker shows folders you can open and navigate, with a breadcrumb trail to go back. Use the search box to find a file by name across all of Drive instead of browsing. Validate columns, then sync. To import a CSV from your computer without Drive, use the **Spreadsheet / CSV** tab instead.
+Connect a Google account, then click **Choose a file from Google Drive** to open Google's own file picker and select a Sheet, CSV, or Excel file from your Drive. The app only gets access to the file you pick — not your whole Drive. Validate columns, then sync. To import a CSV from your computer without Drive, use the **Spreadsheet / CSV** tab instead.
 
 Under **Auto-sync schedule**, choose **Off** (manual only) or **Daily**, then pick the time of day (shown in your local time) when the sync should run each day. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
 

@@ -13,10 +13,13 @@ In Google Cloud Console:
 - Enable APIs:
   - Google Drive API
   - Google Sheets API
+  - **Google Picker API**
   - OAuth consent screen
 - Create an **OAuth client** (Web application).
 - Add an **authorized redirect URI**:
   - `https://<YOUR_SUPABASE_PROJECT_REF>.functions.supabase.co/google_oauth_callback`
+- On the **OAuth consent screen**, add the scopes the app requests: `drive.file`, `spreadsheets.readonly`, `userinfo.email`. `drive.file` is a **sensitive** scope (one-time verification review), not a **restricted** one — unlike `drive.readonly`, it does not require an annual CASA security assessment.
+- Create an **API key** (APIs & Services → Credentials → Create Credentials → API key), restrict it to the **Picker API**, and add an HTTP referrer restriction for your app's domain(s). This is separate from the OAuth client — it's what the Picker widget uses to render in the browser.
 
 ## 3) Set Supabase Edge Function secrets
 
@@ -32,6 +35,10 @@ Supabase-provided env vars used automatically:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Set in the frontend build environment (Vercel / `.env`):
+
+- `VITE_GOOGLE_API_KEY` — the Picker API key created above. Required for the "Choose a file from Google Drive" button to work; without it, the Picker throws `Missing VITE_GOOGLE_API_KEY`.
 
 ## 4) Deploy Edge Functions
 
@@ -53,6 +60,18 @@ supabase functions deploy
 ```
 
 If you see "Failed to send a request to the Edge Function" in the app, the most common cause is that these functions are not yet deployed to the same Supabase project your app uses (`VITE_SUPABASE_URL`).
+
+## Picker-based file selection (2026-07-03)
+
+Connecting a file no longer uses an in-app Drive folder browser. Instead:
+
+1. The frontend calls `google_get_access_token` to mint a **short-lived** access token for the signed-in user (requires `drive.file` map access, same permission check as other Data-tab actions — the stored `refresh_token` never reaches the browser).
+2. It hands that token to Google's own **Picker** widget (`src/lib/googleDrivePicker.js`), which renders Google's file browser UI and lets the user pick a Sheet/CSV/Excel file.
+3. On selection, the picked file's id/mimeType/name are sent to `google_set_sheet_file`, unchanged from before.
+
+The old `google_list_sheets` custom folder-browse endpoint is deprecated and no longer called from the frontend; it is kept deployed temporarily as a rollback path (see `supabase/functions/google_list_sheets/index.ts`) and can be deleted once this flow is verified in production.
+
+**No action needed for already-connected maps** — existing refresh tokens keep the scope they were originally granted under (`drive.readonly` for maps connected before this change), so nightly sync is unaffected. Only new connections, or a customer clicking **Change file**/**Choose a file from Google Drive** after a fresh **Connect Google Drive**, go through the new `drive.file` + Picker flow.
 
 ## 5) Daily auto-sync (pg_cron)
 
