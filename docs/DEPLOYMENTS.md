@@ -8,9 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-03 — Production (reset scroll position on route change)
+
+**Branch/commit:** `fix/2026-07-03-reset-scroll-on-route-change` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- Following any in-app link (e.g. the footer's "Privacy Notice"/"Cookies Policy" links, or any other `<Link>`) from partway down a page previously landed on the next page at the same pixel scroll offset, because React Router v6 with `BrowserRouter` doesn't reset scroll position on navigation (that's only built into the newer data-router APIs). Reported after merging the new `/privacy` page: clicking the footer link from the bottom of a page opened `/privacy` scrolled to its bottom.
+- `src/Root.jsx`'s `Layout` component now resets `window.scrollTo(0, 0)` whenever `location.pathname` changes, skipping the reset when a `#hash` is present so in-page anchor links (the landing page's `#product`/`#data`/`#beta` sections, and direct deep links like `/#product`) keep working exactly as before.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Logic reviewed directly: effect only depends on `pathname` (not full location/hash), so hash-only navigation (in-page anchors) doesn't retrigger it; guarded against clobbering a direct `/#anchor` deep link's native scroll.
+- [ ] Live click-through on the PR's Vercel preview (pending — local browser-preview tooling in this session couldn't reach this branch's worktree)
+
+---
+
 ## 2026-07-03 — Production (public /privacy page)
 
-**Branch/commit:** `feat/2026-07-03-privacy-policy-page` (not yet merged)
+**Branch/commit:** `feat/2026-07-03-privacy-policy-page` → merged to `main` (PR [#65](https://github.com/layercake-cx/directory-maps/pull/65))
 **Deployed by:** Claude Code
 
 ### What changed
@@ -29,7 +53,7 @@ None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `mai
 Revert this commit, or `git revert` the merge commit on `main` after merge.
 
 ### Verified
-- [ ] Confirmed rendering on Vercel's PR preview deployment (pending — local preview tooling in this session was bound to the main working directory, not this branch's worktree, so verification is via the PR's Vercel preview instead)
+- [x] Confirmed rendering in production after merge (existing footer "Privacy Notice" link now resolves instead of dead-ending).
 - [ ] Legal content reviewed/approved by the user as final (currently as supplied, with only the date filled in)
 
 ---
