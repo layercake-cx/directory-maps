@@ -12,6 +12,8 @@ export default function SiteFooter() {
         <p className="site-footer__legal">
           © 2025 Layercake CX Ltd
           {" | "}
+          <Link to="/terms" className="site-footer__link">Terms and Conditions</Link>
+          {" | "}
           <Link to="/privacy" className="site-footer__link">Privacy Notice</Link>
           {" | "}
           <Link to="/cookies" className="site-footer__link">Cookies Policy</Link>

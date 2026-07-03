@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-03 — Production (updated Terms and Conditions content, footer link)
+
+**Branch/commit:** `feat/2026-07-03-update-terms-content` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- Replaced the content of `docs/MARKDOWN/Layercake_Maps_Terms_and_Conditions.md` with a new version supplied by the user (same page/route, `src/pages/Terms.jsx` / `/terms`, unchanged — only the markdown content changed). The `[DATE]` placeholder was filled in as 3 July 2026, matching the Privacy Notice update. New content cross-references the Privacy Notice at `maps.layercake-cx.biz/privacy`.
+- Added a **"Terms and Conditions"** link to `src/components/SiteFooter.jsx`, alongside the existing Privacy Notice / Cookies Policy links — there was previously no footer link to `/terms` at all (it was only reachable via the sign-up checkbox flow in `AuthForm.jsx`).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] `npm run build` succeeds cleanly with no errors
+- [x] Dev server module graph resolves with no import errors (`Terms.jsx`, updated `SiteFooter.jsx`)
+- [ ] Legal content reviewed/approved by the user as final (currently as supplied, with only the date filled in)
+- [ ] Footer link click-through confirmed live (Chrome extension unavailable in this session for a live check)
+
+---
+
 ## 2026-07-03 — Production (reset scroll position on route change)
 
 **Branch/commit:** `fix/2026-07-03-reset-scroll-on-route-change` (not yet merged)
