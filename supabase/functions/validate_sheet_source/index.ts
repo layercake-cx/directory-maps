@@ -40,12 +40,34 @@ Deno.serve(async (req) => {
 
     const { access_token } = await refreshAccessToken(src.refresh_token);
     let rows: string[][] = [];
-    if (src.sheet_id === null) {
-      const text = await fetchDriveFileAsText(access_token, src.spreadsheet_id);
-      rows = parseCSV(text);
-    } else {
-      const values = await fetchSheetValues(access_token, src.spreadsheet_id, src.sheet_name);
-      rows = values.values ?? [];
+    try {
+      if (src.sheet_id === null) {
+        const text = await fetchDriveFileAsText(access_token, src.spreadsheet_id);
+        rows = parseCSV(text);
+      } else {
+        const values = await fetchSheetValues(access_token, src.spreadsheet_id, src.sheet_name);
+        rows = values.values ?? [];
+      }
+    } catch (readErr) {
+      // A read failure here (e.g. a picked file that never got a real per-file grant
+      // under drive.file) must not collapse the whole response into "not connected" —
+      // that hides the Change file / Disconnect recovery buttons on a map that IS
+      // still connected, just pointing at an unreadable file. Report it as an issue
+      // on an otherwise-connected, otherwise-configured source instead.
+      const msg = readErr?.message ?? String(readErr);
+      const friendly = /not found/i.test(msg)
+        ? "The connected file couldn't be found or accessed by this app — click Change file to re-select it."
+        : msg;
+      return json({
+        connected: true,
+        configured: true,
+        ok: false,
+        issues: [friendly],
+        sheet: { spreadsheet_id: src.spreadsheet_id, sheet_name: src.sheet_name },
+        last_synced_at: src.last_synced_at,
+        last_sync_status: src.last_sync_status,
+        last_sync_error: src.last_sync_error,
+      });
     }
 
     const validation = validateSheetRows(rows);
