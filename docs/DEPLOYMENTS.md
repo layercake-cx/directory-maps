@@ -32,6 +32,32 @@ Revert this commit, or `git revert` the merge commit on `main` after merge.
 
 ---
 
+## 2026-07-03 — Staging (friendly error for missing Google OAuth scopes)
+
+**Branch/commit:** `fix/2026-07-03-friendly-insufficient-scope-error` (not yet merged, not yet deployed)
+**Deployed by:** Claude Code
+
+### What changed
+- If a customer doesn't grant every requested permission on Google's OAuth consent screen (e.g. unchecks "See and download your Google Drive files"), Drive/Sheets API calls fail with a 403 `insufficientPermissions`/`ACCESS_TOKEN_SCOPE_INSUFFICIENT` error. This was previously surfaced verbatim as raw JSON (e.g. `Drive API error: {"error":{"code":403,...`) in the customer-facing Data tab — found while recording a Google OAuth-verification demo video and hitting this error firsthand.
+- Added `describeGoogleApiError()` to `supabase/functions/_shared/google.ts`, which detects this specific error shape and returns an actionable message ("Google didn't grant every permission this needs...") instead; any other Google API error still passes through with full raw detail for debugging. Wired into `fetchSpreadsheetMeta`, `fetchDriveFileAsText`, `fetchSheetValues` (`_shared/google.ts`), and both Drive `files.list` calls in `google_list_sheets/index.ts`.
+- Verified the exact error JSON the user hit maps to the friendly message, and an unrelated error (e.g. file-not-found) still passes through unchanged.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+Not yet — needs `google_list_sheets` (and any other function importing `_shared/google.ts`: `google_get_access_token`, `sync_sheet_listings`, `validate_sheet_source`) redeployed to pick up the shared-lib change. Deploy to staging (`beqejxneehilplrtpntn`) first, per `AGENTS.md`; production only after the user verifies staging.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge. Redeploy the affected functions from the prior commit if already deployed.
+
+### Verified
+- [x] Logic tested directly against the exact error JSON reported by the user — maps to the friendly message; an unrelated Drive error still passes through with full detail.
+- [ ] Staging deploy + live reproduction (deliberately omit a scope on the consent screen, confirm the friendly message appears in the Data tab)
+- [ ] Production deploy (after user confirms staging)
+
+---
+
 ## 2026-07-03 — Production (updated Terms and Conditions content, footer link)
 
 **Branch/commit:** `feat/2026-07-03-update-terms-content` (not yet merged)
