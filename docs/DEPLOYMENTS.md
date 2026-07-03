@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-03 — Production (stop logging noisy cross-origin window.error events)
+
+**Branch/commit:** `fix/2026-07-03-ignore-cross-origin-window-error` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- `installGlobalErrorHandlers` in `src/lib/errorLogger.js` no longer substitutes the literal string `"window.error"` when a browser withholds the real error message (cross-origin script failures — most likely the Google Maps script — report a bare `error` event with no message/filename/stack). That substitution was defeating `logClientError`'s existing empty-message guard, so every one of these content-free events was landing in `error_logs` (roughly 70% of recent rows, across real visitors and crawlers like Googlebot/Facebook's bot on public map pages). Passing the message through as-is now lets the existing guard drop them; a real error, or one with a stack trace, is still logged unchanged.
+- No behaviour change for actual errors — only removes noise with zero diagnostic value.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Guard logic confirmed directly (empty message + no stack → skipped; message with stack, or non-empty message → still logged) — not meaningfully testable via browser preview since it requires a genuine cross-origin script failure.
+- [ ] Confirm in production error log (`/admin/errors`) that `window.error` rows with a blank message stop appearing after this deploys.
+
+---
+
 ## 2026-07-03 — Production (updated Terms and Conditions content, footer link)
 
 **Branch/commit:** `feat/2026-07-03-update-terms-content` (not yet merged)
