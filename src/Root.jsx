@@ -116,6 +116,17 @@ function Layout() {
       document.body.classList.remove("embed-map-page");
     };
   }, [isEmbed]);
+
+  // React Router doesn't reset scroll position on navigation (no <ScrollRestoration> outside
+  // a data router), so following a link from partway down one page lands at the same pixel
+  // offset on the next. Reset on pathname changes only, so in-page hash anchors (e.g. the
+  // landing page's #product/#data links, which don't change pathname) keep working. Skip when
+  // a hash is present so a direct/deep link straight to an anchor (e.g. "/#product") isn't
+  // yanked back to the top after the browser's native anchor scroll.
+  useEffect(() => {
+    if (window.location.hash) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
   return (
     <div className={`layout-root${isEmbed ? " layout-root--embed" : ""}`}>
       {!isAdmin && !isEmbed && <ImpersonationBar />}

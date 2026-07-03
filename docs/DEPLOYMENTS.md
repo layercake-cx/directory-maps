@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-03 — Production (reset scroll position on route change)
+
+**Branch/commit:** `fix/2026-07-03-reset-scroll-on-route-change` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- Following any in-app link (e.g. the footer's "Privacy Notice"/"Cookies Policy" links, or any other `<Link>`) from partway down a page previously landed on the next page at the same pixel scroll offset, because React Router v6 with `BrowserRouter` doesn't reset scroll position on navigation (that's only built into the newer data-router APIs). Reported after merging the new `/privacy` page: clicking the footer link from the bottom of a page opened `/privacy` scrolled to its bottom.
+- `src/Root.jsx`'s `Layout` component now resets `window.scrollTo(0, 0)` whenever `location.pathname` changes, skipping the reset when a `#hash` is present so in-page anchor links (the landing page's `#product`/`#data`/`#beta` sections, and direct deep links like `/#product`) keep working exactly as before.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Logic reviewed directly: effect only depends on `pathname` (not full location/hash), so hash-only navigation (in-page anchors) doesn't retrigger it; guarded against clobbering a direct `/#anchor` deep link's native scroll.
+- [ ] Live click-through on the PR's Vercel preview (pending — local browser-preview tooling in this session couldn't reach this branch's worktree)
+
+---
+
 ## 2026-07-02 — Staging (admin Logs dropdown + Leads page)
 
 **Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` (not yet merged)
