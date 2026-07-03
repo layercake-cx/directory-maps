@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-07-03 — Staging (Google Drive Picker migration, drops CASA requirement)
+## 2026-07-03 — Production (Google Drive Picker migration, drops CASA requirement)
 
-**Branch/commit:** `feat/2026-07-03-google-drive-picker-migration` (not yet merged, not yet deployed)
+**Branch/commit:** `feat/2026-07-03-google-drive-picker-migration` → merged to `main` at `8470691` (PR [#69](https://github.com/layercake-cx/directory-maps/pull/69))
 **Deployed by:** Claude Code
 
 ### What changed
@@ -28,18 +28,18 @@ A plain-English record of every deployment to staging and production. Newest ent
 None.
 
 ### Edge functions deployed
-- `google_oauth_start` and `google_get_access_token` deployed to **staging** (`beqejxneehilplrtpntn`) only. Per `AGENTS.md`, production (`gxixwdjfmegxcxfeflro`) will not be touched until the user verifies staging and gives explicit go-ahead.
+- `google_oauth_start` and `google_get_access_token` deployed to **staging** (`beqejxneehilplrtpntn`) first, then to **production** (`gxixwdjfmegxcxfeflro`) on the user's explicit go-ahead (user confirmed this was low-risk to merge directly, with no active clients or sync runs due) — done in the same session as the frontend merge rather than the usual staged rollout, since the frontend deploy (Vercel, automatic on merge to `main`) and the backend edge functions needed to land together to avoid a mismatch (new frontend calling the old admin-only `google_get_access_token` would 403 for non-admin client users).
 
 ### Rollback plan
-Revert this branch/commit before merge, or `git revert` the merge commit on `main` after merge. No schema changes to roll back. If already deployed to an environment: redeploy the previous version of `google_oauth_start` and `google_get_access_token` from the commit before this branch's changes (restores `drive.readonly` scope and admin-only token minting) — existing refresh tokens are unaffected either way.
+`git revert` merge commit `8470691` on `main`. No schema changes to roll back. Redeploy the previous version of `google_oauth_start` and `google_get_access_token` (both to staging and production) from the commit before this branch's changes to restore `drive.readonly` scope and admin-only token minting — existing refresh tokens are unaffected either way.
 
 ### Verified
 - [x] Production build passes locally (`npm run build`)
-- [ ] Google Cloud Console updated: Picker API enabled, domain-restricted API key created, OAuth consent screen scopes updated to drop `drive.readonly` / add `drive.file` — pending user action
-- [x] `google_oauth_start` and `google_get_access_token` deployed to staging
-- [ ] Interactive connect flow smoke-tested in both Client and Admin Data tabs against staging (Picker opens, file selection calls `google_set_sheet_file`, sync works)
+- [x] Google Cloud Console updated by the user: Picker API enabled, domain-restricted API key created (`VITE_GOOGLE_API_KEY` set in Vercel), OAuth consent screen scopes updated to drop `drive.readonly` / add `drive.file`
+- [x] `google_oauth_start` and `google_get_access_token` deployed to staging, then production
+- [x] Vercel Preview build for PR #69 succeeded; Vercel production deploy for merge commit `8470691` succeeded (`gh api .../commits/8470691.../status` → Vercel context `success`)
+- [ ] Interactive connect flow smoke-tested end-to-end in the live app (Picker opens, file selection calls `google_set_sheet_file`, sync works) — not done in this session, no login credentials available; user to verify directly
 - [ ] Nightly cron sync confirmed still working for a legacy (`drive.readonly`-granted) connection and a newly-migrated (`drive.file`-granted) connection
-- [ ] Production deploy — not started, awaiting staging verification and explicit user go-ahead
 
 ---
 
