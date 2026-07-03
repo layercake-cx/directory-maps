@@ -4,7 +4,7 @@
 // drive.file scope migration — safe to delete once that migration is verified
 // in production (see docs/GOOGLE_SHEETS_SYNC.md).
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
-import { refreshAccessToken } from "../_shared/google.ts";
+import { refreshAccessToken, describeGoogleApiError } from "../_shared/google.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
       const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${access_token}` } });
       const driveData = await res.json();
-      if (!res.ok) throw new Error(`Drive API error: ${JSON.stringify(driveData)}`);
+      if (!res.ok) throw new Error(describeGoogleApiError("Drive API error", driveData));
 
       return json({ files: driveData.files ?? [] });
     }
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
     const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${access_token}` } });
     const driveData = await res.json();
-    if (!res.ok) throw new Error(`Drive API error: ${JSON.stringify(driveData)}`);
+    if (!res.ok) throw new Error(describeGoogleApiError("Drive API error", driveData));
 
     const all: Array<{ id: string; name: string; mimeType: string; modifiedTime: string }> = driveData.files ?? [];
     const folders = all.filter((f) => f.mimeType === "application/vnd.google-apps.folder");

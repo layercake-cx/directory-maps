@@ -4,6 +4,29 @@ function getEnv(name: string) {
   return v;
 }
 
+/**
+ * Google's Drive/Sheets APIs return this when the user didn't grant every requested
+ * scope on the consent screen (e.g. unchecked "See and download your Google Drive
+ * files") — surfacing the raw JSON to a customer is meaningless, so translate it into
+ * something actionable. Falls back to the raw body for anything else so real API
+ * errors aren't hidden.
+ */
+export function describeGoogleApiError(label: string, body: unknown): string {
+  const bodyError = (body as any)?.error;
+  const reason =
+    bodyError?.errors?.[0]?.reason ?? bodyError?.details?.[0]?.reason ?? bodyError?.status ?? "";
+  const message = String(bodyError?.message ?? "");
+  const isScopeError =
+    reason === "insufficientPermissions" ||
+    reason === "ACCESS_TOKEN_SCOPE_INSUFFICIENT" ||
+    /insufficient authentication scopes/i.test(message);
+
+  if (isScopeError) {
+    return "Google didn't grant every permission this needs. When reconnecting, make sure to allow all requested permissions on Google's consent screen (Drive and Sheets access) rather than unchecking any of them.";
+  }
+  return `${label}: ${JSON.stringify(body)}`;
+}
+
 export function buildGoogleAuthUrl(params: {
   redirectUri: string;
   state: string;
@@ -91,7 +114,7 @@ export async function fetchSpreadsheetMeta(accessToken: string, spreadsheetId: s
   u.searchParams.set("fields", "sheets(properties(sheetId,title))");
   const res = await fetch(u, { headers: { Authorization: `Bearer ${accessToken}` } });
   const json = await res.json();
-  if (!res.ok) throw new Error(`Sheets meta failed: ${JSON.stringify(json)}`);
+  if (!res.ok) throw new Error(describeGoogleApiError("Sheets meta failed", json));
   return json as {
     sheets?: Array<{ properties?: { sheetId?: number; title?: string } }>;
   };
@@ -104,7 +127,9 @@ export async function fetchDriveFileAsText(accessToken: string, fileId: string) 
   );
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Drive file download failed: ${err}`);
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(err); } catch { /* not JSON, e.g. plain-text 404 */ }
+    throw new Error(parsed ? describeGoogleApiError("Drive file download failed", parsed) : `Drive file download failed: ${err}`);
   }
   return res.text();
 }
@@ -117,7 +142,7 @@ export async function fetchSheetValues(accessToken: string, spreadsheetId: strin
   u.searchParams.set("majorDimension", "ROWS");
   const res = await fetch(u, { headers: { Authorization: `Bearer ${accessToken}` } });
   const json = await res.json();
-  if (!res.ok) throw new Error(`Sheets values failed: ${JSON.stringify(json)}`);
+  if (!res.ok) throw new Error(describeGoogleApiError("Sheets values failed", json));
   return json as { values?: string[][] };
 }
 

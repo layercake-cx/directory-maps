@@ -56,6 +56,7 @@ flowchart LR
 | Landing page | `/#/` | Product overview, links to signup and admin | `src/pages/PublicMap.jsx` |
 | Marketing pricing | `/#/pricing` | Static plan cards (Starter / Pro / Agency, GBP monthly) | `src/pages/Pricing.jsx` |
 | Terms & conditions | `/#/terms` | Renders legal markdown | `src/pages/Terms.jsx`, `docs/MARKDOWN/...` |
+| Privacy notice | `/#/privacy` | Renders legal markdown | `src/pages/Privacy.jsx`, `docs/MARKDOWN/...` |
 | Site chrome | — | Header nav, footer, brand | `src/components/SiteHeader.jsx`, `SiteFooter.jsx` |
 | Global error boundary | — | Catches uncaught React errors | `src/components/ErrorBoundary.jsx` |
 
@@ -364,6 +365,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/pricing` | `Pricing` |
 | `/login`, `/signup`, `/forgot-password`, `/reset-password` | Auth pages |
 | `/terms` | `Terms` |
+| `/privacy` | `Privacy` |
 | `/embed` | `EmbedMap` |
 | `/client` | `ClientDashboard` |
 | `/client/team` | `ClientTeam` |

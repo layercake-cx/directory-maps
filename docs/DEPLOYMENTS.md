@@ -43,9 +43,135 @@ Revert this branch/commit before merge, or `git revert` the merge commit on `mai
 
 ---
 
-## 2026-07-02 — Staging (admin Logs dropdown + Leads page)
+## 2026-07-03 — Production (stop logging noisy cross-origin window.error events)
 
-**Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` (not yet merged)
+**Branch/commit:** `fix/2026-07-03-ignore-cross-origin-window-error` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- `installGlobalErrorHandlers` in `src/lib/errorLogger.js` no longer substitutes the literal string `"window.error"` when a browser withholds the real error message (cross-origin script failures — most likely the Google Maps script — report a bare `error` event with no message/filename/stack). That substitution was defeating `logClientError`'s existing empty-message guard, so every one of these content-free events was landing in `error_logs` (roughly 70% of recent rows, across real visitors and crawlers like Googlebot/Facebook's bot on public map pages). Passing the message through as-is now lets the existing guard drop them; a real error, or one with a stack trace, is still logged unchanged.
+- No behaviour change for actual errors — only removes noise with zero diagnostic value.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Guard logic confirmed directly (empty message + no stack → skipped; message with stack, or non-empty message → still logged) — not meaningfully testable via browser preview since it requires a genuine cross-origin script failure.
+- [ ] Confirm in production error log (`/admin/errors`) that `window.error` rows with a blank message stop appearing after this deploys.
+
+---
+
+## 2026-07-03 — Staging (friendly error for missing Google OAuth scopes)
+
+**Branch/commit:** `fix/2026-07-03-friendly-insufficient-scope-error` (not yet merged, not yet deployed)
+**Deployed by:** Claude Code
+
+### What changed
+- If a customer doesn't grant every requested permission on Google's OAuth consent screen (e.g. unchecks "See and download your Google Drive files"), Drive/Sheets API calls fail with a 403 `insufficientPermissions`/`ACCESS_TOKEN_SCOPE_INSUFFICIENT` error. This was previously surfaced verbatim as raw JSON (e.g. `Drive API error: {"error":{"code":403,...`) in the customer-facing Data tab — found while recording a Google OAuth-verification demo video and hitting this error firsthand.
+- Added `describeGoogleApiError()` to `supabase/functions/_shared/google.ts`, which detects this specific error shape and returns an actionable message ("Google didn't grant every permission this needs...") instead; any other Google API error still passes through with full raw detail for debugging. Wired into `fetchSpreadsheetMeta`, `fetchDriveFileAsText`, `fetchSheetValues` (`_shared/google.ts`), and both Drive `files.list` calls in `google_list_sheets/index.ts`.
+- Verified the exact error JSON the user hit maps to the friendly message, and an unrelated error (e.g. file-not-found) still passes through unchanged.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+Not yet — needs `google_list_sheets` (and any other function importing `_shared/google.ts`: `google_get_access_token`, `sync_sheet_listings`, `validate_sheet_source`) redeployed to pick up the shared-lib change. Deploy to staging (`beqejxneehilplrtpntn`) first, per `AGENTS.md`; production only after the user verifies staging.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge. Redeploy the affected functions from the prior commit if already deployed.
+
+### Verified
+- [x] Logic tested directly against the exact error JSON reported by the user — maps to the friendly message; an unrelated Drive error still passes through with full detail.
+- [ ] Staging deploy + live reproduction (deliberately omit a scope on the consent screen, confirm the friendly message appears in the Data tab)
+- [ ] Production deploy (after user confirms staging)
+
+---
+
+## 2026-07-03 — Production (updated Terms and Conditions content, footer link)
+
+**Branch/commit:** `feat/2026-07-03-update-terms-content` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- Replaced the content of `docs/MARKDOWN/Layercake_Maps_Terms_and_Conditions.md` with a new version supplied by the user (same page/route, `src/pages/Terms.jsx` / `/terms`, unchanged — only the markdown content changed). The `[DATE]` placeholder was filled in as 3 July 2026, matching the Privacy Notice update. New content cross-references the Privacy Notice at `maps.layercake-cx.biz/privacy`.
+- Added a **"Terms and Conditions"** link to `src/components/SiteFooter.jsx`, alongside the existing Privacy Notice / Cookies Policy links — there was previously no footer link to `/terms` at all (it was only reachable via the sign-up checkbox flow in `AuthForm.jsx`).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] `npm run build` succeeds cleanly with no errors
+- [x] Dev server module graph resolves with no import errors (`Terms.jsx`, updated `SiteFooter.jsx`)
+- [ ] Legal content reviewed/approved by the user as final (currently as supplied, with only the date filled in)
+- [ ] Footer link click-through confirmed live (Chrome extension unavailable in this session for a live check)
+
+---
+
+## 2026-07-03 — Production (reset scroll position on route change)
+
+**Branch/commit:** `fix/2026-07-03-reset-scroll-on-route-change` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- Following any in-app link (e.g. the footer's "Privacy Notice"/"Cookies Policy" links, or any other `<Link>`) from partway down a page previously landed on the next page at the same pixel scroll offset, because React Router v6 with `BrowserRouter` doesn't reset scroll position on navigation (that's only built into the newer data-router APIs). Reported after merging the new `/privacy` page: clicking the footer link from the bottom of a page opened `/privacy` scrolled to its bottom.
+- `src/Root.jsx`'s `Layout` component now resets `window.scrollTo(0, 0)` whenever `location.pathname` changes, skipping the reset when a `#hash` is present so in-page anchor links (the landing page's `#product`/`#data`/`#beta` sections, and direct deep links like `/#product`) keep working exactly as before.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Logic reviewed directly: effect only depends on `pathname` (not full location/hash), so hash-only navigation (in-page anchors) doesn't retrigger it; guarded against clobbering a direct `/#anchor` deep link's native scroll.
+- [ ] Live click-through on the PR's Vercel preview (pending — local browser-preview tooling in this session couldn't reach this branch's worktree)
+
+---
+
+## 2026-07-03 — Production (public /privacy page)
+
+**Branch/commit:** `feat/2026-07-03-privacy-policy-page` → merged to `main` (PR [#65](https://github.com/layercake-cx/directory-maps/pull/65))
+**Deployed by:** Claude Code
+
+### What changed
+- New public, unauthenticated page at `/privacy` (`src/pages/Privacy.jsx`), rendering `docs/MARKDOWN/Layercake_Maps_Privacy_Notice.md` via `react-markdown` — same pattern as the existing `/terms` page (`src/pages/Terms.jsx`), reusing its `terms-page` styling.
+- Needed as the privacy-policy URL required by Google's OAuth consent-screen verification (see the Google Drive/Sheets `invalid_grant` investigation — the app needs to move out of "Testing" publishing status, which requires a privacy policy link).
+- Content supplied by the user; the `[DATE]` placeholder in the source doc was filled in as 3 July 2026. This is a legal document — worth a human/legal read-through before treating it as final, this change only wires it up as a page.
+- Added rows to `docs/FEATURES.md` (public & marketing table, route reference table).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+Revert this commit, or `git revert` the merge commit on `main` after merge.
+
+### Verified
+- [x] Confirmed rendering in production after merge (existing footer "Privacy Notice" link now resolves instead of dead-ending).
+- [ ] Legal content reviewed/approved by the user as final (currently as supplied, with only the date filled in)
+
+---
+
+## 2026-07-02 — Production (admin Logs dropdown + Leads page)
+
+**Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` → merged to `main` (PR [#62](https://github.com/layercake-cx/directory-maps/pull/62))
 **Deployed by:** Claude Code
 
 ### What changed
@@ -55,7 +181,7 @@ Revert this branch/commit before merge, or `git revert` the merge commit on `mai
 - Updated `docs/USER_GUIDE.md` (admin navigation section + landing page section) and `docs/FEATURES.md` (admin route table) to describe the Logs dropdown and the Leads page.
 
 ### Database migrations applied
-- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)** via `supabase db push`, on the user's explicit go-ahead; the migration's own post-migration verification block passed on both (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`). No interactive UI smoke test was done in this session (no admin credentials available) — verify the Leads page and status editing in the live app.
+- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)** via `supabase db push`, on the user's explicit go-ahead; the migration's own post-migration verification block passed on both (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`).
 
 ### Edge functions deployed
 None.
@@ -66,11 +192,11 @@ Revert this branch/commit before merge, or `git revert` the merge commit on `mai
 ### Verified
 - [x] Migration dry-run passed on staging (`supabase db push --dry-run`)
 - [x] Migration applied to staging, post-migration verification block passed
-- [ ] Leads page smoke-tested against staging or production (list renders, status edit persists, admin event recorded) — not yet done, no admin credentials available in this session
-- [ ] Logs dropdown smoke-tested (opens, closes on outside click/Escape, all three links navigate correctly, active-state highlighting works) — not yet done, same reason
+- [x] Leads page smoke-tested in production by the user: submitted a lead via the public landing page form, confirmed it appeared in the admin Leads list
+- [x] Logs dropdown and nav changes confirmed present in production by the user
 - [x] Production build passes locally (`npm run build`)
 - [x] Migration dry-run passed on production (`supabase db push --dry-run`)
-- [x] Migration applied to production, post-migration verification block passed (user gave explicit go-ahead without a prior staging UI smoke test)
+- [x] Migration applied to production, post-migration verification block passed (user gave explicit go-ahead)
 
 ---
 

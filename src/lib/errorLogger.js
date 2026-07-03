@@ -88,7 +88,7 @@ export function installGlobalErrorHandlers() {
     (event) => {
       logClientError({
         type: "window.error",
-        message: event.message || "window.error",
+        message: event.message || "",
         stack: event.error?.stack,
         context: {
           filename: event.filename,
