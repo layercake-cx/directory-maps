@@ -64,10 +64,16 @@ export async function openGoogleDrivePicker({ mapId, onPicked }) {
     .setIncludeFolders(true)
     .setSelectFolderEnabled(false);
 
-  const picker = new window.google.picker.PickerBuilder()
+  const builder = new window.google.picker.PickerBuilder()
     .setOAuthToken(accessToken)
     .setDeveloperKey(apiKey)
-    .addView(view)
+    .addView(view);
+  // setAppId is required under the drive.file scope for a picked file to actually
+  // receive a persistent access grant — without it, selection appears to succeed but
+  // later Drive API reads 404 as if the app has no access to the file.
+  if (data?.appId) builder.setAppId(data.appId);
+
+  const picker = builder
     .setCallback((pickerData) => {
       if (pickerData.action === window.google.picker.Action.PICKED) {
         const doc = pickerData.docs?.[0];

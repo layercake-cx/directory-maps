@@ -1,5 +1,5 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
-import { refreshAccessToken } from "../_shared/google.ts";
+import { refreshAccessToken, getGoogleAppId } from "../_shared/google.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     // Short-lived token only, to hand to the Google Picker widget in the browser.
     // The refresh_token itself never leaves the server.
     const tok = await refreshAccessToken(data.refresh_token);
-    return json({ accessToken: tok.access_token, expiresIn: tok.expires_in });
+    return json({ accessToken: tok.access_token, expiresIn: tok.expires_in, appId: getGoogleAppId() });
   } catch (e) {
     return json({ error: e?.message ?? String(e) }, 500);
   }

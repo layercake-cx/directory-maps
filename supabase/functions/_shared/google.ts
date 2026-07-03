@@ -5,6 +5,19 @@ function getEnv(name: string) {
 }
 
 /**
+ * Google's OAuth client ID is formatted `<project-number>-<hash>.apps.googleusercontent.com`.
+ * The Picker widget needs that numeric project number passed to setAppId() — without it,
+ * picking a file under the drive.file scope doesn't actually grant persistent per-file
+ * access (selection appears to succeed, but later Drive API reads 404).
+ */
+export function getGoogleAppId() {
+  const clientId = getEnv("GOOGLE_OAUTH_CLIENT_ID");
+  const projectNumber = clientId.split("-")[0];
+  if (!/^\d+$/.test(projectNumber)) throw new Error("Could not parse project number from GOOGLE_OAUTH_CLIENT_ID");
+  return projectNumber;
+}
+
+/**
  * Google's Drive/Sheets APIs return this when the user didn't grant every requested
  * scope on the consent screen (e.g. unchecked "See and download your Google Drive
  * files") — surfacing the raw JSON to a customer is meaningless, so translate it into
