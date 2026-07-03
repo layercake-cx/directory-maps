@@ -292,9 +292,6 @@ export default function AdminMapData() {
       }
       setSheetStatus(statusRes.data ?? null);
       setSyncSchedule(srcRes.data?.sync_schedule ?? null);
-      if (statusRes.data?.connected && !statusRes.data?.sheet?.spreadsheet_id) {
-        openDrivePicker();
-      }
     } catch (e) {
       setSheetErr(e?.message ?? String(e));
       setSheetStatus((prev) => prev ?? { connected: false });
