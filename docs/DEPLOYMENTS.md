@@ -84,9 +84,9 @@ Revert this commit, or `git revert` the merge commit on `main` after merge.
 
 ---
 
-## 2026-07-02 — Staging (admin Logs dropdown + Leads page)
+## 2026-07-02 — Production (admin Logs dropdown + Leads page)
 
-**Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` (not yet merged)
+**Branch/commit:** `feat/2026-07-02-admin-logs-nav-leads` → merged to `main` (PR [#62](https://github.com/layercake-cx/directory-maps/pull/62))
 **Deployed by:** Claude Code
 
 ### What changed
@@ -96,7 +96,7 @@ Revert this commit, or `git revert` the merge commit on `main` after merge.
 - Updated `docs/USER_GUIDE.md` (admin navigation section + landing page section) and `docs/FEATURES.md` (admin route table) to describe the Logs dropdown and the Leads page.
 
 ### Database migrations applied
-- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)** via `supabase db push`, on the user's explicit go-ahead; the migration's own post-migration verification block passed on both (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`). No interactive UI smoke test was done in this session (no admin credentials available) — verify the Leads page and status editing in the live app.
+- `supabase/migrations/20260702130000_beta_signups_status.sql` (+ rollback `_20260702130000_beta_signups_status.rollback.sql`) — adds `status text not null default 'To be actioned'` (check constraint: To be actioned / In progress / Successful / Lost) to `beta_signups`, plus an admin-only update policy (`beta_signups_admin_update`) so admins can change lead status. **Applied to staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`)** via `supabase db push`, on the user's explicit go-ahead; the migration's own post-migration verification block passed on both (`VERIFY PASSED: status column exists (NOT NULL, defaulted), 4 policies present`).
 
 ### Edge functions deployed
 None.
@@ -107,11 +107,11 @@ Revert this branch/commit before merge, or `git revert` the merge commit on `mai
 ### Verified
 - [x] Migration dry-run passed on staging (`supabase db push --dry-run`)
 - [x] Migration applied to staging, post-migration verification block passed
-- [ ] Leads page smoke-tested against staging or production (list renders, status edit persists, admin event recorded) — not yet done, no admin credentials available in this session
-- [ ] Logs dropdown smoke-tested (opens, closes on outside click/Escape, all three links navigate correctly, active-state highlighting works) — not yet done, same reason
+- [x] Leads page smoke-tested in production by the user: submitted a lead via the public landing page form, confirmed it appeared in the admin Leads list
+- [x] Logs dropdown and nav changes confirmed present in production by the user
 - [x] Production build passes locally (`npm run build`)
 - [x] Migration dry-run passed on production (`supabase db push --dry-run`)
-- [x] Migration applied to production, post-migration verification block passed (user gave explicit go-ahead without a prior staging UI smoke test)
+- [x] Migration applied to production, post-migration verification block passed (user gave explicit go-ahead)
 
 ---
 
