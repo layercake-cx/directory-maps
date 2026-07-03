@@ -27,12 +27,26 @@ function loadGapiScript() {
 function loadPickerLibrary() {
   if (window.google?.picker) return Promise.resolve();
   if (!pickerLibraryPromise) {
-    pickerLibraryPromise = loadGapiScript().then(
-      () =>
-        new Promise((resolve, reject) => {
-          window.gapi.load("picker", { callback: resolve, onerror: () => reject(new Error("Failed to load Google Picker")) });
-        })
-    );
+    pickerLibraryPromise = loadGapiScript()
+      .then(
+        () =>
+          new Promise((resolve, reject) => {
+            window.gapi.load("picker", {
+              callback: () => {
+                // gapi's callback has fired, but google.picker isn't always attached
+                // to window the instant it does — a build()/setVisible() call made
+                // right on its heels intermittently surfaces as "The API developer
+                // key is invalid" even though the key is fine. Give it a tick.
+                setTimeout(() => (window.google?.picker ? resolve() : reject(new Error("Google Picker library failed to initialize"))), 50);
+              },
+              onerror: () => reject(new Error("Failed to load Google Picker")),
+            });
+          })
+      )
+      .catch((err) => {
+        pickerLibraryPromise = null; // don't cache a failed load — let the next call retry from scratch
+        throw err;
+      });
   }
   return pickerLibraryPromise;
 }
@@ -81,5 +95,8 @@ export async function openGoogleDrivePicker({ mapId, onPicked }) {
       }
     })
     .build();
-  picker.setVisible(true);
+  // Same cold-start settling issue as the library load above — defer showing the
+  // widget by a tick rather than calling setVisible() in the same synchronous pass
+  // as build().
+  requestAnimationFrame(() => picker.setVisible(true));
 }
