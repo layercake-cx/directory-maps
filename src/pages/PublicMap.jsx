@@ -38,11 +38,10 @@ const INTEGRATIONS = [
   { badge: "Google Drive sync", title: "Keep it live, automatically", desc: "Connect a Google Sheet and your map stays in sync — no exports, no re-uploading." },
 ];
 
-const BETA_BENEFITS = [
-  "Early access to Layercake Maps",
-  "Dedicated onboarding and support",
-  "Direct collaboration with the team",
-  "30% off in year one",
+const OFFER_BENEFITS = [
+  "No feature gates — whatever we build in Beta, you get it",
+  "Locked in for 12 months from launch",
+  "Help shape what we charge everyone else",
 ];
 
 const TIMELINE_STEPS = [
@@ -243,26 +242,32 @@ export default function PublicMap() {
         </div>
       </section>
 
-      <section className={`${styles.section} ${styles.sectionAlt}`} id="beta">
+      <section className={styles.offerStrip} id="beta">
         <div className={styles.wrap}>
-          <div className={styles.betaPanel}>
-            <span className={styles.betaSpots}>Only 4 founding partner spots remaining</span>
-            <h2>We&apos;re inviting five associations to shape Layercake Maps before launch</h2>
-            <p className={styles.betaLede}>
-              In return for early feedback, founding partners get preferential terms and a direct line to the team
-              building the product.
-            </p>
-            <ul className={styles.betaGrid}>
-              {BETA_BENEFITS.map((b) => (
+          <div className={styles.offerStripGrid}>
+            <div>
+              <span className={styles.offerEyebrow}>Founding Partner Offer</span>
+              <h2 className={styles.offerHeadline}>
+                £200 for your first year.
+                <br />
+                Full access, every tier.
+              </h2>
+              <p className={styles.offerSub}>
+                That&apos;s around a third of our planned entry-level subscription — with everything unlocked,
+                including features we build during Beta. This rate is exclusive to our founding partner cohort and
+                won&apos;t be offered again once Beta ends.
+              </p>
+            </div>
+            <ul className={styles.offerList}>
+              {OFFER_BENEFITS.map((b) => (
                 <li key={b}>
-                  <CheckIcon />
+                  <span className={styles.offerCheck}>
+                    <CheckIcon />
+                  </span>
                   {b}
                 </li>
               ))}
             </ul>
-            <a href="#signup" className={`${styles.btn} ${styles.btnCoral}`}>
-              Apply for a founding partner spot
-            </a>
           </div>
         </div>
       </section>

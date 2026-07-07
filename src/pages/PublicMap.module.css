@@ -517,76 +517,80 @@ h1.heroTitle {
   color: var(--ink);
 }
 
-/* Founding partner beta panel */
-.betaPanel {
-  background: var(--teal);
-  border-radius: var(--radius-lg);
-  padding: 52px 44px;
+/* Founding partner offer strip */
+.offerStrip {
+  background: var(--ink);
   color: #fff;
-  text-align: center;
+  padding: 56px 0;
 }
 
-@media (max-width: 640px) {
-  .betaPanel {
-    padding: 36px 22px;
+.offerStripGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+@media (min-width: 760px) {
+  .offerStripGrid {
+    grid-template-columns: 1.3fr 1fr;
+    gap: 48px;
   }
 }
 
-.betaSpots {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #eafaf3;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 16px;
-  border-radius: 100px;
-  margin-bottom: 20px;
+.offerEyebrow {
+  display: block;
+  color: #a9e8d9;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
 }
 
-.betaPanel h2 {
+.offerStrip .offerHeadline {
   color: #fff;
-  font-size: 30px;
-  max-width: 520px;
-  margin: 0 auto 14px;
+  font-size: 28px;
+  line-height: 1.25;
+  margin-bottom: 16px;
 }
 
-.betaLede {
-  color: #cfe9df;
-  font-size: 15.5px;
-  max-width: 480px;
-  margin: 0 auto 30px;
+.offerSub {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 440px;
+  margin: 0;
 }
 
-.betaGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  max-width: 640px;
-  margin: 0 auto 32px;
-  text-align: left;
+.offerList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   list-style: none;
+  margin: 0;
   padding: 0;
 }
 
-@media (min-width: 640px) {
-  .betaGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.betaGrid li {
+.offerList li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 14px;
-  color: #eafaf3;
+  gap: 12px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
 }
 
-.betaGrid svg {
+.offerCheck {
   flex-shrink: 0;
-  margin-top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
 }
 
 /* Timeline */
