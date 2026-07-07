@@ -6,11 +6,10 @@ const SAMPLE_MAP_URL = "https://maps.layercake-cx.biz/layercake/uk-associations-
 const HUBSPOT_FORM_SCRIPT_SRC = "https://js-eu1.hsforms.net/forms/embed/148819421.js";
 
 const PROBLEMS = [
-  "Large member directories that are difficult to navigate",
-  "Low engagement with directory content",
-  "Hidden expertise within your organisation",
-  "Information spread across multiple systems",
-  "Difficulty discovering suppliers, partners or services",
+  "Find listings by geographical location, not alphabetical order",
+  "Colour-coded categories, aligned to your brand",
+  "Better exposure for sponsors and partners — real value for what they're paying for",
+  "A more engaging experience for everyone visiting your site",
 ];
 
 const WHO_ITS_FOR = [
@@ -165,9 +164,11 @@ export default function PublicMap() {
         <div className={styles.wrap}>
           <div className={styles.problemStripGrid}>
             <div>
-              <h2>The problems we solve</h2>
+              <h2>Location-based search, built in</h2>
               <p className={styles.problemStripIntro}>
-                Not another feature list — the day-to-day friction Layercake Maps is built to remove.
+                Introducing map-based search to your directory listings brings the power of engaging,
+                location-based search to your members, suppliers and partners — replacing the alphabetical list
+                with something people actually want to explore.
               </p>
             </div>
             <ul className={styles.problemBullets}>
