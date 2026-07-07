@@ -1,52 +1,16 @@
-import React, { useState } from "react";
-import { supabase } from "../lib/supabase";
+import React, { useEffect } from "react";
 import martinBoylePhoto from "../assets/martin-boyle.png";
 import styles from "./PublicMap.module.css";
 
 const SAMPLE_MAP_URL = "https://maps.layercake-cx.biz/layercake/uk-associations-sample-map";
+const HUBSPOT_FORM_SCRIPT_SRC = "https://js-eu1.hsforms.net/forms/embed/148819421.js";
 
 const PROBLEMS = [
-  {
-    title: "Too big to browse",
-    desc: "Long lists nobody scrolls through.",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M3 9h18M8 4v16" />
-      </svg>
-    ),
-  },
-  {
-    title: "Low engagement",
-    desc: "Visited once, rarely returned to.",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3v18M3 12h18" />
-        <circle cx="12" cy="12" r="9" />
-      </svg>
-    ),
-  },
-  {
-    title: "Hidden expertise",
-    desc: "Value inside the org stays invisible.",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.5 1 2.5h6c0-1 .4-1.9 1-2.5A6 6 0 0 0 12 3Z" />
-      </svg>
-    ),
-  },
-  {
-    title: "Data everywhere",
-    desc: "Spreadsheets, CRM and web disagree.",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
+  "Large member directories that are difficult to navigate",
+  "Low engagement with directory content",
+  "Hidden expertise within your organisation",
+  "Information spread across multiple systems",
+  "Difficulty discovering suppliers, partners or services",
 ];
 
 const WHO_ITS_FOR = [
@@ -60,18 +24,18 @@ const WHO_ITS_FOR = [
 ];
 
 const USE_CASES = [
-  { title: "Discover members by expertise", desc: "Find people by skill or sector, not just name." },
-  { title: "Explore suppliers by category", desc: "Filter approved suppliers by service and location." },
-  { title: "Showcase destinations and venues", desc: "A visual way to browse places worth visiting." },
-  { title: "Connect partners by region", desc: "See who operates where, at a glance." },
-  { title: "Visualise exhibitor directories", desc: "Turn a static list into something attendees explore." },
-  { title: "Highlight products and services", desc: "Group offerings so the right ones get found." },
+  { title: "Discover members by expertise", desc: "Let visitors filter and find members by sector, skill or specialism." },
+  { title: "Explore suppliers by category", desc: "Turn a static supplier list into a searchable, browsable map." },
+  { title: "Showcase destinations and venues", desc: "Give conference and event destinations a visual home online." },
+  { title: "Connect partners by region", desc: "Show partner coverage and relationships at a glance, by geography." },
+  { title: "Visualise exhibitor directories", desc: "Help attendees navigate exhibitors before and during an event." },
+  { title: "Highlight products and services", desc: "Surface what your members and suppliers actually offer, visually." },
 ];
 
 const INTEGRATIONS = [
-  { badge: "Preferred", title: "API integration", desc: "Direct, near real-time sync with your CRM or directory." },
-  { badge: "Scheduled", title: "Scheduled imports", desc: "Regular CSV or Excel exports, transformed automatically." },
-  { badge: "Manual", title: "Manual management", desc: "Upload and edit directly in the app. No infrastructure needed." },
+  { badge: "Manual entry", title: "Add records directly", desc: "Good for a handful of listings, or getting a feel for the platform before importing everything." },
+  { badge: "CSV upload", title: "Import your existing dataset", desc: "Upload your full directory in one go — a one-time import, or a periodic re-upload as things change." },
+  { badge: "Google Drive sync", title: "Keep it live, automatically", desc: "Connect a Google Sheet and your map stays in sync — no exports, no re-uploading." },
 ];
 
 const BETA_BENEFITS = [
@@ -82,13 +46,9 @@ const BETA_BENEFITS = [
 ];
 
 const TIMELINE_STEPS = [
-  { num: "1", title: "Discovery call", desc: "A short conversation about your directory." },
-  { num: "2", title: "Technical discovery", desc: "We find the best integration route." },
-  { num: "3", title: "Data assessment", desc: "We review your data and flag cleanup." },
-  { num: "4", title: "Map configuration", desc: "Your map is styled and structured." },
-  { num: "5", title: "Review session", desc: "We walk through it before launch." },
-  { num: "6", title: "Launch", desc: "Embed with one line of code." },
-  { num: "✓", title: "Feedback", desc: "Ongoing input shapes what's next.", last: true },
+  { num: "1", title: "Discovery call", desc: "We learn your data, your members, and what \"good\" looks like for you." },
+  { num: "2", title: "Set-up", desc: "You build your first map, with our team on hand for guidance whenever you need it." },
+  { num: "3", title: "Publish", desc: "Live and embedded with one line of code." },
 ];
 
 const TESTIMONIAL = {
@@ -163,38 +123,14 @@ function MapIllustration() {
   );
 }
 
-const initialForm = { firstName: "", lastName: "", organisation: "", workEmail: "", message: "" };
-
 export default function PublicMap() {
-  const [form, setForm] = useState(initialForm);
-  const [status, setStatus] = useState("idle"); // idle | submitting | success | error
-  const [error, setError] = useState("");
-
-  function handleChange(field) {
-    return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (status === "submitting") return;
-    setStatus("submitting");
-    setError("");
-    try {
-      const { error: insertError } = await supabase.from("beta_signups").insert({
-        first_name: form.firstName.trim(),
-        last_name: form.lastName.trim(),
-        organisation: form.organisation.trim(),
-        work_email: form.workEmail.trim(),
-        message: form.message.trim() || null,
-      });
-      if (insertError) throw insertError;
-      setStatus("success");
-      setForm(initialForm);
-    } catch (err) {
-      setStatus("error");
-      setError(err?.message || "Something went wrong. Please try again.");
-    }
-  }
+  useEffect(() => {
+    if (document.querySelector(`script[src="${HUBSPOT_FORM_SCRIPT_SRC}"]`)) return;
+    const script = document.createElement("script");
+    script.src = HUBSPOT_FORM_SCRIPT_SRC;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
 
   return (
     <div className={styles.page}>
@@ -226,22 +162,23 @@ export default function PublicMap() {
         </div>
       </header>
 
-      <section className={`${styles.section} ${styles.sectionAlt}`}>
+      <section className={styles.problemStrip}>
         <div className={styles.wrap}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionTag}>The problem</span>
-            <h2>The challenge behind almost every association directory</h2>
-          </div>
-          <div className={styles.problemGrid}>
-            {PROBLEMS.map((p) => (
-              <div className={styles.problemCard} key={p.title}>
-                <div className={styles.problemIcon} style={{ color: "var(--teal-dark)" }}>
-                  {p.icon}
-                </div>
-                <h3>{p.title}</h3>
-                <p>{p.desc}</p>
-              </div>
-            ))}
+          <div className={styles.problemStripGrid}>
+            <div>
+              <h2>The problems we solve</h2>
+              <p className={styles.problemStripIntro}>
+                Not another feature list — the day-to-day friction Layercake Maps is built to remove.
+              </p>
+            </div>
+            <ul className={styles.problemBullets}>
+              {PROBLEMS.map((item) => (
+                <li className={styles.problemBulletItem} key={item}>
+                  <span className={styles.problemBulletDot} />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
@@ -283,7 +220,11 @@ export default function PublicMap() {
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
             <span className={styles.sectionTag}>Getting started</span>
-            <h2>Works with your existing data</h2>
+            <h2>Get your data in, your way</h2>
+            <p>
+              You don&apos;t need sophisticated infrastructure to get started — pick whichever fits how your data
+              lives today.
+            </p>
           </div>
           <div className={styles.integrationGrid}>
             {INTEGRATIONS.map((i) => (
@@ -294,6 +235,11 @@ export default function PublicMap() {
               </div>
             ))}
           </div>
+          <p className={styles.dataNote}>
+            <strong>Got something more complex?</strong> — a CRM, a database, or a legacy system — we can scope a
+            custom pipeline to keep your map in sync automatically. This is a separate project alongside your
+            subscription, not part of it.
+          </p>
         </div>
       </section>
 
@@ -366,94 +312,12 @@ export default function PublicMap() {
               Tell us about your directory. We&apos;ll come back to you within two working days.
             </p>
 
-            {status === "success" ? (
-              <div className={styles.formSuccess}>
-                <p>Thanks — we&apos;ve got your application and will be in touch within two working days.</p>
-              </div>
-            ) : (
-              <form className={styles.form} onSubmit={handleSubmit}>
-                <div className={styles.formRow}>
-                  <div>
-                    <label htmlFor="fname" className={styles.label}>
-                      First name
-                    </label>
-                    <input
-                      id="fname"
-                      type="text"
-                      placeholder="Jane"
-                      className={styles.input}
-                      value={form.firstName}
-                      onChange={handleChange("firstName")}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="lname" className={styles.label}>
-                      Last name
-                    </label>
-                    <input
-                      id="lname"
-                      type="text"
-                      placeholder="Smith"
-                      className={styles.input}
-                      value={form.lastName}
-                      onChange={handleChange("lastName")}
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="org" className={styles.label}>
-                    Organisation
-                  </label>
-                  <input
-                    id="org"
-                    type="text"
-                    placeholder="Your association or institute"
-                    className={styles.input}
-                    value={form.organisation}
-                    onChange={handleChange("organisation")}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className={styles.label}>
-                    Work email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="jane@yourassociation.org"
-                    className={styles.input}
-                    value={form.workEmail}
-                    onChange={handleChange("workEmail")}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="message" className={styles.label}>
-                    Tell us about your directory
-                  </label>
-                  <textarea
-                    id="message"
-                    placeholder="How many members or suppliers, and what you're hoping to achieve."
-                    className={styles.textarea}
-                    value={form.message}
-                    onChange={handleChange("message")}
-                  />
-                </div>
-
-                {status === "error" && <p className={styles.formError}>{error}</p>}
-
-                <button
-                  type="submit"
-                  className={`${styles.btn} ${styles.btnTeal} ${styles.btnBlock} ${styles.formSubmit}`}
-                  disabled={status === "submitting"}
-                >
-                  {status === "submitting" ? "Submitting…" : "Apply for a founding partner spot"}
-                </button>
-              </form>
-            )}
+            <div
+              className="hs-form-frame"
+              data-region="eu1"
+              data-form-id="9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7"
+              data-portal-id="148819421"
+            />
           </div>
         </div>
       </section>

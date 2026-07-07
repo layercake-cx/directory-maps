@@ -13,6 +13,7 @@
   --ink-soft: #4b5148;
   --ink-muted: #7c8177;
   --cream: #faf7f1;
+  --cream-deep: #f2ece0;
   --card: #ffffff;
   --line: #e5e0d4;
   --line-strong: #d2cbb8;
@@ -335,48 +336,71 @@ h1.heroTitle {
   margin: 0;
 }
 
-/* Problem grid */
-.problemGrid {
+/* Problem strip */
+.problemStrip {
+  background: var(--ink);
+  color: #fff;
+  padding: 56px 0;
+}
+
+.problemStripGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: start;
 }
 
 @media (min-width: 760px) {
-  .problemGrid {
-    grid-template-columns: repeat(4, 1fr);
+  .problemStripGrid {
+    grid-template-columns: 1.1fr 1.4fr;
+    gap: 48px;
   }
 }
 
-.problemCard {
-  background: var(--cream);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 20px 18px;
-  text-align: center;
+.problemStripGrid h2 {
+  color: #fff;
+  font-size: 26px;
+  margin-bottom: 12px;
 }
 
-.problemIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--teal-tint);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 14px;
-}
-
-.problemCard h3 {
-  font-size: 14.5px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.problemCard p {
-  font-size: 13px;
-  color: var(--ink-muted);
+.problemStripIntro {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  max-width: 340px;
   margin: 0;
+}
+
+.problemBullets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 500px) {
+  .problemBullets {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 32px;
+  }
+}
+
+.problemBulletItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 14.5px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.problemBulletDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+  margin-top: 7px;
 }
 
 /* Chips */
@@ -476,6 +500,21 @@ h1.heroTitle {
   font-size: 13.5px;
   color: var(--ink-muted);
   margin: 0;
+}
+
+.dataNote {
+  background: var(--cream-deep);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  text-align: center;
+  margin: 28px 0 0;
+}
+
+.dataNote strong {
+  color: var(--ink);
 }
 
 /* Founding partner beta panel */
@@ -697,74 +736,5 @@ h1.heroTitle {
   color: var(--ink-soft);
   text-align: center;
   margin-bottom: 28px;
-}
-
-.form {
-  display: grid;
-  gap: 14px;
-}
-
-.formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 640px) {
-  .formRow {
-    grid-template-columns: 1fr;
-  }
-}
-
-.label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-bottom: 6px;
-  display: block;
-}
-
-.input,
-.textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--cream);
-  font-family: inherit;
-  font-size: 14.5px;
-  color: var(--ink);
-}
-
-.input:focus,
-.textarea:focus {
-  outline: 2px solid var(--teal-dark);
-  outline-offset: 1px;
-}
-
-.textarea {
-  min-height: 90px;
-  resize: vertical;
-}
-
-.formSubmit {
-  margin-top: 6px;
-}
-
-.formError {
-  margin: 0;
-  font-size: 13.5px;
-  color: #b91c1c;
-}
-
-.formSuccess {
-  text-align: center;
-  padding: 12px 0;
-}
-
-.formSuccess p {
-  margin: 0;
-  font-size: 15px;
-  color: var(--ink-soft);
 }
 

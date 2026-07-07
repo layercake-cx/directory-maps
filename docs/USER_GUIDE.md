@@ -26,7 +26,7 @@ Directory Maps lets you build interactive, Google Maps–based directories. You 
 
 ### Public landing page
 
-The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its own "Apply for a founding partner spot" form captures name, organisation, work email, and a message into the `beta_signups` table — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Platform admins review these submissions on the **Leads** admin page (`/#/admin/leads`).
+The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its "Apply for a founding partner spot" form is a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`) — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Submissions go directly to HubSpot, not to Directory Maps. The **Leads** admin page (`/#/admin/leads`) still shows leads captured before this change via the `beta_signups` table, but no longer receives new submissions — treat it as a historical record; current leads live in HubSpot.
 
 ### Sign up
 

@@ -231,7 +231,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, stats, listings) |
 | Legacy listings | `/admin/listings` | Global listing browser (limit 1000) |
 | Admin users | `/admin/users` | List admin users; open profile with Details and Activities tabs |
-| Leads | `/admin/leads` | Founding-partner enquiries from the public landing page (`beta_signups`); name, email, organisation, submission date; admin-editable status (To be actioned / In progress / Successful / Lost) |
+| Leads | `/admin/leads` | **Deprecated (2026-07-07):** the public landing page form now submits to HubSpot, so this page only shows historical enquiries captured in `beta_signups` before the switch — no new rows arrive. Name, email, organisation, submission date; admin-editable status (To be actioned / In progress / Successful / Lost) |
 | Logs ▾ User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map) |
 | Logs ▾ Error log | `/admin/error-log` | Client-reported errors in `error_logs` |
 | Logs ▾ Sync log | `/admin/sync-log` | Google Sheets/Drive sync run history |
