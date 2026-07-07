@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-07 — Production (Problem strip re-copied to "Location-based search, built in")
+
+**Branch/commit:** `feat/2026-07-07-problem-strip-location-search-copy` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** the user's first content-source file (`maps_landing_full.html`) turned out to be the wrong reference for the black problem strip — the correct file (`maps_landing_full_1.html`) renames the section and rewrites its copy entirely, from a generic "problems we solve" list to a pitch specifically about map-based/location search replacing alphabetical directory listings.
+- `src/pages/PublicMap.jsx`: heading changed from "The problems we solve" to "Location-based search, built in"; intro paragraph rewritten; `PROBLEMS` array changed from 5 generic pain points to 4 location-search-specific bullets (geographical vs. alphabetical ordering, colour-coded categories, sponsor/partner exposure, more engaging visitor experience).
+- No structural or styling change — same black full-bleed strip, white text, two-column layout, bullet-dot list (`.problemStrip`/`.problemBullets` CSS untouched), confirmed by the user as "style-wise it's fine."
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main`. No schema changes to roll back.
+
+### Verified
+- [x] `npm run build` passes locally
+- [x] Visual check via local dev server: black strip renders with new heading, intro copy, and 4 bullets in the existing two-column layout
+- [x] User confirmed the rendered result looks correct before merge
+
+---
+
 ## 2026-07-07 — Production (Founding Partner Offer strip added above onboarding)
 
 **Branch/commit:** `feat/2026-07-07-founding-partner-offer-strip` (not yet merged)
