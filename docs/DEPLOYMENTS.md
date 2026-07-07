@@ -8,9 +8,39 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-07 — Production (Founding Partner Offer strip added above onboarding)
+
+**Branch/commit:** `feat/2026-07-07-founding-partner-offer-strip` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** the previous PR's homepage content pass missed the "Founding Partner Offer" section from the reference HTML (£200 first year, full access, every tier) — the user asked for it to be added above the onboarding journey section.
+- Replaced the existing teal `betaPanel` section (`id="beta"`, copy: "We're inviting five associations…") with the reference HTML's offer content, per the user's choice to avoid two back-to-back founding-partner pitches. New copy: eyebrow "Founding Partner Offer", headline "£200 for your first year. Full access, every tier.", sub-copy, and a 3-item checklist (no feature gates / 12-month lock-in / help shape pricing). `BETA_BENEFITS` data replaced with `OFFER_BENEFITS` in `src/pages/PublicMap.jsx`.
+- Per the user's explicit instruction, styled as a **black full-bleed strip with white text** (matching the problem-strip section added in the prior PR), not the reference HTML's teal/dark-green gradient rounded card — the user explicitly said to ignore that styling.
+- The section keeps `id="beta"` so the existing nav link ("Founding partners" → `#beta` in `SiteHeader.jsx`) still resolves to the right section.
+- **Bug caught during review:** the new `.offerHeadline` CSS class initially had its `color: #fff` overridden by a higher-specificity global `.page :global(h2) { color: var(--ink) }` rule, making the £200 headline invisible (dark text on black background). Fixed by scoping the selector to `.offerStrip .offerHeadline` to win on specificity — confirmed via `preview_inspect` computed styles before and after.
+- Old `.betaPanel`/`.betaSpots`/`.betaLede`/`.betaGrid` CSS removed from `PublicMap.module.css`, replaced with `.offerStrip`/`.offerStripGrid`/`.offerEyebrow`/`.offerHeadline`/`.offerSub`/`.offerList`/`.offerCheck`.
+- The CTA button that was on the old panel ("Apply for a founding partner spot") was dropped, matching the reference HTML's offer-card content which has no button in that section — the signup CTA is still present in the hero and the dedicated signup section further down the page.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main`. No schema changes to roll back. Reverting restores the previous teal "We're inviting five associations…" panel.
+
+### Verified
+- [x] `npm run build` passes locally
+- [x] Visual check via local dev server: black strip renders above onboarding, white headline/body text confirmed visible via `preview_inspect` (not just screenshot), checklist with checkmarks renders, section flows correctly between the data section and onboarding
+- [ ] Live nav-anchor scroll-to-`#beta` behaviour not re-verified end-to-end in this session (pre-existing HashRouter anchor-scroll behaviour, unrelated to this change, not touched)
+
+---
+
 ## 2026-07-07 — Production (Maps homepage content refresh; signup form moved to HubSpot)
 
-**Branch/commit:** `feat/2026-07-07-maps-homepage-content` (not yet merged)
+**Branch/commit:** `feat/2026-07-07-maps-homepage-content` → merged to `main` (PR [#76](https://github.com/layercake-cx/directory-maps/pull/76)); GitHub Pages deploy confirmed successful
 **Deployed by:** Claude Code
 
 ### What changed
