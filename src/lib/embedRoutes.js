@@ -18,6 +18,7 @@ const RESERVED_FIRST_SEGMENTS = new Set([
 export function isEmbedPath(pathname) {
   const path = (pathname || "/").replace(/\/+$/, "") || "/";
   if (path === "/embed") return true;
+  if (path === "/memcom-maps-demo") return true;
 
   const match = path.match(/^\/([^/]+)\/([^/]+)$/);
   if (!match) return false;

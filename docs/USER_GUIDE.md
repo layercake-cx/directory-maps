@@ -28,6 +28,10 @@ Directory Maps lets you build interactive, Google Maps–based directories. You 
 
 The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its "Apply for a founding partner spot" form is a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`) — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Submissions go directly to HubSpot, not to Directory Maps. The **Leads** admin page (`/#/admin/leads`) still shows leads captured before this change via the `beta_signups` table, but no longer receives new submissions — treat it as a historical record; current leads live in HubSpot.
 
+### Event demo page
+
+`/memcom-maps-demo` is a chromeless, full-screen embed of the `layercake/uk-associations-sample-map` sample map, built for display on a conference/event screen (e.g. memcom). It reuses the same map-embed rendering as `/embed` and the `/:clientSlug/:mapSlug` published-map URLs (no site header/footer, resolves the map via the `get_map_id_by_slugs` RPC), with a fixed white rounded overlay in the bottom-left corner containing a QR code (`src/assets/founding-partner-qr.png`) and a "Become a founding partner" CTA linking to `/#signup`. The overlay position is not configurable; if the underlying sample map's own publish settings change (e.g. list panel shown/hidden), the overlay may visually overlap it — this was a known, accepted trade-off when the page was built.
+
 ### Sign up
 
 1. Open the site homepage and choose **Sign up** (or go to `/#/signup`).

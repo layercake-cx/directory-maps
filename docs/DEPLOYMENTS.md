@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-07 — Production (New full-screen event demo page: /memcom-maps-demo)
+
+**Branch/commit:** `feat/2026-07-07-memcom-maps-demo-page` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** the user needed a standalone, full-screen page to display the `layercake/uk-associations-sample-map` sample map on a big screen at the memcom conference, with a QR code overlay so delegates can scan to apply as a founding partner.
+- New route `/memcom-maps-demo` (`src/pages/MemcomMapsDemo.jsx`) resolves the map id for the `layercake`/`uk-associations-sample-map` slugs via the existing `get_map_id_by_slugs` RPC (same approach as `SlugMap.jsx`), then renders it full-screen via the existing `EmbedMap` component — no new map-rendering logic.
+- Added `/memcom-maps-demo` to `isEmbedPath()` in `src/lib/embedRoutes.js` so `Root.jsx`'s `Layout` renders it chromeless (no `SiteHeader`/`SiteFooter`), matching `/embed` and published `/:clientSlug/:mapSlug` URLs.
+- Bottom-left overlay (`src/pages/MemcomMapsDemo.module.css`): a white rounded box containing a QR code image (`src/assets/founding-partner-qr.png`, supplied by the user — not generated or decoded by the agent, per the user's explicit instruction not to decode it) and a coral "Become a founding partner" pill button/link pointing to `https://maps.layercake-cx.biz/#signup`. The whole overlay is a single `<a>` so clicking/tapping it (not just scanning) also works.
+- **Known trade-off, confirmed with the user:** the sample map's own publish settings currently show a listings side panel on the left, which visually overlaps the bottom-left overlay (confirmed via a local test against a different, structurally-equivalent staging map — the real `uk-associations-sample-map` slug only exists in the production database, not staging, so it correctly shows "Map not found" locally). The user chose to leave the map's publish settings and overlay position as-is rather than hide the list panel or move the overlay.
+- Docs updated: `docs/USER_GUIDE.md` (new "Event demo page" section).
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main`. No schema changes to roll back.
+
+### Verified
+- [x] `npm run build` passes locally
+- [x] Local dev preview confirmed: route resolves without header/footer, `EmbedMap` renders full-screen, overlay (QR + CTA) renders correctly in the bottom-left — tested by temporarily pointing the component at a real published staging map (`UK Associations`, id `e0e5f376-7df1-4dc9-bbad-413b6da9a8b8`) since the actual production sample map isn't present in the staging database; reverted to the real slug lookup before committing
+- [ ] Live production check that `/memcom-maps-demo` resolves the real `layercake/uk-associations-sample-map` map correctly — not verified end-to-end against production in this session (staging DB doesn't have this map); recommend a quick check by the user once deployed
+- [ ] QR code physically scan-tested with a phone — not done in this session (agent has no camera); user provided the QR image directly and asked it be used as-is, not decoded
+
+---
+
 ## 2026-07-07 — Production (Problem strip re-copied to "Location-based search, built in")
 
 **Branch/commit:** `feat/2026-07-07-problem-strip-location-search-copy` (not yet merged)

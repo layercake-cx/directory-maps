@@ -1,0 +1,59 @@
+.root {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+.overlay {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 20px 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  text-decoration: none;
+}
+
+.qr {
+  display: block;
+  width: 150px;
+  height: 150px;
+  border-radius: 10px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-coral, #d9663f);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 11px 20px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    left: 16px;
+    bottom: 16px;
+    padding: 16px 18px;
+  }
+
+  .qr {
+    width: 110px;
+    height: 110px;
+  }
+
+  .cta {
+    font-size: 13px;
+    padding: 9px 16px;
+  }
+}
