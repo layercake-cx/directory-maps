@@ -90,6 +90,21 @@ export default function AdminLeads() {
           Apply the <code>beta_signups_status</code> migration if this list is empty or errors.
         </p>
 
+        <p
+          style={{
+            background: "#fdf3e6",
+            border: "1px solid #f0d9b5",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
+          <strong>Deprecated:</strong> the public signup form now submits to HubSpot instead of this table. This
+          page only shows leads captured before that change — new enquiries won&apos;t appear here. Check HubSpot
+          for current leads.
+        </p>
+
         {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
 
         {loading && !rows.length ? (

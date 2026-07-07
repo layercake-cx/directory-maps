@@ -261,6 +261,29 @@ Depends on the SMTP configuration in Supabase Auth settings:
 
 ---
 
+## 9. HubSpot Forms
+
+**Role:** Capturing "Founding Partner" enquiries submitted on the public landing page.
+
+**What it is:** HubSpot's embedded forms product (`js-eu1.hsforms.net`). The public homepage (`/`) loads HubSpot's form-embed script, which renders an iframe and submits the form directly to HubSpot — Layercake Maps' own backend is not involved in this submission.
+
+### Data involved
+
+- First name, last name, work email, organisation name, and free-text message entered by the prospective client.
+- Submission no longer reaches Supabase — the `beta_signups` table only holds historical leads captured before this integration replaced the custom form (2026-07-07). See `docs/DEPLOYMENTS.md` for the change record.
+
+### Processing location
+
+- HubSpot's EU data hosting (`eu1` hub, reflected in the `js-eu1.hsforms.net` script domain and `data-region="eu1"` attribute).
+
+### Legal basis & agreements
+
+- HubSpot is a **data processor** on behalf of Layercake Maps for this form.
+- HubSpot provides a **DPA** — see [legal.hubspot.com/dpa](https://legal.hubspot.com/dpa).
+- Portal ID `148819421`, form ID `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`.
+
+---
+
 ## Summary table — personal data by third party
 
 | Third party | Personal data shared | EU data processing | DPA available |
@@ -273,6 +296,7 @@ Depends on the SMTP configuration in Supabase Auth settings:
 | **Stripe** | Billing email, payment card data (Stripe-hosted) | Yes — EU entity for EU transactions | Yes |
 | **Vercel** | Visitor IP, user-agent, request paths | Partial (global CDN, EU PoPs) | Yes |
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
+| **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
 
 ---
 
@@ -317,4 +341,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-06-02 (Resend region updated to EU/Ireland). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-07-07 (Added HubSpot Forms — public landing page signup form now submits to HubSpot instead of Supabase). Maintained by the Layercake Maps engineering and privacy team.*

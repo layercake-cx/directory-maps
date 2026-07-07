@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-07 — Production (Maps homepage content refresh; signup form moved to HubSpot)
+
+**Branch/commit:** `feat/2026-07-07-maps-homepage-content` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** content refresh of the public maps homepage (`/`, `src/pages/PublicMap.jsx`), plus swapping the custom Supabase-backed signup form for a HubSpot embedded form, at the user's request.
+- **Problem section** restructured from a 4-card icon grid to a black full-bleed strip (`.problemStrip`) with a heading/intro on the left and a plain two-column bullet list on the right — new copy: "The problems we solve" / 5 bullets. Old `PROBLEMS` icon-card data replaced with a plain string array; unused `.problemGrid`/`.problemCard`/`.problemIcon` CSS removed, new `.problemStrip*`/`.problemBullet*` CSS added.
+- **Use cases** section: same 6-card structure retained, only the description copy for each of the 6 cards updated (titles unchanged).
+- **"Works with your existing data" section** (`id="data"`): heading changed to "Get your data in, your way", new intro line, the 3 integration cards' badge/title/description updated (Manual entry / CSV upload / Google Drive sync), and a new dashed-border note block added below the grid ("Got something more complex?" — custom pipeline as a separate project). New `.dataNote` CSS class and a `--cream-deep` token added to `PublicMap.module.css`.
+- **Onboarding journey**: reduced from 7 steps to 3 (Discovery call / Set-up / Publish) with new copy, reusing the existing `TIMELINE_STEPS` data-driven JSX (no structural change).
+- **Signup form**: the custom React form (first/last name, organisation, work email, message) that inserted into Supabase's `beta_signups` table has been replaced with a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`, `eu1` hub). The HubSpot embed script is loaded via a `useEffect` that manually creates and appends a `<script>` tag (a plain `<script src>` in JSX does not execute — confirmed in local testing, no network request fired until switched to imperative DOM insertion). All form-related state (`form`, `status`, `error`, `handleSubmit`, `handleChange`) and the `supabase` import were removed from `PublicMap.jsx`; unused `.form`/`.formRow`/`.label`/`.input`/`.textarea`/`.formSubmit`/`.formError`/`.formSuccess` CSS removed from `PublicMap.module.css`.
+- **Consequence flagged to and confirmed by the user:** new signups now land in HubSpot, not Supabase — the `/admin/leads` page (`src/pages/admin/AdminLeads.jsx`) will stop receiving new rows. Per the user's choice, a deprecation banner was added to that admin page explaining new leads are in HubSpot now, and `docs/FEATURES.md`'s Leads row was marked deprecated. No data migration or dual-write was implemented — this was an explicit trade-off, not an oversight.
+- Nav, header, and footer were left untouched per the user's instructions.
+- Docs updated in this change: `docs/USER_GUIDE.md` (signup form description), `docs/FEATURES.md` (Leads page deprecation note), `docs/DATA_AND_PRIVACY.md` (new §9 HubSpot Forms integration, summary table row, last-updated line).
+
+### Database migrations applied
+None. `beta_signups` schema is unchanged; it simply stops receiving new rows via this form.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main` (or revert the individual commit(s) on this branch before merge). No schema changes to roll back. Reverting restores the Supabase-backed form and the original homepage copy/structure unchanged.
+
+### Verified
+- [x] `npm run build` passes locally
+- [x] Visual check via local dev server: hero/nav/footer unchanged, problem strip renders as a black strip with bullets, use cases show updated copy in the existing 6-card grid, data section shows updated copy plus the new note, onboarding shows 3 steps
+- [x] HubSpot embed script confirmed loading (200 response) and rendering an iframe with the correct portal/form IDs into `.hs-form-frame`
+- [ ] HubSpot form fields fully rendering and a live test submission reaching the HubSpot portal — not verified end-to-end; the embedded iframe's own content request was blocked inside the local preview sandbox (third-party cross-origin iframe navigation), so this needs a real-browser check by the user once merged/deployed
+- [ ] Admin `/admin/leads` deprecation banner visually confirmed in a live admin session (not checked — requires admin login, not available in this session)
+
+---
+
 ## 2026-07-03 — Production (Google Drive Picker migration, drops CASA requirement)
 
 **Branch/commit:** `feat/2026-07-03-google-drive-picker-migration` → merged to `main` at `8470691` (PR [#69](https://github.com/layercake-cx/directory-maps/pull/69))
