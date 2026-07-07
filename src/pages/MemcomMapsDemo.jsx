@@ -49,18 +49,12 @@ export default function MemcomMapsDemo() {
   if (notFound) return <div style={{ padding: 16 }}>Map not found.</div>;
   if (!mapId) return <div style={{ padding: 16 }}>Loading…</div>;
 
-  return (
-    <div className={styles.root}>
-      <EmbedMap mapId={mapId} />
-      <a
-        href={SIGNUP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={styles.overlay}
-      >
-        <img src={founderQr} alt="Scan to become a founding partner" className={styles.qr} />
-        <span className={styles.cta}>Become a founding partner</span>
-      </a>
-    </div>
+  const overlay = (
+    <a href={SIGNUP_URL} target="_blank" rel="noopener noreferrer" className={styles.overlay}>
+      <img src={founderQr} alt="Scan to become a founding partner" className={styles.qr} />
+      <span className={styles.cta}>Become a founding partner</span>
+    </a>
   );
+
+  return <EmbedMap mapId={mapId} overlay={overlay} />;
 }

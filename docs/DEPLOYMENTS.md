@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-07 — Production (memcom demo: overlay survives native fullscreen; moved to bottom-right)
+
+**Branch/commit:** `fix/2026-07-07-memcom-demo-fullscreen-overlay` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** the user reported that clicking the map's native fullscreen button made the QR/CTA overlay on `/memcom-maps-demo` disappear, and asked for it to be moved from bottom-left to the (bottom-)right corner.
+- **Root cause:** the browser's Fullscreen API only keeps the fullscreened element and its descendants visible. The map's fullscreen button (`src/components/DirectoryMap.jsx`) calls `requestFullscreen()` on the nearest `[data-map-fullscreen-root]` ancestor — the root `<div>` in `PublishedMapView.jsx`. The QR overlay was previously rendered in `MemcomMapsDemo.jsx` as a plain sibling of `<EmbedMap>`, entirely outside that subtree, so native fullscreen hid it.
+- **Fix:** `src/pages/EmbedMap.jsx` now accepts an optional `overlay` prop and renders it inside the existing `mapOverlay` slot alongside the message drawer (`mapOverlay={<>{messageDrawer}{overlay}</>}`) — that slot already renders as the last child of the `[data-map-fullscreen-root]` div (`PublishedMapView.jsx` line ~1193), so anything passed through it survives native fullscreen. This is a backward-compatible, optional addition — `/embed` and `/:clientSlug/:mapSlug` (`SlugMap.jsx`) don't pass it, so their behaviour is unchanged.
+- `src/pages/MemcomMapsDemo.jsx` no longer renders its own wrapping `<div>`/sibling overlay; it builds the QR/CTA overlay and passes it to `<EmbedMap mapId={mapId} overlay={overlay} />` instead.
+- `src/pages/MemcomMapsDemo.module.css`: overlay repositioned from bottom-left (`left: 24px`) to bottom-right (`right: 24px`, `right: 16px` on mobile); removed the now-unused `.root` class.
+- Confirmed the map's own zoom/fullscreen controls are anchored top-right (`ControlPosition.RIGHT_TOP` in `DirectoryMap.jsx`), so the new bottom-right overlay position doesn't collide with them.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages/Vercel on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main`. No schema changes to roll back. Reverting restores the bottom-left, non-fullscreen-persistent overlay from the previous change.
+
+### Verified
+- [x] `npm run build` passes locally
+- [x] Verified in local dev preview (against a real published staging map, since the actual sample map is production-only): overlay renders in the bottom-right, clear of the map's top-right zoom/fullscreen controls
+- [x] Structurally confirmed via DOM query (`root.contains(overlay)` → `true`) that the overlay element is now a descendant of the exact `[data-map-fullscreen-root]` element the Fullscreen API targets — this is what guarantees it survives native fullscreen
+- [ ] Actual native browser fullscreen transition not visually confirmed — the automated preview browser's `requestFullscreen()` call silently no-ops under this sandbox (`document.fullscreenElement` stayed `false` after clicking the fullscreen button), a known limitation of automated/headless browser fullscreen permissions, not a sign of a code issue. Recommend the user do one manual real-browser fullscreen check post-deploy.
+
+---
+
 ## 2026-07-07 — Production (New full-screen event demo page: /memcom-maps-demo)
 
 **Branch/commit:** `feat/2026-07-07-memcom-maps-demo-page` (not yet merged)
