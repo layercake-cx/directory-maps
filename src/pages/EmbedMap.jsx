@@ -81,7 +81,7 @@ async function fetchClientMessagingSettings(supabaseClient, clientId) {
   return data;
 }
 
-export default function EmbedMap({ mapId: mapIdProp } = {}) {
+export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [params] = useSearchParams();
   const mapId = mapIdProp ?? params.get("map");
 
@@ -591,7 +591,12 @@ export default function EmbedMap({ mapId: mapIdProp } = {}) {
           }}
           height="100vh"
           gestureHandling="cooperative"
-          mapOverlay={messageDrawer}
+          mapOverlay={
+            <>
+              {messageDrawer}
+              {overlay}
+            </>
+          }
         />
       </div>
   );
