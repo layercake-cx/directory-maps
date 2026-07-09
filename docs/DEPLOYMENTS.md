@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-09 — Production (fix: admin/client password reset link always showed "This link has expired")
+
+**Branch/commit:** `fix/2026-07-09-admin-password-reset-expired-link` (not yet merged)
+**Deployed by:** Claude Code
+
+### What changed
+- **Why:** admin users reported that clicking the password reset link in the email always landed back on the site showing "This link may have expired or already been used," even on a fresh, unused link.
+- **Root cause:** `src/lib/authHelpers.js`'s three redirect-URL builders (`getOAuthRedirectUrl`, `getEmailAuthRedirectUrl`, `getPasswordResetRedirectUrl`) were never updated when the app migrated from `HashRouter` to `BrowserRouter` (commit `a377a8c`, 2026-05-29). They still built URLs as `window.location.origin + window.location.pathname + "#/reset-password"` — a `HashRouter`-era pattern with two bugs under `BrowserRouter`:
+  1. The literal `#` meant Supabase's `?code=...` (PKCE) param, appended after redirect, landed inside the URL hash fragment instead of the query string, where `window.location.search` (and the app's URL-parsing logic in `Root.jsx`) couldn't see it.
+  2. Using the *current* `window.location.pathname` (rather than the site root) meant requesting a reset from `/forgot-password` produced a nested, wrong URL like `.../forgot-password#/reset-password` instead of `.../reset-password`.
+  - The rest of the auth-callback handling (`Root.jsx`'s `useAuthErrorRedirect`, `AuthContext.jsx`'s `PASSWORD_RECOVERY` listener) was already correctly written for `BrowserRouter` — only the URL builders were stale.
+- **Fix:** the three functions now use the existing `appUrl()` helper (`src/lib/url.js`, added earlier but never wired in) to build clean, origin-relative URLs (e.g. `https://maps.layercake-cx.biz/reset-password`) regardless of which page the request originated from.
+- Also fixed a stale doc reference: `docs/USER_GUIDE.md` said the reset link opens `/#/reset-password`; updated to `/reset-password`.
+
+### Database migrations applied
+None.
+
+### Edge functions deployed
+None — frontend-only change, deployed via GitHub Pages on merge to `main`.
+
+### Rollback plan
+`git revert` the merge commit on `main`. No schema changes to roll back.
+
+### Verified
+- [x] Confirmed via `preview_eval` in local dev: from `/forgot-password`, `getPasswordResetRedirectUrl()` now returns the clean `http://localhost:5173/reset-password` (previously would have been `http://localhost:5173/forgot-password#/reset-password`)
+- [x] `/reset-password?code=...` route loads without console errors and correctly shows "link expired" for an invalid/fake code (expected — only a genuine Supabase-issued code should succeed)
+- [ ] **Action needed before/after deploying:** verify in the Supabase Dashboard (both `layercake-maps-test` and `layercake-maps-production` projects) → Authentication → URL Configuration → Redirect URLs that `https://maps.layercake-cx.biz/reset-password`, `.../client`, and `.../client?verified=1` (or an equivalent wildcard) are on the allow-list — Supabase silently falls back to the Site URL for any `redirectTo` not on that list.
+- [ ] End-to-end test not yet done with a real admin account/email (needs the user to trigger an actual reset email against staging/production and click through)
+
+---
+
 ## 2026-07-07 — Production (memcom demo: overlay survives native fullscreen; moved to bottom-right)
 
 **Branch/commit:** `fix/2026-07-07-memcom-demo-fullscreen-overlay` (not yet merged)

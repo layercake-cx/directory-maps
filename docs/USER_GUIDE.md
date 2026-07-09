@@ -391,7 +391,7 @@ Admins can also reset their own password from the **Admin sign-in** screen:
 
 - Enter your admin email
 - Click **Forgot password?**
-- Use the reset email link to open `/#/reset-password` and set a new password
+- Use the reset email link to open `/reset-password` and set a new password
 
 ---
 
