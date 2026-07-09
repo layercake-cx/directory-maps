@@ -1,9 +1,10 @@
+import { appUrl } from "./url.js";
+
 /**
  * URL Supabase should redirect to after OAuth (must be allowed in Supabase Auth URL list).
  */
 export function getOAuthRedirectUrl() {
-  const base = typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
-  return `${base}#/client`;
+  return appUrl("client");
 }
 
 /**
@@ -11,13 +12,11 @@ export function getOAuthRedirectUrl() {
  * Add this exact URL (and localhost dev) to Supabase Auth → URL configuration → Redirect URLs.
  */
 export function getEmailAuthRedirectUrl() {
-  const base = typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
-  return `${base}#/client?verified=1`;
+  return appUrl("client?verified=1");
 }
 
 export function getPasswordResetRedirectUrl() {
-  const base = typeof window !== "undefined" ? window.location.origin + (window.location.pathname || "/") : "";
-  return `${base}#/reset-password`;
+  return appUrl("reset-password");
 }
 
 /**
