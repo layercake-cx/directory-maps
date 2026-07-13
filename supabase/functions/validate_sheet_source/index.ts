@@ -72,12 +72,36 @@ Deno.serve(async (req) => {
 
     const validation = validateSheetRows(rows);
 
+    // Report presence of custom filter field columns (filter_<key>). Absence is
+    // informational (those listings simply won't be tagged), not a hard failure.
+    let filterColumns: Array<{ key: string; label: string; column: string; present: boolean }> = [];
+    try {
+      const { data: fieldRows } = await service
+        .from("map_filter_fields")
+        .select("key, label, is_active")
+        .eq("map_id", mapId)
+        .eq("is_active", true);
+      filterColumns = (fieldRows ?? []).map((f: any) => ({
+        key: f.key,
+        label: f.label,
+        column: `filter_${f.key}`,
+        present: validation.headers.includes(`filter_${f.key}`),
+      }));
+      const missing = filterColumns.filter((c) => !c.present);
+      if (missing.length) {
+        validation.issues.push(
+          `Optional: no column${missing.length === 1 ? "" : "s"} for filter field${missing.length === 1 ? "" : "s"} ${missing.map((m) => m.column).join(", ")} — add ${missing.length === 1 ? "it" : "them"} to tag listings on sync.`
+        );
+      }
+    } catch { /* filter columns are optional; ignore lookup errors */ }
+
     return json({
       connected: true,
       configured: true,
       ok: validation.ok,
       issues: validation.issues,
       headers: validation.headers,
+      filterColumns,
       dataRowCount: validation.dataRowCount,
       rowsWithName: validation.rowsWithName,
       sample: rows.slice(1, 6),

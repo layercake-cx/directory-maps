@@ -8,6 +8,9 @@ import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2,
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
+import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
+import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, isSelectType } from "../../lib/filterFields.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 
@@ -151,6 +154,26 @@ export default function AdminMapData() {
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
   const filterEditorRef = useRef(null);
+  const [filterFields, setFilterFields] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!mapId) return;
+    loadFilterFields(mapId, { includeArchived: false })
+      .then((f) => { if (alive) setFilterFields(f); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [mapId]);
+
+  const hasSelectFilterFields = filterFields.some((f) => f.is_active && isSelectType(f.field_type));
+  function toggleSelected(id) {
+    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function toggleSelectAll(ids) {
+    setSelectedIds((prev) => (prev.size === ids.length ? new Set() : new Set(ids)));
+  }
 
   // ── General UI ────────────────────────────────────────────────────────────
   const [msg, setMsg] = useState("");
@@ -436,8 +459,21 @@ export default function AdminMapData() {
   }
 
   function downloadTemplate() {
-    const header = ["id","name","address","postcode","country","lat","lng","website_url","email","phone","logo_url","notes_html","allow_html","group_name","is_active"];
-    const sample = [["","Example Supplier Ltd","1 Example Street","SW1A 1AA","UK","","","https://example.com","hello@example.com","","","","false","","true"]];
+    const baseHeader = ["id","name","address","postcode","country","lat","lng","website_url","email","phone","logo_url","notes_html","allow_html","group_name","is_active"];
+    const baseSample = ["","Example Supplier Ltd","1 Example Street","SW1A 1AA","UK","","","https://example.com","hello@example.com","","","","false","","true"];
+    const activeFields = filterFields.filter((f) => f.is_active);
+    const filterCols = activeFields.map((f) => filterColumnName(f.key));
+    const filterSample = activeFields.map((f) => {
+      if (f.field_type === "text") return "";
+      const first = (f.options || [])[0]?.value || "";
+      if (f.field_type === "multi_select") {
+        const second = (f.options || [])[1]?.value || "";
+        return [first, second].filter(Boolean).join("|");
+      }
+      return first;
+    });
+    const header = [...baseHeader, ...filterCols];
+    const sample = [[...baseSample, ...filterSample]];
     const toCSV = (arr) => arr.map((row) => row.map((cell) => { const s = String(cell ?? ""); return (s.includes('"') || s.includes(",") || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s; }).join(",")).join("\n");
     const blob = new Blob([toCSV([header, ...sample])], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -530,12 +566,28 @@ export default function AdminMapData() {
       if (error) throw new Error(`Upsert failed (${status}): ${error.message}`);
 
       const importCount = data?.length ?? cleaned.length;
+
+      let filterWarnings = [];
+      if (filterFields.some((f) => f.is_active)) {
+        const listingIds = cleaned.map((c) => c.id);
+        const { valueRows, warnings } = buildImportFilterValueRows({ rows, listingIds, fields: filterFields });
+        filterWarnings = warnings;
+        try {
+          await applyImportedFilterValues({ listingIds, fields: filterFields, valueRows });
+        } catch (fvErr) {
+          filterWarnings = [...filterWarnings, `Filter values could not be saved: ${fvErr?.message ?? fvErr}`];
+        }
+      }
+      const filterWarnSuffix = filterWarnings.length
+        ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
+        : "";
+
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });
-        if (geoErr || geoData?.error) setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}`);
-        else setMsg(`Imported ${importCount} rows. Geocoding ${geoData?.queued ?? 0} addresses in the background.`);
+        if (geoErr || geoData?.error) setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}${filterWarnSuffix}`);
+        else setMsg(`Imported ${importCount} rows. Geocoding ${geoData?.queued ?? 0} addresses in the background.${filterWarnSuffix}`);
       } else {
-        setMsg(`Imported ${importCount} rows.`);
+        setMsg(`Imported ${importCount} rows.${filterWarnSuffix}`);
       }
       const [{ data: g }, l] = await Promise.all([
         supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
@@ -991,7 +1043,12 @@ export default function AdminMapData() {
                 <Text size="sm" fw={600}>Manual entries</Text>
                 <Text size="xs" c="dimmed">Add, edit, or remove individual listings by hand.</Text>
               </div>
-              <Button size="sm" leftSection={<Plus size={14} />} onClick={openNewManual} disabled={integrationLinked}>Add entry</Button>
+              <Group gap="xs">
+                {hasSelectFilterFields && selectedIds.size > 0 && (
+                  <Button size="sm" variant="light" onClick={() => setBulkModalOpen(true)}>Bulk edit filters ({selectedIds.size})</Button>
+                )}
+                <Button size="sm" leftSection={<Plus size={14} />} onClick={openNewManual} disabled={integrationLinked}>Add entry</Button>
+              </Group>
             </div>
 
             {listings.length === 0 ? (
@@ -1004,6 +1061,11 @@ export default function AdminMapData() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
                   <thead>
                     <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
+                      {hasSelectFilterFields && (
+                        <th style={{ padding: "9px 12px", width: 32 }}>
+                          <input type="checkbox" aria-label="Select all" checked={listings.length > 0 && selectedIds.size === listings.length} onChange={() => toggleSelectAll(listings.map((l) => l.id))} />
+                        </th>
+                      )}
                       <th style={{ padding: "9px 12px" }}>Name</th>
                       <th style={{ padding: "9px 12px" }}>Address</th>
                       <th style={{ padding: "9px 12px" }}>Group</th>
@@ -1016,6 +1078,11 @@ export default function AdminMapData() {
                       const src = listing.source || ingestionMethodMap.get(listing.id) || "manual";
                       return (
                         <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
+                          {hasSelectFilterFields && (
+                            <td style={{ padding: "8px 12px" }}>
+                              <input type="checkbox" aria-label={`Select ${listing.name || "listing"}`} checked={selectedIds.has(listing.id)} onChange={() => toggleSelected(listing.id)} />
+                            </td>
+                          )}
                           <td style={{ padding: "8px 12px", fontWeight: 500 }}>{listing.name || "—"}</td>
                           <td style={{ padding: "8px 12px", opacity: 0.7, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{listing.address || "—"}</td>
                           <td style={{ padding: "8px 12px", opacity: 0.7 }}>{groupNameById.get(listing.group_id) || "—"}</td>
@@ -1036,6 +1103,18 @@ export default function AdminMapData() {
 
             {err && <Alert color="red" variant="light">{err}</Alert>}
           </div>
+        )}
+
+        {bulkModalOpen && (
+          <BulkFilterEditModal
+            mapId={mapId}
+            fields={filterFields}
+            listingIds={[...selectedIds]}
+            clientId={clientId ?? null}
+            recordEvent={(eventType, meta) => recordAdminEvent(supabase, { eventType, meta, source: "admin_map" })}
+            onClose={() => setBulkModalOpen(false)}
+            onApplied={() => { setSelectedIds(new Set()); setMsg("Filter values updated."); }}
+          />
         )}
 
         {/* ════════════════════════════════════════════════════════════════════

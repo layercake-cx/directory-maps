@@ -345,6 +345,98 @@ export async function applyBulkFilterValue({ listingIds, field, optionIds = [], 
   return ids.length;
 }
 
+/** The CSV/Sheet column name for a filter field. */
+export function filterColumnName(key) {
+  return `filter_${key}`;
+}
+
+/**
+ * Resolve `filter_<key>` cells from imported rows into listing_filter_values rows.
+ * @param {object[]} rows        row objects keyed by lowercased header
+ * @param {string[]} listingIds  parallel array of resolved listing ids (same order as rows)
+ * @param {object[]} fields      active filter fields (with options)
+ * @returns {{ valueRows: object[], warnings: string[] }}
+ */
+export function buildImportFilterValueRows({ rows, listingIds, fields }) {
+  const valueRows = [];
+  const warnings = [];
+  const active = (fields || []).filter((f) => f.is_active);
+  if (active.length === 0) return { valueRows, warnings };
+
+  // Per-field: map lowercased value AND label -> option id.
+  const lookups = new Map();
+  for (const f of active) {
+    if (!isSelectType(f.field_type)) continue;
+    const m = new Map();
+    for (const o of f.options || []) {
+      if (o.value) m.set(String(o.value).toLowerCase(), o.id);
+      if (o.label) m.set(String(o.label).toLowerCase(), o.id);
+    }
+    lookups.set(f.id, m);
+  }
+
+  rows.forEach((r, idx) => {
+    const listingId = listingIds[idx];
+    if (!listingId) return;
+    const rowNum = idx + 2;
+    for (const f of active) {
+      const raw = r[filterColumnName(f.key)];
+      if (raw == null) continue;
+      const cell = String(raw).trim();
+      if (!cell) continue;
+      if (f.field_type === "text") {
+        valueRows.push({ listing_id: listingId, field_id: f.id, value_text: cell });
+        continue;
+      }
+      const lookup = lookups.get(f.id) || new Map();
+      const tokens = cell.split("|").map((t) => t.trim()).filter(Boolean);
+      const usable = f.field_type === "single_select" ? tokens.slice(0, 1) : tokens;
+      const seen = new Set();
+      for (const token of usable) {
+        const optionId = lookup.get(token.toLowerCase());
+        if (!optionId) {
+          warnings.push(`Row ${rowNum}: "${token}" is not a valid option for ${f.label}`);
+          continue;
+        }
+        if (seen.has(optionId)) continue;
+        seen.add(optionId);
+        valueRows.push({ listing_id: listingId, field_id: f.id, option_id: optionId });
+      }
+    }
+  });
+
+  return { valueRows, warnings };
+}
+
+/**
+ * Replace imported filter values: clear existing values for the given listings
+ * (for the active fields only) then insert the freshly resolved rows.
+ */
+export async function applyImportedFilterValues({ listingIds, fields, valueRows }) {
+  const active = (fields || []).filter((f) => f.is_active);
+  const fieldIds = active.map((f) => f.id);
+  const ids = [...new Set((listingIds || []).filter(Boolean))];
+  if (fieldIds.length === 0 || ids.length === 0) return;
+
+  // Delete existing values for these listings+fields (chunked to keep the IN lists sane).
+  const chunk = 200;
+  for (let i = 0; i < ids.length; i += chunk) {
+    const slice = ids.slice(i, i + chunk);
+    const { error } = await supabase
+      .from("listing_filter_values")
+      .delete()
+      .in("listing_id", slice)
+      .in("field_id", fieldIds);
+    if (error) throw error;
+  }
+
+  for (let i = 0; i < valueRows.length; i += 500) {
+    const slice = valueRows.slice(i, i + 500);
+    const { error } = await supabase.from("listing_filter_values").insert(slice);
+    if (error) throw error;
+  }
+}
+
 /** Shape a loaded field list into the compact form stored in the publication config. */
 export function filterFieldsForPublication(fields) {
   return (fields || [])
