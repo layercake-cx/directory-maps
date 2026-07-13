@@ -323,6 +323,28 @@ select count(*) as orphaned_groups
 from public.groups g
 where not exists (select 1 from public.maps m where m.id = g.map_id);
 -- Expected: 0
+
+-- 6. Filter-field tables (present from 20260713120000_create_map_filter_fields)
+select
+  'map_filter_fields'        as tbl, count(*) as rows from public.map_filter_fields union all
+  select 'map_filter_field_options', count(*) from public.map_filter_field_options   union all
+  select 'listing_filter_values',    count(*) from public.listing_filter_values
+order by tbl;
+
+-- 7. No orphaned filter-field rows
+select count(*) as orphaned_filter_fields
+from public.map_filter_fields f
+where not exists (select 1 from public.maps m where m.id = f.map_id);
+select count(*) as orphaned_filter_options
+from public.map_filter_field_options o
+where not exists (select 1 from public.map_filter_fields f where f.id = o.field_id);
+select count(*) as orphaned_filter_values_listing
+from public.listing_filter_values v
+where not exists (select 1 from public.listings l where l.id = v.listing_id);
+select count(*) as orphaned_filter_values_field
+from public.listing_filter_values v
+where not exists (select 1 from public.map_filter_fields f where f.id = v.field_id);
+-- Expected: 0 for all
 ```
 
 Save the output. After the migration, rerun the same queries and confirm:

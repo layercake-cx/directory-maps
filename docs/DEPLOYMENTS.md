@@ -8,6 +8,132 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-13 — Production (Configurable filter fields — full feature + auto-create options)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (PR pending merge)
+**Deployed by:** Cursor agent (user sign-off)
+
+### What changed
+- Full **configurable filter fields** feature (schema, Filters panel, manual/bulk/CSV/Sheets tagging, viewer controls, engagement events, snapshot wiring).
+- **Auto-create options on ingest:** CSV and Google Sheets sync create missing option values from `filter_<key>` columns; viewer hides options with no tagged listings.
+- **Map settings tab order:** Filters under Search; Groups under Pin Design.
+
+### Database migrations applied
+- `20260713120000_create_map_filter_fields.sql` — already applied on production (verified via `supabase migration list`).
+- `20260713130000_map_engagement_filter_events.sql` — already applied on production.
+
+### Edge functions deployed
+- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — deployed to **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13; all ACTIVE.
+
+### Frontend
+- Merge PR to `main` → GitHub Actions deploys Vite build to GitHub Pages (~35s).
+
+### Rollback plan
+- Frontend: revert merge commit on `main`.
+- Edge: redeploy prior function versions from git history.
+- Migrations: run paired rollback SQL files (schema rollback refuses if `listing_filter_values` has rows).
+
+### Verified
+- [x] Production migrations up to date (dry-run: no pending)
+- [x] Edge functions deployed to production (all ACTIVE)
+- [ ] Frontend live after PR merge
+- [ ] User smoke test: re-sync Drive sheet → options + tags → Publish → filter in embed
+
+---
+
+## 2026-07-13 — Staging (Filter fields — auto-create options on ingest + hide empty options)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** the first cut required clients to manually pre-enter every possible option before an import could tag listings — any value not already defined was skipped with a warning. That is unworkable for real supplier data where the sheet *is* the list of categories.
+- **What it does now:**
+  - **CSV import** (`ensureImportOptions` in `src/lib/filterFields.js`, wired into `ClientMapData.jsx` + `AdminMapData.jsx`) and **Google Sheets sync** (`sync_sheet_listings`) now **auto-create** any option value found in a `filter_<key>` column that isn't already defined on that select field. New options use the sheet text as the label and a unique slug as the stable import `value`; matching remains case-insensitive on value or label. The import/sync summary reports how many new options were created.
+  - **Viewer** (`PublishedMapView.jsx`) now only renders options that at least one listing actually uses, and hides any select filter field with no populated options — so empty categories never appear in the search-bar dropdowns/lozenges.
+- Text-type fields are unaffected (no option list). Manual and bulk editors still pick from the defined option list.
+
+### Database migrations applied
+None (uses the existing `map_filter_field_options` table).
+
+### Edge functions deployed
+- `sync_sheet_listings` — deployed to **staging** (`beqejxneehilplrtpntn`, v27) and **production** (`gxixwdjfmegxcxfeflro`, v29) on 2026-07-13 for the auto-create behaviour.
+
+### Rollback plan
+`git revert` the feature commits. Auto-created options are ordinary rows in `map_filter_field_options`; delete any unwanted ones from the Filters panel. No schema change to roll back.
+
+### Verified
+- [x] `npm run build` passes (local)
+- [x] `sync_sheet_listings` deployed to staging and production (both ACTIVE)
+- [ ] Post-deploy: a real sheet sync creates options + tags listings (user to confirm)
+- [ ] Embed shows only in-use options; empty fields hidden (user to confirm)
+
+---
+
+## 2026-07-13 — Staging (Configurable filter fields — admin, viewer, import & engagement)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** builds the rest of the configurable-filter-fields feature on top of the schema foundation (entry below), so clients can define, populate, and expose custom filters end-to-end.
+- **What it does now:**
+  - **Admin — Filters panel:** a new **Filters** panel in both the client and admin map dashboards (shared `FilterFieldsPanel.jsx`) to create/edit/archive/delete filter fields, manage colour-coded options, reorder, and configure display (`show_in_filter_bar`, `display_control`). Definitions and options save immediately (like Groups); display config flows through the draft→publish cycle.
+  - **Populate values:** per-listing tagging in the manual listing editor (`ListingFilterValuesEditor.jsx`), multi-row **Bulk edit filters** (`BulkFilterEditModal.jsx`), CSV template/import (`filter_<key>` columns), and Google Sheets sync/validation of the same columns.
+  - **Viewer:** `PublishedMapView` renders a control per published `show_in_filter_bar` field (dropdown / checkbox lozenges / typeahead) and folds selections into `effectiveListings` — OR within a field, AND across fields, matching group/continent behaviour. Filter fields + per-listing values are included in `buildPublicationConfig`, the CDN snapshot (`generate_map_snapshot`), and the `EmbedMap` live fetch.
+  - **Engagement:** viewer logs `directory_custom_filter` (`field_id`/`field_key`/`option_id` only — never raw typeahead text).
+- **Admin events:** `map_design_filter_field_created/updated/archived/deleted/reordered`, `data_filter_values_bulk_tagged`.
+
+### Database migrations applied
+- `supabase/migrations/20260713130000_map_engagement_filter_events.sql` (+ paired rollback). Extends the `map_engagement_events` event-type CHECK constraint to allow `directory_custom_filter` and the previously-emitted-but-silently-rejected `directory_group_filter` / `directory_continent_filter`.
+- Applied on **staging** and **production** on 2026-07-13 (dry-run → apply, `VERIFY PASSED` on both).
+
+### Edge functions deployed
+- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — deployed to **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13; all ACTIVE.
+
+### Rollback plan
+- Migration: run `supabase/migrations/_20260713130000_map_engagement_filter_events.rollback.sql` (restores the prior constraint; refuses to run if filter-event rows exist).
+- Frontend/edge: `git revert` the feature commits; the schema tables can be dropped via the schema-migration rollback (entry below).
+
+### Verified
+- [x] Dry-run on staging and production for the engagement-constraint migration
+- [x] Applied on staging and production; verification block confirms all three filter events in the constraint
+- [x] Edge functions deployed to staging and production (all ACTIVE)
+- [ ] Manual UI smoke test: create field → tag listing → publish → filter on embed (user to confirm)
+
+---
+
+## 2026-07-13 — Staging (Configurable filter fields — schema foundation)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** maps currently have exactly one categorisation axis (groups) plus a hardcoded continent filter. Clients (e.g. APMG's supplier directory) need to add their own filterable metadata — "Sector", "Languages spoken", "Membership tier" — as single-select, multi-select, or free-text fields. This is the first slice of that feature: the data model. See `docs/FILTER_FIELDS_USER_STORIES.md`.
+- **What it does now:** adds three new tables that store per-map filter field definitions, their option lists, and per-listing values, using an EAV-style join (`listing_filter_values`) so the `listings` schema stays stable and both 1-to-1 and many-to-many tagging work out of the box. Groups and continent filtering are untouched — this is an additive second layer.
+  - `map_filter_fields` — one row per configurable filter axis on a map (`key`, `label`, `field_type`, `sort_order`, `is_active`, `show_in_filter_bar`, `display_control`). `key` is unique per map.
+  - `map_filter_field_options` — option lists for select-type fields (`value` = stable import key, `label` = display, optional `color`). Unique per `(field_id, value)`.
+  - `listing_filter_values` — per-listing tagged values (`option_id` for select fields, `value_text` for text fields). Partial-unique on `(listing_id, field_id, option_id)` to stop duplicate tags.
+- **Security:** RLS mirrors `groups`/`listings` (admin-all + own-client via `current_user_client_id()`), plus an **anon read policy gated to published maps only** (`maps.published_at is not null`) so the public embed can read filter data without auth — but only for published maps. This is intentionally stricter than the existing wide-open `listings_anon_select`.
+
+### Database migrations applied
+- `supabase/migrations/20260713120000_create_map_filter_fields.sql` (+ paired `_20260713120000_create_map_filter_fields.rollback.sql`).
+- Applied on **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13 (dry-run → apply; `VERIFY PASSED` and anon REST returns the three tables).
+
+### Edge functions deployed
+None in this slice.
+
+### Rollback plan
+Run `supabase/migrations/_20260713120000_create_map_filter_fields.rollback.sql` (drops the three tables; refuses to run if `listing_filter_values` has rows unless the guard is removed after exporting). Or `git revert` the migration commit if never applied.
+
+### Verified
+- [x] Dry-run on staging and production
+- [x] Applied on staging and production; post-migration verification block passes
+- [x] Anon smoke test on staging: anon REST returns the three tables (HTTP 200, empty at the time)
+- [x] Production apply (after user sign-off)
+
+---
+
 ## 2026-07-09 — Production (fix: admin/client password reset link always showed "This link has expired")
 
 **Branch/commit:** `fix/2026-07-09-admin-password-reset-expired-link` (not yet merged)

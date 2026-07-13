@@ -915,6 +915,34 @@ a:hover {
   color: #ffffff;
 }
 
+/* ── Custom filter fields ─────────────────────────────────────────── */
+.embed-list-panel__filter-field {
+  margin-top: 12px;
+}
+
+.embed-list-panel__filter-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-bottom: 5px;
+}
+
+.embed-list-panel__filter-input {
+  width: 100%;
+  padding: 8px 11px;
+  font-size: 14px;
+  border: 1px solid var(--listing-border, #e5e7eb);
+  border-radius: 8px;
+  box-sizing: border-box;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+.embed-list-panel__filter-field .embed-list-panel__lozenges {
+  margin-top: 8px;
+}
+
 /* ── Colour key ───────────────────────────────────────────────────── */
 .embed-list-panel__key {
   flex-shrink: 0;

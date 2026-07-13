@@ -16,7 +16,7 @@ export function parseJsonObject(raw, fallback = {}) {
   return { ...fallback };
 }
 
-/** Normalize DB or legacy payload into { schemaVersion, map, groups }. */
+/** Normalize DB or legacy payload into { schemaVersion, map, groups, filterFields }. */
 export function normalizePublicationConfig(raw) {
   if (!raw || typeof raw !== "object") return null;
   if (raw.schemaVersion === 1 && raw.map && raw.groups) {
@@ -27,6 +27,7 @@ export function normalizePublicationConfig(raw) {
         byId: parseJsonObject(raw.groups?.byId, {}),
         byName: parseJsonObject(raw.groups?.byName, {}),
       },
+      filterFields: Array.isArray(raw.filterFields) ? raw.filterFields : [],
     };
   }
   if (
@@ -39,6 +40,7 @@ export function normalizePublicationConfig(raw) {
       schemaVersion: 1,
       map: { ...raw },
       groups: { byId: {}, byName: {} },
+      filterFields: [],
     };
   }
   return null;
@@ -88,6 +90,7 @@ export function buildPublicationConfig(params) {
     listingOpacity,
     showContinentFilter,
     showKey,
+    filterFields,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -154,6 +157,7 @@ export function buildPublicationConfig(params) {
     schemaVersion: MAP_PUBLICATION_SCHEMA_VERSION,
     map,
     groups: { byId, byName },
+    filterFields: Array.isArray(filterFields) ? filterFields : [],
   };
 }
 

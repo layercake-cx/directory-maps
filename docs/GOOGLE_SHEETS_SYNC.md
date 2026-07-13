@@ -105,6 +105,16 @@ Other supported columns match the CSV importer template:
 
 If `lat`/`lng` are missing, the sync will geocode using `GOOGLE_GEOCODING_API_KEY` when possible.
 
+### Custom filter columns (`filter_<key>`)
+
+If the map has active **filter fields** (Design → Filters), each one maps to an optional `filter_<key>` column, where `<key>` is the field's key shown in the Filters panel:
+
+- **Single-choice / text fields** — one value per cell.
+- **Multiple-choice fields** — separate values with a pipe (`|`), e.g. `english|french`.
+- Values are matched case-insensitively against each field's defined **option values** and **labels** (for select types) and stored as `listing_filter_values`. **New values are created automatically:** if a cell contains a value that isn't yet a defined option, the sync adds it as a new option on that field (using the text as the label), so you don't have to pre-enter every category by hand. Text-type fields store the raw text.
+- `validate_sheet_source` reports which `filter_<key>` columns are present so you can spot typos before syncing.
+- The Sheet is treated as the source of truth for active filter fields: a sync **replaces** the values of every active field for the listings it touches. If you omit an active field's `filter_<key>` column (or leave a cell blank), that field is cleared for those listings. Include the column with the correct values to keep them.
+
 ## 7) Google Drive sync vs local CSV upload
 
 | Path | Where | Use when |

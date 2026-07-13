@@ -5,6 +5,8 @@ import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
+import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
+import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication } from "../../lib/filterFields.js";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale, MARKER_ANCHORS } from "../../lib/markerIcons";
 import {
@@ -22,7 +24,7 @@ import {
 } from "../../lib/mapStyleSettings.js";
 
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters"];
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
   { label: "None", value: "" },
@@ -71,6 +73,7 @@ function tabLabel(t) {
   if (t === "groups") return "Groups";
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
+  if (t === "filters") return "Filters";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -211,6 +214,8 @@ export default function AdminMapDashboard() {
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [filterFields, setFilterFields] = useState([]);
+  const [filterValuesByListing, setFilterValuesByListing] = useState({});
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -463,6 +468,33 @@ export default function AdminMapDashboard() {
       };
     });
   }, [listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup]);
+
+  const refreshFilterFields = React.useCallback(async () => {
+    if (!mapId) return;
+    try {
+      const [fields, values] = await Promise.all([
+        loadFilterFields(mapId, { includeArchived: true }),
+        loadFilterValuesForMap(mapId),
+      ]);
+      setFilterFields(fields);
+      setFilterValuesByListing(values);
+    } catch (e) {
+      console.warn("filter fields load:", e?.message ?? e);
+    }
+  }, [mapId]);
+
+  useEffect(() => { void refreshFilterFields(); }, [refreshFilterFields]);
+
+  const recordFilterEvent = React.useCallback((eventType, meta) => {
+    recordAdminEvent(supabase, { eventType, meta, source: "admin_map", clientId: clientId ?? null, mapId });
+  }, [clientId, mapId]);
+
+  const publishedFilterFields = useMemo(() => filterFieldsForPublication(filterFields), [filterFields]);
+
+  const previewListings = useMemo(
+    () => listingsWithColor.map((l) => ({ ...l, filterValues: filterValuesByListing[l.id] || [] })),
+    [listingsWithColor, filterValuesByListing]
+  );
 
   const groupNameById = useMemo(() => {
     const m = new Map();
@@ -1359,8 +1391,10 @@ export default function AdminMapDashboard() {
         listingOpacity,
         showContinentFilter,
         showKey,
+        filterFields: publishedFilterFields,
       }),
     [
+      publishedFilterFields,
       orderedGroupsList,
       defaultLat,
       defaultLng,
@@ -1842,6 +1876,7 @@ export default function AdminMapDashboard() {
               mapTypeId={mapTypeId}
               listings={listings}
               groups={groups}
+              filterFields={publishedFilterFields}
               showListPanel={showListPanel}
               showMapTitle={showMapTitle}
               mapName={name}
@@ -1906,7 +1941,7 @@ export default function AdminMapDashboard() {
                 }
               }}
               height="100%"
-              listingsWithColor={listingsWithColor}
+              listingsWithColor={previewListings}
               mapOverlay={messageDrawer}
             />
           ) : (
@@ -1920,7 +1955,7 @@ export default function AdminMapDashboard() {
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
 
-            {["detail", "search"].map((t) => (
+            {["detail", "search", "filters"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -1933,7 +1968,7 @@ export default function AdminMapDashboard() {
 
             <hr className="admin-map-page__controls-divider" />
 
-            {["design", "panels", "groups", "mapstyle"].map((t) => (
+            {["design", "groups", "panels", "mapstyle"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -2751,7 +2786,32 @@ export default function AdminMapDashboard() {
                       Display Key
                     </label>
                   </div>
+
+                  <div className="panel-section">
+                    <p className="panel-section__title">Custom filter fields</p>
+                    {filterFields.filter((f) => f.is_active && f.show_in_filter_bar).length === 0 ? (
+                      <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
+                        No custom filter fields are shown in the search bar yet.
+                      </p>
+                    ) : (
+                      <ul style={{ margin: "0 0 8px", paddingLeft: 18, fontSize: 13 }}>
+                        {filterFields.filter((f) => f.is_active && f.show_in_filter_bar).map((f) => (
+                          <li key={f.id}>{f.label}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button type="button" className="btn" onClick={() => openOverlay("filters")}>Manage filter fields</button>
+                  </div>
                 </div>
+              )}
+
+              {overlayTab === "filters" && (
+                <FilterFieldsPanel
+                  mapId={mapId}
+                  clientId={clientId ?? null}
+                  recordEvent={recordFilterEvent}
+                  onChange={refreshFilterFields}
+                />
               )}
 
               {overlayTab === "data" && (

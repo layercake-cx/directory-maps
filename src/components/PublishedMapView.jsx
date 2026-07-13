@@ -190,6 +190,8 @@ export default function PublishedMapView({
   mapTypeId,
   listings = [],
   groups = [],
+  /** Published, filter-bar-visible custom filter fields (with options). Each listing carries `filterValues`. */
+  filterFields = [],
   showListPanel = true,
   mapName = "",
   enableClustering = true,
@@ -239,6 +241,15 @@ export default function PublishedMapView({
   const [activeGroupIds, setActiveGroupIds] = useState(() => new Set());
   /** Continent names selected as active filters. Empty set = show every continent. */
   const [activeContinents, setActiveContinents] = useState(() => new Set());
+  /**
+   * Custom filter field selections, keyed by field id.
+   * Select fields → Set(optionId); text fields → string query.
+   */
+  const [activeFilters, setActiveFilters] = useState(() => ({}));
+  /** UI-only typeahead query per field (narrows which option chips show; not itself a filter). */
+  const [typeaheadQuery, setTypeaheadQuery] = useState(() => ({}));
+  /** Track which text fields we've already logged an engagement for this session. */
+  const loggedTextFilterRef = useRef(new Set());
   const [placeSuggestions, setPlaceSuggestions] = useState([]);
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
   const [cameraRequest, setCameraRequest] = useState(null);
@@ -332,6 +343,44 @@ export default function PublishedMapView({
     return [...s].sort();
   }, [list]);
 
+  /** Filter-bar-visible custom fields, in display order. */
+  const visibleFilterFields = useMemo(
+    () =>
+      (filterFields || [])
+        .filter((f) => f && f.show_in_filter_bar)
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [filterFields]
+  );
+
+  /** listingId -> fieldId -> { options:Set(optionId), texts:string[] } */
+  const listingFilterIndex = useMemo(() => {
+    const m = new Map();
+    (list || []).forEach((l) => {
+      const perField = new Map();
+      (l.filterValues || []).forEach((v) => {
+        if (!v || v.field_id == null) return;
+        if (!perField.has(v.field_id)) perField.set(v.field_id, { options: new Set(), texts: [] });
+        const e = perField.get(v.field_id);
+        if (v.option_id != null) e.options.add(v.option_id);
+        if (v.value_text) e.texts.push(String(v.value_text).toLowerCase());
+      });
+      m.set(l.id, perField);
+    });
+    return m;
+  }, [list]);
+
+  /** Option ids that at least one listing on the map actually carries. */
+  const usedOptionIds = useMemo(() => {
+    const s = new Set();
+    (list || []).forEach((l) => {
+      (l.filterValues || []).forEach((v) => {
+        if (v && v.option_id != null) s.add(v.option_id);
+      });
+    });
+    return s;
+  }, [list]);
+
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
@@ -341,9 +390,24 @@ export default function PublishedMapView({
         const c = continentForCountry(l.country);
         if (!c || !activeContinents.has(c)) return false;
       }
+      // Custom filter fields: AND across fields, OR within a field's chosen values.
+      for (const f of visibleFilterFields) {
+        const sel = activeFilters[f.id];
+        const idx = listingFilterIndex.get(l.id)?.get(f.id);
+        if (f.field_type === "text") {
+          const q = typeof sel === "string" ? sel.trim().toLowerCase() : "";
+          if (q) {
+            const texts = idx?.texts || [];
+            if (!texts.some((t) => t.includes(q))) return false;
+          }
+        } else if (sel instanceof Set && sel.size > 0) {
+          const opts = idx?.options;
+          if (!opts || ![...sel].some((id) => opts.has(id))) return false;
+        }
+      }
       return true;
     });
-  }, [list, activeGroupIds, activeContinents]);
+  }, [list, activeGroupIds, activeContinents, visibleFilterFields, activeFilters, listingFilterIndex]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
@@ -486,6 +550,45 @@ export default function PublishedMapView({
       }
       return next;
     });
+  }
+
+  function logCustomFilter(field, optionId) {
+    recordEngagement?.("directory_custom_filter", {
+      meta: { field_id: field.id, field_key: field.key, ...(optionId != null ? { option_id: optionId } : {}) },
+    });
+  }
+
+  /** Toggle one option of a multi-select / typeahead-select field (OR within field). */
+  function toggleFilterOption(field, optionId) {
+    setActiveFilters((prev) => {
+      const cur = prev[field.id] instanceof Set ? new Set(prev[field.id]) : new Set();
+      if (cur.has(optionId)) {
+        cur.delete(optionId);
+      } else {
+        cur.add(optionId);
+        logCustomFilter(field, optionId);
+      }
+      return { ...prev, [field.id]: cur };
+    });
+  }
+
+  /** Set the single chosen option (dropdown). Empty value clears the field. */
+  function setSingleSelectFilter(field, optionId) {
+    setActiveFilters((prev) => {
+      if (!optionId) return { ...prev, [field.id]: new Set() };
+      logCustomFilter(field, optionId);
+      return { ...prev, [field.id]: new Set([optionId]) };
+    });
+  }
+
+  /** Set the free-text query for a text field. Logs once per field per session (no raw text). */
+  function setTextFilter(field, text) {
+    const has = !!String(text || "").trim();
+    if (has && !loggedTextFilterRef.current.has(field.id)) {
+      loggedTextFilterRef.current.add(field.id);
+      logCustomFilter(field, null);
+    }
+    setActiveFilters((prev) => ({ ...prev, [field.id]: text }));
   }
 
   function selectFromList(listing, source, { skipSearchRecord = false } = {}) {
@@ -1049,6 +1152,94 @@ export default function PublishedMapView({
                 })}
               </div>
             )}
+            {visibleFilterFields.map((field) => {
+              const selected = activeFilters[field.id];
+              const selectedSet = selected instanceof Set ? selected : null;
+              const textValue = typeof selected === "string" ? selected : "";
+              // Only surface options that at least one listing actually uses.
+              const options = (field.options || []).filter((o) => usedOptionIds.has(o.id));
+
+              // A select field with no populated options adds no value — hide it.
+              if (field.field_type !== "text" && options.length === 0) return null;
+
+              if (field.field_type === "text") {
+                return (
+                  <div key={field.id} className="embed-list-panel__filter-field">
+                    <label className="embed-list-panel__filter-label">{field.label}</label>
+                    <input
+                      type="text"
+                      inputMode="text"
+                      className="embed-list-panel__filter-input"
+                      placeholder={`Filter by ${field.label.toLowerCase()}…`}
+                      value={textValue}
+                      onChange={(e) => setTextFilter(field, e.target.value)}
+                    />
+                  </div>
+                );
+              }
+
+              if (field.display_control === "dropdown") {
+                const current = selectedSet && selectedSet.size > 0 ? [...selectedSet][0] : "";
+                return (
+                  <div key={field.id} className="embed-list-panel__filter-field">
+                    <label className="embed-list-panel__filter-label">{field.label}</label>
+                    <select
+                      className="embed-list-panel__filter-input"
+                      value={current}
+                      onChange={(e) => setSingleSelectFilter(field, e.target.value)}
+                    >
+                      <option value="">All</option>
+                      {options.map((o) => (
+                        <option key={o.id} value={o.id}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // multi_select or typeahead (select-backed): lozenge toggles, optional filter box
+              const q = (typeaheadQuery[field.id] || "").trim().toLowerCase();
+              const shownOptions = field.display_control === "typeahead" && q
+                ? options.filter((o) => String(o.label).toLowerCase().includes(q))
+                : options;
+              return (
+                <div key={field.id} className="embed-list-panel__filter-field">
+                  <label className="embed-list-panel__filter-label">{field.label}</label>
+                  {field.display_control === "typeahead" && (
+                    <input
+                      type="text"
+                      className="embed-list-panel__filter-input"
+                      placeholder={`Search ${field.label.toLowerCase()}…`}
+                      value={typeaheadQuery[field.id] || ""}
+                      onChange={(e) => setTypeaheadQuery((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                    />
+                  )}
+                  <div className="embed-list-panel__lozenges">
+                    {shownOptions.map((o) => {
+                      const active = !!selectedSet && selectedSet.has(o.id);
+                      const color = o.color || panelLinkColor;
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`embed-list-panel__lozenge${active ? " embed-list-panel__lozenge--active" : ""}`}
+                          onClick={() => toggleFilterOption(field, o.id)}
+                          aria-pressed={active}
+                          title={active ? `Showing only ${o.label}` : `Filter by ${o.label}`}
+                          style={{
+                            background: active ? color : "transparent",
+                            borderColor: color,
+                            color: active ? "#ffffff" : "var(--page-text, #111827)",
+                          }}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {showKey && !isMobileSheet && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (

@@ -119,8 +119,17 @@ The map editor (`ClientMapDashboard.jsx`) is a **live preview** with overlay pan
 | **Panels** | Listing panel layout and content options |
 | **Groups** | Group definitions and per-group theme JSON |
 | **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |
+| **Filters** | Define custom filter fields (single-select / multi-select / text), manage options + colours, and configure display (`show_in_filter_bar`, `display_control`, order). Definitions/options save immediately; display config is part of the draft→publish snapshot. Shared `FilterFieldsPanel.jsx` |
 | **Publish Map** | Publish snapshot, version history, rollback, embed URL, subscription gate |
-| **Search** | Search-panel logo upload + styling (panel background colour/transparency, listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft |
+| **Search** | Search-panel logo upload + styling (panel background colour/transparency, listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft. Includes a read-only summary of custom filter fields with a link to the **Filters** panel |
+
+**Custom filter fields**
+
+- Defined per map in the **Filters** panel (`FilterFieldsPanel.jsx`, shared by client + admin dashboards). Three field types: `single_select`, `multi_select`, `text`. Select types have colour-coded options.
+- Values are tagged per listing (EAV rows in `listing_filter_values`) via the manual listing editor (`ListingFilterValuesEditor.jsx`), bulk edit (`BulkFilterEditModal.jsx`), CSV, or Google Sheets (`filter_<key>` columns).
+- **Options auto-create on ingest:** CSV import (`ensureImportOptions` in `filterFields.js`) and Sheets sync (`sync_sheet_listings`) add any option value not already defined, so clients don't have to pre-enter categories. The viewer hides options with zero tagged listings (and select fields with no populated options).
+- Display config (which fields show in the search bar, control type, order) flows through `buildPublicationConfig` and the CDN snapshot; matching is OR within a field, AND across fields (mirrors groups/continents).
+- Data access + helpers: `src/lib/filterFields.js`. Admin events: `map_design_filter_field_*`, `data_filter_values_bulk_tagged`.
 
 **Publication system**
 
@@ -142,12 +151,13 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 **CSV import**
 
 - Template download; columns include `name`, `address`, `postcode`, `country`, `lat`, `lng`, `website_url`, `email`, `phone`, `logo_url`, `notes_html`, `group_name`, `is_active`, etc.
+- If the map has active filter fields, the template adds a `filter_<key>` column per field (multi-select accepts pipe-`|`-delimited values); values not yet defined as options are auto-created on import.
 - Optional **geocode rows missing lat/lng** (edge function `geocode_listings` / `geocode_address`).
 
 **Google Sheets sync**
 
 - OAuth via edge functions (`google_oauth_start`, `google_oauth_callback`).
-- Pick sheet, validate columns (`validate_sheet_source`), sync rows (`sync_sheet_listings`).
+- Pick sheet, validate columns (`validate_sheet_source`, which also reports `filter_<key>` header presence), sync rows (`sync_sheet_listings`, which resolves `filter_<key>` cells into `listing_filter_values`).
 - Optional daily `pg_cron` schedule per map with selectable hour (displayed in local time, stored as UTC; Off / Daily in Data → Google Drive; see [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md)).
 
 **Coming soon (UI only):** OneDrive / iCloud badges on data page.
@@ -206,6 +216,7 @@ Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Search | — | Places + listing search; engagement events logged |
 | Group filtering | — | Lozenge tags filter listings + markers by group (multi-select); colour key legend |
 | Continent filtering | — | Optional continent chips (derived from listing country) filter listings + markers; combines with group filters |
+| Custom filter fields | — | Per-map configurable filters (dropdown / checkbox lozenges / typeahead) shown when `show_in_filter_bar`; OR within a field, AND across fields; logged as `directory_custom_filter` |
 | Listing detail | — | Panel from marker, list, or search |
 | Contact visitor | — | “Send message” → `map_contact_submissions` + email via Resend |
 | Marker clustering | — | Configurable cluster radius; same-address clusters auto-spiderfy (fan out) on click |
@@ -255,6 +266,9 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `maps` | Map config, publish timestamps, theme, pins, clustering |
 | `groups` | Listing groups + theme JSON |
 | `listings` | Locations / directory entries (geocode status, `geocoded_at`) |
+| `map_filter_fields` | Custom filter field definitions per map (type, display config, order) |
+| `map_filter_field_options` | Options (value/label/colour) for select-type filter fields |
+| `listing_filter_values` | EAV tags linking listings to filter options / text values |
 | `map_data_sources` | Google Sheet binding + sync schedule |
 | `map_publications` | Versioned publish snapshots |
 | `map_engagement_events` | Embed analytics |
@@ -343,6 +357,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Area | Status | Notes |
 |------|--------|-------|
 | Map design & publish | **Production-ready** | Versioned publications, rollback |
+| Custom filter fields | **Beta** | Schema + admin panel + viewer + CSV/Sheets tagging shipped; staging-first migrations pending production apply |
 | CSV import & geocode | **Production-ready** | Depends on edge deploy + API keys |
 | Google Sheets sync | **Production-ready** | Documented; cron optional |
 | Public embed | **Production-ready** | Requires publish + keys |

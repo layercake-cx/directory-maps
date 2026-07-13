@@ -100,8 +100,9 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
+| **Filters** | Create custom, filterable fields (e.g. Sector, Languages spoken); manage their options; choose which appear in the published search bar and how |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
-| **Search** | Upload a **logo**, style the search panel (background colour & transparency, listing background, border, and transparency), and set **Display options** (continent filter, Key) |
+| **Search** | Upload a **logo**, style the search panel (background colour & transparency, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
 
 Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 
@@ -116,6 +117,24 @@ Inside **Map Style** you can now customise the map in five sections:
 5. **Overlays** — Turn **Traffic**, **Public transport routes**, **Bike lanes**, and **Terrain & contours** on/off (**Traffic is off by default**).
 
 Changes appear in the live preview immediately and are saved as part of your map draft.
+
+### Filters panel
+
+**Filters** let you add your own filterable metadata to a map — separate from Groups. For example a supplier directory might add **Sector**, **Languages spoken**, or **Membership tier**. Visitors can then narrow the map and list by those values.
+
+1. **Create a field** — click **New filter field**, enter a **Label**, and pick a **type**:
+   - **Single choice** — the listing has exactly one value (shown to visitors as a dropdown, checkbox list, or typeahead).
+   - **Multiple choice** — the listing can have several values; visitors can select more than one.
+   - **Free text** — a free-text tag visitors filter with a type-to-search box.
+2. **Key** — each field has a short **key** (auto-generated from the label). This is the column name used in CSV/Sheet imports (`filter_<key>`). The key can't be changed once options exist, so imports keep matching.
+3. **Options** — for single/multiple choice fields, add the option list (each with an optional colour). You can also let them build themselves: importing via CSV or Google Sheets **creates any new option automatically** from the values in the sheet, so you don't have to type every category by hand. Option labels can be renamed freely; the underlying import value stays stable. In the published search bar, only options that at least one listing actually uses are shown — empty options (and any select field with no populated options) are hidden automatically.
+4. **Show in search bar** — turn this on for each field you want visitors to see, and choose the **control** (dropdown, checkbox list, or typeahead). Only valid combinations are offered (e.g. dropdown isn't available for multiple-choice fields).
+5. **Order** — use the up/down arrows to set the order fields appear in the search bar.
+6. **Archive / Delete** — archive hides a field without losing its data; delete (type-to-confirm) permanently removes the field, its options, and all listing tags.
+
+Filter fields, options, and display settings follow the **draft → publish** cycle: they appear in your live preview immediately but only reach visitors when you **Publish**. Matching within one field is "any of" (OR); across different fields a listing must match **all** active filters (AND) — the same behaviour as group and continent filters.
+
+Tag listings with filter values in three ways: individually (the **Data → Manual entries** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns.
 
 ### Co-located pins (same address)
 
@@ -133,7 +152,7 @@ The search panel sits flush to the **top-left** of the published map, full heigh
 1. **Logo** — the image you upload in the **Search** settings panel (optional).
 2. **Title** — your map name.
 3. **Description** — the text from the **General** panel's Description field (only shown if set).
-4. **Search & filter** — a search box (find listings or jump to a place/location), plus **filter lozenges** for each group. Tap a lozenge to show only that group on the map and in the list; tap again to clear. Lozenges use each group's colour and border. When the **continent filter** is enabled, a second row of continent chips appears (derived automatically from each listing's country); these combine with the group filters.
+4. **Search & filter** — a search box (find listings or jump to a place/location), plus **filter lozenges** for each group. Tap a lozenge to show only that group on the map and in the list; tap again to clear. Lozenges use each group's colour and border. When the **continent filter** is enabled, a second row of continent chips appears (derived automatically from each listing's country); these combine with the group filters. Any **custom filter fields** you set to show in the search bar (see **Filters panel**) appear here too, as dropdowns, checkbox lozenges, or type-to-search boxes.
 5. **Key** *(optional)* — every group listed in your chosen group order with a colour square.
 6. **Listings** — all listings in **alphabetical order**, each showing the logo (left), organisation name, city and country, and its group label. This list scrolls to the bottom of the screen.
 
@@ -163,7 +182,8 @@ Open **Data** from the map sub-nav (`/#/client/maps/<id>/data`).
 1. **Download template** — CSV with expected columns.
 2. Fill columns such as:  
    `name`, `address`, `postcode`, `country`, `lat`, `lng`, `website_url`, `email`, `phone`, `logo_url`, `notes_html`, `allow_html`, `group_name`, `is_active`.  
-   **name** is required; leave `lat`/`lng` blank to geocode addresses (if enabled).
+   **name** is required; leave `lat`/`lng` blank to geocode addresses (if enabled).  
+   If the map has custom **filter fields**, the template also includes a `filter_<key>` column per field. Enter the option value(s) for each listing; separate multiple values with a pipe (`|`). You don't need to pre-create the options first — any value that isn't already an option is **added automatically** on import (the import summary tells you how many new options were created).
 3. **Upload CSV** and choose your file.
 4. Optionally enable **Geocode rows missing lat/lng**.
 5. Click **Import**.
@@ -344,6 +364,10 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Create a map | My Maps → New map |
 | Add a map description | Map → Design → General → Description |
 | Upload search-panel logo & style it | Map → Design → Search |
+| Create a custom filter field | Map → Design → Filters → New filter field |
+| Show a filter field in the search bar | Map → Design → Filters → Show in search bar |
+| Tag a listing's filter values | Map → Data → Manual entries → edit listing → Filters |
+| Bulk-tag filter values | Map → Data → Manual entries → select rows → Bulk edit filters |
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
