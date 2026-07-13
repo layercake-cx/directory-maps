@@ -33,6 +33,7 @@ This document describes every external system that Layercake Maps sends data to,
 | Account credentials | Email address, bcrypt password hash | Platform users |
 | Profile & contact records | Name, email, organisation, role, permissions | Platform users |
 | Listing content | Business name, address, phone, email, website, notes | Listing subjects |
+| Custom filter values | Client-defined tags/attributes attached to a listing (e.g. sector, languages) — content is chosen by the client | Listing subjects |
 | Map contact form submissions | Visitor name, email, phone, message, timestamp | Map visitors |
 | Map engagement events | Event type (pin click, search, message sent), approximate timestamp — **no IP address stored** | Map visitors (pseudonymous) |
 | Map engagement search queries | Search text typed by visitor | Map visitors |

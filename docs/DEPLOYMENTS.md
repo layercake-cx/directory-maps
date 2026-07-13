@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-13 — Staging (Configurable filter fields — admin, viewer, import & engagement)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** builds the rest of the configurable-filter-fields feature on top of the schema foundation (entry below), so clients can define, populate, and expose custom filters end-to-end.
+- **What it does now:**
+  - **Admin — Filters panel:** a new **Filters** panel in both the client and admin map dashboards (shared `FilterFieldsPanel.jsx`) to create/edit/archive/delete filter fields, manage colour-coded options, reorder, and configure display (`show_in_filter_bar`, `display_control`). Definitions and options save immediately (like Groups); display config flows through the draft→publish cycle.
+  - **Populate values:** per-listing tagging in the manual listing editor (`ListingFilterValuesEditor.jsx`), multi-row **Bulk edit filters** (`BulkFilterEditModal.jsx`), CSV template/import (`filter_<key>` columns), and Google Sheets sync/validation of the same columns.
+  - **Viewer:** `PublishedMapView` renders a control per published `show_in_filter_bar` field (dropdown / checkbox lozenges / typeahead) and folds selections into `effectiveListings` — OR within a field, AND across fields, matching group/continent behaviour. Filter fields + per-listing values are included in `buildPublicationConfig`, the CDN snapshot (`generate_map_snapshot`), and the `EmbedMap` live fetch.
+  - **Engagement:** viewer logs `directory_custom_filter` (`field_id`/`field_key`/`option_id` only — never raw typeahead text).
+- **Admin events:** `map_design_filter_field_created/updated/archived/deleted/reordered`, `data_filter_values_bulk_tagged`.
+
+### Database migrations applied
+- `supabase/migrations/20260713130000_map_engagement_filter_events.sql` (+ paired rollback). Extends the `map_engagement_events` event-type CHECK constraint to allow `directory_custom_filter` and the previously-emitted-but-silently-rejected `directory_group_filter` / `directory_continent_filter`.
+- **Not yet applied by the agent.** Same run order as the schema migration (dry-run → staging → verify → production after sign-off).
+
+### Edge functions deployed
+- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — **not yet deployed by the agent.** Deploy to staging (`beqejxneehilplrtpntn`) first; production only after explicit sign-off.
+
+### Rollback plan
+- Migration: run `supabase/migrations/_20260713130000_map_engagement_filter_events.rollback.sql` (restores the prior constraint; refuses to run if filter-event rows exist).
+- Frontend/edge: `git revert` the feature commits; the schema tables can be dropped via the schema-migration rollback (entry below).
+
+### Verified
+- [ ] Dry-run (BEGIN/ROLLBACK) on staging for the engagement-constraint migration
+- [ ] Applied on staging; verification block confirms all three filter events in the constraint
+- [ ] Edge functions deployed to staging and smoke-tested (snapshot includes filter values; sheet validate/sync resolves `filter_<key>`)
+- [ ] Manual UI smoke test: create field → tag listing → publish → filter on embed
+- [ ] Production apply + deploy (after sign-off)
+
+---
+
 ## 2026-07-13 — Staging (Configurable filter fields — schema foundation)
 
 **Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
