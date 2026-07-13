@@ -2181,7 +2181,7 @@ export default function ClientMapDashboard() {
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
 
-            {(["detail", "search"]).map((t) => (
+            {(["detail", "search", "filters"]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -2194,7 +2194,7 @@ export default function ClientMapDashboard() {
 
             <hr className="admin-map-page__controls-divider" />
 
-            {(["design", "panels", "groups", "mapstyle", "filters"]).map((t) => (
+            {(["design", "groups", "panels", "mapstyle"]).map((t) => (
               <button
                 key={t}
                 type="button"
