@@ -111,6 +111,24 @@ async function generateForMap(mapId: string): Promise<{ map_id: string; snapshot
 
   if (grpErr) throw new Error(`Groups query failed: ${grpErr.message}`);
 
+  // 4b. Fetch custom filter field values for this map's listings.
+  //     Resolve the map's field ids first, then their listing values.
+  let filterValues: Array<Record<string, unknown>> = [];
+  const { data: fieldRows, error: fieldErr } = await db
+    .from("map_filter_fields")
+    .select("id")
+    .eq("map_id", mapId);
+  if (fieldErr) throw new Error(`Filter fields query failed: ${fieldErr.message}`);
+  const fieldIds = (fieldRows ?? []).map((f: { id: string }) => f.id);
+  if (fieldIds.length > 0) {
+    const { data: valueRows, error: valErr } = await db
+      .from("listing_filter_values")
+      .select("listing_id, field_id, option_id, value_text")
+      .in("field_id", fieldIds);
+    if (valErr) throw new Error(`Filter values query failed: ${valErr.message}`);
+    filterValues = valueRows ?? [];
+  }
+
   // 5. Build snapshot bundle
   const snapshot = {
     /**
@@ -126,6 +144,8 @@ async function generateForMap(mapId: string): Promise<{ map_id: string; snapshot
     listings: listings ?? [],
     /** Group rows at time of publish */
     groups: groups ?? [],
+    /** Custom filter field values at time of publish (field defs live in config.filterFields) */
+    filterValues,
   };
 
   // 6. Upload to Vercel Blob at a deterministic path

@@ -6,6 +6,22 @@ import { formatContactMessageError, submitContactMessage } from "../lib/contactM
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
+import { loadFilterValuesForMap } from "../lib/filterFields.js";
+
+/** Build listingId -> values[] from a flat snapshot array of listing_filter_values. */
+function groupFilterValuesByListing(rows) {
+  const byListing = {};
+  for (const row of rows || []) {
+    if (!row || row.listing_id == null) continue;
+    if (!byListing[row.listing_id]) byListing[row.listing_id] = [];
+    byListing[row.listing_id].push({
+      field_id: row.field_id,
+      option_id: row.option_id,
+      value_text: row.value_text,
+    });
+  }
+  return byListing;
+}
 import { buildMapStyles, normalizeMapStyleSettings } from "../lib/mapStyleSettings.js";
 
 /**
@@ -92,6 +108,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
+  /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
+  const [filterValuesByListing, setFilterValuesByListing] = useState({});
   /** Normalized publication snapshot (map + group styling); listings stay live. */
   const [publicationConfig, setPublicationConfig] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
@@ -148,6 +166,14 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           setMap(mapShape);
           setListings(snapshot.listings ?? []);
           setGroups(snapshot.groups ?? []);
+          // Snapshot may embed filter values (schemaVersion 2+); else fall back to a live read.
+          if (Array.isArray(snapshot.filterValues)) {
+            setFilterValuesByListing(groupFilterValuesByListing(snapshot.filterValues));
+          } else {
+            try {
+              setFilterValuesByListing(await loadFilterValuesForMap(mapId));
+            } catch { /* non-fatal: filters just won't populate */ }
+          }
           setPublicationConfig(resolvedPublication);
           // Publication snapshots omit client_id; resolve it live so messaging/test-mode
           // settings always reflect the current org configuration.
@@ -232,10 +258,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           setMessagingTestRecipient(ms.email_test_recipient ?? "");
         }
 
+        let liveFilterValues = {};
+        try {
+          liveFilterValues = await loadFilterValuesForMap(mapId);
+        } catch { /* non-fatal */ }
+
         if (!cancelled) {
           setMap(mapRow);
           setListings(l ?? []);
           setGroups(g ?? []);
+          setFilterValuesByListing(liveFilterValues);
           setPublicationConfig(resolvedPublication);
         }
       } catch (e) {
@@ -325,6 +357,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       };
     });
   }, [listings, groupsForEmbed]);
+
+  const filterFieldsForEmbed = useMemo(
+    () => (Array.isArray(publicationConfig?.filterFields) ? publicationConfig.filterFields : []),
+    [publicationConfig]
+  );
+
+  const listingsForView = useMemo(
+    () => listingsWithOverrides.map((l) => ({ ...l, filterValues: filterValuesByListing[l.id] || [] })),
+    [listingsWithOverrides, filterValuesByListing]
+  );
 
   const recordEngagement = useMemo(
     () => (map?.id ? createMapEngagementRecorder({ supabase, mapId: map.id, surface: "embed" }) : null),
@@ -527,8 +569,9 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
           listings={listings}
-          listingsWithColor={listingsWithOverrides}
+          listingsWithColor={listingsForView}
           groups={groupsForEmbed}
+          filterFields={filterFieldsForEmbed}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}
           showSearch={parsedTheme.showSearch !== false}

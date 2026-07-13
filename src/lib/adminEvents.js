@@ -22,6 +22,11 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "group_updated",
     "group_reordered",
     "group_deleted",
+    "filter_field_created",
+    "filter_field_updated",
+    "filter_field_archived",
+    "filter_field_deleted",
+    "filter_field_reordered",
   ],
   map_publish: ["requested", "published", "failed", "rolled_back"],
   data: [
@@ -37,6 +42,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "geocode_started",
     "geocode_completed",
     "geocode_failed",
+    "filter_values_bulk_tagged",
   ],
   team: [
     "invite_created",
