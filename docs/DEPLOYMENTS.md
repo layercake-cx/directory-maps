@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-13 — Staging (Configurable filter fields — schema foundation)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** maps currently have exactly one categorisation axis (groups) plus a hardcoded continent filter. Clients (e.g. APMG's supplier directory) need to add their own filterable metadata — "Sector", "Languages spoken", "Membership tier" — as single-select, multi-select, or free-text fields. This is the first slice of that feature: the data model. See `docs/FILTER_FIELDS_USER_STORIES.md`.
+- **What it does now:** adds three new tables that store per-map filter field definitions, their option lists, and per-listing values, using an EAV-style join (`listing_filter_values`) so the `listings` schema stays stable and both 1-to-1 and many-to-many tagging work out of the box. Groups and continent filtering are untouched — this is an additive second layer.
+  - `map_filter_fields` — one row per configurable filter axis on a map (`key`, `label`, `field_type`, `sort_order`, `is_active`, `show_in_filter_bar`, `display_control`). `key` is unique per map.
+  - `map_filter_field_options` — option lists for select-type fields (`value` = stable import key, `label` = display, optional `color`). Unique per `(field_id, value)`.
+  - `listing_filter_values` — per-listing tagged values (`option_id` for select fields, `value_text` for text fields). Partial-unique on `(listing_id, field_id, option_id)` to stop duplicate tags.
+- **Security:** RLS mirrors `groups`/`listings` (admin-all + own-client via `current_user_client_id()`), plus an **anon read policy gated to published maps only** (`maps.published_at is not null`) so the public embed can read filter data without auth — but only for published maps. This is intentionally stricter than the existing wide-open `listings_anon_select`.
+
+### Database migrations applied
+- `supabase/migrations/20260713120000_create_map_filter_fields.sql` (+ paired `_20260713120000_create_map_filter_fields.rollback.sql`).
+- **Not yet applied by the agent.** Run order: dry-run (BEGIN/ROLLBACK) → staging (`beqejxneehilplrtpntn`) → post-migration verification → production (`gxixwdjfmegxcxfeflro`) only after explicit sign-off.
+
+### Edge functions deployed
+None in this slice.
+
+### Rollback plan
+Run `supabase/migrations/_20260713120000_create_map_filter_fields.rollback.sql` (drops the three tables; refuses to run if `listing_filter_values` has rows unless the guard is removed after exporting). Or `git revert` the migration commit if never applied.
+
+### Verified
+- [ ] Dry-run (BEGIN/ROLLBACK) on staging
+- [ ] Applied on staging; post-migration verification block passes; core row counts unchanged
+- [ ] Anon smoke test: anon key can read filter data for a published map, gets zero rows for an unpublished one
+- [ ] Production apply (after sign-off)
+
+---
+
 ## 2026-07-09 — Production (fix: admin/client password reset link always showed "This link has expired")
 
 **Branch/commit:** `fix/2026-07-09-admin-password-reset-expired-link` (not yet merged)
