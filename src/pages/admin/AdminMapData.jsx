@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, G
 import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
+import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 
@@ -149,6 +150,7 @@ export default function AdminMapData() {
   const [savingManual, setSavingManual] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
+  const filterEditorRef = useRef(null);
 
   // ── General UI ────────────────────────────────────────────────────────────
   const [msg, setMsg] = useState("");
@@ -570,13 +572,17 @@ export default function AdminMapData() {
     const payload = { map_id: mapId, name, address: manualForm.address.trim() || null, group_id: manualForm.group_id || null, lat, lng, website_url: manualForm.website_url.trim() || null, email: manualForm.email.trim() || null, phone: manualForm.phone.trim() || null, logo_url: manualForm.logo_url.trim() || null, is_active: manualForm.is_active, source: "manual" };
     try {
       setSavingManual(true);
+      let savedId;
       if (manualModal === "new") {
-        const { error } = await supabase.from("listings").insert({ ...payload, id: crypto.randomUUID() });
+        savedId = crypto.randomUUID();
+        const { error } = await supabase.from("listings").insert({ ...payload, id: savedId });
         if (error) throw error;
       } else {
+        savedId = editingListing.id;
         const { error } = await supabase.from("listings").update(payload).eq("id", editingListing.id);
         if (error) throw error;
       }
+      await filterEditorRef.current?.persist(savedId);
       const l = await fetchListings(); setListings(l ?? []); closeManual();
     } catch (e) {
       setManualErr(e?.message ?? String(e));
@@ -1263,6 +1269,7 @@ export default function AdminMapData() {
                     <input type="checkbox" checked={manualForm.is_active} onChange={(e) => mfSet("is_active", e.target.checked)} />
                     Active (visible on map)
                   </label>
+                  <ListingFilterValuesEditor ref={filterEditorRef} mapId={mapId} listingId={editingListing?.id || null} />
                   {manualErr && <Alert color="red" variant="light">{manualErr}</Alert>}
                   <Group gap="xs" justify="flex-end" mt={4}>
                     <Button variant="default" size="sm" type="button" onClick={closeManual}>Cancel</Button>

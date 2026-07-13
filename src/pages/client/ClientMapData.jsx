@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
+import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
@@ -161,6 +162,7 @@ export default function ClientMapData() {
   const [savingManual, setSavingManual] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
+  const filterEditorRef = useRef(null);
   const [addGroupModal, setAddGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [savingGroup, setSavingGroup] = useState(false);
@@ -667,13 +669,17 @@ export default function ClientMapData() {
 
     try {
       setSavingManual(true);
+      let savedId;
       if (manualModal === "new") {
-        const { error } = await supabase.from("listings").insert({ ...payload, id: crypto.randomUUID() });
+        savedId = crypto.randomUUID();
+        const { error } = await supabase.from("listings").insert({ ...payload, id: savedId });
         if (error) throw error;
       } else {
+        savedId = editingListing.id;
         const { error } = await supabase.from("listings").update(payload).eq("id", editingListing.id);
         if (error) throw error;
       }
+      await filterEditorRef.current?.persist(savedId);
       const l = await fetchListings();
       setListings(l ?? []);
       closeManual();
@@ -1438,6 +1444,8 @@ export default function ClientMapData() {
                   <input type="checkbox" checked={manualForm.is_active} onChange={(e) => mfSet("is_active", e.target.checked)} />
                   Active (visible on map)
                 </label>
+
+                <ListingFilterValuesEditor ref={filterEditorRef} mapId={mapId} listingId={editingListing?.id || null} />
 
                 {manualErr && <Alert color="red" variant="light">{manualErr}</Alert>}
 
