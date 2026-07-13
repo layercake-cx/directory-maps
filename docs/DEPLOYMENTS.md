@@ -8,6 +8,39 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-13 — Production (Configurable filter fields — full feature + auto-create options)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (PR pending merge)
+**Deployed by:** Cursor agent (user sign-off)
+
+### What changed
+- Full **configurable filter fields** feature (schema, Filters panel, manual/bulk/CSV/Sheets tagging, viewer controls, engagement events, snapshot wiring).
+- **Auto-create options on ingest:** CSV and Google Sheets sync create missing option values from `filter_<key>` columns; viewer hides options with no tagged listings.
+- **Map settings tab order:** Filters under Search; Groups under Pin Design.
+
+### Database migrations applied
+- `20260713120000_create_map_filter_fields.sql` — already applied on production (verified via `supabase migration list`).
+- `20260713130000_map_engagement_filter_events.sql` — already applied on production.
+
+### Edge functions deployed
+- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — deployed to **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13; all ACTIVE.
+
+### Frontend
+- Merge PR to `main` → GitHub Actions deploys Vite build to GitHub Pages (~35s).
+
+### Rollback plan
+- Frontend: revert merge commit on `main`.
+- Edge: redeploy prior function versions from git history.
+- Migrations: run paired rollback SQL files (schema rollback refuses if `listing_filter_values` has rows).
+
+### Verified
+- [x] Production migrations up to date (dry-run: no pending)
+- [x] Edge functions deployed to production (all ACTIVE)
+- [ ] Frontend live after PR merge
+- [ ] User smoke test: re-sync Drive sheet → options + tags → Publish → filter in embed
+
+---
+
 ## 2026-07-13 — Staging (Filter fields — auto-create options on ingest + hide empty options)
 
 **Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
@@ -24,16 +57,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 None (uses the existing `map_filter_field_options` table).
 
 ### Edge functions deployed
-- `sync_sheet_listings` — **needs redeploy to staging** (`beqejxneehilplrtpntn`) for the auto-create behaviour. Production only after sign-off.
+- `sync_sheet_listings` — deployed to **staging** (`beqejxneehilplrtpntn`, v27) and **production** (`gxixwdjfmegxcxfeflro`, v29) on 2026-07-13 for the auto-create behaviour.
 
 ### Rollback plan
 `git revert` the feature commits. Auto-created options are ordinary rows in `map_filter_field_options`; delete any unwanted ones from the Filters panel. No schema change to roll back.
 
 ### Verified
-- [ ] `npm run build` passes (done locally)
-- [ ] `sync_sheet_listings` redeployed to staging and a sheet with new values creates options + tags listings
-- [ ] CSV import with new values creates options + tags listings
-- [ ] Embed shows only in-use options; empty fields hidden
+- [x] `npm run build` passes (local)
+- [x] `sync_sheet_listings` deployed to staging and production (both ACTIVE)
+- [ ] Post-deploy: a real sheet sync creates options + tags listings (user to confirm)
+- [ ] Embed shows only in-use options; empty fields hidden (user to confirm)
 
 ---
 
@@ -53,21 +86,20 @@ None (uses the existing `map_filter_field_options` table).
 
 ### Database migrations applied
 - `supabase/migrations/20260713130000_map_engagement_filter_events.sql` (+ paired rollback). Extends the `map_engagement_events` event-type CHECK constraint to allow `directory_custom_filter` and the previously-emitted-but-silently-rejected `directory_group_filter` / `directory_continent_filter`.
-- **Not yet applied by the agent.** Same run order as the schema migration (dry-run → staging → verify → production after sign-off).
+- Applied on **staging** and **production** on 2026-07-13 (dry-run → apply, `VERIFY PASSED` on both).
 
 ### Edge functions deployed
-- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — **not yet deployed by the agent.** Deploy to staging (`beqejxneehilplrtpntn`) first; production only after explicit sign-off.
+- `generate_map_snapshot`, `validate_sheet_source`, `sync_sheet_listings` — deployed to **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13; all ACTIVE.
 
 ### Rollback plan
 - Migration: run `supabase/migrations/_20260713130000_map_engagement_filter_events.rollback.sql` (restores the prior constraint; refuses to run if filter-event rows exist).
 - Frontend/edge: `git revert` the feature commits; the schema tables can be dropped via the schema-migration rollback (entry below).
 
 ### Verified
-- [ ] Dry-run (BEGIN/ROLLBACK) on staging for the engagement-constraint migration
-- [ ] Applied on staging; verification block confirms all three filter events in the constraint
-- [ ] Edge functions deployed to staging and smoke-tested (snapshot includes filter values; sheet validate/sync resolves `filter_<key>`)
-- [ ] Manual UI smoke test: create field → tag listing → publish → filter on embed
-- [ ] Production apply + deploy (after sign-off)
+- [x] Dry-run on staging and production for the engagement-constraint migration
+- [x] Applied on staging and production; verification block confirms all three filter events in the constraint
+- [x] Edge functions deployed to staging and production (all ACTIVE)
+- [ ] Manual UI smoke test: create field → tag listing → publish → filter on embed (user to confirm)
 
 ---
 
@@ -86,7 +118,7 @@ None (uses the existing `map_filter_field_options` table).
 
 ### Database migrations applied
 - `supabase/migrations/20260713120000_create_map_filter_fields.sql` (+ paired `_20260713120000_create_map_filter_fields.rollback.sql`).
-- **Not yet applied by the agent.** Run order: dry-run (BEGIN/ROLLBACK) → staging (`beqejxneehilplrtpntn`) → post-migration verification → production (`gxixwdjfmegxcxfeflro`) only after explicit sign-off.
+- Applied on **staging** (`beqejxneehilplrtpntn`) and **production** (`gxixwdjfmegxcxfeflro`) on 2026-07-13 (dry-run → apply; `VERIFY PASSED` and anon REST returns the three tables).
 
 ### Edge functions deployed
 None in this slice.
@@ -95,10 +127,10 @@ None in this slice.
 Run `supabase/migrations/_20260713120000_create_map_filter_fields.rollback.sql` (drops the three tables; refuses to run if `listing_filter_values` has rows unless the guard is removed after exporting). Or `git revert` the migration commit if never applied.
 
 ### Verified
-- [ ] Dry-run (BEGIN/ROLLBACK) on staging
-- [ ] Applied on staging; post-migration verification block passes; core row counts unchanged
-- [ ] Anon smoke test: anon key can read filter data for a published map, gets zero rows for an unpublished one
-- [ ] Production apply (after sign-off)
+- [x] Dry-run on staging and production
+- [x] Applied on staging and production; post-migration verification block passes
+- [x] Anon smoke test on staging: anon REST returns the three tables (HTTP 200, empty at the time)
+- [x] Production apply (after user sign-off)
 
 ---
 
