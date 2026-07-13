@@ -127,7 +127,7 @@ Changes appear in the live preview immediately and are saved as part of your map
    - **Multiple choice** — the listing can have several values; visitors can select more than one.
    - **Free text** — a free-text tag visitors filter with a type-to-search box.
 2. **Key** — each field has a short **key** (auto-generated from the label). This is the column name used in CSV/Sheet imports (`filter_<key>`). The key can't be changed once options exist, so imports keep matching.
-3. **Options** — for single/multiple choice fields, add the option list (each with an optional colour). Option labels can be renamed freely; the underlying import value stays stable.
+3. **Options** — for single/multiple choice fields, add the option list (each with an optional colour). You can also let them build themselves: importing via CSV or Google Sheets **creates any new option automatically** from the values in the sheet, so you don't have to type every category by hand. Option labels can be renamed freely; the underlying import value stays stable. In the published search bar, only options that at least one listing actually uses are shown — empty options (and any select field with no populated options) are hidden automatically.
 4. **Show in search bar** — turn this on for each field you want visitors to see, and choose the **control** (dropdown, checkbox list, or typeahead). Only valid combinations are offered (e.g. dropdown isn't available for multiple-choice fields).
 5. **Order** — use the up/down arrows to set the order fields appear in the search bar.
 6. **Archive / Delete** — archive hides a field without losing its data; delete (type-to-confirm) permanently removes the field, its options, and all listing tags.
@@ -183,7 +183,7 @@ Open **Data** from the map sub-nav (`/#/client/maps/<id>/data`).
 2. Fill columns such as:  
    `name`, `address`, `postcode`, `country`, `lat`, `lng`, `website_url`, `email`, `phone`, `logo_url`, `notes_html`, `allow_html`, `group_name`, `is_active`.  
    **name** is required; leave `lat`/`lng` blank to geocode addresses (if enabled).  
-   If the map has custom **filter fields**, the template also includes a `filter_<key>` column per field. Enter the option value(s) for each listing; separate multiple values with a pipe (`|`). Values that don't match a defined option are skipped with a warning after import.
+   If the map has custom **filter fields**, the template also includes a `filter_<key>` column per field. Enter the option value(s) for each listing; separate multiple values with a pipe (`|`). You don't need to pre-create the options first — any value that isn't already an option is **added automatically** on import (the import summary tells you how many new options were created).
 3. **Upload CSV** and choose your file.
 4. Optionally enable **Geocode rows missing lat/lng**.
 5. Click **Import**.

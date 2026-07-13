@@ -154,26 +154,85 @@ async function syncSource(
     .eq("is_active", true);
   const activeFilterFields = (filterFieldRows ?? []) as Array<{ id: string; key: string; field_type: string }>;
   const filterOptionLookup = new Map<string, Map<string, string>>();
+  const filterOptionValues = new Map<string, Set<string>>();
+  const filterMaxOrder = new Map<string, number>();
   const filterColIdx = new Map<string, number>();
+  const filterValueWarnings: string[] = [];
   if (activeFilterFields.length) {
     const fieldIds = activeFilterFields.map((f) => f.id);
     const { data: optRows } = await service
       .from("map_filter_field_options")
-      .select("id, field_id, value, label")
+      .select("id, field_id, value, label, sort_order")
       .in("field_id", fieldIds);
     for (const o of optRows ?? []) {
-      if (!filterOptionLookup.has((o as any).field_id)) filterOptionLookup.set((o as any).field_id, new Map());
-      const m = filterOptionLookup.get((o as any).field_id)!;
-      if ((o as any).value) m.set(String((o as any).value).toLowerCase(), (o as any).id);
+      const fid = (o as any).field_id;
+      if (!filterOptionLookup.has(fid)) filterOptionLookup.set(fid, new Map());
+      if (!filterOptionValues.has(fid)) filterOptionValues.set(fid, new Set());
+      const m = filterOptionLookup.get(fid)!;
+      if ((o as any).value) {
+        m.set(String((o as any).value).toLowerCase(), (o as any).id);
+        filterOptionValues.get(fid)!.add(String((o as any).value).toLowerCase());
+      }
       if ((o as any).label) m.set(String((o as any).label).toLowerCase(), (o as any).id);
+      filterMaxOrder.set(fid, Math.max(filterMaxOrder.get(fid) ?? -1, Number((o as any).sort_order ?? 0)));
     }
     for (const f of activeFilterFields) {
       const j = idx(`filter_${f.key}`);
       if (j >= 0) filterColIdx.set(f.id, j);
     }
+
+    // Auto-create options for any values in the sheet that don't exist yet
+    // (select fields only). Matching is case-insensitive on value or label.
+    const slug = (s: string) =>
+      s.trim().toLowerCase().replace(/['"]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+    const newOptions: Array<Record<string, unknown>> = [];
+    for (const f of activeFilterFields) {
+      if (f.field_type !== "single_select" && f.field_type !== "multi_select") continue;
+      const j = filterColIdx.get(f.id);
+      if (j == null) continue;
+      const lookup = filterOptionLookup.get(f.id) ?? new Map<string, string>();
+      const values = filterOptionValues.get(f.id) ?? new Set<string>();
+      filterOptionValues.set(f.id, values);
+      let maxOrder = filterMaxOrder.get(f.id) ?? -1;
+      const seenTokens = new Set<string>();
+      for (let i = 1; i < rows.length; i++) {
+        const cell = String((rows[i] ?? [])[j] ?? "").trim();
+        if (!cell) continue;
+        const parts = cell.split("|").map((t) => t.trim()).filter(Boolean);
+        const usable = f.field_type === "single_select" ? parts.slice(0, 1) : parts;
+        for (const token of usable) {
+          const lc = token.toLowerCase();
+          if (lookup.has(lc) || seenTokens.has(lc)) continue;
+          seenTokens.add(lc);
+          let baseSlug = slug(token) || "opt";
+          let value = baseSlug;
+          let n = 2;
+          while (values.has(value)) { value = `${baseSlug}_${n}`; n += 1; }
+          values.add(value);
+          maxOrder += 1;
+          newOptions.push({ field_id: f.id, value, label: token, color: null, sort_order: maxOrder });
+        }
+      }
+    }
+    if (newOptions.length) {
+      const { data: createdOpts, error: createErr } = await service
+        .from("map_filter_field_options")
+        .insert(newOptions)
+        .select("id, field_id, value, label");
+      if (createErr) {
+        filterValueWarnings.push(`Could not auto-create ${newOptions.length} filter option(s): ${createErr.message}`);
+      } else {
+        for (const o of createdOpts ?? []) {
+          const fid = (o as any).field_id;
+          if (!filterOptionLookup.has(fid)) filterOptionLookup.set(fid, new Map());
+          const m = filterOptionLookup.get(fid)!;
+          if ((o as any).value) m.set(String((o as any).value).toLowerCase(), (o as any).id);
+          if ((o as any).label) m.set(String((o as any).label).toLowerCase(), (o as any).id);
+        }
+      }
+    }
   }
   const filterValuesByListing = new Map<string, Array<Record<string, unknown>>>();
-  const filterValueWarnings: string[] = [];
 
   const cleaned: any[] = [];
   for (let i = 1; i < rows.length; i++) {

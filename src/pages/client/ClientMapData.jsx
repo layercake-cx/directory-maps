@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
-import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, isSelectType } from "../../lib/filterFields.js";
+import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
@@ -604,19 +604,32 @@ export default function ClientMapData() {
 
       // Resolve filter_<key> columns into listing_filter_values.
       let filterWarnings = [];
+      let filterCreatedSuffix = "";
       if (filterFields.some((f) => f.is_active)) {
         const listingIds = cleaned.map((c) => c.id);
-        const { valueRows, warnings } = buildImportFilterValueRows({ rows, listingIds, fields: filterFields });
-        filterWarnings = warnings;
+        // Auto-create any option values that don't exist yet, then resolve.
+        let fieldsForImport = filterFields;
         try {
-          await applyImportedFilterValues({ listingIds, fields: filterFields, valueRows });
+          const { fields: augmented, created } = await ensureImportOptions({ rows, fields: filterFields });
+          fieldsForImport = augmented;
+          if (created.length) {
+            setFilterFields(augmented);
+            filterCreatedSuffix = ` Added ${created.length} new filter option${created.length === 1 ? "" : "s"}.`;
+          }
+        } catch (optErr) {
+          filterWarnings = [...filterWarnings, `New filter options could not be created: ${optErr?.message ?? optErr}`];
+        }
+        const { valueRows, warnings } = buildImportFilterValueRows({ rows, listingIds, fields: fieldsForImport });
+        filterWarnings = [...filterWarnings, ...warnings];
+        try {
+          await applyImportedFilterValues({ listingIds, fields: fieldsForImport, valueRows });
         } catch (fvErr) {
           filterWarnings = [...filterWarnings, `Filter values could not be saved: ${fvErr?.message ?? fvErr}`];
         }
       }
-      const filterWarnSuffix = filterWarnings.length
+      const filterWarnSuffix = (filterCreatedSuffix ? filterCreatedSuffix : "") + (filterWarnings.length
         ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
-        : "";
+        : "");
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });
         if (geoErr || geoData?.error) setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}${filterWarnSuffix}`);

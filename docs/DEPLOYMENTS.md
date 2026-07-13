@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-13 — Staging (Filter fields — auto-create options on ingest + hide empty options)
+
+**Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)
+**Deployed by:** Cursor agent
+
+### What changed
+- **Why:** the first cut required clients to manually pre-enter every possible option before an import could tag listings — any value not already defined was skipped with a warning. That is unworkable for real supplier data where the sheet *is* the list of categories.
+- **What it does now:**
+  - **CSV import** (`ensureImportOptions` in `src/lib/filterFields.js`, wired into `ClientMapData.jsx` + `AdminMapData.jsx`) and **Google Sheets sync** (`sync_sheet_listings`) now **auto-create** any option value found in a `filter_<key>` column that isn't already defined on that select field. New options use the sheet text as the label and a unique slug as the stable import `value`; matching remains case-insensitive on value or label. The import/sync summary reports how many new options were created.
+  - **Viewer** (`PublishedMapView.jsx`) now only renders options that at least one listing actually uses, and hides any select filter field with no populated options — so empty categories never appear in the search-bar dropdowns/lozenges.
+- Text-type fields are unaffected (no option list). Manual and bulk editors still pick from the defined option list.
+
+### Database migrations applied
+None (uses the existing `map_filter_field_options` table).
+
+### Edge functions deployed
+- `sync_sheet_listings` — **needs redeploy to staging** (`beqejxneehilplrtpntn`) for the auto-create behaviour. Production only after sign-off.
+
+### Rollback plan
+`git revert` the feature commits. Auto-created options are ordinary rows in `map_filter_field_options`; delete any unwanted ones from the Filters panel. No schema change to roll back.
+
+### Verified
+- [ ] `npm run build` passes (done locally)
+- [ ] `sync_sheet_listings` redeployed to staging and a sheet with new values creates options + tags listings
+- [ ] CSV import with new values creates options + tags listings
+- [ ] Embed shows only in-use options; empty fields hidden
+
+---
+
 ## 2026-07-13 — Staging (Configurable filter fields — admin, viewer, import & engagement)
 
 **Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (not yet merged)

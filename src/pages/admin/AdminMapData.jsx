@@ -9,7 +9,7 @@ import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
-import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, isSelectType } from "../../lib/filterFields.js";
+import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
@@ -568,19 +568,31 @@ export default function AdminMapData() {
       const importCount = data?.length ?? cleaned.length;
 
       let filterWarnings = [];
+      let filterCreatedSuffix = "";
       if (filterFields.some((f) => f.is_active)) {
         const listingIds = cleaned.map((c) => c.id);
-        const { valueRows, warnings } = buildImportFilterValueRows({ rows, listingIds, fields: filterFields });
-        filterWarnings = warnings;
+        let fieldsForImport = filterFields;
         try {
-          await applyImportedFilterValues({ listingIds, fields: filterFields, valueRows });
+          const { fields: augmented, created } = await ensureImportOptions({ rows, fields: filterFields });
+          fieldsForImport = augmented;
+          if (created.length) {
+            setFilterFields(augmented);
+            filterCreatedSuffix = ` Added ${created.length} new filter option${created.length === 1 ? "" : "s"}.`;
+          }
+        } catch (optErr) {
+          filterWarnings = [...filterWarnings, `New filter options could not be created: ${optErr?.message ?? optErr}`];
+        }
+        const { valueRows, warnings } = buildImportFilterValueRows({ rows, listingIds, fields: fieldsForImport });
+        filterWarnings = [...filterWarnings, ...warnings];
+        try {
+          await applyImportedFilterValues({ listingIds, fields: fieldsForImport, valueRows });
         } catch (fvErr) {
           filterWarnings = [...filterWarnings, `Filter values could not be saved: ${fvErr?.message ?? fvErr}`];
         }
       }
-      const filterWarnSuffix = filterWarnings.length
+      const filterWarnSuffix = (filterCreatedSuffix ? filterCreatedSuffix : "") + (filterWarnings.length
         ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
-        : "";
+        : "");
 
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });

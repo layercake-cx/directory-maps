@@ -350,6 +350,92 @@ export function filterColumnName(key) {
   return `filter_${key}`;
 }
 
+/** Collect distinct tokens for a select field from imported rows (first-seen order). */
+function collectFieldTokens(rows, field) {
+  const col = filterColumnName(field.key);
+  const single = field.field_type === "single_select";
+  const seen = new Set();
+  const tokens = [];
+  for (const r of rows || []) {
+    const raw = r?.[col];
+    if (raw == null) continue;
+    const cell = String(raw).trim();
+    if (!cell) continue;
+    const parts = cell.split("|").map((t) => t.trim()).filter(Boolean);
+    const usable = single ? parts.slice(0, 1) : parts;
+    for (const token of usable) {
+      const lc = token.toLowerCase();
+      if (seen.has(lc)) continue;
+      seen.add(lc);
+      tokens.push(token);
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Auto-create options for any values found in the import that don't already
+ * exist on a select field. Matching is case-insensitive against each option's
+ * `value` (import key) or `label`. New options get a unique slug for `value`
+ * and the raw token as `label`, appended after the current options.
+ *
+ * Returns a NEW fields array with the freshly created options merged in (so a
+ * subsequent buildImportFilterValueRows resolves them), plus a `created`
+ * summary for user messaging.
+ *
+ * @returns {Promise<{ fields: object[], created: { field: string, label: string }[] }>}
+ */
+export async function ensureImportOptions({ rows, fields }) {
+  const base = (fields || []).map((f) => ({ ...f, options: (f.options || []).slice() }));
+  const selectFields = base.filter((f) => f.is_active && isSelectType(f.field_type));
+  const created = [];
+  if (selectFields.length === 0 || !(rows || []).length) return { fields: base, created };
+
+  for (const field of selectFields) {
+    const known = new Set();
+    const usedValues = new Set();
+    let maxOrder = -1;
+    for (const o of field.options) {
+      if (o.value) {
+        known.add(String(o.value).toLowerCase());
+        usedValues.add(String(o.value).toLowerCase());
+      }
+      if (o.label) known.add(String(o.label).toLowerCase());
+      maxOrder = Math.max(maxOrder, o.sort_order ?? 0);
+    }
+
+    const toInsert = [];
+    for (const token of collectFieldTokens(rows, field)) {
+      if (known.has(token.toLowerCase())) continue;
+      known.add(token.toLowerCase());
+      let baseSlug = slugifyKey(token) || "opt";
+      let value = baseSlug;
+      let n = 2;
+      while (usedValues.has(value)) {
+        value = `${baseSlug}_${n}`;
+        n += 1;
+      }
+      usedValues.add(value);
+      maxOrder += 1;
+      toInsert.push({ field_id: field.id, value, label: token, color: null, sort_order: maxOrder });
+    }
+
+    if (toInsert.length > 0) {
+      const { data, error } = await supabase
+        .from("map_filter_field_options")
+        .insert(toInsert)
+        .select("id, field_id, value, label, sort_order, color");
+      if (error) throw error;
+      for (const o of data ?? []) {
+        field.options.push(o);
+        created.push({ field: field.label, label: o.label });
+      }
+    }
+  }
+
+  return { fields: base, created };
+}
+
 /**
  * Resolve `filter_<key>` cells from imported rows into listing_filter_values rows.
  * @param {object[]} rows        row objects keyed by lowercased header

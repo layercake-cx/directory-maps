@@ -370,6 +370,17 @@ export default function PublishedMapView({
     return m;
   }, [list]);
 
+  /** Option ids that at least one listing on the map actually carries. */
+  const usedOptionIds = useMemo(() => {
+    const s = new Set();
+    (list || []).forEach((l) => {
+      (l.filterValues || []).forEach((v) => {
+        if (v && v.option_id != null) s.add(v.option_id);
+      });
+    });
+    return s;
+  }, [list]);
+
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
@@ -1145,7 +1156,11 @@ export default function PublishedMapView({
               const selected = activeFilters[field.id];
               const selectedSet = selected instanceof Set ? selected : null;
               const textValue = typeof selected === "string" ? selected : "";
-              const options = field.options || [];
+              // Only surface options that at least one listing actually uses.
+              const options = (field.options || []).filter((o) => usedOptionIds.has(o.id));
+
+              // A select field with no populated options adds no value — hide it.
+              if (field.field_type !== "text" && options.length === 0) return null;
 
               if (field.field_type === "text") {
                 return (
