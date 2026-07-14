@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-14 — Production (Directories — DIR-E1 core + Categorisations, DIR-E5)
+
+**Branch/commit:** PRs #83 (docs), #84 (DIR-E1 core), #86 (DIR-E5 categorisations — re-opened as a fresh PR after #85 was auto-closed by GitHub when its stacked base branch was deleted post-merge)
+**Deployed by:** Claude Code (explicit user sign-off: "I think we can deploy what we've done so far")
+
+### What changed
+- Both slices built so far land in production together: directory + entry CRUD (DIR-E1 core) and categorisations (DIR-E5). See the two staging entries below for full feature detail — nothing changed between staging and production except the target database/deploy.
+
+### Database migrations applied
+- `20260714120000_create_directories.sql` — applied to **production** (`gxixwdjfmegxcxfeflro`) via `supabase db push`. `VERIFY PASSED: directories tables created`.
+- `20260714130000_create_categorisations.sql` — applied to **production** immediately after, same `db push` run. `VERIFY PASSED: categorisation tables created`.
+- Both had already been applied to staging and verified (RLS + anon-read check via REST) before this production apply; both are purely additive (new tables only, no ALTER/DROP on existing tables).
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- PRs #83 → #84 → #86 merged to `main` in that order; each merge auto-deployed to GitHub Pages via the existing GitHub Actions workflow. Final deploy (post-#86) confirmed `completed`/`success` via `gh run list`.
+
+### Rollback plan
+- Frontend: `git revert` the merge commits on `main` (in reverse order: #86, then #84, then #83), or redeploy a prior commit.
+- Migrations: run `_20260714130000_create_categorisations.rollback.sql` then `_20260714120000_create_directories.rollback.sql` (in that order — categorisations tables reference `directories`/`directory_entries`) against production. Both refuse to run if any real data exists in the tables they created.
+
+### Verified
+- [x] Production migrations applied; `VERIFY PASSED` for both
+- [x] Frontend live after PR merges (GitHub Actions `success` on the final deploy)
+- [ ] User smoke test with real credentials on production: create a directory, add/edit/delete an entry, create a categorisation + terms, tag a directory and an entry — client and admin portals
+
+---
+
 ## 2026-07-14 — Staging (Directories — Categorisations, DIR-E5)
 
 **Branch/commit:** `feat/2026-07-14-directories-categorisations` (PR pending, stacked on `feat/2026-07-14-directories-crud` / PR #84 — not yet merged)
@@ -38,7 +68,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `npx vite build` succeeds with no errors
 - [x] Staging migration applied; `VERIFY PASSED` notice; anon REST check confirms tables + RLS are live
 - [ ] User smoke test: create a categorisation + terms, tag a directory and an entry, in both portals
-- [ ] Frontend live after PR merge (after PR #84 merges first)
+- [x] Frontend live after PR merge (PR #85 was auto-closed when its base branch was deleted post-#84-merge; re-opened as PR #86 against `main` and merged — see the Production entry above)
 
 ---
 
@@ -72,7 +102,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `npx vite build` succeeds with no errors
 - [x] Staging migration applied; `VERIFY PASSED` notice; anon REST check confirms tables + RLS are live
 - [ ] User smoke test: create directory → add/edit/delete entry, client and admin portals
-- [ ] Frontend live after PR merge
+- [x] Frontend live after PR merge (PR #84 merged — see the Production entry above)
 
 ---
 
