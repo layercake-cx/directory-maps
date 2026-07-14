@@ -58,6 +58,7 @@ After sign-in you’ll see:
 | Section | Path | Who can access |
 |---------|------|----------------|
 | **My Maps** | `/#/client` | All team members |
+| **Directories** | `/#/client/directories` | All team members |
 | **Team** | `/#/client/team` | Owners and managers |
 | **Email** | `/#/client/email` | Users who can manage maps |
 
@@ -86,6 +87,37 @@ Sign out from the header when finished.
 3. Click **Create map**.
 
 You’ll return to **My Maps**; open the new map to configure it.
+
+---
+
+## Directories
+
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, categorisation-driven filtering, and map linking are not built yet.
+
+### Creating a directory
+
+1. From **Directories**, click **New directory** (owners and managers only).
+2. Fill in:
+   - **Directory name** — e.g. "Accredited Suppliers".
+   - **Web address (short name)** — used in the directory's future public URL; auto-suggested from the name.
+   - **Description** (optional).
+3. Click **Create directory**.
+
+### Managing entries
+
+Open a directory to see its entries table:
+
+- **+ Add entry** — opens a form for name, address, postcode, country, group, latitude/longitude, website, email, phone, logo URL, and notes.
+- **Search** — filters entries by name or address (server-side, so it works across directories of any size).
+- **Edit** / **Delete** — Delete requires typing **DELETE** to confirm, since it can't be undone.
+- **Group** — a simple, single-value category per directory (add new groups inline from the entry form). This is distinct from the richer, reusable categorisation model planned for a later phase.
+
+### Archiving or deleting a directory
+
+From a directory's page (owners and managers only):
+
+- **Archive** — hides the directory from your list; entries are kept.
+- **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm.
 
 ---
 

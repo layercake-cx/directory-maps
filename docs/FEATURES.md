@@ -168,6 +168,24 @@ Every Google Sheets sync attempt is recorded in the `sync_logs` table (status: `
 
 Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistoryTable.jsx`.
 
+### 4.4a Directories (new, DIR-E1 core)
+
+A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) is built so far. Publishing, branding/custom domain, categorisations, the entry layout designer, natural-language search, and map association/embedding are not implemented yet.
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Directories list | `/client/directories` | List/create directories for the client |
+| Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory |
+
+- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active.
+- **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model planned for DIR-E5.
+- Entry deletion (and directory deletion) require typing `DELETE` to confirm — a deliberate departure from the plain `window.confirm()` used for `listings`, given the larger blast radius of losing directory content.
+- No CSV/XLSX import, bulk actions, or publishing yet — deferred to a fast-follow per the DIR-E1 scope decision.
+
+Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
+
+Files: `src/lib/directories.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx` (client); `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
@@ -275,6 +293,10 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `map_contact_submissions` | Visitor contact form archive |
 | `invitations` | Pending team invites |
 | `contact_map_permissions` | Member → map access |
+| `directories` | New Directories feature (peer of `maps`) — DIR-E1 core only |
+| `directory_groups` | Simple single-value grouping per directory (peer of `groups`) |
+| `directory_entries` | Directory entries (peer of `listings`) |
+| `contact_directory_permissions` | Member → directory access (peer of `contact_map_permissions`, not yet RLS-enforced — mirrors current `contact_map_permissions` behaviour) |
 | `error_logs` | Client-side error reports |
 
 View: `public_listings` for anon-safe listing reads on embed.
@@ -369,6 +391,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Admin user management | **Stub** | Page is placeholder |
 | OneDrive / iCloud | **Not started** | UI placeholders only |
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
+| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/categorisation/search/map-linking yet (see `docs/DIRECTORIES.md`) |
 
 ---
 
@@ -391,11 +414,16 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/client/maps/:mapId/listings` | `ClientMapListings` |
 | `/client/maps/:mapId/stats` | `MapStats` |
 | `/client/maps/:mapId/stats/listings/:listingId` | `ListingStats` |
+| `/client/directories` | `ClientDirectories` |
+| `/client/directories/new` | `ClientDirectoryNew` |
+| `/client/directories/:directoryId` | `ClientDirectoryEntries` |
 | `/admin/clients` | `AdminClients` |
 | `/admin/maps` | `AdminMaps` |
 | `/admin/clients/:clientId/maps/:mapId` | `AdminMapDashboard` |
 | `/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` |
 | `/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` |
+| `/admin/clients/:clientId/directories/new` | `AdminDirectoryNew` |
+| `/admin/clients/:clientId/directories/:directoryId` | `AdminDirectoryEntries` |
 | `/admin/user-activity` | `AdminUserActivity` |
 | `/admin/error-log` | `AdminErrorLogs` |
 | `/admin/deployments` | `AdminDeployments` |
