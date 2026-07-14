@@ -18,6 +18,7 @@ import "../admin/admin.css";
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
   { label: "Directories", path: "/client/directories" },
+  { label: "Categorisations", path: "/client/categorisations", requiresManageOrg: true },
   { label: "Team", path: "/client/team", requiresManageOrg: true },
   { label: "Messaging", path: "/client/email", requiresManageMaps: true },
 ];
@@ -274,7 +275,8 @@ export default function ClientLayout() {
                         !pathname.startsWith("/client/team") &&
                         !pathname.startsWith("/client/email") &&
                         !pathname.startsWith("/client/maps/") &&
-                        !pathname.startsWith("/client/directories"))
+                        !pathname.startsWith("/client/directories") &&
+                        !pathname.startsWith("/client/categorisations"))
                     : pathname === path || pathname.startsWith(path + "/");
                 return (
                   <Link

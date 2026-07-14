@@ -7,6 +7,8 @@ import { startImpersonatingClient } from "../../lib/clientAuth";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
 import { listDirectories } from "../../lib/directories.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
+import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
 
 function Field({ label, children }) {
   return (
@@ -269,9 +271,14 @@ export default function AdminClientDetail() {
     navigate("/client");
   }
 
+  const recordEvent = (eventType, meta) => {
+    recordAdminEvent(supabase, { eventType, meta, source: "admin_dashboard", clientId });
+  };
+
   const CLIENT_NAV_ITEMS = [
     { label: "Maps", value: "maps" },
     { label: "Directories", value: "directories" },
+    { label: "Categorisations", value: "categorisations" },
     { label: "Customer details", value: "details" },
     { label: "Users", value: "users" },
     { label: "Messaging", value: "messaging" },
@@ -381,6 +388,13 @@ export default function AdminClientDetail() {
                     </tbody>
                   </table>
                 )}
+              </div>
+            )}
+
+            {activeTab === "categorisations" && (
+              <div>
+                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Categorisations</h3>
+                <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 

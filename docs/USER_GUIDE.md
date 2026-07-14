@@ -59,6 +59,7 @@ After sign-in you’ll see:
 |---------|------|----------------|
 | **My Maps** | `/#/client` | All team members |
 | **Directories** | `/#/client/directories` | All team members |
+| **Categorisations** | `/#/client/categorisations` | Owners and managers |
 | **Team** | `/#/client/team` | Owners and managers |
 | **Email** | `/#/client/email` | Users who can manage maps |
 
@@ -118,6 +119,21 @@ From a directory's page (owners and managers only):
 
 - **Archive** — hides the directory from your list; entries are kept.
 - **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm.
+
+### Categorisations
+
+**Categorisations** (`/#/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every directory you own. They're separate from a directory's simple **Group** field:
+
+- **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
+- A **categorisation** can apply to directory entries, whole directories, or both, and an entry/directory can carry any number of terms from it.
+
+Create a categorisation, give it a label and a set of terms (each with an optional colour), and choose what it applies to. **Applies to** can't be changed after creation — delete and recreate it if you need to. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+
+Once a categorisation exists, its terms appear as a checkbox picker:
+- On a directory's page, to tag the whole directory.
+- On an entry's create/edit form, to tag that entry.
+
+Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
 
 ---
 
