@@ -52,6 +52,7 @@ import ListingStats from "./pages/client/ListingStats.jsx";
 import ClientDirectories from "./pages/client/ClientDirectories.jsx";
 import ClientDirectoryNew from "./pages/client/ClientDirectoryNew.jsx";
 import ClientDirectoryEntries from "./pages/client/ClientDirectoryEntries.jsx";
+import ClientCategorisations from "./pages/client/ClientCategorisations.jsx";
 
 export default function App() {
   return (
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="directories" element={<ClientDirectories />} />
         <Route path="directories/new" element={<ClientDirectoryNew />} />
         <Route path="directories/:directoryId" element={<ClientDirectoryEntries />} />
+        <Route path="categorisations" element={<ClientCategorisations />} />
       </Route>
 
       {/* Admin root -> clients */}

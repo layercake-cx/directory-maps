@@ -170,21 +170,38 @@ Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistory
 
 ### 4.4a Directories (new, DIR-E1 core)
 
-A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) is built so far. Publishing, branding/custom domain, categorisations, the entry layout designer, natural-language search, and map association/embedding are not implemented yet.
+A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) plus categorisations (DIR-E5, see §4.4b) are built so far. Publishing, branding/custom domain, the entry layout designer, natural-language search, and map association/embedding are not implemented yet.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
 | Directories list | `/client/directories` | List/create directories for the client |
-| Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory |
+| Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory; tag the directory and its entries with categorisation terms |
 
 - Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active.
-- **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model planned for DIR-E5.
+- **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model (§4.4b).
 - Entry deletion (and directory deletion) require typing `DELETE` to confirm — a deliberate departure from the plain `window.confirm()` used for `listings`, given the larger blast radius of losing directory content.
 - No CSV/XLSX import, bulk actions, or publishing yet — deferred to a fast-follow per the DIR-E1 scope decision.
 
 Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
 
 Files: `src/lib/directories.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx` (client); `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
+
+### 4.4b Categorisations (new, DIR-E5)
+
+Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be applied to whole directories, directory entries, or both — additive alongside directory groups, never a replacement (a categorisation can tag entries across every directory a client owns; a group is per-directory and single-value). Modelled directly on the existing `map_filter_fields`/`FilterFieldsPanel` pattern: `applies_to` is immutable after creation (delete and recreate to change it), archive vs. typed-`DELETE`-confirmation permanent delete (showing a live usage count across directories + entries).
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Categorisations | `/client/categorisations` (owners/managers) | Create/edit/archive/delete categorisations and their terms |
+| Admin "Categorisations" tab | `/admin/clients/:clientId` | Same management UI, for Layercake staff |
+| Entry tagging | Inside the entry create/edit modal on a directory's entries page | Checkbox picker per applicable categorisation |
+| Directory tagging | On a directory's entries page, above the entries table | Checkbox picker, auto-saves on change |
+
+Tables: `categorisations`, `category_terms`, `directory_category_terms`, `entry_category_terms` (`20260714130000_create_categorisations.sql`). RLS mirrors `directories`/`directory_entries` (`_admin_all` + `_own_client`, client-scoped via `categorisations.client_id` directly or a join); no anon-read policy yet.
+
+Not built yet: public/published-site filtering by categorisation term (DIR-E5-S4) — requires directory publishing (DIR-E2), which doesn't exist yet.
+
+Files: `src/lib/categorisations.js`, `src/components/directories/CategorisationsPanel.jsx`, `src/components/directories/CategoryTagPicker.jsx`, `ClientCategorisations.jsx` (client); a "Categorisations" tab in `AdminClientDetail.jsx` (admin).
 
 ### 4.5 Analytics (engagement)
 
@@ -297,6 +314,10 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `directory_groups` | Simple single-value grouping per directory (peer of `groups`) |
 | `directory_entries` | Directory entries (peer of `listings`) |
 | `contact_directory_permissions` | Member → directory access (peer of `contact_map_permissions`, not yet RLS-enforced — mirrors current `contact_map_permissions` behaviour) |
+| `categorisations` | Client-wide taxonomy definitions (key, label, `applies_to`) |
+| `category_terms` | Term list per categorisation (peer of `map_filter_field_options`) |
+| `directory_category_terms` | Tags a whole directory with a term |
+| `entry_category_terms` | Tags a directory entry with a term (peer of `listing_filter_values`, pure many-to-many) |
 | `error_logs` | Client-side error reports |
 
 View: `public_listings` for anon-safe listing reads on embed.
@@ -391,7 +412,8 @@ Shared utilities: `supabase/functions/_shared/`.
 | Admin user management | **Stub** | Page is placeholder |
 | OneDrive / iCloud | **Not started** | UI placeholders only |
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
-| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/categorisation/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Categorisations (DIR-E5) | **Beta** | Taxonomy management + directory/entry tagging shipped to staging; no published-site filtering yet (depends on DIR-E2 publishing) |
 
 ---
 
@@ -417,6 +439,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/client/directories` | `ClientDirectories` |
 | `/client/directories/new` | `ClientDirectoryNew` |
 | `/client/directories/:directoryId` | `ClientDirectoryEntries` |
+| `/client/categorisations` | `ClientCategorisations` |
 | `/admin/clients` | `AdminClients` |
 | `/admin/maps` | `AdminMaps` |
 | `/admin/clients/:clientId/maps/:mapId` | `AdminMapDashboard` |

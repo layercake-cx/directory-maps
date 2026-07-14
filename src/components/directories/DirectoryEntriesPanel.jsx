@@ -9,6 +9,8 @@ import {
   listDirectoryGroups,
   updateDirectoryEntry,
 } from "../../lib/directories";
+import { loadEntryTermIds, setEntryTerms } from "../../lib/categorisations";
+import CategoryTagPicker from "./CategoryTagPicker.jsx";
 
 const emptyForm = {
   name: "",
@@ -43,10 +45,11 @@ const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBott
  * Shared between the client portal and the admin console (DIR-E1).
  *
  * @param {string} directoryId
+ * @param {string} [clientId] - required to show the Categorisations tag picker (DIR-E5-S2); omit to hide it.
  * @param {boolean} canEdit - Owner/Manager, or a Member explicitly granted access.
  * @param {(eventType: string, meta?: object) => void} [recordEvent] - admin-event emitter (see AGENTS.md), matches the recordFilterEvent convention used by FilterFieldsPanel.
  */
-export default function DirectoryEntriesPanel({ directoryId, canEdit = true, recordEvent }) {
+export default function DirectoryEntriesPanel({ directoryId, clientId, canEdit = true, recordEvent }) {
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,8 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true, rec
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  const [entryTermIds, setEntryTermIdsState] = useState([]);
 
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const totalPages = Math.max(1, Math.ceil(count / ENTRIES_PAGE_SIZE));
@@ -114,6 +119,7 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true, rec
   function openCreate() {
     setEditingEntry(null);
     setForm(emptyForm);
+    setEntryTermIdsState([]);
     setFormErr("");
     setModal("new");
   }
@@ -137,6 +143,8 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true, rec
       allow_html: !!entry.allow_html,
       is_active: entry.is_active !== false,
     });
+    setEntryTermIdsState([]);
+    if (clientId) loadEntryTermIds(entry.id).then(setEntryTermIdsState).catch(() => {});
     setFormErr("");
     setModal("edit");
   }
@@ -157,9 +165,11 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true, rec
       setSaving(true);
       if (modal === "new") {
         const id = await createDirectoryEntry({ ...form, directory_id: directoryId });
+        if (clientId) await setEntryTerms(id, entryTermIds);
         recordEvent?.("directory_entry_created", { directory_id: directoryId, entry_id: id, name: form.name });
       } else if (editingEntry) {
         await updateDirectoryEntry(editingEntry.id, form);
+        if (clientId) await setEntryTerms(editingEntry.id, entryTermIds);
         recordEvent?.("directory_entry_updated", { directory_id: directoryId, entry_id: editingEntry.id });
       }
       closeModal();
@@ -390,6 +400,18 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true, rec
                   <input type="checkbox" checked={form.is_active} onChange={(e) => fSet("is_active", e.target.checked)} />
                   Active (visible)
                 </label>
+
+                {clientId && (
+                  <div>
+                    <label style={labelStyle}>Categorisations</label>
+                    <CategoryTagPicker
+                      clientId={clientId}
+                      scope="entry"
+                      selectedTermIds={entryTermIds}
+                      onChange={setEntryTermIdsState}
+                    />
+                  </div>
+                )}
 
                 {formErr && <Alert color="red" variant="light">{formErr}</Alert>}
 

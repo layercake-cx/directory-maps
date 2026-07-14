@@ -3,9 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
 import { archiveDirectory, deleteDirectoryPermanently, getDirectory } from "../../lib/directories.js";
+import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
+import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
@@ -26,6 +28,9 @@ export default function ClientDirectoryEntries() {
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const [directoryTermIds, setDirectoryTermIds] = useState([]);
+  const [savingTerms, setSavingTerms] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
@@ -39,6 +44,23 @@ export default function ClientDirectoryEntries() {
       }
     })();
   }, [directoryId]);
+
+  useEffect(() => {
+    loadDirectoryTermIds(directoryId).then(setDirectoryTermIds).catch(() => {});
+  }, [directoryId]);
+
+  async function handleDirectoryTermsChange(ids) {
+    setDirectoryTermIds(ids);
+    try {
+      setSavingTerms(true);
+      await setDirectoryTerms(directoryId, ids);
+      recordEvent("directory_terms_updated", { directory_id: directoryId });
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setSavingTerms(false);
+    }
+  }
 
   async function handleArchive() {
     if (!window.confirm(`Archive "${directory?.name}"? It will be hidden from your directories list.`)) return;
@@ -95,7 +117,19 @@ export default function ClientDirectoryEntries() {
         )}
       </div>
 
-      <DirectoryEntriesPanel directoryId={directoryId} canEdit recordEvent={recordEvent} />
+      <div className="admin-card" style={{ marginBottom: 16 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
+          Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
+        </p>
+        <CategoryTagPicker
+          clientId={client?.id}
+          scope="directory"
+          selectedTermIds={directoryTermIds}
+          onChange={canManage ? handleDirectoryTermsChange : () => {}}
+        />
+      </div>
+
+      <DirectoryEntriesPanel directoryId={directoryId} clientId={client?.id} canEdit recordEvent={recordEvent} />
 
       {deleteOpen && (
         <div

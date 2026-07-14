@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-14 — Staging (Directories — Categorisations, DIR-E5)
+
+**Branch/commit:** `feat/2026-07-14-directories-categorisations` (PR pending, stacked on `feat/2026-07-14-directories-crud` / PR #84 — not yet merged)
+**Deployed by:** Claude Code (user sign-off to apply the migration to staging)
+
+### What changed
+- New **Categorisations** feature (epic DIR-E5 per `docs/DIRECTORIES.md`): reusable, client-wide taxonomies (e.g. "Sector") applicable to whole directories, entries, or both — additive alongside `directory_groups`, never a replacement.
+- Management UI (`CategorisationsPanel`, modelled directly on `FilterFieldsPanel.jsx`): create/edit categorisations and their terms, `applies_to` immutable after creation, archive vs. typed-`DELETE`-confirmation permanent delete with a live usage count. Reachable at `/client/categorisations` (owners/managers) and a new "Categorisations" tab on the admin customer-detail page.
+- Tagging UI (`CategoryTagPicker`, shared component): a checkbox picker embedded in the directory-entries page header (tags the whole directory, auto-saves) and inside the entry create/edit modal (tags that entry, saved with the entry).
+- Also backfilled: admin event instrumentation (`directory_created/archived/deleted`, `directory_entry_created/updated/deleted`) that DIR-E1 shipped without — a gap against AGENTS.md's admin-workflow requirement, fixed on the DIR-E1 branch/PR #84 before this work branched from it.
+- Not built yet, and explicitly out of scope: published-site filtering by categorisation term (DIR-E5-S4) — depends on directory publishing (DIR-E2), which doesn't exist.
+
+### Database migrations applied
+- `20260714130000_create_categorisations.sql` — applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Creates `categorisations`, `category_terms`, `directory_category_terms`, `entry_category_terms`, all RLS-enabled (`_admin_all` + `_own_client`, mirroring `directories`/`directory_entries`; no anon-read policy yet). Post-migration `VERIFY PASSED` notice confirmed; anon REST check on all four tables returned `[]` (200, not a missing-relation error).
+- **Not yet applied to production.** Rollback file: `_20260714130000_create_categorisations.rollback.sql` (refuses to run if any categorisation rows exist).
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Not yet merged to `main` — pending PR review, and stacked behind PR #84 (DIR-E1 core), which must merge first.
+
+### Rollback plan
+- Frontend: do not merge / revert the merge commit on `main`.
+- Migration: run `_20260714130000_create_categorisations.rollback.sql` on staging (refuses if any real data exists).
+
+### Verified
+- [x] `npx vite build` succeeds with no errors
+- [x] Staging migration applied; `VERIFY PASSED` notice; anon REST check confirms tables + RLS are live
+- [ ] User smoke test: create a categorisation + terms, tag a directory and an entry, in both portals
+- [ ] Frontend live after PR merge (after PR #84 merges first)
+
+---
+
 ## 2026-07-14 — Staging (Directories — DIR-E1 core: directory + entry CRUD)
 
 **Branch/commit:** `feat/2026-07-14-directories-crud` (PR pending)
