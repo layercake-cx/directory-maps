@@ -44,8 +44,9 @@ const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBott
  *
  * @param {string} directoryId
  * @param {boolean} canEdit - Owner/Manager, or a Member explicitly granted access.
+ * @param {(eventType: string, meta?: object) => void} [recordEvent] - admin-event emitter (see AGENTS.md), matches the recordFilterEvent convention used by FilterFieldsPanel.
  */
-export default function DirectoryEntriesPanel({ directoryId, canEdit = true }) {
+export default function DirectoryEntriesPanel({ directoryId, canEdit = true, recordEvent }) {
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -155,9 +156,11 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true }) {
     try {
       setSaving(true);
       if (modal === "new") {
-        await createDirectoryEntry({ ...form, directory_id: directoryId });
+        const id = await createDirectoryEntry({ ...form, directory_id: directoryId });
+        recordEvent?.("directory_entry_created", { directory_id: directoryId, entry_id: id, name: form.name });
       } else if (editingEntry) {
         await updateDirectoryEntry(editingEntry.id, form);
+        recordEvent?.("directory_entry_updated", { directory_id: directoryId, entry_id: editingEntry.id });
       }
       closeModal();
       await refresh();
@@ -190,6 +193,7 @@ export default function DirectoryEntriesPanel({ directoryId, canEdit = true }) {
     try {
       setDeleting(true);
       await deleteDirectoryEntry(deleteTarget.id);
+      recordEvent?.("directory_entry_deleted", { directory_id: directoryId, entry_id: deleteTarget.id, name: deleteTarget.name });
       setDeleteTarget(null);
       setDeleteText("");
       await refresh();

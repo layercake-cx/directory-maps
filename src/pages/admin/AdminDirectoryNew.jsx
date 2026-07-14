@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { createDirectory, slugify } from "../../lib/directories.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 
 export default function AdminDirectoryNew() {
   const { clientId } = useParams();
@@ -36,6 +37,12 @@ export default function AdminDirectoryNew() {
     try {
       setSaving(true);
       const id = await createDirectory({ clientId, name, slug: finalSlug, description });
+      recordAdminEvent(supabase, {
+        eventType: "directory_created",
+        meta: { name, slug: finalSlug, directory_id: id },
+        source: "admin_dashboard",
+        clientId,
+      });
       navigate(`/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(id)}`);
     } catch (e2) {
       setErr(e2?.message ?? String(e2));

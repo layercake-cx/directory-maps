@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { createDirectory, slugify } from "../../lib/directories.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { supabase } from "../../lib/supabase";
 
 export default function ClientDirectoryNew() {
   const navigate = useNavigate();
@@ -22,6 +24,12 @@ export default function ClientDirectoryNew() {
     try {
       setSaving(true);
       const id = await createDirectory({ clientId: client?.id, name, slug: finalSlug, description });
+      recordAdminEvent(supabase, {
+        eventType: "directory_created",
+        meta: { name, slug: finalSlug, directory_id: id },
+        source: "client_portal",
+        clientId: client?.id ?? null,
+      });
       navigate(`/client/directories/${encodeURIComponent(id)}`);
     } catch (e2) {
       setErr(e2?.message ?? String(e2));

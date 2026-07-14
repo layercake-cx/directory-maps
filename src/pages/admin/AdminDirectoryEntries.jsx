@@ -1,14 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { archiveDirectory, deleteDirectoryPermanently, getDirectory } from "../../lib/directories.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
   const navigate = useNavigate();
+
+  const recordEvent = useCallback((eventType, meta) => {
+    recordAdminEvent(supabase, { eventType, meta, source: "admin_dashboard", clientId });
+  }, [clientId]);
 
   const [client, setClient] = useState(null);
   const [directory, setDirectory] = useState(null);
@@ -44,6 +49,7 @@ export default function AdminDirectoryEntries() {
     try {
       setArchiving(true);
       await archiveDirectory(directoryId);
+      recordEvent("directory_archived", { directory_id: directoryId, name: directory?.name });
       navigate(`/admin/clients/${encodeURIComponent(clientId)}`);
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -57,6 +63,7 @@ export default function AdminDirectoryEntries() {
     try {
       setDeleting(true);
       await deleteDirectoryPermanently(directoryId);
+      recordEvent("directory_deleted", { directory_id: directoryId, name: directory?.name });
       navigate(`/admin/clients/${encodeURIComponent(clientId)}`);
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -106,7 +113,7 @@ export default function AdminDirectoryEntries() {
               </div>
             </div>
 
-            <DirectoryEntriesPanel directoryId={directoryId} canEdit />
+            <DirectoryEntriesPanel directoryId={directoryId} canEdit recordEvent={recordEvent} />
           </>
         )}
       </div>

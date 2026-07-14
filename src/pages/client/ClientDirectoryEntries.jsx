@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
 import { archiveDirectory, deleteDirectoryPermanently, getDirectory } from "../../lib/directories.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { supabase } from "../../lib/supabase";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
   const navigate = useNavigate();
-  const { contact } = useClient();
+  const { client, contact } = useClient();
   const canManage = canManageOrg(contact);
+
+  const recordEvent = useCallback((eventType, meta) => {
+    recordAdminEvent(supabase, { eventType, meta, source: "client_portal", clientId: client?.id ?? null });
+  }, [client?.id]);
 
   const [directory, setDirectory] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +45,7 @@ export default function ClientDirectoryEntries() {
     try {
       setArchiving(true);
       await archiveDirectory(directoryId);
+      recordEvent("directory_archived", { directory_id: directoryId, name: directory?.name });
       navigate("/client/directories");
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -52,6 +59,7 @@ export default function ClientDirectoryEntries() {
     try {
       setDeleting(true);
       await deleteDirectoryPermanently(directoryId);
+      recordEvent("directory_deleted", { directory_id: directoryId, name: directory?.name });
       navigate("/client/directories");
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -87,7 +95,7 @@ export default function ClientDirectoryEntries() {
         )}
       </div>
 
-      <DirectoryEntriesPanel directoryId={directoryId} canEdit />
+      <DirectoryEntriesPanel directoryId={directoryId} canEdit recordEvent={recordEvent} />
 
       {deleteOpen && (
         <div
