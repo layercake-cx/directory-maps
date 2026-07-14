@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-14 — Staging (Directories — DIR-E1 core: directory + entry CRUD)
+
+**Branch/commit:** `feat/2026-07-14-directories-crud` (PR pending)
+**Deployed by:** Claude Code (user sign-off to apply the migration to staging)
+
+### What changed
+- New **Directories** feature, first slice only (epic DIR-E1 core per `docs/DIRECTORIES.md`): a directory is the peer of a map, an entry is the peer of a listing.
+- Client portal: `/client/directories` (list), `/client/directories/new` (create), `/client/directories/:directoryId` (entries CRUD, archive/delete directory).
+- Admin console: new "Directories" tab on the customer detail page, `/admin/clients/:clientId/directories/new`, `/admin/clients/:clientId/directories/:directoryId`.
+- Shared `DirectoryEntriesPanel` component (server-side paginated search, create/edit modal, typed-`DELETE`-confirmation) used by both portals — built as one shared component from the start rather than the historical admin/client fork pattern, per a decision made alongside this feature.
+- Deferred to a fast-follow (explicitly out of scope for this slice): CSV/XLSX import, bulk actions, publishing, branding, categorisations, entry layout designer, NL search, map association.
+
+### Database migrations applied
+- `20260714120000_create_directories.sql` — applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Creates `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions`, all RLS-enabled (`_admin_all` + `_own_client`, mirroring `maps`/`groups`/`listings`; no anon-read policy yet — no publish concept until DIR-E2). Post-migration `VERIFY PASSED` notice confirmed; anon REST check on all four tables returned `[]` (200, not a missing-relation error), confirming tables exist and RLS blocks anon as intended.
+- **Not yet applied to production.** Rollback file: `_20260714120000_create_directories.rollback.sql` (refuses to run if any directory/entry rows exist).
+
+### Edge functions deployed
+- None — this slice has no Edge Function changes.
+
+### Frontend
+- Not yet merged to `main` — pending PR review.
+
+### Rollback plan
+- Frontend: do not merge / revert the merge commit on `main`.
+- Migration: run `_20260714120000_create_directories.rollback.sql` on staging (refuses if any real data exists in `directories`/`directory_entries`).
+
+### Verified
+- [x] `npx vite build` succeeds with no errors
+- [x] Staging migration applied; `VERIFY PASSED` notice; anon REST check confirms tables + RLS are live
+- [ ] User smoke test: create directory → add/edit/delete entry, client and admin portals
+- [ ] Frontend live after PR merge
+
+---
+
 ## 2026-07-13 — Production (Configurable filter fields — full feature + auto-create options)
 
 **Branch/commit:** `feat/2026-07-13-configurable-filter-fields` (PR pending merge)

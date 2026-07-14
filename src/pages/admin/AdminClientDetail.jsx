@@ -6,6 +6,7 @@ import AdminLayout from "./AdminLayout.jsx";
 import { startImpersonatingClient } from "../../lib/clientAuth";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
+import { listDirectories } from "../../lib/directories.js";
 
 function Field({ label, children }) {
   return (
@@ -33,6 +34,7 @@ export default function AdminClientDetail() {
   const [primaryContact, setPrimaryContact] = useState(null);
   const [contactsList, setContactsList] = useState([]);
   const [maps, setMaps] = useState([]);
+  const [directories, setDirectories] = useState([]);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -67,6 +69,7 @@ export default function AdminClientDetail() {
         { data: m, error: me },
         { data: contactsData },
         { data: allContacts },
+        dirs,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -91,6 +94,7 @@ export default function AdminClientDetail() {
           .eq("client_id", clientId)
           .order("is_primary", { ascending: false })
           .order("created_at", { ascending: true }),
+        listDirectories(clientId),
       ]);
 
       if (ce) throw ce;
@@ -99,6 +103,7 @@ export default function AdminClientDetail() {
       setClient(c);
       setMaps(m ?? []);
       setContactsList(allContacts ?? []);
+      setDirectories(dirs ?? []);
 
       const primary = contactsData?.[0] ?? null;
       setPrimaryContact(primary);
@@ -266,6 +271,7 @@ export default function AdminClientDetail() {
 
   const CLIENT_NAV_ITEMS = [
     { label: "Maps", value: "maps" },
+    { label: "Directories", value: "directories" },
     { label: "Customer details", value: "details" },
     { label: "Users", value: "users" },
     { label: "Messaging", value: "messaging" },
@@ -331,6 +337,45 @@ export default function AdminClientDetail() {
                             <span className="badge">{m.show_list_panel ? "List on" : "List off"}</span>{" "}
                             <span className="badge">{m.enable_clustering ? "Cluster on" : "Cluster off"}</span>
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {activeTab === "directories" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Directories</h3>
+                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}>
+                    New directory
+                  </Link>
+                </div>
+
+                {directories.length === 0 ? (
+                  <p style={{ marginTop: 8, opacity: 0.8 }}>No directories yet for this customer.</p>
+                ) : (
+                  <table className="admin-table" style={{ marginTop: 0 }}>
+                    <thead>
+                      <tr>
+                        {["Directory", "Slug", "Entries"].map((h) => (
+                          <th key={h}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {directories.map((d) => (
+                        <tr key={d.id}>
+                          <td>
+                            <Link to={`/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(d.id)}`}>
+                              {d.name}
+                            </Link>
+                            <div style={{ fontSize: 11, opacity: 0.6 }}>{d.id}</div>
+                          </td>
+                          <td>{d.slug}</td>
+                          <td>{d.directory_entries?.[0]?.count ?? 0}</td>
                         </tr>
                       ))}
                     </tbody>

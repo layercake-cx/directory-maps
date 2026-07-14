@@ -36,6 +36,8 @@ import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 import AdminUserActivity from "./pages/admin/AdminUserActivity.jsx";
 import AdminSyncLog from "./pages/admin/AdminSyncLog.jsx";
 import AdminLeads from "./pages/admin/AdminLeads.jsx";
+import AdminDirectoryNew from "./pages/admin/AdminDirectoryNew.jsx";
+import AdminDirectoryEntries from "./pages/admin/AdminDirectoryEntries.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
@@ -47,6 +49,9 @@ import ClientMapData from "./pages/client/ClientMapData.jsx";
 import ClientMapListings from "./pages/client/ClientMapListings.jsx";
 import MapStats from "./pages/client/MapStats.jsx";
 import ListingStats from "./pages/client/ListingStats.jsx";
+import ClientDirectories from "./pages/client/ClientDirectories.jsx";
+import ClientDirectoryNew from "./pages/client/ClientDirectoryNew.jsx";
+import ClientDirectoryEntries from "./pages/client/ClientDirectoryEntries.jsx";
 
 export default function App() {
   return (
@@ -81,6 +86,9 @@ export default function App() {
         <Route path="maps/:mapId/listings" element={<ClientMapListings />} />
         <Route path="maps/:mapId/stats" element={<MapStats />} />
         <Route path="maps/:mapId/stats/listings/:listingId" element={<ListingStats />} />
+        <Route path="directories" element={<ClientDirectories />} />
+        <Route path="directories/new" element={<ClientDirectoryNew />} />
+        <Route path="directories/:directoryId" element={<ClientDirectoryEntries />} />
       </Route>
 
       {/* Admin root -> clients */}
@@ -199,6 +207,24 @@ export default function App() {
         element={
           <AdminGate>
             <AdminListingStats />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/clients/:clientId/directories/new"
+        element={
+          <AdminGate>
+            <AdminDirectoryNew />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntries />
           </AdminGate>
         }
       />
