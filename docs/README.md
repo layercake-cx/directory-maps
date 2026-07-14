@@ -11,6 +11,7 @@ Directory Maps is a multi-tenant SaaS for building **Google Maps–based locatio
 | Document | Audience | Contents |
 |----------|----------|----------|
 | [**FEATURES.md**](./FEATURES.md) | Product, engineering, beta planning | Full feature inventory across app, API, and integrations |
+| [**DIRECTORIES.md**](./DIRECTORIES.md) | Product, engineering | Draft spec: Directories feature — epics, user stories, data model, existing-patterns audit |
 | [**USER_GUIDE.md**](./USER_GUIDE.md) | Client users | Sign-up, maps, data import, publish, embed, team |
 | [**BETA_READINESS.md**](./BETA_READINESS.md) | Launch team | Pre-launch checklist and known gaps |
 | [**INTEGRATION_ARCHITECTURE.md**](./INTEGRATION_ARCHITECTURE.md) | Ops / security | System integrations, dependencies, vault secrets inventory |
