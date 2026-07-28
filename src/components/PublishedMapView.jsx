@@ -301,6 +301,7 @@ export default function PublishedMapView({
   const logoUrl = (theme.logoUrl && String(theme.logoUrl).trim()) || "";
   const description = (theme.description && String(theme.description).trim()) || "";
   const searchPanelBg = theme.searchPanelBg ?? panelBg;
+  const searchPanelTextColor = (theme.searchPanelTextColor && String(theme.searchPanelTextColor).trim()) || "#111827";
   const listingBg = theme.listingBg ?? "#ffffff";
   const listingBorder = theme.listingBorder ?? "#e5e7eb";
   // Display options (Search tab): Key shows by default; continent filter is opt-in.
@@ -905,6 +906,7 @@ export default function PublishedMapView({
         ["--panel-link"]: panelLinkColor,
         ["--panel-radius"]: `${panelBorderRadius}px`,
         ["--search-panel-bg"]: searchPanelBg,
+        ["--search-panel-text"]: searchPanelTextColor,
         ["--listing-bg"]: listingBg,
         ["--listing-border"]: listingBorder,
       }}

@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-28 — Production (Search panel font colour)
+
+**Branch/commit:** `feat/2026-07-28-search-panel-font-colour`
+**Deployed by:** Cursor agent (explicit user request: deploy to live)
+
+### What changed
+- The map design **Search** tab already let you set the search panel's **background colour**, but not the text colour — so dark backgrounds left the title, description, labels and filter tabs hard to read.
+- Added a **Font colour** picker (stored as `theme_json.searchPanelTextColor`, default `#111827`) that applies to the search panel title, description, section/filter labels, inactive filter lozenges/tabs, Key items, and listing text. Active lozenges still use white text on the group colour.
+- Wired through client and admin map design, draft autosave/publish, live preview, and the published embed.
+
+### Database migrations applied
+- None (theme setting lives in existing `theme_json`).
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Merged to `main`; GitHub Pages deploy via Actions.
+
+### Rollback plan
+- Frontend: revert the PR merge commit on `main`, or redeploy the prior commit. Existing maps without `searchPanelTextColor` keep the previous dark text default.
+
+### Verified
+- [ ] GitHub Actions deploy to GitHub Pages succeeded
+- [ ] Search tab shows Font colour picker in client and admin map design
+- [ ] Changing font colour updates the live preview (title, description, labels, inactive tabs)
+- [ ] Publish persists the colour on the embed
+- [ ] Maps without the setting still render dark text as before
+
+---
+
 ## 2026-07-14 — Production (Directories — DIR-E1 core + Categorisations, DIR-E5)
 
 **Branch/commit:** PRs #83 (docs), #84 (DIR-E1 core), #86 (DIR-E5 categorisations — re-opened as a fresh PR after #85 was auto-closed by GitHub when its stacked base branch was deleted post-merge)

@@ -262,6 +262,7 @@ export default function ClientMapDashboard() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [searchPanelBgColor, setSearchPanelBgColor] = useState("#ffffff");
   const [searchPanelBgOpacity, setSearchPanelBgOpacity] = useState(0.92);
+  const [searchPanelTextColor, setSearchPanelTextColor] = useState("#111827");
   const [listingBgColor, setListingBgColor] = useState("#ffffff");
   const [listingBorderColor, setListingBorderColor] = useState("#e5e7eb");
   const [listingOpacity, setListingOpacity] = useState(1);
@@ -620,6 +621,7 @@ export default function ClientMapDashboard() {
         description,
         searchPanelBgColor,
         searchPanelBgOpacity,
+        searchPanelTextColor,
         listingBgColor,
         listingBorderColor,
         listingOpacity,
@@ -663,6 +665,7 @@ export default function ClientMapDashboard() {
       description,
       searchPanelBgColor,
       searchPanelBgOpacity,
+      searchPanelTextColor,
       listingBgColor,
       listingBorderColor,
       listingOpacity,
@@ -814,6 +817,7 @@ export default function ClientMapDashboard() {
             setLogoUrl(theme.logoUrl ?? "");
             setSearchPanelBgColor(theme.searchPanelBgColor ?? "#ffffff");
             setSearchPanelBgOpacity(theme.searchPanelBgOpacity ?? 0.92);
+            setSearchPanelTextColor(theme.searchPanelTextColor ?? "#111827");
             setListingBgColor(theme.listingBgColor ?? "#ffffff");
             setListingBorderColor(theme.listingBorderColor ?? "#e5e7eb");
             setListingOpacity(theme.listingOpacity ?? 1);
@@ -925,7 +929,7 @@ export default function ClientMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, logoUrl, searchPanelBgColor, searchPanelBgOpacity, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, logoUrl, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
 
   // Auto-save general fields whenever they change
   useEffect(() => {
@@ -1186,6 +1190,7 @@ export default function ClientMapDashboard() {
         description: typeof description === "string" ? description : null,
         searchPanelBgColor: (searchPanelBgColor || "").trim() || "#ffffff",
         searchPanelBgOpacity: Math.max(0, Math.min(1, Number(searchPanelBgOpacity) ?? 0.92)),
+        searchPanelTextColor: (searchPanelTextColor || "").trim() || "#111827",
         listingBgColor: (listingBgColor || "").trim() || "#ffffff",
         listingBorderColor: (listingBorderColor || "").trim() || "#e5e7eb",
         listingOpacity: Math.max(0, Math.min(1, Number(listingOpacity) ?? 1)),
@@ -1261,6 +1266,7 @@ export default function ClientMapDashboard() {
         logoUrl: (logoUrl || "").trim() || null,
         searchPanelBgColor: (searchPanelBgColor || "").trim() || "#ffffff",
         searchPanelBgOpacity: Math.max(0, Math.min(1, Number(searchPanelBgOpacity) ?? 0.92)),
+        searchPanelTextColor: (searchPanelTextColor || "").trim() || "#111827",
         listingBgColor: (listingBgColor || "").trim() || "#ffffff",
         listingBorderColor: (listingBorderColor || "").trim() || "#e5e7eb",
         listingOpacity: Math.max(0, Math.min(1, Number(listingOpacity) ?? 1)),
@@ -1349,12 +1355,13 @@ export default function ClientMapDashboard() {
       logoUrl: (logoUrl || "").trim(),
       description: typeof description === "string" ? description : "",
       searchPanelBg: toRgba(searchPanelBgColor, searchPanelBgOpacity ?? 0.92),
+      searchPanelTextColor: (searchPanelTextColor || "").trim() || "#111827",
       listingBg: toRgba(listingBgColor, listingOpacity ?? 1),
       listingBorder: (listingBorderColor || "").trim() || "#e5e7eb",
       showContinentFilter: !!showContinentFilter,
       showKey: !!showKey,
     };
-  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
 
   async function publishMap() {
     if (!map) return;
@@ -1509,6 +1516,7 @@ export default function ClientMapDashboard() {
       setLogoUrl(themeJson.logoUrl ?? "");
       setSearchPanelBgColor(themeJson.searchPanelBgColor ?? "#ffffff");
       setSearchPanelBgOpacity(themeJson.searchPanelBgOpacity ?? 0.92);
+      setSearchPanelTextColor(themeJson.searchPanelTextColor ?? "#111827");
       setListingBgColor(themeJson.listingBgColor ?? "#ffffff");
       setListingBorderColor(themeJson.listingBorderColor ?? "#e5e7eb");
       setListingOpacity(themeJson.listingOpacity ?? 1);
@@ -2823,6 +2831,9 @@ export default function ClientMapDashboard() {
                     <p className="panel-section__title">Search bar options</p>
                     <Field label="Background colour">
                       <ColorRow value={searchPanelBgColor} onChange={setSearchPanelBgColor} ariaLabel="Search panel background colour" />
+                    </Field>
+                    <Field label="Font colour">
+                      <ColorRow value={searchPanelTextColor} onChange={setSearchPanelTextColor} ariaLabel="Search panel font colour" />
                     </Field>
                     <Field label="Background transparency">
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -797,6 +797,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   background: var(--search-panel-bg, var(--panel-bg, rgba(228, 240, 255, 0.92)));
+  /* Scope font colour to the search panel (title, description, labels, tabs, listings). */
+  --page-text: var(--search-panel-text, #111827);
+  color: var(--page-text);
   border-radius: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
   border: none;

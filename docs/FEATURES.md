@@ -121,7 +121,7 @@ The map editor (`ClientMapDashboard.jsx`) is a **live preview** with overlay pan
 | **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |
 | **Filters** | Define custom filter fields (single-select / multi-select / text), manage options + colours, and configure display (`show_in_filter_bar`, `display_control`, order). Definitions/options save immediately; display config is part of the draft→publish snapshot. Shared `FilterFieldsPanel.jsx` |
 | **Publish Map** | Publish snapshot, version history, rollback, embed URL, subscription gate |
-| **Search** | Search-panel logo upload + styling (panel background colour/transparency, listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft. Includes a read-only summary of custom filter fields with a link to the **Filters** panel |
+| **Search** | Search-panel logo upload + styling (panel background colour/transparency, **font colour** for title/description/labels/tabs, listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft. Includes a read-only summary of custom filter fields with a link to the **Filters** panel |
 
 **Custom filter fields**
 
