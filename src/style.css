@@ -797,7 +797,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   background: var(--search-panel-bg, var(--panel-bg, rgba(228, 240, 255, 0.92)));
-  /* Scope font colour to the search panel (title, description, labels, tabs, listings). */
+  /* Font colour for chrome (title, description, labels, tabs, Key) — not listing cards. */
   --page-text: var(--search-panel-text, #111827);
   color: var(--page-text);
   border-radius: 0;
@@ -877,6 +877,7 @@ a:hover {
   border-radius: 8px;
   box-sizing: border-box;
   background: #ffffff;
+  color: #111827;
 }
 
 /* ── Group filter lozenges ────────────────────────────────────────── */
@@ -940,6 +941,7 @@ a:hover {
   box-sizing: border-box;
   background: #ffffff;
   font-family: inherit;
+  color: #111827;
 }
 
 .embed-list-panel__filter-field .embed-list-panel__lozenges {
@@ -987,6 +989,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Listing cards keep their own (dark) text — not the panel font colour. */
+  --page-text: #111827;
+  color: var(--page-text);
 }
 
 .embed-list-panel__listing {
@@ -1000,6 +1005,7 @@ a:hover {
   border-radius: 8px;
   background: var(--listing-bg, #ffffff);
   cursor: pointer;
+  color: inherit;
 }
 
 .embed-list-panel__listing:hover {
@@ -1087,6 +1093,7 @@ a:hover {
   list-style: none;
   /* Solid background so group rows don’t show through */
   background: #ffffff;
+  color: #111827;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(229, 231, 235, 0.7);
@@ -1105,6 +1112,7 @@ a:hover {
   border-bottom: 1px solid rgba(229, 231, 235, 0.6);
   width: 100%;
   background: none;
+  color: inherit;
 }
 
 .embed-list-panel__suggestion:last-child {

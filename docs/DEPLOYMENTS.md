@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-28 — Production (Search panel font colour excludes listings)
+
+**Branch/commit:** `fix/2026-07-28-search-panel-font-exclude-listings`
+**Deployed by:** Cursor agent (explicit user request: deploy to live)
+
+### What changed
+- Regression from the font-colour picker: listing card text (and white search suggestion dropdowns) inherited the panel font colour, so a light colour on light listing backgrounds became unreadable.
+- Font colour now applies only to sidebar chrome — title, description, section/filter labels, inactive filter tabs, and Key. Listing cards, search/filter inputs, and the suggestions dropdown keep dark text.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Merged to `main`; GitHub Pages deploy via Actions.
+
+### Rollback plan
+- Frontend: revert the PR merge commit on `main`.
+
+### Verified
+- [ ] GitHub Actions deploy to GitHub Pages succeeded
+- [ ] Listing card names stay dark when panel font colour is light/white
+- [ ] Title, description, labels, inactive tabs, and Key still follow Font colour
+- [ ] Search suggestions remain readable on white dropdown
+
+---
+
 ## 2026-07-28 — Production (Search panel font colour)
 
 **Branch/commit:** `feat/2026-07-28-search-panel-font-colour`
