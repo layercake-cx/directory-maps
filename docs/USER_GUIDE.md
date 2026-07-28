@@ -208,7 +208,7 @@ The search panel sits flush to the **top-left** of the published map, full heigh
 
 - **Logo** — Upload an SVG, PNG, JPG or WebP (max 500 KB) with a live preview; use **Remove** to clear it.
 - **Background colour** and **Background transparency** — the panel's background.
-- **Font colour** — text colour for the title, description, section labels, filter labels, and inactive filter tabs (lozenges). Listing names and the Key also use this colour.
+- **Font colour** — text colour for the title, description, section labels, filter labels, inactive filter tabs (lozenges), and the Key. Does **not** change listing card text (those stay dark on the listing background).
 - **Search listing background colour**, **Search listing border**, and **Search listing transparency** — the appearance of each listing card.
 - **Display options** — toggle **Display continent filter** (off by default) and **Display Key** (on by default) on or off.
 
