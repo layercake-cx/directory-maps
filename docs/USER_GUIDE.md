@@ -150,7 +150,7 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
 | **Filters** | Create custom, filterable fields (e.g. Sector, Languages spoken); manage their options; choose which appear in the published search bar and how |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
-| **Search** | Upload a **logo**, style the search panel (background colour & transparency, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
+| **Search** | Upload a **logo**, style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
 
 Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 
@@ -208,6 +208,7 @@ The search panel sits flush to the **top-left** of the published map, full heigh
 
 - **Logo** — Upload an SVG, PNG, JPG or WebP (max 500 KB) with a live preview; use **Remove** to clear it.
 - **Background colour** and **Background transparency** — the panel's background.
+- **Font colour** — text colour for the title, description, section labels, filter labels, and inactive filter tabs (lozenges). Listing names and the Key also use this colour.
 - **Search listing background colour**, **Search listing border**, and **Search listing transparency** — the appearance of each listing card.
 - **Display options** — toggle **Display continent filter** (off by default) and **Display Key** (on by default) on or off.
 
@@ -411,7 +412,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | View your maps | `/#/client` |
 | Create a map | My Maps → New map |
 | Add a map description | Map → Design → General → Description |
-| Upload search-panel logo & style it | Map → Design → Search |
+| Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
 | Create a custom filter field | Map → Design → Filters → New filter field |
 | Show a filter field in the search bar | Map → Design → Filters → Show in search bar |
 | Tag a listing's filter values | Map → Data → Manual entries → edit listing → Filters |
