@@ -26,7 +26,7 @@ Directory Maps lets you build interactive, Google Maps–based directories. You 
 
 ### Public landing page
 
-The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its "Apply for a founding partner spot" form is a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`) — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Submissions go directly to HubSpot, not to Directory Maps. The **Leads** admin page (`/#/admin/leads`) still shows leads captured before this change via the `beta_signups` table, but no longer receives new submissions — treat it as a historical record; current leads live in HubSpot.
+The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its "Apply for a founding partner spot" form is a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`) — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Submissions go directly to HubSpot, not to Directory Maps. The **Leads** admin page (`/admin/leads`) still shows leads captured before this change via the `beta_signups` table, but no longer receives new submissions — treat it as a historical record; current leads live in HubSpot.
 
 ### Event demo page
 
@@ -34,7 +34,7 @@ The site root (`/`) is a public, unauthenticated marketing page pitching the Fou
 
 ### Sign up
 
-1. Open the site homepage and choose **Sign up** (or go to `/#/signup`).
+1. Open the site homepage and choose **Sign up** (or go to `/signup`).
 2. Enter your **Organisation name** (must be unique). A **client slug** is generated automatically (e.g. `acme-ltd`) for URLs.
 3. Enter your **Email** and **Password**.
 4. Click **Create account**.
@@ -43,7 +43,7 @@ If the organisation name is taken, choose another. **Confirm your email** when p
 
 ### Sign in
 
-1. Go to `/#/login`.
+1. Go to `/login`.
 2. Enter **Email** and **Password**.
 3. Click **Sign in**.
 
@@ -57,11 +57,11 @@ After sign-in you’ll see:
 
 | Section | Path | Who can access |
 |---------|------|----------------|
-| **My Maps** | `/#/client` | All team members |
-| **Directories** | `/#/client/directories` | All team members |
-| **Categorisations** | `/#/client/categorisations` | Owners and managers |
-| **Team** | `/#/client/team` | Owners and managers |
-| **Email** | `/#/client/email` | Users who can manage maps |
+| **My Maps** | `/client` | All team members |
+| **Directories** | `/client/directories` | All team members |
+| **Categorisations** | `/client/categorisations` | Owners and managers |
+| **Team** | `/client/team` | Owners and managers |
+| **Email** | `/client/email` | Users who can manage maps |
 
 Sign out from the header when finished.
 
@@ -122,7 +122,7 @@ From a directory's page (owners and managers only):
 
 ### Categorisations
 
-**Categorisations** (`/#/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every directory you own. They're separate from a directory's simple **Group** field:
+**Categorisations** (`/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every directory you own. They're separate from a directory's simple **Group** field:
 
 - **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
 - A **categorisation** can apply to directory entries, whole directories, or both, and an entry/directory can carry any number of terms from it.
@@ -224,7 +224,7 @@ All Search and Description settings save automatically to your draft and go live
 
 ## Importing data
 
-Open **Data** from the map sub-nav (`/#/client/maps/<id>/data`).
+Open **Data** from the map sub-nav (`/client/maps/<id>/data`).
 
 ### CSV upload
 
@@ -245,7 +245,7 @@ Under **Auto-sync schedule**, choose **Off** (manual only) or **Daily**, then pi
 
 ### Loaded Data (logo background per listing)
 
-In **Data** (`/#/client/maps/<id>/data`), open the **Loaded Data** tab to set a background behind each listing logo:
+In **Data** (`/client/maps/<id>/data`), open the **Loaded Data** tab to set a background behind each listing logo:
 
 1. Use the search field to filter by listing name or address.
 2. Review each listing’s **ingestion method** (**Integration**, **CSV**, or **Manual**) and logo thumbnail preview.
@@ -258,7 +258,7 @@ In **Data** (`/#/client/maps/<id>/data`), open the **Loaded Data** tab to set a 
 
 ### Sync History tab
 
-If your map has had at least one Google Sheets sync attempt, a **Sync History** tab appears on the Data page (`/#/client/maps/<id>/data`).
+If your map has had at least one Google Sheets sync attempt, a **Sync History** tab appears on the Data page (`/client/maps/<id>/data`).
 
 The table shows each sync run with:
 
@@ -279,7 +279,7 @@ Pagination: 100 rows per page, with Prev / Next controls and a "Page X of Y" ind
 
 ### Sync error alert on the dashboard
 
-If any sync run has failed for your organisation, a red **Sync errors detected** alert appears at the top of **My Maps** (`/#/client`). Each line shows the map name, how long ago the failure occurred, and a link directly to the Sync History tab for that map.
+If any sync run has failed for your organisation, a red **Sync errors detected** alert appears at the top of **My Maps** (`/client`). Each line shows the map name, how long ago the failure occurred, and a link directly to the Sync History tab for that map.
 
 ---
 
@@ -305,7 +305,7 @@ Open **Stats** from the map sub-nav for visitor engagement on your published emb
 
 ## Team
 
-Owners and managers can open **Team** (`/#/client/team`) to:
+Owners and managers can open **Team** (`/client/team`) to:
 
 - View members and roles (Owner, Manager, Member), plus anyone with an **Invite pending**
 - See each person’s **status** (Active, Invite pending, Awaiting verification, etc.) and **last logged in**
@@ -339,7 +339,7 @@ Invitations expire after **7 days** — send a new one if needed.
 
 ## Messaging
 
-The **Messaging** page (`/#/client/email`) has two tabs: **Settings** and **Sent messages**.
+The **Messaging** page (`/client/email`) has two tabs: **Settings** and **Sent messages**.
 
 ### Settings
 
@@ -408,8 +408,8 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 | Action | Where |
 |--------|--------|
-| Sign up / Sign in | `/#/signup`, `/#/login` |
-| View your maps | `/#/client` |
+| Sign up / Sign in | `/signup`, `/login` |
+| View your maps | `/client` |
 | Create a map | My Maps → New map |
 | Add a map description | Map → Design → General → Description |
 | Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
@@ -420,29 +420,29 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
-| Review sent contact messages | `/#/client/email` → Sent messages |
-| Enable messaging | `/#/client/email` → Settings → Enable messaging toggle |
-| Customise contact email subject and opening line | `/#/client/email` → Settings → From address → Email subject / Email opening message → Save |
-| Turn test mode off for live contact emails | `/#/client/email` → Settings → Test mode → Save test mode settings |
-| Configure custom sending domain | `/#/client/email` → Settings → Domain & DNS |
-| Copy DNS setup email for IT supplier | `/#/client/email` → Settings → Domain & DNS → Setup instructions |
-| Invite team member | `/#/client/team` → Send invitation email |
+| Review sent contact messages | `/client/email` → Sent messages |
+| Enable messaging | `/client/email` → Settings → Enable messaging toggle |
+| Customise contact email subject and opening line | `/client/email` → Settings → From address → Email subject / Email opening message → Save |
+| Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
+| Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
+| Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
+| Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 
 ---
 
 ## Admin users
 
-Users with **admin** access use `/#/admin` to manage customers, maps, and impersonation. Use impersonation to view a client’s portal as their organisation.
+Users with **admin** access use `/admin` to manage customers, maps, and impersonation. Use impersonation to view a client’s portal as their organisation.
 
-**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/#/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/#/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
+**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
 
-When an admin creates a customer in `/#/admin/clients/new`, they only need:
+When an admin creates a customer in `/admin/clients/new`, they only need:
 
 - Customer name
 - Customer slug (or leave blank to auto-suggest)
 
-On a customer’s **Messaging** tab (`/#/admin/clients/:id`), admins have the same controls as the client portal: **Settings** (enable messaging, prompt, test mode, from address, DNS) and **Sent messages** (contact form log for that organisation).
+On a customer’s **Messaging** tab (`/admin/clients/:id`), admins have the same controls as the client portal: **Settings** (enable messaging, prompt, test mode, from address, DNS) and **Sent messages** (contact form log for that organisation).
 
 From a customer’s **Users** tab, admins can add a user by entering:
 
@@ -455,7 +455,7 @@ On submit, Directory Maps sends an invitation email that opens a create-account 
 Admins can also remove users (including primary contacts) from the same list using the trash icon. Deleting requires typing `delete` to confirm.
 If a user is associated with another customer, deletion is blocked and a warning above the table lists those customers.
 
-In **Admin users** (`/#/admin/users`), open an admin user to see:
+In **Admin users** (`/admin/users`), open an admin user to see:
 
 - **Details** tab (account and linked contacts)
 - **Activities** tab (audit log events performed by that user)

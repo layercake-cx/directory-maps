@@ -2,7 +2,7 @@
 
 Directory Maps is a multi-tenant SaaS for building **Google Maps–based location directories**: clients manage maps and listings in a portal, visitors use embeddable public maps with search, groups, and contact forms.
 
-**Stack:** Vite + React (HashRouter) · Supabase (Auth, Postgres, Edge Functions) · Google Maps / Geocoding / Sheets · Resend · Stripe (partial)
+**Stack:** Vite + React (BrowserRouter, clean paths) · Supabase (Auth, Postgres, Edge Functions) · Google Maps / Geocoding / Sheets · Resend · Stripe (partial)
 
 ---
 
@@ -36,12 +36,12 @@ Directory Maps is a multi-tenant SaaS for building **Google Maps–based locatio
 
 | Area | Hash route | Gate |
 |------|------------|------|
-| Marketing home | `/#/` | Public |
-| Pricing | `/#/pricing` | Public |
-| Sign up / login | `/#/signup`, `/#/login` | Public |
-| Client portal | `/#/client/*` | Authenticated + verified email |
-| Public embed | `/#/embed?map=<id>` | Published map only |
-| Admin console | `/#/admin/*` | `profiles.role = admin` |
+| Marketing home | `/` | Public |
+| Pricing | `/pricing` | Public |
+| Sign up / login | `/signup`, `/login` | Public |
+| Client portal | `/client/*` | Authenticated + verified email |
+| Public embed | `/embed?map=<id>` | Published map only |
+| Admin console | `/admin/*` | `profiles.role = admin` |
 
 ---
 

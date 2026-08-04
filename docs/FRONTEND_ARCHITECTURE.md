@@ -4,7 +4,7 @@ This document describes how the **Directory Maps** frontend (the `src/` tree) is
 
 **Stack:** Vite 7 · React 19 · React Router 7 (`BrowserRouter`) · Mantine 9 (`@mantine/core`) · Supabase JS client · Google Maps JavaScript API · Recharts.
 
-> **Note on routing:** older docs and comments in this repo (`AGENTS.md`, `docs/README.md`, `docs/FEATURES.md`, `docs/INTEGRATION_ARCHITECTURE.md`) describe the app as using `HashRouter` with `/#/...` routes. That was true historically but the app migrated to `BrowserRouter` with clean paths (see `docs/DEPLOYMENTS.md`, commit `a377a8c`, 2026-05-29). **This document reflects the current, correct state.** `index.html` still ships a small redirect shim so old `#/...` bookmarks resolve to the clean-path equivalent.
+> **Note on routing:** the app uses `BrowserRouter` with clean paths. It historically used `HashRouter` with `/#/...` routes but migrated on 2026-05-29 (commit `a377a8c`; see `docs/DEPLOYMENTS.md`). `index.html` still ships a small redirect shim so old `#/...` bookmarks resolve to the clean-path equivalent. Historical entries in `docs/DEPLOYMENTS.md` intentionally keep the `#/` paths that were current when each entry was written.
 
 ---
 

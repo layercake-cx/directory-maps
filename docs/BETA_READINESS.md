@@ -41,7 +41,7 @@ Unblock publish for paying beta users without leaving the gate wide open for eve
 
 Two catalogs exist:
 
-- Marketing: `/#/pricing` — Starter / Pro / Agency (monthly GBP)
+- Marketing: `/pricing` — Starter / Pro / Agency (monthly GBP)
 - Checkout: publish panel — Standard / Premium / Unlimited (yearly GBP)
 
 Beta users will be confused if marketing and in-app checkout disagree.

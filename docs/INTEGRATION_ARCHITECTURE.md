@@ -60,7 +60,7 @@ flowchart TB
 
 | Layer | Technology | Role |
 |-------|------------|------|
-| Frontend | Vite 7, React 19, React Router (HashRouter) | SPA: marketing, client portal, admin, embed |
+| Frontend | Vite 7, React 19, React Router 7 (BrowserRouter, clean paths) | SPA: marketing, client portal, admin, embed |
 | Hosting | Vercel (primary) or GitHub Pages (alternate) | Static build (`dist/`), env at build time |
 | API / data | Supabase Postgres | Maps, listings, clients, contacts, engagement, invitations |
 | Auth | Supabase Auth | Email + password; email verification; password reset |
@@ -223,7 +223,7 @@ Set per project: `supabase secrets set KEY=value --project-ref <ref>` or Dashboa
 | Database password | SECRET | Vault / password manager | Postgres direct access |
 | JWT secret | SECRET | Supabase-managed | Signing auth tokens |
 | Auth SMTP credentials | SECRET | Auth → SMTP settings | Signup verification, password reset |
-| Auth site URL / redirect URLs | Config | Auth → URL configuration | Must match app hash routes |
+| Auth site URL / redirect URLs | Config | Auth → URL configuration | Must match app clean-path routes |
 | Service role key (copy) | **PRIVILEGED** | Settings → API | Same as Edge secret |
 
 ### 7.4 Supabase Vault (database — cron only)

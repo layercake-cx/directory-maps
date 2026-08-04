@@ -330,7 +330,7 @@ on conflict (user_id) do update set role = 'admin';
 ### 4. Sign in on Preview
 
 1. Open your **Preview** app URL (from Vercel, e.g. the deployment for the `develop` branch).
-2. Go to the admin sign-in page (e.g. `/#/admin` or your app’s admin route).
+2. Go to the admin sign-in page (e.g. `/admin` or your app’s admin route).
 3. Sign in with the **email and password** you created in step 2.
 
 You should now have admin access on Preview using the test database. Repeat the same steps in your **production** Supabase project if you need to create or fix an admin user there (using a different email for production).

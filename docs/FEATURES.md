@@ -53,10 +53,10 @@ flowchart LR
 
 | Feature | Route | Description | Key files |
 |---------|-------|-------------|-----------|
-| Landing page | `/#/` | Product overview, links to signup and admin | `src/pages/PublicMap.jsx` |
-| Marketing pricing | `/#/pricing` | Static plan cards (Starter / Pro / Agency, GBP monthly) | `src/pages/Pricing.jsx` |
-| Terms & conditions | `/#/terms` | Renders legal markdown | `src/pages/Terms.jsx`, `docs/MARKDOWN/...` |
-| Privacy notice | `/#/privacy` | Renders legal markdown | `src/pages/Privacy.jsx`, `docs/MARKDOWN/...` |
+| Landing page | `/` | Product overview, links to signup and admin | `src/pages/PublicMap.jsx` |
+| Marketing pricing | `/pricing` | Static plan cards (Starter / Pro / Agency, GBP monthly) | `src/pages/Pricing.jsx` |
+| Terms & conditions | `/terms` | Renders legal markdown | `src/pages/Terms.jsx`, `docs/MARKDOWN/...` |
+| Privacy notice | `/privacy` | Renders legal markdown | `src/pages/Privacy.jsx`, `docs/MARKDOWN/...` |
 | Site chrome | — | Header nav, footer, brand | `src/components/SiteHeader.jsx`, `SiteFooter.jsx` |
 | Global error boundary | — | Catches uncaught React errors | `src/components/ErrorBoundary.jsx` |
 
@@ -68,15 +68,15 @@ flowchart LR
 
 | Feature | Route | Description | Key files |
 |---------|-------|-------------|-----------|
-| Sign in | `/#/login` | Email/password; redirect after login; banners for verification / unlinked account | `src/pages/Login.jsx`, `AuthForm.jsx` |
-| Sign up | `/#/signup` | Organisation name, auto slug, email/password; provisions `clients` + `contacts` | `src/pages/SignUp.jsx`, `provisionClientSignup.js` |
-| Team invite signup | `/#/signup?invite=<uuid>` | Join existing org (no new org); email prefilled; password + verification | `inviteHelpers.js`, RPC `get_team_invitation_preview` |
-| Team invite login | `/#/login?invite=<uuid>` | Existing users accept invite with password | `Login.jsx`, `acceptPendingInvitation` |
+| Sign in | `/login` | Email/password; redirect after login; banners for verification / unlinked account | `src/pages/Login.jsx`, `AuthForm.jsx` |
+| Sign up | `/signup` | Organisation name, auto slug, email/password; provisions `clients` + `contacts` | `src/pages/SignUp.jsx`, `provisionClientSignup.js` |
+| Team invite signup | `/signup?invite=<uuid>` | Join existing org (no new org); email prefilled; password + verification | `inviteHelpers.js`, RPC `get_team_invitation_preview` |
+| Team invite login | `/login?invite=<uuid>` | Existing users accept invite with password | `Login.jsx`, `acceptPendingInvitation` |
 | Slug availability | — | RPC `is_client_slug_available` (timeout-tolerant) | `src/lib/authHelpers.js` |
-| Forgot / reset password | `/#/forgot-password`, `/#/reset-password` | Supabase password recovery | respective pages |
+| Forgot / reset password | `/forgot-password`, `/reset-password` | Supabase password recovery | respective pages |
 | Email verification gate | `/client/*` | Portal blocked until `email_confirmed_at` | `src/components/ClientGate.jsx` |
 | Session & admin role | — | Auth context, token refresh, signup provisioning mutex | `src/context/AuthContext.jsx`, `src/lib/auth.js` |
-| Auth error redirect | — | HashRouter workaround for Supabase auth errors | `src/Root.jsx` |
+| Auth error redirect | — | Handles Supabase auth-error redirects (clean-path) | `src/Root.jsx` |
 
 **Post-signup provisioning:** `provisionClientSignup` creates the organisation and primary contact from `user_metadata` (organisation name, slug). Skipped for team-invite signups (no `signup_org_*` metadata). **Team accept:** `acceptPendingInvitation` runs on every login before provisioning.
 
@@ -86,16 +86,16 @@ flowchart LR
 
 ## 4. Client portal
 
-**Base route:** `/#/client` · **Gate:** signed-in user with verified email and linked `contacts` row.
+**Base route:** `/client` · **Gate:** signed-in user with verified email and linked `contacts` row.
 
 ### 4.1 Navigation & layout
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| My Maps | `/#/client` | Dashboard grid of maps, data-source badges, links to stats |
-| Team | `/#/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
-| Messaging | `/#/client/email` | Settings tab: enable/disable messaging, custom sending domain via Resend, contact-form prompt, email subject/opening line. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
-| Map sub-nav | `/#/client/maps/:id/*` | Design · Data · Stats |
+| My Maps | `/client` | Dashboard grid of maps, data-source badges, links to stats |
+| Team | `/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
+| Messaging | `/client/email` | Settings tab: enable/disable messaging, custom sending domain via Resend, contact-form prompt, email subject/opening line. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
+| Map sub-nav | `/client/maps/:id/*` | Design · Data · Stats |
 
 Layout: `src/pages/client/ClientLayout.jsx` · Context: `ClientContext`, `getClientAndContact.js`.
 
@@ -145,8 +145,8 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Data hub | `/#/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule |
-| Listings table | `/#/client/maps/:id/listings` | Search/filter listings; batch geocode |
+| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule |
+| Listings table | `/client/maps/:id/listings` | Search/filter listings; batch geocode |
 
 **CSV import**
 
@@ -207,7 +207,7 @@ Files: `src/lib/categorisations.js`, `src/components/directories/Categorisations
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Map stats | `/#/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
+| Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
 
 Data source: `map_engagement_events` (recorded on **public embed only**). See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
@@ -216,7 +216,7 @@ Files: `MapStats.jsx`, `ListingStats.jsx`, `src/hooks/useListingEngagement.js`, 
 
 ### 4.6 Team & permissions
 
-**Route:** `ClientTeam.jsx` at `/#/client/team` (owners/managers via `canManageOrg`).
+**Route:** `ClientTeam.jsx` at `/client/team` (owners/managers via `canManageOrg`).
 
 | Capability | Description |
 |------------|-------------|
@@ -236,7 +236,7 @@ Legacy `ClientUsers.jsx` (manual contact insert only) remains in the repo but is
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Domain setup | `/#/client/email` | Add DNS records, verify domain, set from-address; **Setup instructions** copies email text for DNS suppliers |
+| Domain setup | `/client/email` | Add DNS records, verify domain, set from-address; **Setup instructions** copies email text for DNS suppliers |
 
 Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
@@ -246,7 +246,7 @@ Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Embed map | `/#/embed?map=<MAP_ID>` | Full-screen published map; requires `published_at` |
+| Embed map | `/embed?map=<MAP_ID>` | Full-screen published map; requires `published_at` |
 | Search panel | — | Flush top-left, full-height panel: logo, title, description, search box, group **filter lozenges**, colour key, and an alphabetical listings list (logo, name, city/country, group label) |
 | Search | — | Places + listing search; engagement events logged |
 | Group filtering | — | Lozenge tags filter listings + markers by group (multi-select); colour key legend |
@@ -264,7 +264,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 
 ## 6. Admin console
 
-**Base route:** `/#/admin` · **Gate:** `profiles.role = 'admin'`.
+**Base route:** `/admin` · **Gate:** `profiles.role = 'admin'`.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
