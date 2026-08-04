@@ -105,8 +105,9 @@ Layout: `src/pages/client/ClientLayout.jsx` · Context: `ClientContext`, `getCli
 |---------|-------------|
 | New map | Name, slug, default center/zoom, list panel, clustering |
 | Map list | All maps for the organisation; open design, data, or stats |
+| Delete map | Permanent, cascade delete via the `delete_map` RPC; **Danger zone** in the designer General panel; type-`DELETE` confirm. Gated to owners/managers/primary or `can_manage_maps` (enforced server-side). Also available to admins from the admin map lists |
 
-Files: `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`.
+Files: `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`, `ClientMapDashboard.jsx`, `src/lib/maps.js`, `src/components/ConfirmDeleteModal.jsx`.
 
 ### 4.3 Map design & publish
 

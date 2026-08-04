@@ -15,6 +15,8 @@ import {
   publicationConfigsEqual,
 } from "../../lib/mapPublication.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { deleteMap as deleteMapRpc } from "../../lib/maps.js";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal.jsx";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
 import {
   buildMapStyles,
@@ -212,6 +214,9 @@ export default function AdminMapDashboard() {
   const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
   const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
   const [filterFields, setFilterFields] = useState([]);
@@ -1054,20 +1059,23 @@ export default function AdminMapDashboard() {
   }
 
   async function deleteMap() {
-    const ok = window.confirm("Delete this map? This will also delete its groups and listings if FK cascade is set.");
-    if (!ok) return;
-
     try {
-      setSaving(true);
-      setErr("");
-      setMsg("");
-      const { error } = await supabase.from("maps").delete().eq("id", mapId);
-      if (error) throw error;
+      setDeleting(true);
+      setDeleteErr("");
+      await deleteMapRpc(mapId);
+      recordFilterEvent("map_design_deleted", {
+        client_id: clientId ?? null,
+        map_id: mapId,
+        name: map?.name ?? name,
+        slug: map?.slug ?? slug,
+        actor_admin_scope: "platform_admin",
+      });
+      setDeleteOpen(false);
       navigate(`/admin/clients/${encodeURIComponent(clientId)}`);
     } catch (e2) {
-      setErr(e2.message ?? String(e2));
+      setDeleteErr(e2.message ?? String(e2));
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   }
 
@@ -2108,6 +2116,20 @@ export default function AdminMapDashboard() {
                       )}
                     </div>
 
+                    <div className="panel-section" style={{ border: "1px solid #fca5a5", background: "#fef2f2" }}>
+                      <p className="panel-section__title" style={{ color: "#b91c1c" }}>Danger zone</p>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, opacity: 0.85 }}>
+                        Permanently delete this map and all of its listings, groups, publications and stats. This cannot be undone.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        onClick={() => { setDeleteErr(""); setDeleteOpen(true); }}
+                      >
+                        Delete map
+                      </button>
+                    </div>
+
                 </div>
               )}
 
@@ -2965,6 +2987,23 @@ export default function AdminMapDashboard() {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={deleteOpen}
+        title="Delete map"
+        message={
+          <>
+            Permanently delete <strong>{map?.name || name || "this map"}</strong> and all of its listings,
+            groups, publications and stats? This cannot be undone.
+          </>
+        }
+        confirmWord="DELETE"
+        confirmLabel="Delete map"
+        busy={deleting}
+        error={deleteErr}
+        onConfirm={deleteMap}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </AdminLayout>
   );
 

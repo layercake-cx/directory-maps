@@ -91,6 +91,20 @@ You’ll return to **My Maps**; open the new map to configure it.
 
 ---
 
+## Deleting a map
+
+Deleting a map is **permanent** and removes the map together with all of its listings, groups, published versions and stats. It cannot be undone.
+
+**Who can delete a map:** organisation **owners and managers**, the **primary contact**, and any team member granted the **Manage maps** permission. If you don't have permission, the delete option won't appear.
+
+1. Open the map and go to the **General** panel in the map designer.
+2. Scroll to the **Danger zone** at the bottom and click **Delete map**.
+3. In the confirmation dialog, type **DELETE** (in capitals) to enable the button, then click **Delete map**.
+
+The map is removed and you’re returned to **My Maps**.
+
+---
+
 ## Directories
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, categorisation-driven filtering, and map linking are not built yet.
@@ -143,7 +157,7 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 
 | Panel | What you can change |
 |-------|---------------------|
-| **General** | Name, slug, **description**, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
+| **General** | Name, slug, **description**, default center/zoom, list panel, map title, clustering (saves automatically as you edit), and a **Danger zone** to permanently delete the map (owners/managers or Manage-maps permission) |
 | **Pin Design** | Marker style (pin, rounded pin, dot), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
@@ -411,6 +425,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Sign up / Sign in | `/signup`, `/login` |
 | View your maps | `/client` |
 | Create a map | My Maps → New map |
+| Delete a map | Map → Design → General → Danger zone → Delete map (type DELETE) |
 | Add a map description | Map → Design → General → Description |
 | Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
 | Create a custom filter field | Map → Design → Filters → New filter field |

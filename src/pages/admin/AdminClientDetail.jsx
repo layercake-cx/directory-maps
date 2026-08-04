@@ -8,6 +8,8 @@ import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminCli
 import MessagingPanel from "../../components/MessagingPanel.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { deleteMap as deleteMapRpc } from "../../lib/maps.js";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal.jsx";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
 
 function Field({ label, children }) {
@@ -60,6 +62,9 @@ export default function AdminClientDetail() {
   const [contactToDelete, setContactToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingContact, setDeletingContact] = useState(false);
+  const [mapToDelete, setMapToDelete] = useState(null);
+  const [deletingMap, setDeletingMap] = useState(false);
+  const [deleteMapErr, setDeleteMapErr] = useState("");
 
   async function load() {
     try {
@@ -275,6 +280,28 @@ export default function AdminClientDetail() {
     recordAdminEvent(supabase, { eventType, meta, source: "admin_dashboard", clientId });
   };
 
+  async function confirmDeleteMap() {
+    if (!mapToDelete) return;
+    try {
+      setDeletingMap(true);
+      setDeleteMapErr("");
+      await deleteMapRpc(mapToDelete.id);
+      recordEvent("map_design_deleted", {
+        client_id: clientId,
+        map_id: mapToDelete.id,
+        name: mapToDelete.name ?? null,
+        slug: mapToDelete.slug ?? null,
+        actor_admin_scope: "platform_admin",
+      });
+      setMapToDelete(null);
+      await load();
+    } catch (e) {
+      setDeleteMapErr(e.message ?? String(e));
+    } finally {
+      setDeletingMap(false);
+    }
+  }
+
   const CLIENT_NAV_ITEMS = [
     { label: "Maps", value: "maps" },
     { label: "Directories", value: "directories" },
@@ -320,8 +347,8 @@ export default function AdminClientDetail() {
                   <table className="admin-table" style={{ marginTop: 0 }}>
                     <thead>
                       <tr>
-                        {["Map", "Slug", "Defaults", "Options"].map((h) => (
-                          <th key={h}>{h}</th>
+                        {["Map", "Slug", "Defaults", "Options", ""].map((h, i) => (
+                          <th key={h || `col-${i}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -343,6 +370,17 @@ export default function AdminClientDetail() {
                           <td>
                             <span className="badge">{m.show_list_panel ? "List on" : "List off"}</span>{" "}
                             <span className="badge">{m.enable_clustering ? "Cluster on" : "Cluster off"}</span>
+                          </td>
+                          <td style={{ width: 44, textAlign: "right" }}>
+                            <button
+                              type="button"
+                              className="admin-table__delete-btn"
+                              onClick={() => { setDeleteMapErr(""); setMapToDelete({ id: m.id, name: m.name, slug: m.slug }); }}
+                              title="Delete map"
+                              aria-label={`Delete map ${m.name ?? m.id}`}
+                            >
+                              {TRASH_ICON}
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -699,6 +737,23 @@ export default function AdminClientDetail() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDeleteModal
+        open={!!mapToDelete}
+        title="Delete map"
+        message={
+          <>
+            Permanently delete <strong>{mapToDelete?.name || "this map"}</strong> and all of its listings,
+            groups, publications and stats? This cannot be undone.
+          </>
+        }
+        confirmWord="DELETE"
+        confirmLabel="Delete map"
+        busy={deletingMap}
+        error={deleteMapErr}
+        onConfirm={confirmDeleteMap}
+        onCancel={() => setMapToDelete(null)}
+      />
     </AdminLayout>
   );
 }

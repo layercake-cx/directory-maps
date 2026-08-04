@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
+import { deleteMap as deleteMapRpc } from "../../lib/maps.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
+import ConfirmDeleteModal, { TrashIcon } from "../../components/ConfirmDeleteModal.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 
 export default function AdminMaps() {
@@ -11,6 +14,37 @@ export default function AdminMaps() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [mapToDelete, setMapToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
+
+  async function confirmDeleteMap() {
+    if (!mapToDelete) return;
+    try {
+      setDeleting(true);
+      setDeleteErr("");
+      await deleteMapRpc(mapToDelete.id);
+      recordAdminEvent(supabase, {
+        eventType: "map_design_deleted",
+        source: "admin_maps",
+        clientId: mapToDelete.client_id ?? null,
+        mapId: mapToDelete.id,
+        meta: {
+          client_id: mapToDelete.client_id ?? null,
+          map_id: mapToDelete.id,
+          name: mapToDelete.name ?? null,
+          slug: mapToDelete.slug ?? null,
+          actor_admin_scope: "platform_admin",
+        },
+      });
+      setMapToDelete(null);
+      await load();
+    } catch (e) {
+      setDeleteErr(e.message ?? String(e));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function load() {
     try {
@@ -113,6 +147,7 @@ export default function AdminMaps() {
               <th>Listings</th>
               <th>Settings</th>
               <th style={{ textAlign: "right" }}>Launch map</th>
+              <th style={{ width: 44 }}></th>
             </tr>
           </thead>
           <tbody>
@@ -170,6 +205,17 @@ export default function AdminMaps() {
                       Launch map
                     </a>
                   </td>
+                  <td style={{ width: 44, textAlign: "right" }}>
+                    <button
+                      type="button"
+                      className="admin-table__delete-btn"
+                      onClick={() => { setDeleteErr(""); setMapToDelete({ id: m.id, name: m.name, slug: m.slug, client_id: m.client_id }); }}
+                      title="Delete map"
+                      aria-label={`Delete map ${m.name ?? m.id}`}
+                    >
+                      {TrashIcon}
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -182,6 +228,23 @@ export default function AdminMaps() {
           </p>
         ) : null}
       </div>
+
+      <ConfirmDeleteModal
+        open={!!mapToDelete}
+        title="Delete map"
+        message={
+          <>
+            Permanently delete <strong>{mapToDelete?.name || "this map"}</strong> and all of its listings,
+            groups, publications and stats? This cannot be undone.
+          </>
+        }
+        confirmWord="DELETE"
+        confirmLabel="Delete map"
+        busy={deleting}
+        error={deleteErr}
+        onConfirm={confirmDeleteMap}
+        onCancel={() => setMapToDelete(null)}
+      />
     </AdminLayout>
   );
 }

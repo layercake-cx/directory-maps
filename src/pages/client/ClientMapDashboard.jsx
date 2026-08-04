@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMapDraft } from "../../context/MapDraftContext.js";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
-import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import { getClientIdForCurrentUser, getContactForCurrentUser, canManageMaps } from "../../lib/clientAuth";
+import { deleteMap as deleteMapRpc } from "../../lib/maps.js";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
@@ -208,6 +210,10 @@ export default function ClientMapDashboard() {
   const isPublishOpen = publishPanelOpen;
 
   const [client, setClient] = useState(null);
+  const [contact, setContact] = useState(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
   const [messagingTestMode, setMessagingTestMode] = useState(true); // safe default
   const [messagingTestRecipient, setMessagingTestRecipient] = useState("");
   const [map, setMap] = useState(null);
@@ -527,6 +533,16 @@ export default function ClientMapDashboard() {
   const recordFilterEvent = React.useCallback((eventType, meta) => {
     recordAdminEvent(supabase, { eventType, meta, source: "client_portal", clientId: client?.id ?? null, mapId });
   }, [client?.id, mapId]);
+
+  useEffect(() => {
+    let alive = true;
+    getContactForCurrentUser()
+      .then((c) => { if (alive) setContact(c); })
+      .catch(() => { if (alive) setContact(null); });
+    return () => { alive = false; };
+  }, []);
+
+  const canDeleteMap = canManageMaps(contact);
 
   const publishedFilterFields = useMemo(() => filterFieldsForPublication(filterFields), [filterFields]);
 
@@ -1611,22 +1627,23 @@ export default function ClientMapDashboard() {
   }
 
   async function deleteMap() {
-    const ok = window.confirm("Delete this map? This will also delete its groups and listings if FK cascade is set.");
-    if (!ok) return;
-
     try {
-      setSaving(true);
-      setErr("");
-      setMsg("");
-      const clientId = await getClientIdForCurrentUser();
-      if (!clientId) throw new Error("No client account linked.");
-      const { error } = await supabase.from("maps").delete().eq("id", mapId).eq("client_id", clientId);
-      if (error) throw error;
+      setDeleting(true);
+      setDeleteErr("");
+      await deleteMapRpc(mapId);
+      recordFilterEvent("map_design_deleted", {
+        client_id: client?.id ?? null,
+        map_id: mapId,
+        name: map?.name ?? name,
+        slug: map?.slug ?? slug,
+        actor_role: contact?.role ?? null,
+      });
+      setDeleteOpen(false);
       navigate("/client");
     } catch (e2) {
-      setErr(e2.message ?? String(e2));
+      setDeleteErr(e2.message ?? String(e2));
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   }
 
@@ -2312,6 +2329,22 @@ export default function ClientMapDashboard() {
                       </div>
                     )}
                   </div>
+
+                  {canDeleteMap && (
+                    <div className="panel-section" style={{ border: "1px solid #fca5a5", background: "#fef2f2" }}>
+                      <p className="panel-section__title" style={{ color: "#b91c1c" }}>Danger zone</p>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, opacity: 0.85 }}>
+                        Permanently delete this map and all of its listings, groups, publications and stats. This cannot be undone.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        onClick={() => { setDeleteErr(""); setDeleteOpen(true); }}
+                      >
+                        Delete map
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -3034,6 +3067,23 @@ export default function ClientMapDashboard() {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={deleteOpen}
+        title="Delete map"
+        message={
+          <>
+            Permanently delete <strong>{map?.name || name || "this map"}</strong> and all of its listings,
+            groups, publications and stats? This cannot be undone.
+          </>
+        }
+        confirmWord="DELETE"
+        confirmLabel="Delete map"
+        busy={deleting}
+        error={deleteErr}
+        onConfirm={deleteMap}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </main>
   );
 }

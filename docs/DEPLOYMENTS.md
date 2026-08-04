@@ -8,6 +8,46 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-04 — Staging (Delete maps)
+
+**Branch/commit:** `feat/2026-08-04-delete-maps`
+**Deployed by:** Cursor agent (not yet deployed — migration must be applied to staging first)
+
+### What changed
+- Reinstated a **delete map** capability for both client users and platform admins. Maps could not previously be deleted from the UI (the old handlers were dead code using `window.confirm`).
+- Deletion is a **permanent, cascading hard delete**: removing a map removes its groups, listings, publications, engagement events, data sources, filter fields, contact submissions, sync logs and directory associations via existing `ON DELETE CASCADE` FKs. `admin_events.map_id` is `SET NULL`, so the audit trail survives.
+- Every delete goes through a new **`delete_map(p_map_id)` SECURITY DEFINER RPC** that enforces permissions server-side (previously the `maps` RLS policy allowed *any* org member to delete). Allowed: platform admins, or a contact in the map's org who is owner/manager/primary or holds `can_manage_maps`.
+- A **type-`DELETE`-to-confirm** modal (new shared `src/components/ConfirmDeleteModal.jsx`) is used everywhere.
+- **Surfaces:** a "Danger zone" in the General settings panel of both the client (`ClientMapDashboard.jsx`) and admin (`AdminMapDashboard.jsx`) map editors, plus row delete actions in the admin **All maps** list (`AdminMaps.jsx`) and a customer's **Maps** tab (`AdminClientDetail.jsx`).
+- Emits a `map_design_deleted` admin event (`source`: `client_portal` / `admin_map` / `admin_maps` / `admin_dashboard`).
+
+### Database migrations applied
+- **Pending (staging first):** `supabase/migrations/20260804140000_delete_map_rpc.sql` — creates `public.delete_map(text)` (SECURITY DEFINER) and grants execute to `authenticated` only. Rollback: `_20260804140000_delete_map_rpc.rollback.sql` (`drop function public.delete_map`). No table/column changes; no data changes. **The delete UI will error until this migration is applied to the target database.**
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- New: `src/lib/maps.js`, `src/components/ConfirmDeleteModal.jsx`. Modified: client/admin map dashboards, `AdminMaps.jsx`, `AdminClientDetail.jsx`, `src/lib/clientAuth.js` (`canManageMaps` helper + `can_manage_maps` in the contact query), `src/lib/adminEvents.js` (`map_design_deleted` subtype).
+- Merges to `main` deploy to GitHub Pages via Actions.
+
+### Rollback plan
+- Database: run `_20260804140000_delete_map_rpc.rollback.sql`.
+- Frontend: revert the PR merge commit on `main`.
+- Note: deleted maps are **not recoverable** — there is no soft delete.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Migration dry-run (`BEGIN … ROLLBACK`) on staging passes
+- [ ] Migration applied to staging (test project)
+- [ ] Client owner/manager/`can_manage_maps` can delete their own map; button hidden for members without permission
+- [ ] A client member without permission is refused by the RPC (`Access denied`) even via direct call
+- [ ] Admin can delete from the map editor, All maps list, and a customer's Maps tab
+- [ ] Child rows (listings/groups/publications) are gone after delete; row counts consistent
+- [ ] `map_design_deleted` admin event recorded with the right `source`
+
+---
+
 ## 2026-07-28 — Production (Search panel font colour excludes listings)
 
 **Branch/commit:** `fix/2026-07-28-search-panel-font-exclude-listings`

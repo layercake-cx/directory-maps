@@ -15,7 +15,7 @@ export async function getContactForCurrentUser() {
 
   const { data: contacts } = await supabase
     .from("contacts")
-    .select("id, client_id, role, is_primary, email, name")
+    .select("id, client_id, role, is_primary, can_manage_maps, can_manage_users, email, name")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1);
@@ -25,6 +25,16 @@ export async function getContactForCurrentUser() {
 
 export function canManageOrg(contact) {
   return contact?.role === "owner" || contact?.role === "manager" || contact?.is_primary === true;
+}
+
+/**
+ * Whether a contact may create/edit/delete maps: owner/manager/primary, or a
+ * member explicitly granted the `can_manage_maps` permission. Mirrors the
+ * server-side check in the `delete_map` RPC and the `requireMapAccess` edge
+ * function helper.
+ */
+export function canManageMaps(contact) {
+  return canManageOrg(contact) || contact?.can_manage_maps === true;
 }
 
 /**

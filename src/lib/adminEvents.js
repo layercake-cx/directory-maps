@@ -17,6 +17,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
   map_design: [
     "created",
     "updated",
+    "deleted",
     "theme_updated",
     "group_created",
     "group_updated",
