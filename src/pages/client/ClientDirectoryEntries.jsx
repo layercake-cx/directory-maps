@@ -8,6 +8,7 @@ import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
+import LinkedMapsPanel from "../../components/directories/LinkedMapsPanel.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
@@ -126,6 +127,17 @@ export default function ClientDirectoryEntries() {
           scope="directory"
           selectedTermIds={directoryTermIds}
           onChange={canManage ? handleDirectoryTermsChange : () => {}}
+        />
+      </div>
+
+      <div className="admin-card" style={{ marginBottom: 16 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Linked maps</p>
+        <LinkedMapsPanel
+          directoryId={directoryId}
+          clientId={client?.id}
+          clientSlug={client?.slug}
+          canManage={canManage}
+          recordEvent={recordEvent}
         />
       </div>
 

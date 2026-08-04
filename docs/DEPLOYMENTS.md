@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-07-16 — Staging (Directories — Map linking, DIR-E8)
+
+**Branch/commit:** `feat/2026-07-16-directories-map-association` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- New **Map linking** capability (epic DIR-E8 per `docs/DIRECTORIES.md`): a directory can be associated with one or more of a client's existing maps via a new `directory_map_associations` join table (`role = 'embedded_on_directory'`).
+- Shared UI (`LinkedMapsPanel`, used by both `ClientDirectoryEntries.jsx` and `AdminDirectoryEntries.jsx`): pick a map from a dropdown to link it, reorder linked maps with ↑/↓, remove a link. Each linked map renders as an embedded preview using the existing map-embed iframe convention (`embedSrc`/`embedIframe` pattern from `AdminMapDashboard.jsx`/`ClientMapDashboard.jsx`) — no new embedding mechanism.
+- **Scoped down from the full DIR-E8 spec, agreed with the user up front:** since directory publishing (DIR-E2) doesn't exist yet, there is no public directory page to embed maps on. Linked maps are instead shown as a preview panel on the existing authenticated directory-settings page. Getting an embed snippet for the directory *itself* (DIR-E8-S3) is deferred to DIR-E2, since it needs a public directory URL to point at — building it now would ship a copy button whose output 404s.
+- Admin event instrumentation: `directory_map_associated`, `directory_map_removed`, `directory_maps_reordered` (category `directory`, matching the existing `directory_created`/`directory_archived`/etc. convention from DIR-E1/DIR-E5).
+- Docs updated in the same change: `docs/USER_GUIDE.md` (new "Linked maps" subsection), `docs/FEATURES.md` (new §4.4c), `docs/FRONTEND_ARCHITECTURE.md` (added `directoryMapAssociations.js` to the `src/lib/` reference table).
+
+### Database migrations applied
+- `20260716120000_create_directory_map_associations.sql` — **not yet applied**. Creates `directory_map_associations`, RLS-enabled (`_admin_all` + `_own_client`, with `_own_client` checking that both the directory and the map belong to the caller's client — prevents linking cross-tenant maps). No anon-read policy yet (no publish concept until DIR-E2). Purely additive; does not touch `map_data_sources`/`listings`.
+- Rollback file: `_20260716120000_create_directory_map_associations.rollback.sql` (refuses to run if any association rows exist).
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Not yet merged to `main` — PR pending.
+
+### Rollback plan
+- Frontend: do not merge / revert the merge commit on `main`.
+- Migration: run `_20260716120000_create_directory_map_associations.rollback.sql` on staging (refuses if any real data exists).
+
+### Verified
+- [x] `npm run build` succeeds with no errors
+- [ ] Staging migration applied; `VERIFY PASSED` notice; anon REST check
+- [ ] User smoke test: link a map to a directory, reorder, remove, in both portals
+- [ ] Frontend live after PR merge
+
+---
+
 ## 2026-07-28 — Production (Search panel font colour excludes listings)
 
 **Branch/commit:** `fix/2026-07-28-search-panel-font-exclude-listings`

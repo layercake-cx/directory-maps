@@ -8,6 +8,7 @@ import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisatio
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
+import LinkedMapsPanel from "../../components/directories/LinkedMapsPanel.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
@@ -144,6 +145,17 @@ export default function AdminDirectoryEntries() {
                 scope="directory"
                 selectedTermIds={directoryTermIds}
                 onChange={handleDirectoryTermsChange}
+              />
+            </div>
+
+            <div className="admin-card" style={{ marginBottom: 16 }}>
+              <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Linked maps</p>
+              <LinkedMapsPanel
+                directoryId={directoryId}
+                clientId={clientId}
+                clientSlug={client?.slug}
+                canManage
+                recordEvent={recordEvent}
               />
             </div>
 

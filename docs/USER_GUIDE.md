@@ -93,7 +93,7 @@ You’ll return to **My Maps**; open the new map to configure it.
 
 ## Directories
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, categorisation-driven filtering, and map linking are not built yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is an early phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, and categorisation-driven filtering are not built yet.
 
 ### Creating a directory
 
@@ -134,6 +134,15 @@ Once a categorisation exists, its terms appear as a checkbox picker:
 - On an entry's create/edit form, to tag that entry.
 
 Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
+
+### Linked maps
+
+From a directory's page, the **Linked maps** section lets you (owners and managers) associate one or more of your existing maps with the directory:
+
+- Choose a map from the dropdown and click **Link map** — it's added to the list, shown with an embedded preview using the same iframe as the map's own embed code.
+- Reorder linked maps with the **↑ / ↓** buttons, or **Remove** one — removing only unlinks it, the map itself is untouched.
+
+There is no data syncing involved — this only controls which maps show up alongside the directory. Directories don't have a public page yet (that's a later phase, `docs/DIRECTORIES.md` epic DIR-E2), so for now the linked maps appear as a preview on this authenticated page; once publishing ships, the same associations will drive what's embedded on the directory's public pages.
 
 ---
 

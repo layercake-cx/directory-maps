@@ -170,7 +170,7 @@ Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistory
 
 ### 4.4a Directories (new, DIR-E1 core)
 
-A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) plus categorisations (DIR-E5, see §4.4b) are built so far. Publishing, branding/custom domain, the entry layout designer, natural-language search, and map association/embedding are not implemented yet.
+A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; core CRUD (epic DIR-E1), categorisations (DIR-E5, see §4.4b), and map linking (DIR-E8, see §4.4c) are built so far. Publishing, branding/custom domain, the entry layout designer, and natural-language search are not implemented yet.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
@@ -202,6 +202,22 @@ Tables: `categorisations`, `category_terms`, `directory_category_terms`, `entry_
 Not built yet: public/published-site filtering by categorisation term (DIR-E5-S4) — requires directory publishing (DIR-E2), which doesn't exist yet.
 
 Files: `src/lib/categorisations.js`, `src/components/directories/CategorisationsPanel.jsx`, `src/components/directories/CategoryTagPicker.jsx`, `ClientCategorisations.jsx` (client); a "Categorisations" tab in `AdminClientDetail.jsx` (admin).
+
+### 4.4c Map linking (new, DIR-E8)
+
+A directory can be linked to one or more of a client's existing maps, via a many-to-many join table (`directory_map_associations`, `role = 'embedded_on_directory'`). Reuses the existing map-embed iframe snippet (the embedSrc/embedIframe pattern from `AdminMapDashboard.jsx`/`ClientMapDashboard.jsx`) rather than inventing a new embedding mechanism.
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Linked maps | On a directory's entries page (`/client/directories/:directoryId`, `/admin/clients/:clientId/directories/:directoryId`) | Link/unlink/reorder maps; each linked map renders as an embedded preview iframe |
+
+- No public directory page exists yet (DIR-E2), so linked maps render as a preview on the authenticated directory-settings page rather than a public "published page" — the same association data will drive the public embed once publishing ships.
+- Getting an embed snippet for the directory itself (DIR-E8-S3) is deferred to DIR-E2, since it needs a public directory URL to point at.
+- Only `role = 'embedded_on_directory'` is used today; the schema also reserves `role = 'directory_as_datasource'` for DIR-E4 (directory-as-map-pin-source), not built yet.
+
+Tables: `directory_map_associations` (`20260716120000_create_directory_map_associations.sql`). RLS mirrors `directories`/`categorisations` (`_admin_all` + `_own_client`, with `_own_client` checking that **both** the directory and the map belong to the caller's client); no anon-read policy yet.
+
+Files: `src/lib/directoryMapAssociations.js`, `src/components/directories/LinkedMapsPanel.jsx` (shared by client and admin).
 
 ### 4.5 Analytics (engagement)
 
@@ -314,6 +330,7 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `directory_groups` | Simple single-value grouping per directory (peer of `groups`) |
 | `directory_entries` | Directory entries (peer of `listings`) |
 | `contact_directory_permissions` | Member → directory access (peer of `contact_map_permissions`, not yet RLS-enforced — mirrors current `contact_map_permissions` behaviour) |
+| `directory_map_associations` | Map ↔ directory join (`role = embedded_on_directory` used; `directory_as_datasource` reserved for DIR-E4) |
 | `categorisations` | Client-wide taxonomy definitions (key, label, `applies_to`) |
 | `category_terms` | Term list per categorisation (peer of `map_filter_field_options`) |
 | `directory_category_terms` | Tags a whole directory with a term |
@@ -412,8 +429,9 @@ Shared utilities: `supabase/functions/_shared/`.
 | Admin user management | **Stub** | Page is placeholder |
 | OneDrive / iCloud | **Not started** | UI placeholders only |
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
-| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/search yet (see `docs/DIRECTORIES.md`) |
 | Categorisations (DIR-E5) | **Beta** | Taxonomy management + directory/entry tagging shipped to staging; no published-site filtering yet (depends on DIR-E2 publishing) |
+| Map linking (DIR-E8) | **Beta** | Link/unlink/reorder maps on a directory, embedded preview on the authenticated page; no public directory page to embed on yet (depends on DIR-E2 publishing) |
 
 ---
 

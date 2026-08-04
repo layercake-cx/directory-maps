@@ -197,6 +197,7 @@ The service/data layer. Grouped by concern:
 | `filterFields.js` | Per-map configurable "filter fields" CRUD |
 | `directories.js` | Directories feature CRUD |
 | `categorisations.js` | Client-wide taxonomy CRUD |
+| `directoryMapAssociations.js` | Directory ↔ map association CRUD (link/unlink/reorder), `embedded_on_directory` role only |
 | `continents.js` | Free-text country → continent mapping for filtering |
 | `statsRoutes.js` | Client-vs-admin stats/back-link path builder |
 | `teamDirectory.js` | Sorts/labels team member + pending-invite rows |
