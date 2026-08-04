@@ -1,10 +1,10 @@
 # Map engagement analytics
 
-Captures how visitors interact with **published embed maps** (public map views). Events are stored in Supabase for reporting. The **client portal** exposes dashboards at `/#/client/maps/<mapId>/stats` (map overview) and `.../stats/listings/<listingId>` (per listing). This document describes what is recorded and how it works.
+Captures how visitors interact with **published embed maps** (public map views). Events are stored in Supabase for reporting. The **client portal** exposes dashboards at `/client/maps/<mapId>/stats` (map overview) and `.../stats/listings/<listingId>` (per listing). This document describes what is recorded and how it works.
 
 ## Overview
 
-When someone loads an embed (`/#/embed?map=<MAP_ID>`), the app records anonymous engagement events: opening listings, expanding directory groups, clicking website/email links, using search, and sending contact messages. Each event is a row in `map_engagement_events` with a common schema plus optional JSON in `meta` for event-specific details.
+When someone loads an embed (`/embed?map=<MAP_ID>`), the app records anonymous engagement events: opening listings, expanding directory groups, clicking website/email links, using search, and sending contact messages. Each event is a row in `map_engagement_events` with a common schema plus optional JSON in `meta` for event-specific details.
 
 **Scope today**
 
@@ -188,13 +188,13 @@ const { data, error } = await supabase
 
 | Route | Component | Contents |
 |-------|-----------|----------|
-| `/#/client/maps/:mapId/stats` | `MapStats.jsx` | Date range, metric cards, daily events chart, funnel, search terms table, listing picker |
-| `/#/client/maps/:mapId/stats/listings/:listingId` | `ListingStats.jsx` | Per-listing engagement breakdown |
+| `/client/maps/:mapId/stats` | `MapStats.jsx` | Date range, metric cards, daily events chart, funnel, search terms table, listing picker |
+| `/client/maps/:mapId/stats/listings/:listingId` | `ListingStats.jsx` | Per-listing engagement breakdown |
 
 Hooks and charts: `src/hooks/useListingEngagement.js`, `src/components/engagement/*`.
 
-| `/#/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` → shared `MapStats` |
-| `/#/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` → shared `ListingStats` |
+| `/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` → shared `MapStats` |
+| `/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` → shared `ListingStats` |
 
 Admin map routes include the same **Stats** tab and dashboards as the client portal (admins read engagement via `is_admin()` RLS).
 

@@ -130,7 +130,7 @@ Every time you implement a meaningful change — feature, fix, migration, config
 
 ## Stack
 
-Vite + React (HashRouter) · Supabase · Google Maps · Resend · Stripe (partial)
+Vite + React (BrowserRouter) · Supabase · Google Maps · Resend · Stripe (partial)
 
 ## Frontend deployment
 

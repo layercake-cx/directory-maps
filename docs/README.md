@@ -2,7 +2,7 @@
 
 Directory Maps is a multi-tenant SaaS for building **Google Maps–based location directories**: clients manage maps and listings in a portal, visitors use embeddable public maps with search, groups, and contact forms.
 
-**Stack:** Vite + React (HashRouter) · Supabase (Auth, Postgres, Edge Functions) · Google Maps / Geocoding / Sheets · Resend · Stripe (partial)
+**Stack:** Vite + React (BrowserRouter, clean paths) · Supabase (Auth, Postgres, Edge Functions) · Google Maps / Geocoding / Sheets · Resend · Stripe (partial)
 
 ---
 
@@ -11,6 +11,7 @@ Directory Maps is a multi-tenant SaaS for building **Google Maps–based locatio
 | Document | Audience | Contents |
 |----------|----------|----------|
 | [**FEATURES.md**](./FEATURES.md) | Product, engineering, beta planning | Full feature inventory across app, API, and integrations |
+| [**FRONTEND_ARCHITECTURE.md**](./FRONTEND_ARCHITECTURE.md) | Engineering | App shell, routing, state management, styling, `src/` layout reference |
 | [**DIRECTORIES.md**](./DIRECTORIES.md) | Product, engineering | Draft spec: Directories feature — epics, user stories, data model, existing-patterns audit |
 | [**USER_GUIDE.md**](./USER_GUIDE.md) | Client users | Sign-up, maps, data import, publish, embed, team |
 | [**BETA_READINESS.md**](./BETA_READINESS.md) | Launch team | Pre-launch checklist and known gaps |
@@ -35,12 +36,12 @@ Directory Maps is a multi-tenant SaaS for building **Google Maps–based locatio
 
 | Area | Hash route | Gate |
 |------|------------|------|
-| Marketing home | `/#/` | Public |
-| Pricing | `/#/pricing` | Public |
-| Sign up / login | `/#/signup`, `/#/login` | Public |
-| Client portal | `/#/client/*` | Authenticated + verified email |
-| Public embed | `/#/embed?map=<id>` | Published map only |
-| Admin console | `/#/admin/*` | `profiles.role = admin` |
+| Marketing home | `/` | Public |
+| Pricing | `/pricing` | Public |
+| Sign up / login | `/signup`, `/login` | Public |
+| Client portal | `/client/*` | Authenticated + verified email |
+| Public embed | `/embed?map=<id>` | Published map only |
+| Admin console | `/admin/*` | `profiles.role = admin` |
 
 ---
 
