@@ -8,6 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-05 — [Staging] Remove client impersonation
+
+**Branch/commit:** `feat/2026-08-05-remove-impersonation`
+**Deployed by:** Cursor agent (not yet deployed)
+
+### What changed
+- Removed the admin "impersonate customer" feature. It let a platform admin set `dm_impersonated_client_id` in `localStorage` and browse the client portal as that organisation, surfaced via a crimson `ImpersonationBar`. It did not work reliably, so it has been taken out.
+- Admins now manage each customer entirely through the admin pages (`/admin/clients/:id`), which already mirror the client portal (maps, directories, categorisations, users, messaging).
+- Deleted: the impersonate icon buttons on `/admin/clients` and the customer-detail Users tab, the `ImpersonationBar`, and the impersonation branch in `getClientAndContact`.
+- Removed helpers `startImpersonatingClient` / `stopImpersonatingClient` / `getImpersonatedClientId` and the `IMPERSONATED_CLIENT_KEY` constant. `signOut` still clears any stale `dm_impersonated_client_id` key from pre-existing sessions.
+
+### Database migrations applied
+- None. Impersonation was entirely client-side `localStorage`.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Client-only change. `npm run build` passes.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds locally
+- [ ] Admin `/admin/clients` list shows contact email with no impersonate icon
+- [ ] Customer detail Users tab shows Edit/Delete actions, no impersonate icon, columns aligned
+- [ ] No crimson impersonation bar appears anywhere
+- [ ] Browser console shows no errors on admin pages
+
+---
+
 ## 2026-07-28 — Production (Search panel font colour excludes listings)
 
 **Branch/commit:** `fix/2026-07-28-search-panel-font-exclude-listings`

@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { getMyRole, getSession } from "./auth";
-import { getImpersonatedClientId } from "./clientAuth";
 
 /**
  * Fetches the client and current user's contact for the client portal.
@@ -13,23 +12,6 @@ export async function getClientAndContact() {
   if (!user) throw new Error("Not signed in.");
 
   const role = await getMyRole();
-  const impersonatedClientId = getImpersonatedClientId();
-
-  if (impersonatedClientId && role === "admin") {
-    const { data: client, error: clientErr } = await supabase
-      .from("clients")
-      .select("id,name,slug,subscription_active_override,created_at,updated_at")
-      .eq("id", impersonatedClientId)
-      .single();
-    if (clientErr || !client) return { client: null, contact: null };
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
-      .eq("client_id", client.id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    return { client: { ...client, __impersonated: true }, contact: contact ?? null };
-  }
 
   if (role === "admin") {
     const { data: adminContacts } = await supabase

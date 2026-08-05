@@ -1,7 +1,5 @@
 import { supabase } from "./supabase";
 
-const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
-
 /**
  * Last-resort: strip persisted Supabase auth keys for this project. The in-memory session can still
  * be stale until reload — used only when signOut() API fails (e.g. storage lock).
@@ -68,8 +66,9 @@ export async function getMyRole() {
 
 export async function signOut() {
   try {
+    // Legacy cleanup: clear the removed impersonation key from any pre-existing session.
     if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.removeItem(IMPERSONATED_CLIENT_KEY);
+      window.localStorage.removeItem("dm_impersonated_client_id");
     }
   } catch {
     // ignore
