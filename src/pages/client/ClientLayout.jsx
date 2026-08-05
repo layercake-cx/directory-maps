@@ -7,6 +7,8 @@ import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
 import { useAuth } from "../../hooks/useAuth.js";
+import { useFeatureFlags } from "../../hooks/useFeatureFlags.js";
+import { DIRECTORIES_FLAG } from "../../lib/featureFlags.js";
 import { readHashSearchParams, replaceHashSearchParams } from "../../lib/hashSearchParams.js";
 import {
   markPublishPanelOpen,
@@ -17,8 +19,8 @@ import "../admin/admin.css";
 
 const CLIENT_NAV = [
   { label: "My Maps", path: "/client" },
-  { label: "Directories", path: "/client/directories" },
-  { label: "Categorisations", path: "/client/categorisations", requiresManageOrg: true },
+  { label: "Directories", path: "/client/directories", requiresFlag: DIRECTORIES_FLAG },
+  { label: "Categorisations", path: "/client/categorisations", requiresManageOrg: true, requiresFlag: DIRECTORIES_FLAG },
   { label: "Team", path: "/client/team", requiresManageOrg: true },
   { label: "Messaging", path: "/client/email", requiresManageMaps: true },
 ];
@@ -41,6 +43,7 @@ export default function ClientLayout() {
   const restoredPublishRef = useRef(false);
   const lastMapIdRef = useRef(mapIdFromPath);
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
+  const { flags: featureFlags } = useFeatureFlags();
   const kickedUnlinkedRef = useRef(false);
   const clientLoadedRef = useRef(false);
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
@@ -241,6 +244,7 @@ export default function ClientLayout() {
   } else {
     const canManageMaps = contact?.is_primary || contact?.can_manage_maps;
     const navItems = CLIENT_NAV.filter((item) => {
+      if (item.requiresFlag && !featureFlags?.[item.requiresFlag]) return false;
       if (item.requiresManageOrg) return canManageOrg(contact);
       if (item.requiresManageMaps) return canManageMaps;
       return true;

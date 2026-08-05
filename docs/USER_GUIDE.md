@@ -58,8 +58,8 @@ After sign-in you’ll see:
 | Section | Path | Who can access |
 |---------|------|----------------|
 | **My Maps** | `/client` | All team members |
-| **Directories** | `/client/directories` | All team members |
-| **Categorisations** | `/client/categorisations` | Owners and managers |
+| **Directories** | `/client/directories` | All team members *(beta — only if enabled for your organisation)* |
+| **Categorisations** | `/client/categorisations` | Owners and managers *(beta — only if enabled for your organisation)* |
 | **Team** | `/client/team` | Owners and managers |
 | **Email** | `/client/email` | Users who can manage maps |
 
@@ -92,6 +92,8 @@ You’ll return to **My Maps**; open the new map to configure it.
 ---
 
 ## Directories
+
+> **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, categorisation-driven filtering, and map linking are not built yet.
 

@@ -8,6 +8,45 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-05 — [Staging] Feature-flag layer + gate Directories/Categorisations
+
+**Branch/commit:** `feat/2026-08-05-feature-flags`
+**Deployed by:** Cursor agent (not yet deployed — migration must run on staging first)
+
+### What changed
+- Added a generic feature-flag layer so in-development features can be tested in production and pre-released to named customers before general availability. The in-progress **Directories** and **Categorisations** feature is its first consumer and is now hidden from customers by default.
+- **Who sees a flagged feature:** platform admins and `@layercake-cx.biz` users always; plus any organisation an admin has explicitly granted. Everyone else gets the flag's default (off for `directories`).
+- Two new tables: `feature_flags` (registry — global default + internal-on) and `feature_flag_overrides` (per-organisation grant/deny). Seeded one flag: `directories` (default off, internal on).
+- Resolution is centralised in a security-definer RPC `get_my_feature_flags()` (precedence: admin → internal → per-org override → default), so customers never read the flag tables directly. RLS on both tables is admin-only.
+- Frontend: `FeatureFlagsProvider` (loads resolved flags once per session), `useFeatureFlag` hook, and a `FeatureGate` route guard. The client nav (`ClientLayout`) hides Directories/Categorisations when off, and the `/client/directories*` + `/client/categorisations` routes redirect to `/client` when off. Flags fail closed (hidden) if the RPC errors.
+- Admin control: a **Feature access (beta)** toggle on the customer detail page grants/clears the per-org `directories` override and emits an `ops_feature_flag_changed` admin event.
+- This is UI/route gating for unreleased features, **not** a security boundary — the directory tables keep their existing tenant-scoped RLS.
+
+### Database migrations applied
+- `supabase/migrations/20260805120000_create_feature_flags.sql` — **not yet applied**. Run on staging (`beqejxneehilplrtpntn`) first with the dry-run block, then the post-migration verification, then production only after sign-off.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- New provider/hook/gate + admin toggle + nav/route gating. `npm run build` passes.
+
+### Rollback plan
+- Database: run `supabase/migrations/_20260805120000_create_feature_flags.rollback.sql` (drops the RPC + both tables; guarded against dropping while per-customer overrides exist). With the tables gone, `get_my_feature_flags()` 404s and the frontend fails closed (all flags off) — safe.
+- Frontend: revert the PR merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds locally
+- [ ] Migration dry-run (BEGIN/ROLLBACK) passes on staging
+- [ ] Migration applied on staging; verification block passes; row counts unchanged
+- [ ] Customer (non-Layercake, no override): Directories/Categorisations hidden in nav; direct URL redirects to `/client`
+- [ ] Admin toggles **Feature access → Directories** on a customer; that customer now sees the sections
+- [ ] `@layercake-cx.biz` user sees the sections without any override
+- [ ] `ops_feature_flag_changed` event recorded on toggle
+- [ ] Browser console shows no errors
+
+---
+
 ## 2026-07-28 — Production (Search panel font colour excludes listings)
 
 **Branch/commit:** `fix/2026-07-28-search-panel-font-exclude-listings`

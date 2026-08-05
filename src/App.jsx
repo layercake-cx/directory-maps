@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import AdminGate from "./components/AdminGate.jsx";
 import ClientGate from "./components/ClientGate.jsx";
+import FeatureGate from "./components/FeatureGate.jsx";
+import { DIRECTORIES_FLAG } from "./lib/featureFlags.js";
 
 import PublicMap from "./pages/PublicMap.jsx";
 import SlugMap from "./pages/SlugMap.jsx";
@@ -87,10 +89,10 @@ export default function App() {
         <Route path="maps/:mapId/listings" element={<ClientMapListings />} />
         <Route path="maps/:mapId/stats" element={<MapStats />} />
         <Route path="maps/:mapId/stats/listings/:listingId" element={<ListingStats />} />
-        <Route path="directories" element={<ClientDirectories />} />
-        <Route path="directories/new" element={<ClientDirectoryNew />} />
-        <Route path="directories/:directoryId" element={<ClientDirectoryEntries />} />
-        <Route path="categorisations" element={<ClientCategorisations />} />
+        <Route path="directories" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectories /></FeatureGate>} />
+        <Route path="directories/new" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryNew /></FeatureGate>} />
+        <Route path="directories/:directoryId" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntries /></FeatureGate>} />
+        <Route path="categorisations" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientCategorisations /></FeatureGate>} />
       </Route>
 
       {/* Admin root -> clients */}

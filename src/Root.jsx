@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { supabase } from "./lib/supabase";
 import { getImpersonatedClientId, stopImpersonatingClient } from "./lib/clientAuth";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { FeatureFlagsProvider } from "./context/FeatureFlagsProvider.jsx";
 import { isEmbedPath } from "./lib/embedRoutes.js";
 
 function ImpersonationBar() {
@@ -214,7 +215,9 @@ export default function Root() {
       <ErrorBoundary>
         <BrowserRouter>
           <AuthProvider>
-            <Layout />
+            <FeatureFlagsProvider>
+              <Layout />
+            </FeatureFlagsProvider>
           </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>
