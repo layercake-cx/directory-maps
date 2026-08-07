@@ -1,8 +1,6 @@
 import { supabase } from "./supabase";
 import { getSession } from "./auth";
 
-export const IMPERSONATED_CLIENT_KEY = "dm_impersonated_client_id";
-
 /**
  * Returns the full contact record for the current user, including role.
  * Returns null if the user has no contact (e.g. platform admin).
@@ -53,29 +51,4 @@ export async function getClientIdForCurrentUser() {
     .maybeSingle();
 
   return legacyClient?.id ?? null;
-}
-
-export function startImpersonatingClient(clientId) {
-  try {
-    if (!clientId) return;
-    window.localStorage.setItem(IMPERSONATED_CLIENT_KEY, String(clientId));
-  } catch {
-    // Ignore storage errors in non-browser environments.
-  }
-}
-
-export function stopImpersonatingClient() {
-  try {
-    window.localStorage.removeItem(IMPERSONATED_CLIENT_KEY);
-  } catch {
-    // Ignore storage errors in non-browser environments.
-  }
-}
-
-export function getImpersonatedClientId() {
-  try {
-    return window.localStorage.getItem(IMPERSONATED_CLIENT_KEY);
-  } catch {
-    return null;
-  }
 }

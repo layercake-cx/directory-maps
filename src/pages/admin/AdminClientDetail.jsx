@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
-import { startImpersonatingClient } from "../../lib/clientAuth";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
 import { listDirectories } from "../../lib/directories.js";
@@ -36,7 +35,6 @@ const TRASH_ICON = (
 
 export default function AdminClientDetail() {
   const { clientId } = useParams();
-  const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
   const [primaryContact, setPrimaryContact] = useState(null);
@@ -274,14 +272,6 @@ export default function AdminClientDetail() {
     } finally {
       setDeletingContact(false);
     }
-  }
-
-  function handleImpersonate(contactRow) {
-    if (!contactRow.user_id) return;
-    const ok = window.confirm(`Impersonate ${contactRow.email} as ${client?.name}?`);
-    if (!ok) return;
-    startImpersonatingClient(clientId);
-    navigate("/client");
   }
 
   const recordEvent = (eventType, meta) => {
@@ -630,7 +620,6 @@ export default function AdminClientDetail() {
                         <th>Has login</th>
                         <th></th>
                         <th></th>
-                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -668,24 +657,6 @@ export default function AdminClientDetail() {
                             )}
                           </td>
                           <td>{c.user_id ? "Yes" : "Pending"}</td>
-                          <td>
-                            {c.user_id ? (
-                              <button
-                                type="button"
-                                className="admin-table__icon-btn"
-                                title="Impersonate this user in client portal"
-                                aria-label={`Impersonate ${c.email}`}
-                                onClick={() => handleImpersonate(c)}
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" />
-                                  <path d="M5 20c0-3.31 3.134-6 7-6s7 2.69 7 6" />
-                                </svg>
-                              </button>
-                            ) : (
-                              <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>—</span>
-                            )}
-                          </td>
                           <td>
                             <Link to={`/admin/clients/${encodeURIComponent(clientId)}/contacts/${encodeURIComponent(c.id)}`}>
                               Edit

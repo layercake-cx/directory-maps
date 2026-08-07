@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-08-05 — [Staging] Feature-flag layer + gate Directories/Categorisations
 
 **Branch/commit:** `feat/2026-08-05-feature-flags`
-**Deployed by:** Cursor agent (not yet deployed — migration must run on staging first)
+**Deployed by:** Cursor agent — migration applied to staging 2026-08-07
 
 ### What changed
 - Added a generic feature-flag layer so in-development features can be tested in production and pre-released to named customers before general availability. The in-progress **Directories** and **Categorisations** feature is its first consumer and is now hidden from customers by default.
@@ -23,7 +23,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - This is UI/route gating for unreleased features, **not** a security boundary — the directory tables keep their existing tenant-scoped RLS.
 
 ### Database migrations applied
-- `supabase/migrations/20260805120000_create_feature_flags.sql` — **not yet applied**. Run on staging (`beqejxneehilplrtpntn`) first with the dry-run block, then the post-migration verification, then production only after sign-off.
+- `supabase/migrations/20260805120000_create_feature_flags.sql` — **applied to staging** (`beqejxneehilplrtpntn`) on 2026-08-07; post-migration verification passed (`VERIFY PASSED`). **Not applied to production.**
 
 ### Edge functions deployed
 - None.
@@ -37,13 +37,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` succeeds locally
-- [ ] Migration dry-run (BEGIN/ROLLBACK) passes on staging
-- [ ] Migration applied on staging; verification block passes; row counts unchanged
+- [x] Migration applied on staging; verification block passed (`VERIFY PASSED`)
 - [ ] Customer (non-Layercake, no override): Directories/Categorisations hidden in nav; direct URL redirects to `/client`
 - [ ] Admin toggles **Feature access → Directories** on a customer; that customer now sees the sections
 - [ ] `@layercake-cx.biz` user sees the sections without any override
 - [ ] `ops_feature_flag_changed` event recorded on toggle
 - [ ] Browser console shows no errors
+
+---
+
+## 2026-08-05 — [Staging] Remove client impersonation
+
+**Branch/commit:** `feat/2026-08-05-remove-impersonation`
+**Deployed by:** Cursor agent (not yet deployed)
+
+### What changed
+- Removed the admin "impersonate customer" feature. It let a platform admin set `dm_impersonated_client_id` in `localStorage` and browse the client portal as that organisation, surfaced via a crimson `ImpersonationBar`. It did not work reliably, so it has been taken out.
+- Admins now manage each customer entirely through the admin pages (`/admin/clients/:id`), which already mirror the client portal (maps, directories, categorisations, users, messaging).
+- Deleted: the impersonate icon buttons on `/admin/clients` and the customer-detail Users tab, the `ImpersonationBar`, and the impersonation branch in `getClientAndContact`.
+- Removed helpers `startImpersonatingClient` / `stopImpersonatingClient` / `getImpersonatedClientId` and the `IMPERSONATED_CLIENT_KEY` constant. `signOut` still clears any stale `dm_impersonated_client_id` key from pre-existing sessions.
+
+### Database migrations applied
+- None. Impersonation was entirely client-side `localStorage`.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Client-only change. `npm run build` passes.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds locally
+- [ ] Admin `/admin/clients` list shows contact email with no impersonate icon
+- [ ] Customer detail Users tab shows Edit/Delete actions, no impersonate icon, columns aligned
+- [ ] No crimson impersonation bar appears anywhere
+- [ ] Browser console shows no errors on admin pages
 
 ---
 

@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
-import { Link, useNavigate } from "react-router-dom";
-import { startImpersonatingClient } from "../../lib/clientAuth";
+import { Link } from "react-router-dom";
 
 const TRASH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -11,13 +10,6 @@ const TRASH_ICON = (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     <line x1="10" y1="11" x2="10" y2="17" />
     <line x1="14" y1="11" x2="14" y2="17" />
-  </svg>
-);
-
-const PERSON_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" />
-    <path d="M5 20c0-3.31 3.134-6 7-6s7 2.69 7 6" />
   </svg>
 );
 
@@ -36,7 +28,6 @@ function buildPrimaryContactByClientId(contacts) {
 }
 
 export default function AdminClients() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [mapCountByClientId, setMapCountByClientId] = useState({});
   const [primaryContactByClientId, setPrimaryContactByClientId] = useState({});
@@ -196,27 +187,9 @@ export default function AdminClients() {
 
                   <td>
                     {primaryContact ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Link to={`/admin/clients/${encodeURIComponent(r.id)}/contacts/${encodeURIComponent(primaryContact.id)}`}>
-                          {primaryContact.email}
-                        </Link>
-                        {primaryContact.email && primaryContact.email !== "No contact set" ? (
-                          <button
-                            type="button"
-                            className="admin-table__icon-btn"
-                            title="Impersonate customer in portal"
-                            aria-label={`Impersonate customer ${r.name}`}
-                            onClick={() => {
-                              const ok = window.confirm(`Are you sure you wish to impersonate ${r.name}?`);
-                              if (!ok) return;
-                              startImpersonatingClient(r.id);
-                              navigate("/client");
-                            }}
-                          >
-                            {PERSON_ICON}
-                          </button>
-                        ) : null}
-                      </div>
+                      <Link to={`/admin/clients/${encodeURIComponent(r.id)}/contacts/${encodeURIComponent(primaryContact.id)}`}>
+                        {primaryContact.email}
+                      </Link>
                     ) : (
                       "—"
                     )}

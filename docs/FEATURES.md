@@ -23,7 +23,6 @@ flowchart LR
   end
   subgraph admin [Admin]
     Clients[Customers]
-    Impersonate[Impersonate]
   end
   subgraph backend [Supabase]
     DB[(Postgres + RLS)]
@@ -44,7 +43,7 @@ flowchart LR
 
 - **Organisation** = row in `clients` (name, slug, subscription flags, optional Resend domain).
 - **User** = Supabase Auth account, linked via `contacts` (`client_id`, `role`, permissions).
-- **Platform admin** = `profiles.role = 'admin'` (cross-tenant access, impersonation).
+- **Platform admin** = `profiles.role = 'admin'` (cross-tenant access via the admin portal).
 - **Map** = belongs to one client; **listings** and **groups** belong to a map.
 
 ---
@@ -285,7 +284,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Customers | `/admin/clients` | Search, create, delete clients; **impersonate** into client portal |
+| Customers | `/admin/clients` | Search, create, delete clients |
 | Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override`; secondary client nav (Maps · Customer details · Users · Messaging); **Messaging tab** matches client portal (Settings + Sent messages) |
 | New customer | `/admin/clients/new` | Create organisation (name + slug) |
 | Add customer user | `/admin/clients/:id` (Users tab) | Send invite to create account/set password; contact links after invite acceptance |
@@ -300,7 +299,7 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 | Logs ▾ Sync log | `/admin/sync-log` | Google Sheets/Drive sync run history |
 | Deployments | `/admin/deployments` | Trigger Vercel deploy hooks or copy shell commands |
 
-**Impersonation:** Admin sets `dm_impersonated_client_id` in `localStorage`; crimson banner in `Root.jsx`; `getClientAndContact` resolves impersonated client.
+Admins manage each customer through the admin pages (`/admin/clients/:id`), which mirror the client portal views (maps, directories, categorisations, users, messaging). Client impersonation was removed on 2026-08-05.
 
 Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 

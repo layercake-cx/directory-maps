@@ -435,7 +435,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ## Admin users
 
-Users with **admin** access use `/admin` to manage customers, maps, and impersonation. Use impersonation to view a client’s portal as their organisation.
+Users with **admin** access use `/admin` to manage customers and their maps. Each customer is managed from the admin customer pages (`/admin/clients/:id`), which mirror the client portal (maps, directories, categorisations, users, messaging).
 
 **Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
 
