@@ -64,7 +64,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "messaging_toggled",
   ],
   billing: ["checkout_session_created", "checkout_failed"],
-  ops: ["deploy_hook_triggered", "deploy_hook_failed"],
+  ops: ["deploy_hook_triggered", "deploy_hook_failed", "feature_flag_changed"],
   leads: ["status_changed"],
 };
 

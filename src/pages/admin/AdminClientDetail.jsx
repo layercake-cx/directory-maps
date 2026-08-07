@@ -8,6 +8,12 @@ import MessagingPanel from "../../components/MessagingPanel.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
+import {
+  DIRECTORIES_FLAG,
+  listClientFeatureOverrides,
+  setClientFeatureOverride,
+  clearClientFeatureOverride,
+} from "../../lib/featureFlags.js";
 
 function Field({ label, children }) {
   return (
@@ -39,6 +45,8 @@ export default function AdminClientDetail() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [subscriptionActiveOverride, setSubscriptionActiveOverride] = useState(false);
+  const [directoriesFlagEnabled, setDirectoriesFlagEnabled] = useState(false);
+  const [flagSaving, setFlagSaving] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
 
@@ -70,6 +78,7 @@ export default function AdminClientDetail() {
         { data: contactsData },
         { data: allContacts },
         dirs,
+        flagOverrides,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -95,6 +104,7 @@ export default function AdminClientDetail() {
           .order("is_primary", { ascending: false })
           .order("created_at", { ascending: true }),
         listDirectories(clientId),
+        listClientFeatureOverrides(clientId),
       ]);
 
       if (ce) throw ce;
@@ -110,6 +120,9 @@ export default function AdminClientDetail() {
       setName(c?.name ?? "");
       setSlug(c?.slug ?? "");
       setSubscriptionActiveOverride(!!c?.subscription_active_override);
+      setDirectoriesFlagEnabled(
+        (flagOverrides ?? []).some((o) => o.flag_key === DIRECTORIES_FLAG && o.enabled === true)
+      );
       setContactName(primary?.name ?? "");
       setContactEmail(primary?.email ?? "");
     } catch (e) {
@@ -265,6 +278,36 @@ export default function AdminClientDetail() {
     recordAdminEvent(supabase, { eventType, meta, source: "admin_dashboard", clientId });
   };
 
+  async function handleToggleDirectoriesFlag(next) {
+    setFlagSaving(true);
+    setErr("");
+    setNotice("");
+    try {
+      if (next) {
+        await setClientFeatureOverride(clientId, DIRECTORIES_FLAG, true);
+      } else {
+        await clearClientFeatureOverride(clientId, DIRECTORIES_FLAG);
+      }
+      setDirectoriesFlagEnabled(next);
+      recordEvent("ops_feature_flag_changed", {
+        actor_admin_scope: "platform_admin",
+        client_id: clientId,
+        flag: DIRECTORIES_FLAG,
+        enabled: next,
+        source: "admin_client_detail",
+      });
+      setNotice(
+        next
+          ? "Directories enabled for this customer."
+          : "Directories reset to the default (hidden for this customer)."
+      );
+    } catch (e) {
+      setErr(e.message ?? String(e));
+    } finally {
+      setFlagSaving(false);
+    }
+  }
+
   const CLIENT_NAV_ITEMS = [
     { label: "Maps", value: "maps" },
     { label: "Directories", value: "directories" },
@@ -396,6 +439,9 @@ export default function AdminClientDetail() {
                 </div>
 
                 {err ? <p style={{ margin: "0 0 12px 0" }}>{err}</p> : null}
+                {notice ? (
+                  <p style={{ margin: "0 0 12px 0", color: "#047857", fontSize: 14 }}>{notice}</p>
+                ) : null}
 
                 <form onSubmit={handleSave} style={{ display: "grid", gap: 14, maxWidth: 560 }}>
                   <Field label="Customer name">
@@ -431,6 +477,28 @@ export default function AdminClientDetail() {
                       <strong>Pays by invoice</strong>
                       <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
                         Treat as an active paying customer (subscription override)
+                      </span>
+                    </span>
+                  </label>
+
+                  <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Feature access (beta)</h3>
+                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
+                    Pre-release in-development features to this customer. Admins and @layercake-cx.biz
+                    users always see beta features; these toggles let specific customers in early.
+                  </p>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: flagSaving ? "wait" : "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={directoriesFlagEnabled}
+                      disabled={flagSaving}
+                      onChange={(e) => handleToggleDirectoriesFlag(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <strong>Directories &amp; Categorisations</strong>
+                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
+                        Show the Directories and Categorisations sections in this customer&apos;s portal.
+                        Saved immediately.
                       </span>
                     </span>
                   </label>

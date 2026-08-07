@@ -169,6 +169,8 @@ Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistory
 
 ### 4.4a Directories (new, DIR-E1 core)
 
+> **Visibility:** Directories and Categorisations are gated behind the `directories` **feature flag** (see §4.4c). They're hidden from customers by default; visible to platform admins, `@layercake-cx.biz` users, and any organisation an admin has granted early access. The nav items and the `/client/directories*` and `/client/categorisations` routes are both gated (`FeatureGate`).
+
 A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) plus categorisations (DIR-E5, see §4.4b) are built so far. Publishing, branding/custom domain, the entry layout designer, natural-language search, and map association/embedding are not implemented yet.
 
 | Feature | Route | Description |
@@ -201,6 +203,21 @@ Tables: `categorisations`, `category_terms`, `directory_category_terms`, `entry_
 Not built yet: public/published-site filtering by categorisation term (DIR-E5-S4) — requires directory publishing (DIR-E2), which doesn't exist yet.
 
 Files: `src/lib/categorisations.js`, `src/components/directories/CategorisationsPanel.jsx`, `src/components/directories/CategoryTagPicker.jsx`, `ClientCategorisations.jsx` (client); a "Categorisations" tab in `AdminClientDetail.jsx` (admin).
+
+### 4.4c Feature flags (new)
+
+A generic feature-flag layer so in-development features can be tested in production and pre-released to named customers before general availability. Directories/Categorisations (§4.4a/§4.4b) is its first consumer.
+
+| Concept | Where | Notes |
+|---------|-------|-------|
+| Flag registry | `feature_flags` table | One row per flag: `default_enabled` (global default), `internal_enabled` (auto-on for `@layercake-cx.biz`) |
+| Per-org overrides | `feature_flag_overrides` table | One row grants/denies a flag for a single client — how a customer is let into a beta |
+| Resolution | `get_my_feature_flags()` RPC (security definer) | Precedence: admin → internal (`@layercake-cx.biz` + `internal_enabled`) → per-org override → default |
+| Admin control | Customer detail → **Feature access (beta)** | Toggle grants/clears the per-org override; emits `ops_feature_flag_changed` |
+
+Resolution is **UI/route gating for unreleased features, not a security boundary** — the underlying tables keep their own tenant-scoped RLS. Flags fail closed: if the RPC errors, features stay hidden.
+
+Files: `src/lib/featureFlags.js`, `src/context/featureFlagsContext.js`, `src/context/FeatureFlagsProvider.jsx`, `src/hooks/useFeatureFlags.js`, `src/components/FeatureGate.jsx`; provider mounted in `Root.jsx`; nav gating in `ClientLayout.jsx`; route gating in `App.jsx`; admin toggle in `AdminClientDetail.jsx`. Migration `20260805120000_create_feature_flags.sql`.
 
 ### 4.5 Analytics (engagement)
 
@@ -317,6 +334,8 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `category_terms` | Term list per categorisation (peer of `map_filter_field_options`) |
 | `directory_category_terms` | Tags a whole directory with a term |
 | `entry_category_terms` | Tags a directory entry with a term (peer of `listing_filter_values`, pure many-to-many) |
+| `feature_flags` | Feature-flag registry (`default_enabled`, `internal_enabled`); resolved by `get_my_feature_flags()` |
+| `feature_flag_overrides` | Per-organisation flag grants/denials (pre-release a beta to specific customers) |
 | `error_logs` | Client-side error reports |
 
 View: `public_listings` for anon-safe listing reads on embed.
@@ -411,8 +430,9 @@ Shared utilities: `supabase/functions/_shared/`.
 | Admin user management | **Stub** | Page is placeholder |
 | OneDrive / iCloud | **Not started** | UI placeholders only |
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
-| Directories (DIR-E1 core) | **Beta** | Directory + entry CRUD shipped to staging; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
-| Categorisations (DIR-E5) | **Beta** | Taxonomy management + directory/entry tagging shipped to staging; no published-site filtering yet (depends on DIR-E2 publishing) |
+| Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Categorisations (DIR-E5) | **Beta (flagged)** | Taxonomy management + directory/entry tagging shipped to staging; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
+| Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
 
 ---
 
