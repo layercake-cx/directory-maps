@@ -116,7 +116,7 @@ Run as a **non-admin** test user on production-like env:
 4. On embed: search, open listing, submit contact form → confirm email received.
 5. View Stats for map → confirm `session_start` and events appear.
 6. Add second team contact (if using team feature) → second user can sign in and see correct maps.
-7. Admin: impersonate client → confirm banner and scoped data.
+7. Admin: open a customer at `/admin/clients/:id` → confirm the admin pages show that customer's maps and scoped data.
 8. Second organisation: confirm **no** cross-tenant data visible.
 
 ---

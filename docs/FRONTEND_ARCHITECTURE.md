@@ -19,7 +19,6 @@ main.jsx
              └─ BrowserRouter
                  └─ AuthProvider (AuthContext)
                      └─ Layout (internal to Root.jsx)
-                         ├─ ImpersonationBar
                          ├─ SiteHeader
                          ├─ App.jsx   ← route tree lives here
                          └─ SiteFooter
@@ -160,7 +159,7 @@ Primary UI library is **Mantine** (`@mantine/core` v9 + `@mantine/hooks`), provi
 - **`src/style.css`** (~1,900 lines) — global CSS custom properties for brand colors (`--brand-teal`, `--brand-coral`, etc.), resets, and the bulk of hand-written component/page CSS. This is the dominant styling mechanism for custom UI, not Mantine.
 - **CSS Modules** — used selectively for newer/self-contained pieces: `MapEditSubNav.module.css`, `EngagementShared.module.css`, `ListingSearchDropdown.module.css`, `PublicMap.module.css`, `MemcomMapsDemo.module.css`, `ClientEmail.module.css`, `ListingStats.module.css`, `MapStats.module.css`, `MapsView.module.css`.
 - **Page-specific plain CSS**, imported directly: `src/pages/admin/admin.css` (shared client + admin), `src/pages/auth-signup-split.css`, `src/pages/pricing.css`.
-- **Inline styles** appear in a few places (`AdminGate`'s sign-in form, `Root.jsx`'s `ImpersonationBar`).
+- **Inline styles** appear in a few places (e.g. `AdminGate`'s sign-in form).
 - No Tailwind, no styled-components/emotion, no Sass/Less.
 
 New UI should default to Mantine primitives (`Group`, `Stack`, `Button`, `Alert`, `Badge`, `Loader`, `Text`) for layout/controls, and either extend `style.css` (for globally-shared look-and-feel) or add a co-located CSS Module (for a self-contained page/component) — match whichever pattern the surrounding code already uses.
@@ -177,7 +176,7 @@ The service/data layer. Grouped by concern:
 | `supabase.js` | Shared Supabase client singleton; `hasSupabaseConfig`; `invokeFunction()` (injects session JWT manually — needed because newer `sb_publishable_...` anon keys aren't JWTs) |
 | `auth.js` | `getSession()`, `getMyRole()`, `signOut()`; serializes concurrent auth calls to avoid Supabase client mutex errors; `hardClearSupabaseAuthStorage()` last-resort fallback |
 | `authHelpers.js` | Auth redirect URL builders, OTP/sign-in retry logic |
-| `clientAuth.js` | Admin impersonation (`startImpersonatingClient`/`stopImpersonatingClient`), `canManageOrg`-style permission helpers |
+| `clientAuth.js` | Client/contact resolution and `canManageOrg`-style permission helpers |
 | `getClientAndContact.js` | Resolves the session's client + contact record for the client portal |
 | `provisionClientSignup.js` | Idempotent post-signup client/contact provisioning |
 | `inviteHelpers.js` | Team invitation flow (build URLs, preview, accept) |
