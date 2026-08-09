@@ -60,7 +60,7 @@ This "individual columns for structure + one jsonb blob for cosmetic settings + 
 
 ### 3.4 Map embedding mechanism
 
-Embed code is generated in the Publish tab of `AdminMapDashboard.jsx` / `ClientMapDashboard.jsx`: an `embedSrc` (`https://<origin>/:clientSlug/:mapSlug`, or a legacy `/embed?map=<id>` fallback) wrapped in a small `<style>` + `<div>` + `<iframe>` snippet (`embedIframe`), shown with "Copy embed code" / "Launch map" actions. The iframe target is `src/pages/EmbedMap.jsx` (own anon-only Supabase client, tries a CDN JSON snapshot first, falls back to live reads of `maps`/`map_publications`/`public_listings`/`groups`), reached either via `/embed?map=` or via `/:clientSlug/:mapSlug` → `SlugMap.jsx` → `get_map_id_by_slugs` RPC → `EmbedMap`. This exact iframe-snippet convention is what DIR-E8 reuses for embedding a map inside a directory page, and what a directory's own embed code (if ever needed) should copy.
+Embed code is generated in the Publish tab of `AdminMapDashboard.jsx` / `ClientMapDashboard.jsx`: an `embedSrc` (`https://<origin>/:clientSlug/:mapSlug`, or a legacy `/embed?map=<id>` fallback) wrapped in a small `<style>` + `<div>` + `<iframe>` snippet (`embedIframe`), shown with "Copy embed code" / "Launch map" actions. The iframe target is `src/pages/EmbedMap.jsx` (own anon-only Supabase client, tries a CDN JSON snapshot first, falls back to live reads of `maps`/`map_publications`/`public_listings`/`groups`), reached either via `/embed?map=` or via `/:clientSlug/:mapSlug` → `SlugMap.jsx` → `get_map_id_by_slugs` RPC → `EmbedMap`. If a published directory ever needs its own embed snippet (list UI on an external site), copy this same `embedSrc`/`embedIframe` convention — retargeted at the directory's public URL — as part of DIR-E2 publishing. Do **not** treat this as a reason to "link" or embed an existing map onto a directory page; the map↔directory product relationship is the other way around (DIR-E4: a map uses a directory as its pin datasource).
 
 **Correction to a common assumption:** the app does **not** use `HashRouter` today. `src/Root.jsx` uses `BrowserRouter`; `src/lib/hashSearchParams.js` contains an explicit comment confirming the migration away from hash routing, and `index.html` still carries a legacy `#/...` → clean-path redirect shim for old bookmarks. (The docs that previously described hash routes — `AGENTS.md`, `docs/README.md`, `docs/FEATURES.md`, `docs/DEPLOY.md`, and others — have since been corrected; see `docs/FRONTEND_ARCHITECTURE.md`.) This matters directly for the SEO/rendering NFRs below (§5).
 
@@ -100,8 +100,7 @@ clients (existing)
        ├─< directory_publications (new)             — mirrors map_publications (versioned, immutable snapshots)
        ├─  directories.theme_json (new column)      — mirrors maps.theme_json
        ├─< directory_domain_mappings (new)          — custom domain + TLS + verification
-       ├─< entry_templates (new)                    — page-layout designer output
-       └─< directory_map_associations (new)         — join: directory ↔ map (either direction)
+       └─< entry_templates (new)                    — page-layout designer output
 
 categorisations (new, client-scoped, reusable across directories)
  └─< category_terms (new)
@@ -111,8 +110,8 @@ categorisations (new, client-scoped, reusable across directories)
 contact_directory_permissions (new)                 — mirrors contact_map_permissions
 
 maps (existing)
- └─< map_data_sources (existing, unchanged — not used by Directories; see §4.7)
- └─< directory_map_associations (new, both directions — embed and datasource)
+ └─< map_data_sources (existing, unchanged — not used when a map is directory-sourced; see §4.7)
+ └─< directory_map_associations (new)               — map → directory as pin datasource (DIR-E4 only)
 ```
 
 ### 4.1 `directories`
@@ -184,14 +183,16 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 - `directories.theme_json` (§4.1) covers colour tokens/logo — reuses the `maps.theme_json` + CSS-custom-property-injection pattern (§3.7), no new mechanism.
 - `directory_domain_mappings`: `id uuid`, `directory_id → directories.id`, `domain text unique`, `status text check in ('pending','verifying','verified','failed')` (naming precedent: `clients.email_domain_status`), `verification_token text`, `dns_instructions jsonb` (record type/name/value to show the client), `tls_status text check in ('pending','issued','failed')`, `verified_at timestamptz null`, `created_at`, `updated_at`. Per the §9 decision, this mirrors status returned by the **Vercel Domains API** rather than implementing DNS/TLS logic in this codebase — there is no existing domain-hosting mechanism to extend, only the unrelated Resend email-domain-verification naming convention borrowed above (§3.7).
 
-### 4.7 Map ↔ Directory association — DIR-E4 / DIR-E8
+### 4.7 Directory as a map datasource — DIR-E4
 
-**Decision (2026-07-14): a directory-sourced map consumes the directory's published entries directly and live — there is no sync/copy job, and `listings`/`map_data_sources` are not touched by this feature at all.** This is a deliberate departure from the Google-Sheets-style "sync into `listings`" pattern in §3.1/§3.2: a client should never end up editing the same entry in two places (once via `ClientMapData.jsx`'s manual/CSV/Sheets tabs, once via the Directory's own entry management), and the map should never show data that's silently drifted from the directory it's supposed to reflect. One join table expresses both directions of the relationship:
+**The relationship is map → directory, not directory → map.** A map may use a directory's published entries as its live pin data. A directory does **not** "link to" or embed existing maps on its pages — that inverted model (formerly sketched as DIR-E8 / `embedded_on_directory`) was incorrect and has been removed from this spec. An early implementation of that wrong direction was built and abandoned before merge to `main` (see `docs/DEPLOYMENTS.md`, 2026-08-09).
 
-- `directory_map_associations`: `directory_id → directories.id`, `map_id → maps.id`, `role text check in ('embedded_on_directory','directory_as_datasource')`, `sort_order int`, pk `(directory_id, map_id, role)`. Many-to-many (multiple maps per directory, and — per the 2026-07-14 decision to support multiple now rather than defer — multiple directories feeding one map is *not* required, but a directory *can* be associated with more than one map in either role).
-- **`directory_as_datasource` role, resolved at read time, not sync time:** when a map has a `directory_map_associations` row with this role, its public/embedded rendering path (`EmbedMap.jsx` → `PublishedMapView.jsx`) sources pins from a new `public_directory_entries` view (mirrors the existing `public_listings` view shape/columns exactly — `name`, `lat`, `lng`, `logo_url`, etc. — but reads from `directory_entries` scoped to `directory_id`, filtered to `is_active = true` and to the directory's `current_publication_id` being non-null) **instead of** from `public_listings`. There is no `map_data_sources` row, no `sync_logs` entry, and no "Sync now" action for this provider — the map is always exactly as current as the directory's last publish, by construction, with no separate stale/fresh state to reason about.
+**Decision (2026-07-14): a directory-sourced map consumes the directory's published entries directly and live — there is no sync/copy job, and `listings`/`map_data_sources` are not touched by this feature at all.** This is a deliberate departure from the Google-Sheets-style "sync into `listings`" pattern in §3.1/§3.2: a client should never end up editing the same entry in two places (once via `ClientMapData.jsx`'s manual/CSV/Sheets tabs, once via the Directory's own entry management), and the map should never show data that's silently drifted from the directory it's supposed to reflect.
+
+- `directory_map_associations`: `directory_id → directories.id`, `map_id → maps.id`, `role text check in ('directory_as_datasource')` (or equivalent single-purpose constraint), optional `sort_order` if unused, pk `(directory_id, map_id)` or `(map_id)` if a map may have at most one directory datasource. For v1: **one directory per map** as the live pin source is enough; a directory may feed more than one map.
+- **Resolved at read time, not sync time:** when a map has a `directory_map_associations` row, its public/embedded rendering path (`EmbedMap.jsx` → `PublishedMapView.jsx`) sources pins from a new `public_directory_entries` view (mirrors the existing `public_listings` view shape/columns exactly — `name`, `lat`, `lng`, `logo_url`, etc. — but reads from `directory_entries` scoped to `directory_id`, filtered to `is_active = true` and to the directory's `current_publication_id` being non-null) **instead of** from `public_listings`. There is no `map_data_sources` row, no `sync_logs` entry, and no "Sync now" action for this provider — the map is always exactly as current as the directory's last publish, by construction, with no separate stale/fresh state to reason about.
 - Because there's no sync step, the map's own Manual entry / Upload CSV / Sync data tabs are **disabled** for a map in this mode (same "tab disabled with a reason" convention already used to mutually-exclude Manual/CSV while a Google Sheets sync is linked, §3.1) — a map is either self-authored (manual/CSV/Sheets, using `listings`) or directory-sourced (using the associated directory's entries), never both, for v1.
-- `contact_directory_permissions`: `contact_id → contacts.id`, `directory_id → directories.id`, `can_edit_entries boolean`, mirroring `contact_map_permissions` exactly, for Member-level per-directory scoping (§2).
+- `contact_directory_permissions`: `contact_id → contacts.id`, `directory_id → directories.id`, `can_edit_entries boolean`, mirroring `contact_map_permissions` exactly, for Member-level per-directory scoping (§2) — unrelated to map datasource linking; lives with DIR-E1.
 
 ---
 
@@ -222,22 +223,22 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 | **DIR-E1** | Directory & Entry Management | Clients and admins can create, edit, archive, and bulk-manage directories and their entries, including CSV/XLSX import. | CRUD UI for `directories`/`directory_entries`, bulk actions, import — reusing the `ClientMapData.jsx`-style pattern (§3.2). |
 | **DIR-E2** | Publishing as an SEO/AI-discoverable website | A directory can be published as a crawlable public site with full SEO metadata, sitemap, and structured data. | Publish snapshot model, public rendering path, per-directory/per-entry SEO settings. |
 | **DIR-E3** | White-labelling & branding | A client can brand their directory's public site and serve it from their own domain. | `theme_json` branding UI + preview, custom domain mapping + DNS/TLS verification. |
-| **DIR-E4** | Directory as a map datasource | An existing map can use a directory's published entries as its live pin data — no sync/copy step. | New "Directories" tab in the map Data panel (built on a newly-extracted shared tab component, §3.1); `directory_map_associations(role='directory_as_datasource')` + `public_directory_entries` view (§4.7); explicitly does **not** touch `map_data_sources`/`listings`. |
+| **DIR-E4** | Directory as a map datasource | An existing map can use a directory's published entries as its live pin data — no sync/copy step. | New "Directories" tab in the map Data panel (built on a newly-extracted shared tab component, §3.1); `directory_map_associations` (map → directory) + `public_directory_entries` view (§4.7); explicitly does **not** touch `map_data_sources`/`listings`. |
 | **DIR-E5** | Categorisations | Reusable, client-wide taxonomies can be applied to directories and entries, driving filtering/navigation. | `categorisations`/`category_terms` model + management UI; reconciles with `group_name`. |
 | **DIR-E6** | Entry page layout designer | A client can arrange the blocks on an entry's page and save one or more reusable templates, optionally targeted to a group or category term. | Drag-and-drop block editor + live preview, `entry_templates` (multi-template supported from v1, §4.4). |
 | **DIR-E7** | Natural-language search + faceted filtering | Visitors (and portal users) can search entries in plain language or by structured filters. | LLM-backed NL query parsing to structured predicates (new Edge Function, §5), published-site and in-app filter UI. |
-| **DIR-E8** | Map association & embedding | A directory can link to one or more maps and show them embedded on its published pages. | `directory_map_associations(role='embedded_on_directory')` (many-to-many from v1), reuse of the existing embed-snippet mechanism (§3.4). |
+
+~~**DIR-E8 (removed)**~~ — "Map association & embedding" (directory links to / embeds existing maps) was the wrong product relationship and has been dropped. Do not reintroduce `embedded_on_directory` or directory-settings UI that attaches maps to a directory. The correct relationship is DIR-E4 only.
 
 ## 7. Sequencing / suggested delivery order
 
 1. **DIR-E1** (foundation — nothing else is buildable without directories/entries existing).
 2. **DIR-E5** (categorisations) — entries need a real taxonomy before layout/search/publish stories can reference it meaningfully; also the point at which `group_name` reconciliation (§4.2) must land.
-3. **DIR-E8** (map association & embedding) — the lower-risk half of the map↔directory relationship (pure reuse of the existing embed snippet, §3.4); unblocks demoable end-to-end value (a directory with a map on it) before the harder SEO/rendering work starts.
-4. **DIR-E2** (publishing/SEO) — depends on E1 (content to publish) and benefits from E5 (categorisation-driven `ItemList`/breadcrumb structure). Rendering approach is decided (static pre-render at publish, §5), so this can proceed without further architectural debate.
-5. **DIR-E6** (entry layout designer) — most useful once there's a real published surface (E2) to preview against; depends on E1 for the field set and E5 for categorisation/group-targeted templates (§4.4).
-6. **DIR-E3** (branding & custom domain) — depends on E2 existing (nothing to brand/host under a custom domain before there's a public site). Since the DNS/TLS provider is decided (Vercel Domains API, §5), the branding-colours and custom-domain halves can proceed together rather than being split by an open decision.
-7. **DIR-E4** (directory as map datasource) — depends on E1; sequenced after E8 so the shared tab-component extraction it requires (§3.1, now in scope) lands after E8 has already exercised the embed side of the same map-editing surface. Since this epic no longer touches `map_data_sources` (§4.7 — it reads published directory data live, no sync job), its schema footprint is smaller than originally scoped, but the shared-component extraction still benefits from coming after E8.
-8. **DIR-E7** (NL search) — deliberately last: it depends on entries, categorisations, and a published surface all existing. The resolution approach is decided (LLM-backed parser, §5), but this is a brand-new third-party integration for this codebase with its own privacy documentation step (`docs/DATA_AND_PRIVACY.md`) — sequenced last so it doesn't block anything else while that integration is stood up.
+3. **DIR-E2** (publishing/SEO) — depends on E1 (content to publish) and benefits from E5 (categorisation-driven `ItemList`/breadcrumb structure). Rendering approach is decided (static pre-render at publish, §5), so this can proceed without further architectural debate. Directory self-embed snippets (if needed) belong here, not as a separate map-linking epic.
+4. **DIR-E6** (entry layout designer) — most useful once there's a real published surface (E2) to preview against; depends on E1 for the field set and E5 for categorisation/group-targeted templates (§4.4).
+5. **DIR-E3** (branding & custom domain) — depends on E2 existing (nothing to brand/host under a custom domain before there's a public site). Since the DNS/TLS provider is decided (Vercel Domains API, §5), the branding-colours and custom-domain halves can proceed together rather than being split by an open decision.
+6. **DIR-E4** (directory as map datasource) — depends on E1 and is most useful once directories can be published (E2), so the map can read `current_publication_id`. Includes extracting a shared Data-tab component (§3.1). Reads published directory data live (§4.7) — no sync job, no `map_data_sources`/`listings` changes.
+7. **DIR-E7** (NL search) — deliberately last: it depends on entries, categorisations, and a published surface all existing. The resolution approach is decided (LLM-backed parser, §5), but this is a brand-new third-party integration for this codebase with its own privacy documentation step (`docs/DATA_AND_PRIVACY.md`) — sequenced last so it doesn't block anything else while that integration is stood up.
 
 ---
 
@@ -691,54 +692,6 @@ Then the entry list shows only entries matching both, and the resulting URL is s
 
 ---
 
-### DIR-E8 — Map association & embedding
-
-**DIR-E8-S1 — Associate one or more maps with a directory**
-As a **Client Owner/Manager**, I want to link one or more existing maps to my directory, so that I can show them on the directory's published pages.
-
-```gherkin
-Given I open directory "Accredited Suppliers"'s settings and choose "Associate a map"
-And I pick an existing map "Supplier Locations"
-Then a directory_map_associations row is created with role = 'embedded_on_directory' and sort_order = 0
-
-Given the directory already has "Supplier Locations" associated
-When I associate a second map "Regional Offices"
-Then a second directory_map_associations row is created (sort_order = 1) — the first association is not replaced; both maps are now available to place on published pages
-
-Given I remove the "Regional Offices" association
-Then only that row is deleted; "Supplier Locations" remains associated
-```
-*Tech guardrails:* **Decision (2026-07-14): multiple associated maps are supported in v1**, not deferred — `directory_map_associations` already models this as many-to-many (§4.7); `sort_order` determines display order when more than one map is placed on the same published page (DIR-E8-S2).
-
-**DIR-E8-S2 — Embed the associated map(s) on published directory pages**
-As an **Anonymous visitor**, I want to see the associated map(s) on the directory's public index page, so that I can see entries geographically as well as in the list.
-
-```gherkin
-Given directory "Accredited Suppliers" has map "Supplier Locations" associated and both are published
-When I visit the directory's public index page
-Then the map is embedded using the same iframe-snippet mechanism used for standalone map embeds today (embedSrc/embedIframe convention, §3.4), sized to fit the page layout
-
-Given the directory instead has two associated maps, "Supplier Locations" and "Regional Offices", both published
-When I visit the directory's public index page
-Then both maps are embedded in `sort_order`, each using the same iframe-snippet mechanism, not merged into one
-
-Given one of the associated maps is not published (no current_publication_id) while the other is
-Then only the published map's section renders; the unpublished one is omitted entirely rather than showing a broken/empty embed
-```
-*Tech guardrails:* Pure reuse of the existing embed generation logic (§3.4) for each associated map — no new embedding mechanism, only a new place it's inserted (the directory's public page template, iterating `directory_map_associations` by `sort_order`) and a per-map guard for its own publish state.
-
-**DIR-E8-S3 — Get an embed snippet for a directory itself**
-As a **Client Owner/Manager**, I want to get an iframe embed snippet for my published directory (not just for a map), so that I can place the directory listing itself on an external website.
-
-```gherkin
-Given directory "Accredited Suppliers" is published
-When I open its Publish settings
-Then I see an embed code snippet in the same style as the existing map embed panel (copy button, iframe wrapped in a responsive <style>/<div>), pointing at the directory's public URL
-```
-*Tech guardrails:* Directly copies the `embedSrc`/`embedIframe` `useMemo` pattern from `AdminMapDashboard.jsx`/`ClientMapDashboard.jsx` (§3.4), retargeted at the directory's public URL instead of a map's.
-
----
-
 ## 9. Decisions log (resolved 2026-07-14)
 
 The following were open questions in the first draft of this spec and have since been resolved directly with the client stakeholder. Each decision is also inlined at its point of use above (§5, §4.4, §4.7, and the relevant stories); this log exists as a single at-a-glance record.
@@ -748,10 +701,11 @@ The following were open questions in the first draft of this spec and have since
 | 1 | SSR/SSG approach for DIR-E2 | **Static pre-render at publish time** (reuses the `generate_map_snapshot` → Vercel Blob precedent) | §5, DIR-E2-S5 |
 | 2 | Custom domain / TLS provider for DIR-E3 | **Vercel Domains API** — a Vercel project is already linked to this repo | §5, DIR-E3-S3 |
 | 3 | Natural-language search resolution for DIR-E7 | **LLM-backed parser** (new Edge Function) — requires a `docs/DATA_AND_PRIVACY.md` update before shipping, per AGENTS.md | §5, DIR-E7-S1 |
-| 4 | Single vs. multiple entry templates / associated maps per directory | **Support multiple in v1**, not deferred — `entry_templates` gains `applies_to_group_id`/`applies_to_term_id`; `directory_map_associations` is many-to-many from the start | §4.4, §4.7, DIR-E6-S4, DIR-E8-S1/S2 |
+| 4 | Single vs. multiple entry templates per directory | **Support multiple in v1**, not deferred — `entry_templates` gains `applies_to_group_id`/`applies_to_term_id` | §4.4, DIR-E6-S4 |
 | 5 | Entry-level delete confirmation strength | **Typed confirmation** (same `ConfirmDelete` pattern as directories/categorisations), not a plain `window.confirm()` | DIR-E1-S7 |
 | 6 | Sync mode for directory-as-map-datasource | **No sync job at all** — the map consumes the directory's *published* entries live, via a `public_directory_entries` view; `map_data_sources`/`listings` are untouched by this feature | §4.7, DIR-E4-S2/S3 |
 | 7 | Shared tab-component extraction in `AdminMapData.jsx`/`ClientMapData.jsx` | **Extract a shared component as part of this work**, not a deferred refactor | §3.1, DIR-E4-S1 |
+| 8 | Directory "links to" / embeds existing maps (DIR-E8) | **Removed (2026-08-09)** — wrong relationship. Maps use directories as datasources (DIR-E4), not the other way around. Abandoned pre-merge implementation archived at `archive/dir-e8-companion-maps`. | §4.7, §6 |
 
 ## 10. Remaining open items (not product decisions — informational)
 

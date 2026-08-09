@@ -8,6 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-09 — Docs: remove DIR-E8 directory→map linking (wrong relationship)
+
+**Branch/commit:** `chore/2026-08-09-remove-dir-e8-map-linking`
+**Deployed by:** Cursor agent (docs-only; no production schema change)
+
+### What changed
+- The early **DIR-E8** work treated the map↔directory relationship backwards: a directory "linking to" / embedding existing maps (`role = embedded_on_directory`, companion/linked-maps UI on directory settings). The correct product model is **DIR-E4 only** — a **map uses a directory as its live pin datasource**.
+- That incorrect implementation was **never merged to `main`**. The branch tip is preserved locally as `archive/dir-e8-companion-maps` (and still exists as `feat/2026-07-16-directories-map-association` on the remote if needed). Do not merge either.
+- Spec/docs cleanup on `main`: removed DIR-E8 epic, stories, and sequencing from `docs/DIRECTORIES.md`; reframed §4.7 as map→directory datasource only; noted the removal in the decisions log; adjusted `docs/USER_GUIDE.md` so it no longer promises "map linking."
+
+### Database migrations applied
+- None on production (DIR-E8 never shipped there).
+- **Staging still has** `directory_map_associations` from `20260716120000_create_directory_map_associations.sql` (applied during the abandoned branch work). That table is unused by `main`. To drop it, run the rollback on staging only:
+  - `supabase/migrations/_20260716120000_create_directory_map_associations.rollback.sql` (from the archive branch / remote feature branch — not present on `main`)
+  - Then `supabase migration repair --status reverted 20260716120000` (or equivalent) so staging history matches. **Not done in this change — confirm before running.**
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- Docs-only. No app code change on `main` (the abandoned UI lived only on the feature branch).
+
+### Rollback plan
+- Revert this docs PR if needed. The archive branch retains the abandoned implementation for reference.
+
+### Verified
+- [x] No DIR-E8 companion/linked-maps code on `main`
+- [x] `docs/DIRECTORIES.md` no longer schedules or specifies directory→map embedding
+- [ ] Staging `directory_map_associations` table rolled back (optional cleanup; see above)
+
+---
+
 ## 2026-08-05 — [Staging] Feature-flag layer + gate Directories/Categorisations
 
 **Branch/commit:** `feat/2026-08-05-feature-flags`
