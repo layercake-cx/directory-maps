@@ -19,24 +19,23 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Spec/docs cleanup on `main`: removed DIR-E8 epic, stories, and sequencing from `docs/DIRECTORIES.md`; reframed §4.7 as map→directory datasource only; noted the removal in the decisions log; adjusted `docs/USER_GUIDE.md` so it no longer promises "map linking."
 
 ### Database migrations applied
-- None on production (DIR-E8 never shipped there).
-- **Staging still has** `directory_map_associations` from `20260716120000_create_directory_map_associations.sql` (applied during the abandoned branch work). That table is unused by `main`. To drop it, run the rollback on staging only:
-  - `supabase/migrations/_20260716120000_create_directory_map_associations.rollback.sql` (from the archive branch / remote feature branch — not present on `main`)
-  - Then `supabase migration repair --status reverted 20260716120000` (or equivalent) so staging history matches. **Not done in this change — confirm before running.**
+- None on production (DIR-E8 never shipped there) — production never had the table.
+- **Staging (`beqejxneehilplrtpntn`):** applied `20260809120000_drop_abandoned_directory_map_associations.sql` on 2026-08-09. Discarded 1 abandoned association test row, then dropped `directory_map_associations`. `VERIFY PASSED`. The earlier create (`20260716120000`) remains in staging migration history as a remote-only version (file never on `main`); the drop migration is the cleanup that ships with this branch.
 
 ### Edge functions deployed
 - None.
 
 ### Frontend
-- Docs-only. No app code change on `main` (the abandoned UI lived only on the feature branch).
+- Docs cleanup + staging drop migration. No DIR-E8 UI on `main` (abandoned implementation only on `archive/dir-e8-companion-maps` / remote feature branch).
 
 ### Rollback plan
-- Revert this docs PR if needed. The archive branch retains the abandoned implementation for reference.
+- Docs: revert this PR if needed.
+- Staging table: run `_20260809120000_drop_abandoned_directory_map_associations.rollback.sql` only if you intentionally need the empty table back (do **not** revive the product).
 
 ### Verified
 - [x] No DIR-E8 companion/linked-maps code on `main`
 - [x] `docs/DIRECTORIES.md` no longer schedules or specifies directory→map embedding
-- [ ] Staging `directory_map_associations` table rolled back (optional cleanup; see above)
+- [x] Staging: `directory_map_associations` dropped (`VERIFY PASSED`; 1 test row discarded)
 
 ---
 
