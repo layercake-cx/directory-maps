@@ -144,7 +144,7 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule |
+| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule; **Manual entry** and **Map data** tabs filter by name/address; Manual entry re-geocodes lat/lng when the address changes |
 | Listings table | `/client/maps/:id/listings` | Search/filter listings; batch geocode |
 
 **CSV import**
