@@ -27,6 +27,19 @@ const MANUAL_FORM_EMPTY = {
   website_url: "", email: "", phone: "", logo_url: "", is_active: true,
 };
 
+async function geocodeViaServer(supabaseClient, address) {
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("geocode_address", { body: { address } });
+    if (error) {
+      const reason = error?.message || error?.context?.status || String(error);
+      return { ok: false, status: `ERROR:${reason}`, lat: null, lng: null };
+    }
+    return { ok: !!data?.ok, status: data?.status || "ERROR", lat: data?.lat ?? null, lng: data?.lng ?? null };
+  } catch (e) {
+    return { ok: false, status: `ERROR:${e?.message ?? String(e)}`, lat: null, lng: null };
+  }
+}
+
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 
 function parseCSV(text) {
@@ -153,6 +166,8 @@ export default function AdminMapData() {
   const [savingManual, setSavingManual] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
+  const [geocodingAddress, setGeocodingAddress] = useState(false);
+  const manualAddressBaselineRef = useRef("");
   const filterEditorRef = useRef(null);
   const [filterFields, setFilterFields] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
@@ -193,14 +208,14 @@ export default function AdminMapData() {
   async function fetchListings() {
     const { data, error } = await supabase
       .from("listings")
-      .select("id,name,address,group_id,logo_bg,logo_url,source,is_active")
+      .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,group_id,logo_bg,logo_url,source,is_active")
       .eq("map_id", mapId)
       .order("name", { ascending: true });
     if (error) {
       if (String(error.message || "").includes("source")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_bg,logo_url,is_active")
+          .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,group_id,logo_bg,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -209,7 +224,7 @@ export default function AdminMapData() {
       if (String(error.message || "").includes("logo_bg")) {
         const fallback = await supabase
           .from("listings")
-          .select("id,name,address,group_id,logo_url,is_active")
+          .select("id,name,address,postcode,country,lat,lng,website_url,email,phone,group_id,logo_url,is_active")
           .eq("map_id", mapId)
           .order("name", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -615,25 +630,84 @@ export default function AdminMapData() {
 
   // ── Manual CRUD ───────────────────────────────────────────────────────────
 
-  function openNewManual() { setManualForm(MANUAL_FORM_EMPTY); setEditingListing(null); setManualErr(""); setManualModal("new"); }
+  function openNewManual() {
+    setManualForm(MANUAL_FORM_EMPTY);
+    setEditingListing(null);
+    setManualErr("");
+    manualAddressBaselineRef.current = "";
+    setManualModal("new");
+  }
   function openEditManual(listing) {
     setManualForm({ name: listing.name || "", address: listing.address || "", group_id: listing.group_id || "", lat: listing.lat != null ? String(listing.lat) : "", lng: listing.lng != null ? String(listing.lng) : "", website_url: listing.website_url || "", email: listing.email || "", phone: listing.phone || "", logo_url: listing.logo_url || "", is_active: listing.is_active !== false });
-    setEditingListing(listing); setManualErr(""); setManualModal("edit");
+    setEditingListing(listing);
+    setManualErr("");
+    manualAddressBaselineRef.current = (listing.address || "").trim();
+    setManualModal("edit");
   }
-  function closeManual() { setManualModal(null); setEditingListing(null); setManualErr(""); }
+  function closeManual() { setManualModal(null); setEditingListing(null); setManualErr(""); setGeocodingAddress(false); }
   function mfSet(key, val) { setManualForm((prev) => ({ ...prev, [key]: val })); }
+
+  async function geocodeManualAddress(address, { force = false } = {}) {
+    const trimmed = (address || "").trim();
+    if (!trimmed) {
+      setManualForm((prev) => ({ ...prev, lat: "", lng: "" }));
+      manualAddressBaselineRef.current = "";
+      return { ok: true, lat: null, lng: null, cleared: true };
+    }
+    if (!force && trimmed === manualAddressBaselineRef.current) {
+      return { ok: true, skipped: true };
+    }
+    setGeocodingAddress(true);
+    try {
+      const geo = await geocodeViaServer(supabase, trimmed);
+      if (!geo.ok || geo.lat == null || geo.lng == null) {
+        return {
+          ok: false,
+          error: `Could not find coordinates for that address${geo.status && geo.status !== "ERROR" ? ` (${geo.status})` : ""}.`,
+        };
+      }
+      setManualForm((prev) => ({ ...prev, lat: String(geo.lat), lng: String(geo.lng) }));
+      manualAddressBaselineRef.current = trimmed;
+      return { ok: true, lat: geo.lat, lng: geo.lng };
+    } finally {
+      setGeocodingAddress(false);
+    }
+  }
+
+  async function onManualAddressBlur() {
+    const trimmed = manualForm.address.trim();
+    if (trimmed === manualAddressBaselineRef.current) return;
+    const result = await geocodeManualAddress(manualForm.address);
+    if (!result.ok) setManualErr(result.error);
+    else if (manualErr.startsWith("Could not find coordinates")) setManualErr("");
+  }
 
   async function saveManualEntry(e) {
     e.preventDefault(); setManualErr("");
     const name = manualForm.name.trim();
     if (!name) { setManualErr("Name is required."); return; }
-    const latRaw = manualForm.lat.trim(), lngRaw = manualForm.lng.trim();
+    const address = manualForm.address.trim();
+    let latRaw = manualForm.lat.trim();
+    let lngRaw = manualForm.lng.trim();
+    const addressChanged = address !== manualAddressBaselineRef.current;
+    const missingCoords = !!address && (!latRaw || !lngRaw);
+    if (addressChanged || missingCoords) {
+      const geo = await geocodeManualAddress(address, { force: missingCoords && !addressChanged });
+      if (!geo.ok) { setManualErr(geo.error); return; }
+      if (geo.cleared) {
+        latRaw = "";
+        lngRaw = "";
+      } else if (!geo.skipped) {
+        latRaw = geo.lat != null ? String(geo.lat) : "";
+        lngRaw = geo.lng != null ? String(geo.lng) : "";
+      }
+    }
     const lat = latRaw === "" ? null : Number(latRaw);
     const lng = lngRaw === "" ? null : Number(lngRaw);
     if (latRaw && isNaN(lat)) { setManualErr("Lat must be a number."); return; }
     if (lngRaw && isNaN(lng)) { setManualErr("Lng must be a number."); return; }
     if ((lat === null) !== (lng === null)) { setManualErr("Provide both lat and lng, or leave both blank."); return; }
-    const payload = { map_id: mapId, name, address: manualForm.address.trim() || null, group_id: manualForm.group_id || null, lat, lng, website_url: manualForm.website_url.trim() || null, email: manualForm.email.trim() || null, phone: manualForm.phone.trim() || null, logo_url: manualForm.logo_url.trim() || null, is_active: manualForm.is_active, source: "manual" };
+    const payload = { map_id: mapId, name, address: address || null, group_id: manualForm.group_id || null, lat, lng, website_url: manualForm.website_url.trim() || null, email: manualForm.email.trim() || null, phone: manualForm.phone.trim() || null, logo_url: manualForm.logo_url.trim() || null, is_active: manualForm.is_active, source: "manual" };
     try {
       setSavingManual(true);
       let savedId;
@@ -1063,10 +1137,25 @@ export default function AdminMapData() {
               </Group>
             </div>
 
+            {listings.length > 0 && (
+              <input
+                type="search"
+                value={dataSearch}
+                onChange={(e) => { setDataSearch(e.target.value); setDataPage(0); }}
+                placeholder="Filter by name or address…"
+                aria-label="Filter manual entries by name or address"
+                style={{ maxWidth: 380, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
+              />
+            )}
+
             {listings.length === 0 ? (
               <div className="admin-card" style={{ padding: 32, textAlign: "center" }}>
                 <Text size="sm" c="dimmed" mb={12}>No listings yet.</Text>
                 <Button size="sm" variant="light" leftSection={<Plus size={14} />} onClick={openNewManual}>Add first entry</Button>
+              </div>
+            ) : filteredListings.length === 0 ? (
+              <div className="admin-card" style={{ padding: 24, textAlign: "center" }}>
+                <Text size="sm" c="dimmed">No listings match your search.</Text>
               </div>
             ) : (
               <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
@@ -1075,7 +1164,12 @@ export default function AdminMapData() {
                     <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
                       {hasSelectFilterFields && (
                         <th style={{ padding: "9px 12px", width: 32 }}>
-                          <input type="checkbox" aria-label="Select all" checked={listings.length > 0 && selectedIds.size === listings.length} onChange={() => toggleSelectAll(listings.map((l) => l.id))} />
+                          <input
+                            type="checkbox"
+                            aria-label="Select all"
+                            checked={filteredListings.length > 0 && filteredListings.every((l) => selectedIds.has(l.id))}
+                            onChange={() => toggleSelectAll(filteredListings.map((l) => l.id))}
+                          />
                         </th>
                       )}
                       <th style={{ padding: "9px 12px" }}>Name</th>
@@ -1086,7 +1180,7 @@ export default function AdminMapData() {
                     </tr>
                   </thead>
                   <tbody>
-                    {listings.map((listing) => {
+                    {filteredListings.map((listing) => {
                       const src = listing.source || ingestionMethodMap.get(listing.id) || "manual";
                       return (
                         <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
@@ -1319,7 +1413,13 @@ export default function AdminMapData() {
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Address</label>
-                    <input value={manualForm.address} onChange={(e) => mfSet("address", e.target.value)} placeholder="e.g. 1 Example Street, London" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                    <input
+                      value={manualForm.address}
+                      onChange={(e) => mfSet("address", e.target.value)}
+                      onBlur={onManualAddressBlur}
+                      placeholder="e.g. 1 Example Street, London"
+                      style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Group</label>
@@ -1328,16 +1428,21 @@ export default function AdminMapData() {
                       {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   </div>
-                  <Group gap="sm" grow>
-                    <div>
-                      <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Latitude</label>
-                      <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Longitude</label>
-                      <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="number" step="any" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                    </div>
-                  </Group>
+                  <div>
+                    <Group gap="sm" grow>
+                      <div>
+                        <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Latitude</label>
+                        <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="number" step="any" disabled={geocodingAddress} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Longitude</label>
+                        <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="number" step="any" disabled={geocodingAddress} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
+                      </div>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={6}>
+                      {geocodingAddress ? "Updating coordinates from address…" : "Coordinates update automatically when you change the address."}
+                    </Text>
+                  </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Website URL</label>
                     <input value={manualForm.website_url} onChange={(e) => mfSet("website_url", e.target.value)} placeholder="https://…" type="url" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />

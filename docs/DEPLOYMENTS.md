@@ -8,6 +8,43 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-12 — [Staging] Manual entry list search on map Data pages
+
+**Branch/commit:** `feat/2026-08-12-map-data-entry-search`
+**Deployed by:** —
+
+### What changed
+- The **Manual entry** tab on client and admin map Data pages now has a **Filter by name or address…** field above the listings table, matching the existing search on the **Map data** tab.
+- Select-all for bulk filter edits applies to the filtered rows only.
+- Empty search results show a clear “no match” message instead of an empty table.
+- **Bug fix:** client Manual entry save for **Group** appeared to fail because `fetchListings` omitted `group_id` from the primary select — the update hit the database, then the refetch dropped the group from the UI. Admin listing fetch now also loads the full edit fields (lat/lng, contact URLs, etc.) so saving an edit cannot wipe them.
+- Changing a listing **Address** in Manual entry (client + admin) re-geocodes via `geocode_address` on blur and on save, so latitude/longitude refresh automatically.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `ClientMapData.jsx` and `AdminMapData.jsx` reuse the existing `dataSearch` / `filteredListings` logic for the Manual entry table; both listing fetches include `group_id` (and admin now matches the client field set for edit).
+- Manual entry forms call `geocode_address` when the address changes so pin coordinates stay in sync.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [ ] Client Data → Manual entry: search narrows the list by name/address
+- [ ] Admin Data → Manual entry: same
+- [ ] Bulk select-all only selects visible (filtered) rows
+- [ ] Map data tab search still works
+- [ ] Client Manual entry: assigning a group and saving keeps the group in the table and on re-open
+- [ ] Admin Manual entry: edit save retains lat/lng and contact fields
+- [ ] Client Manual entry: changing address updates lat/lng on blur and on save
+- [ ] Admin Manual entry: same address → coordinate refresh
+
+---
+
 ## 2026-08-12 — [Staging] Hide zoom controls on map design screens
 
 **Branch/commit:** `fix/2026-08-12-hide-design-map-zoom`
