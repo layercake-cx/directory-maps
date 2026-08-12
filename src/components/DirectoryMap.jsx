@@ -434,7 +434,7 @@ export default function DirectoryMap({
   /** `greedy` captures wheel/trackpad for zoom; `cooperative` lets the page scroll (use Ctrl/Cmd+wheel to zoom). */
   /** `cooperative`: wheel/trackpad scroll does not zoom the map (use Ctrl+scroll to zoom); pinch/2-finger gestures still zoom/pan. `greedy`: wheel zooms the map. */
   gestureHandling = "cooperative",
-  /** Slider next to the default +/- zoom controls */
+  /** Custom +/- slider and fullscreen control (top-right). When false, no zoom UI is shown. */
   showZoomSlider = true,
   /**
    * When set (new `id` each time), pans/zooms or fits bounds — e.g. geocoded country/place from search.
@@ -504,17 +504,15 @@ export default function DirectoryMap({
         isCustomRoadmap ? "roadmap" : window.google.maps.MapTypeId?.[builtinId.toUpperCase()] ?? builtinId;
 
       if (!mapRef.current) {
-        const { ControlPosition } = window.google.maps;
         mapRef.current = new window.google.maps.Map(elRef.current, {
           center,
           zoom,
           mapTypeId: initialMapType,
           mapTypeControl: false,
           streetViewControl: false,
-          fullscreenControl: !showZoomSlider,
-          fullscreenControlOptions: { position: ControlPosition.RIGHT_TOP },
-          zoomControl: !showZoomSlider,
-          zoomControlOptions: { position: ControlPosition.RIGHT_TOP },
+          // Custom zoom slider (when enabled) replaces Google's controls; never show both.
+          fullscreenControl: false,
+          zoomControl: false,
           gestureHandling,
           scrollwheel: gestureHandling === "greedy",
         });
@@ -541,10 +539,10 @@ export default function DirectoryMap({
     mapRef.current.setOptions({
       gestureHandling: fsActive ? "greedy" : gestureHandling,
       scrollwheel: fsActive ? true : gestureHandling === "greedy",
-      fullscreenControl: !showZoomSlider,
-      zoomControl: !showZoomSlider,
+      fullscreenControl: false,
+      zoomControl: false,
     });
-  }, [mapReady, gestureHandling, showZoomSlider]);
+  }, [mapReady, gestureHandling]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps) return;

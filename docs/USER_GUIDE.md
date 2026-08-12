@@ -141,7 +141,7 @@ Filtering a published directory by these terms, and other publishing/branding fe
 
 ## Map designer
 
-The designer shows a **live preview** of your map. Use the header buttons to open settings panels:
+The designer shows a **live preview** of your map. Use the header buttons to open settings panels. The preview omits the visitor zoom/fullscreen control so it doesn’t cover **Map Settings**; a small zoom-level readout stays bottom-left while you set the default centre and zoom. Published embeds still show the full zoom controls for visitors.
 
 | Panel | What you can change |
 |-------|---------------------|
