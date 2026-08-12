@@ -232,6 +232,8 @@ export default function PublishedMapView({
   showTransitLayer = false,
   showBikeLayer = false,
   showZoomIndicator = false,
+  /** Custom +/- zoom slider + fullscreen (hide on admin/client design screens so it doesn’t cover the settings panel) */
+  showZoomSlider = true,
   /** Overlays rendered inside the fullscreen root (e.g. message drawer) */
   mapOverlay = null,
 }) {
@@ -947,6 +949,7 @@ export default function PublishedMapView({
         showTransitLayer={showTransitLayer}
         showBikeLayer={showBikeLayer}
         showZoomIndicator={showZoomIndicator}
+        showZoomSlider={showZoomSlider}
       />
 
       {showListPanel && (

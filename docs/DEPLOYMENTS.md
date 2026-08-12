@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-12 — [Staging] Hide zoom controls on map design screens
+
+**Branch/commit:** `fix/2026-08-12-hide-design-map-zoom`
+**Deployed by:** —
+
+### What changed
+- On admin and client map design screens, the custom zoom slider / fullscreen control (top-right) sat over the Map Settings panel and made the panel harder to use.
+- Those design views now hide the zoom UI. Published embeds and live maps are unchanged and still show the slider.
+- Designers can still see the current zoom level via the existing bottom-left zoom indicator, and can still zoom with trackpad/pinch (and Ctrl/⌘ + scroll where cooperative gestures apply).
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `PublishedMapView` accepts `showZoomSlider`; admin/client dashboards pass `false`. `DirectoryMap` no longer falls back to Google’s native zoom/fullscreen when the custom control is off.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [ ] Admin map design: no zoom slider over the right settings panel; zoom indicator still visible
+- [ ] Client map design: same
+- [ ] Published/embed map: zoom slider + fullscreen still present
+- [ ] `npm run build` succeeds locally
+
+---
+
 ## 2026-08-05 — [Staging] Feature-flag layer + gate Directories/Categorisations
 
 **Branch/commit:** `feat/2026-08-05-feature-flags`
