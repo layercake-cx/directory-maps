@@ -95,7 +95,7 @@ You’ll return to **My Maps**; open the new map to configure it.
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, categorisation-driven filtering, and map linking are not built yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, and categorisation-driven filtering are not built yet. Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
 
 ### Creating a directory
 
