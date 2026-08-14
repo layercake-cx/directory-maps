@@ -1926,6 +1926,7 @@ export default function ClientMapDashboard() {
               showTransitLayer={mapStyleSettings.overlays.transit}
               showBikeLayer={mapStyleSettings.overlays.bikeLanes}
               showZoomIndicator
+              showZoomSlider={false}
               theme={editTheme}
               selectedListing={selectedListing}
               selectedMarkerPoint={selectedMarkerPoint}

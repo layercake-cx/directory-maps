@@ -109,7 +109,7 @@ Files: `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`.
 
 ### 4.3 Map design & publish
 
-The map editor (`ClientMapDashboard.jsx`) is a **live preview** with overlay panels:
+The map editor (`ClientMapDashboard.jsx` / `AdminMapDashboard.jsx`) is a **live preview** with overlay panels. Design screens pass `showZoomSlider={false}` so the custom zoom/fullscreen control doesn’t cover the right-hand settings panel; published embeds keep the control. Bottom-left zoom indicator remains for setting default zoom.
 
 | Panel | Purpose |
 |-------|---------|
@@ -144,7 +144,7 @@ Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule |
+| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule; **Manual entry** and **Map data** tabs filter by name/address; Manual entry re-geocodes lat/lng when the address changes |
 | Listings table | `/client/maps/:id/listings` | Search/filter listings; batch geocode |
 
 **CSV import**

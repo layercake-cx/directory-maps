@@ -141,7 +141,7 @@ Filtering a published directory by these terms, and other publishing/branding fe
 
 ## Map designer
 
-The designer shows a **live preview** of your map. Use the header buttons to open settings panels:
+The designer shows a **live preview** of your map. Use the header buttons to open settings panels. The preview omits the visitor zoom/fullscreen control so it doesn’t cover **Map Settings**; a small zoom-level readout stays bottom-left while you set the default centre and zoom. Published embeds still show the full zoom controls for visitors.
 
 | Panel | What you can change |
 |-------|---------------------|
@@ -184,7 +184,7 @@ Changes appear in the live preview immediately and are saved as part of your map
 
 Filter fields, options, and display settings follow the **draft → publish** cycle: they appear in your live preview immediately but only reach visitors when you **Publish**. Matching within one field is "any of" (OR); across different fields a listing must match **all** active filters (AND) — the same behaviour as group and continent filters.
 
-Tag listings with filter values in three ways: individually (the **Data → Manual entries** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns.
+Tag listings with filter values in three ways: individually (the **Data → Manual entry** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns.
 
 ### Co-located pins (same address)
 
@@ -245,9 +245,15 @@ Connect a Google account, then click **Choose a file from Google Drive** to open
 
 Under **Auto-sync schedule**, choose **Off** (manual only) or **Daily**, then pick the time of day (shown in your local time) when the sync should run each day. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
 
+### Manual entry
+
+On **Data** (`/client/maps/<id>/data`), open **Manual entry** to add, edit, or delete individual listings. Use the **Filter by name or address…** field above the table to narrow a long list. If Google Drive sync is connected, disconnect it first — manual editing is locked while sync is active.
+
+When you change the **Address** (and leave the field, or save), latitude and longitude update automatically from geocoding. You can still override the coordinates manually if needed.
+
 ### Loaded Data (logo background per listing)
 
-In **Data** (`/client/maps/<id>/data`), open the **Loaded Data** tab to set a background behind each listing logo:
+In **Data** (`/client/maps/<id>/data`), open the **Map data** tab to set a background behind each listing logo:
 
 1. Use the search field to filter by listing name or address.
 2. Review each listing’s **ingestion method** (**Integration**, **CSV**, or **Manual**) and logo thumbnail preview.
@@ -417,8 +423,9 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
 | Create a custom filter field | Map → Design → Filters → New filter field |
 | Show a filter field in the search bar | Map → Design → Filters → Show in search bar |
-| Tag a listing's filter values | Map → Data → Manual entries → edit listing → Filters |
-| Bulk-tag filter values | Map → Data → Manual entries → select rows → Bulk edit filters |
+| Tag a listing's filter values | Map → Data → Manual entry → edit listing → Filters |
+| Bulk-tag filter values | Map → Data → Manual entry → select rows → Bulk edit filters |
+| Search manual listings | Map → Data → Manual entry → Filter by name or address |
 | Import CSV / Sheets | Map → Data |
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
