@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Staging] First real entitlement: max_maps, enforced server-side
+## 2026-08-20 — [Production] First real entitlement: max_maps, enforced server-side
 
-**Branch/commit:** `feat/2026-08-20-max-maps-entitlement`
-**Deployed by:** Claude Code (staging only, with explicit user sign-off)
+**Branch/commit:** `feat/2026-08-20-max-maps-entitlement` (merged to `main` via [PR #101](https://github.com/layercake-cx/directory-maps/pull/101))
+**Deployed by:** Claude Code, with explicit user sign-off for both staging and production
 
 ### What changed
 - Seeded the first real row in the Epic 1 entitlements catalog: `maps.max_maps` (volume type). Plan defaults: Standard = 3, Premium = unlimited, Unlimited = unlimited. Founder is unlimited automatically via the existing pseudo-tier shortcut (no `plan_features` row needed).
@@ -19,7 +19,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Client-portal "New map" page now shows "X of Y maps used" and disables **Create map** when at the limit — UX sugar on top of the trigger, which remains the authoritative check. No equivalent hint added to the admin "new map" page in this pass (would need a second client-side resolver for an arbitrary target client just for display; the trigger's error message already surfaces there through the existing error-handling).
 
 ### Database migrations applied
-- `20260820120000_seed_max_maps_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Its embedded post-migration `DO` block raised `VERIFY PASSED: max_maps entitlement + enforcement trigger created`. **Not applied to production.**
+- `20260820120000_seed_max_maps_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) and then **production** (`gxixwdjfmegxcxfeflro`) via `supabase db push`, both with explicit user sign-off. Its embedded post-migration `DO` block raised `VERIFY PASSED: max_maps entitlement + enforcement trigger created` on both. Production had no other pending migrations at the time, so this was the only one pushed.
 
 ### Edge functions deployed
 - None.
@@ -29,7 +29,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `docs/USER_GUIDE.md`: one-line mention of the plan limit under "Creating a map".
 
 ### Rollback plan
-- `_20260820120000_seed_max_maps_entitlement.rollback.sql` drops the trigger/function and the catalog row (aborts if any `client_overrides` exist for this feature, to avoid silently losing a real per-client grant). Once rolled back, map creation is uncapped again (fails open when the catalog row is missing) — safe, just without the limit. Revert the PR merge commit on `main` for the frontend.
+- `_20260820120000_seed_max_maps_entitlement.rollback.sql` drops the trigger/function and the catalog row (aborts if any `client_overrides` exist for this feature, to avoid silently losing a real per-client grant). Once rolled back, map creation is uncapped again (fails open when the catalog row is missing) — safe, just without the limit. Revert the [PR #101](https://github.com/layercake-cx/directory-maps/pull/101) merge commit on `main` for the frontend.
 
 ### Out of scope for this pass
 - Proactive "X of Y" hint on the admin "new map" page (see above).
@@ -38,7 +38,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `npm run build` passes clean
 - [x] Migration applied to staging via `supabase db push`; embedded post-migration `DO` block passed (`VERIFY PASSED`)
-- [ ] Separate transactional dry-run with the manual smoke-test insert described in the migration file's header — not done; went straight from file-listing dry-run (`db push --dry-run`, lists pending files only) to the real apply, same as the previous two migrations
+- [x] Migration applied to production via `supabase db push`; embedded post-migration `DO` block passed (`VERIFY PASSED`). Frontend PR #101 merged to `main`; GitHub Pages deploy triggered automatically.
+- [ ] Separate transactional dry-run with the manual smoke-test insert described in the migration file's header — not done on either environment; both went straight from file-listing dry-run (`db push --dry-run`, lists pending files only) to the real apply, same as the previous two migrations
 - [ ] Standard-plan client blocked from creating a 4th map, with a clear message
 - [ ] Premium/Unlimited/Founder clients unaffected
 - [ ] Admin creating a map for a client already at their limit gets the same block
