@@ -8,6 +8,7 @@ import MessagingPanel from "../../components/MessagingPanel.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
+import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
 import {
   DIRECTORIES_FLAG,
   listClientFeatureOverrides,
@@ -315,6 +316,7 @@ export default function AdminClientDetail() {
     { label: "Maps", value: "maps" },
     { label: "Directories", value: "directories" },
     { label: "Categorisations", value: "categorisations" },
+    { label: "Entitlements", value: "entitlements" },
     { label: "Customer details", value: "details" },
     { label: "Users", value: "users" },
     { label: "Messaging", value: "messaging" },
@@ -436,6 +438,13 @@ export default function AdminClientDetail() {
               <div>
                 <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Categorisations</h3>
                 <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
+              </div>
+            )}
+
+            {activeTab === "entitlements" && (
+              <div>
+                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Entitlements</h3>
+                <EntitlementsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 

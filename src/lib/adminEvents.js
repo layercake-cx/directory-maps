@@ -1,4 +1,4 @@
-/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'|'leads'} AdminEventCategory */
+/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'|'leads'|'entitlements'} AdminEventCategory */
 
 /** Labels for filter UI (type = category). */
 export const ADMIN_EVENT_CATEGORY_LABELS = {
@@ -10,6 +10,7 @@ export const ADMIN_EVENT_CATEGORY_LABELS = {
   billing: "Billing",
   ops: "Operations",
   leads: "Leads",
+  entitlements: "Entitlements",
 };
 
 /** Known subtypes per category (subtype filter options). */
@@ -64,8 +65,9 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "messaging_toggled",
   ],
   billing: ["checkout_session_created", "checkout_failed"],
-  ops: ["deploy_hook_triggered", "deploy_hook_failed", "feature_flag_changed"],
+  ops: ["deploy_hook_triggered", "deploy_hook_failed", "feature_flag_changed", "entitlement_kill_switch_toggled"],
   leads: ["status_changed"],
+  entitlements: ["plan_changed", "override_set", "override_cleared"],
 };
 
 const TWO_PART_PREFIXES = ["map_design", "map_publish"];
@@ -85,7 +87,7 @@ export function parseAdminEventType(eventType) {
     }
   }
 
-  const singlePrefixes = ["data_", "team_", "email_", "billing_", "ops_"];
+  const singlePrefixes = ["data_", "team_", "email_", "billing_", "ops_", "entitlements_"];
   for (const p of singlePrefixes) {
     if (t.startsWith(p)) {
       return { category: p.slice(0, -1), subtype: t.slice(p.length) };
