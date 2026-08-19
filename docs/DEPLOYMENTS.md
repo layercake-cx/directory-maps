@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-14 — [Staging] Admin customer Maps tab empty when optional queries fail
+
+**Branch/commit:** `fix/2026-08-14-admin-client-maps-load`
+**Deployed by:** —
+
+### What changed
+- Opening a customer in admin (`/admin/clients/:id`, Maps tab) could show **No maps yet** even when that organisation has maps. The client portal still listed them correctly.
+- The customer-detail load waited on Directories and feature-flag override queries in the same `Promise.all` as maps. Feature-flag tables exist on **staging only** (not production). If either optional query threw, maps were never applied, and the Maps tab did not show the error.
+- Maps / customer / users now load independently. Missing `feature_flag_overrides` fails closed (empty overrides). Load errors are visible on the Maps tab instead of looking like an empty customer.
+
+### Database migrations applied
+- None. This does **not** apply `20260805120000_create_feature_flags.sql` to production.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `AdminClientDetail.jsx` treats `listDirectories` / `listClientFeatureOverrides` as optional.
+- `listClientFeatureOverrides` returns `[]` when the table is missing from the schema cache.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [x] Admin → customer → Maps tab lists the same maps as that customer’s client portal (staging)
+- [x] Customer details → Feature access toggle still works on staging
+- [ ] Admin → customer still loads if `feature_flag_overrides` is missing — **cannot verify on staging** (the table exists there); needs confirming against production after deploy
+- [ ] A genuine maps query error is shown on the Maps tab (not “No maps yet”) — same caveat, needs a production check
+
+---
+
 ## 2026-08-12 — [Staging] Manual entry list search on map Data pages
 
 **Branch/commit:** `feat/2026-08-12-map-data-entry-search`

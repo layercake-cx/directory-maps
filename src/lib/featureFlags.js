@@ -33,13 +33,31 @@ export async function fetchMyFeatureFlags() {
   return data && typeof data === "object" ? data : {};
 }
 
+function isMissingRelationError(error) {
+  const msg = (error?.message ?? "").toLowerCase();
+  const code = error?.code ?? "";
+  return (
+    code === "PGRST205" ||
+    code === "42P01" ||
+    msg.includes("schema cache") ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find the table")
+  );
+}
+
 /** Admin: list a client's per-organisation flag overrides. */
 export async function listClientFeatureOverrides(clientId) {
+  if (!clientId) return [];
   const { data, error } = await supabase
     .from("feature_flag_overrides")
     .select("flag_key, enabled")
     .eq("client_id", clientId);
-  if (error) throw error;
+  if (error) {
+    // Fail closed when the migration has not been applied yet (staging-only today).
+    // Callers must not let this block loading maps / customer details.
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
   return data ?? [];
 }
 

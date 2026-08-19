@@ -103,8 +103,11 @@ export default function AdminClientDetail() {
           .eq("client_id", clientId)
           .order("is_primary", { ascending: false })
           .order("created_at", { ascending: true }),
-        listDirectories(clientId),
-        listClientFeatureOverrides(clientId),
+        // Optional: must not fail the maps/customer load (e.g. feature-flag
+        // tables exist on staging only; a directories embed error must not
+        // wipe the Maps tab).
+        listDirectories(clientId).catch(() => []),
+        listClientFeatureOverrides(clientId).catch(() => []),
       ]);
 
       if (ce) throw ce;
@@ -337,6 +340,9 @@ export default function AdminClientDetail() {
           <p>Loading…</p>
         ) : (
           <>
+            {err && activeTab !== "details" && activeTab !== "users" ? (
+              <p style={{ margin: "0 0 12px 0", color: "#b91c1c" }}>{err}</p>
+            ) : null}
 
             {activeTab === "maps" && (
               <div>
@@ -348,7 +354,9 @@ export default function AdminClientDetail() {
                 </div>
 
                 {maps.length === 0 ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>No maps yet for this customer.</p>
+                  err ? null : (
+                    <p style={{ marginTop: 8, opacity: 0.8 }}>No maps yet for this customer.</p>
+                  )
                 ) : (
                   <table className="admin-table" style={{ marginTop: 0 }}>
                     <thead>
