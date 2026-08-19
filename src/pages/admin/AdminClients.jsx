@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { Link } from "react-router-dom";
+import { listPlans } from "../../lib/entitlements.js";
 
 const TRASH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -31,6 +32,7 @@ export default function AdminClients() {
   const [rows, setRows] = useState([]);
   const [mapCountByClientId, setMapCountByClientId] = useState({});
   const [primaryContactByClientId, setPrimaryContactByClientId] = useState({});
+  const [planNameByKey, setPlanNameByKey] = useState({});
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -47,18 +49,28 @@ export default function AdminClients() {
         { data: clientsData, error: clientsError },
         { data: mapsData, error: mapsError },
         { data: contactsData, error: contactsError },
+        plansData,
       ] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, name, slug, created_at, updated_at")
+          .select("id, name, slug, plan_key, created_at, updated_at")
           .order("name", { ascending: true }),
         supabase.from("maps").select("client_id"),
         supabase.from("contacts").select("id, client_id, email, is_primary, created_at").order("created_at", { ascending: true }),
+        // Optional: entitlements may not be migrated in every environment yet — must not block the customers list.
+        listPlans().catch(() => []),
       ]);
 
       if (clientsError) throw clientsError;
       if (mapsError) throw mapsError;
       if (contactsError) throw contactsError;
+
+      setPlanNameByKey(
+        (plansData ?? []).reduce((acc, p) => {
+          acc[p.key] = p.name;
+          return acc;
+        }, {})
+      );
 
       const countByClient = (mapsData ?? []).reduce((acc, m) => {
         if (m.client_id) acc[m.client_id] = (acc[m.client_id] ?? 0) + 1;
@@ -159,7 +171,7 @@ export default function AdminClients() {
         <table className="admin-table">
           <thead>
             <tr>
-              {["Customer", "Slug", "Number of maps", "Primary contact", "Created", "Updated", ""].map((h) => (
+              {["Customer", "Plan", "Slug", "Number of maps", "Primary contact", "Created", "Updated", ""].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -180,6 +192,8 @@ export default function AdminClients() {
                       <strong>{r.name}</strong>
                     </Link>
                   </td>
+
+                  <td>{planNameByKey[r.plan_key] ?? r.plan_key ?? "—"}</td>
 
                   <td>{r.slug}</td>
 
