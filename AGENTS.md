@@ -215,6 +215,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Billing**: `billing_*`
   - **Deploy / operations**: `ops_*`
   - **Leads (pre-account enquiries)**: `leads_*`
+  - **Entitlements (commercial/tier gating)**: `entitlements_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -330,6 +331,18 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - `meta`: `environment` (`preview`/`production`), `source` (`admin_ui`)
 - **`ops_deploy_hook_failed`**
   - `meta`: `environment`, `error`
+- **`ops_entitlement_kill_switch_toggled`**
+  - `meta`: `feature_key`, `enabled`, `actor_admin_scope: "platform_superadmin"`, `source`
+  - Platform-wide (no `client_id`) — the kill switch is a global emergency force-off for one feature, not scoped to a client.
+
+#### Entitlements
+
+- **`entitlements_plan_changed`**
+  - `meta`: `client_id`, `from_plan_key`, `to_plan_key`
+- **`entitlements_override_set`**
+  - `meta`: `client_id`, `feature_key`, `entitlement_type`, plus whichever value field(s) changed (`bool_value` / `limit_value` / `included_allowance` / `expires_at`), `reason` (optional)
+- **`entitlements_override_cleared`**
+  - `meta`: `client_id`, `feature_key`
 
 #### Leads (pre-account enquiries)
 

@@ -8,6 +8,41 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-19 — [Not yet deployed] Epic 1: Entitlements & Feature Flags 2.0 (schema + resolver + admin UI)
+
+**Branch/commit:** `feat/2026-08-19-entitlements-schema`
+**Deployed by:** —
+
+### What changed
+- New commercial/tier-gating layer, separate from the existing `feature_flags` release-gating system: `products → features → plan_features (tier defaults) → client_overrides`, plus `usage_counters` for metered features, and a `clients.plan_key` column (defaults every client to `standard`).
+- New security-definer resolver RPC `get_my_entitlements()`, precedence: platform-wide kill switch (force off) > per-client override > Founder tier (`plans.is_founder_tier`, no per-feature row needed) > plan default > catalog fallback.
+- New admin-only "Entitlements" tab on the customer detail page: assign a client's plan, set/clear per-feature overrides (checkbox/number/date input depending on the feature's type). Feature kill switches are DB-only in v1 — no UI yet.
+- New `entitlements` admin-event category (`entitlements_plan_changed`, `entitlements_override_set`, `entitlements_override_cleared`) plus `ops_entitlement_kill_switch_toggled`, documented in `AGENTS.md`.
+
+### Database migrations applied
+- None yet. `20260819120000_create_entitlements.sql` has **not** been applied to staging or production.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/lib/entitlements.js`, `src/context/EntitlementsProvider.jsx` + `entitlementsContext.js`, `src/hooks/useEntitlements.js` — mirrors the existing `featureFlags.js`/`FeatureFlagsProvider.jsx` pattern. Wired into `Root.jsx` alongside `FeatureFlagsProvider`.
+- `src/components/admin/EntitlementsPanel.jsx`, wired as a new tab in `AdminClientDetail.jsx`.
+
+### Rollback plan
+- Not deployed yet — nothing to roll back. Once applied, `_20260819120000_create_entitlements.rollback.sql` reverses the migration (it aborts if any `client_overrides` rows or non-`standard` `plan_key` assignments exist, to avoid silently losing real data); revert the PR merge commit on `main` for the frontend.
+
+### Out of scope for this pass
+- Real Stripe/billing reconciliation, overage billing math, usage-counter increment wiring, `on_downgrade_policy` enforcement automation, client self-serve UI, a kill-switch admin UI, and auto-detecting Founder Members clients (no existing signal — needs a business-supplied client-ID list, applied via a manual step in the migration or afterward through the admin UI).
+
+### Verified
+- [ ] Migration dry-run (`BEGIN; ...; ROLLBACK;`) on staging, seeding one `client_overrides` row per `entitlement_type` and checking `get_my_entitlements()` resolves each correctly
+- [ ] Migration applied to staging; post-migration verification block passes (row counts unchanged, seeds present, RLS enabled, zero orphans)
+- [ ] Admin → customer → Entitlements tab: plan dropdown saves and is reflected in `get_my_entitlements()`
+- [ ] Admin → customer → Entitlements tab: setting/clearing a per-feature override saves, is reflected in `get_my_entitlements()`, and writes an `admin_events` row
+
+---
+
 ## 2026-08-14 — [Staging] Admin customer Maps tab empty when optional queries fail
 
 **Branch/commit:** `fix/2026-08-14-admin-client-maps-load`
