@@ -6,6 +6,7 @@ import SiteFooter from "./components/SiteFooter.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { FeatureFlagsProvider } from "./context/FeatureFlagsProvider.jsx";
+import { EntitlementsProvider } from "./context/EntitlementsProvider.jsx";
 import { isEmbedPath } from "./lib/embedRoutes.js";
 
 function Layout() {
@@ -128,7 +129,9 @@ export default function Root() {
         <BrowserRouter>
           <AuthProvider>
             <FeatureFlagsProvider>
-              <Layout />
+              <EntitlementsProvider>
+                <Layout />
+              </EntitlementsProvider>
             </FeatureFlagsProvider>
           </AuthProvider>
         </BrowserRouter>
