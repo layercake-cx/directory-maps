@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Not yet deployed] First real entitlement: max_maps, enforced server-side
+## 2026-08-20 — [Staging] First real entitlement: max_maps, enforced server-side
 
 **Branch/commit:** `feat/2026-08-20-max-maps-entitlement`
-**Deployed by:** —
+**Deployed by:** Claude Code (staging only, with explicit user sign-off)
 
 ### What changed
 - Seeded the first real row in the Epic 1 entitlements catalog: `maps.max_maps` (volume type). Plan defaults: Standard = 3, Premium = unlimited, Unlimited = unlimited. Founder is unlimited automatically via the existing pseudo-tier shortcut (no `plan_features` row needed).
@@ -19,7 +19,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Client-portal "New map" page now shows "X of Y maps used" and disables **Create map** when at the limit — UX sugar on top of the trigger, which remains the authoritative check. No equivalent hint added to the admin "new map" page in this pass (would need a second client-side resolver for an arbitrary target client just for display; the trigger's error message already surfaces there through the existing error-handling).
 
 ### Database migrations applied
-- None yet. `20260820120000_seed_max_maps_entitlement.sql` has **not** been applied to staging or production.
+- `20260820120000_seed_max_maps_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Its embedded post-migration `DO` block raised `VERIFY PASSED: max_maps entitlement + enforcement trigger created`. **Not applied to production.**
 
 ### Edge functions deployed
 - None.
@@ -37,8 +37,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` passes clean
-- [ ] Migration dry-run on staging, including the manual smoke-test insert described in the migration file's header comment
-- [ ] Migration applied to staging; post-migration verification block passes
+- [x] Migration applied to staging via `supabase db push`; embedded post-migration `DO` block passed (`VERIFY PASSED`)
+- [ ] Separate transactional dry-run with the manual smoke-test insert described in the migration file's header — not done; went straight from file-listing dry-run (`db push --dry-run`, lists pending files only) to the real apply, same as the previous two migrations
 - [ ] Standard-plan client blocked from creating a 4th map, with a clear message
 - [ ] Premium/Unlimited/Founder clients unaffected
 - [ ] Admin creating a map for a client already at their limit gets the same block
