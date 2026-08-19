@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
+import { useEntitlement } from "../../hooks/useEntitlements.js";
 
 function slugify(input) {
   return (input || "")
@@ -34,6 +35,9 @@ export default function ClientMapNew() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
+  const [mapCount, setMapCount] = useState(null);
+  const { limit: maxMapsLimit, loading: entitlementLoading } = useEntitlement("max_maps");
+
   const suggestedSlug = useMemo(() => slugify(name), [name]);
   const finalSlug = (slug || suggestedSlug).trim();
 
@@ -49,6 +53,20 @@ export default function ClientMapNew() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!clientId) return;
+    (async () => {
+      const { count } = await supabase
+        .from("maps")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientId);
+      setMapCount(count ?? 0);
+    })();
+  }, [clientId]);
+
+  const atMapLimit =
+    !entitlementLoading && maxMapsLimit != null && mapCount != null && mapCount >= maxMapsLimit;
 
   async function lookupLocation(e) {
     e?.preventDefault?.();
@@ -98,6 +116,7 @@ export default function ClientMapNew() {
     if (!cleanName) return setErr("Map name is required.");
     if (!finalSlug) return setErr("Map slug is required.");
     if (!clientId) return setErr("Missing client id.");
+    if (atMapLimit) return setErr(`Map limit reached (${mapCount}/${maxMapsLimit}). Upgrade your plan to add more maps.`);
 
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -138,6 +157,13 @@ export default function ClientMapNew() {
       </div>
 
       <h2 style={{ marginTop: 0 }}>Create map</h2>
+
+      {mapCount != null && maxMapsLimit != null ? (
+        <p style={{ margin: "0 0 12px 0", fontSize: 13, opacity: 0.8 }}>
+          {mapCount} of {maxMapsLimit} maps used
+          {atMapLimit ? " — upgrade your plan to add more." : ""}
+        </p>
+      ) : null}
 
       <form onSubmit={createMap}>
         <div style={{ display: "grid", gap: 14 }}>
@@ -222,7 +248,7 @@ export default function ClientMapNew() {
           {err ? <p style={{ margin: 0 }}>{err}</p> : null}
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button className="btn btn-primary" type="submit" disabled={saving}>
+            <button className="btn btn-primary" type="submit" disabled={saving || atMapLimit}>
               {saving ? "Creating…" : "Create map"}
             </button>
 
