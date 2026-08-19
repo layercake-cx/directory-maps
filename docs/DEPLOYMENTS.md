@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-19 — [Not yet deployed] Epic 1: Entitlements & Feature Flags 2.0 (schema + resolver + admin UI)
+## 2026-08-19 — [Staging] Epic 1: Entitlements & Feature Flags 2.0 (schema + resolver + admin UI)
 
 **Branch/commit:** `feat/2026-08-19-entitlements-schema`
-**Deployed by:** —
+**Deployed by:** Claude Code (staging only, with explicit user sign-off)
 
 ### What changed
 - New commercial/tier-gating layer, separate from the existing `feature_flags` release-gating system: `products → features → plan_features (tier defaults) → client_overrides`, plus `usage_counters` for metered features, and a `clients.plan_key` column (defaults every client to `standard`).
@@ -20,7 +20,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - New `entitlements` admin-event category (`entitlements_plan_changed`, `entitlements_override_set`, `entitlements_override_cleared`) plus `ops_entitlement_kill_switch_toggled`, documented in `AGENTS.md`.
 
 ### Database migrations applied
-- None yet. `20260819120000_create_entitlements.sql` has **not** been applied to staging or production.
+- `20260819120000_create_entitlements.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Its embedded post-migration `DO` block ran and raised `VERIFY PASSED: entitlements layer created`. **Not applied to production.**
+- Unrelated pre-existing issue found and fixed along the way: staging's migration history table had two orphaned entries (`20260716120000`, `20260804140000`) from feature branches that were applied to staging directly but never merged to `main` (DIR-E8 directory→map linking, and an abandoned map-deletion RPC). `20260716120000`'s objects were already cleanly dropped by the git-tracked `20260809120000_drop_abandoned_directory_map_associations.sql`; `20260804140000`'s objects were never confirmed dropped. Ran `supabase migration repair --status reverted 20260716120000 20260804140000` — bookkeeping only, does not touch actual tables/functions — to unblock `db push`. Worth a follow-up check on whether the abandoned `delete_map_rpc` function (or similar) is still live on staging.
 
 ### Edge functions deployed
 - None.
@@ -30,16 +31,17 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `src/components/admin/EntitlementsPanel.jsx`, wired as a new tab in `AdminClientDetail.jsx`.
 
 ### Rollback plan
-- Not deployed yet — nothing to roll back. Once applied, `_20260819120000_create_entitlements.rollback.sql` reverses the migration (it aborts if any `client_overrides` rows or non-`standard` `plan_key` assignments exist, to avoid silently losing real data); revert the PR merge commit on `main` for the frontend.
+- `_20260819120000_create_entitlements.rollback.sql` reverses the migration on staging (it aborts if any `client_overrides` rows or non-`standard` `plan_key` assignments exist, to avoid silently losing real data — none exist yet, since the catalog is still empty). Revert the PR merge commit on `main` for the frontend once/if merged.
 
 ### Out of scope for this pass
 - Real Stripe/billing reconciliation, overage billing math, usage-counter increment wiring, `on_downgrade_policy` enforcement automation, client self-serve UI, a kill-switch admin UI, and auto-detecting Founder Members clients (no existing signal — needs a business-supplied client-ID list, applied via a manual step in the migration or afterward through the admin UI).
 
 ### Verified
-- [ ] Migration dry-run (`BEGIN; ...; ROLLBACK;`) on staging, seeding one `client_overrides` row per `entitlement_type` and checking `get_my_entitlements()` resolves each correctly
-- [ ] Migration applied to staging; post-migration verification block passes (row counts unchanged, seeds present, RLS enabled, zero orphans)
+- [x] Migration applied to staging via `supabase db push`; its embedded post-migration `DO` block passed (`VERIFY PASSED`). The row-count/orphan-check `SELECT` statements in the same file ran too, but their output isn't visible through `supabase db push` (it only surfaces `RAISE NOTICE`s) — worth an eyeball in the SQL editor if anyone wants to see the actual counts.
+- [ ] Separate transactional dry-run seeding one `client_overrides` row per `entitlement_type` and checking `get_my_entitlements()` resolves each correctly — not done; the migration went straight from file-listing dry-run (`db push --dry-run`, which only lists pending files, not a real execution) to the real apply.
 - [ ] Admin → customer → Entitlements tab: plan dropdown saves and is reflected in `get_my_entitlements()`
 - [ ] Admin → customer → Entitlements tab: setting/clearing a per-feature override saves, is reflected in `get_my_entitlements()`, and writes an `admin_events` row
+- [ ] Follow-up: confirm whether the abandoned `delete_map_rpc` (or related) objects from the orphaned `20260804140000` migration are still live on staging and need cleaning up
 
 ---
 
