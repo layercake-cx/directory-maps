@@ -89,6 +89,8 @@ Sign out from the header when finished.
 
 You’ll return to **My Maps**; open the new map to configure it.
 
+Your plan may cap how many maps you can create — the **New map** page shows "X of Y maps used" when a limit applies. Contact Layercake to upgrade if you've reached it.
+
 ---
 
 ## Directories

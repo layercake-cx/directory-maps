@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Not yet deployed] First real entitlement: max_maps, enforced server-side
+
+**Branch/commit:** `feat/2026-08-20-max-maps-entitlement`
+**Deployed by:** —
+
+### What changed
+- Seeded the first real row in the Epic 1 entitlements catalog: `maps.max_maps` (volume type). Plan defaults: Standard = 3, Premium = unlimited, Unlimited = unlimited. Founder is unlimited automatically via the existing pseudo-tier shortcut (no `plan_features` row needed).
+- Added a `BEFORE INSERT` trigger on `public.maps` (`enforce_max_maps_limit()`) that resolves the effective limit for the inserting client (kill switch > client override > Founder tier > plan default > catalog fallback) and blocks the insert if already at the limit. This is deliberately **server-side**, not just UI-hidden: `get_my_entitlements()` is self-scoped to the calling user's own client, which doesn't cover the admin "new map" page (creates a map for an arbitrary client from route params) — the trigger enforces uniformly regardless of which UI (or API caller) is inserting.
+- Client-portal "New map" page now shows "X of Y maps used" and disables **Create map** when at the limit — UX sugar on top of the trigger, which remains the authoritative check. No equivalent hint added to the admin "new map" page in this pass (would need a second client-side resolver for an arbitrary target client just for display; the trigger's error message already surfaces there through the existing error-handling).
+
+### Database migrations applied
+- None yet. `20260820120000_seed_max_maps_entitlement.sql` has **not** been applied to staging or production.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/pages/client/ClientMapNew.jsx`: added the maps-used hint and a client-side pre-check (the trigger is still the real gate).
+- `docs/USER_GUIDE.md`: one-line mention of the plan limit under "Creating a map".
+
+### Rollback plan
+- `_20260820120000_seed_max_maps_entitlement.rollback.sql` drops the trigger/function and the catalog row (aborts if any `client_overrides` exist for this feature, to avoid silently losing a real per-client grant). Once rolled back, map creation is uncapped again (fails open when the catalog row is missing) — safe, just without the limit. Revert the PR merge commit on `main` for the frontend.
+
+### Out of scope for this pass
+- Proactive "X of Y" hint on the admin "new map" page (see above).
+- Any change to `on_downgrade_policy` enforcement (still just stored, not automated, same as noted in the 2026-08-19 entry).
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Migration dry-run on staging, including the manual smoke-test insert described in the migration file's header comment
+- [ ] Migration applied to staging; post-migration verification block passes
+- [ ] Standard-plan client blocked from creating a 4th map, with a clear message
+- [ ] Premium/Unlimited/Founder clients unaffected
+- [ ] Admin creating a map for a client already at their limit gets the same block
+- [ ] Client-portal "X of Y maps used" hint renders correctly and updates after creating a map
+
+---
+
 ## 2026-08-19 — [Production] Admin customers list shows each customer's plan
 
 **Branch/commit:** `feat/2026-08-19-admin-clients-plan-column`
