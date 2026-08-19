@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-19 — [Production] Admin customers list shows each customer's plan
+
+**Branch/commit:** `feat/2026-08-19-admin-clients-plan-column`
+**Deployed by:** —
+
+### What changed
+- The admin customers list (`/admin/clients`) now has a **Plan** column, right after **Customer**, resolving each client's `plan_key` against the `plans` catalog added in the Epic 1 entitlements migration (`docs/DEPLOYMENTS.md`, 2026-08-19 entry above).
+- Falls back to the raw `plan_key` (or `—`) if the plans lookup fails, so this degrades gracefully rather than breaking the customers list.
+
+### Database migrations applied
+- None — reads the `clients.plan_key`/`plans` schema already live on both staging and production from the entitlements migration.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/pages/admin/AdminClients.jsx`: added `plan_key` to the clients query, an optional `listPlans()` fetch, and a new "Plan" column.
+
+### Rollback plan
+- Revert the PR merge commit on `main`.
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Visual check on the live admin customers list — not done this session (no authenticated browser session available); worth a quick look after deploy
+
+---
+
 ## 2026-08-19 — [Production] Epic 1: Entitlements & Feature Flags 2.0 (schema + resolver + admin UI)
 
 **Branch/commit:** `feat/2026-08-19-entitlements-schema` (merged to `main` via [PR #98](https://github.com/layercake-cx/directory-maps/pull/98))
