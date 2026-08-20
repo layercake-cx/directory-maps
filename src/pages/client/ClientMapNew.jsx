@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import { useEntitlement } from "../../hooks/useEntitlements.js";
+import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
+import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 
 function slugify(input) {
   return (input || "")
@@ -116,7 +118,7 @@ export default function ClientMapNew() {
     if (!cleanName) return setErr("Map name is required.");
     if (!finalSlug) return setErr("Map slug is required.");
     if (!clientId) return setErr("Missing client id.");
-    if (atMapLimit) return setErr(`Map limit reached (${mapCount}/${maxMapsLimit}). Upgrade your plan to add more maps.`);
+    if (atMapLimit) return setErr(getLimitReachedMessage("max_maps", mapCount, maxMapsLimit));
 
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -158,12 +160,7 @@ export default function ClientMapNew() {
 
       <h2 style={{ marginTop: 0 }}>Create map</h2>
 
-      {mapCount != null && maxMapsLimit != null ? (
-        <p style={{ margin: "0 0 12px 0", fontSize: 13, opacity: 0.8 }}>
-          {mapCount} of {maxMapsLimit} maps used
-          {atMapLimit ? " — upgrade your plan to add more." : ""}
-        </p>
-      ) : null}
+      <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
 
       <form onSubmit={createMap}>
         <div style={{ display: "grid", gap: 14 }}>

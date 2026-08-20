@@ -8,6 +8,10 @@ import {
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupInstructions.js";
+import { useEntitlement } from "../hooks/useEntitlements.js";
+import { fetchClientEntitlements } from "../lib/entitlements.js";
+import EntitlementGate from "./EntitlementGate.jsx";
+import { getBlockedMessage } from "../lib/entitlementMessages.js";
 import styles from "../pages/client/ClientEmail.module.css";
 
 function CopyButton({ value }) {
@@ -221,6 +225,35 @@ export default function MessagingSettings({
   const [hasDomain, setHasDomain] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [senderFirstName, setSenderFirstName] = useState("");
+
+  // Plan gate: client portal resolves its own (self-scoped) entitlement;
+  // admin resolves the arbitrary customer being configured via the
+  // admin-only get_client_entitlements() RPC. Same EntitlementGate wraps
+  // the whole screen either way, so both surfaces behave identically.
+  const isClientPortal = eventSource === "client_portal";
+  const { enabled: myMessagingEnabled, loading: myEntitlementLoading } = useEntitlement("messaging");
+  const [clientMessagingEnabled, setClientMessagingEnabled] = useState(null); // null = loading
+
+  useEffect(() => {
+    if (isClientPortal || !clientId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resolved = await fetchClientEntitlements(clientId);
+        if (!cancelled) setClientMessagingEnabled(resolved?.messaging?.enabled === true);
+      } catch {
+        // Fail open on a lookup error — this is a UX gate, not the real
+        // enforcement (client_messaging_settings / send_contact_message).
+        if (!cancelled) setClientMessagingEnabled(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClientPortal, clientId]);
+
+  const messagingAllowed = isClientPortal ? !!myMessagingEnabled : !!clientMessagingEnabled;
+  const messagingGateLoading = isClientPortal ? myEntitlementLoading : clientMessagingEnabled === null;
 
   const loadEmail = useCallback(async () => {
     if (!clientId) return;
@@ -472,6 +505,11 @@ export default function MessagingSettings({
       {loading ? (
         <p>Loading…</p>
       ) : (
+        <EntitlementGate
+          allowed={messagingAllowed}
+          loading={messagingGateLoading}
+          message={getBlockedMessage("messaging")}
+        >
         <div className={styles.messagingGrid}>
           <section className={`${styles.panelBox} ${messagingEnabled ? styles.panelBoxActive : styles.panelBoxOff}`}>
             <h2 className={styles.sectionTitle}>Enable messaging</h2>
@@ -841,6 +879,7 @@ export default function MessagingSettings({
             </div>
           </section>
         </div>
+        </EntitlementGate>
       )}
 
       <SetupInstructionsOverlay

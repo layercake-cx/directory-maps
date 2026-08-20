@@ -36,6 +36,31 @@ function introToHtml(intro: string): string {
   return `<p>${escapeHtml(intro).replace(/\n/g, "<br>")}</p>`;
 }
 
+// Defense in depth: client_messaging_settings.messaging_enabled already
+// bakes in clients.messaging_enabled AND the resolved "messaging"
+// entitlement (Professional plan and above). EmbedMap.jsx gates the "Send
+// message" button on the same view, but this function is the one that
+// actually spends a Resend send, so it re-checks server-side rather than
+// trusting the caller. Fails open (allows) when the map/client can't be
+// resolved, matching the rest of this function's "no mapId -> use platform
+// defaults" behaviour.
+async function isMessagingEnabledForMap(mapId: string | null): Promise<boolean> {
+  if (!mapId) return true;
+
+  const service = createServiceClient();
+  const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
+  if (!map?.client_id) return true;
+
+  const { data: settings } = await service
+    .from("client_messaging_settings")
+    .select("messaging_enabled")
+    .eq("client_id", map.client_id)
+    .maybeSingle();
+  if (!settings) return true;
+
+  return settings.messaging_enabled === true;
+}
+
 async function resolveClientEmailSettings(mapId: string | null): Promise<{
   from: string;
   messageIntro: string | null;
@@ -112,6 +137,10 @@ Deno.serve(async (req) => {
     if (!toEmail) return jsonResponse({ error: "Missing recipient email (toEmail)." }, 400);
     if (!senderEmail) return jsonResponse({ error: "Sender email is required." }, 400);
     if (!message) return jsonResponse({ error: "Message is required." }, 400);
+
+    if (!(await isMessagingEnabledForMap(mapId || null))) {
+      return jsonResponse({ error: "Messaging is not enabled for this map." }, 403);
+    }
 
     const { from, messageIntro, messageSubject } = await resolveClientEmailSettings(mapId || null);
     const replyTo = buildFromHeader(senderName, senderEmail);
