@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Staging] Fix stale search-panel logo after republish
+## 2026-08-20 — [Production] Fix stale search-panel logo after republish
 
-**Branch/commit:** `fix/2026-08-20-search-panel-logo-stale-publish`
-**Deployed by:** —
+**Branch/commit:** `fix/2026-08-20-search-panel-logo-stale-publish` (merged to `main` via [#111](https://github.com/layercake-cx/directory-maps/pull/111))
+**Deployed by:** Claude (agent), merged at user's explicit request
 
 ### What changed
 - User report: applied a custom logo to a map's search panel, then removed it and republished — the live embed kept showing the old logo, even after a hard refresh.
@@ -35,8 +35,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` succeeds
-- [ ] Manually verified in the running app: add a search-panel logo, publish, remove it, republish, hard-refresh the embed and confirm the logo is gone (needs an authenticated admin/client session — not done in this session)
-- [ ] Staging smoke test
+- [x] User confirmed in production: search-panel logo removal now correctly propagates on republish
 
 ---
 
