@@ -24,7 +24,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - The grandfathering preview/spot-check `SELECT`s in the messaging migration ran but their output isn't visible through `supabase db push` (only `RAISE NOTICE`s surface) — worth an eyeball in the SQL editor to see which clients were actually grandfathered before going to production.
 
 ### Edge functions deployed
-- `send_contact_message` updated but **not yet deployed anywhere**. Deploy to **staging first** per the repo's Edge Function rule, verify, then production only with explicit sign-off.
+- `send_contact_message` deployed to **staging** (`beqejxneehilplrtpntn`) via `supabase functions deploy`. **Not deployed to production.**
 
 ### Frontend
 - `src/components/MessagingSettings.jsx`: plan-gated notice + disabled toggle on the client-portal surface (`useEntitlement("messaging")`, self-scoped). The admin surface (viewing an arbitrary customer) doesn't show an equivalent notice in this pass — see "Out of scope" below.
@@ -43,7 +43,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `npm run build` passes clean
 - [x] Both migrations applied to staging via `supabase db push`; both embedded post-migration `DO` blocks passed (`VERIFY PASSED`)
 - [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
-- [ ] `send_contact_message` deployed to staging
+- [x] `send_contact_message` deployed to staging
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client's Send Message button and toggle are both gated
 - [ ] Professional/Enterprise/Founding Partner clients unaffected
 - [ ] Plan rename shows correctly in the admin Entitlements tab and Customers list
