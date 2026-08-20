@@ -1,5 +1,7 @@
 /** Publication snapshot for embeds (schemaVersion 1). Listings stay live; map + per-group styling are snapshotted. */
 
+import { invokeFunction } from "./supabase.js";
+
 export const MAP_PUBLICATION_SCHEMA_VERSION = 1;
 
 export function parseJsonObject(raw, fallback = {}) {
@@ -179,6 +181,29 @@ export function publicationConfigsEqual(a, b) {
   if (a == null && b == null) return true;
   if (a == null || b == null) return false;
   return JSON.stringify(sortKeysDeep(a)) === JSON.stringify(sortKeysDeep(b));
+}
+
+/**
+ * Trigger the `generate_map_snapshot` Edge Function after a publish. This is
+ * fire-and-forget from the caller's perspective (does not block the publish
+ * UX), but retries once on failure — the CDN blob it writes is served ahead
+ * of live queries by the embed (see EmbedMap.jsx), so a single dropped call
+ * (cold start, transient network error) otherwise leaves a stale snapshot
+ * live until the next publish.
+ *
+ * Must go through `invokeFunction` (not a raw `supabase.functions.invoke`)
+ * so the session JWT is attached — the `sb_publishable_...` anon key alone
+ * is not a JWT and the call fails auth before the function code runs.
+ */
+export function triggerSnapshotRegeneration(mapId) {
+  const attempt = () => invokeFunction("generate_map_snapshot", { body: { map_id: mapId } });
+  attempt()
+    .then((res) => {
+      if (res?.error) throw res.error;
+    })
+    .catch(() =>
+      attempt().catch((e) => console.warn("Snapshot generation failed after retry (non-fatal):", e)),
+    );
 }
 
 export function mergeGroupWithPublication(gr, pubGroups) {
