@@ -8,6 +8,47 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Not yet deployed] Plan renames + Messaging gated to Professional and above
+
+**Branch/commit:** `feat/2026-08-20-messaging-entitlement`
+**Deployed by:** —
+
+### What changed
+- **Plan display names** renamed (internal `plans.key` unchanged — only `name`, shown in the admin Entitlements tab and Customers list): Standard→**Basic**, Premium→**Professional**, Unlimited→**Enterprise**, Founder Members→**Founding Partner**. Deliberately does **not** touch `PricingPlans.jsx` (Stripe checkout copy) or `Pricing.jsx` (marketing page, itself already a known unreconciled "Starter/Pro/Agency" naming gap per `docs/BETA_READINESS.md`) — see the migration header for why.
+- **Messaging is now a real entitlement**, gated to the Professional plan and above (`premium`/`unlimited`/`founder` internally), not the free-standing toggle it's been until now.
+  - **Customer impact:** any Basic-plan client who already had messaging turned on keeps it working — grandfathered via an automatic `client_overrides` grant seeded in the same migration (per explicit product decision, `on_downgrade_policy='grandfather'`). Only *other* Basic-plan clients are newly gated (their "Enable messaging" toggle becomes disabled with an upgrade note; if it was somehow on, the public "Send message" button now hides).
+  - Enforcement is server-side, not just UI-hidden: the `client_messaging_settings` view (already read by `EmbedMap.jsx` to decide whether to show the Send Message button) now bakes in the resolved entitlement, and `send_contact_message` (the Edge Function that actually calls Resend) independently re-checks the same view before sending, as defense in depth.
+
+### Database migrations applied
+- None yet. `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` have **not** been applied to staging or production.
+
+### Edge functions deployed
+- `send_contact_message` updated (not yet deployed) — adds the messaging-entitlement check before sending. Deploy to **staging first** per the repo's Edge Function rule, verify, then production only with explicit sign-off.
+
+### Frontend
+- `src/components/MessagingSettings.jsx`: plan-gated notice + disabled toggle on the client-portal surface (`useEntitlement("messaging")`, self-scoped). The admin surface (viewing an arbitrary customer) doesn't show an equivalent notice in this pass — see "Out of scope" below.
+- `docs/USER_GUIDE.md`: one-line plan requirement under Messaging → Settings.
+
+### Rollback plan
+- `_20260820140000_gate_messaging_entitlement.rollback.sql` restores the pre-entitlement view and removes the catalog row (cascading its plan defaults and the grandfathering overrides) — aborts if any override was set manually since (not by this migration's grandfathering), to avoid discarding real admin intent.
+- `_20260820130000_rename_plan_display_names.rollback.sql` restores the old plan names.
+- Revert the PR merge commit on `main` for the frontend/Edge Function.
+
+### Out of scope for this pass
+- No plan-gated notice on the admin "Messaging" tab (viewing an arbitrary customer) — would need a second client-side entitlement resolver for a target client, same trade-off already made for `AdminMapNew.jsx`'s hint. The real enforcement (view + Edge Function) applies regardless.
+- No change to `PricingPlans.jsx`/`Pricing.jsx` customer-facing copy — see above.
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Migration dry-run on staging, including the grandfathering preview query in the migration file's header
+- [ ] Both migrations applied to staging; post-migration verification blocks pass
+- [ ] `send_contact_message` deployed to staging
+- [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client's Send Message button and toggle are both gated
+- [ ] Professional/Enterprise/Founding Partner clients unaffected
+- [ ] Plan rename shows correctly in the admin Entitlements tab and Customers list
+
+---
+
 ## 2026-08-20 — [Production] First real entitlement: max_maps, enforced server-side
 
 **Branch/commit:** `feat/2026-08-20-max-maps-entitlement` (merged to `main` via [PR #101](https://github.com/layercake-cx/directory-maps/pull/101))

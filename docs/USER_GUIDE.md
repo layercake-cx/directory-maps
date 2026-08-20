@@ -355,6 +355,8 @@ The **Messaging** page (`/client/email`) has two tabs: **Settings** and **Sent m
 
 Use **Settings** to control whether visitors can send messages to directory listings, and which sender address those messages come from.
 
+Messaging requires the **Professional plan or above**. On the Basic plan, the toggle is disabled with a note to upgrade; contact Layercake to change your plan.
+
 #### Enable messaging
 
 At the top of the tab there is an **Enable messaging** toggle.
