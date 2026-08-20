@@ -16,13 +16,13 @@ export default function EntitlementGate({ allowed, loading, message, children })
       </div>
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           background: "rgba(255,255,255,0.55)",
-          zIndex: 5,
+          zIndex: 50,
         }}
       >
         <div
