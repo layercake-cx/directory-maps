@@ -34,7 +34,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` succeeds
-- [ ] Smoke-tested in the running app (no dev login credentials available in this session — user to verify upload, override-hiding, and panel rendering directly)
+- [x] User confirmed working in the test environment (upload, override-hiding, and panel rendering)
 
 ---
 
