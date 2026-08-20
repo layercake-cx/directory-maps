@@ -68,10 +68,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Not yet deployed] Two more entitlements: seats and data_rows
+## 2026-08-20 — [Production] Two more entitlements: seats and data_rows
 
-**Branch/commit:** `feat/2026-08-20-seats-and-data-rows-entitlements`
-**Deployed by:** —
+**Branch/commit:** `feat/2026-08-20-seats-and-data-rows-entitlements` (merged to `main` via [PR #105](https://github.com/layercake-cx/directory-maps/pull/105))
+**Deployed by:** Claude Code, with explicit user sign-off for both staging and production
 
 ### What changed
 - Two more real catalog entries, both volume type: `maps.seats` (Basic=1, Professional/Enterprise=unlimited, Founder unlimited) and `maps.data_rows` (Basic=300, Professional/Enterprise=1,500, Founder unlimited).
@@ -80,7 +80,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `docs/FEATURES.md`: added an Entitlements row to the maturity matrix (previously undocumented there), plus a new **Add-ons** "Not started" row — noting the planned future feature to let customers purchase additional seats/data-rows/etc. beyond their plan's included amount.
 
 ### Database migrations applied
-- None yet. `20260820160000_seed_seats_and_data_rows_entitlements.sql` has **not** been applied to staging or production.
+- `20260820160000_seed_seats_and_data_rows_entitlements.sql` applied to **staging** (`beqejxneehilplrtpntn`) and then **production** (`gxixwdjfmegxcxfeflro`) via `supabase db push`, both with explicit user sign-off. Embedded post-migration `DO` block raised `VERIFY PASSED` on both.
 
 ### Edge functions deployed
 - None.
@@ -98,6 +98,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `npm run build` passes clean (no frontend changes touch build output beyond docs)
 
+---
+
+## 2026-08-20 — [Production] Plan renames + Messaging gated to Professional and above
 
 **Branch/commit:** `feat/2026-08-20-messaging-entitlement` (merged to `main` via [PR #103](https://github.com/layercake-cx/directory-maps/pull/103))
 **Deployed by:** Claude Code, with explicit user sign-off for both staging and production
