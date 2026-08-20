@@ -255,14 +255,15 @@ On **Data** (`/client/maps/<id>/data`), open **Manual entry** to add, edit, or d
 
 When you change the **Address** (and leave the field, or save), latitude and longitude update automatically from geocoding. You can still override the coordinates manually if needed.
 
-### Loaded Data (logo background per listing)
+### Loaded Data (logo + logo background per listing)
 
-In **Data** (`/client/maps/<id>/data`), open the **Map data** tab to set a background behind each listing logo:
+In **Data** (`/client/maps/<id>/data`), open the **Map data** tab to set a logo and its background for each listing:
 
 1. Use the search field to filter by listing name or address.
 2. Review each listing’s **ingestion method** (**Integration**, **CSV**, or **Manual**) and logo thumbnail preview.
-3. Pick a swatch per row (**None**, **Light**, **Mid**, **Dark**) or use the custom colour picker.
-4. Changes save immediately and appear in the listing details panel on your map preview and published map.
+3. Pick a swatch per row (**None**, **Light**, **Mid**, **Dark**) or use the custom colour picker for the logo background.
+4. If the listing has no logo yet, the **Logo** column shows an **Upload** control — pick an SVG, PNG, JPG or WebP (max 500 KB) to use as that listing's logo. If the listing already has a logo URL (e.g. from a CSV import or Google Sheets sync, or a URL typed in **Manual entry**), that URL always takes precedence and the upload control is hidden; clear the URL in **Manual entry** first if you want to upload a file instead.
+5. Changes save immediately and appear in the listing details panel on your map preview and published map.
 
 ### Listings table
 

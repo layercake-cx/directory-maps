@@ -5,6 +5,7 @@ import ListingFilterValuesEditor from "../../components/ListingFilterValuesEdito
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
 import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
@@ -165,6 +166,7 @@ export default function ClientMapData() {
   const [savingManual, setSavingManual] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [manualErr, setManualErr] = useState("");
+  const [logoUploadingId, setLogoUploadingId] = useState(null);
   const [geocodingAddress, setGeocodingAddress] = useState(false);
   const manualAddressBaselineRef = useRef("");
   const filterEditorRef = useRef(null);
@@ -844,6 +846,45 @@ export default function ClientMapData() {
     setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, logo_bg: newValue || null } : l)));
   }
 
+  async function updateListingLogoUrl(listingId, newValue) {
+    const { error } = await supabase.from("listings").update({ logo_url: newValue || null }).eq("id", listingId);
+    if (error) { setErr(error.message || "Failed to update logo."); return; }
+    setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, logo_url: newValue || null } : l)));
+  }
+
+  async function handleListingLogoFile(e, listingId) {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const name = (file.name || "").toLowerCase();
+    const extMatch = name.match(/\.(svg|png|jpe?g|webp)$/);
+    if (!extMatch) {
+      setErr("Use SVG, PNG, JPG or WebP for the logo.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 500 * 1024) {
+      setErr("Logo too large (max 500 KB).");
+      e.target.value = "";
+      return;
+    }
+    setErr("");
+    setLogoUploadingId(listingId);
+    try {
+      const ext = extMatch[1] === "jpeg" ? "jpg" : extMatch[1];
+      const uploadFile = ext === "svg" ? await sanitizeSvgFile(file) : file;
+      const path = `${mapId}/listings/${listingId}/logo.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("map-pins").upload(path, uploadFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("map-pins").getPublicUrl(path);
+      await updateListingLogoUrl(listingId, `${urlData.publicUrl}?v=${Date.now()}`);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setLogoUploadingId(null);
+      e.target.value = "";
+    }
+  }
+
   // ── Clear all data ────────────────────────────────────────────────────────
 
   async function clearMapData() {
@@ -1424,7 +1465,24 @@ export default function ClientMapData() {
                             <img src={listing.logo_url} alt={`${listing.name || "Listing"} logo`} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
                           </div>
                         ) : (
-                          <span style={{ opacity: 0.5 }}>—</span>
+                          <label
+                            title="Upload a logo (SVG, PNG, JPG or WebP, max 500 KB)"
+                            style={{
+                              display: "inline-flex", alignItems: "center", justifyContent: "center",
+                              width: 68, height: 48, borderRadius: 6, border: "1px dashed var(--lc-border)",
+                              fontSize: 11, opacity: logoUploadingId === listing.id ? 0.6 : 0.75,
+                              cursor: logoUploadingId === listing.id ? "default" : "pointer",
+                            }}
+                          >
+                            {logoUploadingId === listing.id ? "Uploading…" : "Upload"}
+                            <input
+                              type="file"
+                              accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
+                              disabled={logoUploadingId === listing.id}
+                              onChange={(e) => handleListingLogoFile(e, listing.id)}
+                              style={{ display: "none" }}
+                            />
+                          </label>
                         )}
                       </td>
                       <td style={{ padding: "8px 10px" }}>
