@@ -2417,7 +2417,7 @@ export default function ClientMapDashboard() {
                         {customPinUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setCustomPinUrl("")}>Remove</button>}
                       </div>
                       <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                        SVG or PNG, up to 200KB. Shown exactly as uploaded — colour and outline don&apos;t apply to custom icons, but drop shadow still does.
+                        SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
                       </div>
                     </div>
                   )}
@@ -2479,30 +2479,32 @@ export default function ClientMapDashboard() {
                     </div>
                   )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Drop Shadow</p>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
+                  {markerStyle !== "custom" && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Drop Shadow</p>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {(markerStyle === "pin" || markerStyle === "teardrop") && (
                     <div className="panel-section">
@@ -2712,7 +2714,7 @@ export default function ClientMapDashboard() {
                               )}
                             </div>
                             <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>
-                              SVG or PNG, up to 200KB. Shown exactly as uploaded — colour and outline don&apos;t apply to custom icons, but drop shadow still does.
+                              SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
                             </p>
                           </div>
                         )}

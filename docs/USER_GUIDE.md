@@ -156,7 +156,7 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
 | **Search** | Upload a **logo**, style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
 
-**Custom Icon pins:** upload your own SVG or PNG (max 200KB) instead of a built-in shape. It's shown exactly as uploaded — colour and border don't apply to it — but drop shadow and small/medium/large sizing still work. Groups can upload their own custom icon too, independent of the map's default.
+**Custom Icon pins:** upload your own SVG or PNG (max 200KB) instead of a built-in shape. It's shown exactly as uploaded — colour, border and drop shadow don't apply to it, and small/medium/large sizing still works. Groups can upload their own custom icon too, independent of the map's default.
 
 Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 

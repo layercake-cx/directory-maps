@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer";
 import { loadGoogleMaps } from "../lib/loadGoogleMaps";
-import { getMarkerIconUrl, getScaledMarkerAnchors, getCustomIconRender, getImageNaturalSize, normalizePinSize } from "../lib/markerIcons";
+import { getMarkerIconUrl, getScaledMarkerAnchors, getCustomIconAnchors, getImageNaturalSize, normalizePinSize } from "../lib/markerIcons";
 
 function clusterIconDataUrl(color, opacity = 1) {
   const fill = color || "#4A9BAA";
@@ -674,26 +674,19 @@ export default function DirectoryMap({
       pinSizeForMarker,
     ) => {
       const styleKey = styleForMarker === "custom" && customUrlForMarker ? "custom" : styleForMarker || "pin";
-      if (styleKey === "custom") {
-        const dims = customIconDims[customUrlForMarker];
-        const { url, scaledSize, anchor } = getCustomIconRender(
-          customUrlForMarker,
-          dims?.width,
-          dims?.height,
-          pinSizeForMarker,
-          { dropShadowPx: dropShadowForMarker, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity },
-        );
-        return {
-          url,
-          scaledSize: new window.google.maps.Size(scaledSize.w, scaledSize.h),
-          anchor: new window.google.maps.Point(anchor.x, anchor.y),
-        };
-      }
-      const { scaledSize, anchor } = getScaledMarkerAnchors(styleKey, pinSizeForMarker);
+      const { scaledSize, anchor } =
+        styleKey === "custom"
+          ? getCustomIconAnchors(
+              customIconDims[customUrlForMarker]?.width,
+              customIconDims[customUrlForMarker]?.height,
+              pinSizeForMarker,
+            )
+          : getScaledMarkerAnchors(styleKey, pinSizeForMarker);
       return {
         url: getMarkerIconUrl({
           style: styleForMarker,
           color,
+          customIconUrl: customUrlForMarker || undefined,
           pinBorderColor: borderColorForMarker,
           pinBorderSize: borderSizeForMarker,
           pinFaviconUrl: faviconForMarker || undefined,
