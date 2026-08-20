@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
@@ -9,6 +9,9 @@ import { listDirectories } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
 import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
+import EntitlementLimitModal from "../../components/admin/EntitlementLimitModal.jsx";
+import { fetchClientEntitlements } from "../../lib/entitlements.js";
+import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
   DIRECTORIES_FLAG,
   listClientFeatureOverrides,
@@ -36,12 +39,15 @@ const TRASH_ICON = (
 
 export default function AdminClientDetail() {
   const { clientId } = useParams();
+  const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
   const [primaryContact, setPrimaryContact] = useState(null);
   const [contactsList, setContactsList] = useState([]);
   const [maps, setMaps] = useState([]);
   const [directories, setDirectories] = useState([]);
+  const [maxMapsLimit, setMaxMapsLimit] = useState(null);
+  const [mapLimitModalOpen, setMapLimitModalOpen] = useState(false);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -80,6 +86,7 @@ export default function AdminClientDetail() {
         { data: allContacts },
         dirs,
         flagOverrides,
+        entitlements,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -109,6 +116,7 @@ export default function AdminClientDetail() {
         // wipe the Maps tab).
         listDirectories(clientId).catch(() => []),
         listClientFeatureOverrides(clientId).catch(() => []),
+        fetchClientEntitlements(clientId).catch(() => ({})),
       ]);
 
       if (ce) throw ce;
@@ -118,6 +126,7 @@ export default function AdminClientDetail() {
       setMaps(m ?? []);
       setContactsList(allContacts ?? []);
       setDirectories(dirs ?? []);
+      setMaxMapsLimit(entitlements?.max_maps?.limit ?? null);
 
       const primary = contactsData?.[0] ?? null;
       setPrimaryContact(primary);
@@ -350,9 +359,21 @@ export default function AdminClientDetail() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
                   <h3 style={{ margin: 0, fontSize: 16 }}>Maps</h3>
-                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/maps/new`}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
+                      if (atMapLimit) {
+                        recordEvent("entitlements_limit_blocked", { feature_key: "max_maps", source: "admin_client_detail" });
+                        setMapLimitModalOpen(true);
+                        return;
+                      }
+                      navigate(`/admin/clients/${encodeURIComponent(clientId)}/maps/new`);
+                    }}
+                  >
                     New map
-                  </Link>
+                  </button>
                 </div>
 
                 {maps.length === 0 ? (
@@ -755,6 +776,11 @@ export default function AdminClientDetail() {
           </div>
         </div>
       ) : null}
+      <EntitlementLimitModal
+        open={mapLimitModalOpen}
+        onClose={() => setMapLimitModalOpen(false)}
+        message={getLimitReachedMessage("max_maps", maps.length, maxMapsLimit)}
+      />
     </AdminLayout>
   );
 }
