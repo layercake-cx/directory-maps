@@ -223,6 +223,8 @@ export default function AdminMapDashboard() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const customPinTileInputRef = useRef(null);
+  const groupCustomPinTileInputRef = useRef(null);
 
   const [overlayTab, setOverlayTab] = useState(location.state?.openTab ?? null);
   const [dataSearch, setDataSearch] = useState("");
@@ -2163,7 +2165,16 @@ export default function AdminMapDashboard() {
                         const isCustom = id === "custom";
                         const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined, dropShadowPx: pinDropShadow, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity }) : null;
                         return (
-                          <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
+                          <button
+                            key={id}
+                            type="button"
+                            className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
+                            onClick={() => {
+                              if (isCustom && !customPinUrl) customPinTileInputRef.current?.click();
+                              else setMarkerStyle(id);
+                            }}
+                            aria-pressed={isSelected}
+                          >
                             <div className="pin-style-option__preview">
                               {src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}
                             </div>
@@ -2171,6 +2182,13 @@ export default function AdminMapDashboard() {
                           </button>
                         );
                       })}
+                      <input
+                        ref={customPinTileInputRef}
+                        type="file"
+                        accept="image/svg+xml,image/png,.svg,.png"
+                        onChange={handleCustomPinFile}
+                        style={{ display: "none" }}
+                      />
                     </div>
                     <div className="pin-size-segmented" role="group" aria-label="Pin size">
                       {[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }].map(({ id, label: szLabel }) => (
@@ -2424,7 +2442,10 @@ export default function AdminMapDashboard() {
                                   key={id}
                                   type="button"
                                   className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                                  onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }))}
+                                  onClick={() => {
+                                    if (isCustom && !customUrl) groupCustomPinTileInputRef.current?.click();
+                                    else setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }));
+                                  }}
                                   aria-pressed={isSelected}
                                 >
                                   <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
@@ -2432,6 +2453,13 @@ export default function AdminMapDashboard() {
                                 </button>
                               );
                             })}
+                            <input
+                              ref={groupCustomPinTileInputRef}
+                              type="file"
+                              accept="image/svg+xml,image/png,.svg,.png"
+                              onChange={handleGroupCustomPinFile}
+                              style={{ display: "none" }}
+                            />
                           </div>
                           <div className="pin-size-segmented" role="group" aria-label="Pin size for this group">
                             {["small", "medium", "large"].map((id) => {
