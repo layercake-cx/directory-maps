@@ -5,6 +5,7 @@ import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import { useEntitlement } from "../../hooks/useEntitlements.js";
 import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 
 function slugify(input) {
   return (input || "")
@@ -143,6 +144,23 @@ export default function ClientMapNew() {
       });
 
       if (error) throw error;
+
+      recordAdminEvent(supabase, {
+        eventType: "map_design_created",
+        clientId,
+        mapId: id,
+        meta: {
+          client_id: clientId,
+          map_id: id,
+          name: cleanName,
+          slug: finalSlug,
+          default_center: { lat, lng },
+          default_zoom: zoom,
+          enable_clustering: enableClustering,
+          show_list_panel: showListPanel,
+          source: "client_portal",
+        },
+      });
 
       navigate("/client");
     } catch (e2) {

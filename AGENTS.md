@@ -51,6 +51,7 @@ If the session covers several unrelated things, pick the dominant one for the br
 ### 3 — Test: before opening the PR
 
 Before declaring work done, verify the affected feature works in the running app:
+- Check whether a dev server is already listening on port 5173 (`lsof -i :5173`) before starting one — multiple agent sessions share this machine, and a second `npm run dev` will fail on the port, not spin up a second instance. If one is already running, assume it belongs to another session: don't kill it, and note in your summary that you skipped starting your own rather than treating the conflict as an error.
 - Start the dev server (`npm run dev`) and smoke-test the changed pages/flows.
 - Check the browser console — no new errors or warnings.
 - If a database migration was applied, run the post-migration verification block and confirm row counts are unchanged.
@@ -343,6 +344,9 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - `meta`: `client_id`, `feature_key`, `entitlement_type`, plus whichever value field(s) changed (`bool_value` / `limit_value` / `included_allowance` / `expires_at`), `reason` (optional)
 - **`entitlements_override_cleared`**
   - `meta`: `client_id`, `feature_key`
+- **`entitlements_limit_blocked`**
+  - `meta`: `client_id`, `feature_key`, `source` (UI surface where the blocked attempt happened, e.g. `admin_client_detail`)
+  - Fired when a UI action is pre-emptively blocked by a plan/volume limit (e.g. admin "New map" at `max_maps`) before the user reaches the gated screen.
 
 #### Leads (pre-account enquiries)
 
