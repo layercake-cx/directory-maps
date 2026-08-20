@@ -254,3 +254,64 @@ export function getCustomIconAnchors(naturalWidth, naturalHeight, pinSize = "med
     anchor: { x: Math.round(w / 2), y: h },
   };
 }
+
+/**
+ * Icon (url + scaledSize + anchor) for a custom uploaded pin, with an optional drop shadow
+ * composited behind it. Colour and outline can't apply to an arbitrary uploaded image without
+ * assumptions about how it's drawn — but a drop shadow is just a blurred shape rendered behind
+ * it, so it works the same way regardless of the image's own content.
+ * @param {string} customIconUrl
+ * @param {number} [naturalWidth]
+ * @param {number} [naturalHeight]
+ * @param {'small'|'medium'|'large'} [pinSize]
+ * @param {{ dropShadowPx?: number, dropShadowDistance?: number, dropShadowOpacity?: number }} [shadow]
+ */
+export function getCustomIconRender(customIconUrl, naturalWidth, naturalHeight, pinSize = "medium", shadow = {}) {
+  const { scaledSize: fitted } = getCustomIconAnchors(naturalWidth, naturalHeight, pinSize);
+  const dropShadowPx = Math.max(0, Math.min(30, Number(shadow.dropShadowPx) || 0));
+
+  if (dropShadowPx <= 0 || !customIconUrl) {
+    return {
+      url: customIconUrl,
+      scaledSize: fitted,
+      anchor: { x: Math.round(fitted.w / 2), y: fitted.h },
+    };
+  }
+
+  const { w, h } = fitted;
+  const baseShadowYOffset = shadow.dropShadowDistance != null
+    ? Math.max(0, Math.min(30, Number(shadow.dropShadowDistance) || 0))
+    : 20;
+  const shadowOpacityMult = shadow.dropShadowOpacity != null
+    ? Math.max(0, Math.min(100, Number(shadow.dropShadowOpacity) || 0)) / 100
+    : 1;
+  const baseShadowOpacity = Math.min(0.58, 0.24 + dropShadowPx / 90) * shadowOpacityMult;
+
+  // Extra canvas below the image reserved for the shadow to spread into, proportional to the
+  // icon's own fitted height so it scales sensibly regardless of the upload's shape.
+  const pad = Math.max(6, Math.round(h * 0.6));
+  const shadowRx = Math.max(w * 0.28, w * 0.34 + dropShadowPx * 0.006 * w);
+  const shadowRy = Math.max(pad * 0.22, pad * 0.3);
+  const shadowCy = h + Math.min(pad - shadowRy, (baseShadowYOffset / 30) * pad);
+
+  const href = String(customIconUrl).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h + pad}" viewBox="0 0 ${w} ${h + pad}">
+      <defs>
+        <radialGradient id="custom-icon-shadow-grad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#000" stop-opacity="${baseShadowOpacity}"/>
+          <stop offset="70%" stop-color="#000" stop-opacity="${Math.max(0.02, baseShadowOpacity * 0.38)}"/>
+          <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="${w / 2}" cy="${shadowCy}" rx="${shadowRx}" ry="${shadowRy}" fill="url(#custom-icon-shadow-grad)"/>
+      <image href="${href}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>
+    </svg>
+  `.trim();
+
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: { w, h: h + pad },
+    anchor: { x: Math.round(w / 2), y: h },
+  };
+}
