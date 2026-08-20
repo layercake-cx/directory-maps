@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Production] Deploy missing geocode_listings Edge Function
+
+**Branch/commit:** none — Edge Function deploy only, no code change
+**Deployed by:** Claude (agent), explicit user sign-off given
+
+### What changed
+- User hit `{"code":"NOT_FOUND","message":"Requested function was not found"}` when importing a CSV with "geocode missing addresses" enabled, in production. `supabase functions list` showed `geocode_listings` was deployed and `ACTIVE` on staging (`beqejxneehilplrtpntn`, since 2026-05-27) but **had never been deployed to production** (`gxixwdjfmegxcxfeflro`) — `geocode_address` (single-address geocode) was there, the bulk one used by CSV import wasn't. Same shape of gap as the `map-pins` storage bucket found earlier today: something present on staging, silently missing on production, presumably for as long as the "auto-geocode on import" feature has existed (a soft warning after a successful import, easy to miss).
+- Deployed the existing, unmodified `geocode_listings` source (`supabase/functions/geocode_listings/`) to production via `supabase functions deploy geocode_listings --project-ref gxixwdjfmegxcxfeflro`.
+- Verified: a POST to the production endpoint now returns `401 UNAUTHORIZED_NO_AUTH_HEADER` (correct behaviour for an unauthenticated call) instead of `404 NOT_FOUND` — matches staging's behaviour under the same test.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `geocode_listings` → production (`gxixwdjfmegxcxfeflro`). No code change — first-ever deploy of this function to that project.
+
+### Frontend
+- None.
+
+### Rollback plan
+- `supabase functions delete geocode_listings --project-ref gxixwdjfmegxcxfeflro` would restore the prior (broken) state. Not recommended — the prior state was itself the bug.
+
+### Verified
+- [x] Confirmed via `supabase functions list` that the function was missing on production but present on staging
+- [x] Deployed to production
+- [x] Confirmed via a read-only POST that the function now routes correctly (401 auth error, not 404 not-found)
+- [ ] User re-ran the CSV import in the app and confirmed geocoding actually kicks off end-to-end
+
+---
+
 ## 2026-08-20 — [Not yet deployed] Fire map_design_created on map creation
 
 **Branch/commit:** `feat/2026-08-20-admin-map-creation-parity`
