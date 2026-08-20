@@ -11,6 +11,7 @@ import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupI
 import { useEntitlement } from "../hooks/useEntitlements.js";
 import { fetchClientEntitlements } from "../lib/entitlements.js";
 import EntitlementGate from "./EntitlementGate.jsx";
+import { getBlockedMessage } from "../lib/entitlementMessages.js";
 import styles from "../pages/client/ClientEmail.module.css";
 
 function CopyButton({ value }) {
@@ -507,7 +508,7 @@ export default function MessagingSettings({
         <EntitlementGate
           allowed={messagingAllowed}
           loading={messagingGateLoading}
-          message="Messaging requires the Professional plan or above. Contact Layercake to upgrade."
+          message={getBlockedMessage("messaging")}
         >
         <div className={styles.messagingGrid}>
           <section className={`${styles.panelBox} ${messagingEnabled ? styles.panelBoxActive : styles.panelBoxOff}`}>
