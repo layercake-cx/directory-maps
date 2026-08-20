@@ -19,6 +19,10 @@ A plain-English record of every deployment to staging and production. Newest ent
   - **Customer impact:** any Basic-plan client who already had messaging turned on keeps it working — grandfathered via an automatic `client_overrides` grant seeded in the same migration (per explicit product decision, `on_downgrade_policy='grandfather'`). Only *other* Basic-plan clients are newly gated (their "Enable messaging" toggle becomes disabled with an upgrade note; if it was somehow on, the public "Send message" button now hides).
   - Enforcement is server-side, not just UI-hidden: the `client_messaging_settings` view (already read by `EmbedMap.jsx` to decide whether to show the Send Message button) now bakes in the resolved entitlement, and `send_contact_message` (the Edge Function that actually calls Resend) independently re-checks the same view before sending, as defense in depth.
 - **Follow-up fix (same PR):** the admin "Messaging" tab could still let an admin toggle messaging/test mode on for a Basic-plan client, even though it silently wouldn't work — admin screens configure an arbitrary customer, not the admin's own client, so the client-portal's self-scoped entitlement check didn't cover it. Added `get_client_entitlements(client_id)` (admin-only RPC, same shape/precedence as `get_my_entitlements()` but parameterized) and a new shared `EntitlementGate` component that dims + disables the *entire* Messaging settings screen (not just the toggle) behind a translucent, inert overlay with a clear alert, used identically on both the client-portal and admin surfaces.
+- **Two more follow-up fixes (same PR), both UI-only:**
+  1. The gate's alert was initially positioned `absolute` inside the (potentially very tall) settings panel, so on a long panel it centered within that tall box rather than the viewport — could render below the visible fold. Fixed with a sticky-centered inner layer that stays visible in whatever part of the viewport is currently showing.
+  2. A first attempt at that fix (`position: fixed` covering the full viewport) accidentally covered site/admin nav too. Reverted to scoping the overlay to the gate's own box (`position: absolute`) so nav — which lives outside this component in the DOM — is never touched.
+  3. Extracted a small **entitlement UI kit** for reuse as more features get gated: `EntitlementUsageHint` (the "X of Y used" soft-nudge pattern, previously only inline in `ClientMapNew.jsx`) alongside `EntitlementGate` (the "hard block" pattern), plus `src/lib/entitlementMessages.js` — a single file for entitlement copy (including plan names) instead of hardcoded strings scattered across components.
 
 ### Database migrations applied
 - `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Both embedded post-migration `DO` blocks raised `VERIFY PASSED`.
@@ -30,7 +34,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `send_contact_message` deployed to **staging** (`beqejxneehilplrtpntn`) via `supabase functions deploy`. **Not deployed to production.**
 
 ### Frontend
-- `src/components/EntitlementGate.jsx` (new, shared): dims + `inert`s its children and shows a centered alert when not allowed. Used by `MessagingSettings.jsx` on both the client-portal and admin surfaces, wrapping the whole settings screen rather than just the toggle.
+- `src/components/EntitlementGate.jsx` (new, shared): dims + `inert`s its children and shows a viewport-centered alert when not allowed, without covering nav. Used by `MessagingSettings.jsx` on both the client-portal and admin surfaces, wrapping the whole settings screen rather than just the toggle.
+- `src/components/EntitlementUsageHint.jsx` (new, shared): the "X of Y used" soft-nudge pattern, now used by `ClientMapNew.jsx` (previously inline) and available for future volume/metered features.
+- `src/lib/entitlementMessages.js` (new): central copy registry for entitlement-gated UI, keyed by `features.key`.
 - `src/components/MessagingSettings.jsx`: client portal resolves via `useEntitlement("messaging")` (self-scoped); admin resolves the customer being configured via the new `fetchClientEntitlements()` → `get_client_entitlements()` RPC.
 - `docs/USER_GUIDE.md`: one-line plan requirement under Messaging → Settings.
 
@@ -50,6 +56,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
 - [x] `send_contact_message` deployed to staging
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client sees the whole Messaging screen gated (both client-portal and admin views), and the public Send Message button is hidden
+- [ ] Gate alert renders centered in the viewport (not below the fold on a tall panel) and nav stays visible/clickable underneath, on both surfaces — not visually confirmed this session (no authenticated browser session available); code-reviewed only
 - [ ] Professional/Enterprise/Founding Partner clients unaffected
 - [ ] Plan rename shows correctly in the admin Entitlements tab and Customers list
 
