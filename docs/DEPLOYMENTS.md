@@ -21,9 +21,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 - New `src/lib/sanitizeSvg.js` (uses new `dompurify` dependency): every uploaded SVG is sanitised before storage — strips `<script>`, `<foreignObject>`, event-handler attributes, and any `href`/`xlink:href` that isn't a same-document fragment (`#id`) or a `data:image/` URI. The existing uploader had no sanitisation at all; SVG upload without it is a known stored-XSS-adjacent vector even though `<img src>` rendering doesn't execute embedded scripts.
 - `docs/USER_GUIDE.md` and `docs/FEATURES.md` updated to describe the new Custom Icon option.
 - **Known gap, not fixed here:** the `map_design_theme_updated` admin event (colour/style/shadow/size changes) documented in `AGENTS.md`'s event catalogue isn't actually fired anywhere in the codebase yet — no Pin Design save currently produces an admin event, custom-icon included. Pre-existing gap across the whole design-save flow, out of scope for this ticket; flagged separately rather than instrumenting only the custom-icon field in isolation.
+- **Pre-existing production bug found while testing this feature:** the `map-pins` Supabase Storage bucket that both this feature and the existing logo-upload feature (`handleLogoFile`, Search panel) depend on **does not exist on either the test project (`beqejxneehilplrtpntn`) or production (`gxixwdjfmegxcxfeflro`)** — confirmed via a read-only `GET /storage/v1/bucket/map-pins` on both, both 404. Logo upload has silently never worked in production; the dead custom-pin-icon code would have hit the same error if it had ever been reachable. Fixed by the new migration below — **not yet applied anywhere**, staging first per policy.
 
 ### Database migrations applied
-- None — `maps.custom_pin_url` and `group_edit_design.custom_pin_url` already existed from a prior migration.
+- `supabase/migrations/20260820170000_create_map_pins_storage_bucket.sql` — creates the `map-pins` bucket (public, 500KB limit, svg/png/jpeg/webp) plus public-read + authenticated-write RLS policies on `storage.objects`. Rollback: `_20260820170000_create_map_pins_storage_bucket.rollback.sql`. **Not yet run on staging or production** — needs to go through the SQL editor per `docs/DATABASE_MIGRATIONS.md` (dry-run in a `BEGIN;...ROLLBACK;` block first) before either the custom-icon feature or logo upload will actually work anywhere.
+- `maps.custom_pin_url` and `group_edit_design.custom_pin_url` already existed from a prior migration — no change needed there.
 
 ### Edge functions deployed
 - None — upload goes straight from browser to Supabase Storage, same as the existing logo/favicon uploads.
@@ -33,10 +35,15 @@ A plain-English record of every deployment to staging and production. Newest ent
 - New dependency: `dompurify`.
 
 ### Rollback plan
-- Revert this commit. No schema or data changes to unwind.
+- Frontend: revert this commit. No schema or data changes to unwind on that side.
+- Migration: run `_20260820170000_create_map_pins_storage_bucket.rollback.sql` — refuses to run if any objects have already been uploaded to the bucket (back them up first with `supabase storage cp` if so).
 
 ### Verified
 - [x] `npm run build` passes clean
+- [x] Confirmed via read-only Storage API request that `map-pins` bucket is missing on both test and production projects (root cause of the user's "Bucket not found" error)
+- [ ] Migration dry-run (`BEGIN;...ROLLBACK;`) on staging
+- [ ] Migration applied to staging, verified logo upload and custom pin upload both work end-to-end
+- [ ] Migration applied to production (only after explicit sign-off, per `AGENTS.md`)
 - [ ] Manually uploaded an SVG and a PNG as a custom pin in both admin and client dashboards, confirmed colour/outline/shadow controls hide, confirmed a non-square upload doesn't stretch on the live map, confirmed per-group custom icon override works, confirmed published/embedded map renders it correctly
 
 ---
