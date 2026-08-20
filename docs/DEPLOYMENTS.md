@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Staging] Per-listing logo upload on Map Data screen
+
+**Branch/commit:** `feat/2026-08-20-listing-logo-upload` (not yet merged)
+**Deployed by:** Claude (agent), at user's request
+
+### What changed
+- On the **Map Data** screen (both client portal `ClientMapData.jsx` and admin `AdminMapData.jsx`), each listing row's **Logo** cell now shows an **Upload** control (SVG/PNG/JPG/WebP, max 500 KB) whenever that listing has no `logo_url` set — previously the only way to give a listing a logo was to paste an already-hosted URL into the manual entry form.
+- Uploading stores the file in the existing `map-pins` Supabase Storage bucket at a listing-scoped path (`<map_id>/listings/<listing_id>/logo.<ext>`, distinct from the map-level `<map_id>/logo.<ext>` and pin-icon `<map_id>/pin.<ext>` paths already used by `AdminMapDashboard.jsx`/`ClientMapDashboard.jsx`), then sets `listings.logo_url` to the resulting public URL (cache-busted with `?v=<timestamp>`). SVGs are run through the existing `sanitizeSvgFile()` (`src/lib/sanitizeSvg.js`) before upload, same as the custom pin-icon feature.
+- If `listings.logo_url` is already populated — from a CSV import, a Google Sheets sync, or a URL typed into **Manual entry** — the upload control is hidden and the existing preview shows instead; the existing URL always overrides. The user clears the URL via **Manual entry** to make the upload control reappear.
+- No changes to how logos render: `PublishedMapView.jsx` already reads `logo_url` + `logo_bg` for the pin popup and list panel, regardless of how `logo_url` was set.
+- Monday ticket: [Per-listing logo upload on Map Data screen](https://layercake-cx.monday.com/boards/5094351513/pulses/3175877834).
+
+### Database migrations applied
+- None — reuses the existing `listings.logo_url` column and the `map-pins` Storage bucket (`supabase/migrations/20260820170000_create_map_pins_storage_bucket.sql`).
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/pages/admin/AdminMapData.jsx`, `src/pages/client/ClientMapData.jsx`, `docs/USER_GUIDE.md`.
+
+### Rollback plan
+- Revert this branch/PR before merge, or revert the merge commit on `main` afterwards. No data migration to undo — any `logo_url` values set via this upload path are ordinary Storage objects/URLs and can be left in place or cleared per-listing via **Manual entry** if needed.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Smoke-tested in the running app (no dev login credentials available in this session — user to verify upload, override-hiding, and panel rendering directly)
+
+---
+
 ## 2026-08-20 — [Production] Fix stale search-panel logo after republish
 
 **Branch/commit:** `fix/2026-08-20-search-panel-logo-stale-publish` (merged to `main` via [#111](https://github.com/layercake-cx/directory-maps/pull/111))
