@@ -8,6 +8,7 @@ import {
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupInstructions.js";
+import { useEntitlement } from "../hooks/useEntitlements.js";
 import styles from "../pages/client/ClientEmail.module.css";
 
 function CopyButton({ value }) {
@@ -221,6 +222,13 @@ export default function MessagingSettings({
   const [hasDomain, setHasDomain] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [senderFirstName, setSenderFirstName] = useState("");
+
+  // Plan-gated notice — client portal only (self-scoped; admins viewing an
+  // arbitrary customer can't use this same self-scoped resolver, so the
+  // admin view relies on the real enforcement in client_messaging_settings
+  // / send_contact_message rather than a notice here).
+  const { enabled: messagingEntitled, loading: entitlementLoading } = useEntitlement("messaging");
+  const showPlanGate = eventSource === "client_portal" && !entitlementLoading && !messagingEntitled;
 
   const loadEmail = useCallback(async () => {
     if (!clientId) return;
@@ -480,14 +488,24 @@ export default function MessagingSettings({
               Turn this off to hide the button across all published maps.
             </p>
 
-            <label className={styles.toggleRow}>
+            {showPlanGate ? (
+              <p className={styles.hint} style={{ color: "#b45309" }}>
+                Messaging requires the Professional plan or above. Contact Layercake to upgrade.
+              </p>
+            ) : null}
+
+            <label className={styles.toggleRow} style={showPlanGate ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
               <div
                 className={`${styles.toggle} ${messagingEnabled ? styles.toggleOn : ""}`}
-                onClick={() => setMessagingEnabled((v) => !v)}
+                onClick={() => { if (!showPlanGate) setMessagingEnabled((v) => !v); }}
                 role="switch"
                 aria-checked={messagingEnabled}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") setMessagingEnabled((v) => !v); }}
+                aria-disabled={showPlanGate}
+                tabIndex={showPlanGate ? -1 : 0}
+                onKeyDown={(e) => {
+                  if (showPlanGate) return;
+                  if (e.key === " " || e.key === "Enter") setMessagingEnabled((v) => !v);
+                }}
               >
                 <div className={styles.toggleThumb} />
               </div>
