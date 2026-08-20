@@ -52,7 +52,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] All three migrations applied to staging and production via `supabase db push`; every embedded post-migration `DO` block passed (`VERIFY PASSED`)
 - [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
 - [x] `send_contact_message` deployed to staging and production
-- [ ] Gate alert position on the user's own laptop — the user found the centered version pushed to the bottom of the viewport and asked for `sticky; top: 200px` instead; that change shipped but hasn't itself been re-confirmed live yet
+- [x] Gate alert position confirmed on production by the user — sticky, 200px from the top of the content container, looks correct
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client sees the whole Messaging screen gated (both client-portal and admin views), and the public Send Message button is hidden
 - [ ] Professional/Enterprise/Founding Partner clients unaffected
 - [ ] Plan rename shows correctly in the admin Entitlements tab and Customers list
