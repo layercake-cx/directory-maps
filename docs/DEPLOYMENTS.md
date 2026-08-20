@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Not yet deployed] Plan renames + Messaging gated to Professional and above
+## 2026-08-20 — [Staging] Plan renames + Messaging gated to Professional and above
 
 **Branch/commit:** `feat/2026-08-20-messaging-entitlement`
-**Deployed by:** —
+**Deployed by:** Claude Code (staging DB only, with explicit user sign-off)
 
 ### What changed
 - **Plan display names** renamed (internal `plans.key` unchanged — only `name`, shown in the admin Entitlements tab and Customers list): Standard→**Basic**, Premium→**Professional**, Unlimited→**Enterprise**, Founder Members→**Founding Partner**. Deliberately does **not** touch `PricingPlans.jsx` (Stripe checkout copy) or `Pricing.jsx` (marketing page, itself already a known unreconciled "Starter/Pro/Agency" naming gap per `docs/BETA_READINESS.md`) — see the migration header for why.
@@ -20,10 +20,11 @@ A plain-English record of every deployment to staging and production. Newest ent
   - Enforcement is server-side, not just UI-hidden: the `client_messaging_settings` view (already read by `EmbedMap.jsx` to decide whether to show the Send Message button) now bakes in the resolved entitlement, and `send_contact_message` (the Edge Function that actually calls Resend) independently re-checks the same view before sending, as defense in depth.
 
 ### Database migrations applied
-- None yet. `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` have **not** been applied to staging or production.
+- Both `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Both embedded post-migration `DO` blocks raised `VERIFY PASSED`. **Not applied to production.**
+- The grandfathering preview/spot-check `SELECT`s in the messaging migration ran but their output isn't visible through `supabase db push` (only `RAISE NOTICE`s surface) — worth an eyeball in the SQL editor to see which clients were actually grandfathered before going to production.
 
 ### Edge functions deployed
-- `send_contact_message` updated (not yet deployed) — adds the messaging-entitlement check before sending. Deploy to **staging first** per the repo's Edge Function rule, verify, then production only with explicit sign-off.
+- `send_contact_message` updated but **not yet deployed anywhere**. Deploy to **staging first** per the repo's Edge Function rule, verify, then production only with explicit sign-off.
 
 ### Frontend
 - `src/components/MessagingSettings.jsx`: plan-gated notice + disabled toggle on the client-portal surface (`useEntitlement("messaging")`, self-scoped). The admin surface (viewing an arbitrary customer) doesn't show an equivalent notice in this pass — see "Out of scope" below.
@@ -40,8 +41,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` passes clean
-- [ ] Migration dry-run on staging, including the grandfathering preview query in the migration file's header
-- [ ] Both migrations applied to staging; post-migration verification blocks pass
+- [x] Both migrations applied to staging via `supabase db push`; both embedded post-migration `DO` blocks passed (`VERIFY PASSED`)
+- [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
 - [ ] `send_contact_message` deployed to staging
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client's Send Message button and toggle are both gated
 - [ ] Professional/Enterprise/Founding Partner clients unaffected
