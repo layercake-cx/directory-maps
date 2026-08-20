@@ -14,6 +14,7 @@ import {
   buildPublicationConfig,
   normalizePublicationConfig,
   publicationConfigsEqual,
+  triggerSnapshotRegeneration,
 } from "../../lib/mapPublication.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
@@ -1133,9 +1134,7 @@ export default function AdminMapDashboard() {
       const { data: hist } = await supabase.rpc("list_map_publications", { p_map_id: mapId });
       setPublicationHistory(hist ?? []);
       // Fire-and-forget: generate static snapshot in the background.
-      supabase.functions
-        .invoke("generate_map_snapshot", { body: { map_id: mapId } })
-        .catch((e) => console.warn("Snapshot generation failed (non-fatal):", e));
+      triggerSnapshotRegeneration(mapId);
       recordAdminEvent(supabase, {
         eventType: "map_published",
         source: "admin_map",

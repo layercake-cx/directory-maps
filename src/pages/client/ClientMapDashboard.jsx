@@ -14,6 +14,7 @@ import {
   buildPublicationConfig,
   normalizePublicationConfig,
   publicationConfigsEqual,
+  triggerSnapshotRegeneration,
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
@@ -1400,9 +1401,7 @@ export default function ClientMapDashboard() {
       window.setTimeout(() => setMsg(""), 2000);
       // Fire-and-forget: generate static snapshot in the background.
       // Does not block the publish UX; failures are silent to the user.
-      supabase.functions
-        .invoke("generate_map_snapshot", { body: { map_id: mapId } })
-        .catch((e) => console.warn("Snapshot generation failed (non-fatal):", e));
+      triggerSnapshotRegeneration(mapId);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {
