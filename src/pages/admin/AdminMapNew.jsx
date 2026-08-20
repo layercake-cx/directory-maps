@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import { fetchClientEntitlements } from "../../lib/entitlements.js";
+import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
+import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
 
 function slugify(input) {
   return (input || "")
@@ -19,7 +22,6 @@ export default function AdminMapNew() {
 
   const [client, setClient] = useState(null);
 
-  const [id, setId] = useState(() => crypto.randomUUID()); // maps.id is text
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
 
@@ -27,14 +29,23 @@ export default function AdminMapNew() {
   const [defaultLng, setDefaultLng] = useState("-0.1276");
   const [defaultZoom, setDefaultZoom] = useState("4");
 
+  const [locationQuery, setLocationQuery] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+
   const [showListPanel, setShowListPanel] = useState(true);
   const [enableClustering, setEnableClustering] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
+  const [mapCount, setMapCount] = useState(null);
+  const [maxMapsLimit, setMaxMapsLimit] = useState(null);
+  const [entitlementLoading, setEntitlementLoading] = useState(true);
+
   const suggestedSlug = useMemo(() => slugify(name), [name]);
   const finalSlug = (slug || suggestedSlug).trim();
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   useEffect(() => {
     (async () => {
@@ -48,6 +59,62 @@ export default function AdminMapNew() {
     })();
   }, [clientId]);
 
+  useEffect(() => {
+    if (!clientId) return;
+    (async () => {
+      const [{ count }, entitlements] = await Promise.all([
+        supabase.from("maps").select("id", { count: "exact", head: true }).eq("client_id", clientId),
+        fetchClientEntitlements(clientId).catch(() => ({})),
+      ]);
+      setMapCount(count ?? 0);
+      setMaxMapsLimit(entitlements?.max_maps?.limit ?? null);
+      setEntitlementLoading(false);
+    })();
+  }, [clientId]);
+
+  const atMapLimit =
+    !entitlementLoading && maxMapsLimit != null && mapCount != null && mapCount >= maxMapsLimit;
+
+  async function lookupLocation(e) {
+    e?.preventDefault?.();
+    const q = locationQuery.trim();
+    if (!q) return;
+    if (!apiKey) {
+      setErr("Cannot look up location: missing VITE_GOOGLE_MAPS_API_KEY.");
+      return;
+    }
+    try {
+      setGeocoding(true);
+      setErr("");
+      const url =
+        "https://maps.googleapis.com/maps/api/geocode/json?address=" +
+        encodeURIComponent(q) +
+        "&key=" +
+        encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.status !== "OK" || !json.results?.length) {
+        throw new Error(`No results for "${q}" (status: ${json.status || "ERROR"})`);
+      }
+      const loc = json.results[0].geometry.location;
+      setDefaultLat(String(loc.lat));
+      setDefaultLng(String(loc.lng));
+      const approxType = json.results[0].types?.[0] || "";
+      const zoomGuess =
+        approxType.includes("country") || approxType.includes("continent")
+          ? 5
+          : approxType.includes("administrative_area_level_1") ||
+            approxType.includes("administrative_area_level_2")
+          ? 7
+          : 10;
+      setDefaultZoom(String(zoomGuess));
+    } catch (e2) {
+      setErr(e2.message ?? String(e2));
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   async function createMap(e) {
     e.preventDefault();
     setErr("");
@@ -55,6 +122,7 @@ export default function AdminMapNew() {
     const cleanName = name.trim();
     if (!cleanName) return setErr("Map name is required.");
     if (!finalSlug) return setErr("Map slug is required.");
+    if (atMapLimit) return setErr(getLimitReachedMessage("max_maps", mapCount, maxMapsLimit));
 
     const lat = Number(defaultLat);
     const lng = Number(defaultLng);
@@ -67,7 +135,7 @@ export default function AdminMapNew() {
       setSaving(true);
 
       const { error } = await supabase.from("maps").insert({
-        id,
+        id: crypto.randomUUID(),
         client_id: clientId,
         name: cleanName,
         slug: finalSlug,
@@ -112,40 +180,61 @@ export default function AdminMapNew() {
           Create map {client?.name ? <span style={{ opacity: 0.7 }}>for {client.name}</span> : null}
         </h2>
 
+        <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
+
         <form onSubmit={createMap}>
           <div style={{ display: "grid", gap: 14 }}>
-            <Field label="Map name">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
-            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr", gap: 16 }}>
+              <Field label="Map name">
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
+              </Field>
+              <Field label="Web address (short name)">
+                <input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder={suggestedSlug || "e.g. uk-directory"}
+                />
+                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                  This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
+                </div>
+              </Field>
+            </div>
 
-            <Field label="Slug">
-              <input
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder={suggestedSlug || "e.g. uk-directory"}
-              />
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                Unique within this customer. Suggested: <strong>{suggestedSlug || "—"}</strong>
+            <div style={{ marginTop: 8 }}>
+              <h3 style={{ margin: "0 0 6px 0", fontSize: 15 }}>Where do you want to centre your map?</h3>
+              <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.8 }}>
+                Search for a city or country and we’ll set the map centre and an appropriate zoom level.
+              </p>
+              <Field label="Search for a place">
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    value={locationQuery}
+                    onChange={(e) => setLocationQuery(e.target.value)}
+                    placeholder="e.g. London, UK or Canada"
+                  />
+                  <button className="btn" type="button" onClick={lookupLocation} disabled={geocoding}>
+                    {geocoding ? "Searching…" : "Search"}
+                  </button>
+                </div>
+              </Field>
+
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Fine-tune the start view (optional)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <Field label="Latitude">
+                    <input value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
+                  </Field>
+                  <Field label="Longitude">
+                    <input value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
+                  </Field>
+                  <Field label="Zoom">
+                    <input value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
+                    <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
+                      4–6: continent / global, 7–10: country / region, 11+ closer in.
+                    </div>
+                  </Field>
+                </div>
               </div>
-            </Field>
-
-            <Field label="ID">
-              <input value={id} onChange={(e) => setId(e.target.value)} />
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                Internal identifier (text). Default is random UUID string.
-              </div>
-            </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-              <Field label="Default lat">
-                <input value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
-              </Field>
-              <Field label="Default lng">
-                <input value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
-              </Field>
-              <Field label="Default zoom">
-                <input value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
-              </Field>
             </div>
 
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -171,7 +260,7 @@ export default function AdminMapNew() {
             {err ? <p style={{ margin: 0 }}>{err}</p> : null}
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
+              <button className="btn btn-primary" type="submit" disabled={saving || atMapLimit}>
                 {saving ? "Creating…" : "Create map"}
               </button>
 

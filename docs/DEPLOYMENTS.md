@@ -8,6 +8,39 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Not yet deployed] Admin "New map" now matches the client portal
+
+**Branch/commit:** `feat/2026-08-20-admin-map-creation-parity`
+**Deployed by:** —
+
+### What changed
+- `AdminMapNew.jsx` (`/admin/clients/:id/maps/new`) rebuilt to match `ClientMapNew.jsx` field-for-field: same labels/help text ("Web address (short name)"), same "Where do you want to centre your map?" section with a place search (Google geocoding) that sets default lat/lng/zoom, same field grouping and order. Previously it had none of that — just bare lat/lng/zoom number fields and a raw, manually-editable `id` field with no client equivalent. The `id` field is now dropped; the map id is silently generated, same as the client form.
+- Admin's "New map" button (`AdminClientDetail.jsx`, Maps tab) now enforces the customer's `max_maps` entitlement *before* navigating: if the customer is at their limit, clicking it opens a closeable "Plan limit reached" dialog instead of opening the create-map form at all. `AdminMapNew.jsx` itself also carries the same soft nudge + submit-time guard as the client form (`EntitlementUsageHint`, blocked submit), as a fallback for anyone who reaches the URL directly.
+- New component `src/components/admin/EntitlementLimitModal.jsx` — a click-triggered addition to the existing entitlement kit (`EntitlementGate` = inline hard block, `EntitlementUsageHint` = inline soft nudge). Reuses the `admin-modal-overlay`/`admin-modal` shell already used for the delete-user confirmation, plus Escape/backdrop-to-close, and the same amber alert styling/copy as `EntitlementGate`.
+- New admin event `entitlements_limit_blocked` (`client_id`, `feature_key`, `source`) — fires when the modal is shown, per `AGENTS.md`'s admin event instrumentation rule. Catalogued in `AGENTS.md` under Entitlements.
+- `AGENTS.md`: added a note to the Test step — check whether a dev server is already on port 5173 before starting one, since parallel agent sessions on this machine share the port and a second `npm run dev` will just fail rather than run independently.
+
+### Database migrations applied
+- None — this is a frontend-only change; server-side enforcement of `max_maps` (the trigger) already existed.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/pages/admin/AdminMapNew.jsx`, `src/pages/admin/AdminClientDetail.jsx`, `src/components/admin/EntitlementLimitModal.jsx` (new).
+
+### Rollback plan
+- Revert this commit / PR. No schema or data changes to unwind.
+
+### Out of scope for this pass
+- Did not touch the pre-existing gap that `AdminMapNew.jsx` never fired a `map_design_created` admin event (client-created maps have the same gap) — flagged separately, not part of this parity fix.
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Manually verified in the running app (skipped this pass — see agent notes)
+
+---
+
 ## 2026-08-20 — [Not yet deployed] Two more entitlements: seats and data_rows
 
 **Branch/commit:** `feat/2026-08-20-seats-and-data-rows-entitlements`
