@@ -17,21 +17,17 @@ export default function EntitlementGate({ allowed, loading, message, children })
       {/*
         `absolute; inset: 0` scopes the dim/overlay to THIS component's own
         box only — it can never cover nav or other page chrome, since those
-        live outside this wrapper in the DOM. The inner `sticky` layer is
-        what keeps the alert centred in whatever part of the viewport is
-        currently visible (rather than centred in the middle of a tall
-        scrollable panel, which could sit off-screen) — full-viewport
-        `position: fixed` would solve the centering but also cover the nav,
-        which is exactly what we don't want.
+        live outside this wrapper in the DOM. `sticky; top: 200` keeps the
+        alert pinned 200px below the top of that box as the page scrolls,
+        instead of trying to vertically center it in the viewport (which
+        pushed it to the bottom of the screen on some viewport heights).
       */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.55)", zIndex: 5 }}>
         <div
           style={{
             position: "sticky",
-            top: 0,
-            height: "100vh",
+            top: 200,
             display: "flex",
-            alignItems: "center",
             justifyContent: "center",
           }}
         >
