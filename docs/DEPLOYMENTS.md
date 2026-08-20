@@ -23,7 +23,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Database migrations applied
 - `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Both embedded post-migration `DO` blocks raised `VERIFY PASSED`.
 - The grandfathering preview/spot-check `SELECT`s in the messaging migration ran but their output isn't visible through `supabase db push` (only `RAISE NOTICE`s surface) — worth an eyeball in the SQL editor to see which clients were actually grandfathered before going to production.
-- `20260820150000_add_get_client_entitlements_rpc.sql` (the admin-side follow-up fix) has **not** been applied to staging yet.
+- `20260820150000_add_get_client_entitlements_rpc.sql` (the admin-side follow-up fix) applied to **staging** via `supabase db push`; `VERIFY PASSED`.
 - **None of the three applied to production.**
 
 ### Edge functions deployed
@@ -46,7 +46,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `npm run build` passes clean
 - [x] Plan-rename and messaging-gate migrations applied to staging via `supabase db push`; both embedded post-migration `DO` blocks passed (`VERIFY PASSED`)
-- [ ] `get_client_entitlements()` RPC migration applied to staging
+- [x] `get_client_entitlements()` RPC migration applied to staging
 - [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
 - [x] `send_contact_message` deployed to staging
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client sees the whole Messaging screen gated (both client-portal and admin views), and the public Send Message button is hidden
