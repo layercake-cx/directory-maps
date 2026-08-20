@@ -433,6 +433,8 @@ Shared utilities: `supabase/functions/_shared/`.
 | Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
 | Categorisations (DIR-E5) | **Beta (flagged)** | Taxonomy management + directory/entry tagging shipped to staging; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
 | Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
+| Entitlements (plans/features/overrides) | **Deployed** | `products`/`plans`/`features`/`plan_features`/`client_overrides` + `get_my_entitlements()`/`get_client_entitlements()` resolvers; server-side enforcement (triggers on `maps`/`contacts`/`listings`, view-level gate for messaging); admin Entitlements tab for plan assignment + per-client overrides; shared `EntitlementGate`/`EntitlementUsageHint` UI kit. Catalog so far: `max_maps`, `messaging`, `seats`, `data_rows` |
+| Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |
 
 ---
 

@@ -8,7 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Production] Plan renames + Messaging gated to Professional and above
+## 2026-08-20 — [Not yet deployed] Two more entitlements: seats and data_rows
+
+**Branch/commit:** `feat/2026-08-20-seats-and-data-rows-entitlements`
+**Deployed by:** —
+
+### What changed
+- Two more real catalog entries, both volume type: `maps.seats` (Basic=1, Professional/Enterprise=unlimited, Founder unlimited) and `maps.data_rows` (Basic=300, Professional/Enterprise=1,500, Founder unlimited).
+- Enforced server-side by `BEFORE INSERT` triggers, same pattern as `max_maps`: `enforce_seats_limit()` on `public.contacts` (covers admin-created users, invite acceptance, and signup provisioning uniformly), and `enforce_data_rows_limit()` on `public.listings` (resolves `client_id` via `map_id → maps.client_id`, since listings have no `client_id` of their own — covers manual entry, CSV import, and Google Sheets sync uniformly).
+- No grandfathering needed (unlike Messaging): both are volume caps with `on_downgrade_policy='hard_block_new'` — a client already over a new cap keeps their existing rows, they just can't add more. The migration includes an informational (non-blocking) query listing any clients already over the new caps, for awareness before applying to production.
+- `docs/FEATURES.md`: added an Entitlements row to the maturity matrix (previously undocumented there), plus a new **Add-ons** "Not started" row — noting the planned future feature to let customers purchase additional seats/data-rows/etc. beyond their plan's included amount.
+
+### Database migrations applied
+- None yet. `20260820160000_seed_seats_and_data_rows_entitlements.sql` has **not** been applied to staging or production.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- None in this pass — no UI hint/gate wired for seats or data_rows yet (see "Out of scope").
+
+### Rollback plan
+- `_20260820160000_seed_seats_and_data_rows_entitlements.rollback.sql` drops both triggers/functions and the two catalog rows (cascading their plan defaults) — aborts if any override was set manually for either feature, to avoid discarding real admin intent. No existing `contacts`/`listings` rows are touched either way.
+
+### Out of scope for this pass
+- No `EntitlementUsageHint`/`EntitlementGate` wiring yet for seats (team invite screens) or data_rows (CSV import/manual entry/Sheets sync screens) — the triggers enforce correctly regardless, but users would currently just see a raw Postgres error message if they hit either limit, not a friendly pre-emptive notice. Worth a follow-up pass once this is confirmed working.
+- The add-ons purchase feature itself — only a planning note was added per explicit request, no implementation.
+
+### Verified
+- [x] `npm run build` passes clean (no frontend changes touch build output beyond docs)
+
 
 **Branch/commit:** `feat/2026-08-20-messaging-entitlement` (merged to `main` via [PR #103](https://github.com/layercake-cx/directory-maps/pull/103))
 **Deployed by:** Claude Code, with explicit user sign-off for both staging and production
