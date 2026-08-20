@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Staging] Plan renames + Messaging gated to Professional and above
+## 2026-08-20 — [Production] Plan renames + Messaging gated to Professional and above
 
-**Branch/commit:** `feat/2026-08-20-messaging-entitlement`
-**Deployed by:** Claude Code (staging DB only, with explicit user sign-off)
+**Branch/commit:** `feat/2026-08-20-messaging-entitlement` (merged to `main` via [PR #103](https://github.com/layercake-cx/directory-maps/pull/103))
+**Deployed by:** Claude Code, with explicit user sign-off for both staging and production
 
 ### What changed
 - **Plan display names** renamed (internal `plans.key` unchanged — only `name`, shown in the admin Entitlements tab and Customers list): Standard→**Basic**, Premium→**Professional**, Unlimited→**Enterprise**, Founder Members→**Founding Partner**. Deliberately does **not** touch `PricingPlans.jsx` (Stripe checkout copy) or `Pricing.jsx` (marketing page, itself already a known unreconciled "Starter/Pro/Agency" naming gap per `docs/BETA_READINESS.md`) — see the migration header for why.
@@ -19,19 +19,17 @@ A plain-English record of every deployment to staging and production. Newest ent
   - **Customer impact:** any Basic-plan client who already had messaging turned on keeps it working — grandfathered via an automatic `client_overrides` grant seeded in the same migration (per explicit product decision, `on_downgrade_policy='grandfather'`). Only *other* Basic-plan clients are newly gated (their "Enable messaging" toggle becomes disabled with an upgrade note; if it was somehow on, the public "Send message" button now hides).
   - Enforcement is server-side, not just UI-hidden: the `client_messaging_settings` view (already read by `EmbedMap.jsx` to decide whether to show the Send Message button) now bakes in the resolved entitlement, and `send_contact_message` (the Edge Function that actually calls Resend) independently re-checks the same view before sending, as defense in depth.
 - **Follow-up fix (same PR):** the admin "Messaging" tab could still let an admin toggle messaging/test mode on for a Basic-plan client, even though it silently wouldn't work — admin screens configure an arbitrary customer, not the admin's own client, so the client-portal's self-scoped entitlement check didn't cover it. Added `get_client_entitlements(client_id)` (admin-only RPC, same shape/precedence as `get_my_entitlements()` but parameterized) and a new shared `EntitlementGate` component that dims + disables the *entire* Messaging settings screen (not just the toggle) behind a translucent, inert overlay with a clear alert, used identically on both the client-portal and admin surfaces.
-- **Two more follow-up fixes (same PR), both UI-only:**
-  1. The gate's alert was initially positioned `absolute` inside the (potentially very tall) settings panel, so on a long panel it centered within that tall box rather than the viewport — could render below the visible fold. Fixed with a sticky-centered inner layer that stays visible in whatever part of the viewport is currently showing.
-  2. A first attempt at that fix (`position: fixed` covering the full viewport) accidentally covered site/admin nav too. Reverted to scoping the overlay to the gate's own box (`position: absolute`) so nav — which lives outside this component in the DOM — is never touched.
+- **Three more follow-up fixes (same PR), all UI-only:**
+  1. The gate's alert was initially positioned `absolute` inside the (potentially very tall) settings panel, so on a long panel it centered within that tall box rather than the viewport — could render below the visible fold.
+  2. A first attempt at that fix (`position: fixed` covering the full viewport) accidentally covered site/admin nav too. Settled on scoping the dim/overlay to the gate's own box (`position: absolute`, never covers nav — which lives outside this component in the DOM) with the alert itself `position: sticky; top: 200px` from the top of that box, rather than trying to vertically center it in the viewport (a height:100vh flex-center trick pushed it to the bottom of the screen on some laptop viewport heights).
   3. Extracted a small **entitlement UI kit** for reuse as more features get gated: `EntitlementUsageHint` (the "X of Y used" soft-nudge pattern, previously only inline in `ClientMapNew.jsx`) alongside `EntitlementGate` (the "hard block" pattern), plus `src/lib/entitlementMessages.js` — a single file for entitlement copy (including plan names) instead of hardcoded strings scattered across components.
 
 ### Database migrations applied
-- `20260820130000_rename_plan_display_names.sql` and `20260820140000_gate_messaging_entitlement.sql` applied to **staging** (`beqejxneehilplrtpntn`) via `supabase db push`. Both embedded post-migration `DO` blocks raised `VERIFY PASSED`.
-- The grandfathering preview/spot-check `SELECT`s in the messaging migration ran but their output isn't visible through `supabase db push` (only `RAISE NOTICE`s surface) — worth an eyeball in the SQL editor to see which clients were actually grandfathered before going to production.
-- `20260820150000_add_get_client_entitlements_rpc.sql` (the admin-side follow-up fix) applied to **staging** via `supabase db push`; `VERIFY PASSED`.
-- **None of the three applied to production.**
+- All three — `20260820130000_rename_plan_display_names.sql`, `20260820140000_gate_messaging_entitlement.sql`, `20260820150000_add_get_client_entitlements_rpc.sql` — applied to **staging** (`beqejxneehilplrtpntn`) and then **production** (`gxixwdjfmegxcxfeflro`) via `supabase db push`, both with explicit user sign-off. Every embedded post-migration `DO` block raised `VERIFY PASSED` on both environments.
+- The grandfathering preview/spot-check `SELECT`s in the messaging migration ran but their output isn't visible through `supabase db push` (only `RAISE NOTICE`s surface) — worth an eyeball in the SQL editor to see which clients were actually grandfathered.
 
 ### Edge functions deployed
-- `send_contact_message` deployed to **staging** (`beqejxneehilplrtpntn`) via `supabase functions deploy`. **Not deployed to production.**
+- `send_contact_message` deployed to **staging** and then **production** via `supabase functions deploy`, both with explicit user sign-off.
 
 ### Frontend
 - `src/components/EntitlementGate.jsx` (new, shared): dims + `inert`s its children and shows a viewport-centered alert when not allowed, without covering nav. Used by `MessagingSettings.jsx` on both the client-portal and admin surfaces, wrapping the whole settings screen rather than just the toggle.
@@ -44,19 +42,18 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `_20260820150000_add_get_client_entitlements_rpc.rollback.sql` drops the new RPC (no data created, plain drop).
 - `_20260820140000_gate_messaging_entitlement.rollback.sql` restores the pre-entitlement view and removes the catalog row (cascading its plan defaults and the grandfathering overrides) — aborts if any override was set manually since (not by this migration's grandfathering), to avoid discarding real admin intent.
 - `_20260820130000_rename_plan_display_names.rollback.sql` restores the old plan names.
-- Revert the PR merge commit on `main` for the frontend/Edge Function.
+- Revert the [PR #103](https://github.com/layercake-cx/directory-maps/pull/103) merge commit on `main` for the frontend/Edge Function.
 
 ### Out of scope for this pass
 - No change to `PricingPlans.jsx`/`Pricing.jsx` customer-facing copy — see above.
 
 ### Verified
 - [x] `npm run build` passes clean
-- [x] Plan-rename and messaging-gate migrations applied to staging via `supabase db push`; both embedded post-migration `DO` blocks passed (`VERIFY PASSED`)
-- [x] `get_client_entitlements()` RPC migration applied to staging
+- [x] All three migrations applied to staging and production via `supabase db push`; every embedded post-migration `DO` block passed (`VERIFY PASSED`)
 - [ ] Separate transactional dry-run with the grandfathering preview query — not done; went straight from file-listing dry-run to the real apply, same as previous migrations
-- [x] `send_contact_message` deployed to staging
+- [x] `send_contact_message` deployed to staging and production
+- [x] Gate alert position confirmed on production by the user — sticky, 200px from the top of the content container, looks correct
 - [ ] Grandfathered client's messaging still works; a non-grandfathered Basic-plan client sees the whole Messaging screen gated (both client-portal and admin views), and the public Send Message button is hidden
-- [ ] Gate alert renders centered in the viewport (not below the fold on a tall panel) and nav stays visible/clickable underneath, on both surfaces — not visually confirmed this session (no authenticated browser session available); code-reviewed only
 - [ ] Professional/Enterprise/Founding Partner clients unaffected
 - [ ] Plan rename shows correctly in the admin Entitlements tab and Customers list
 
