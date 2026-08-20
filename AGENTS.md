@@ -110,6 +110,25 @@ See `.cursor/rules/user-guide-documentation.mdc` for full rules (Cursor applies 
 
 **Doc index:** `docs/README.md` · **Integrations & secrets:** `docs/INTEGRATION_ARCHITECTURE.md` · **Repo overview:** `README.md`
 
+## Monday.com feature/deployment tracking
+
+The monday.com MCP connection (Layercake's `layercake-cx.monday.com` account) is available in Claude Code sessions. Use it to keep the **"Tasks" board** (board id `5094351513`) in the **"Maps" workspace** (workspace id `6134662`) as the running record of Directory Maps feature work — this is the board Justyna already uses for this project, so reuse it rather than creating a new board.
+
+Board reference (so you don't need to re-query it every session):
+- Groups: `Product Backlog` (`group_mm5j96jb`) for incoming/unstarted requests, `Non-Functional Req` (`new_group29179`) for other work, `Client Tasks` (`new_group43041`).
+- `project_status` (status column): `Not Started`, `Working on it`, `Testing`, `Stuck`, `Done`.
+- `project_owner` (people), `people` (collaborators), `status_1` (priority: `Critical ⚠`/`High`/`Medium`/`Low`).
+
+**1 — Feature ticket:** whenever the user requests a new feature, or a change to an existing feature, search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
+
+**2 — Deployment log → Monday comment:** every time you write a `docs/DEPLOYMENTS.md` entry (see below), also post that entry's content as an update (`create_update`) on the matching Monday item — same "what changed" text, environment, and rollback plan. Then:
+- Set `project_status` to `"Testing"` once staging is verified.
+- Set `project_status` to `"Done"` once deployed to production and verified.
+
+If a deployment doesn't map to any specific feature ticket (e.g. a small fix bundled into other work), create a lightweight ticket for it too rather than skipping the log.
+
+**Never** put secrets, API keys, tokens, connection strings, or end-user/client personal data in a Monday ticket title, description, or comment — same rule as admin event `meta` fields below. Monday tickets are internal engineering notes (what/why/rollback), not data exports.
+
 ## Deployment log (write an entry for every meaningful change)
 
 Every time you implement a meaningful change — feature, fix, migration, configuration — add an entry to **`docs/DEPLOYMENTS.md`** before the work is considered done. This is the plain-English record of what this codebase has become and why.
