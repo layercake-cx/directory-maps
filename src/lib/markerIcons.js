@@ -206,3 +206,51 @@ export function getScaledMarkerAnchors(styleKey, pinSize = "medium") {
 export function pinPreviewScale(pinSize) {
   return PIN_SIZE_MULTIPLIER[normalizePinSize(pinSize)] ?? 1;
 }
+
+/** Baseline bounding box (before pinSize multiplier) a custom icon is fitted inside. */
+const CUSTOM_ICON_BOX = { w: 40, h: 40 };
+
+const imageNaturalSizeCache = new Map();
+
+/**
+ * Resolves the natural pixel dimensions of an image URL (SVG or raster), cached per URL.
+ * Used so custom pin icons can be scaled without distortion — Google Maps' marker
+ * `scaledSize` stretches to fit, it doesn't preserve aspect ratio on its own.
+ * @param {string} url
+ * @returns {Promise<{width: number, height: number} | null>}
+ */
+export function getImageNaturalSize(url) {
+  if (!url) return Promise.resolve(null);
+  if (imageNaturalSizeCache.has(url)) return imageNaturalSizeCache.get(url);
+  const promise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  imageNaturalSizeCache.set(url, promise);
+  return promise;
+}
+
+/**
+ * Scaled size + anchor for a custom uploaded icon: fitted (not stretched) inside the
+ * size-appropriate bounding box, anchored at its own bottom-centre so it points at the
+ * pin location the same way the built-in pin/teardrop/dot shapes do.
+ * @param {number} [naturalWidth]
+ * @param {number} [naturalHeight]
+ * @param {'small'|'medium'|'large'} [pinSize]
+ */
+export function getCustomIconAnchors(naturalWidth, naturalHeight, pinSize = "medium") {
+  const m = PIN_SIZE_MULTIPLIER[normalizePinSize(pinSize)] ?? 1;
+  const boxW = CUSTOM_ICON_BOX.w * m;
+  const boxH = CUSTOM_ICON_BOX.h * m;
+  const nw = naturalWidth > 0 ? naturalWidth : 1;
+  const nh = naturalHeight > 0 ? naturalHeight : 1;
+  const scale = Math.min(boxW / nw, boxH / nh);
+  const w = Math.max(4, Math.round(nw * scale));
+  const h = Math.max(4, Math.round(nh * scale));
+  return {
+    scaledSize: { w, h },
+    anchor: { x: Math.round(w / 2), y: h },
+  };
+}

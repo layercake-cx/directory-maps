@@ -9,6 +9,7 @@ import PublishedMapView from "../../components/PublishedMapView.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale, MARKER_ANCHORS } from "../../lib/markerIcons";
+import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
 import {
   buildPublicationConfig,
   normalizePublicationConfig,
@@ -80,6 +81,7 @@ const PIN_STYLES = [
   { id: "pin", label: "Pin" },
   { id: "teardrop", label: "Rounded Pin" },
   { id: "dot", label: "Dot" },
+  { id: "custom", label: "Custom Icon" },
 ];
 
 function Field({ label, children }) {
@@ -295,6 +297,7 @@ export default function ClientMapDashboard() {
   const [reorderedGroupIds, setReorderedGroupIds] = useState(null);
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [groupEditDesign, setGroupEditDesign] = useState(null);
+  const [groupCustomPinUploading, setGroupCustomPinUploading] = useState(false);
   const [savingGroups, setSavingGroups] = useState(false);
   const groupDraftTimerRef = useRef(null);
   const groupDraftPrimedRef = useRef(false);
@@ -470,6 +473,7 @@ export default function ClientMapDashboard() {
     }),
     [markerStyle, markerColor, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
   );
+  const groupMarkerStyle = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
 
   const listingsWithColor = useMemo(() => {
     return (listings || []).map((l) => {
@@ -1683,11 +1687,12 @@ export default function ClientMapDashboard() {
     setCustomPinUploading(true);
     try {
       const ext = isSvg ? "svg" : "png";
+      const uploadFile = isSvg ? await sanitizeSvgFile(file) : file;
       const path = `${mapId}/pin.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("map-pins").upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from("map-pins").upload(path, uploadFile, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("map-pins").getPublicUrl(path);
-      setCustomPinUrl(urlData.publicUrl);
+      setCustomPinUrl(`${urlData.publicUrl}?v=${Date.now()}`);
       setMarkerStyle("custom");
       setMsg("Custom pin uploaded.");
       window.setTimeout(() => setMsg(""), 2000);
@@ -1695,6 +1700,40 @@ export default function ClientMapDashboard() {
       setErr(e?.message ?? String(e));
     } finally {
       setCustomPinUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleGroupCustomPinFile(e) {
+    const file = e?.target?.files?.[0];
+    if (!file || !editingGroupId) return;
+    const name = (file.name || "").toLowerCase();
+    const isSvg = name.endsWith(".svg");
+    const isPng = name.endsWith(".png");
+    if (!isSvg && !isPng) {
+      setErr("Use SVG or PNG only.");
+      return;
+    }
+    if (file.size > 200 * 1024) {
+      setErr("File too large (max 200 KB).");
+      return;
+    }
+    setErr("");
+    setGroupCustomPinUploading(true);
+    try {
+      const ext = isSvg ? "svg" : "png";
+      const uploadFile = isSvg ? await sanitizeSvgFile(file) : file;
+      const path = `${mapId}/group-${editingGroupId}-pin.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("map-pins").upload(path, uploadFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("map-pins").getPublicUrl(path);
+      setGroupEditDesign((p) => ({ ...(p || {}), marker_style: "custom", custom_pin_url: `${urlData.publicUrl}?v=${Date.now()}` }));
+      setMsg("Custom pin uploaded.");
+      window.setTimeout(() => setMsg(""), 2000);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setGroupCustomPinUploading(false);
       e.target.value = "";
     }
   }
@@ -2329,7 +2368,7 @@ export default function ClientMapDashboard() {
                         const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined, dropShadowPx: pinDropShadow, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity }) : null;
                         return (
                           <button key={id} type="button" className={`pin-style-option ${isSelected ? "is-selected" : ""}`} onClick={() => setMarkerStyle(id)} aria-pressed={isSelected}>
-                            <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                            <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
                             <span className="pin-style-option__label">{label}</span>
                           </button>
                         );
@@ -2342,32 +2381,76 @@ export default function ClientMapDashboard() {
                     </div>
                   </div>
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Colours</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
-                        <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
+                  {markerStyle === "custom" && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Custom Icon</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {customPinUrl && <img src={customPinUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />}
+                        <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
+                          {customPinUploading ? "Uploading…" : customPinUrl ? "Change…" : "Upload icon"}
+                          <input
+                            type="file"
+                            accept="image/svg+xml,image/png,.svg,.png"
+                            onChange={handleCustomPinFile}
+                            disabled={customPinUploading}
+                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+                          />
+                        </label>
+                        {customPinUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setCustomPinUrl("")}>Remove</button>}
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                        SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
+                      </div>
+                    </div>
+                  )}
+
+                  {markerStyle !== "custom" && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Colours</p>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
+                          <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
+                          <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
+                        </div>
+                        {enableClustering && (
+                          <div>
+                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
+                            <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
+                          </div>
+                        )}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
-                        <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
+                        </div>
                       </div>
                       {enableClustering && (
+                        <div>
+                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster transparency</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="range" min={0} max={100} step={1} value={clusterOpacity} onChange={(e) => setClusterOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                            <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{clusterOpacity}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {enableClustering && markerStyle === "custom" && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Cluster Colours</p>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
                           <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
                           <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
                       </div>
-                    </div>
-                    {enableClustering && (
                       <div>
                         <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster transparency</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2375,33 +2458,35 @@ export default function ClientMapDashboard() {
                           <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{clusterOpacity}%</span>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Drop Shadow</p>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
+                  {markerStyle !== "custom" && (
+                    <div className="panel-section">
+                      <p className="panel-section__title">Drop Shadow</p>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
+                          <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {(markerStyle === "pin" || markerStyle === "teardrop") && (
                     <div className="panel-section">
@@ -2545,7 +2630,7 @@ export default function ClientMapDashboard() {
                                   onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }))}
                                   aria-pressed={isSelected}
                                 >
-                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
+                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
                                   <span className="pin-style-option__label">{label}</span>
                                 </button>
                               );
@@ -2577,30 +2662,61 @@ export default function ClientMapDashboard() {
                             </button>
                           ) : null}
                         </div>
-                        <div className="panel-section">
-                          <p className="panel-section__title">Colours</p>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
-                              <ColorRow
-                                value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
-                                onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
-                                ariaLabel="Pin colour"
-                              />
+                        {groupMarkerStyle === "custom" && (
+                          <div className="panel-section">
+                            <p className="panel-section__title">Custom Icon</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              {(groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url) && (
+                                <img src={groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url} alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />
+                              )}
+                              <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
+                                {groupCustomPinUploading ? "Uploading…" : (groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url) ? "Change…" : "Upload icon"}
+                                <input
+                                  type="file"
+                                  accept="image/svg+xml,image/png,.svg,.png"
+                                  onChange={handleGroupCustomPinFile}
+                                  disabled={groupCustomPinUploading}
+                                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+                                />
+                              </label>
+                              {groupEditDesign?.custom_pin_url && (
+                                <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), custom_pin_url: null }))}>
+                                  Use map default
+                                </button>
+                              )}
+                            </div>
+                            <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>
+                              SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
+                            </p>
+                          </div>
+                        )}
+                        {groupMarkerStyle !== "custom" && (
+                          <div className="panel-section">
+                            <p className="panel-section__title">Colours</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                              <div>
+                                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
+                                <ColorRow
+                                  value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
+                                  onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
+                                  ariaLabel="Pin colour"
+                                />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
+                                <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                              </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
-                              <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
+                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
+                                <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
-                              <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
-                            </div>
-                          </div>
-                        </div>
+                        )}
+                        {groupMarkerStyle !== "custom" && (
                         <div className="panel-section">
                           <p className="panel-section__title">Icon</p>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2654,6 +2770,7 @@ export default function ClientMapDashboard() {
                           </div>
                           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Overrides the map's default icon for this category's pins.</p>
                         </div>
+                        )}
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                           <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>
                           {savingGroups ? <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Saving…</span> : null}

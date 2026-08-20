@@ -8,6 +8,39 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Not yet deployed] Custom SVG/PNG pin icon upload
+
+**Branch/commit:** `feat/2026-08-20-custom-pin-icon-upload`
+**Deployed by:** —
+
+### What changed
+- Added a fourth "Custom Icon" tile to the Pin Design style picker (after Pin / Rounded Pin / Dot), in both admin and client map dashboards, plus the per-group design override panel. The storage upload (`handleCustomPinFile`), `maps.custom_pin_url` column, and `custom` branch in `getMarkerIconUrl()` all already existed but were dead code — `PIN_STYLES` never had a `"custom"` entry, so nothing could reach them.
+- Custom pins render the uploaded asset **as-is** — no colour, outline or drop-shadow is applied. When "Custom Icon" is selected, those controls are hidden entirely (not just ignored) in the Pin Design panel and the group override panel, since they don't apply to an uploaded image. Small/Medium/Large sizing still works.
+- New `getCustomIconAnchors()` / `getImageNaturalSize()` in `src/lib/markerIcons.js`: custom icons are scaled to fit a consistent per-size bounding box **preserving their own aspect ratio** (no stretch/distortion — Google Maps marker `scaledSize` stretches by default, it doesn't fit-preserve), anchored at their own bottom-centre so they point at the pin location the same way the built-in shapes do. `DirectoryMap.jsx` resolves each custom icon URL's natural pixel size asynchronously (cached per URL) and rebuilds marker icons once resolved.
+- New per-group custom-icon upload (`handleGroupCustomPinFile` in both dashboards) — groups can set their own custom icon independent of the map's default, uploading to `${mapId}/group-${groupId}-pin.{svg|png}` in the existing `map-pins` storage bucket.
+- New `src/lib/sanitizeSvg.js` (uses new `dompurify` dependency): every uploaded SVG is sanitised before storage — strips `<script>`, `<foreignObject>`, event-handler attributes, and any `href`/`xlink:href` that isn't a same-document fragment (`#id`) or a `data:image/` URI. The existing uploader had no sanitisation at all; SVG upload without it is a known stored-XSS-adjacent vector even though `<img src>` rendering doesn't execute embedded scripts.
+- `docs/USER_GUIDE.md` and `docs/FEATURES.md` updated to describe the new Custom Icon option.
+- **Known gap, not fixed here:** the `map_design_theme_updated` admin event (colour/style/shadow/size changes) documented in `AGENTS.md`'s event catalogue isn't actually fired anywhere in the codebase yet — no Pin Design save currently produces an admin event, custom-icon included. Pre-existing gap across the whole design-save flow, out of scope for this ticket; flagged separately rather than instrumenting only the custom-icon field in isolation.
+
+### Database migrations applied
+- None — `maps.custom_pin_url` and `group_edit_design.custom_pin_url` already existed from a prior migration.
+
+### Edge functions deployed
+- None — upload goes straight from browser to Supabase Storage, same as the existing logo/favicon uploads.
+
+### Frontend
+- `src/lib/markerIcons.js`, `src/lib/sanitizeSvg.js` (new), `src/components/DirectoryMap.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/pages/client/ClientMapDashboard.jsx`.
+- New dependency: `dompurify`.
+
+### Rollback plan
+- Revert this commit. No schema or data changes to unwind.
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Manually uploaded an SVG and a PNG as a custom pin in both admin and client dashboards, confirmed colour/outline/shadow controls hide, confirmed a non-square upload doesn't stretch on the live map, confirmed per-group custom icon override works, confirmed published/embedded map renders it correctly
+
+---
+
 ## 2026-08-20 — [Not yet deployed] Fire map_design_created on map creation
 
 **Branch/commit:** `feat/2026-08-20-admin-map-creation-parity`

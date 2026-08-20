@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer";
 import { loadGoogleMaps } from "../lib/loadGoogleMaps";
-import { getMarkerIconUrl, getScaledMarkerAnchors, normalizePinSize } from "../lib/markerIcons";
+import { getMarkerIconUrl, getScaledMarkerAnchors, getCustomIconAnchors, getImageNaturalSize, normalizePinSize } from "../lib/markerIcons";
 
 function clusterIconDataUrl(color, opacity = 1) {
   const fill = color || "#4A9BAA";
@@ -467,6 +467,9 @@ export default function DirectoryMap({
   const bikeLayerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoomDisplay, setCurrentZoomDisplay] = useState(null);
+  // Natural pixel size of each custom pin icon URL currently in use, so it can be scaled
+  // without distortion (Google Maps' marker scaledSize stretches, it doesn't fit-preserve).
+  const [customIconDims, setCustomIconDims] = useState({});
 
   const points = useMemo(
     () => (listings || []).filter((l) => l.lat != null && l.lng != null),
@@ -636,6 +639,26 @@ export default function DirectoryMap({
   }, [mapReady, screenOverlayListing?.id, screenOverlayListing?.lat, screenOverlayListing?.lng, onScreenOverlayPosition]);
 
   useEffect(() => {
+    const urls = new Set();
+    if (markerStyle === "custom" && customMarkerIconUrl) urls.add(customMarkerIconUrl);
+    points.forEach((p) => {
+      if (p.group_marker_style === "custom" && p.group_custom_pin_url) urls.add(p.group_custom_pin_url);
+    });
+    const missing = [...urls].filter((url) => !(url in customIconDims));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(missing.map((url) => getImageNaturalSize(url).then((dims) => [url, dims]))).then((entries) => {
+      if (cancelled) return;
+      setCustomIconDims((prev) => {
+        const next = { ...prev };
+        entries.forEach(([url, dims]) => { next[url] = dims; });
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [points, markerStyle, customMarkerIconUrl, customIconDims]);
+
+  useEffect(() => {
     if (!mapReady || !mapRef.current || !window.google?.maps) return;
 
     const map = mapRef.current;
@@ -651,7 +674,14 @@ export default function DirectoryMap({
       pinSizeForMarker,
     ) => {
       const styleKey = styleForMarker === "custom" && customUrlForMarker ? "custom" : styleForMarker || "pin";
-      const { scaledSize, anchor } = getScaledMarkerAnchors(styleKey, pinSizeForMarker);
+      const { scaledSize, anchor } =
+        styleKey === "custom"
+          ? getCustomIconAnchors(
+              customIconDims[customUrlForMarker]?.width,
+              customIconDims[customUrlForMarker]?.height,
+              pinSizeForMarker,
+            )
+          : getScaledMarkerAnchors(styleKey, pinSizeForMarker);
       return {
         url: getMarkerIconUrl({
           style: styleForMarker,
@@ -931,6 +961,7 @@ export default function DirectoryMap({
     pinShadowDistance,
     pinShadowOpacity,
     pinSize,
+    customIconDims,
     selectZoom,
     selectPanOffsetX,
     selectPanOffsetY,

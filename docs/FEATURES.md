@@ -114,7 +114,7 @@ The map editor (`ClientMapDashboard.jsx` / `AdminMapDashboard.jsx`) is a **live 
 | Panel | Purpose |
 |-------|---------|
 | **General** | Name, slug, **description** (long text, shown in the search panel), default lat/lng/zoom, list panel, clustering (auto-saved draft) |
-| **Pin Design** | Marker style (pin/rounded pin/dot), size, colour, border, favicon overlay, drop shadow; previews rendered at true map proportions |
+| **Pin Design** | Marker style (pin/rounded pin/dot/custom icon), size, colour, border, favicon overlay, drop shadow; previews rendered at true map proportions. Custom icon (uploaded SVG/PNG) renders as-is — colour/border/shadow don't apply to it |
 | **Panels** | Listing panel layout and content options |
 | **Groups** | Group definitions and per-group theme JSON |
 | **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |

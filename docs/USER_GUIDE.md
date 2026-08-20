@@ -148,13 +148,15 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 | Panel | What you can change |
 |-------|---------------------|
 | **General** | Name, slug, **description**, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
-| **Pin Design** | Marker style (pin, rounded pin, dot), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
+| **Pin Design** | Marker style (pin, rounded pin, dot, custom icon), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
 | **Filters** | Create custom, filterable fields (e.g. Sector, Languages spoken); manage their options; choose which appear in the published search bar and how |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
 | **Search** | Upload a **logo**, style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
+
+**Custom Icon pins:** upload your own SVG or PNG (max 200KB) instead of a built-in shape. It's shown exactly as uploaded — colour, border and drop shadow don't apply to it, and small/medium/large sizing still works. Groups can upload their own custom icon too, independent of the map's default.
 
 Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
 
