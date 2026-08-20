@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-20 — [Not yet deployed] Fire map_design_created on map creation
+
+**Branch/commit:** `feat/2026-08-20-admin-map-creation-parity`
+**Deployed by:** —
+
+### What changed
+- Neither `AdminMapNew.jsx` nor `ClientMapNew.jsx` fired the `map_design_created` admin event that `AGENTS.md`'s instrumentation catalogue already defines for map creation — map creation was invisible in the admin event log. Both now call `recordAdminEvent` right after a successful insert, with the exact meta shape from the catalogue (`client_id`, `map_id`, `name`, `slug`, `default_center` `{lat,lng}`, `default_zoom`, `enable_clustering`, `show_list_panel`), `source: "admin_dashboard"` / `"client_portal"` respectively — same pattern already used by `directory_created` in `AdminDirectoryNew.jsx`/`ClientDirectoryNew.jsx`.
+- Fire-and-forget: `recordAdminEvent` doesn't block or fail the map-creation flow if the event insert fails.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Frontend
+- `src/pages/admin/AdminMapNew.jsx`, `src/pages/client/ClientMapNew.jsx`.
+
+### Rollback plan
+- Revert this commit. No schema or data changes to unwind.
+
+### Verified
+- [x] `npm run build` passes clean
+- [ ] Manually created a map in both admin and client portal and confirmed a `map_design_created` row appears in `admin_events`
+
+---
+
 ## 2026-08-20 — [Not yet deployed] Admin "New map" now matches the client portal
 
 **Branch/commit:** `feat/2026-08-20-admin-map-creation-parity`

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
@@ -134,8 +135,9 @@ export default function AdminMapNew() {
     try {
       setSaving(true);
 
+      const mapId = crypto.randomUUID();
       const { error } = await supabase.from("maps").insert({
-        id: crypto.randomUUID(),
+        id: mapId,
         client_id: clientId,
         name: cleanName,
         slug: finalSlug,
@@ -147,6 +149,23 @@ export default function AdminMapNew() {
       });
 
       if (error) throw error;
+
+      recordAdminEvent(supabase, {
+        eventType: "map_design_created",
+        clientId,
+        mapId,
+        meta: {
+          client_id: clientId,
+          map_id: mapId,
+          name: cleanName,
+          slug: finalSlug,
+          default_center: { lat, lng },
+          default_zoom: zoom,
+          enable_clustering: enableClustering,
+          show_list_panel: showListPanel,
+          source: "admin_dashboard",
+        },
+      });
 
       // back to client detail (maps list)
       navigate(`/admin/clients/${encodeURIComponent(clientId)}`);
