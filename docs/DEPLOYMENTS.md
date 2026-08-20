@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-20 — [Staging] Per-listing logo upload on Map Data screen
+## 2026-08-20 — [Production] Per-listing logo upload on Map Data screen
 
-**Branch/commit:** `feat/2026-08-20-listing-logo-upload` (not yet merged)
-**Deployed by:** Claude (agent), at user's request
+**Branch/commit:** `feat/2026-08-20-listing-logo-upload`, merged to `main` via [#112](https://github.com/layercake-cx/directory-maps/pull/112)
+**Deployed by:** Claude (agent), merged at user's explicit request
 
 ### What changed
 - On the **Map Data** screen (both client portal `ClientMapData.jsx` and admin `AdminMapData.jsx`), each listing row's **Logo** cell now shows an **Upload** control (SVG/PNG/JPG/WebP, max 500 KB) whenever that listing has no `logo_url` set — previously the only way to give a listing a logo was to paste an already-hosted URL into the manual entry form.
@@ -30,11 +30,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `src/pages/admin/AdminMapData.jsx`, `src/pages/client/ClientMapData.jsx`, `docs/USER_GUIDE.md`.
 
 ### Rollback plan
-- Revert this branch/PR before merge, or revert the merge commit on `main` afterwards. No data migration to undo — any `logo_url` values set via this upload path are ordinary Storage objects/URLs and can be left in place or cleared per-listing via **Manual entry** if needed.
+- Revert the merge commit on `main`. No data migration to undo — any `logo_url` values set via this upload path are ordinary Storage objects/URLs and can be left in place or cleared per-listing via **Manual entry** if needed.
 
 ### Verified
 - [x] `npm run build` succeeds
 - [x] User confirmed working in the test environment (upload, override-hiding, and panel rendering)
+- [x] Merged to `main`, deployed to production via GitHub Pages Action ([run 32420119726](https://github.com/layercake-cx/directory-maps/actions/runs/32420119726), succeeded)
 
 ---
 
