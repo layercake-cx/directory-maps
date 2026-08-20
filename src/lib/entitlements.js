@@ -40,6 +40,21 @@ export async function fetchMyEntitlements() {
   return data && typeof data === "object" ? data : {};
 }
 
+/**
+ * Admin: resolve all entitlements for an arbitrary client (e.g. a customer
+ * detail screen configuring a client from route params, not the calling
+ * admin's own client). Same shape as fetchMyEntitlements().
+ */
+export async function fetchClientEntitlements(clientId) {
+  if (!clientId) return {};
+  const { data, error } = await supabase.rpc("get_client_entitlements", { p_client_id: clientId });
+  if (error) {
+    if (isMissingRelationError(error)) return {};
+    throw error;
+  }
+  return data && typeof data === "object" ? data : {};
+}
+
 /** List the available plans (for the admin plan-assignment dropdown). */
 export async function listPlans() {
   const { data, error } = await supabase
