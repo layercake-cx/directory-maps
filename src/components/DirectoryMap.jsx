@@ -127,6 +127,68 @@ function latLngToMapDivPixel(map, lat, lng) {
   return { x, y };
 }
 
+/**
+ * Smoothly animates the map's center/zoom over `duration` ms (Google Maps' own
+ * setCenter/setZoom are instant, and panTo only animates the pan, not the zoom).
+ * `animRef` is a ref used to cancel a prior in-flight animation if a new one starts
+ * before it finishes. `onComplete` fires once the camera has settled, so callers that
+ * need the final on-screen pixel of a lat/lng (e.g. to position a popup) get an accurate one.
+ */
+function animateMapCamera(map, animRef, { center, zoom, panOffsetX = 0, panOffsetY = 0 }, { duration = 1000, onComplete } = {}) {
+  if (animRef.current) animRef.current.cancelled = true;
+
+  const startCenter = map.getCenter();
+  const startZoom = map.getZoom();
+  if (!startCenter || startZoom == null || typeof zoom !== "number") {
+    map.setCenter(center);
+    if (typeof zoom === "number") map.setZoom(zoom);
+    if (panOffsetX || panOffsetY) map.panBy(panOffsetX, panOffsetY);
+    animRef.current = null;
+    onComplete?.();
+    return;
+  }
+
+  const state = { cancelled: false };
+  animRef.current = state;
+
+  const startLat = startCenter.lat();
+  const startLng = startCenter.lng();
+  const endLat = center.lat;
+  const endLng = center.lng;
+  const startTime = performance.now();
+  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  let lastRoundedZoom = startZoom;
+
+  function step(now) {
+    if (state.cancelled) return;
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = easeInOutCubic(t);
+
+    map.setCenter({
+      lat: startLat + (endLat - startLat) * eased,
+      lng: startLng + (endLng - startLng) * eased,
+    });
+    const roundedZoom = Math.round(startZoom + (zoom - startZoom) * eased);
+    if (roundedZoom !== lastRoundedZoom) {
+      map.setZoom(roundedZoom);
+      lastRoundedZoom = roundedZoom;
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+      return;
+    }
+
+    map.setCenter({ lat: endLat, lng: endLng });
+    if (lastRoundedZoom !== zoom) map.setZoom(zoom);
+    if (panOffsetX || panOffsetY) map.panBy(panOffsetX, panOffsetY);
+    if (animRef.current === state) animRef.current = null;
+    onComplete?.();
+  }
+
+  requestAnimationFrame(step);
+}
+
 function attachZoomSliderControl(map, showZoomSlider) {
   if (!showZoomSlider || !window.google?.maps) return () => {};
   const { ControlPosition } = window.google.maps;
@@ -465,6 +527,7 @@ export default function DirectoryMap({
   const trafficLayerRef = useRef(null);
   const transitLayerRef = useRef(null);
   const bikeLayerRef = useRef(null);
+  const cameraAnimRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoomDisplay, setCurrentZoomDisplay] = useState(null);
   // Natural pixel size of each custom pin icon URL currently in use, so it can be scaled
@@ -483,15 +546,19 @@ export default function DirectoryMap({
 
     const map = mapRef.current;
     const pos = { lat: Number(point.lat), lng: Number(point.lng) };
-    map.setCenter(pos);
-    map.setZoom(selectZoom);
-    if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
-
-    if (onSelect) {
-      const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
-      if (pixel) onSelect(point, pixel);
-      else onSelect(point, null);
-    }
+    animateMapCamera(
+      map,
+      cameraAnimRef,
+      { center: pos, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
+      {
+        onComplete: () => {
+          if (!onSelect) return;
+          const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
+          if (pixel) onSelect(point, pixel);
+          else onSelect(point, null);
+        },
+      }
+    );
   }, [centerOnListingId, points]);
 
   useEffect(() => {
@@ -856,13 +923,21 @@ export default function DirectoryMap({
         if (!p) return;
         const pos = m.getPosition();
         if (!pos) return;
-        map.setCenter(pos);
-        map.setZoom(selectZoom);
-        if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
-        if (!onSelect) return;
-        const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
-        if (pixel) onSelect(p, pixel);
-        else onSelect(p, null);
+        const posLat = pos.lat();
+        const posLng = pos.lng();
+        animateMapCamera(
+          map,
+          cameraAnimRef,
+          { center: { lat: posLat, lng: posLng }, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
+          {
+            onComplete: () => {
+              if (!onSelect) return;
+              const pixel = latLngToMapDivPixel(map, posLat, posLng);
+              if (pixel) onSelect(p, pixel);
+              else onSelect(p, null);
+            },
+          }
+        );
       });
     });
 

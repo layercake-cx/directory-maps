@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-22 — [Production] Smooth pan/zoom transition on pin click and search selection
+
+**Branch/commit:** `fix/2026-08-22-smooth-pin-search-zoom`
+**Deployed by:** Claude (agent), at user's explicit request ("deploy this feature")
+
+### What changed
+- Clicking a map pin, or selecting a listing from the search bar / list panel, previously snapped the map instantly to the selected listing's center and zoom level. It now animates smoothly over ~1 second (eased pan, stepped zoom) via a new `animateMapCamera` helper in `src/components/DirectoryMap.jsx`, replacing the direct `map.setCenter`/`map.setZoom` calls in the marker-click handler and the `centerOnListingId` effect.
+- The `onSelect` callback (which positions the listing info card) now fires once the camera animation settles, so the card's screen position is computed against the final map view rather than the pre-animation one.
+- `DirectoryMap` is the single shared component behind both the admin map preview and the published/client embed, so this applies to both automatically — no separate admin-specific change needed.
+- Out of scope: the geocode/address search path (`cameraRequest` with `bounds`, e.g. typing a place name or using AI search) still snaps via `fitBounds`, since there's no straightforward way to animate a bounds-fit the same way; only the point-based center+zoom paths were changed.
+
+### Frontend
+- Deployed via merge to `main` (GitHub Pages auto-deploys on push to `main`, ~35s build).
+- Files: `src/components/DirectoryMap.jsx`.
+
+### Rollback plan
+- Revert the merge commit on `main` (or cherry-pick a revert of the single commit on `fix/2026-08-22-smooth-pin-search-zoom`). No migrations or Edge Functions involved.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] Manually verified in the browser against a live published map (real listings, real Google Maps): pin click and search-bar listing selection both animate smoothly and land on the correct listing with the info card positioned correctly
+- [x] Checked browser console — no new errors
+
+---
+
 ## 2026-08-20 — [Production] Per-listing logo upload on Map Data screen
 
 **Branch/commit:** `feat/2026-08-20-listing-logo-upload`, merged to `main` via [#112](https://github.com/layercake-cx/directory-maps/pull/112)
