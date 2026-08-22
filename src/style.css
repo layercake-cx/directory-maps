@@ -1690,17 +1690,22 @@ a:hover {
 }
 
 .embed-ai-response-drawer__bubble--user {
+  /* Fixed white/black for now, not tied to per-map theme config — the theme
+     vars (button color, search panel text) can combine into unreadable
+     white-on-white depending on what a client has configured. */
   align-self: flex-end;
-  background: var(--button-color, #4a9baa);
-  color: #fff;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
   border-bottom-right-radius: 4px;
 }
 
 .embed-ai-response-drawer__bubble--assistant {
+  /* Same reasoning as .bubble--user above — fixed, not theme-driven, for now. */
   align-self: flex-start;
-  background: var(--listing-bg, rgba(0, 0, 0, 0.06));
-  border: 1px solid var(--listing-border, transparent);
-  color: inherit;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #111827;
   border-bottom-left-radius: 4px;
 }
 
