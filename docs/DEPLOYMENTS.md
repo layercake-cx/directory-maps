@@ -8,6 +8,89 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-22 — [Production] Intent-Based AI Search (Epic 2) — multi-turn chat, drawer fixes, production rollout
+
+**Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema`, merged to `main` at user's explicit request
+**Deployed by:** Claude (agent), at user's explicit request ("run scripts on production and edge function & then PR and merge")
+
+### What changed since the staging entry below
+Extensive interactive testing on staging (real CSV import → enrichment → search) surfaced several issues, all fixed and re-verified on staging before this production push:
+- **Search became a real multi-turn chat, not one-shot Q&A.** `search_listings_by_intent` now takes the full conversation (`messages: [{role, content}]`) each call instead of a single `query`, and the model is instructed to ask one genuinely useful clarifying question when results are broad (e.g. "I'm based in Chiang Mai" narrows a country-wide match) rather than just describing everything found. The "Ask AI" drawer became an actual chat panel (message bubbles, its own composer) instead of a single response readout.
+- **Response tone fix**: the model was defaulting to a formulaic "no data + unrelated narrowing question" pattern even for sensitive queries (e.g. asked about accommodating an autistic child, got a flat "no" followed by "which region?"). System prompt now explicitly distinguishes clarifying questions that would *actually help* from asking one out of habit, and asks for warmth on sensitive personal topics instead of a dismissive pivot.
+- **UI regression, found and fixed twice**: opening the AI drawer could push the entire embed layout off-screen and made the pre-existing "Send message" drawer appear to pop out. Root cause (in two layers): (1) both drawers' closed panels sit off-screen via `transform`, but the fullscreen root never clipped horizontal overflow — fixed with `overflow: hidden`; (2) that alone wasn't enough because the closed panels' form inputs stayed focusable, and something could still focus into them and trigger the browser's native scroll-into-view, which isn't blocked by `overflow: hidden` — fixed by adding `inert` to both drawers while closed (React 19), which makes the whole closed subtree structurally unfocusable. Also made the two drawers mutually exclusive (opening either closes the other) since nothing previously stopped both being open at once. A third recurrence came from the new chat's own auto-scroll using `scrollIntoView()`, which can still walk up and scroll ancestors even past `inert`/`overflow:hidden` — replaced with a direct `scrollTop` assignment on the messages container, which never bubbles to ancestors.
+- Monday ticket: [Intent-Based AI Search (Epic 2)](https://layercake-cx.monday.com/boards/5094351513/pulses/3178113666) — full history of the debugging session is logged there.
+
+### Database migrations applied (production — `gxixwdjfmegxcxfeflro`)
+- Same four migrations as the staging entry below, applied via `supabase db push` after a `--dry-run` confirmed only these four were pending (production was otherwise already in sync with staging). All four `VERIFY PASSED`, no exceptions.
+
+### Edge functions deployed
+- **Production** (`gxixwdjfmegxcxfeflro`): `process_listing_enrichment` (default JWT verification) and `search_listings_by_intent` (`--no-verify-jwt`) — same deploy flags as staging, for the same reasons.
+- Both will fail every invocation until `ANTHROPIC_API_KEY` is set as a secret on the **production** project specifically (separate from the staging key, set manually via the dashboard by the user — Claude cannot set API key secrets).
+
+### Frontend
+- Merged to `main` via PR — deploys to production automatically via the GitHub Pages Action.
+- Everything is dark for existing customers regardless: the `ai_search` feature flag defaults off (`default_enabled: false`), so no new UI appears, nothing can be configured, and no tokens are spent until a platform admin explicitly grants the flag to a specific customer (or flips the global default). Customers already on Professional/Enterprise plans are entitlement-ready the moment their flag is granted — no plan change needed for them specifically.
+- Files: `src/components/PublishedMapView.jsx`, `src/lib/aiSearch.js`, `src/pages/EmbedMap.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/style.css`, `supabase/functions/search_listings_by_intent/index.ts`.
+
+### Rollback plan
+- Frontend: revert the merge commit on `main`.
+- Database: run the four rollback files in reverse order against production (see staging entry below for the exact order and their data-loss guards).
+- Edge functions: redeploy the prior versions, or leave in place — both fail closed (return `disabled: true` or log an error) rather than doing anything destructive when misconfigured.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] All 4 migrations applied to production with embedded `VERIFY PASSED` checks, no exceptions
+- [x] Edge functions deployed to production
+- [ ] `ANTHROPIC_API_KEY` secret set on production (user action required)
+- [ ] End-to-end smoke test on production (blocked on the secret above)
+- [x] Extensive end-to-end testing on staging: enrichment pipeline, multi-turn search, drawer collision fixes, response tone — all confirmed working before this production push
+
+---
+
+## 2026-08-22 — [Staging] Intent-Based AI Search (Epic 2) — schema, enrichment pipeline, search feature, entitlement
+
+**Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema` (not yet merged/opened as a PR)
+**Deployed by:** Claude (agent), at user's explicit request ("please deploy the migrations to staging")
+
+### What changed
+- New per-map admin setting (`maps.ai_search_enrichment_prompt`, Map Settings → Search tab, gated behind a new `ai_search` beta feature flag) describing what structured research to capture per listing.
+- New async enrichment pipeline: an `AFTER INSERT` trigger on `listings` enqueues a job (`listing_enrichment_jobs`) whenever a listing is added to a map with a prompt configured; a `pg_cron` dispatch (every 2 minutes) claims a small batch (`claim_pending_listing_enrichment_jobs()`, `FOR UPDATE SKIP LOCKED`) and calls the new `process_listing_enrichment` Edge Function, which asks Claude Haiku 4.5 to produce structured JSON (grounded to the listing's existing data only) stored in `listing_research`. Runs once per listing, on insert only — never silently re-runs on update.
+- New visitor-facing "Ask AI" intent search on the published/embed map (new `search_listings_by_intent` Edge Function) — separate from the existing plain-text substring search. Sends the map's listing corpus + stored research to Claude Haiku 4.5, gets back matching listing ids, and **validates every id against the map's real listings before responding** (a hallucinated id can never surface a listing that doesn't exist). Matches narrow both the markers and the panel list; the map auto-fits bounds to the results. Visibility flows through the existing publish-snapshot pipeline (`buildPublicationConfig`/`normalizePublicationConfig` → `EmbedMap.jsx`), so it only takes effect once published, like other map settings.
+- New commercial entitlement `features.maps.ai_search` (boolean): Professional plan and above, or Founding Partner (automatic), plus the existing generic per-client override mechanism (no new admin UI needed — `EntitlementsPanel.jsx` already manages any catalog feature). Enforced server-side in two places: the enrichment enqueue trigger (redefined to also check `resolve_ai_search_entitlement()`) and `search_listings_by_intent` itself.
+- Monday ticket: [Intent-Based AI Search (Epic 2)](https://layercake-cx.monday.com/boards/5094351513/pulses/3178113666).
+
+### Database migrations applied (staging only — `beqejxneehilplrtpntn`)
+- `20260821120000_create_ai_search_enrichment.sql` — `maps.ai_search_enrichment_prompt`, `listing_enrichment_jobs`, `listing_research`, opt-in-only enqueue trigger.
+- `20260821130000_ai_search_enrichment_worker_cron.sql` — `claim_pending_listing_enrichment_jobs()` + `process-listing-enrichment-dispatch` pg_cron job (every 2 minutes). Reuses the `project_url`/`anon_key` vault secrets already created for the Google Sheets sync cron.
+- `20260821140000_seed_ai_search_feature_flag.sql` — registers the `ai_search` beta flag.
+- `20260822120000_gate_ai_search_entitlement.sql` — `features.maps.ai_search` catalog + plan defaults + `resolve_ai_search_entitlement()` resolver; redefines `enqueue_listing_enrichment_job()` to also require the entitlement.
+- All four applied via `supabase db push` against staging; each migration's embedded pre/post-migration checks passed (`VERIFY PASSED` for all four, no exceptions raised). The separate generic integrity checklist from `docs/DATABASE_MIGRATIONS.md` (row counts/RLS/orphans across core tables) was **not** run as a standalone step this time — no `psql` or ad-hoc SQL runner was available in this environment, only each migration's own embedded checks.
+- **Not yet applied to production.**
+
+### Edge functions deployed
+- **Staging only** (`beqejxneehilplrtpntn`), 2026-08-22: `process_listing_enrichment` (default JWT verification — invoked only by the pg_cron dispatch using the vault `anon_key` secret, same pattern as `sync_sheet_listings`'s cron path) and `search_listings_by_intent` (`--no-verify-jwt` — invoked by anonymous embed visitors using the frontend's publishable key, same pattern as `send_contact_message`).
+- Both will fail every invocation until `ANTHROPIC_API_KEY` is set as a secret on the staging project (`process_listing_enrichment` logs the failure to `error_logs` and marks the job `failed`; `search_listings_by_intent` returns a 500 to the visitor).
+- **Not yet deployed to production.**
+
+### Frontend
+- Not yet deployed — this branch hasn't been merged to `main` (GitHub Pages only deploys on push to `main`).
+- Files: `src/components/PublishedMapView.jsx`, `src/pages/EmbedMap.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/pages/admin/AdminClientDetail.jsx`, `src/lib/featureFlags.js`, `src/lib/mapPublication.js`, `src/lib/aiSearch.js` (new).
+
+### Rollback plan
+- Run the four rollback files against staging, in reverse order: `_20260822120000_gate_ai_search_entitlement.rollback.sql`, `_20260821140000_seed_ai_search_feature_flag.rollback.sql`, `_20260821130000_ai_search_enrichment_worker_cron.rollback.sql`, `_20260821120000_create_ai_search_enrichment.rollback.sql`. Each has its own pre-rollback data-loss guard (e.g. the schema rollback refuses if `listing_research` has rows; the entitlement rollback refuses if any `client_overrides` exist for `ai_search`).
+- No frontend/production changes to revert — nothing has been merged to `main` or deployed to production yet.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] All 4 migrations applied to staging with embedded `VERIFY PASSED` checks, no exceptions
+- [ ] Generic row-count/RLS/orphan integrity checklist run separately (no SQL runner available this session)
+- [x] Edge functions deployed to staging
+- [ ] `ANTHROPIC_API_KEY` secret set on staging
+- [ ] End-to-end smoke test (import data → enrichment → Ask AI search) on staging
+- [ ] Production migrations, Edge Function deploys, and secret
+
+---
+
 ## 2026-08-22 — [Production] Pin/search selection zoom: step the zoom one level at a time instead of jumping
 
 **Branch/commit:** `fix/2026-08-22-cluster-style-pin-zoom`

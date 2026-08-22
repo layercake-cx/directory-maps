@@ -330,6 +330,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       clusterRadius: typeof src.cluster_radius === "number" ? src.cluster_radius : 80,
       customPinUrl: src.custom_pin_url ?? null,
       themeSource: src.theme_json ?? null,
+      aiSearchEnabled: !!src.ai_search_enabled,
     };
   }, [publicationConfig]);
 
@@ -478,7 +479,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   );
 
   const messageDrawer = (
-    <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen}>
+    <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen} inert={!messageDrawerOpen}>
       <div className="embed-message-drawer__backdrop" onClick={() => setMessageDrawerOpen(false)} aria-label="Close" />
       <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
         <div className="embed-message-drawer__header">
@@ -593,6 +594,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     <div className="embed-map-root">
         <PublishedMapView
           apiKey={apiKey}
+          mapId={mapId}
+          aiSearchEnabled={effectiveDefaults.aiSearchEnabled}
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
@@ -642,6 +645,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           centerOnListingId={centerOnListingId}
           setCenterOnListingId={setCenterOnListingId}
           showSendMessage={messagingEnabled}
+          onAiChatOpen={() => setMessageDrawerOpen(false)}
           onOpenSendMessage={() => {
             setMessageDrawerOpen(true);
             setContactFormSent(false);

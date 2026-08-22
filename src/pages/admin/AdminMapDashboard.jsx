@@ -24,9 +24,10 @@ import {
   DETAIL_LEVEL_LABELS,
   normalizeMapStyleSettings,
 } from "../../lib/mapStyleSettings.js";
+import { AI_SEARCH_FLAG, listClientFeatureOverrides } from "../../lib/featureFlags.js";
 
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters", "aisearch"];
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
   { label: "None", value: "" },
@@ -77,6 +78,7 @@ function tabLabel(t) {
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   if (t === "filters") return "Filters";
+  if (t === "aisearch") return "AI Search";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -247,6 +249,8 @@ export default function AdminMapDashboard() {
   const [pinSize, setPinSize] = useState("medium");
   const [markerColor, setMarkerColor] = useState("#4A9BAA");
   const [customPinUrl, setCustomPinUrl] = useState("");
+  const [aiSearchFlagEnabled, setAiSearchFlagEnabled] = useState(false);
+  const [aiSearchEnrichmentPrompt, setAiSearchEnrichmentPrompt] = useState("");
   const [clusterColor, setClusterColor] = useState("#4A9BAA");
   const [clusterOpacity, setClusterOpacity] = useState(100);
   const [pinBorderColor, setPinBorderColor] = useState("#ffffff");
@@ -555,9 +559,11 @@ export default function AdminMapDashboard() {
         setMsg("");
 
         let m = null;
-        const [{ data: c, error: ce }, listingsRes] = await Promise.all([
+        const [{ data: c, error: ce }, listingsRes, flagOverrides] = await Promise.all([
           supabase.from("clients").select("id,name,slug,email_test_mode,email_test_recipient").eq("id", clientId).single(),
           supabase.from("listings").select("id,name,lat,lng,group_id,is_active,logo_url,website_url,email,phone,address,country,notes_html,allow_html,logo_bg").eq("map_id", mapId),
+          // Optional: must not fail the map load if the feature-flag tables are on staging only.
+          listClientFeatureOverrides(clientId).catch(() => []),
         ]);
         let l = listingsRes.data;
         let le = listingsRes.error;
@@ -588,7 +594,7 @@ export default function AdminMapDashboard() {
         const { data: mapRow, error: me } = await supabase
           .from("maps")
           .select(
-            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at,current_publication_id",
+            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at,current_publication_id,ai_search_enrichment_prompt",
           )
           .eq("id", mapId)
           .single();
@@ -599,7 +605,8 @@ export default function AdminMapDashboard() {
           (msg.includes("cluster_radius") ||
             msg.includes("custom_pin_url") ||
             msg.includes("published_") ||
-            msg.includes("current_publication"))
+            msg.includes("current_publication") ||
+            msg.includes("ai_search_enrichment_prompt"))
         ) {
           const { data: mapRowFallback, error: me2 } = await supabase
             .from("maps")
@@ -636,6 +643,9 @@ export default function AdminMapDashboard() {
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
+          setAiSearchFlagEnabled(
+            (flagOverrides ?? []).some((o) => o.flag_key === AI_SEARCH_FLAG && o.enabled === true)
+          );
 
           setName(m.name ?? "");
           setSlug(m.slug ?? "");
@@ -648,6 +658,7 @@ export default function AdminMapDashboard() {
           setMarkerStyle(m.marker_style ?? "pin");
           setMarkerColor(m.marker_color ?? "#4A9BAA");
           setCustomPinUrl(m.custom_pin_url ?? "");
+          setAiSearchEnrichmentPrompt(m.ai_search_enrichment_prompt ?? "");
           try {
             const theme = typeof m.theme_json === "string" ? JSON.parse(m.theme_json || "{}") : m.theme_json || {};
             setClusterColor(theme.clusterColor ?? "#4A9BAA");
@@ -904,10 +915,11 @@ export default function AdminMapDashboard() {
         const payloadWithExtras = {
           ...payloadBase,
           cluster_radius: Math.max(20, Math.min(200, Number(clusterRadius) || 80)),
+          ai_search_enrichment_prompt: (aiSearchEnrichmentPrompt || "").trim() || null,
         };
         let { error } = await supabase.from("maps").update(payloadWithExtras).eq("id", mapId);
         const msg = String(error?.message || "");
-        if (error && (msg.includes("cluster_radius") || msg.includes("custom_pin_url"))) {
+        if (error && (msg.includes("cluster_radius") || msg.includes("custom_pin_url") || msg.includes("ai_search_enrichment_prompt"))) {
           ({ error } = await supabase.from("maps").update(payloadBase).eq("id", mapId));
         }
         if (error) throw error;
@@ -1389,6 +1401,7 @@ export default function AdminMapDashboard() {
         showSearch,
         showGroupDropdowns,
         showMapTitle,
+        aiSearchEnrichmentPromptSet: !!(aiSearchEnrichmentPrompt || "").trim(),
         mapThemeJsonBase: map?.theme_json,
         mapTypeId,
         mapStyleSettings,
@@ -2027,6 +2040,16 @@ export default function AdminMapDashboard() {
                 {tabLabel(t)}
               </button>
             ))}
+
+            {aiSearchFlagEnabled && (
+              <button
+                type="button"
+                className={`admin-map-page__tab ${overlayTab === "aisearch" ? "is-open" : ""}`}
+                onClick={() => openOverlay("aisearch")}
+              >
+                {tabLabel("aisearch")}
+              </button>
+            )}
 
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
@@ -2957,6 +2980,28 @@ export default function AdminMapDashboard() {
                       </ul>
                     )}
                     <button type="button" className="btn" onClick={() => openOverlay("filters")}>Manage filter fields</button>
+                  </div>
+                </div>
+              )}
+
+              {overlayTab === "aisearch" && aiSearchFlagEnabled && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div className="panel-section">
+                    <p className="panel-section__title">AI search enrichment (beta)</p>
+                    <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
+                      Describe the structured research to capture per listing. New listings are enriched
+                      automatically once this is set; existing listings only re-run when you trigger it
+                      manually. Leave blank to turn enrichment off for this map.
+                    </p>
+                    <Field label="Enrichment prompt">
+                      <textarea
+                        value={aiSearchEnrichmentPrompt}
+                        onChange={(e) => setAiSearchEnrichmentPrompt(e.target.value)}
+                        rows={20}
+                        placeholder="e.g. Capture: category, price range, accessibility notes, opening hours."
+                        style={{ width: "100%", minHeight: 360, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", fontSize: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--lc-border)" }}
+                      />
+                    </Field>
                   </div>
                 </div>
               )}

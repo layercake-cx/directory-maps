@@ -14,6 +14,7 @@ import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
   DIRECTORIES_FLAG,
+  AI_SEARCH_FLAG,
   listClientFeatureOverrides,
   setClientFeatureOverride,
   clearClientFeatureOverride,
@@ -53,6 +54,8 @@ export default function AdminClientDetail() {
   const [slug, setSlug] = useState("");
   const [subscriptionActiveOverride, setSubscriptionActiveOverride] = useState(false);
   const [directoriesFlagEnabled, setDirectoriesFlagEnabled] = useState(false);
+  const [aiSearchFlagEnabled, setAiSearchFlagEnabled] = useState(false);
+  const [aiSearchFlagSaving, setAiSearchFlagSaving] = useState(false);
   const [flagSaving, setFlagSaving] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -135,6 +138,9 @@ export default function AdminClientDetail() {
       setSubscriptionActiveOverride(!!c?.subscription_active_override);
       setDirectoriesFlagEnabled(
         (flagOverrides ?? []).some((o) => o.flag_key === DIRECTORIES_FLAG && o.enabled === true)
+      );
+      setAiSearchFlagEnabled(
+        (flagOverrides ?? []).some((o) => o.flag_key === AI_SEARCH_FLAG && o.enabled === true)
       );
       setContactName(primary?.name ?? "");
       setContactEmail(primary?.email ?? "");
@@ -318,6 +324,36 @@ export default function AdminClientDetail() {
       setErr(e.message ?? String(e));
     } finally {
       setFlagSaving(false);
+    }
+  }
+
+  async function handleToggleAiSearchFlag(next) {
+    setAiSearchFlagSaving(true);
+    setErr("");
+    setNotice("");
+    try {
+      if (next) {
+        await setClientFeatureOverride(clientId, AI_SEARCH_FLAG, true);
+      } else {
+        await clearClientFeatureOverride(clientId, AI_SEARCH_FLAG);
+      }
+      setAiSearchFlagEnabled(next);
+      recordEvent("ops_feature_flag_changed", {
+        actor_admin_scope: "platform_admin",
+        client_id: clientId,
+        flag: AI_SEARCH_FLAG,
+        enabled: next,
+        source: "admin_client_detail",
+      });
+      setNotice(
+        next
+          ? "AI search enabled for this customer."
+          : "AI search reset to the default (hidden for this customer)."
+      );
+    } catch (e) {
+      setErr(e.message ?? String(e));
+    } finally {
+      setAiSearchFlagSaving(false);
     }
   }
 
@@ -536,6 +572,22 @@ export default function AdminClientDetail() {
                       <strong>Directories &amp; Categorisations</strong>
                       <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
                         Show the Directories and Categorisations sections in this customer&apos;s portal.
+                        Saved immediately.
+                      </span>
+                    </span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: aiSearchFlagSaving ? "wait" : "pointer", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={aiSearchFlagEnabled}
+                      disabled={aiSearchFlagSaving}
+                      onChange={(e) => handleToggleAiSearchFlag(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <strong>AI search enrichment</strong>
+                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
+                        Show the AI search enrichment prompt setting on this customer&apos;s maps.
                         Saved immediately.
                       </span>
                     </span>

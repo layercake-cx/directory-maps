@@ -285,6 +285,37 @@ Depends on the SMTP configuration in Supabase Auth settings:
 
 ---
 
+## 10. Anthropic (Claude API)
+
+**Role:** AI search enrichment and (planned) intent-based natural-language search for directory maps.
+
+**What it is:** Server-side calls from two Supabase Edge Functions (never called from the browser) to the Anthropic Messages API — (1) `process_listing_enrichment`: when a listing is created on a map that has AI search enrichment configured, sends that listing's existing directory content to Claude Haiku 4.5, which returns a structured research summary stored back in Supabase; (2) `search_listings_by_intent`: when a map visitor submits an "Ask AI" query, sends the map's listing corpus (core fields + stored research) and the visitor's free-text query to Claude Haiku 4.5, which returns matching listing ids — validated server-side against the map's real listings before any result is shown. This integration is **in development, feature-flag gated** — not yet live for clients.
+
+### Data involved
+
+Each enrichment request sends:
+
+- **Listing content already stored in Supabase**: business name, address, city, postcode, country, website URL, and free-text notes (`listings.notes_html`, stripped of markup) — this is **listing subject** data (see People table above), not platform-user or map-visitor personal data.
+- The client's own admin-authored enrichment prompt (`maps.ai_search_enrichment_prompt`) describing what to extract — this is Layercake/client configuration text, not personal data.
+- **Search only**: the map visitor's free-text search query (capped at 500 characters) is sent to Anthropic as part of the search request. Comparable to the existing "Map engagement search queries" already logged to Supabase for the plain-text search box (see §1) — treat as map-visitor pseudonymous data, not tied to an account.
+- No account credentials or payment data is ever included in a request to Anthropic.
+
+The response (structured JSON research) is written back into Supabase (`listing_research`) and is not retained by Layercake Maps outside that table.
+
+### Processing location
+
+Anthropic PBC is a **US company**. API requests are processed on Anthropic's infrastructure.
+
+> **Action item:** Confirm Anthropic's current data-residency options and the exact current DPA/Commercial Terms link (see [anthropic.com/legal](https://www.anthropic.com/legal)) before this integration goes live for clients, and record the confirmed terms here.
+
+### Legal basis & agreements
+
+- Anthropic acts as a **data processor** for enrichment requests made under Layercake Maps' instruction.
+- Governed by Anthropic's Commercial Terms of Service and Data Processing Addendum (confirm exact current links — see action item above).
+- The API key (`ANTHROPIC_API_KEY`) is server-side only (Supabase Edge Function secret), never exposed to the browser.
+
+---
+
 ## Summary table — personal data by third party
 
 | Third party | Personal data shared | EU data processing | DPA available |
@@ -298,6 +329,7 @@ Depends on the SMTP configuration in Supabase Auth settings:
 | **Vercel** | Visitor IP, user-agent, request paths | Partial (global CDN, EU PoPs) | Yes |
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
 | **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
+| **Anthropic (Claude API)** | Listing content (name, address, notes) for enrichment; visitor search query text for search — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
 
 ---
 
@@ -342,4 +374,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-07-07 (Added HubSpot Forms — public landing page signup form now submits to HubSpot instead of Supabase). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-08-22 (Anthropic/Claude API entry extended to cover the intent search-query feature, in addition to enrichment — both in development/feature-flag gated). Maintained by the Layercake Maps engineering and privacy team.*
