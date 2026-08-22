@@ -8,6 +8,45 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-22 — [Production] Intent-Based AI Search (Epic 2) — multi-turn chat, drawer fixes, production rollout
+
+**Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema`, merged to `main` at user's explicit request
+**Deployed by:** Claude (agent), at user's explicit request ("run scripts on production and edge function & then PR and merge")
+
+### What changed since the staging entry below
+Extensive interactive testing on staging (real CSV import → enrichment → search) surfaced several issues, all fixed and re-verified on staging before this production push:
+- **Search became a real multi-turn chat, not one-shot Q&A.** `search_listings_by_intent` now takes the full conversation (`messages: [{role, content}]`) each call instead of a single `query`, and the model is instructed to ask one genuinely useful clarifying question when results are broad (e.g. "I'm based in Chiang Mai" narrows a country-wide match) rather than just describing everything found. The "Ask AI" drawer became an actual chat panel (message bubbles, its own composer) instead of a single response readout.
+- **Response tone fix**: the model was defaulting to a formulaic "no data + unrelated narrowing question" pattern even for sensitive queries (e.g. asked about accommodating an autistic child, got a flat "no" followed by "which region?"). System prompt now explicitly distinguishes clarifying questions that would *actually help* from asking one out of habit, and asks for warmth on sensitive personal topics instead of a dismissive pivot.
+- **UI regression, found and fixed twice**: opening the AI drawer could push the entire embed layout off-screen and made the pre-existing "Send message" drawer appear to pop out. Root cause (in two layers): (1) both drawers' closed panels sit off-screen via `transform`, but the fullscreen root never clipped horizontal overflow — fixed with `overflow: hidden`; (2) that alone wasn't enough because the closed panels' form inputs stayed focusable, and something could still focus into them and trigger the browser's native scroll-into-view, which isn't blocked by `overflow: hidden` — fixed by adding `inert` to both drawers while closed (React 19), which makes the whole closed subtree structurally unfocusable. Also made the two drawers mutually exclusive (opening either closes the other) since nothing previously stopped both being open at once. A third recurrence came from the new chat's own auto-scroll using `scrollIntoView()`, which can still walk up and scroll ancestors even past `inert`/`overflow:hidden` — replaced with a direct `scrollTop` assignment on the messages container, which never bubbles to ancestors.
+- Monday ticket: [Intent-Based AI Search (Epic 2)](https://layercake-cx.monday.com/boards/5094351513/pulses/3178113666) — full history of the debugging session is logged there.
+
+### Database migrations applied (production — `gxixwdjfmegxcxfeflro`)
+- Same four migrations as the staging entry below, applied via `supabase db push` after a `--dry-run` confirmed only these four were pending (production was otherwise already in sync with staging). All four `VERIFY PASSED`, no exceptions.
+
+### Edge functions deployed
+- **Production** (`gxixwdjfmegxcxfeflro`): `process_listing_enrichment` (default JWT verification) and `search_listings_by_intent` (`--no-verify-jwt`) — same deploy flags as staging, for the same reasons.
+- Both will fail every invocation until `ANTHROPIC_API_KEY` is set as a secret on the **production** project specifically (separate from the staging key, set manually via the dashboard by the user — Claude cannot set API key secrets).
+
+### Frontend
+- Merged to `main` via PR — deploys to production automatically via the GitHub Pages Action.
+- Everything is dark for existing customers regardless: the `ai_search` feature flag defaults off (`default_enabled: false`), so no new UI appears, nothing can be configured, and no tokens are spent until a platform admin explicitly grants the flag to a specific customer (or flips the global default). Customers already on Professional/Enterprise plans are entitlement-ready the moment their flag is granted — no plan change needed for them specifically.
+- Files: `src/components/PublishedMapView.jsx`, `src/lib/aiSearch.js`, `src/pages/EmbedMap.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/style.css`, `supabase/functions/search_listings_by_intent/index.ts`.
+
+### Rollback plan
+- Frontend: revert the merge commit on `main`.
+- Database: run the four rollback files in reverse order against production (see staging entry below for the exact order and their data-loss guards).
+- Edge functions: redeploy the prior versions, or leave in place — both fail closed (return `disabled: true` or log an error) rather than doing anything destructive when misconfigured.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] All 4 migrations applied to production with embedded `VERIFY PASSED` checks, no exceptions
+- [x] Edge functions deployed to production
+- [ ] `ANTHROPIC_API_KEY` secret set on production (user action required)
+- [ ] End-to-end smoke test on production (blocked on the secret above)
+- [x] Extensive end-to-end testing on staging: enrichment pipeline, multi-turn search, drawer collision fixes, response tone — all confirmed working before this production push
+
+---
+
 ## 2026-08-22 — [Staging] Intent-Based AI Search (Epic 2) — schema, enrichment pipeline, search feature, entitlement
 
 **Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema` (not yet merged/opened as a PR)

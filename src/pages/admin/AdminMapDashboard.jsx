@@ -27,7 +27,7 @@ import {
 import { AI_SEARCH_FLAG, listClientFeatureOverrides } from "../../lib/featureFlags.js";
 
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters", "aisearch"];
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
   { label: "None", value: "" },
@@ -78,6 +78,7 @@ function tabLabel(t) {
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   if (t === "filters") return "Filters";
+  if (t === "aisearch") return "AI Search";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -2040,6 +2041,16 @@ export default function AdminMapDashboard() {
               </button>
             ))}
 
+            {aiSearchFlagEnabled && (
+              <button
+                type="button"
+                className={`admin-map-page__tab ${overlayTab === "aisearch" ? "is-open" : ""}`}
+                onClick={() => openOverlay("aisearch")}
+              >
+                {tabLabel("aisearch")}
+              </button>
+            )}
+
             <div className="admin-map-page__controls-footer">
               <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
                 Preview Map
@@ -2970,26 +2981,28 @@ export default function AdminMapDashboard() {
                     )}
                     <button type="button" className="btn" onClick={() => openOverlay("filters")}>Manage filter fields</button>
                   </div>
+                </div>
+              )}
 
-                  {aiSearchFlagEnabled && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">AI search enrichment (beta)</p>
-                      <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
-                        Describe the structured research to capture per listing. New listings are enriched
-                        automatically once this is set; existing listings only re-run when you trigger it
-                        manually. Leave blank to turn enrichment off for this map.
-                      </p>
-                      <Field label="Enrichment prompt">
-                        <textarea
-                          value={aiSearchEnrichmentPrompt}
-                          onChange={(e) => setAiSearchEnrichmentPrompt(e.target.value)}
-                          rows={6}
-                          placeholder="e.g. Capture: category, price range, accessibility notes, opening hours."
-                          style={{ width: "100%", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", fontSize: 14, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--lc-border)" }}
-                        />
-                      </Field>
-                    </div>
-                  )}
+              {overlayTab === "aisearch" && aiSearchFlagEnabled && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div className="panel-section">
+                    <p className="panel-section__title">AI search enrichment (beta)</p>
+                    <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
+                      Describe the structured research to capture per listing. New listings are enriched
+                      automatically once this is set; existing listings only re-run when you trigger it
+                      manually. Leave blank to turn enrichment off for this map.
+                    </p>
+                    <Field label="Enrichment prompt">
+                      <textarea
+                        value={aiSearchEnrichmentPrompt}
+                        onChange={(e) => setAiSearchEnrichmentPrompt(e.target.value)}
+                        rows={20}
+                        placeholder="e.g. Capture: category, price range, accessibility notes, opening hours."
+                        style={{ width: "100%", minHeight: 360, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", fontSize: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--lc-border)" }}
+                      />
+                    </Field>
+                  </div>
                 </div>
               )}
 

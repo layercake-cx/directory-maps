@@ -479,7 +479,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   );
 
   const messageDrawer = (
-    <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen}>
+    <div className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`} aria-hidden={!messageDrawerOpen} inert={!messageDrawerOpen}>
       <div className="embed-message-drawer__backdrop" onClick={() => setMessageDrawerOpen(false)} aria-label="Close" />
       <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
         <div className="embed-message-drawer__header">
@@ -645,6 +645,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           centerOnListingId={centerOnListingId}
           setCenterOnListingId={setCenterOnListingId}
           showSendMessage={messagingEnabled}
+          onAiChatOpen={() => setMessageDrawerOpen(false)}
           onOpenSendMessage={() => {
             setMessageDrawerOpen(true);
             setContactFormSent(false);
