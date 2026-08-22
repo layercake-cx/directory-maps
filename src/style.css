@@ -1623,7 +1623,8 @@ a:hover {
   bottom: 0;
   width: min(380px, 100vw);
   max-width: 100%;
-  background: var(--panel-bg, rgba(255, 255, 255, 0.98));
+  background: var(--search-panel-bg, rgba(255, 255, 255, 0.98));
+  color: var(--search-panel-text, #111827);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
@@ -1641,7 +1642,7 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--listing-border, rgba(0, 0, 0, 0.08));
   flex-shrink: 0;
 }
 
@@ -1649,6 +1650,7 @@ a:hover {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: inherit;
 }
 
 .embed-ai-response-drawer__close {
@@ -1658,13 +1660,14 @@ a:hover {
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
-  color: #6b7280;
+  color: inherit;
+  opacity: 0.6;
   border-radius: 8px;
 }
 
 .embed-ai-response-drawer__close:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #111;
+  background: rgba(127, 127, 127, 0.15);
+  opacity: 1;
 }
 
 .embed-ai-response-drawer__messages {
@@ -1695,8 +1698,9 @@ a:hover {
 
 .embed-ai-response-drawer__bubble--assistant {
   align-self: flex-start;
-  background: rgba(0, 0, 0, 0.06);
-  color: #1f2937;
+  background: var(--listing-bg, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--listing-border, transparent);
+  color: inherit;
   border-bottom-left-radius: 4px;
 }
 
@@ -1717,7 +1721,7 @@ a:hover {
   display: flex;
   gap: 6px;
   padding: 12px 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--listing-border, rgba(0, 0, 0, 0.08));
   flex-shrink: 0;
 }
 

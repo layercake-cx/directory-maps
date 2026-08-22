@@ -101,7 +101,7 @@ async function processJob(service: ReturnType<typeof createServiceClient>, apiKe
   const [{ data: listing, error: listingErr }, { data: map, error: mapErr }] = await Promise.all([
     service
       .from("listings")
-      .select("id, name, address, postcode, country, city, website_url, notes_html")
+      .select("id, name, address, postcode, country, website_url, notes_html")
       .eq("id", job.listing_id)
       .maybeSingle(),
     service.from("maps").select("ai_search_enrichment_prompt").eq("id", job.map_id).maybeSingle(),
@@ -115,7 +115,6 @@ async function processJob(service: ReturnType<typeof createServiceClient>, apiKe
   const listingText = [
     `Name: ${listing.name}`,
     listing.address ? `Address: ${listing.address}` : null,
-    listing.city ? `City: ${listing.city}` : null,
     listing.postcode ? `Postcode: ${listing.postcode}` : null,
     listing.country ? `Country: ${listing.country}` : null,
     listing.website_url ? `Website: ${listing.website_url}` : null,
