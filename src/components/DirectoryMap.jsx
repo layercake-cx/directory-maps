@@ -128,65 +128,52 @@ function latLngToMapDivPixel(map, lat, lng) {
 }
 
 /**
- * Smoothly animates the map's center/zoom over `duration` ms (Google Maps' own
- * setCenter/setZoom are instant, and panTo only animates the pan, not the zoom).
- * `animRef` is a ref used to cancel a prior in-flight animation if a new one starts
- * before it finishes. `onComplete` fires once the camera has settled, so callers that
- * need the final on-screen pixel of a lat/lng (e.g. to position a popup) get an accurate one.
+ * Pans/zooms the map onto a selected listing, then fires `onComplete` once the camera
+ * has settled. Google Maps has no native smooth zoom — setZoom always snaps instantly,
+ * and panTo only animates the pan — so the zoom is stepped one level at a time (the same
+ * technique behind Google Maps' own double-click zoom) to read as gradual rather than an
+ * instant jump. `stateRef` cancels an in-flight step sequence if a new selection arrives
+ * before it finishes.
  */
-function animateMapCamera(map, animRef, { center, zoom, panOffsetX = 0, panOffsetY = 0 }, { duration = 1000, onComplete } = {}) {
-  if (animRef.current) animRef.current.cancelled = true;
+function panZoomToSelection(map, stateRef, { center, zoom, panOffsetX = 0, panOffsetY = 0 }, onComplete) {
+  if (stateRef.current) stateRef.current.cancelled = true;
+  const state = { cancelled: false };
+  stateRef.current = state;
 
-  const startCenter = map.getCenter();
-  const startZoom = map.getZoom();
-  if (!startCenter || startZoom == null || typeof zoom !== "number") {
-    map.setCenter(center);
-    if (typeof zoom === "number") map.setZoom(zoom);
+  map.panTo(center);
+
+  function finish() {
     if (panOffsetX || panOffsetY) map.panBy(panOffsetX, panOffsetY);
-    animRef.current = null;
-    onComplete?.();
+    if (stateRef.current === state) stateRef.current = null;
+    if (!onComplete) return;
+    const idleListener = map.addListener("idle", () => {
+      window.google.maps.event.removeListener(idleListener);
+      if (!state.cancelled) onComplete();
+    });
+  }
+
+  const startZoom = map.getZoom();
+  if (startZoom == null || startZoom === zoom) {
+    map.setZoom(zoom);
+    finish();
     return;
   }
 
-  const state = { cancelled: false };
-  animRef.current = state;
+  const step = zoom > startZoom ? 1 : -1;
+  let current = startZoom;
 
-  const startLat = startCenter.lat();
-  const startLng = startCenter.lng();
-  const endLat = center.lat;
-  const endLng = center.lng;
-  const startTime = performance.now();
-  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-  let lastRoundedZoom = startZoom;
-
-  function step(now) {
+  function stepZoom() {
     if (state.cancelled) return;
-    const t = Math.min(1, (now - startTime) / duration);
-    const eased = easeInOutCubic(t);
-
-    map.setCenter({
-      lat: startLat + (endLat - startLat) * eased,
-      lng: startLng + (endLng - startLng) * eased,
-    });
-    const roundedZoom = Math.round(startZoom + (zoom - startZoom) * eased);
-    if (roundedZoom !== lastRoundedZoom) {
-      map.setZoom(roundedZoom);
-      lastRoundedZoom = roundedZoom;
-    }
-
-    if (t < 1) {
-      requestAnimationFrame(step);
+    current += step;
+    map.setZoom(current);
+    if (current === zoom) {
+      finish();
       return;
     }
-
-    map.setCenter({ lat: endLat, lng: endLng });
-    if (lastRoundedZoom !== zoom) map.setZoom(zoom);
-    if (panOffsetX || panOffsetY) map.panBy(panOffsetX, panOffsetY);
-    if (animRef.current === state) animRef.current = null;
-    onComplete?.();
+    setTimeout(stepZoom, 150);
   }
 
-  requestAnimationFrame(step);
+  setTimeout(stepZoom, 150);
 }
 
 function attachZoomSliderControl(map, showZoomSlider) {
@@ -527,7 +514,7 @@ export default function DirectoryMap({
   const trafficLayerRef = useRef(null);
   const transitLayerRef = useRef(null);
   const bikeLayerRef = useRef(null);
-  const cameraAnimRef = useRef(null);
+  const panZoomStateRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoomDisplay, setCurrentZoomDisplay] = useState(null);
   // Natural pixel size of each custom pin icon URL currently in use, so it can be scaled
@@ -546,17 +533,15 @@ export default function DirectoryMap({
 
     const map = mapRef.current;
     const pos = { lat: Number(point.lat), lng: Number(point.lng) };
-    animateMapCamera(
+    panZoomToSelection(
       map,
-      cameraAnimRef,
+      panZoomStateRef,
       { center: pos, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
-      {
-        onComplete: () => {
-          if (!onSelect) return;
-          const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
-          if (pixel) onSelect(point, pixel);
-          else onSelect(point, null);
-        },
+      () => {
+        if (!onSelect) return;
+        const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
+        if (pixel) onSelect(point, pixel);
+        else onSelect(point, null);
       }
     );
   }, [centerOnListingId, points]);
@@ -925,17 +910,15 @@ export default function DirectoryMap({
         if (!pos) return;
         const posLat = pos.lat();
         const posLng = pos.lng();
-        animateMapCamera(
+        panZoomToSelection(
           map,
-          cameraAnimRef,
+          panZoomStateRef,
           { center: { lat: posLat, lng: posLng }, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
-          {
-            onComplete: () => {
-              if (!onSelect) return;
-              const pixel = latLngToMapDivPixel(map, posLat, posLng);
-              if (pixel) onSelect(p, pixel);
-              else onSelect(p, null);
-            },
+          () => {
+            if (!onSelect) return;
+            const pixel = latLngToMapDivPixel(map, posLat, posLng);
+            if (pixel) onSelect(p, pixel);
+            else onSelect(p, null);
           }
         );
       });
