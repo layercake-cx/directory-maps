@@ -13,6 +13,7 @@ import { supabase } from "./supabase";
  */
 
 export const DIRECTORIES_FLAG = "directories";
+export const AI_SEARCH_FLAG = "ai_search";
 
 const INTERNAL_EMAIL_DOMAIN = "layercake-cx.biz";
 

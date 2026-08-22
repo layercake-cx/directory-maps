@@ -8,6 +8,50 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-22 — [Staging] Intent-Based AI Search (Epic 2) — schema, enrichment pipeline, search feature, entitlement
+
+**Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema` (not yet merged/opened as a PR)
+**Deployed by:** Claude (agent), at user's explicit request ("please deploy the migrations to staging")
+
+### What changed
+- New per-map admin setting (`maps.ai_search_enrichment_prompt`, Map Settings → Search tab, gated behind a new `ai_search` beta feature flag) describing what structured research to capture per listing.
+- New async enrichment pipeline: an `AFTER INSERT` trigger on `listings` enqueues a job (`listing_enrichment_jobs`) whenever a listing is added to a map with a prompt configured; a `pg_cron` dispatch (every 2 minutes) claims a small batch (`claim_pending_listing_enrichment_jobs()`, `FOR UPDATE SKIP LOCKED`) and calls the new `process_listing_enrichment` Edge Function, which asks Claude Haiku 4.5 to produce structured JSON (grounded to the listing's existing data only) stored in `listing_research`. Runs once per listing, on insert only — never silently re-runs on update.
+- New visitor-facing "Ask AI" intent search on the published/embed map (new `search_listings_by_intent` Edge Function) — separate from the existing plain-text substring search. Sends the map's listing corpus + stored research to Claude Haiku 4.5, gets back matching listing ids, and **validates every id against the map's real listings before responding** (a hallucinated id can never surface a listing that doesn't exist). Matches narrow both the markers and the panel list; the map auto-fits bounds to the results. Visibility flows through the existing publish-snapshot pipeline (`buildPublicationConfig`/`normalizePublicationConfig` → `EmbedMap.jsx`), so it only takes effect once published, like other map settings.
+- New commercial entitlement `features.maps.ai_search` (boolean): Professional plan and above, or Founding Partner (automatic), plus the existing generic per-client override mechanism (no new admin UI needed — `EntitlementsPanel.jsx` already manages any catalog feature). Enforced server-side in two places: the enrichment enqueue trigger (redefined to also check `resolve_ai_search_entitlement()`) and `search_listings_by_intent` itself.
+- Monday ticket: [Intent-Based AI Search (Epic 2)](https://layercake-cx.monday.com/boards/5094351513/pulses/3178113666).
+
+### Database migrations applied (staging only — `beqejxneehilplrtpntn`)
+- `20260821120000_create_ai_search_enrichment.sql` — `maps.ai_search_enrichment_prompt`, `listing_enrichment_jobs`, `listing_research`, opt-in-only enqueue trigger.
+- `20260821130000_ai_search_enrichment_worker_cron.sql` — `claim_pending_listing_enrichment_jobs()` + `process-listing-enrichment-dispatch` pg_cron job (every 2 minutes). Reuses the `project_url`/`anon_key` vault secrets already created for the Google Sheets sync cron.
+- `20260821140000_seed_ai_search_feature_flag.sql` — registers the `ai_search` beta flag.
+- `20260822120000_gate_ai_search_entitlement.sql` — `features.maps.ai_search` catalog + plan defaults + `resolve_ai_search_entitlement()` resolver; redefines `enqueue_listing_enrichment_job()` to also require the entitlement.
+- All four applied via `supabase db push` against staging; each migration's embedded pre/post-migration checks passed (`VERIFY PASSED` for all four, no exceptions raised). The separate generic integrity checklist from `docs/DATABASE_MIGRATIONS.md` (row counts/RLS/orphans across core tables) was **not** run as a standalone step this time — no `psql` or ad-hoc SQL runner was available in this environment, only each migration's own embedded checks.
+- **Not yet applied to production.**
+
+### Edge functions deployed
+- **Staging only** (`beqejxneehilplrtpntn`), 2026-08-22: `process_listing_enrichment` (default JWT verification — invoked only by the pg_cron dispatch using the vault `anon_key` secret, same pattern as `sync_sheet_listings`'s cron path) and `search_listings_by_intent` (`--no-verify-jwt` — invoked by anonymous embed visitors using the frontend's publishable key, same pattern as `send_contact_message`).
+- Both will fail every invocation until `ANTHROPIC_API_KEY` is set as a secret on the staging project (`process_listing_enrichment` logs the failure to `error_logs` and marks the job `failed`; `search_listings_by_intent` returns a 500 to the visitor).
+- **Not yet deployed to production.**
+
+### Frontend
+- Not yet deployed — this branch hasn't been merged to `main` (GitHub Pages only deploys on push to `main`).
+- Files: `src/components/PublishedMapView.jsx`, `src/pages/EmbedMap.jsx`, `src/pages/admin/AdminMapDashboard.jsx`, `src/pages/admin/AdminClientDetail.jsx`, `src/lib/featureFlags.js`, `src/lib/mapPublication.js`, `src/lib/aiSearch.js` (new).
+
+### Rollback plan
+- Run the four rollback files against staging, in reverse order: `_20260822120000_gate_ai_search_entitlement.rollback.sql`, `_20260821140000_seed_ai_search_feature_flag.rollback.sql`, `_20260821130000_ai_search_enrichment_worker_cron.rollback.sql`, `_20260821120000_create_ai_search_enrichment.rollback.sql`. Each has its own pre-rollback data-loss guard (e.g. the schema rollback refuses if `listing_research` has rows; the entitlement rollback refuses if any `client_overrides` exist for `ai_search`).
+- No frontend/production changes to revert — nothing has been merged to `main` or deployed to production yet.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] All 4 migrations applied to staging with embedded `VERIFY PASSED` checks, no exceptions
+- [ ] Generic row-count/RLS/orphan integrity checklist run separately (no SQL runner available this session)
+- [x] Edge functions deployed to staging
+- [ ] `ANTHROPIC_API_KEY` secret set on staging
+- [ ] End-to-end smoke test (import data → enrichment → Ask AI search) on staging
+- [ ] Production migrations, Edge Function deploys, and secret
+
+---
+
 ## 2026-08-20 — [Production] Per-listing logo upload on Map Data screen
 
 **Branch/commit:** `feat/2026-08-20-listing-logo-upload`, merged to `main` via [#112](https://github.com/layercake-cx/directory-maps/pull/112)

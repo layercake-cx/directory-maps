@@ -330,6 +330,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       clusterRadius: typeof src.cluster_radius === "number" ? src.cluster_radius : 80,
       customPinUrl: src.custom_pin_url ?? null,
       themeSource: src.theme_json ?? null,
+      aiSearchEnabled: !!src.ai_search_enabled,
     };
   }, [publicationConfig]);
 
@@ -593,6 +594,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     <div className="embed-map-root">
         <PublishedMapView
           apiKey={apiKey}
+          mapId={mapId}
+          aiSearchEnabled={effectiveDefaults.aiSearchEnabled}
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
