@@ -41,7 +41,6 @@ type Listing = {
   id: string;
   name: string;
   address: string | null;
-  city: string | null;
   postcode: string | null;
   country: string | null;
   lat: number | null;
@@ -51,11 +50,15 @@ type Listing = {
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function buildListingBlock(listing: Listing, research: Record<string, unknown> | null): string {
-  const location = [listing.address, listing.city, listing.postcode, listing.country].filter(Boolean).join(", ");
+  const location = [listing.address, listing.postcode, listing.country].filter(Boolean).join(", ");
+  const hasCoords = typeof listing.lat === "number" && typeof listing.lng === "number";
   const lines = [
     `id: ${listing.id}`,
     `name: ${listing.name}`,
     location ? `location: ${location}` : null,
+    // Raw coordinates so distance/proximity questions can be reasoned about numerically
+    // instead of guessed from place names alone (e.g. "near Bangkok" vs "in Thailand").
+    hasCoords ? `coordinates: ${listing.lat!.toFixed(4)}, ${listing.lng!.toFixed(4)}` : null,
     research ? `research: ${JSON.stringify(research)}` : null,
   ].filter(Boolean);
   return lines.join(" | ");
@@ -105,7 +108,15 @@ async function callClaude(apiKey: string, corpus: string, conversation: ChatMess
         "private/flexible visits) might make them more likely to accommodate — without overstating what isn't " +
         "evidenced. Match your tone to the visitor's; be especially warm and careful when they mention a child, a " +
         "health or access need, or another sensitive personal circumstance — a flat 'no' followed by a routine " +
-        `narrowing question reads as tone-deaf there. Respond only by calling the ${TOOL_NAME} tool, every turn.\n\n` +
+        "narrowing question reads as tone-deaf there. " +
+        "When a visitor asks for something 'near' a place, reason from the numeric coordinates given for each " +
+        "listing, not from loose impressions of place names — two listings can be in the same country and still be " +
+        "many hours apart. listing_ids should only include what's genuinely near what they asked for; don't pad it " +
+        "with the 'closest of the rest' if that's still an impractical distance for what they're asking (e.g. a " +
+        "day trip). If only one listing is genuinely close, say that plainly, and only mention that other listings " +
+        "exist in other regions as separate context — don't include those distant ones in listing_ids just to " +
+        "avoid a short answer.\n\n" +
+        `Respond only by calling the ${TOOL_NAME} tool, every turn.\n\n` +
         `Listings on this map:\n${corpus}`,
       tools: [
         {
@@ -201,7 +212,7 @@ Deno.serve(async (req) => {
 
     const { data: listings, error: listingsErr } = await service
       .from("listings")
-      .select("id, name, address, city, postcode, country, lat, lng")
+      .select("id, name, address, postcode, country, lat, lng")
       .eq("map_id", mapId)
       .eq("is_active", true)
       .order("name", { ascending: true })

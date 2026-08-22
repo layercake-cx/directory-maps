@@ -1014,6 +1014,7 @@ export default function PublishedMapView({
         ["--search-panel-text"]: searchPanelTextColor,
         ["--listing-bg"]: listingBg,
         ["--listing-border"]: listingBorder,
+        ["--button-color"]: buttonColor,
       }}
     >
       <DirectoryMap
@@ -1586,7 +1587,7 @@ export default function PublishedMapView({
               onChange={(e) => setAiQuery(e.target.value)}
               placeholder="Reply…"
               disabled={aiSearching}
-              style={{ flex: 1, minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--lc-border, #d1d5db)", fontSize: 13 }}
+              style={{ flex: 1, minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--listing-border, #d1d5db)", background: "var(--search-panel-bg, #fff)", color: "var(--search-panel-text, #111827)", fontSize: 13 }}
             />
             <button
               type="submit"
