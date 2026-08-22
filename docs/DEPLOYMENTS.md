@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-22 — [Production] Replace jerky custom pin/search zoom animation with the cluster-zoom pattern
+
+**Branch/commit:** `fix/2026-08-22-cluster-style-pin-zoom`
+**Deployed by:** Claude (agent), at user's explicit request ("look for the logic that zooms into a cluster when clicked and use the same logic as that")
+
+### What changed
+- The previous fix (below, same day) added a custom `requestAnimationFrame`-driven `animateMapCamera` helper that interpolated center/zoom over ~1s with manual easing and rounded integer zoom steps. In practice this looked jerky — fighting Google Maps' own rendering rather than working with it.
+- Replaced it with `panZoomToSelection`, which mirrors the map's existing cluster-click zoom-in behaviour exactly: `map.panTo(center)` + `map.setZoom(zoom)` (Google's native smooth pan, immediate zoom), then an `idle` listener before firing the completion callback — the same pattern already used for `onClusterClick` in the same file. Applied to both the marker-click handler and the `centerOnListingId` effect (search bar / list panel selection).
+- Net effect: same behaviour goal (pin click / search selection settles onto the target smoothly instead of an instant jump), but using the map library's own transition instead of a hand-rolled one, so it's visually consistent with how cluster zoom already looks.
+
+### Frontend
+- Deployed via merge to `main` (GitHub Pages auto-deploys on push to `main`, ~35s build).
+- Files: `src/components/DirectoryMap.jsx`.
+
+### Rollback plan
+- Revert the merge commit on `main`. No migrations or Edge Functions involved.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] Manually verified in the browser against a live published map: pin click now pans/zooms the same way a cluster zoom-in does, and the info card lands correctly after the camera settles
+- [ ] User sign-off that it no longer looks jerky
+
+---
+
 ## 2026-08-22 — [Production] Smooth pan/zoom transition on pin click and search selection
 
 **Branch/commit:** `fix/2026-08-22-smooth-pin-search-zoom`
