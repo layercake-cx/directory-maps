@@ -91,6 +91,59 @@ Extensive interactive testing on staging (real CSV import → enrichment → sea
 
 ---
 
+## 2026-08-22 — [Production] Pin/search selection zoom: step the zoom one level at a time instead of jumping
+
+**Branch/commit:** `fix/2026-08-22-cluster-style-pin-zoom`
+**Deployed by:** Claude (agent), at user's explicit request ("deploy this feature" / "merge", then two rounds of "doesn't look right" feedback)
+
+### What changed
+This went through three iterations before landing:
+1. A custom `requestAnimationFrame`-driven `animateMapCamera` helper interpolating center/zoom over ~1s with manual easing. User feedback: looked **jerky** — calling `setCenter` every frame (60/s) forces a full map re-render each time, fighting Google Maps' own rendering.
+2. Mirrored the map's existing cluster-click zoom-in pattern instead: `map.panTo(center)` + `map.setZoom(zoom)`. User feedback: this **jumped instantly**, no transition at all — turns out `setZoom` never animates in the Google Maps JS API (there's no native smooth zoom), and the cluster-click code this was copied from has the same instant-zoom behaviour; it was never actually smooth, it just wasn't the focus of previous testing.
+3. Final approach — `panZoomToSelection` steps the zoom **one level at a time** (150ms apart) toward the target, the same technique behind Google Maps' own repeated-double-click zoom, combined with `panTo` for the pan. This isn't a continuous ease, but it visibly reads as gradual rather than an instant jump, and avoids the per-frame re-render cost that caused (1)'s jank. Manually verified by capturing a mid-transition screenshot showing the zoom partway through its steps, not yet at the final level.
+- Applied to both the marker-click handler and the `centerOnListingId` effect (search bar / list panel selection). The `onSelect` callback (positions the listing info card) fires once the sequence settles and the map reports `idle`.
+- `DirectoryMap` is shared by both the admin preview and the published/client embed, so this applies to both.
+- Cluster-click zoom-in itself was left unchanged (out of scope) — it still snaps its zoom instantly, same as before this whole investigation started.
+
+### Frontend
+- Deployed via merge to `main` (GitHub Pages auto-deploys on push to `main`, ~35s build).
+- Files: `src/components/DirectoryMap.jsx`.
+
+### Rollback plan
+- Revert the merge commit on `main`. No migrations or Edge Functions involved.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] Manually verified in the browser against a live published map: captured an actual mid-transition frame showing the zoom stepping through intermediate levels before settling; info card lands correctly on the right listing afterwards
+- [ ] User sign-off that this reads as smooth/gradual
+
+---
+
+## 2026-08-22 — [Production] Smooth pan/zoom transition on pin click and search selection
+
+**Branch/commit:** `fix/2026-08-22-smooth-pin-search-zoom`
+**Deployed by:** Claude (agent), at user's explicit request ("deploy this feature")
+
+### What changed
+- Clicking a map pin, or selecting a listing from the search bar / list panel, previously snapped the map instantly to the selected listing's center and zoom level. It now animates smoothly over ~1 second (eased pan, stepped zoom) via a new `animateMapCamera` helper in `src/components/DirectoryMap.jsx`, replacing the direct `map.setCenter`/`map.setZoom` calls in the marker-click handler and the `centerOnListingId` effect.
+- The `onSelect` callback (which positions the listing info card) now fires once the camera animation settles, so the card's screen position is computed against the final map view rather than the pre-animation one.
+- `DirectoryMap` is the single shared component behind both the admin map preview and the published/client embed, so this applies to both automatically — no separate admin-specific change needed.
+- Out of scope: the geocode/address search path (`cameraRequest` with `bounds`, e.g. typing a place name or using AI search) still snaps via `fitBounds`, since there's no straightforward way to animate a bounds-fit the same way; only the point-based center+zoom paths were changed.
+
+### Frontend
+- Deployed via merge to `main` (GitHub Pages auto-deploys on push to `main`, ~35s build).
+- Files: `src/components/DirectoryMap.jsx`.
+
+### Rollback plan
+- Revert the merge commit on `main` (or cherry-pick a revert of the single commit on `fix/2026-08-22-smooth-pin-search-zoom`). No migrations or Edge Functions involved.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] Manually verified in the browser against a live published map (real listings, real Google Maps): pin click and search-bar listing selection both animate smoothly and land on the correct listing with the info card positioned correctly
+- [x] Checked browser console — no new errors
+
+---
+
 ## 2026-08-20 — [Production] Per-listing logo upload on Map Data screen
 
 **Branch/commit:** `feat/2026-08-20-listing-logo-upload`, merged to `main` via [#112](https://github.com/layercake-cx/directory-maps/pull/112)

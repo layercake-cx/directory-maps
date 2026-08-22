@@ -127,6 +127,55 @@ function latLngToMapDivPixel(map, lat, lng) {
   return { x, y };
 }
 
+/**
+ * Pans/zooms the map onto a selected listing, then fires `onComplete` once the camera
+ * has settled. Google Maps has no native smooth zoom — setZoom always snaps instantly,
+ * and panTo only animates the pan — so the zoom is stepped one level at a time (the same
+ * technique behind Google Maps' own double-click zoom) to read as gradual rather than an
+ * instant jump. `stateRef` cancels an in-flight step sequence if a new selection arrives
+ * before it finishes.
+ */
+function panZoomToSelection(map, stateRef, { center, zoom, panOffsetX = 0, panOffsetY = 0 }, onComplete) {
+  if (stateRef.current) stateRef.current.cancelled = true;
+  const state = { cancelled: false };
+  stateRef.current = state;
+
+  map.panTo(center);
+
+  function finish() {
+    if (panOffsetX || panOffsetY) map.panBy(panOffsetX, panOffsetY);
+    if (stateRef.current === state) stateRef.current = null;
+    if (!onComplete) return;
+    const idleListener = map.addListener("idle", () => {
+      window.google.maps.event.removeListener(idleListener);
+      if (!state.cancelled) onComplete();
+    });
+  }
+
+  const startZoom = map.getZoom();
+  if (startZoom == null || startZoom === zoom) {
+    map.setZoom(zoom);
+    finish();
+    return;
+  }
+
+  const step = zoom > startZoom ? 1 : -1;
+  let current = startZoom;
+
+  function stepZoom() {
+    if (state.cancelled) return;
+    current += step;
+    map.setZoom(current);
+    if (current === zoom) {
+      finish();
+      return;
+    }
+    setTimeout(stepZoom, 150);
+  }
+
+  setTimeout(stepZoom, 150);
+}
+
 function attachZoomSliderControl(map, showZoomSlider) {
   if (!showZoomSlider || !window.google?.maps) return () => {};
   const { ControlPosition } = window.google.maps;
@@ -465,6 +514,7 @@ export default function DirectoryMap({
   const trafficLayerRef = useRef(null);
   const transitLayerRef = useRef(null);
   const bikeLayerRef = useRef(null);
+  const panZoomStateRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [currentZoomDisplay, setCurrentZoomDisplay] = useState(null);
   // Natural pixel size of each custom pin icon URL currently in use, so it can be scaled
@@ -483,15 +533,17 @@ export default function DirectoryMap({
 
     const map = mapRef.current;
     const pos = { lat: Number(point.lat), lng: Number(point.lng) };
-    map.setCenter(pos);
-    map.setZoom(selectZoom);
-    if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
-
-    if (onSelect) {
-      const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
-      if (pixel) onSelect(point, pixel);
-      else onSelect(point, null);
-    }
+    panZoomToSelection(
+      map,
+      panZoomStateRef,
+      { center: pos, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
+      () => {
+        if (!onSelect) return;
+        const pixel = latLngToMapDivPixel(map, pos.lat, pos.lng);
+        if (pixel) onSelect(point, pixel);
+        else onSelect(point, null);
+      }
+    );
   }, [centerOnListingId, points]);
 
   useEffect(() => {
@@ -856,13 +908,19 @@ export default function DirectoryMap({
         if (!p) return;
         const pos = m.getPosition();
         if (!pos) return;
-        map.setCenter(pos);
-        map.setZoom(selectZoom);
-        if (selectPanOffsetX || selectPanOffsetY) map.panBy(selectPanOffsetX, selectPanOffsetY);
-        if (!onSelect) return;
-        const pixel = latLngToMapDivPixel(map, pos.lat(), pos.lng());
-        if (pixel) onSelect(p, pixel);
-        else onSelect(p, null);
+        const posLat = pos.lat();
+        const posLng = pos.lng();
+        panZoomToSelection(
+          map,
+          panZoomStateRef,
+          { center: { lat: posLat, lng: posLng }, zoom: selectZoom, panOffsetX: selectPanOffsetX, panOffsetY: selectPanOffsetY },
+          () => {
+            if (!onSelect) return;
+            const pixel = latLngToMapDivPixel(map, posLat, posLng);
+            if (pixel) onSelect(p, pixel);
+            else onSelect(p, null);
+          }
+        );
       });
     });
 
