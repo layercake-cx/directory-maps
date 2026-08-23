@@ -15,6 +15,7 @@ import {
   normalizePublicationConfig,
   publicationConfigsEqual,
   triggerSnapshotRegeneration,
+  triggerDirectoryPagesRegeneration,
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
@@ -1402,6 +1403,8 @@ export default function ClientMapDashboard() {
       // Fire-and-forget: generate static snapshot in the background.
       // Does not block the publish UX; failures are silent to the user.
       triggerSnapshotRegeneration(mapId);
+      // Fire-and-forget: regenerate Epic 3's crawlable directory pages (no-ops for non-entitled clients).
+      triggerDirectoryPagesRegeneration(mapId);
     } catch (e2) {
       setErr(e2.message ?? String(e2));
     } finally {

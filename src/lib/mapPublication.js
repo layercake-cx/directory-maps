@@ -210,6 +210,22 @@ export function triggerSnapshotRegeneration(mapId) {
     );
 }
 
+/**
+ * Fire-and-forget regeneration of Epic 3's crawlable directory/listing pages
+ * after a publish. No-ops server-side (skipped, not an error) for clients
+ * without the directory_pages flag/entitlement — safe to call unconditionally.
+ */
+export function triggerDirectoryPagesRegeneration(mapId) {
+  const attempt = () => invokeFunction("generate_directory_pages", { body: { map_id: mapId } });
+  attempt()
+    .then((res) => {
+      if (res?.error) throw res.error;
+    })
+    .catch(() =>
+      attempt().catch((e) => console.warn("Directory pages generation failed after retry (non-fatal):", e)),
+    );
+}
+
 export function mergeGroupWithPublication(gr, pubGroups) {
   const byId = pubGroups?.byId || {};
   const byName = pubGroups?.byName || {};
