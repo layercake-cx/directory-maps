@@ -15,6 +15,7 @@ import {
   normalizePublicationConfig,
   publicationConfigsEqual,
   triggerSnapshotRegeneration,
+  triggerDirectoryPagesRegeneration,
 } from "../../lib/mapPublication.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
@@ -1147,6 +1148,8 @@ export default function AdminMapDashboard() {
       setPublicationHistory(hist ?? []);
       // Fire-and-forget: generate static snapshot in the background.
       triggerSnapshotRegeneration(mapId);
+      // Fire-and-forget: regenerate Epic 3's crawlable directory pages (no-ops for non-entitled clients).
+      triggerDirectoryPagesRegeneration(mapId);
       recordAdminEvent(supabase, {
         eventType: "map_published",
         source: "admin_map",

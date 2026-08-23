@@ -8,6 +8,54 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-23 — [Production] Directory & LLM/Search Discoverability (Epic 3) — crawlable pages, first Vercel Edge Middleware
+
+**Branch/commit:** `feat/2026-08-22-directory-discoverability`
+**Deployed by:** Claude (agent), at user's explicit request ("go for it" for staging, then "you can deploy this to prod please")
+
+### What changed
+Triggered by testing Epic 2 with an external LLM (ChatGPT): the app is a pure client-rendered SPA, so a normal crawl or an LLM's URL-fetch tool sees only a loading shell — no listing content, no structured data. This epic makes published maps crawlable.
+
+- New `listings.slug` column (url-safe, unique per map, auto-generated from name on insert via a DB trigger — works for every insert pathway: manual entry, CSV import, Sheets sync — and backfilled for existing rows) powers new canonical URLs: `/:clientSlug/:mapSlug/directory` (landing page) and `/:clientSlug/:mapSlug/directory/:listingSlug` (per listing).
+- New `generate_directory_pages` Edge Function (same fire-on-publish + nightly-cron pattern as the existing `generate_map_snapshot`) builds real static HTML — landing page (full-width embedded interactive map, thin header with logo + title, listings + group/filter badges) and one page per listing (schema.org `LocalBusiness` JSON-LD; content from `listing_research` when present, falling back to `notes_html`) — plus a per-map `sitemap.xml`. Uploaded to the same Vercel Blob store the snapshot feature already uses.
+- New `middleware.js` — the **first Vercel Edge Middleware this app has ever used**. Intercepts exactly the new directory URLs and serves the pre-generated HTML directly, before the request reaches `vercel.json`'s SPA rewrite. Verified live against a real Vercel Preview deployment before touching production. Every other path is untouched; same content to every visitor and crawler (no cloaking).
+- New commercial entitlement `features.maps.directory_pages` (Professional plan+/Founding Partner) — a distinct capability from `ai_search`, not bundled under it — plus its own `directory_pages` beta feature flag, same two-layer gating pattern as Epic 2.
+- **Found and fixed a real, previously-silent bug in Epic 2 while verifying this**: `process_listing_enrichment`'s `max_tokens: 1024` was truncating Claude's response for any map with an elaborate enrichment prompt, silently producing an empty `{}` research result with no error anywhere. The very first "enrichment confirmed working" check earlier in this project only verified job *status*, never that the content was actually populated. Fixed (now `4096`, plus a hard failure instead of silently accepting empty/truncated data) — deployed to staging and production as part of this same push, since production had the identical bug.
+- Monday ticket: [Directory & LLM/Search Discoverability (Epic 3)](https://layercake-cx.monday.com/boards/5094351513/pulses/3179234619).
+
+### Database migrations applied (staging then production, same 3 files both environments)
+- `20260822200000_add_listings_slug.sql` — `listings.slug` + generation function + insert trigger + backfill + unique constraint.
+- `20260822210000_seed_directory_pages_feature_flag.sql` — registers the `directory_pages` beta flag.
+- `20260822220000_gate_directory_pages_entitlement.sql` — `features.maps.directory_pages` catalog + plan defaults + `resolve_directory_pages_entitlement()` resolver.
+- All applied via `supabase db push` after a `--dry-run` confirmed only these were pending in each environment. All `VERIFY PASSED`, no exceptions.
+
+### Edge functions deployed (staging then production)
+- `generate_directory_pages` (new).
+- `process_listing_enrichment` (redeployed with the `max_tokens` fix above).
+- Depends on `BLOB_READ_WRITE_TOKEN` — already set on both projects from the existing `generate_map_snapshot` feature (discovered mid-session that it had actually been missing on staging until the user added it).
+
+### Frontend
+- New: `middleware.js` (Vercel Edge Middleware, repo root).
+- Publish flow wiring: `triggerDirectoryPagesRegeneration()` added to `src/lib/mapPublication.js`, called alongside the existing snapshot trigger from both `AdminMapDashboard.jsx` and `ClientMapDashboard.jsx` — fire-and-forget, no-ops server-side for non-entitled clients.
+- Deployed via merge to `main` (GitHub Pages auto-deploy) **and** an explicit `vercel --prod` (Vercel does not redeploy production automatically on git push — confirmed during this epic that Vercel, not just GitHub Pages, serves real production traffic on the branded domain `maps.layercake-cx.biz`, which `AGENTS.md` doesn't currently document).
+- Dark for every existing customer regardless: `directory_pages` defaults off, so nothing changes until a platform admin grants it per customer.
+
+### Rollback plan
+- Frontend: revert the merge commit on `main`; redeploy the prior Vercel production build (`vercel rollback` or re-deploy an earlier commit).
+- Database: run the three rollback files in reverse order. The entitlement rollback refuses if any `client_overrides` exist for `directory_pages`; the slug rollback drops the column entirely (no data-loss guard needed — it's derived, re-creatable data).
+- Edge functions: redeploy prior versions, or leave in place — `generate_directory_pages` fails closed (skips) for non-flagged/non-entitled clients rather than doing anything destructive.
+- Vercel Blob content already generated for any test map stays in place — harmless, unreferenced unless a real customer's flag+entitlement are both granted.
+
+### Verified
+- [x] `npm run build` succeeds
+- [x] All 3 migrations applied to staging and production with embedded `VERIFY PASSED` checks, no exceptions
+- [x] `generate_directory_pages` tested end-to-end against staging: real listing content, correct research-then-notes_html fallback (including a genuine bug catch — a stale empty-research row not falling back correctly, now fixed), schema.org markup, sitemap
+- [x] Vercel Edge Middleware verified against a live Vercel Preview deployment before any production Vercel deploy
+- [x] Landing page layout (full-width embedded map, header strip, listings + filters below) confirmed against the live preview
+- [ ] Live smoke test against the real production domain with a real customer's flag granted — not done, since granting a real customer's flag wasn't requested; structurally verified via staging + preview instead
+
+---
+
 ## 2026-08-22 — [Production] Intent-Based AI Search (Epic 2) — multi-turn chat, drawer fixes, production rollout
 
 **Branch/commit:** `feat/2026-08-21-ai-search-enrichment-schema`, merged to `main` at user's explicit request

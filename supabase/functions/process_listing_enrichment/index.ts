@@ -49,7 +49,12 @@ async function callClaude(apiKey: string, enrichmentPrompt: string, listingText:
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 1024,
+      // Admin-authored enrichment prompts can request large, deeply nested
+      // schemas (e.g. welfare assessment + accreditation + sources for a
+      // whole ethical-review structure) — 1024 was cutting the tool call's
+      // JSON off mid-generation, silently producing an empty {} rather than
+      // an error.
+      max_tokens: 4096,
       system:
         "You extract structured research data about one directory listing, following the map-specific instructions you are given. " +
         "Only use the listing data provided in the user message. Never invent, assume, or infer facts that are not present in it — " +
@@ -90,11 +95,22 @@ async function callClaude(apiKey: string, enrichmentPrompt: string, listingText:
   }
 
   const body = await res.json();
+  // Fail loudly rather than silently accept a truncated tool call — this is
+  // exactly the failure mode that previously produced an empty {} with no
+  // error anywhere: the JSON got cut off mid-generation and the tool_use
+  // block came back with a null/incomplete input.
+  if (body.stop_reason === "max_tokens") {
+    throw new Error("Anthropic response was truncated (max_tokens reached) before completing the tool call");
+  }
   const toolUse = (body.content ?? []).find((block: { type?: string }) => block.type === "tool_use");
   if (!toolUse || typeof toolUse.input !== "object") {
     throw new Error("Anthropic response did not include a valid tool_use block");
   }
-  return toolUse.input.data ?? {};
+  const data = toolUse.input.data;
+  if (data == null || (typeof data === "object" && Object.keys(data).length === 0)) {
+    throw new Error("Anthropic returned empty research data — check the enrichment prompt isn't too large for the model to complete");
+  }
+  return data;
 }
 
 async function processJob(service: ReturnType<typeof createServiceClient>, apiKey: string, job: EnrichmentJob) {
