@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-23 — [Staging] Directory pages: missing admin toggle for the `directory_pages` beta flag
+
+**Branch/commit:** `fix/2026-08-23-directory-pages-flag-toggle`
+**Deployed by:** Claude (agent), at user's explicit request, following up on a report that a working directory page had "disappeared."
+
+### What changed
+`generate_directory_pages` gates on **two** things server-side: the `directory_pages` beta feature flag, then the `maps.directory_pages` commercial entitlement. Epic 3 built the entitlement side (`EntitlementsPanel`, generic across features) but never actually wired an admin UI control for the beta flag itself — unlike `ai_search`, which has a dedicated toggle in `AdminClientDetail.jsx`'s "Feature access (beta)" section. The only way to grant the flag was to edit the `feature_flag_overrides` table directly.
+
+Practical effect: a customer could have the entitlement granted and still get `skipped: "flag_disabled"` from every publish, with no way for an admin to fix it through the app. The directory page the user had previously seen for one map almost certainly came from a manual edge-function invocation during Epic 3 development, not a real end-to-end publish — so once that state was gone, there was no way to regenerate it through the UI.
+
+Fix: added a `DIRECTORY_PAGES_FLAG` constant (`src/lib/featureFlags.js`) and a matching checkbox in `AdminClientDetail.jsx`, wired identically to the existing `ai_search` toggle (per-client override via `feature_flag_overrides`, `ops_feature_flag_changed` admin event, immediate save). No schema or edge function changes — the flag row and the function's gating logic already existed from Epic 3; this only adds the missing control surface.
+
+### Frontend
+- `src/lib/featureFlags.js` — new exported `DIRECTORY_PAGES_FLAG = "directory_pages"` constant.
+- `src/pages/admin/AdminClientDetail.jsx` — new state, load logic, `handleToggleDirectoryPagesFlag`, and checkbox under Customer details → Feature access (beta), mirroring the existing AI search enrichment toggle exactly.
+- `npm run build` clean.
+
+### Verified
+- [ ] Manual click-through in the admin UI (blocked this session — no authenticated admin session available to the agent; needs a human check).
+- [x] Re-invoked `generate_directory_pages` directly against production for the affected map both before and after the underlying flag override existed, confirming the `flag_disabled` skip and the code path that causes it.
+
+---
+
 ## 2026-08-23 — [Production] Schema drift repair — `listings.city` (production) and `maps.snapshot_url`/`snapshot_generated_at` (staging)
 
 **Branch/commit:** `fix/2026-08-23-schema-drift-backfill`
