@@ -15,6 +15,7 @@ import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
   DIRECTORIES_FLAG,
   AI_SEARCH_FLAG,
+  DIRECTORY_PAGES_FLAG,
   listClientFeatureOverrides,
   setClientFeatureOverride,
   clearClientFeatureOverride,
@@ -56,6 +57,8 @@ export default function AdminClientDetail() {
   const [directoriesFlagEnabled, setDirectoriesFlagEnabled] = useState(false);
   const [aiSearchFlagEnabled, setAiSearchFlagEnabled] = useState(false);
   const [aiSearchFlagSaving, setAiSearchFlagSaving] = useState(false);
+  const [directoryPagesFlagEnabled, setDirectoryPagesFlagEnabled] = useState(false);
+  const [directoryPagesFlagSaving, setDirectoryPagesFlagSaving] = useState(false);
   const [flagSaving, setFlagSaving] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -141,6 +144,9 @@ export default function AdminClientDetail() {
       );
       setAiSearchFlagEnabled(
         (flagOverrides ?? []).some((o) => o.flag_key === AI_SEARCH_FLAG && o.enabled === true)
+      );
+      setDirectoryPagesFlagEnabled(
+        (flagOverrides ?? []).some((o) => o.flag_key === DIRECTORY_PAGES_FLAG && o.enabled === true)
       );
       setContactName(primary?.name ?? "");
       setContactEmail(primary?.email ?? "");
@@ -354,6 +360,36 @@ export default function AdminClientDetail() {
       setErr(e.message ?? String(e));
     } finally {
       setAiSearchFlagSaving(false);
+    }
+  }
+
+  async function handleToggleDirectoryPagesFlag(next) {
+    setDirectoryPagesFlagSaving(true);
+    setErr("");
+    setNotice("");
+    try {
+      if (next) {
+        await setClientFeatureOverride(clientId, DIRECTORY_PAGES_FLAG, true);
+      } else {
+        await clearClientFeatureOverride(clientId, DIRECTORY_PAGES_FLAG);
+      }
+      setDirectoryPagesFlagEnabled(next);
+      recordEvent("ops_feature_flag_changed", {
+        actor_admin_scope: "platform_admin",
+        client_id: clientId,
+        flag: DIRECTORY_PAGES_FLAG,
+        enabled: next,
+        source: "admin_client_detail",
+      });
+      setNotice(
+        next
+          ? "Directory pages enabled for this customer."
+          : "Directory pages reset to the default (hidden for this customer)."
+      );
+    } catch (e) {
+      setErr(e.message ?? String(e));
+    } finally {
+      setDirectoryPagesFlagSaving(false);
     }
   }
 
@@ -589,6 +625,22 @@ export default function AdminClientDetail() {
                       <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
                         Show the AI search enrichment prompt setting on this customer&apos;s maps.
                         Saved immediately.
+                      </span>
+                    </span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: directoryPagesFlagSaving ? "wait" : "pointer", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={directoryPagesFlagEnabled}
+                      disabled={directoryPagesFlagSaving}
+                      onChange={(e) => handleToggleDirectoryPagesFlag(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <strong>Directory pages</strong>
+                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
+                        Generate crawlable directory + listing pages for this customer&apos;s published maps.
+                        Also requires the Directory pages entitlement (Entitlements tab). Saved immediately.
                       </span>
                     </span>
                   </label>
