@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-23 — [Production] Schema drift repair — `listings.city` (production) and `maps.snapshot_url`/`snapshot_generated_at` (staging)
+
+**Branch/commit:** `fix/2026-08-23-schema-drift-backfill`
+**Deployed by:** Claude (agent), at user's explicit request, following up on two gaps flagged during Epic 3 verification.
+
+### What changed
+Both `listings.city` and `maps.snapshot_url`/`maps.snapshot_generated_at` have existed in the migration files for a while, but a live REST check against each environment (not just its migration history) showed the two environments had drifted apart:
+
+- **Production was missing `listings.city` entirely.** `city` was added to the base `create table if not exists public.listings (...)` definition in `20250101000000_create_base_tables.sql` after production's `listings` table already existed — `create table if not exists` is a no-op against an existing table, so there was never a standalone `alter table` to actually add the column on production. This was the root cause of the `column listings.city does not exist` error hit during Epic 2/3 work; both edge functions were patched at the time to stop depending on `city`, but the underlying drift was never fixed until now.
+- **Staging was missing `maps.snapshot_url`/`maps.snapshot_generated_at`** despite `20260531120000_add_maps_snapshot_url.sql` being recorded as already applied in staging's own `supabase_migrations` history. A live REST query confirmed the columns genuinely did not exist on staging (production has them and works correctly). Practical effect: `generate_map_snapshot` has likely been silently failing on staging this whole time — confirmed by invoking it directly against staging before this fix (it needs those columns to write to) and again after (it succeeded and wrote a real snapshot URL).
+
+Wrote two new drift-repair migrations rather than editing the historical ones. Both use `add column if not exists` and are written to safely no-op on whichever environment already has the column, since — uniquely for a drift repair — the "already exists" state is expected and correct on one of the two environments, not a sign the migration already ran there.
+
+### Database migrations applied (staging then production, same 2 files both environments)
+- `20260823120000_backfill_listings_city_column.sql` — no-op on staging (column already present), added `listings.city text null` on production.
+- `20260823130000_backfill_maps_snapshot_columns.sql` — added `maps.snapshot_url text null` + `maps.snapshot_generated_at timestamptz null` on staging, no-op on production (columns already present).
+- Both dry-run confirmed clean on each environment before applying; both `VERIFY PASSED`, no exceptions, row counts unchanged (`maps`: 12 staging / 17 production, `listings`: 387 staging / 548 production, checked before and after via direct REST queries).
+
+### Verified
+- [x] Staging: `listings.city` present and nullable (unchanged), `maps.snapshot_url`/`snapshot_generated_at` present and nullable.
+- [x] Staging: manually invoked `generate_map_snapshot` for a real published map (`Elephants`) — it now succeeds and writes a real Blob URL, confirming the earlier silent-failure theory.
+- [x] Production: `listings.city` present and nullable.
+- [x] Row counts unchanged on both environments, before and after.
+
+### Rollback plan
+- `_20260823120000_backfill_listings_city_column.rollback.sql` — only safe on production (where this migration introduced the column); refuses to run if any row has non-null `city` data; must not be run on staging, where `city` predates this migration.
+- `_20260823130000_backfill_maps_snapshot_columns.rollback.sql` — only safe on staging (where this migration introduced the columns); refuses to run if any row has non-null `snapshot_url`; must not be run on production, where the columns predate this migration.
+
+---
+
 ## 2026-08-23 — [Production] Directory & LLM/Search Discoverability (Epic 3) — crawlable pages, first Vercel Edge Middleware
 
 **Branch/commit:** `feat/2026-08-22-directory-discoverability`
