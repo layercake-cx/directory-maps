@@ -8,6 +8,43 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 2 host-based routing + Vercel domain attachment
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request, testing live against a real domain the user controls (`ethical-elephant-sanctuaries.com`). Production `middleware.js` was not touched — it still serves the pre-Epic-4 path-only version.
+
+### What changed
+Real end-to-end testing surfaced and fixed two design bugs from the original Phase 1 plan before this went anywhere near production — worth reading in full since both are the kind of thing that only shows up against a real domain, not in review.
+
+**Bug 1 — apex domains can't carry a CNAME.** Phase 1 generated a single CNAME record for every domain, pointed at `maps.layercake-cx.biz`. That's fine for a subdomain, but the user's test domain (`ethical-elephant-sanctuaries.com`) is a root/apex domain — DNS spec forbids a literal CNAME at the zone apex. Cloudflare's dashboard *shows* an apex "CNAME" but actually serves it via CNAME flattening into A records, which then don't necessarily match a fresh A lookup of the routing target (confirmed empirically: the flattened apex resolved to `216.150.1.1`/`216.150.16.1`, the target itself resolved to `216.150.1.129`/`216.150.16.129` — different specific IPs, both legitimately Vercel's). A literal-value comparison would never pass for an apex domain, no matter how correctly it was configured.
+
+Fixed by checking Vercel's *own* authoritative `GET /v6/domains/{domain}/config` (`misconfigured` field) instead of re-resolving DNS ourselves — Vercel's infrastructure already handles apex-flattening correctly since it's their own network being flattened to. Our own DNS-over-HTTPS check is now TXT-only (ownership proof, unaffected by this issue); the routing record recommendation is now type-aware — **A → `76.76.21.21` for an apex domain, CNAME → `cname.vercel-dns.com` for a subdomain** — matching Vercel's own documented guidance (confirmed via Vercel's docs, not assumed).
+
+**Bug 2 — the `clients` table has no anon-select policy**, unlike `maps`/`groups`/`listings`. Middleware needs `clients.slug` (via `client_domains`) to build the blob-fetch path, but a raw PostgREST embed (`client_domains?select=...,clients(slug)`) silently returned `null` for the `clients` side while `maps(slug)` worked fine. Granting blanket anon `select` on `clients` (mirroring the older tables' pattern) was rejected — `clients` has since grown genuinely sensitive columns (`plan_key`, `email_domain_status`, `email_dns_records`) those older tables never had when their anon policies were written; opening the whole table would leak them to anonymous requests. Fixed with a narrow, purpose-built `resolve_custom_domain(hostname)` RPC (security definer) that returns only `client_slug`, `map_slug`, and `status` — nothing else, regardless of what columns either table gains later.
+
+**Also fixed (found during the same review):** `DOMAIN_COLUMNS` in `manage_client_domain` never actually selected `vercel_domain_id`, and `normalizeClientDomainRow()` never returned it to the frontend — meaning the "already attached, skip re-attaching" check was silently always false, and the client-side "hosting pending" indicator could never light up correctly. Both were bugs sitting in the Phase 1 code from the start, just never exercised until this session's real attachment flow ran.
+
+**Host-based routing** (`middleware.js`): branches on `Host`. Branded domain (`maps.layercake-cx.biz`, `*.vercel.app`) is byte-for-byte the pre-existing Epic 3 logic — deliberately not refactored beyond extracting one shared blob-fetch helper, since this file serves 100% of the branded domain's live production traffic. Any other host resolves via the new RPC and routes per the decided scheme: `/` and `/:listingSlug` served directly from Vercel Blob (same content Epic 3 already generates); `/map` falls through to the SPA, where a new client-side route (`CustomDomainMap.jsx`) resolves the map by `window.location.hostname` and renders the existing `/embed` view. A domain that doesn't resolve, or isn't `active` yet, gets an honest static response instead of silently falling into the branded domain's own route table.
+
+### Database migration applied (staging only)
+- `20260824130000_add_resolve_custom_domain_rpc.sql` — dry-run clean (only this one file pending), applied, `VERIFY PASSED`.
+
+### Edge Function redeployed (staging only)
+- `manage_client_domain` — redeployed twice this session as the apex-domain fix landed, plus the new `_shared/vercel.ts` (Vercel Domains API: attach/detach/config-check) and rewritten `_shared/dns.ts` (TXT-only now).
+
+### Verified
+- [x] Real domain, real DNS, real Vercel attachment: `ethical-elephant-sanctuaries.com` — TXT verified, routing record (still the old CNAME from before this fix — Vercel's config check accepted it as correctly configured despite not matching Vercel's own "recommended" record type for an apex domain, which is worth knowing: Vercel's check cares whether it resolves to their infrastructure, not which record type got it there) — attached to the Vercel project, `status: active`, confirmed independently via REST against staging.
+- [x] `resolve_custom_domain('ethical-elephant-sanctuaries.com')` RPC confirmed returning the correct `client_slug`/`map_slug`/`status` via direct REST call.
+- [x] `middleware.js` logic tested locally against real staging data (real RPC call, real Supabase project) with a small standalone script — confirmed correct routing decisions for: active custom domain root (attempts the right blob path), `/map` (falls through to SPA), unregistered domain (404 "not configured"), and the branded domain's existing path (unchanged fall-through behavior preserved). Blob-fetch itself wasn't exercised against real content (no local access to the Vercel Blob base URL), only the routing/resolution logic that's new this phase.
+- [ ] Real request through Vercel's edge network to the live custom domain — **not done**. Vercel's edge only routes a custom domain's traffic to whichever deployment is aliased as the project's **production** target; a Preview deploy doesn't receive traffic for an attached custom domain, and forging the `Host` header against a Preview URL gets rejected by Vercel's edge (`DEPLOYMENT_NOT_FOUND`) before our code ever runs — confirmed empirically. Full request-level confirmation needs `middleware.js` on production.
+- [ ] Production — not started. This is the highest-blast-radius file in the repo (100% of the branded domain's live traffic runs through it); needs explicit sign-off before `vercel --prod`.
+
+### Rollback plan
+- `_20260824130000_add_resolve_custom_domain_rpc.rollback.sql` — checks nothing else depends on the function before dropping it.
+- `middleware.js`/frontend changes are additive and isolated to the non-branded-host branch; the branded-host branch is unchanged from Epic 3. Reverting the branch/commit removes them cleanly. No production frontend deploy has happened yet, so there is nothing to roll back there.
+
+---
+
 ## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 1 domain configuration & verification
 
 **Branch/commit:** `feat/2026-08-24-custom-domain-phase0`

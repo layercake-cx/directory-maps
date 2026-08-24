@@ -101,7 +101,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       const [{ data: d, error: dErr }, { data: m, error: mErr }] = await Promise.all([
         supabase
           .from("client_domains")
-          .select("id,map_id,hostname,status,dns_records,verified_at,created_at")
+          .select("id,map_id,hostname,status,dns_records,vercel_domain_id,verified_at,created_at")
           .eq("client_id", clientId)
           .order("created_at", { ascending: true }),
         supabase.from("maps").select("id,name").eq("client_id", clientId).order("name", { ascending: true }),
@@ -178,14 +178,15 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
         mapId: domain.map_id,
         meta: { client_id: clientId, map_id: domain.map_id, hostname: domain.hostname, source: eventSource },
       });
+      let text = active
+        ? "Domain verified — DNS is correctly configured."
+        : "Not verified yet. Make sure both records are added exactly as shown, then try again. DNS changes can take up to 48 hours to propagate.";
+      if (active && data.domain.vercel_attach_warning) {
+        text += ` DNS is verified, but connecting it to hosting had a problem: ${data.domain.vercel_attach_warning}. Try verifying again in a few minutes.`;
+      }
       setFeedbackByDomain((prev) => ({
         ...prev,
-        [domain.id]: {
-          ok: active,
-          text: active
-            ? "Domain verified — DNS is correctly configured."
-            : "Not verified yet. Make sure both records are added exactly as shown, then try again. DNS changes can take up to 48 hours to propagate.",
-        },
+        [domain.id]: { ok: active && !data.domain.vercel_attach_warning, text },
       }));
     } catch (e) {
       setFeedbackByDomain((prev) => ({ ...prev, [domain.id]: { ok: false, text: e?.message ?? String(e) } }));
@@ -257,17 +258,17 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
           ) : (
             <div className={styles.domainList}>
               {domains.map((domain) => {
-                const tone = domainStatusTone(domain.status);
                 const verified = domain.status === "active";
+                const hostingPending = verified && !domain.vercel_domain_id;
+                const tone = hostingPending ? "warning" : domainStatusTone(domain.status);
+                const label = hostingPending ? "DNS verified — hosting pending" : domainStatusLabel(domain.status);
                 const feedback = feedbackByDomain[domain.id];
                 const busy = busyDomainId === domain.id;
                 return (
                   <div key={domain.id} className={styles.domainCard}>
                     <div className={styles.domainCardHeader}>
                       <h3 className={styles.domainHostname}>{domain.hostname}</h3>
-                      <span className={`${emailStyles.badge} ${emailStyles[`badge--${tone}`]}`}>
-                        {domainStatusLabel(domain.status)}
-                      </span>
+                      <span className={`${emailStyles.badge} ${emailStyles[`badge--${tone}`]}`}>{label}</span>
                     </div>
                     <p className={styles.domainMapLabel}>Publishes: {mapName(domain.map_id)}</p>
 
@@ -336,6 +337,11 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
                         Add both records at your DNS provider exactly as shown, then click &ldquo;Verify DNS
                         settings&rdquo;. DNS changes can take up to 48 hours to propagate, though it&apos;s usually
                         much faster.
+                      </p>
+                    ) : hostingPending ? (
+                      <p className={emailStyles.note}>
+                        DNS is correctly configured. Connecting this domain to hosting — click &ldquo;Verify DNS
+                        settings&rdquo; again in a few minutes if this doesn&apos;t clear on its own.
                       </p>
                     ) : null}
                   </div>

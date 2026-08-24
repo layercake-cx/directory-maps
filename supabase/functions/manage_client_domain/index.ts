@@ -1,5 +1,6 @@
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
-import { resolveCname, resolveTxt } from "../_shared/dns.ts";
+import { resolveTxt } from "../_shared/dns.ts";
+import { attachVercelDomain, detachVercelDomain, isVercelDomainConfigured, recommendedRoutingRecord } from "../_shared/vercel.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -7,12 +8,6 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
   "Access-Control-Max-Age": "86400",
 };
-
-// Where clients CNAME their subdomain to. Defaults to the existing branded
-// domain (already TLS-valid and publicly resolvable); actually attaching a
-// verified domain to the Vercel project for real routing/TLS is Phase 2
-// (host-based routing in middleware.js), not this function's job.
-const CNAME_TARGET = (Deno.env.get("CUSTOM_DOMAIN_CNAME_TARGET") ?? "maps.layercake-cx.biz").toLowerCase();
 
 const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const BLOCKED_SUFFIXES = ["layercake-cx.biz", "vercel.app", "vercel-dns.com"];
@@ -71,6 +66,7 @@ function normalizeClientDomainRow(row: Record<string, unknown> | null) {
     hostname: row.hostname,
     status: row.status ?? "pending",
     dns_records: Array.isArray(row.dns_records) ? row.dns_records : [],
+    vercel_domain_id: row.vercel_domain_id ?? null,
     ga_measurement_id: row.ga_measurement_id ?? null,
     is_primary: !!row.is_primary,
     verified_at: row.verified_at ?? null,
@@ -79,7 +75,7 @@ function normalizeClientDomainRow(row: Record<string, unknown> | null) {
 }
 
 const DOMAIN_COLUMNS =
-  "id,client_id,map_id,hostname,status,dns_records,ga_measurement_id,is_primary,verified_at,created_at";
+  "id,client_id,map_id,hostname,status,dns_records,vercel_domain_id,ga_measurement_id,is_primary,verified_at,created_at";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -134,7 +130,7 @@ Deno.serve(async (req) => {
           value: `lc-domain-verify=${verifyToken}`,
           status: "pending",
         },
-        { type: "CNAME", name: hostname, value: CNAME_TARGET, status: "pending" },
+        { ...recommendedRoutingRecord(hostname), status: "pending" },
       ];
 
       const { data, error } = await service
@@ -162,18 +158,32 @@ Deno.serve(async (req) => {
 
       const records = Array.isArray(existing.dns_records) ? [...existing.dns_records] : [];
       const txtRecord = records.find((r: Record<string, unknown>) => r.type === "TXT");
-      const cnameRecord = records.find((r: Record<string, unknown>) => r.type === "CNAME");
+      const routingRecord = records.find((r: Record<string, unknown>) => r.type !== "TXT");
 
-      if (txtRecord) {
-        const values = await resolveTxt(txtRecord.name as string);
-        txtRecord.status = values.includes(txtRecord.value) ? "verified" : "pending";
-      }
-      if (cnameRecord) {
-        const cname = await resolveCname(cnameRecord.name as string);
-        cnameRecord.status = cname === (cnameRecord.value as string).toLowerCase() ? "verified" : "pending";
-      }
+      const txtVerified = txtRecord
+        ? (await resolveTxt(txtRecord.name as string)).includes(txtRecord.value as string)
+        : false;
+      if (txtRecord) txtRecord.status = txtVerified ? "verified" : "pending";
 
-      const allVerified = records.length > 0 && records.every((r: Record<string, unknown>) => r.status === "verified");
+      // Only attach to Vercel (and check its config) once we've independently
+      // proven DNS ownership via our own TXT record — don't let an arbitrary
+      // caller register someone else's domain against our project.
+      let vercelDomainId = existing.vercel_domain_id as string | null;
+      let vercelAttachWarning: string | undefined;
+      let routingConfigured: boolean | null = null;
+      if (txtVerified) {
+        if (!vercelDomainId) {
+          const attach = await attachVercelDomain(existing.hostname as string);
+          if (attach.attached) vercelDomainId = existing.hostname as string;
+          else vercelAttachWarning = attach.error;
+        }
+        if (vercelDomainId) {
+          routingConfigured = await isVercelDomainConfigured(existing.hostname as string);
+        }
+      }
+      if (routingRecord) routingRecord.status = routingConfigured ? "verified" : "pending";
+
+      const allVerified = txtVerified && routingConfigured === true;
       const status = allVerified ? "active" : "verifying";
 
       const { data, error } = await service
@@ -181,6 +191,7 @@ Deno.serve(async (req) => {
         .update({
           dns_records: records,
           status,
+          vercel_domain_id: vercelDomainId,
           verified_at: allVerified ? new Date().toISOString() : existing.verified_at,
           updated_at: new Date().toISOString(),
         })
@@ -190,15 +201,30 @@ Deno.serve(async (req) => {
         .single();
       if (error) throw error;
 
-      return jsonResponse({ ok: true, domain: normalizeClientDomainRow(data as Record<string, unknown>) });
+      const normalized = normalizeClientDomainRow(data as Record<string, unknown>);
+      return jsonResponse({
+        ok: true,
+        domain: vercelAttachWarning ? { ...normalized, vercel_attach_warning: vercelAttachWarning } : normalized,
+      });
     }
 
     if (action === "remove") {
       const domainId = typeof body?.domainId === "string" ? body.domainId.trim() : "";
       if (!domainId) return jsonResponse({ error: "Missing domainId." }, 400);
 
+      const { data: existing } = await service
+        .from("client_domains")
+        .select("hostname,vercel_domain_id")
+        .eq("id", domainId)
+        .eq("client_id", clientId)
+        .maybeSingle();
+
       const { error } = await service.from("client_domains").delete().eq("id", domainId).eq("client_id", clientId);
       if (error) throw error;
+
+      if (existing?.vercel_domain_id) {
+        await detachVercelDomain(existing.hostname as string);
+      }
 
       return jsonResponse({ ok: true });
     }

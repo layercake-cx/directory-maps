@@ -421,21 +421,21 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ## Domains
 
-The **Domains** page (`/client/domains`) lets you register your own domain or subdomain for a map. This is Phase 1 of the "Bring Your Own Domain" epic — you can add and verify a domain today, but nothing serves traffic on it yet (that's a later phase); verifying now gets the DNS work done ahead of time.
+The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map to it. Once verified: the root of your domain shows the SEO-friendly directory listing, `/map` shows the full interactive map (also usable as an iframe source elsewhere), and each listing gets its own page.
 
 Custom domains require the **Professional plan or above**. On the Basic plan, the section is dimmed with a note to upgrade; contact Layercake to change your plan.
 
 ### Add a domain
 
 1. Choose which **map** this domain will publish (each domain publishes exactly one map — register a second domain if you want a different address for another map).
-2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com`. Don't include `https://` or a trailing path.
-3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a `CNAME` record (where traffic will eventually route).
+2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com` or a root domain like `yourcompany.com`. Don't include `https://` or a trailing path.
+3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a routing record. **A root/apex domain** (e.g. `yourcompany.com`) gets an `A` record; **a subdomain** (e.g. `directory.yourcompany.com`) gets a `CNAME` record — DNS doesn't allow a literal CNAME on a root domain, so the record type differs depending on which you use.
 
 ### Verify a domain
 
-1. Add both records shown to your DNS provider (wherever you manage DNS for that domain — often Cloudflare, GoDaddy, Namecheap, your IT team, etc.). Use the **copy button** next to each value to avoid transcription errors.
-2. Click **Verify DNS settings**. Verification is instant (no waiting period like the email domain flow) but only succeeds once your DNS provider has actually applied the records — that can take anywhere from a few minutes to 48 hours.
-3. When the status badge turns green ("Active"), both records are confirmed as correctly configured.
+1. Add both records shown to your DNS provider (wherever you manage DNS for that domain — often Cloudflare, GoDaddy, Namecheap, your IT team, etc.). Use the **copy button** next to each value to avoid transcription errors. **If your provider offers a "proxy" toggle for the routing record (Cloudflare calls this the orange cloud), turn it off** — set it to "DNS only." A proxied record hides the real destination from our verification check and it will never succeed.
+2. Click **Verify DNS settings**. This checks DNS ownership immediately, then connects the domain to hosting — that second part can take a minute or two the first time. DNS propagation itself can take anywhere from a few minutes to 48 hours depending on your provider.
+3. When the status badge turns green ("Active"), your domain is live.
 
 ### Remove a domain
 
