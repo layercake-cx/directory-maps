@@ -103,9 +103,11 @@ async function handleCustomDomain(host, segments, blobBase) {
     return htmlResponse(200, "This domain is being verified", "DNS setup is still in progress. Check back soon.");
   }
 
-  // /map — the live interactive SPA. Fall through to index.html; the
-  // client-side route resolves client/map by hostname itself.
-  if (segments.length === 1 && segments[0] === "map") return;
+  // /map and /embed — the live interactive SPA. Fall through to index.html.
+  // /map's client-side route resolves client/map by hostname itself; /embed
+  // is the pre-existing query-param-driven route, also used by the
+  // directory landing page's own embedded iframe (src="/embed?map=...").
+  if (segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
 
   if (!domain.clientSlug || !domain.mapSlug || !blobBase) {
     return htmlResponse(404, "Domain not configured", "This domain isn&apos;t connected to a Layercake Maps directory.");
@@ -130,7 +132,41 @@ async function handleCustomDomain(host, segments, blobBase) {
       ? new Response("", { status: 404 })
       : htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
   }
-  return new Response(html, { status: 200, headers: { "content-type": contentType } });
+  return new Response(rewriteForCustomDomain(html, host, domain), {
+    status: 200,
+    headers: { "content-type": contentType },
+  });
+}
+
+/**
+ * generate_directory_pages (Epic 3) bakes links/canonical/JSON-LD as
+ * absolute paths rooted at the BRANDED domain's own URL shape
+ * (/:clientSlug/:mapSlug/directory[/:listingSlug] — where that content
+ * normally lives). Serving the exact same static content at a custom
+ * domain's root needs those rewritten to the custom domain's own shape
+ * (/ for the directory root, /:listingSlug for a listing, /map for the
+ * interactive map) — otherwise every internal link and the canonical URL
+ * point at a path structure that doesn't exist on the custom domain at
+ * all. Real per-domain content generation (Phase 3) would be the more
+ * thorough fix; this is a serve-time rewrite of the one shared static
+ * asset, scoped tightly enough (quote/tag-bounded patterns) that it can't
+ * touch unrelated content like a listing's own external website link.
+ */
+function rewriteForCustomDomain(text, host, { clientSlug, mapSlug }) {
+  const brandedDirBase = `https://maps.layercake-cx.biz/${clientSlug}/${mapSlug}/directory`;
+  const rootRelativeDirBase = `/${clientSlug}/${mapSlug}/directory`;
+  const brandedMapUrl = `https://maps.layercake-cx.biz/${clientSlug}/${mapSlug}`;
+  const rootRelativeMapUrl = `/${clientSlug}/${mapSlug}`;
+  const customOrigin = `https://${host}`;
+
+  let out = text;
+  out = out.split(`${brandedDirBase}/`).join(`${customOrigin}/`);
+  out = out.split(brandedDirBase).join(customOrigin);
+  out = out.split(`${rootRelativeDirBase}/`).join("/");
+  out = out.split(rootRelativeDirBase).join("/");
+  out = out.split(`${brandedMapUrl}"`).join(`${customOrigin}/map"`);
+  out = out.split(`${rootRelativeMapUrl}"`).join(`/map"`);
+  return out;
 }
 
 export default async function middleware(request) {

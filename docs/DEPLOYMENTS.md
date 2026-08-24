@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-24 — [Production] Fix: custom-domain directory links 404ing, embedded map not loading
+
+**Branch/commit:** `fix/2026-08-24-custom-domain-link-rewrite`
+**Deployed by:** Claude (agent), at user's explicit request, reported directly against their live custom domain (`ethical-elephant-sanctuaries.com`) right after Phases 0–2 shipped to production.
+
+### What changed
+The user set up a real production client/map behind `ethical-elephant-sanctuaries.com` and found the directory landing page's own links broken — all 13 listing links 404ing, the "Open the full interactive map" link 404ing, and the embedded map iframe on the page itself showing "Not published yet" instead of the actual map. Two separate bugs, both consequences of the same root cause: `generate_directory_pages` (Epic 3) bakes links/canonical/JSON-LD as absolute paths shaped for the **branded** domain (`/:clientSlug/:mapSlug/directory[/:listingSlug]`, where that static content normally lives) — correct there, but meaningless when the identical static file is served at a custom domain's *root* instead.
+
+- **Listing links, map link, canonical tags, JSON-LD urls, sitemap `<loc>` entries** — all rewritten at serve-time in `middleware.js` (`rewriteForCustomDomain()`), only for custom-domain requests, only via tightly-bounded string substitution (quote/tag-delimited patterns) so it can't touch unrelated content like a listing's own external website link. The branded domain's own version of the same content is untouched — this function never runs on that code path.
+- **The embedded map iframe** (`src="/embed?map=<id>"`, already domain-relative and correct as generated) was being caught by the custom-domain router's single-segment "must be a listing slug" branch, since `/map` was the only reserved single-segment path exempted from that. `/embed` is now exempted too, alongside `/map`.
+- Real per-domain content *generation* (rather than serve-time rewriting of one shared static asset) is the more thorough fix and is Phase 3 territory (already deferred per the user's own call); this is a serve-time patch on top of the one asset Epic 3 already generates, not a rearchitecture.
+
+### Verified
+- [x] Rewrite function unit-tested directly against the actual broken production HTML/JSON-LD pulled from the live site before writing the fix — confirmed zero remaining branded/old-scheme references and every href correctly reshaped, for both the directory landing page and a listing detail page.
+- [x] Deployed directly to production (middleware-only change, no DB/edge-function component) given the user was actively looking at a broken live page — full unit-test confidence stood in for a preview round-trip this time.
+- [x] Live, post-deploy: listing link 200 (was 404), `/map` 200, `/embed?map=...` now serves the real SPA shell (was "Not published yet"), root page's own links now single-segment relative, canonical tags and JSON-LD urls correctly point at the custom domain, listing back-link correct.
+- [x] Branded domain (`maps.layercake-cx.biz`) regression check: unaffected, 200.
+
+### Rollback plan
+`middleware.js` only — revert this commit/branch, redeploy. No database or Edge Function changes in this fix.
+
+---
+
 ## 2026-08-24 — [Production] Bring Your Own Domain (Epic 4) — Phases 0–2 shipped to production
 
 **Branch/commit:** `feat/2026-08-24-custom-domain-phase0` (not yet merged — deployed ahead of merge, same as every other migration/edge-function promotion in this log)
