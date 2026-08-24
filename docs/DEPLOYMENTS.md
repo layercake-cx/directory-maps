@@ -8,6 +8,47 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-24 — [Production] Bring Your Own Domain (Epic 4) — Phases 0–2 shipped to production
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0` (not yet merged — deployed ahead of merge, same as every other migration/edge-function promotion in this log)
+**Deployed by:** Claude (agent), at user's explicit request, after staging verification of Phases 0–2 (see entries below) and the user confirming production deploy specifically.
+
+### What changed
+Ships the data model, domain verification, Vercel attachment, and host-based routing built and staging-verified across Phases 0–2 (see the three entries below for full detail) to production. The feature remains **invisible to real customers** — gated behind the `custom_domain` feature flag (off by default) and the `maps.custom_domain` Professional+ entitlement — and the branded-domain routing path in `middleware.js` is byte-for-byte unchanged from Epic 3, so this carries very low risk to existing traffic despite touching the highest-blast-radius file in the repo.
+
+One deliberate scope decision: the specific domain verified on staging (`ethical-elephant-sanctuaries.com`, against a staging-only demo client/map) was **not** re-verified against production — that client/map doesn't exist in production, and production's `client_domains` table is correctly empty. Shipping the mechanism to production and re-testing with real production data are separate concerns; the user explicitly chose to ship now and defer a production-data test to whenever a real client actually wants this.
+
+### Database migrations applied (production)
+All 5, in order, dry-run confirmed clean (exact same 5 files pending, no drift) before applying:
+- `20260824120000_create_client_domains.sql`
+- `20260824121000_add_maps_favicon_url.sql`
+- `20260824122000_seed_custom_domain_feature_flag.sql`
+- `20260824123000_gate_custom_domain_entitlement.sql`
+- `20260824130000_add_resolve_custom_domain_rpc.sql`
+
+All 5 `VERIFY PASSED`, no exceptions.
+
+### Edge Function deployed (production)
+- `manage_client_domain` (`--no-verify-jwt`, matching staging). `VERCEL_API_TOKEN` set as a production secret.
+
+### Frontend/middleware deployed (production, Vercel)
+- `npm run deploy:live` → aliased to `maps.layercake-cx.biz`.
+
+### Verified
+- [x] All 5 migrations `VERIFY PASSED` on production.
+- [x] Deployed function responds correctly to a malformed request (missing `clientId` → 400) on production.
+- [x] `resolve_custom_domain()` RPC confirmed callable on production, correctly returns no rows for an unregistered hostname.
+- [x] Branded domain (`maps.layercake-cx.biz`) regression check: loads (200), no console errors — unaffected by this deploy.
+- [x] **Real end-to-end confirmation via actual Vercel edge routing** (the one thing staging structurally couldn't prove, since Vercel doesn't route attached custom domains to Preview deployments): hit `ethical-elephant-sanctuaries.com` for real post-deploy. Got back **our own** "Domain not configured" response — not a generic Vercel error, not `DEPLOYMENT_NOT_FOUND` — confirming DNS → Vercel domain attachment → `middleware.js` → `resolve_custom_domain()` RPC → fallback response all function correctly through the real production edge network. It correctly found nothing (production's `client_domains` is empty), which is the expected, correct outcome given the scope decision above.
+- [ ] A real production client actually using this feature — none has yet; the flag is off for everyone by default.
+
+### Rollback plan
+- Edge Function: `supabase functions delete manage_client_domain --project-ref gxixwdjfmegxcxfeflro`.
+- Migrations: run the 5 rollback files in reverse order (`_20260824130000_...` first, `_20260824120000_...` last) — all check for live data before dropping anything; `client_domains` is empty in production so none should refuse.
+- Frontend: `middleware.js`'s custom-domain branch only activates for a hostname with a `client_domains` row, which doesn't exist in production yet — reverting the Vercel deployment (`vercel rollback`) or the branch/commit removes the code path entirely with no data cleanup needed.
+
+---
+
 ## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 2 host-based routing + Vercel domain attachment
 
 **Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
