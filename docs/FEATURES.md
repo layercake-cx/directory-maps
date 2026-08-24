@@ -256,6 +256,24 @@ Tables/functions: `listings.slug` + `generate_unique_listing_slug()` + insert tr
 
 Files: `supabase/functions/generate_directory_pages/index.ts`, `middleware.js`; publish wiring (`triggerDirectoryPagesRegeneration`) in `src/lib/mapPublication.js`, `AdminMapDashboard.jsx`, `ClientMapDashboard.jsx`.
 
+### 4.4f Custom domains — "Bring Your Own Domain" (Epic 4, new, in development)
+
+> **Visibility:** gated behind a new `custom_domain` beta feature flag (same "Feature access (beta)" toggle pattern) plus a dedicated commercial entitlement `features.maps.custom_domain` (Professional plan and above, or Founding Partner). Favicon config and baseline SEO metadata quality (later phases of this epic) are deliberately **not** tier-gated — only the custom domain itself and its attached Google Analytics config are.
+
+Lets a client point a domain or subdomain they own at one of their maps, verify it, and (in a later phase) publish to it. Phase 1 (this entry) covers domain registration and DNS ownership verification only — no traffic actually routes through a custom domain yet; that's Phase 2 (host-based routing in `middleware.js`).
+
+- **Data model** (Phase 0): `client_domains` table — one domain maps to exactly one map (`map_id` not null); a client may register several domains, and more than one may point at the same map. `status` lifecycle: `pending` → `verifying`/`active`/`failed`. `dns_records` jsonb holds the required TXT (ownership) + CNAME (routing) records, mirroring the shape of `clients.email_dns_records` for Resend. `ga_measurement_id` is per-domain, for a later phase.
+- **Verification** (Phase 1): a client adds a hostname (validated format, uniqueness, and that the chosen map belongs to them); the `manage_client_domain` Edge Function generates a TXT ownership-proof record and a CNAME record (target: the existing branded domain, `maps.layercake-cx.biz`, by default — configurable via `CUSTOM_DOMAIN_CNAME_TARGET`). Verification looks up both records directly via **Cloudflare's public DNS-over-HTTPS API** (no third-party domain-management service, no API key) — deliberately different from the Resend email-domain flow's async provider-side check, since this needs no provider account at all. Both records resolving correctly moves the domain to `active`.
+- Actually attaching a verified domain to the Vercel project (for real TLS/routing) is **not** done by this phase — `client_domains.vercel_domain_id` stays null until Phase 2 wires up host-based routing in `middleware.js`. "Active" here means "DNS ownership + target verified, ready for Phase 2," not "live and serving traffic."
+- Client portal: `/client/domains` (`ClientDomains.jsx` → shared `DomainSettings.jsx`, same client/admin-parity pattern as Messaging). Admin: a "Domains" tab on `AdminClientDetail.jsx` using the same shared component.
+- Full epic scope (custom domains, per-domain Google Analytics, generalized SEO metadata, favicon config) and the phase breakdown live in the epic planning doc (Monday: "Bring Your Own Domain (Epic 4)").
+
+Not built yet: host-based routing (Phase 2 — `middleware.js` resolving requests by `Host` header instead of only by path, with the decided URL scheme `/` → directory landing, `/map` → full interactive map reusing the existing `/embed` page, `/:listingSlug` → listing pages), generalized SEO metadata/canonical-URL resolution per custom domain (Phase 3), favicon config (Phase 4), Google Analytics injection (Phase 5).
+
+Tables/functions: `client_domains` (`20260824120000_create_client_domains.sql`); `maps.favicon_url` (`20260824121000_add_maps_favicon_url.sql`, unused until Phase 4); `custom_domain` flag seed (`20260824122000_seed_custom_domain_feature_flag.sql`); `features.maps.custom_domain` + `resolve_custom_domain_entitlement()` (`20260824123000_gate_custom_domain_entitlement.sql`).
+
+Files: `supabase/functions/manage_client_domain/index.ts`, `supabase/functions/_shared/dns.ts`; `src/components/DomainSettings.jsx`, `src/pages/client/ClientDomains.jsx`, `src/lib/clientDomains.js`.
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
@@ -474,6 +492,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |
 | Intent-Based AI Search (Epic 2) | **Deployed (flagged)** | Enrichment pipeline (job queue, cron worker, Claude Haiku 4.5) + multi-turn intent search-query chat (hallucination-guarded id validation, map auto-fit) + `maps.ai_search` entitlement (Professional plan+/Founding Partner, per-client override, server-side enforced) deployed to staging + production; hidden behind the `ai_search` feature flag. No admin re-run action, no job-status UI yet |
 | Directory & LLM/Search Discoverability (Epic 3) | **Deployed (flagged)** | Crawlable per-listing + directory landing pages (schema.org JSON-LD, embedded interactive map, sitemap.xml) via a new Vercel Edge Middleware + `generate_directory_pages` Edge Function, deployed to staging + production; hidden behind the `directory_pages` feature flag + its own `maps.directory_pages` entitlement. No root-level combined sitemap, no curated (vs. fully generic) research rendering yet |
+| Bring Your Own Domain (Epic 4) | **Deployed to staging (flagged), Phase 1 of 6** | Domain registration + DNS ownership verification (`manage_client_domain` + Cloudflare DoH, no third-party domain-management account) behind the `custom_domain` feature flag + `maps.custom_domain` entitlement, deployed to staging only. No traffic actually routes through a custom domain yet — host-based routing, SEO metadata generalization, favicon, and Google Analytics are Phases 2–5, not started |
 
 ---
 
@@ -490,6 +509,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/client` | `ClientDashboard` |
 | `/client/team` | `ClientTeam` |
 | `/client/email` | `ClientEmail` |
+| `/client/domains` | `ClientDomains` (flagged: `custom_domain`) |
 | `/client/maps/new` | `ClientMapNew` |
 | `/client/maps/:mapId` | `ClientMapDashboard` |
 | `/client/maps/:mapId/data` | `ClientMapData` |

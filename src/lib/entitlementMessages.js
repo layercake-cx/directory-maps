@@ -7,6 +7,9 @@ export const ENTITLEMENT_MESSAGES = {
   messaging: {
     blocked: "Messaging requires the Professional plan or above. Contact Layercake to upgrade.",
   },
+  custom_domain: {
+    blocked: "Custom domains require the Professional plan or above. Contact Layercake to upgrade.",
+  },
   max_maps: {
     label: "maps",
     limitReached: (used, limit) =>

@@ -316,6 +316,23 @@ Anthropic PBC is a **US company**. API requests are processed on Anthropic's inf
 
 ---
 
+## 11. Cloudflare DNS-over-HTTPS (custom domain verification)
+
+**Role:** Verifying that a client actually controls a custom domain/subdomain before publishing their directory to it (Bring Your Own Domain epic, Phase 1).
+
+**What it is:** A server-side call from the `manage_client_domain` Edge Function (never called from the browser) to Cloudflare's public DNS-over-HTTPS JSON API (`cloudflare-dns.com/dns-query`), looking up the TXT and CNAME records for a hostname the client themselves entered. No API key or account — this is an unauthenticated public DNS resolver, the same role a browser's own DNS lookup would play.
+
+### Data involved
+
+- The **hostname the client is trying to verify** (e.g. `directory.theirdomain.com`) — configuration data the client entered, not personal data about any individual.
+- No platform-user, map-visitor, or listing personal data is included in these requests.
+
+### Processing location
+
+Cloudflare operates a global anycast network; a DoH query resolves at whichever edge location is nearest the Supabase Edge Function's execution region. No data processing agreement is needed — this is a stateless public DNS lookup of already-public DNS records, not personal data processing.
+
+---
+
 ## Summary table — personal data by third party
 
 | Third party | Personal data shared | EU data processing | DPA available |
@@ -330,6 +347,7 @@ Anthropic PBC is a **US company**. API requests are processed on Anthropic's inf
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
 | **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
 | **Anthropic (Claude API)** | Listing content (name, address, notes) for enrichment; visitor search query text for search — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
+| **Cloudflare (DNS-over-HTTPS)** | Hostname being verified only — no personal data | Global anycast | Not applicable — public DNS lookup, no account |
 
 ---
 

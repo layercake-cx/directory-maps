@@ -8,6 +8,74 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 1 domain configuration & verification
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request ("let's get to phase 1 before deploying"). Production was not touched.
+
+### What changed
+Client-facing domain registration and DNS ownership verification, on top of Phase 0's data model. A client (or admin, on their behalf) can now add a hostname, get real DNS records to configure, and verify them — nothing routes traffic through a custom domain yet, that's Phase 2.
+
+- **`manage_client_domain` Edge Function** (`add`/`verify`/`remove`), mirroring `manage_client_email`'s structure exactly (same auth-check shape, same error-mapping pattern). `add` re-checks the `maps.custom_domain` entitlement server-side via `resolve_custom_domain_entitlement()` (never trust the UI-level gate alone), validates the hostname format and uniqueness, and confirms the chosen map belongs to the calling client. It generates a TXT ownership-proof record and a CNAME record (target: `maps.layercake-cx.biz` by default, overridable via `CUSTOM_DOMAIN_CNAME_TARGET`).
+- **DNS verification via Cloudflare's public DNS-over-HTTPS API** (`supabase/functions/_shared/dns.ts`) — deliberately not `Deno.resolveDns()`, whose availability inside the Supabase Edge Runtime sandbox isn't guaranteed, and deliberately not the Vercel Domains API, which would need a new credential and only matters once Phase 2 actually wires up routing. This is a genuinely new, credential-free pattern for this codebase — no third-party domain-management account needed. New third-party dependency logged in `docs/DATA_AND_PRIVACY.md` (§11) — no personal data leaves the platform, only the hostname the client themselves provided.
+- **Client portal**: `/client/domains` (`ClientDomains.jsx` → shared `DomainSettings.jsx`), gated by the `custom_domain` feature flag (nav item hidden) and the `EntitlementGate` overlay (same double-gate pattern as Messaging). Lets a client add a domain (picking which map it publishes), see the two DNS records with copy buttons, verify, and remove.
+- **Admin**: new "Domains" tab on `AdminClientDetail.jsx` rendering the same shared `DomainSettings` component (`eventSource="admin_dashboard"`) — full client/admin parity for free, same as Messaging.
+- **Admin beta-flag checkbox added in the same PR as the flag itself** — learning the lesson from the `directory_pages` gap (2026-08-23): `AdminClientDetail.jsx` now has a "Custom domains" checkbox under Feature access (beta) from day one, not bolted on after someone notices it's missing.
+- **New admin event category**: `domain_*` (`domain_added`, `domain_verified`, `domain_verify_failed`, `domain_removed`), documented in `AGENTS.md`'s event catalogue and `src/lib/adminEvents.js`'s category/subtype lists, fired from the frontend after each successful action (same fire-and-forget `recordAdminEvent()` pattern as everywhere else in this codebase — no Edge Function in this repo writes `admin_events` directly).
+
+### Edge Function deployed (staging only)
+- `manage_client_domain`, deployed with `--no-verify-jwt` (matches `manage_client_email` — the function does its own JWT validation internally via `requireUser()`, so the platform-level gateway check would otherwise reject the anon-key fallback path with a raw GoTrue error before the function's own auth logic ever runs).
+
+### Verified
+- [x] `npm run build` clean.
+- [x] Deployed function responds correctly to malformed requests: missing `clientId` → 400, no valid user session → 401/rejected by `requireUser()` (same shared auth helper as `manage_client_email`, unchanged behavior).
+- [x] `/client/domains` loads with no console errors and correctly redirects an unauthenticated visitor to `/login` (`ClientGate` behavior unchanged).
+- [x] Full authenticated click-through (add a domain, verify real DNS records, remove) — confirmed working by the user directly, 2026-08-24.
+- [ ] Production — not started.
+
+### Rollback plan
+- Remove the Edge Function: `supabase functions delete manage_client_domain --project-ref beqejxneehilplrtpntn` (staging) — no database changes in this deployment beyond what Phase 0 already made, so no data migration rollback is needed for Phase 1 itself.
+- Frontend changes are additive (new route, new nav item, new admin tab) — reverting the branch removes them cleanly.
+
+---
+
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 0 data model
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request, following the same dry-run → staging → verify sequence as every prior migration on this project. Production was not touched.
+
+### What changed
+Foundations for the new "Bring Your Own Domain" epic — client-configured custom domains/subdomains, per-domain Google Analytics, generalized SEO metadata, and a per-map favicon (full epic doc: see Monday item below). This deployment is data model only; no routing, Edge Function, or UI ships yet.
+
+- New `client_domains` table: one domain maps to exactly one map (`map_id not null`), `status` lifecycle (`pending` → `verifying` → `active`/`failed`) mirroring `clients.email_domain_status`, `dns_records` jsonb for the client setup UI, `vercel_domain_id`, and a per-domain `ga_measurement_id` (format-checked `G-XXXXXXXXXX`). RLS: authenticated-all (matches the existing `clients`/`maps` pattern), plus anon `select` restricted to `status = 'active'` rows only, for the future Vercel Edge Middleware hostname lookup (no user session at the edge).
+- New `maps.favicon_url` column — nullable, not tier-gated, falls back to the default Layercake favicon.
+- New `custom_domain` feature flag (off for customers, on for admins/`@layercake-cx.biz`) — **note for whoever wires the admin UI next:** this does not get a toggle for free; `AdminClientDetail.jsx` needs its own manually-added checkbox, exactly the gap just patched for `directory_pages` on 2026-08-23. Flagging it now so it isn't missed again.
+- New `maps.custom_domain` commercial entitlement (Professional+, i.e. `plan_key` premium/unlimited/founder) + `resolve_custom_domain_entitlement()` resolver, same precedence and service-role-only grant as `resolve_directory_pages_entitlement()`. Favicon and baseline SEO metadata quality deliberately get **no** entitlement row — decided with the user that those ship free on every tier.
+
+### Database migrations applied (staging only)
+- `20260824120000_create_client_domains.sql`
+- `20260824121000_add_maps_favicon_url.sql`
+- `20260824122000_seed_custom_domain_feature_flag.sql`
+- `20260824123000_gate_custom_domain_entitlement.sql`
+
+All four dry-run clean (`supabase db push --dry-run` showed exactly these four pending, nothing else drifted), then applied via `supabase db push`. Every migration's built-in `VERIFY PASSED` notice fired with no exceptions. Cross-checked independently via a direct REST call against staging with the anon key (`client_domains` reachable, empty array as expected). CLI was linked to staging only for the duration of this deploy and relinked back to production (`gxixwdjfmegxcxfeflro`) immediately after — production was never linked or pushed to.
+
+### Verified
+- [x] Staging: dry-run listed exactly the 4 new files, no other pending drift.
+- [x] Staging: apply succeeded, all 4 `VERIFY PASSED` notices fired, no exceptions.
+- [x] Staging: `client_domains` confirmed reachable via REST with the anon key, 0 rows.
+- [ ] Client-portal/admin UI smoke test — not applicable yet; no UI reads/writes these tables until a later phase.
+- [ ] Production — not started. Staging should sit in this state for at least one deploy cycle first, per house policy.
+
+### Rollback plan
+Reverse in the opposite order they were applied (rollbacks all check for live data first and abort if any exists):
+- `_20260824123000_gate_custom_domain_entitlement.rollback.sql`
+- `_20260824122000_seed_custom_domain_feature_flag.rollback.sql`
+- `_20260824121000_add_maps_favicon_url.rollback.sql`
+- `_20260824120000_create_client_domains.rollback.sql`
+
+---
+
 ## 2026-08-23 — [Staging] Directory pages: missing admin toggle for the `directory_pages` beta flag
 
 **Branch/commit:** `fix/2026-08-23-directory-pages-flag-toggle`
