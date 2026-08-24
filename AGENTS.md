@@ -245,6 +245,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Deploy / operations**: `ops_*`
   - **Leads (pre-account enquiries)**: `leads_*`
   - **Entitlements (commercial/tier gating)**: `entitlements_*`
+  - **Domains (custom domain / subdomain publishing)**: `domain_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -381,6 +382,18 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`leads_status_changed`**
   - `meta`: `lead_id` (`beta_signups.id`), `from_status`, `to_status`, `source` (`admin_leads`)
   - No `client_id` — leads are pre-account and not yet tied to an organisation.
+
+#### Domains (custom domain / subdomain publishing — Bring Your Own Domain epic)
+
+- **`domain_added`**
+  - `meta`: `client_id`, `map_id`, `hostname`, `source` (`client_portal` / `admin_dashboard`)
+- **`domain_verified`**
+  - `meta`: `client_id`, `map_id`, `hostname`, `source`
+- **`domain_verify_failed`**
+  - `meta`: `client_id`, `map_id`, `hostname`, `source`
+  - Fired when a verify attempt completes but DNS isn't fully correct yet — not a hard error, just "not active yet."
+- **`domain_removed`**
+  - `meta`: `client_id`, `map_id`, `hostname`, `source`
 
 ### 4) Rule for future features
 

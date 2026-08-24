@@ -8,6 +8,152 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-24 — [Production] Bring Your Own Domain (Epic 4) — Phases 0–2 shipped to production
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0` (not yet merged — deployed ahead of merge, same as every other migration/edge-function promotion in this log)
+**Deployed by:** Claude (agent), at user's explicit request, after staging verification of Phases 0–2 (see entries below) and the user confirming production deploy specifically.
+
+### What changed
+Ships the data model, domain verification, Vercel attachment, and host-based routing built and staging-verified across Phases 0–2 (see the three entries below for full detail) to production. The feature remains **invisible to real customers** — gated behind the `custom_domain` feature flag (off by default) and the `maps.custom_domain` Professional+ entitlement — and the branded-domain routing path in `middleware.js` is byte-for-byte unchanged from Epic 3, so this carries very low risk to existing traffic despite touching the highest-blast-radius file in the repo.
+
+One deliberate scope decision: the specific domain verified on staging (`ethical-elephant-sanctuaries.com`, against a staging-only demo client/map) was **not** re-verified against production — that client/map doesn't exist in production, and production's `client_domains` table is correctly empty. Shipping the mechanism to production and re-testing with real production data are separate concerns; the user explicitly chose to ship now and defer a production-data test to whenever a real client actually wants this.
+
+### Database migrations applied (production)
+All 5, in order, dry-run confirmed clean (exact same 5 files pending, no drift) before applying:
+- `20260824120000_create_client_domains.sql`
+- `20260824121000_add_maps_favicon_url.sql`
+- `20260824122000_seed_custom_domain_feature_flag.sql`
+- `20260824123000_gate_custom_domain_entitlement.sql`
+- `20260824130000_add_resolve_custom_domain_rpc.sql`
+
+All 5 `VERIFY PASSED`, no exceptions.
+
+### Edge Function deployed (production)
+- `manage_client_domain` (`--no-verify-jwt`, matching staging). `VERCEL_API_TOKEN` set as a production secret.
+
+### Frontend/middleware deployed (production, Vercel)
+- `npm run deploy:live` → aliased to `maps.layercake-cx.biz`.
+
+### Verified
+- [x] All 5 migrations `VERIFY PASSED` on production.
+- [x] Deployed function responds correctly to a malformed request (missing `clientId` → 400) on production.
+- [x] `resolve_custom_domain()` RPC confirmed callable on production, correctly returns no rows for an unregistered hostname.
+- [x] Branded domain (`maps.layercake-cx.biz`) regression check: loads (200), no console errors — unaffected by this deploy.
+- [x] **Real end-to-end confirmation via actual Vercel edge routing** (the one thing staging structurally couldn't prove, since Vercel doesn't route attached custom domains to Preview deployments): hit `ethical-elephant-sanctuaries.com` for real post-deploy. Got back **our own** "Domain not configured" response — not a generic Vercel error, not `DEPLOYMENT_NOT_FOUND` — confirming DNS → Vercel domain attachment → `middleware.js` → `resolve_custom_domain()` RPC → fallback response all function correctly through the real production edge network. It correctly found nothing (production's `client_domains` is empty), which is the expected, correct outcome given the scope decision above.
+- [ ] A real production client actually using this feature — none has yet; the flag is off for everyone by default.
+
+### Rollback plan
+- Edge Function: `supabase functions delete manage_client_domain --project-ref gxixwdjfmegxcxfeflro`.
+- Migrations: run the 5 rollback files in reverse order (`_20260824130000_...` first, `_20260824120000_...` last) — all check for live data before dropping anything; `client_domains` is empty in production so none should refuse.
+- Frontend: `middleware.js`'s custom-domain branch only activates for a hostname with a `client_domains` row, which doesn't exist in production yet — reverting the Vercel deployment (`vercel rollback`) or the branch/commit removes the code path entirely with no data cleanup needed.
+
+---
+
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 2 host-based routing + Vercel domain attachment
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request, testing live against a real domain the user controls (`ethical-elephant-sanctuaries.com`). Production `middleware.js` was not touched — it still serves the pre-Epic-4 path-only version.
+
+### What changed
+Real end-to-end testing surfaced and fixed two design bugs from the original Phase 1 plan before this went anywhere near production — worth reading in full since both are the kind of thing that only shows up against a real domain, not in review.
+
+**Bug 1 — apex domains can't carry a CNAME.** Phase 1 generated a single CNAME record for every domain, pointed at `maps.layercake-cx.biz`. That's fine for a subdomain, but the user's test domain (`ethical-elephant-sanctuaries.com`) is a root/apex domain — DNS spec forbids a literal CNAME at the zone apex. Cloudflare's dashboard *shows* an apex "CNAME" but actually serves it via CNAME flattening into A records, which then don't necessarily match a fresh A lookup of the routing target (confirmed empirically: the flattened apex resolved to `216.150.1.1`/`216.150.16.1`, the target itself resolved to `216.150.1.129`/`216.150.16.129` — different specific IPs, both legitimately Vercel's). A literal-value comparison would never pass for an apex domain, no matter how correctly it was configured.
+
+Fixed by checking Vercel's *own* authoritative `GET /v6/domains/{domain}/config` (`misconfigured` field) instead of re-resolving DNS ourselves — Vercel's infrastructure already handles apex-flattening correctly since it's their own network being flattened to. Our own DNS-over-HTTPS check is now TXT-only (ownership proof, unaffected by this issue); the routing record recommendation is now type-aware — **A → `76.76.21.21` for an apex domain, CNAME → `cname.vercel-dns.com` for a subdomain** — matching Vercel's own documented guidance (confirmed via Vercel's docs, not assumed).
+
+**Bug 2 — the `clients` table has no anon-select policy**, unlike `maps`/`groups`/`listings`. Middleware needs `clients.slug` (via `client_domains`) to build the blob-fetch path, but a raw PostgREST embed (`client_domains?select=...,clients(slug)`) silently returned `null` for the `clients` side while `maps(slug)` worked fine. Granting blanket anon `select` on `clients` (mirroring the older tables' pattern) was rejected — `clients` has since grown genuinely sensitive columns (`plan_key`, `email_domain_status`, `email_dns_records`) those older tables never had when their anon policies were written; opening the whole table would leak them to anonymous requests. Fixed with a narrow, purpose-built `resolve_custom_domain(hostname)` RPC (security definer) that returns only `client_slug`, `map_slug`, and `status` — nothing else, regardless of what columns either table gains later.
+
+**Also fixed (found during the same review):** `DOMAIN_COLUMNS` in `manage_client_domain` never actually selected `vercel_domain_id`, and `normalizeClientDomainRow()` never returned it to the frontend — meaning the "already attached, skip re-attaching" check was silently always false, and the client-side "hosting pending" indicator could never light up correctly. Both were bugs sitting in the Phase 1 code from the start, just never exercised until this session's real attachment flow ran.
+
+**Host-based routing** (`middleware.js`): branches on `Host`. Branded domain (`maps.layercake-cx.biz`, `*.vercel.app`) is byte-for-byte the pre-existing Epic 3 logic — deliberately not refactored beyond extracting one shared blob-fetch helper, since this file serves 100% of the branded domain's live production traffic. Any other host resolves via the new RPC and routes per the decided scheme: `/` and `/:listingSlug` served directly from Vercel Blob (same content Epic 3 already generates); `/map` falls through to the SPA, where a new client-side route (`CustomDomainMap.jsx`) resolves the map by `window.location.hostname` and renders the existing `/embed` view. A domain that doesn't resolve, or isn't `active` yet, gets an honest static response instead of silently falling into the branded domain's own route table.
+
+### Database migration applied (staging only)
+- `20260824130000_add_resolve_custom_domain_rpc.sql` — dry-run clean (only this one file pending), applied, `VERIFY PASSED`.
+
+### Edge Function redeployed (staging only)
+- `manage_client_domain` — redeployed twice this session as the apex-domain fix landed, plus the new `_shared/vercel.ts` (Vercel Domains API: attach/detach/config-check) and rewritten `_shared/dns.ts` (TXT-only now).
+
+### Verified
+- [x] Real domain, real DNS, real Vercel attachment: `ethical-elephant-sanctuaries.com` — TXT verified, routing record (still the old CNAME from before this fix — Vercel's config check accepted it as correctly configured despite not matching Vercel's own "recommended" record type for an apex domain, which is worth knowing: Vercel's check cares whether it resolves to their infrastructure, not which record type got it there) — attached to the Vercel project, `status: active`, confirmed independently via REST against staging.
+- [x] `resolve_custom_domain('ethical-elephant-sanctuaries.com')` RPC confirmed returning the correct `client_slug`/`map_slug`/`status` via direct REST call.
+- [x] `middleware.js` logic tested locally against real staging data (real RPC call, real Supabase project) with a small standalone script — confirmed correct routing decisions for: active custom domain root (attempts the right blob path), `/map` (falls through to SPA), unregistered domain (404 "not configured"), and the branded domain's existing path (unchanged fall-through behavior preserved). Blob-fetch itself wasn't exercised against real content (no local access to the Vercel Blob base URL), only the routing/resolution logic that's new this phase.
+- [ ] Real request through Vercel's edge network to the live custom domain — **not done**. Vercel's edge only routes a custom domain's traffic to whichever deployment is aliased as the project's **production** target; a Preview deploy doesn't receive traffic for an attached custom domain, and forging the `Host` header against a Preview URL gets rejected by Vercel's edge (`DEPLOYMENT_NOT_FOUND`) before our code ever runs — confirmed empirically. Full request-level confirmation needs `middleware.js` on production.
+- [ ] Production — not started. This is the highest-blast-radius file in the repo (100% of the branded domain's live traffic runs through it); needs explicit sign-off before `vercel --prod`.
+
+### Rollback plan
+- `_20260824130000_add_resolve_custom_domain_rpc.rollback.sql` — checks nothing else depends on the function before dropping it.
+- `middleware.js`/frontend changes are additive and isolated to the non-branded-host branch; the branded-host branch is unchanged from Epic 3. Reverting the branch/commit removes them cleanly. No production frontend deploy has happened yet, so there is nothing to roll back there.
+
+---
+
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 1 domain configuration & verification
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request ("let's get to phase 1 before deploying"). Production was not touched.
+
+### What changed
+Client-facing domain registration and DNS ownership verification, on top of Phase 0's data model. A client (or admin, on their behalf) can now add a hostname, get real DNS records to configure, and verify them — nothing routes traffic through a custom domain yet, that's Phase 2.
+
+- **`manage_client_domain` Edge Function** (`add`/`verify`/`remove`), mirroring `manage_client_email`'s structure exactly (same auth-check shape, same error-mapping pattern). `add` re-checks the `maps.custom_domain` entitlement server-side via `resolve_custom_domain_entitlement()` (never trust the UI-level gate alone), validates the hostname format and uniqueness, and confirms the chosen map belongs to the calling client. It generates a TXT ownership-proof record and a CNAME record (target: `maps.layercake-cx.biz` by default, overridable via `CUSTOM_DOMAIN_CNAME_TARGET`).
+- **DNS verification via Cloudflare's public DNS-over-HTTPS API** (`supabase/functions/_shared/dns.ts`) — deliberately not `Deno.resolveDns()`, whose availability inside the Supabase Edge Runtime sandbox isn't guaranteed, and deliberately not the Vercel Domains API, which would need a new credential and only matters once Phase 2 actually wires up routing. This is a genuinely new, credential-free pattern for this codebase — no third-party domain-management account needed. New third-party dependency logged in `docs/DATA_AND_PRIVACY.md` (§11) — no personal data leaves the platform, only the hostname the client themselves provided.
+- **Client portal**: `/client/domains` (`ClientDomains.jsx` → shared `DomainSettings.jsx`), gated by the `custom_domain` feature flag (nav item hidden) and the `EntitlementGate` overlay (same double-gate pattern as Messaging). Lets a client add a domain (picking which map it publishes), see the two DNS records with copy buttons, verify, and remove.
+- **Admin**: new "Domains" tab on `AdminClientDetail.jsx` rendering the same shared `DomainSettings` component (`eventSource="admin_dashboard"`) — full client/admin parity for free, same as Messaging.
+- **Admin beta-flag checkbox added in the same PR as the flag itself** — learning the lesson from the `directory_pages` gap (2026-08-23): `AdminClientDetail.jsx` now has a "Custom domains" checkbox under Feature access (beta) from day one, not bolted on after someone notices it's missing.
+- **New admin event category**: `domain_*` (`domain_added`, `domain_verified`, `domain_verify_failed`, `domain_removed`), documented in `AGENTS.md`'s event catalogue and `src/lib/adminEvents.js`'s category/subtype lists, fired from the frontend after each successful action (same fire-and-forget `recordAdminEvent()` pattern as everywhere else in this codebase — no Edge Function in this repo writes `admin_events` directly).
+
+### Edge Function deployed (staging only)
+- `manage_client_domain`, deployed with `--no-verify-jwt` (matches `manage_client_email` — the function does its own JWT validation internally via `requireUser()`, so the platform-level gateway check would otherwise reject the anon-key fallback path with a raw GoTrue error before the function's own auth logic ever runs).
+
+### Verified
+- [x] `npm run build` clean.
+- [x] Deployed function responds correctly to malformed requests: missing `clientId` → 400, no valid user session → 401/rejected by `requireUser()` (same shared auth helper as `manage_client_email`, unchanged behavior).
+- [x] `/client/domains` loads with no console errors and correctly redirects an unauthenticated visitor to `/login` (`ClientGate` behavior unchanged).
+- [x] Full authenticated click-through (add a domain, verify real DNS records, remove) — confirmed working by the user directly, 2026-08-24.
+- [ ] Production — not started.
+
+### Rollback plan
+- Remove the Edge Function: `supabase functions delete manage_client_domain --project-ref beqejxneehilplrtpntn` (staging) — no database changes in this deployment beyond what Phase 0 already made, so no data migration rollback is needed for Phase 1 itself.
+- Frontend changes are additive (new route, new nav item, new admin tab) — reverting the branch removes them cleanly.
+
+---
+
+## 2026-08-24 — [Staging] Bring Your Own Domain (Epic 4) — Phase 0 data model
+
+**Branch/commit:** `feat/2026-08-24-custom-domain-phase0`
+**Deployed by:** Claude (agent), at user's explicit request, following the same dry-run → staging → verify sequence as every prior migration on this project. Production was not touched.
+
+### What changed
+Foundations for the new "Bring Your Own Domain" epic — client-configured custom domains/subdomains, per-domain Google Analytics, generalized SEO metadata, and a per-map favicon (full epic doc: see Monday item below). This deployment is data model only; no routing, Edge Function, or UI ships yet.
+
+- New `client_domains` table: one domain maps to exactly one map (`map_id not null`), `status` lifecycle (`pending` → `verifying` → `active`/`failed`) mirroring `clients.email_domain_status`, `dns_records` jsonb for the client setup UI, `vercel_domain_id`, and a per-domain `ga_measurement_id` (format-checked `G-XXXXXXXXXX`). RLS: authenticated-all (matches the existing `clients`/`maps` pattern), plus anon `select` restricted to `status = 'active'` rows only, for the future Vercel Edge Middleware hostname lookup (no user session at the edge).
+- New `maps.favicon_url` column — nullable, not tier-gated, falls back to the default Layercake favicon.
+- New `custom_domain` feature flag (off for customers, on for admins/`@layercake-cx.biz`) — **note for whoever wires the admin UI next:** this does not get a toggle for free; `AdminClientDetail.jsx` needs its own manually-added checkbox, exactly the gap just patched for `directory_pages` on 2026-08-23. Flagging it now so it isn't missed again.
+- New `maps.custom_domain` commercial entitlement (Professional+, i.e. `plan_key` premium/unlimited/founder) + `resolve_custom_domain_entitlement()` resolver, same precedence and service-role-only grant as `resolve_directory_pages_entitlement()`. Favicon and baseline SEO metadata quality deliberately get **no** entitlement row — decided with the user that those ship free on every tier.
+
+### Database migrations applied (staging only)
+- `20260824120000_create_client_domains.sql`
+- `20260824121000_add_maps_favicon_url.sql`
+- `20260824122000_seed_custom_domain_feature_flag.sql`
+- `20260824123000_gate_custom_domain_entitlement.sql`
+
+All four dry-run clean (`supabase db push --dry-run` showed exactly these four pending, nothing else drifted), then applied via `supabase db push`. Every migration's built-in `VERIFY PASSED` notice fired with no exceptions. Cross-checked independently via a direct REST call against staging with the anon key (`client_domains` reachable, empty array as expected). CLI was linked to staging only for the duration of this deploy and relinked back to production (`gxixwdjfmegxcxfeflro`) immediately after — production was never linked or pushed to.
+
+### Verified
+- [x] Staging: dry-run listed exactly the 4 new files, no other pending drift.
+- [x] Staging: apply succeeded, all 4 `VERIFY PASSED` notices fired, no exceptions.
+- [x] Staging: `client_domains` confirmed reachable via REST with the anon key, 0 rows.
+- [ ] Client-portal/admin UI smoke test — not applicable yet; no UI reads/writes these tables until a later phase.
+- [ ] Production — not started. Staging should sit in this state for at least one deploy cycle first, per house policy.
+
+### Rollback plan
+Reverse in the opposite order they were applied (rollbacks all check for live data first and abort if any exists):
+- `_20260824123000_gate_custom_domain_entitlement.rollback.sql`
+- `_20260824122000_seed_custom_domain_feature_flag.rollback.sql`
+- `_20260824121000_add_maps_favicon_url.rollback.sql`
+- `_20260824120000_create_client_domains.rollback.sql`
+
+---
+
 ## 2026-08-23 — [Staging] Directory pages: missing admin toggle for the `directory_pages` beta flag
 
 **Branch/commit:** `fix/2026-08-23-directory-pages-flag-toggle`

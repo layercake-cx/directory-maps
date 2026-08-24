@@ -256,6 +256,24 @@ Tables/functions: `listings.slug` + `generate_unique_listing_slug()` + insert tr
 
 Files: `supabase/functions/generate_directory_pages/index.ts`, `middleware.js`; publish wiring (`triggerDirectoryPagesRegeneration`) in `src/lib/mapPublication.js`, `AdminMapDashboard.jsx`, `ClientMapDashboard.jsx`.
 
+### 4.4f Custom domains — "Bring Your Own Domain" (Epic 4, new, in development)
+
+> **Visibility:** gated behind a new `custom_domain` beta feature flag (same "Feature access (beta)" toggle pattern) plus a dedicated commercial entitlement `features.maps.custom_domain` (Professional plan and above, or Founding Partner). Favicon config and baseline SEO metadata quality (later phases of this epic) are deliberately **not** tier-gated — only the custom domain itself and its attached Google Analytics config are.
+
+Lets a client point a domain or subdomain they own at one of their maps, verify it, and publish to it — verified end-to-end against a real domain on staging.
+
+- **Data model** (Phase 0): `client_domains` table — one domain maps to exactly one map (`map_id` not null); a client may register several domains, and more than one may point at the same map. `status` lifecycle: `pending` → `verifying`/`active`/`failed`. `dns_records` jsonb holds the required TXT (ownership) + routing (A or CNAME) records, mirroring the shape of `clients.email_dns_records` for Resend. `ga_measurement_id` is per-domain, for a later phase.
+- **Verification & Vercel attachment** (Phases 1–2, `manage_client_domain` Edge Function): a client adds a hostname (validated format, uniqueness, chosen map ownership); the function generates a TXT ownership-proof record plus a routing record — **A record → `76.76.21.21` for an apex/root domain, CNAME → `cname.vercel-dns.com` for a subdomain** (apex domains can't legally carry a CNAME — DNS spec, not a Vercel quirk). Our own TXT check runs via **Cloudflare's public DNS-over-HTTPS API** (no credential needed); once that passes, the domain is added to the Vercel project via the Domains API, then checked against **Vercel's own authoritative `GET /v6/domains/{domain}/config` (`misconfigured`)** rather than re-resolving DNS ourselves — that endpoint correctly handles apex-domain CNAME-flattening (a plain A/CNAME re-lookup does not: verified in testing that a Cloudflare-flattened apex CNAME resolves to different, but equally valid, Vercel IPs than a fresh lookup of the routing target, which would have failed a naive equality check). Both TXT-verified and Vercel-configured moves status to `active`.
+- **Host-based routing** (Phase 2, `middleware.js`): branches on the request's `Host` header. Branded domain (`maps.layercake-cx.biz`, `*.vercel.app`) — unchanged since Epic 3. Any other host — resolved via a new `resolve_custom_domain(hostname)` RPC (security definer, returns only client/map slugs + status; deliberately **not** solved by granting `anon` select on `clients`, which has picked up sensitive columns — `plan_key`, `email_domain_status` — since `maps`/`groups`/`listings` got their anon-read policies) — then routed per the decided scheme: `/` → directory landing (same Vercel Blob content Epic 3 generates), `/:listingSlug` → listing page, `/map` → falls through to the SPA, where a new `/map` route (`CustomDomainMap.jsx`) resolves the map by hostname and renders the existing `/embed` view — so the URL doubles as a real iframe source. An unresolvable or not-yet-active domain gets an honest static response, not the branded domain's own content.
+- Client portal: `/client/domains` (`ClientDomains.jsx` → shared `DomainSettings.jsx`, same client/admin-parity pattern as Messaging). Admin: a "Domains" tab on `AdminClientDetail.jsx` using the same shared component.
+- Full epic scope (per-domain Google Analytics, generalized SEO metadata, favicon config) and the phase breakdown live in the epic planning doc (Monday: "Bring Your Own Domain (Epic 4)").
+
+Not built yet: generalized SEO metadata/canonical-URL resolution per custom domain (Phase 3), favicon config (Phase 4), Google Analytics injection (Phase 5). Phases 0–2 are deployed to both staging and production — the feature is flag-gated and no production client is using it yet, but the mechanism itself is live and confirmed working via real Vercel edge routing.
+
+Tables/functions: `client_domains` (`20260824120000_create_client_domains.sql`); `maps.favicon_url` (`20260824121000_add_maps_favicon_url.sql`, unused until Phase 4); `custom_domain` flag seed (`20260824122000_seed_custom_domain_feature_flag.sql`); `features.maps.custom_domain` + `resolve_custom_domain_entitlement()` (`20260824123000_gate_custom_domain_entitlement.sql`); `resolve_custom_domain()` (`20260824130000_add_resolve_custom_domain_rpc.sql`).
+
+Files: `supabase/functions/manage_client_domain/index.ts`, `supabase/functions/_shared/dns.ts`, `supabase/functions/_shared/vercel.ts`; `middleware.js`; `src/pages/CustomDomainMap.jsx`, `src/components/DomainSettings.jsx`, `src/pages/client/ClientDomains.jsx`, `src/lib/clientDomains.js`.
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
@@ -474,6 +492,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |
 | Intent-Based AI Search (Epic 2) | **Deployed (flagged)** | Enrichment pipeline (job queue, cron worker, Claude Haiku 4.5) + multi-turn intent search-query chat (hallucination-guarded id validation, map auto-fit) + `maps.ai_search` entitlement (Professional plan+/Founding Partner, per-client override, server-side enforced) deployed to staging + production; hidden behind the `ai_search` feature flag. No admin re-run action, no job-status UI yet |
 | Directory & LLM/Search Discoverability (Epic 3) | **Deployed (flagged)** | Crawlable per-listing + directory landing pages (schema.org JSON-LD, embedded interactive map, sitemap.xml) via a new Vercel Edge Middleware + `generate_directory_pages` Edge Function, deployed to staging + production; hidden behind the `directory_pages` feature flag + its own `maps.directory_pages` entitlement. No root-level combined sitemap, no curated (vs. fully generic) research rendering yet |
+| Bring Your Own Domain (Epic 4) | **Deployed to staging + production (flagged), Phases 0–2 of 6** | Domain registration, DNS verification, Vercel domain attachment, and host-based routing (`middleware.js` + `resolve_custom_domain()` RPC), behind the `custom_domain` feature flag (off by default) + `maps.custom_domain` entitlement. Verified end-to-end against a real domain on staging; verified via real Vercel edge routing on production (hitting an attached-but-unregistered-in-prod domain correctly returned the app's own fallback, not a Vercel error). No production client has used this yet — the flag is off for everyone by default. SEO metadata generalization, favicon, and Google Analytics are Phases 3–5, not started |
 
 ---
 
@@ -487,9 +506,11 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/terms` | `Terms` |
 | `/privacy` | `Privacy` |
 | `/embed` | `EmbedMap` |
+| `/map` | `CustomDomainMap` (resolves the map by request hostname; only meaningful on a verified custom domain) |
 | `/client` | `ClientDashboard` |
 | `/client/team` | `ClientTeam` |
 | `/client/email` | `ClientEmail` |
+| `/client/domains` | `ClientDomains` (flagged: `custom_domain`) |
 | `/client/maps/new` | `ClientMapNew` |
 | `/client/maps/:mapId` | `ClientMapDashboard` |
 | `/client/maps/:mapId/data` | `ClientMapData` |

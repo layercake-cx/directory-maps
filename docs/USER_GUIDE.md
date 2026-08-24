@@ -419,6 +419,30 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ---
 
+## Domains
+
+The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map to it. Once verified: the root of your domain shows the SEO-friendly directory listing, `/map` shows the full interactive map (also usable as an iframe source elsewhere), and each listing gets its own page.
+
+Custom domains require the **Professional plan or above**. On the Basic plan, the section is dimmed with a note to upgrade; contact Layercake to change your plan.
+
+### Add a domain
+
+1. Choose which **map** this domain will publish (each domain publishes exactly one map — register a second domain if you want a different address for another map).
+2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com` or a root domain like `yourcompany.com`. Don't include `https://` or a trailing path.
+3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a routing record. **A root/apex domain** (e.g. `yourcompany.com`) gets an `A` record; **a subdomain** (e.g. `directory.yourcompany.com`) gets a `CNAME` record — DNS doesn't allow a literal CNAME on a root domain, so the record type differs depending on which you use.
+
+### Verify a domain
+
+1. Add both records shown to your DNS provider (wherever you manage DNS for that domain — often Cloudflare, GoDaddy, Namecheap, your IT team, etc.). Use the **copy button** next to each value to avoid transcription errors. **If your provider offers a "proxy" toggle for the routing record (Cloudflare calls this the orange cloud), turn it off** — set it to "DNS only." A proxied record hides the real destination from our verification check and it will never succeed.
+2. Click **Verify DNS settings**. This checks DNS ownership immediately, then connects the domain to hosting — that second part can take a minute or two the first time. DNS propagation itself can take anywhere from a few minutes to 48 hours depending on your provider.
+3. When the status badge turns green ("Active"), your domain is live.
+
+### Remove a domain
+
+Click **Remove** on a domain's card. This can't be undone — you'd need to add it again and re-verify from scratch.
+
+---
+
 ## Quick reference
 
 | Action | Where |
@@ -442,6 +466,8 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 | Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
 | Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
+| Add a custom domain for a map | `/client/domains` → Add domain |
+| Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 
@@ -449,7 +475,7 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ## Admin users
 
-Users with **admin** access use `/admin` to manage customers and their maps. Each customer is managed from the admin customer pages (`/admin/clients/:id`), which mirror the client portal (maps, directories, categorisations, users, messaging).
+Users with **admin** access use `/admin` to manage customers and their maps. Each customer is managed from the admin customer pages (`/admin/clients/:id`), which mirror the client portal (maps, directories, categorisations, users, messaging, domains).
 
 **Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
 

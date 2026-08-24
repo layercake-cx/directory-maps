@@ -8,7 +8,7 @@ import { getClientAndContact } from "../../lib/getClientAndContact.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags.js";
-import { DIRECTORIES_FLAG } from "../../lib/featureFlags.js";
+import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG } from "../../lib/featureFlags.js";
 import { readHashSearchParams, replaceHashSearchParams } from "../../lib/hashSearchParams.js";
 import {
   markPublishPanelOpen,
@@ -23,6 +23,7 @@ const CLIENT_NAV = [
   { label: "Categorisations", path: "/client/categorisations", requiresManageOrg: true, requiresFlag: DIRECTORIES_FLAG },
   { label: "Team", path: "/client/team", requiresManageOrg: true },
   { label: "Messaging", path: "/client/email", requiresManageMaps: true },
+  { label: "Domains", path: "/client/domains", requiresManageMaps: true, requiresFlag: CUSTOM_DOMAIN_FLAG },
 ];
 
 function isClientMapDesignPath(pathname) {
@@ -278,6 +279,7 @@ export default function ClientLayout() {
                       (pathname.startsWith("/client/") &&
                         !pathname.startsWith("/client/team") &&
                         !pathname.startsWith("/client/email") &&
+                        !pathname.startsWith("/client/domains") &&
                         !pathname.startsWith("/client/maps/") &&
                         !pathname.startsWith("/client/directories") &&
                         !pathname.startsWith("/client/categorisations"))

@@ -5,6 +5,7 @@ import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
+import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
@@ -16,6 +17,7 @@ import {
   DIRECTORIES_FLAG,
   AI_SEARCH_FLAG,
   DIRECTORY_PAGES_FLAG,
+  CUSTOM_DOMAIN_FLAG,
   listClientFeatureOverrides,
   setClientFeatureOverride,
   clearClientFeatureOverride,
@@ -59,6 +61,8 @@ export default function AdminClientDetail() {
   const [aiSearchFlagSaving, setAiSearchFlagSaving] = useState(false);
   const [directoryPagesFlagEnabled, setDirectoryPagesFlagEnabled] = useState(false);
   const [directoryPagesFlagSaving, setDirectoryPagesFlagSaving] = useState(false);
+  const [customDomainFlagEnabled, setCustomDomainFlagEnabled] = useState(false);
+  const [customDomainFlagSaving, setCustomDomainFlagSaving] = useState(false);
   const [flagSaving, setFlagSaving] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -147,6 +151,9 @@ export default function AdminClientDetail() {
       );
       setDirectoryPagesFlagEnabled(
         (flagOverrides ?? []).some((o) => o.flag_key === DIRECTORY_PAGES_FLAG && o.enabled === true)
+      );
+      setCustomDomainFlagEnabled(
+        (flagOverrides ?? []).some((o) => o.flag_key === CUSTOM_DOMAIN_FLAG && o.enabled === true)
       );
       setContactName(primary?.name ?? "");
       setContactEmail(primary?.email ?? "");
@@ -393,6 +400,36 @@ export default function AdminClientDetail() {
     }
   }
 
+  async function handleToggleCustomDomainFlag(next) {
+    setCustomDomainFlagSaving(true);
+    setErr("");
+    setNotice("");
+    try {
+      if (next) {
+        await setClientFeatureOverride(clientId, CUSTOM_DOMAIN_FLAG, true);
+      } else {
+        await clearClientFeatureOverride(clientId, CUSTOM_DOMAIN_FLAG);
+      }
+      setCustomDomainFlagEnabled(next);
+      recordEvent("ops_feature_flag_changed", {
+        actor_admin_scope: "platform_admin",
+        client_id: clientId,
+        flag: CUSTOM_DOMAIN_FLAG,
+        enabled: next,
+        source: "admin_client_detail",
+      });
+      setNotice(
+        next
+          ? "Custom domains enabled for this customer."
+          : "Custom domains reset to the default (hidden for this customer)."
+      );
+    } catch (e) {
+      setErr(e.message ?? String(e));
+    } finally {
+      setCustomDomainFlagSaving(false);
+    }
+  }
+
   const CLIENT_NAV_ITEMS = [
     { label: "Maps", value: "maps" },
     { label: "Directories", value: "directories" },
@@ -401,6 +438,7 @@ export default function AdminClientDetail() {
     { label: "Customer details", value: "details" },
     { label: "Users", value: "users" },
     { label: "Messaging", value: "messaging" },
+    { label: "Domains", value: "domains" },
   ];
 
   return (
@@ -644,6 +682,23 @@ export default function AdminClientDetail() {
                       </span>
                     </span>
                   </label>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: customDomainFlagSaving ? "wait" : "pointer", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={customDomainFlagEnabled}
+                      disabled={customDomainFlagSaving}
+                      onChange={(e) => handleToggleCustomDomainFlag(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>
+                      <strong>Custom domains</strong>
+                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
+                        Show the Domains section in this customer&apos;s portal, letting them add and verify
+                        their own domain. Also requires the Custom domain entitlement (Entitlements tab).
+                        Saved immediately.
+                      </span>
+                    </span>
+                  </label>
 
                   <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Primary contact</h3>
                   <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
@@ -833,6 +888,10 @@ export default function AdminClientDetail() {
                 eventSource="admin_dashboard"
                 showPageTitle={false}
               />
+            )}
+
+            {activeTab === "domains" && (
+              <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
             )}
           </>
         )}
