@@ -206,6 +206,47 @@ export async function loadEntryTermIds(entryId) {
   return (data ?? []).map((r) => r.term_id);
 }
 
+/**
+ * Bulk-apply term(s) from one categorisation to many entries at once — DIR-E1-S4.
+ * mode "add" leaves each entry's existing tags (for this categorisation and others)
+ * untouched and adds the given terms; mode "replace" clears only this categorisation's
+ * existing terms on the selected entries first (other categorisations' tags on the
+ * same entries are unaffected), mirroring applyBulkFilterValue's add-vs-replace shape.
+ */
+export async function applyBulkEntryTerms({ entryIds, categorisationId, termIds, mode = "add" }) {
+  const ids = [...new Set((entryIds || []).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const terms = [...new Set((termIds || []).filter(Boolean))];
+
+  if (mode === "replace") {
+    const { data: catTerms, error: ctErr } = await supabase
+      .from("category_terms")
+      .select("id")
+      .eq("categorisation_id", categorisationId);
+    if (ctErr) throw ctErr;
+    const catTermIds = (catTerms ?? []).map((t) => t.id);
+    if (catTermIds.length) {
+      const { error: delErr } = await supabase
+        .from("entry_category_terms")
+        .delete()
+        .in("entry_id", ids)
+        .in("term_id", catTermIds);
+      if (delErr) throw delErr;
+    }
+  }
+
+  const rows = [];
+  for (const entryId of ids) {
+    for (const termId of terms) rows.push({ entry_id: entryId, term_id: termId });
+  }
+  if (rows.length === 0) return ids.length;
+  const { error } = await supabase
+    .from("entry_category_terms")
+    .upsert(rows, { onConflict: "entry_id,term_id", ignoreDuplicates: true });
+  if (error) throw error;
+  return ids.length;
+}
+
 /** Replace all term tags for an entry with exactly termIds. */
 export async function setEntryTerms(entryId, termIds) {
   const { error: delErr } = await supabase.from("entry_category_terms").delete().eq("entry_id", entryId);

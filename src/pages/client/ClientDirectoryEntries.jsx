@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
-import { archiveDirectory, deleteDirectoryPermanently, getDirectory } from "../../lib/directories.js";
+import { archiveDirectory, deleteDirectoryPermanently, getContactDirectoryPermission, getDirectory } from "../../lib/directories.js";
 import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
@@ -22,6 +22,11 @@ export default function ClientDirectoryEntries() {
   const [directory, setDirectory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  // Member-level access (DIR-E1-S2): Owner/Manager always have access; a Member
+  // needs an explicit contact_directory_permissions grant.
+  const [permission, setPermission] = useState(null);
+  const [permissionChecked, setPermissionChecked] = useState(false);
 
   const [archiving, setArchiving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -48,6 +53,16 @@ export default function ClientDirectoryEntries() {
   useEffect(() => {
     loadDirectoryTermIds(directoryId).then(setDirectoryTermIds).catch(() => {});
   }, [directoryId]);
+
+  useEffect(() => {
+    if (canManage) { setPermissionChecked(true); return; }
+    if (!contact?.id || !directoryId) return;
+    setPermissionChecked(false);
+    getContactDirectoryPermission(contact.id, directoryId)
+      .then(setPermission)
+      .catch((e) => setErr(e?.message ?? String(e)))
+      .finally(() => setPermissionChecked(true));
+  }, [canManage, contact?.id, directoryId]);
 
   async function handleDirectoryTermsChange(ids) {
     setDirectoryTermIds(ids);
@@ -90,9 +105,22 @@ export default function ClientDirectoryEntries() {
     }
   }
 
-  if (loading) return <div className="page-main"><p>Loading…</p></div>;
+  if (loading || !permissionChecked) return <div className="page-main"><p>Loading…</p></div>;
   if (err) return <div className="page-main"><p style={{ color: "#b91c1c" }}>{err}</p></div>;
   if (!directory) return <div className="page-main"><p>Directory not found.</p></div>;
+
+  const hasAccess = canManage || !!permission;
+  if (!hasAccess) {
+    return (
+      <div className="page-main">
+        <div style={{ marginBottom: 12 }}>
+          <Link to="/client/directories">← Back to directories</Link>
+        </div>
+        <p>You don't have access to this directory. Ask an Owner or Manager to grant you access.</p>
+      </div>
+    );
+  }
+  const canEditEntries = canManage || !!permission?.can_edit_entries;
 
   return (
     <div className="page-main">
@@ -129,7 +157,7 @@ export default function ClientDirectoryEntries() {
         />
       </div>
 
-      <DirectoryEntriesPanel directoryId={directoryId} clientId={client?.id} canEdit recordEvent={recordEvent} />
+      <DirectoryEntriesPanel directoryId={directoryId} clientId={client?.id} canEdit={canEditEntries} recordEvent={recordEvent} />
 
       {deleteOpen && (
         <div

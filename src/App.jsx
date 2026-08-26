@@ -39,6 +39,7 @@ import AdminErrorLogs from "./pages/admin/AdminErrorLogs.jsx";
 import AdminUserActivity from "./pages/admin/AdminUserActivity.jsx";
 import AdminSyncLog from "./pages/admin/AdminSyncLog.jsx";
 import AdminLeads from "./pages/admin/AdminLeads.jsx";
+import AdminDirectories from "./pages/admin/AdminDirectories.jsx";
 import AdminDirectoryNew from "./pages/admin/AdminDirectoryNew.jsx";
 import AdminDirectoryEntries from "./pages/admin/AdminDirectoryEntries.jsx";
 
@@ -118,6 +119,16 @@ export default function App() {
         element={
           <AdminGate>
             <AdminMaps />
+          </AdminGate>
+        }
+      />
+
+      {/* Admin · Directories (searchable list) */}
+      <Route
+        path="/admin/directories"
+        element={
+          <AdminGate>
+            <AdminDirectories />
           </AdminGate>
         }
       />

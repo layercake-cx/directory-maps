@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-26 — [Staging] Directories: sanitisation, real Member permissions, bulk actions, CSV import, admin nav
+
+**Branch/commit:** `fix/2026-08-26-directory-entry-hardening`
+**Deployed by:** Claude (agent), at user's request, as Phase 1 of a larger "Directories as a standalone product" build (see `docs/DIRECTORIES.md`). This branch only hardens the existing DIR-E1 CRUD — no publishing, branding, or domain work yet.
+
+### What changed
+DIR-E1 (Directory & Entry CRUD) and DIR-E5 (Categorisations) shipped 2026-07-14 and have sat behind the `directories` feature flag since. Two real gaps made it unsafe to build anything public-facing on top of that code: `directory_entries.notes_html` had zero sanitisation anywhere in the stack, and `ClientDirectoryEntries.jsx` hardcoded `canEdit` to always-true regardless of the visitor's role, so the `contact_directory_permissions` table (built as a direct analog of `contact_map_permissions`) was dead — every Member of a client org had full entry-edit rights on every directory, with no way to restrict it.
+
+- **`notes_html` sanitisation** — new `src/lib/sanitizeHtml.js` (DOMPurify, small allowed-tag list) applied on every write path: single-entry create/update (`src/lib/directories.js`) and CSV import (`upsertDirectoryEntries`). Applied unconditionally, regardless of the entry's `allow_html` flag, per the original spec's own guardrail — `allow_html` only controls whether the value is rendered as HTML or escaped, not whether it's sanitised.
+- **Real Member permission enforcement** — `ClientDirectoryEntries.jsx` now checks `contact_directory_permissions` for Members (Owner/Manager still always have access), showing a "you don't have access" message instead of the entries table when no grant exists, and passing the entry-level `can_edit_entries` value through to `DirectoryEntriesPanel`'s `canEdit` prop. This is UI-level enforcement, matching the existing app-wide bar (RLS on `directory_entries`/`directories` does not check this table, same as `contact_map_permissions` today for maps) — not a new RLS layer, which would be separate, larger scope.
+- **Avoiding an access regression** — since no `contact_directory_permissions` rows existed anywhere (the table was dead), shipping the above alone would have silently locked out every existing Member from every directory with no way to fix it. Added a "Directory access" column to `ClientTeam.jsx` (`src/pages/client/ClientTeam.jsx`), mirroring the existing "Map access" checkboxes exactly, so Owners/Managers can grant/revoke directory access immediately.
+- **Bulk actions** — row selection + bulk archive/restore + bulk categorisation tagging (add/replace mode) on `DirectoryEntriesPanel.jsx`, modelled on `BulkFilterEditModal.jsx`. New `applyBulkEntryTerms()` in `src/lib/categorisations.js`, new `src/components/directories/BulkCategoryEditModal.jsx`.
+- **CSV import** — download-template + upload-and-import on `DirectoryEntriesPanel.jsx`, modelled on `ClientMapData.jsx`'s CSV convention (same parser, same auto-create-groups-on-import behaviour). Deliberately "add to existing" only — no destructive overwrite mode, since DIR-E1-S6's own gherkin never asked for one. One `category_<key>` column per categorisation that applies to entries; unrecognised terms are skipped with a warning rather than auto-created (a taxonomy change belongs in Categorisations, not a data import) or failing the whole import.
+- **Admin nav** — new `/admin/directories` route + `AdminDirectories.jsx` (cross-client searchable list, mirrors `AdminMaps.jsx`), added to `AdminLayout.jsx`'s top-level nav. Previously directories were only reachable via a per-customer tab.
+- New admin events: `directory_entry_bulk_archived`, `directory_entry_bulk_tagged`, `directory_entry_imported` (reusing the existing `directory_entry_*` category).
+- XLSX import and RLS-level permission enforcement are explicitly out of scope for this branch — noted as fast-follows, not silently dropped.
+
+### Frontend only — no database migration, no Edge Function
+All changes are client-side React/JS against existing tables (`directory_entries`, `contact_directory_permissions`, `entry_category_terms`). `npm run build` clean.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Manual click-through in the running app (blocked this session — verifying required signing into the admin/client portal, which needs entering a password; the agent does not do this even when supplied credentials, per its safety rules. Needs a human check: Member-without-grant access-denied message, sanitised `notes_html` on a `<script>` payload, bulk archive/tag, CSV template download + re-import, `/admin/directories` reachable, Team page's new Directory access checkboxes.)
+
+### Rollback plan
+Revert this branch/commit — no database or Edge Function changes to unwind.
+
+---
+
 ## 2026-08-24 — [Production] Fix: custom-domain directory links 404ing, embedded map not loading
 
 **Branch/commit:** `fix/2026-08-24-custom-domain-link-rewrite`

@@ -45,6 +45,8 @@ export default function ClientTeam() {
   const [teamRows, setTeamRows] = useState([]);
   const [maps, setMaps] = useState([]);
   const [mapPerms, setMapPerms] = useState({});
+  const [directories, setDirectories] = useState([]);
+  const [dirPerms, setDirPerms] = useState({});
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
@@ -78,12 +80,18 @@ export default function ClientTeam() {
         .single();
       setClient(clientData);
 
-      const [{ data: directory, error: dirErr }, { data: mapsData }] = await Promise.all([
+      const [{ data: directory, error: dirErr }, { data: mapsData }, { data: directoriesData }] = await Promise.all([
         supabase.rpc("list_client_team_directory", { p_client_id: ct.client_id }),
         supabase
           .from("maps")
           .select("id, name")
           .eq("client_id", ct.client_id)
+          .order("name", { ascending: true }),
+        supabase
+          .from("directories")
+          .select("id, name")
+          .eq("client_id", ct.client_id)
+          .eq("is_active", true)
           .order("name", { ascending: true }),
       ]);
 
@@ -92,16 +100,23 @@ export default function ClientTeam() {
       const rows = sortTeamRows(directory ?? []);
       setTeamRows(rows);
       setMaps(mapsData ?? []);
+      setDirectories(directoriesData ?? []);
 
       const memberContactIds = rows
         .filter((r) => r.row_kind === "member" && r.role === "member")
         .map((r) => r.row_id);
 
       if (memberContactIds.length) {
-        const { data: perms } = await supabase
-          .from("contact_map_permissions")
-          .select("contact_id, map_id")
-          .in("contact_id", memberContactIds);
+        const [{ data: perms }, { data: dirGrants }] = await Promise.all([
+          supabase
+            .from("contact_map_permissions")
+            .select("contact_id, map_id")
+            .in("contact_id", memberContactIds),
+          supabase
+            .from("contact_directory_permissions")
+            .select("contact_id, directory_id")
+            .in("contact_id", memberContactIds),
+        ]);
 
         const byContact = {};
         for (const p of perms ?? []) {
@@ -109,8 +124,16 @@ export default function ClientTeam() {
           byContact[p.contact_id].add(p.map_id);
         }
         setMapPerms(byContact);
+
+        const dirByContact = {};
+        for (const g of dirGrants ?? []) {
+          if (!dirByContact[g.contact_id]) dirByContact[g.contact_id] = new Set();
+          dirByContact[g.contact_id].add(g.directory_id);
+        }
+        setDirPerms(dirByContact);
       } else {
         setMapPerms({});
+        setDirPerms({});
       }
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
@@ -168,6 +191,11 @@ export default function ClientTeam() {
         delete next[contactId];
         return next;
       });
+      setDirPerms((prev) => {
+        const next = { ...prev };
+        delete next[contactId];
+        return next;
+      });
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
     }
@@ -203,6 +231,36 @@ export default function ClientTeam() {
         setMapPerms((prev) => {
           const next = { ...prev, [contactId]: new Set(prev[contactId] ?? []) };
           next[contactId].add(mapId);
+          return next;
+        });
+      }
+    } catch (e) {
+      setMsg({ text: e?.message ?? String(e), error: true });
+    }
+  }
+
+  async function handleDirectoryPermToggle(contactId, directoryId, currentlyGranted) {
+    try {
+      if (currentlyGranted) {
+        await supabase
+          .from("contact_directory_permissions")
+          .delete()
+          .eq("contact_id", contactId)
+          .eq("directory_id", directoryId);
+        setDirPerms((prev) => {
+          const next = { ...prev, [contactId]: new Set(prev[contactId]) };
+          next[contactId].delete(directoryId);
+          return next;
+        });
+      } else {
+        // Explicit grants imply edit access (see ClientDirectoryEntries.jsx) — there's
+        // no separate view-only tier yet, matching how Map access works today.
+        await supabase
+          .from("contact_directory_permissions")
+          .insert({ contact_id: contactId, directory_id: directoryId, can_edit_entries: true });
+        setDirPerms((prev) => {
+          const next = { ...prev, [contactId]: new Set(prev[contactId] ?? []) };
+          next[contactId].add(directoryId);
           return next;
         });
       }
@@ -256,6 +314,7 @@ export default function ClientTeam() {
                   <th>Status</th>
                   <th>Last logged in</th>
                   <th>Map access</th>
+                  <th>Directory access</th>
                   {isOwner && <th></th>}
                 </tr>
               </thead>
@@ -265,6 +324,7 @@ export default function ClientTeam() {
                   const isPending = row.row_kind === "invite_pending";
                   const isSelf = isMember && row.row_id === myContact?.id;
                   const perms = isMember ? mapPerms[row.row_id] ?? new Set() : new Set();
+                  const dPerms = isMember ? dirPerms[row.row_id] ?? new Set() : new Set();
                   const isPrivileged = row.role === "owner" || row.role === "manager";
                   const rowKey = `${row.row_kind}-${row.row_id}`;
 
@@ -340,6 +400,35 @@ export default function ClientTeam() {
                               );
                             })}
                             {maps.length === 0 && <span style={{ opacity: 0.6 }}>No maps</span>}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {isPending ? (
+                          <span style={{ opacity: 0.75, fontSize: 13 }}>
+                            {row.role === "member" ? "—" : "All directories (when joined)"}
+                          </span>
+                        ) : isPrivileged ? (
+                          <span style={{ opacity: 0.6, fontSize: 13 }}>All directories</span>
+                        ) : (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {directories.map((d) => {
+                              const granted = dPerms.has(d.id);
+                              return (
+                                <label
+                                  key={d.id}
+                                  style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={granted}
+                                    onChange={() => handleDirectoryPermToggle(row.row_id, d.id, granted)}
+                                  />
+                                  {d.name}
+                                </label>
+                              );
+                            })}
+                            {directories.length === 0 && <span style={{ opacity: 0.6 }}>No directories</span>}
                           </div>
                         )}
                       </td>
