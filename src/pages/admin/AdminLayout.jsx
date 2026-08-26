@@ -7,6 +7,7 @@ import "./admin.css";
 const ADMIN_NAV = [
   { label: "Customers", path: "/admin/clients" },
   { label: "Maps", path: "/admin/maps" },
+  { label: "Directories", path: "/admin/directories" },
   { label: "Admin Users", path: "/admin/users" },
   { label: "Leads", path: "/admin/leads" },
   {

@@ -178,14 +178,16 @@ A directory is the peer of a map — a browsable, structured list of entries not
 | Directories list | `/client/directories` | List/create directories for the client |
 | Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory; tag the directory and its entries with categorisation terms |
 
-- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active.
+- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active. `notes_html` is sanitised (DOMPurify, `src/lib/sanitizeHtml.js`) on every write path regardless of `allow_html`.
 - **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model (§4.4b).
 - Entry deletion (and directory deletion) require typing `DELETE` to confirm — a deliberate departure from the plain `window.confirm()` used for `listings`, given the larger blast radius of losing directory content.
-- No CSV/XLSX import, bulk actions, or publishing yet — deferred to a fast-follow per the DIR-E1 scope decision.
+- **CSV import** (add-to-existing only, no destructive overwrite) and **bulk actions** (archive/restore, bulk categorisation tagging) are now built — see `DirectoryEntriesPanel.jsx`. XLSX import remains a fast-follow.
+- **Member-level access** is enforced via `contact_directory_permissions` (Owner/Manager always have full access; a Member needs an explicit grant, managed from the client Team page's "Directory access" column, mirroring "Map access"). This is UI-level enforcement — RLS on `directories`/`directory_entries` does not check this table, matching how `contact_map_permissions` works for maps today.
+- A top-level, cross-client admin list exists at `/admin/directories` (`AdminDirectories.jsx`), alongside the existing per-customer tab.
 
 Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
 
-Files: `src/lib/directories.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx` (client); `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
+Files: `src/lib/directories.js`, `src/lib/sanitizeHtml.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `src/components/directories/BulkCategoryEditModal.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx`, `ClientTeam.jsx` (client); `AdminDirectories.jsx`, `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
 
 ### 4.4b Categorisations (new, DIR-E5)
 
@@ -485,7 +487,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Admin user management | **Stub** | Page is placeholder |
 | OneDrive / iCloud | **Not started** | UI placeholders only |
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
-| Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD, sanitisation, real Member permissions, bulk actions, CSV import shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
 | Categorisations (DIR-E5) | **Beta (flagged)** | Taxonomy management + directory/entry tagging shipped to staging; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
 | Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
 | Entitlements (plans/features/overrides) | **Deployed** | `products`/`plans`/`features`/`plan_features`/`client_overrides` + `get_my_entitlements()`/`get_client_entitlements()` resolvers; server-side enforcement (triggers on `maps`/`contacts`/`listings`, view-level gate for messaging); admin Entitlements tab for plan assignment + per-client overrides; shared `EntitlementGate`/`EntitlementUsageHint` UI kit. Catalog so far: `max_maps`, `messaging`, `seats`, `data_rows` |

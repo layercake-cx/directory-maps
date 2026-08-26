@@ -8,6 +8,7 @@
  */
 
 import { supabase } from "./supabase";
+import { sanitizeNotesHtml } from "./sanitizeHtml.js";
 
 export const ENTRIES_PAGE_SIZE = 100;
 
@@ -169,7 +170,7 @@ export async function createDirectoryEntry(entry) {
     email: entry.email || null,
     phone: entry.phone || null,
     logo_url: entry.logo_url || null,
-    notes_html: entry.notes_html || null,
+    notes_html: sanitizeNotesHtml(entry.notes_html) || null,
     allow_html: !!entry.allow_html,
     is_active: entry.is_active !== false,
     source: entry.source || "manual",
@@ -182,6 +183,7 @@ export async function updateDirectoryEntry(entryId, patch) {
   const clean = { ...patch, updated_at: new Date().toISOString() };
   if ("lat" in clean) clean.lat = clean.lat === "" || clean.lat == null ? null : Number(clean.lat);
   if ("lng" in clean) clean.lng = clean.lng === "" || clean.lng == null ? null : Number(clean.lng);
+  if ("notes_html" in clean) clean.notes_html = sanitizeNotesHtml(clean.notes_html) || null;
   const { error } = await supabase.from("directory_entries").update(clean).eq("id", entryId);
   if (error) throw error;
 }
@@ -189,4 +191,53 @@ export async function updateDirectoryEntry(entryId, patch) {
 export async function deleteDirectoryEntry(entryId) {
   const { error } = await supabase.from("directory_entries").delete().eq("id", entryId);
   if (error) throw error;
+}
+
+/** Bulk archive/restore (is_active toggle) — DIR-E1-S4. */
+export async function bulkSetDirectoryEntriesActive(entryIds, isActive) {
+  const ids = [...new Set((entryIds || []).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const { error } = await supabase
+    .from("directory_entries")
+    .update({ is_active: !!isActive, updated_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) throw error;
+  return ids.length;
+}
+
+/**
+ * Bulk-insert/upsert entries from a CSV import (DIR-E1-S6). Callers are
+ * responsible for resolving directory_group_id from group_name first — see
+ * ClientMapData.jsx's doImport for the auto-create-on-import convention this
+ * mirrors. notes_html is sanitised the same as the single-entry write path.
+ */
+export async function upsertDirectoryEntries(rows) {
+  const clean = (rows || []).map((r) => ({
+    ...r,
+    notes_html: r.notes_html ? sanitizeNotesHtml(r.notes_html) : null,
+  }));
+  if (clean.length === 0) return [];
+  const { data, error } = await supabase.from("directory_entries").upsert(clean, { onConflict: "id" }).select("id");
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ---- Member-level per-directory permissions (contact_directory_permissions) ----
+
+/**
+ * The current contact's explicit grant for this directory, or null if none
+ * exists. Owner/Manager/is_primary contacts should be checked with
+ * canManageOrg() first — this only covers the Member-level explicit-grant
+ * path (peer of contact_map_permissions).
+ */
+export async function getContactDirectoryPermission(contactId, directoryId) {
+  if (!contactId || !directoryId) return null;
+  const { data, error } = await supabase
+    .from("contact_directory_permissions")
+    .select("contact_id, directory_id, can_edit_entries")
+    .eq("contact_id", contactId)
+    .eq("directory_id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }

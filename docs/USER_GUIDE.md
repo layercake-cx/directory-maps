@@ -116,6 +116,13 @@ Open a directory to see its entries table:
 - **Search** — filters entries by name or address (server-side, so it works across directories of any size).
 - **Edit** / **Delete** — Delete requires typing **DELETE** to confirm, since it can't be undone.
 - **Group** — a simple, single-value category per directory (add new groups inline from the entry form). This is distinct from the richer, reusable categorisation model planned for a later phase.
+- **Notes** can contain a small set of formatting HTML (paragraphs, bold/italic, lists, links) — anything else (scripts, embeds) is stripped automatically when the entry is saved.
+
+**Bulk actions:** tick entries' checkboxes (or the header checkbox to select everything on the current page) to reveal a bulk action bar — **Archive**/**Restore** several entries at once, or **Bulk tag…** to add or replace a categorisation's term(s) across the selection.
+
+**CSV import:** click **Download CSV template** for a starter file with the seed columns plus one `category_<key>` column per categorisation that applies to entries (pipe-separate multiple term slugs, e.g. `healthcare|retail`). Click **Import CSV**, choose your file, review the preview, then import — this always adds to existing entries (matching on `id` when your file includes one); it never deletes what's already there. Unrecognised group names are created automatically; unrecognised categorisation terms are skipped with a warning rather than failing the import.
+
+**Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
 
 ### Archiving or deleting a directory
 
@@ -324,7 +331,7 @@ Owners and managers can open **Team** (`/client/team`) to:
 - See each person’s **status** (Active, Invite pending, Awaiting verification, etc.) and **last logged in**
 - **Send invitation email** to a colleague’s address
 - **Cancel** a pending invitation if needed
-- For **Members**, choose which maps they can access
+- For **Members**, choose which maps they can access, and — if Directories is enabled for your organisation — which directories they can access (checkboxes granting entry-level view and edit access; there's no view-only tier yet)
 - Change roles or remove members (owners only)
 
 ### Inviting someone
