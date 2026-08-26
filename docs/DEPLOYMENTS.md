@@ -8,6 +8,45 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-26 — [Staging] Directories: evidence, media, accreditations, prominent links, product tiles, contact prefs
+
+**Branch/commit:** `feat/2026-08-26-directory-entry-extras` (stacked on the still-open `fix/2026-08-26-directory-entry-hardening`, since this touches the same entry-editing UI)
+**Deployed by:** Claude (agent), at user's request, as Phase 2 of the Directories build-out (see `docs/DIRECTORIES.md` and this session's plan).
+
+### What changed
+Six small, additive entities from the "Layercake Directory — Build Scope" brief's data model (§5), none of which existed in `docs/DIRECTORIES.md` or the code before now:
+
+- **Evidence items** (`entry_evidence_items`) — per-claim sourcing on an entry: claim, value, source URL, date checked, confidence, note.
+- **Media assets** (`entry_media_assets`) — entry gallery/hero images, uploaded to a new `directory-media` Storage bucket (mirrors the existing `map-pins` bucket: public bucket, authenticated write, PNG/JPEG/WebP, 5MB cap). `alt_text` required at the schema level. At most one hero image per entry (partial unique index).
+- **Accreditation schemes + entry accreditations** (`directory_accreditation_schemes`, `entry_accreditations`) — a directory defines schemes (name, issuing body, badge, description); entries hold them via an immediate-save checkbox picker.
+- **Prominent links** (`prominent_links`) — one polymorphic table (`directory_id` xor `entry_id`, enforced by a check constraint) rather than two near-identical tables, reused for both the directory homepage's link tiles and an entry's own. URL checked http(s)-only at the schema level.
+- **Product tiles** (`product_tiles`) — external booking cards (Viator-style), entry-scoped only, manual entry.
+- **Contact display prefs** — four boolean columns added to `directory_entries` (`show_phone`/`show_email`/`show_website`/`show_address`, default `true`).
+
+**Deliberately not built:** the Redirect entity (brief §5.11 / `docs/DIRECTORIES.md` §5.11) — it needs `directory_entries.slug`, which doesn't exist until the publish work (DIR-E2/Phase 3). Building a redirect table with nothing to redirect *from* yet would be premature.
+
+All new tables follow the exact `_admin_all`/`_own_client` RLS pattern already used by `categorisations`/`entry_category_terms` — no anon-read policy, matching that there's no publish concept yet.
+
+### Database migrations written (NOT applied by the agent)
+Per `AGENTS.md`, these are output only — staging must be dry-run and verified before anyone applies them, production only after explicit sign-off:
+- `20260826120000_create_directory_entry_extras.sql` (+ rollback) — the six tables and four `directory_entries` columns.
+- `20260826121000_create_directory_media_storage_bucket.sql` (+ rollback) — the `directory-media` Storage bucket.
+
+### Frontend
+New lib modules: `src/lib/evidenceItems.js`, `mediaAssets.js`, `accreditations.js`, `prominentLinks.js`, `productTiles.js`. New components: `src/components/directories/EvidenceItemsEditor.jsx`, `MediaAssetsEditor.jsx`, `AccreditationsEditor.jsx`, `AccreditationSchemesPanel.jsx`, `ProminentLinksEditor.jsx`, `ProductTilesEditor.jsx`. Wired into `DirectoryEntriesPanel.jsx`'s entry edit modal (evidence/media/accreditations/entry-links/product-tiles — only shown once an entry exists, since they need a real `entry_id`) and into `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (directory-level accreditation schemes + directory-homepage prominent links). `npm run build` clean.
+
+New admin events (all under the existing `directory_*` category): `directory_entry_evidence_added/removed`, `directory_entry_media_added/removed`, `directory_entry_media_hero_set`, `directory_entry_accreditation_granted/revoked`, `directory_accreditation_scheme_created/archived/deleted`, `directory_prominent_link_added/removed`, `directory_entry_product_tile_added/removed`.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Migrations dry-run + applied on staging (not done by the agent — needs a human to run the dry-run block, apply, then run post-migration verification per `docs/DATABASE_MIGRATIONS.md`).
+- [ ] Manual click-through once staging has the schema: add evidence to an entry, upload a media asset (confirm alt-text is required, confirm hero toggle), define an accreditation scheme and grant it to an entry, add a directory-level and an entry-level prominent link, add a product tile, toggle contact display prefs.
+
+### Rollback plan
+Frontend: revert this branch/commit. Database: run `_20260826120000_create_directory_entry_extras.rollback.sql` and `_20260826121000_create_directory_media_storage_bucket.rollback.sql` (both have data-loss guards — they abort if any real content exists in the new tables/bucket).
+
+---
+
 ## 2026-08-26 — [Staging] Directories: sanitisation, real Member permissions, bulk actions, CSV import, admin nav
 
 **Branch/commit:** `fix/2026-08-26-directory-entry-hardening`

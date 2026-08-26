@@ -189,6 +189,26 @@ Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directo
 
 Files: `src/lib/directories.js`, `src/lib/sanitizeHtml.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `src/components/directories/BulkCategoryEditModal.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx`, `ClientTeam.jsx` (client); `AdminDirectories.jsx`, `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
 
+### 4.4a-2 Directory entry extras — evidence, media, accreditations, prominent links, product tiles, contact display prefs (new)
+
+Six small, additive entities from the build-scope brief's data model (§5), reconciled against `docs/DIRECTORIES.md` (which doesn't cover them — they're new-to-both-specs scope, not part of the original DIR-E1–E7 epic numbering). Redirects (brief §5.11 / `docs/DIRECTORIES.md` §5.11) are deliberately **not** built yet — they need `directory_entries.slug`, which doesn't exist until DIR-E2's publish work.
+
+| Entity | Scope | Notes |
+|---|---|---|
+| Evidence items | entry | Claim, value, source URL, date checked, confidence (verified/unverified/disputed), note. Immediate-save list on the entry edit form. |
+| Media assets | entry | Gallery/hero images, uploaded to the new `directory-media` Storage bucket (PNG/JPEG/WebP, 5MB cap). `alt_text` required at the schema level. At most one `is_hero` per entry (partial unique index). Distinct from the existing `directory_entries.logo_url`. |
+| Accreditation schemes | directory | The directory defines the schemes (name, issuing body, badge image, description, verification note) — `AccreditationSchemesPanel.jsx`, modelled on the `directory_groups` inline-add pattern (per-directory, not client-wide like categorisations). |
+| Entry accreditations | entry | Which schemes an entry holds — `AccreditationsEditor.jsx`, an immediate-save checkbox picker (unlike `CategoryTagPicker`'s deferred-to-form-save pattern, since schemes are directory- not client-scoped). |
+| Prominent links | directory or entry (polymorphic) | One `prominent_links` table with a `directory_id`/`entry_id` exclusive-or check constraint, rather than two near-identical tables. `ProminentLinksEditor.jsx` is reused for both the directory homepage's links and an entry's own links. URL is checked http(s)-only at the schema level (`check (url ~* '^https?://')`); `rel="noopener"`/`"sponsored nofollow"` rendering is an app-layer concern for when these are actually rendered (a later phase). |
+| Product tiles | entry only | External booking cards (title, image, price, currency, rating, review count, provider, destination URL) — manual entry only; provider-API import is a separate, later decision. Inclusion/ranking must never depend on these (an app-layer rule, not schema-enforceable). |
+| Contact display prefs | entry | Four boolean columns on `directory_entries` (`show_phone`/`show_email`/`show_website`/`show_address`, default `true`) — which fields will be public once publishing exists. No public rendering path reads these yet, so they're currently a no-op. |
+
+All six new tables follow the exact `_admin_all` / `_own_client` RLS pattern already used by `categorisations`/`entry_category_terms` — no anon-read policy yet, consistent with there being no publish concept until DIR-E2.
+
+Tables: `entry_evidence_items`, `entry_media_assets`, `directory_accreditation_schemes`, `entry_accreditations`, `prominent_links`, `product_tiles`, plus 4 new columns on `directory_entries` (`20260826120000_create_directory_entry_extras.sql`). Storage: `directory-media` bucket (`20260826121000_create_directory_media_storage_bucket.sql`).
+
+Files: `src/lib/evidenceItems.js`, `src/lib/mediaAssets.js`, `src/lib/accreditations.js`, `src/lib/prominentLinks.js`, `src/lib/productTiles.js`; `src/components/directories/EvidenceItemsEditor.jsx`, `MediaAssetsEditor.jsx`, `AccreditationsEditor.jsx`, `AccreditationSchemesPanel.jsx`, `ProminentLinksEditor.jsx`, `ProductTilesEditor.jsx` — wired into `DirectoryEntriesPanel.jsx` (entry-level) and `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (directory-level).
+
 ### 4.4b Categorisations (new, DIR-E5)
 
 Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be applied to whole directories, directory entries, or both — additive alongside directory groups, never a replacement (a categorisation can tag entries across every directory a client owns; a group is per-directory and single-value). Modelled directly on the existing `map_filter_fields`/`FilterFieldsPanel` pattern: `applies_to` is immutable after creation (delete and recreate to change it), archive vs. typed-`DELETE`-confirmation permanent delete (showing a live usage count across directories + entries).
@@ -391,6 +411,12 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `category_terms` | Term list per categorisation (peer of `map_filter_field_options`) |
 | `directory_category_terms` | Tags a whole directory with a term |
 | `entry_category_terms` | Tags a directory entry with a term (peer of `listing_filter_values`, pure many-to-many) |
+| `entry_evidence_items` | Per-claim evidence backing an entry (build-scope §5.5) |
+| `entry_media_assets` | Gallery/hero images for an entry (build-scope §5.6), stored in the `directory-media` bucket |
+| `directory_accreditation_schemes` | Accreditation scheme definitions, per directory (build-scope §5.7) |
+| `entry_accreditations` | Tags an entry with a scheme it holds |
+| `prominent_links` | Link tiles, directory- or entry-scoped (exclusive-or, build-scope §5.8) |
+| `product_tiles` | External booking/product cards on an entry (build-scope §5.9) |
 | `feature_flags` | Feature-flag registry (`default_enabled`, `internal_enabled`); resolved by `get_my_feature_flags()` |
 | `feature_flag_overrides` | Per-organisation flag grants/denials (pre-release a beta to specific customers) |
 | `error_logs` | Client-side error reports |
@@ -489,6 +515,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
 | Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD, sanitisation, real Member permissions, bulk actions, CSV import shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
 | Categorisations (DIR-E5) | **Beta (flagged)** | Taxonomy management + directory/entry tagging shipped to staging; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
+| Directory entry extras (evidence, media, accreditations, prominent links, product tiles, contact prefs) | **Beta (flagged)** | Shipped to staging behind the `directories` feature flag; no public rendering yet (depends on DIR-E2 publishing); Redirects deferred (needs `directory_entries.slug`, DIR-E2) |
 | Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
 | Entitlements (plans/features/overrides) | **Deployed** | `products`/`plans`/`features`/`plan_features`/`client_overrides` + `get_my_entitlements()`/`get_client_entitlements()` resolvers; server-side enforcement (triggers on `maps`/`contacts`/`listings`, view-level gate for messaging); admin Entitlements tab for plan assignment + per-client overrides; shared `EntitlementGate`/`EntitlementUsageHint` UI kit. Catalog so far: `max_maps`, `messaging`, `seats`, `data_rows` |
 | Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |

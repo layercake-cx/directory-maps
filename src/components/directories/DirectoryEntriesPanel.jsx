@@ -14,6 +14,11 @@ import {
 import { appliesToEntries, listCategorisations, loadEntryTermIds, setEntryTerms } from "../../lib/categorisations";
 import CategoryTagPicker from "./CategoryTagPicker.jsx";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
+import EvidenceItemsEditor from "./EvidenceItemsEditor.jsx";
+import MediaAssetsEditor from "./MediaAssetsEditor.jsx";
+import AccreditationsEditor from "./AccreditationsEditor.jsx";
+import ProminentLinksEditor from "./ProminentLinksEditor.jsx";
+import ProductTilesEditor from "./ProductTilesEditor.jsx";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
 
@@ -65,6 +70,10 @@ const emptyForm = {
   notes_html: "",
   allow_html: false,
   is_active: true,
+  show_phone: true,
+  show_email: true,
+  show_website: true,
+  show_address: true,
 };
 
 const inputStyle = {
@@ -205,6 +214,10 @@ export default function DirectoryEntriesPanel({ directoryId, clientId, canEdit =
       notes_html: entry.notes_html || "",
       allow_html: !!entry.allow_html,
       is_active: entry.is_active !== false,
+      show_phone: entry.show_phone !== false,
+      show_email: entry.show_email !== false,
+      show_website: entry.show_website !== false,
+      show_address: entry.show_address !== false,
     });
     setEntryTermIdsState([]);
     if (clientId) loadEntryTermIds(entry.id).then(setEntryTermIdsState).catch(() => {});
@@ -740,6 +753,23 @@ export default function DirectoryEntriesPanel({ directoryId, clientId, canEdit =
                   Active (visible)
                 </label>
 
+                <div>
+                  <label style={labelStyle}>Show publicly (once published)</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    {[
+                      ["show_phone", "Phone"],
+                      ["show_email", "Email"],
+                      ["show_website", "Website"],
+                      ["show_address", "Address"],
+                    ].map(([key, label]) => (
+                      <label key={key} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
+                        <input type="checkbox" checked={form[key]} onChange={(e) => fSet(key, e.target.checked)} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {clientId && (
                   <div>
                     <label style={labelStyle}>Categorisations</label>
@@ -762,6 +792,22 @@ export default function DirectoryEntriesPanel({ directoryId, clientId, canEdit =
                 </Group>
               </Stack>
             </form>
+
+            {modal === "new" && (
+              <p style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--lc-border)", fontSize: 12, opacity: 0.6 }}>
+                Save this entry first to add evidence, media, accreditations, prominent links and product tiles.
+              </p>
+            )}
+
+            {modal === "edit" && editingEntry && (
+              <div style={{ display: "grid", gap: 20, marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--lc-border)" }}>
+                <EvidenceItemsEditor directoryId={directoryId} entryId={editingEntry.id} recordEvent={recordEvent} />
+                <MediaAssetsEditor directoryId={directoryId} entryId={editingEntry.id} recordEvent={recordEvent} />
+                {clientId && <AccreditationsEditor directoryId={directoryId} entryId={editingEntry.id} recordEvent={recordEvent} />}
+                <ProminentLinksEditor entryId={editingEntry.id} recordEvent={recordEvent} title="Prominent links (this entry)" />
+                <ProductTilesEditor directoryId={directoryId} entryId={editingEntry.id} recordEvent={recordEvent} />
+              </div>
+            )}
           </div>
         </div>
       )}

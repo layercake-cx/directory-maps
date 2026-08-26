@@ -8,6 +8,8 @@ import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisatio
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
+import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
+import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
@@ -145,6 +147,14 @@ export default function AdminDirectoryEntries() {
                 selectedTermIds={directoryTermIds}
                 onChange={handleDirectoryTermsChange}
               />
+            </div>
+
+            <div className="admin-card" style={{ marginBottom: 16 }}>
+              <AccreditationSchemesPanel directoryId={directoryId} recordEvent={recordEvent} />
+            </div>
+
+            <div className="admin-card" style={{ marginBottom: 16 }}>
+              <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
             </div>
 
             <DirectoryEntriesPanel directoryId={directoryId} clientId={clientId} canEdit recordEvent={recordEvent} />
