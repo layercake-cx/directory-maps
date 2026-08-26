@@ -209,6 +209,20 @@ Tables: `entry_evidence_items`, `entry_media_assets`, `directory_accreditation_s
 
 Files: `src/lib/evidenceItems.js`, `src/lib/mediaAssets.js`, `src/lib/accreditations.js`, `src/lib/prominentLinks.js`, `src/lib/productTiles.js`; `src/components/directories/EvidenceItemsEditor.jsx`, `MediaAssetsEditor.jsx`, `AccreditationsEditor.jsx`, `AccreditationSchemesPanel.jsx`, `ProminentLinksEditor.jsx`, `ProductTilesEditor.jsx` — wired into `DirectoryEntriesPanel.jsx` (entry-level) and `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (directory-level).
 
+### 4.4a-3 Directory publish foundation — entry slugs, publications, redirects, contact submissions (new, DIR-E2 data layer)
+
+Phase 3a of the Directories build-out — the data model DIR-E2 (publish/SEO) needs, with no generator, routing, or UI built on top of it yet:
+
+- **`directory_entries.slug`** — url-safe, per-directory-unique, auto-generated on insert, backfilled. Exact mirror of `listings.slug`.
+- **SEO overrides** — `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority` per entry; `seo_defaults_json` per directory.
+- **`directory_publications`** + `publish_directory`/`rollback_directory_to`/`list_directory_publications` — exact mirror of `map_publications`' final, tenant-checked shape. The publish snapshot (`config jsonb`) covers directory settings + the categorisation taxonomy structure; entries and their live tag assignments are read live at generation time, not snapshotted (mirrors how `EmbedMap.jsx` reads `public_listings` live regardless of a map's publication version).
+- **`directory_redirects`** — records an entry's old slug whenever it changes (`AFTER UPDATE` trigger), so a renamed entry's old public URL keeps working. This was deferred out of Phase 2 because it needed `directory_entries.slug` to exist first.
+- **`directory_contact_submissions`** — table + RLS only (mirrors `map_contact_submissions`); no enquiry form UI or email-sending function yet.
+
+**Not built yet:** the actual static generator, `middleware.js` routing for directory URLs, anon-read RLS/a `public_directory_entries`-style view, and any Publish UI. A pre-existing gap was noticed but not fixed here: `maps.slug` has no uniqueness constraint at all (not even per-client), so a directory slug could in principle collide with a map slug for the same client — the eventual routing RPC will need to handle that rather than assume it can't happen.
+
+Tables: `directory_publications`, `directory_redirects`, `directory_contact_submissions`, plus new columns on `directories`/`directory_entries` (`20260827120000_directory_publish_foundation.sql`). Files: `src/lib/directoryPublications.js` (RPC wrappers, not yet called from any UI).
+
 ### 4.4b Categorisations (new, DIR-E5)
 
 Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be applied to whole directories, directory entries, or both — additive alongside directory groups, never a replacement (a categorisation can tag entries across every directory a client owns; a group is per-directory and single-value). Modelled directly on the existing `map_filter_fields`/`FilterFieldsPanel` pattern: `applies_to` is immutable after creation (delete and recreate to change it), archive vs. typed-`DELETE`-confirmation permanent delete (showing a live usage count across directories + entries).
@@ -417,6 +431,9 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `entry_accreditations` | Tags an entry with a scheme it holds |
 | `prominent_links` | Link tiles, directory- or entry-scoped (exclusive-or, build-scope §5.8) |
 | `product_tiles` | External booking/product cards on an entry (build-scope §5.9) |
+| `directory_publications` | Versioned publish snapshots for a directory (peer of `map_publications`) |
+| `directory_redirects` | Old entry slug → entry, recorded automatically on rename (peer of a listing-slug-change scenario, not yet built for listings) |
+| `directory_contact_submissions` | Visitor enquiry submissions from a published directory (peer of `map_contact_submissions`) |
 | `feature_flags` | Feature-flag registry (`default_enabled`, `internal_enabled`); resolved by `get_my_feature_flags()` |
 | `feature_flag_overrides` | Per-organisation flag grants/denials (pre-release a beta to specific customers) |
 | `error_logs` | Client-side error reports |
@@ -516,6 +533,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | Directories (DIR-E1 core) | **Beta (flagged)** | Directory + entry CRUD, sanitisation, real Member permissions, bulk actions, CSV import shipped to staging; hidden behind the `directories` feature flag; no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
 | Categorisations (DIR-E5) | **Beta (flagged)** | Taxonomy management + directory/entry tagging shipped to staging; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
 | Directory entry extras (evidence, media, accreditations, prominent links, product tiles, contact prefs) | **Beta (flagged)** | Shipped to staging behind the `directories` feature flag; no public rendering yet (depends on DIR-E2 publishing); Redirects deferred (needs `directory_entries.slug`, DIR-E2) |
+| Directory publish foundation (DIR-E2 data layer) | **Data model only, staging** | `directory_publications`/publish/rollback RPCs, entry slugs, SEO override columns, redirects, contact submissions table shipped to staging; no generator, routing, or UI yet |
 | Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
 | Entitlements (plans/features/overrides) | **Deployed** | `products`/`plans`/`features`/`plan_features`/`client_overrides` + `get_my_entitlements()`/`get_client_entitlements()` resolvers; server-side enforcement (triggers on `maps`/`contacts`/`listings`, view-level gate for messaging); admin Entitlements tab for plan assignment + per-client overrides; shared `EntitlementGate`/`EntitlementUsageHint` UI kit. Catalog so far: `max_maps`, `messaging`, `seats`, `data_rows` |
 | Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |

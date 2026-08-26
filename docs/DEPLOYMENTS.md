@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Staging] Directories: publish foundation — entry slugs, directory_publications, redirects, contact submissions
+
+**Branch/commit:** `feat/2026-08-27-directory-publish-foundation` (stacked on the still-open `feat/2026-08-26-directory-entry-extras`)
+**Deployed by:** Claude (agent), at user's request, as Phase 3a (data layer) of DIR-E2 — Publish/SEO. Migration applied to staging directly by the agent under the policy updated 2026-08-26 (see that entry below).
+
+### What changed
+Data-layer foundation for publishing a directory as a static site. No generator, no middleware routing, no Publish UI yet — those are separate, larger follow-ups (see "Not included" below).
+
+- **`directory_entries.slug`** — url-safe, per-directory-unique, auto-generated on insert from name (`-2`/`-3`… on collision), backfilled for existing rows. Exact mirror of `listings.slug` (`20260822200000_add_listings_slug.sql`), reusing its `slugify_text()` helper as-is rather than redefining it.
+- **SEO override columns** (docs/DIRECTORIES.md §4.1/§4.2): `directory_entries.meta_title/meta_description/noindex/structured_data_type/sitemap_priority`; `directories.seo_defaults_json`.
+- **`directory_publications`** + `publish_directory`/`rollback_directory_to`/`list_directory_publications` RPCs — exact mirror of `map_publications`' final, tenant-checked definition (`20260503120000_map_publications.sql` as amended by `20260520100000_tenant_scoped_rls.sql` — the original 20260503 file has no ownership check at all; the tenant check was added later, and this migration mirrors that corrected version, not the original). `directories.current_publication_id`/`published_at` added to match.
+- **`directory_redirects`** (docs/DIRECTORIES.md §5.11) — deferred from Phase 2 because it needed `directory_entries.slug`, which didn't exist yet. An `AFTER UPDATE` trigger on `directory_entries` records the old slug whenever slug changes.
+- **`directory_contact_submissions`** — table + RLS only, mirrors `map_contact_submissions` exactly (anon insert gated on `directories.published_at is not null`, authenticated select for admin/owner/manager/permitted-member). The enquiry form UI and email-sending Edge Function are separate work.
+- New thin lib wrapper `src/lib/directoryPublications.js` (`publishDirectory`/`rollbackDirectoryTo`/`listDirectoryPublications`) so the RPCs are reachable — no UI calls them yet.
+
+**Not included, deliberately:** anon-read RLS on `directories`/`directory_entries`/categorisations/the Phase 2 extras tables, or a `public_directory_entries`-style view. The actual static generator will run server-side via a service-role Edge Function (bypasses RLS entirely, matching `generate_directory_pages`' existing pattern) — anon RLS is only needed later for a client-side standalone map embed, and its exact shape belongs with that work rather than being guessed at here.
+
+**A pre-existing gap noticed, not fixed here:** `maps.slug` has no uniqueness constraint at all — not even per-client. (`directories.slug` already does, from the original DIR-E1 migration.) This means the "a directory slug could collide with a map slug for the same client" risk flagged in this session's plan is real, but retrofitting map slug uniqueness is separate, riskier, unrelated-entity scope — not attempted here. The routing-time RPC (`resolve_public_path`, planned for the generator/middleware phase) will need to handle an ambiguous match rather than assume writes prevented it.
+
+### Database migration — applied to staging by the agent
+- `20260827120000_directory_publish_foundation.sql` (+ rollback) — applied to `layercake-maps-test` (`beqejxneehilplrtpntn`). In-transaction `VERIFY PASSED`. Confirmed via `supabase db push --dry-run` afterwards ("Remote database is up to date") and PostgREST reachability checks on all 3 new tables + the new columns on both `directories` and `directory_entries`.
+- **Production not touched.** Needs a separate explicit request.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] Migration applied to staging, in-transaction verification passed.
+- [x] PostgREST reachability checks on new tables/columns.
+- [ ] Manual click-through — nothing to click through yet; this PR has no UI surface (RPC wrappers only, unused).
+
+### Rollback plan
+Frontend: revert this branch/commit. Database: run `_20260827120000_directory_publish_foundation.rollback.sql` (has data-loss guards on every new table and the SEO override columns — aborts if any real content exists).
+
+---
+
 ## 2026-08-26 — [Staging] Directories: evidence, media, accreditations, prominent links, product tiles, contact prefs
 
 **Branch/commit:** `feat/2026-08-26-directory-entry-extras` (stacked on the still-open `fix/2026-08-26-directory-entry-hardening`, since this touches the same entry-editing UI)
