@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Staging] Directories: publish pipeline — generate_directory_site + middleware routing
+
+**Branch/commit:** `feat/2026-08-27-directory-generator-middleware` (stacked on the still-open `feat/2026-08-27-directory-publish-foundation`)
+**Deployed by:** Claude (agent), at user's request ("go for it"), as Phase 3b of DIR-E2 — Publish/SEO. Edge Functions deployed to staging directly, treated the same as the staging-migration policy from the previous two entries (Edge Function deploys are explicitly "treat exactly like database migrations" per `AGENTS.md` — staging by the agent when asked, production always a separate explicit request).
+
+### What changed
+
+- **Extracted `supabase/functions/_shared/staticSiteRenderer.ts`** from `generate_directory_pages/index.ts` (the shipped, revenue-gated map feature) — `escapeHtml`/`escapeAttr`/`escapeXml`, `renderResearchAsHtml`, `uploadToBlob`, `pageShell`, `buildSitemapXml`, `CORS`/`json`. Extracted verbatim; `pageShell`'s doc comment now says explicitly not to add new parameters to it, to keep it a stable contract for the existing feature. `generate_directory_pages` now imports these instead of defining them locally — **no behaviour change**, verified below.
+- **New Edge Function `generate_directory_site`** — the Directory entity's own static-site generator, reusing the shared module. Deliberately a separate function from `generate_directory_pages`, not a parameter on it: the two entities have unrelated gating (a beta feature flag vs. a paid map-only entitlement) and unrelated data shapes; mixing them into one function risked exactly the map-vs-directory naming confusion already flagged earlier in this build. Generates a directory landing page + one page per active entry + `sitemap.xml`, rendering the Phase 2 extras (evidence, media with hero image, accreditation badges, prominent links, product tiles) alongside the seed fields — genuinely differentiating from what `generate_directory_pages` renders for a map's listings, not just parity. Gated on the `directories` feature flag only (no separate commercial entitlement exists for this entity yet). Reads entries and their tags/extras live at generation time, per the snapshot-vs-live split decided in the previous entry.
+- **`middleware.js`** — new branch, checked first (before the existing map-directory-pages branch), for `/directories/:clientSlug/:directorySlug[/:entrySlug]` on the branded domain. Uploads go to a `directories/` (plural) Blob path prefix, distinct from the map feature's `directory/` (singular) prefix, so the two can never collide even if a client's map slug and directory slug happen to match.
+- **URL shape decision, made during implementation, not pre-planned:** the original plan sketched a bare `/:clientSlug/:directorySlug` shape for directories, matching a map's own `/:clientSlug/:mapSlug`. Implementing it exposed a real problem: that shape is byte-identical (2 segments) to the existing, client-side-routed interactive map route (`SlugMap.jsx` → `get_map_id_by_slugs`), and disambiguating them would need a DB lookup on *every* request to that shape — including every existing map page load, a real latency regression to a live feature. Verified this concern directly (see below) rather than assuming it. Resolved by giving the Directory entity's branded-domain fallback the unambiguous `/directories/...` prefix instead — zero added cost to map traffic, zero lookup needed. Directory custom domains (Phase 4) will get the clean root-level URLs (`/`, `/:entrySlug`) the brief actually describes, exactly like maps' own custom-domain handling already does — this prefix only applies to the shared-domain fallback/preview surface.
+
+### Verified
+- [x] `deno check` passes clean on both `generate_directory_pages/index.ts` (refactored) and `generate_directory_site/index.ts` (new) — installed `deno` via Homebrew for this, wasn't available before.
+- [x] `middleware.js`: `node --check` (syntax) clean.
+- [x] `middleware.js` routing logic verified directly with a mocked-`fetch` Node script (not committed — scratch-only) covering: the existing 2-segment interactive map route triggers **zero** fetch calls (confirms no added latency); the existing map directory-pages routes (`/:clientSlug/:mapSlug/directory[...]`) are completely unaffected, same Blob paths as before; the new `/directories/...` routes resolve to the correct, distinct Blob path prefix and return 200 with the fetched content, or fall through cleanly (undefined) when nothing's been generated yet.
+- [x] Both functions deployed to `layercake-maps-test` (`beqejxneehilplrtpntn`).
+- [x] `generate_directory_site` invoked live (`{"all":true}`) — clean `{ok:true,total:0,succeeded:0,failed:[]}`, correct given no directory has ever been published (no Publish UI exists yet to call `publish_directory`).
+- [x] `generate_directory_pages` (the refactored, shipped map feature) invoked live (`{"all":true}`) — **regression check against real staging data**: `{ok:true,total:6,succeeded:4,failed:[...2 Vercel Blob 503s...]}`. 4 of 6 real staging maps regenerated successfully through the refactored code path; the 2 failures were `Blob service is currently unavailable` (transient upstream 503), not application errors. A repeat call to further confirm the 503s were transient timed out client-side rather than erroring cleanly — inconclusive on its own; noted as a follow-up rather than dismissed (see below).
+- **Production not touched.**
+
+### Not built in this pass (explicitly, not silently)
+- No Publish UI — `publish_directory` has no caller yet, so nothing above can be exercised end-to-end with a real directory today.
+- No robots.txt/llms.txt/Open Graph tags/category or location index pages — parity with what `generate_directory_pages` already does for maps, not the full build-scope brief vision. Tracked as follow-ups, same as the equivalent gaps already documented for the map feature.
+- Directory custom domains — Phase 4, alongside generalizing `client_domains`/`resolve_custom_domain`.
+
+### Follow-up needed
+The second `generate_directory_pages` regression call hit curl's `--max-time 90` and exited with curl's own timeout code (28) — a client-side abort, not a response from the function (no HTTP status, no body). Given the first call succeeded moments earlier through the identical refactored code path (4/6 maps, only transient Blob 503s), this reads as Vercel Blob load/rate-limiting from two back-to-back full-`all:true` runs rather than a code regression — but this CLI version has no `supabase functions logs` command to confirm from server-side logs, so it's not fully closed out. Worth a human checking the Supabase dashboard's function logs for this invocation before relying on this further, and re-running the nightly-cron-equivalent (`{"all":true}`) once, standalone, to confirm a clean result.
+
+### Rollback plan
+Revert this branch/commit, then redeploy the pre-refactor `generate_directory_pages` (`git show <prior-commit>:supabase/functions/generate_directory_pages/index.ts`) to staging via `supabase functions deploy generate_directory_pages --project-ref beqejxneehilplrtpntn`; delete `generate_directory_site` via `supabase functions delete generate_directory_site --project-ref beqejxneehilplrtpntn` if it was already deployed. No database changes in this piece to roll back.
+
+---
+
 ## 2026-08-27 — [Staging] Directories: publish foundation — entry slugs, directory_publications, redirects, contact submissions
 
 **Branch/commit:** `feat/2026-08-27-directory-publish-foundation` (stacked on the still-open `feat/2026-08-26-directory-entry-extras`)

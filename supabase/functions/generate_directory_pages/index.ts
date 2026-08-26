@@ -34,88 +34,22 @@
  */
 
 import { createServiceClient } from "../_shared/supabase.ts";
+import {
+  CORS,
+  json,
+  escapeHtml,
+  escapeAttr,
+  escapeXml,
+  renderResearchAsHtml,
+  uploadToBlob,
+  pageShell,
+} from "../_shared/staticSiteRenderer.ts";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
-}
-
-function escapeHtml(s: unknown): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function escapeAttr(s: unknown): string {
-  return escapeHtml(s).replace(/'/g, "&#39;");
-}
-
-function humanizeKey(key: string): string {
-  return key.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/**
- * Renders arbitrary admin-defined research JSON as a readable nested
- * definition list. Never assumes specific field names, since the shape is
- * whatever that map's enrichment prompt asked the model to produce.
- */
-function renderResearchAsHtml(value: unknown, depth = 0): string {
-  if (value === null || value === undefined || value === "") return "";
-  if (Array.isArray(value)) {
-    const items = value.map((v) => renderResearchAsHtml(v, depth + 1)).filter(Boolean);
-    if (items.length === 0) return "";
-    return `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
-  }
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => {
-        const rendered = renderResearchAsHtml(v, depth + 1);
-        if (!rendered) return "";
-        return `<dt>${escapeHtml(humanizeKey(k))}</dt><dd>${rendered}</dd>`;
-      })
-      .filter(Boolean);
-    if (entries.length === 0) return "";
-    return `<dl>${entries.join("")}</dl>`;
-  }
-  return escapeHtml(value);
-}
-
-/** Upload a file to Vercel Blob at a deterministic (non-random-suffixed) path. */
-async function uploadToBlob(pathname: string, body: string, contentType: string): Promise<string> {
-  const token = Deno.env.get("BLOB_READ_WRITE_TOKEN");
-  if (!token) throw new Error("Missing BLOB_READ_WRITE_TOKEN");
-
-  const res = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "x-api-version": "7",
-      "Content-Type": contentType,
-      "x-access": "public",
-      "x-add-random-suffix": "0",
-      // No CDN caching, same reasoning as generate_map_snapshot — overwriting
-      // the same deterministic path doesn't purge edge caches otherwise.
-      "x-cache-control": "max-age=0, s-maxage=0, must-revalidate",
-    },
-    body,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "(no body)");
-    throw new Error(`Blob upload failed ${res.status}: ${text}`);
-  }
-  const result = await res.json();
-  return result.url as string;
-}
+// escapeHtml/escapeAttr/escapeXml/renderResearchAsHtml/uploadToBlob/pageShell/
+// CORS/json moved to _shared/staticSiteRenderer.ts (Phase 3b of the
+// Directories build-out) so generate_directory_site (the new Directory
+// entity's own generator) can reuse them without duplication. Extracted
+// verbatim — no behaviour change to this function.
 
 type Listing = {
   id: string;
@@ -159,31 +93,6 @@ function listingSchemaOrg(listing: Listing, canonicalUrl: string): Record<string
       ? { geo: { "@type": "GeoCoordinates", latitude: listing.lat, longitude: listing.lng } }
       : {}),
   };
-}
-
-function pageShell(opts: { title: string; description: string; canonicalUrl: string; jsonLd: Record<string, unknown>; body: string }): string {
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(opts.title)}</title>
-<meta name="description" content="${escapeAttr(opts.description)}">
-<link rel="canonical" href="${escapeAttr(opts.canonicalUrl)}">
-<script type="application/ld+json">${JSON.stringify(opts.jsonLd)}</script>
-<style>
-  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px 16px; line-height: 1.5; color: #111827; }
-  a { color: #2563eb; }
-  dt { font-weight: 600; margin-top: 10px; }
-  dd { margin-left: 0; }
-  .back-link { font-size: 14px; margin-bottom: 16px; display: inline-block; }
-  .listing-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-</style>
-</head>
-<body>
-${opts.body}
-</body>
-</html>`;
 }
 
 function buildListingPage(opts: {
@@ -319,10 +228,6 @@ function buildSitemap(opts: { clientSlug: string; mapSlug: string; listings: Lis
     .map((u) => `<url><loc>${escapeXml(u)}</loc></url>`)
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 async function resolveDirectoryPagesFlag(
