@@ -206,10 +206,11 @@ Full procedure: **`docs/DATABASE_MIGRATIONS.md`**
 5. **Forbidden without explicit sign-off**: `DROP TABLE`, `TRUNCATE`, `DROP COLUMN` (forward migrations), bulk `DELETE`, `RENAME TO`. Always back up data before any destructive step.
 
 **When writing a migration as an agent:**
-- Output the migration file and rollback file. Do not apply them automatically.
+- Output the migration file and rollback file.
 - Include the dry-run block and integrity checklist as comments in the file.
-- State clearly that staging must be verified before production is touched.
 - Flag any forbidden operations explicitly and require user confirmation.
+- **Staging**, when the user has asked for it: confirm the CLI is linked to the staging project ref (never an ambiguous or unconfirmed link), run the dry run for real, and if it passes cleanly, apply to staging and run the integrity checklist. See `docs/DATABASE_MIGRATIONS.md` for the full procedure.
+- **Production always requires a separate, explicit human go-ahead** — never apply to production as a default next step after staging succeeds, even if asked to run staging.
 
 Migration files live in `supabase/migrations/` and are named `YYYYMMDDHHMMSS_short_description.sql`.
 

@@ -131,7 +131,7 @@ export async function listDirectoryEntries(directoryId, { search = "", page = 0,
   let query = supabase
     .from("directory_entries")
     .select(
-      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, created_at, updated_at",
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, created_at, updated_at",
       { count: "exact" },
     )
     .eq("directory_id", directoryId)
@@ -174,6 +174,10 @@ export async function createDirectoryEntry(entry) {
     allow_html: !!entry.allow_html,
     is_active: entry.is_active !== false,
     source: entry.source || "manual",
+    show_phone: entry.show_phone !== false,
+    show_email: entry.show_email !== false,
+    show_website: entry.show_website !== false,
+    show_address: entry.show_address !== false,
   });
   if (error) throw error;
   return id;

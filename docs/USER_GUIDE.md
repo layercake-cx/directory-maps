@@ -146,6 +146,24 @@ Once a categorisation exists, its terms appear as a checkbox picker:
 
 Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
 
+### Entry details: evidence, media, accreditations, links and product tiles
+
+Open an existing entry (**Edit**) to see these below the main form — they're not available until the entry has been saved once, since they attach to the entry's own record:
+
+- **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
+- **Media** — upload gallery photos (PNG/JPG/WebP, max 5MB). Alt text is required before you can upload. Mark one image as the **hero** image.
+- **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
+- **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
+- **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
+- **Show publicly** checkboxes (in the main form) control which contact fields — phone, email, website, address — will appear once the entry is published; there's no public page yet, so these have no visible effect today.
+
+### Directory-level accreditation schemes and prominent links
+
+From a directory's page (owners and managers only), above the entries table:
+
+- **Accreditation schemes** — define the badges entries can hold (name, issuing body, badge image, description, verification note). Archiving a scheme hides it without losing which entries hold it; deleting it removes it from every entry that holds it.
+- **Prominent links (directory homepage)** — link tiles for the directory as a whole, separate from any single entry's own links.
+
 ---
 
 ## Map designer

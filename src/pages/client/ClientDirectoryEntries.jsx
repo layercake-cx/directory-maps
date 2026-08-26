@@ -8,6 +8,8 @@ import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
+import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
+import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
@@ -156,6 +158,18 @@ export default function ClientDirectoryEntries() {
           onChange={canManage ? handleDirectoryTermsChange : () => {}}
         />
       </div>
+
+      {canManage && (
+        <div className="admin-card" style={{ marginBottom: 16 }}>
+          <AccreditationSchemesPanel directoryId={directoryId} recordEvent={recordEvent} />
+        </div>
+      )}
+
+      {canManage && (
+        <div className="admin-card" style={{ marginBottom: 16 }}>
+          <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
+        </div>
+      )}
 
       <DirectoryEntriesPanel directoryId={directoryId} clientId={client?.id} canEdit={canEditEntries} recordEvent={recordEvent} />
 
