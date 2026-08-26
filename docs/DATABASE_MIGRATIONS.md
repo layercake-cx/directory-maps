@@ -385,9 +385,22 @@ The following SQL commands must **never** appear in a migration without a separa
 
 ## Agents: when Cursor or Claude Code writes a migration
 
-- Output the migration file and rollback file. Do not apply them.
+- Output the migration file and rollback file.
 - Include the dry-run block as a comment at the top of the migration file.
 - Include the integrity verification checklist as a comment at the bottom.
-- State clearly in the chat: _"Run the dry run first, then apply to staging, verify, then production."_
-- Never instruct the user to run `supabase db push` against production as a first step.
 - If the migration contains any forbidden operation, flag it explicitly and require the user to confirm before proceeding.
+
+**Staging — the agent may run this itself, when the user has asked for it:**
+
+1. Confirm the CLI is linked to the **staging** project ref (`beqejxneehilplrtpntn`), not production — check `supabase/.temp/project-ref` (or `supabase projects list`) and re-link explicitly if it's wrong. Never proceed on an unconfirmed or ambiguous link.
+2. Run the **dry run** for real against staging (wrap the migration body in `BEGIN; … ROLLBACK;`, e.g. via `supabase db execute` or `psql`) — not just `supabase db push --dry-run`, which only lists pending migrations without executing the SQL.
+3. If the dry run passes cleanly (no error, `ROLLBACK` reached), apply the migration to staging for real (`supabase db push`, or paste into the staging SQL editor).
+4. Run the post-migration verification block and the integrity checklist; compare row counts against the pre-migration snapshot.
+5. Report the outcome in the chat and in `docs/DEPLOYMENTS.md`, including the verification results.
+6. If the dry run fails, stop — report the error, do not attempt to fix and re-run without the user's review.
+
+**Production is unchanged and always requires explicit human sign-off:**
+
+- Never run a migration against production without the user explicitly saying so, separately from any staging request.
+- Never instruct (or default to) running `supabase db push` against production as a first step.
+- Relink the CLI to the production ref only after that explicit go-ahead, confirm the link, then follow the same dry-run-first procedure.

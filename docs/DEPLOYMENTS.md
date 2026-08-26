@@ -27,10 +27,12 @@ Six small, additive entities from the "Layercake Directory — Build Scope" brie
 
 All new tables follow the exact `_admin_all`/`_own_client` RLS pattern already used by `categorisations`/`entry_category_terms` — no anon-read policy, matching that there's no publish concept yet.
 
-### Database migrations written (NOT applied by the agent)
-Per `AGENTS.md`, these are output only — staging must be dry-run and verified before anyone applies them, production only after explicit sign-off:
+### Database migrations — applied to staging by the agent
+Per the user's explicit request, `AGENTS.md`/`docs/DATABASE_MIGRATIONS.md` were updated first (same commit) to let the agent run staging directly when asked, with production still requiring a separate explicit go-ahead. Applied to `layercake-maps-test` (`beqejxneehilplrtpntn`):
 - `20260826120000_create_directory_entry_extras.sql` (+ rollback) — the six tables and four `directory_entries` columns.
 - `20260826121000_create_directory_media_storage_bucket.sql` (+ rollback) — the `directory-media` Storage bucket.
+
+Note on process: a true `BEGIN; … ROLLBACK;` transactional dry-run wasn't achievable in this environment — the CLI's own `db execute`-style command doesn't exist in the installed version (2.75.0), and the ephemeral `cli_login_postgres` role the CLI hands out for `db dump` only has read privileges (confirmed: `select count(*) from public.directories` returned `permission denied for table directories`, not `relation does not exist` — i.e. the role can't see the table in `information_schema` at all, so a psql-based dry run under that role would give false aborts, not a faithful test). Relied instead on `supabase db push --dry-run` (confirmed exactly these two files pending, nothing else) and `supabase db push` itself, which applies each migration file atomically and ran both files' own pre-flight idempotency guards and post-migration `VERIFY PASSED` checks inline.
 
 ### Frontend
 New lib modules: `src/lib/evidenceItems.js`, `mediaAssets.js`, `accreditations.js`, `prominentLinks.js`, `productTiles.js`. New components: `src/components/directories/EvidenceItemsEditor.jsx`, `MediaAssetsEditor.jsx`, `AccreditationsEditor.jsx`, `AccreditationSchemesPanel.jsx`, `ProminentLinksEditor.jsx`, `ProductTilesEditor.jsx`. Wired into `DirectoryEntriesPanel.jsx`'s entry edit modal (evidence/media/accreditations/entry-links/product-tiles — only shown once an entry exists, since they need a real `entry_id`) and into `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (directory-level accreditation schemes + directory-homepage prominent links). `npm run build` clean.
@@ -39,8 +41,9 @@ New admin events (all under the existing `directory_*` category): `directory_ent
 
 ### Verified
 - [x] `npm run build` clean.
-- [ ] Migrations dry-run + applied on staging (not done by the agent — needs a human to run the dry-run block, apply, then run post-migration verification per `docs/DATABASE_MIGRATIONS.md`).
-- [ ] Manual click-through once staging has the schema: add evidence to an entry, upload a media asset (confirm alt-text is required, confirm hero toggle), define an accreditation scheme and grant it to an entry, add a directory-level and an entry-level prominent link, add a product tile, toggle contact display prefs.
+- [x] Migrations applied to staging — both files' in-transaction `NOTICE: VERIFY PASSED` fired; `supabase db push --dry-run` afterwards reported "Remote database is up to date."
+- [x] Post-apply reachability check via PostgREST (anon key): all 6 new tables return HTTP 200 (RLS-empty, as expected — no anon policy), `directory_entries` accepts the 4 new `show_*` columns in a select. The `directory-media` bucket's row-level check already passed inside the migration transaction; the Storage HTTP API's `GET /bucket/:id` returns 404 for anon regardless (confirmed by testing the same call against the long-established `map-pins` bucket, which returns the identical 404 — that endpoint just isn't anon-accessible, not a sign of a missing bucket).
+- [ ] Manual click-through in the running app: add evidence to an entry, upload a media asset (confirm alt-text is required, confirm hero toggle), define an accreditation scheme and grant it to an entry, add a directory-level and an entry-level prominent link, add a product tile, toggle contact display prefs. (Not done by the agent — needs the admin/client portal login the agent won't perform, per its own rules.)
 
 ### Rollback plan
 Frontend: revert this branch/commit. Database: run `_20260826120000_create_directory_entry_extras.rollback.sql` and `_20260826121000_create_directory_media_storage_bucket.rollback.sql` (both have data-loss guards — they abort if any real content exists in the new tables/bucket).
