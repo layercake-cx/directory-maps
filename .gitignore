@@ -15,6 +15,10 @@ dist-ssr
 # Supabase CLI local state
 supabase/.temp
 
+# Local `deno check` dependency-resolution artifact — not a build input for
+# `supabase functions deploy`, and this repo has no prior deno.lock convention.
+deno.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
