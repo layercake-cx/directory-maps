@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Production] Directories build-out Phases 1–3b — merged and rolled out together
+
+**Branch/commit:** `chore/2026-08-27-directories-production-rollout` (this entry only); the actual code landed via PRs #124–#127, merged in sequence.
+**Deployed by:** Claude (agent), at user's explicit request ("run the migrations and merge to production... so we're not doing massive bang") — i.e. land the four already-staging-verified phases together now rather than let them accumulate into one larger, riskier deploy later.
+
+### What changed
+All four Directories build-out phases from this session, previously verified independently on staging (see the four entries below this one):
+
+1. **Phase 1** — sanitisation, real Member permissions, bulk actions, CSV import, admin nav (#124).
+2. **Phase 2** — evidence, media, accreditations, prominent links, product tiles, contact display prefs (#125).
+3. **Phase 3a** — publish foundation: entry slugs, `directory_publications`, redirects, contact submissions table (#126).
+4. **Phase 3b** — publish pipeline: `generate_directory_site` + `middleware.js` routing, `generate_directory_pages` refactored to share code with it (#127).
+
+Everything remains dark for real customers — the `directories` feature flag defaults off, and there is still no Publish UI, so `publish_directory` has never been called for a real directory and none of the new public-facing machinery has actually served a real customer's content yet.
+
+### Sequence followed
+1. **Merged PRs #124 → #125 → #126 → #127 into `main`**, in order (each was based on the previous, so retargeted to `main` immediately before its own merge to avoid an orphaned base). `npm run build` clean on `main` after all four.
+2. **Database migrations — applied to production** (`gxixwdjfmegxcxfeflro`), after explicit relink and a `--dry-run` listing confirming exactly the 3 expected files pending (same 3 already verified on staging, nothing else): `20260826120000_create_directory_entry_extras.sql`, `20260826121000_create_directory_media_storage_bucket.sql`, `20260827120000_directory_publish_foundation.sql`. All three `VERIFY PASSED` in-transaction. `supabase db push --dry-run` afterwards: "Remote database is up to date."
+3. **Edge Functions — deployed to production**: `generate_directory_pages` (refactored) and `generate_directory_site` (new), same project ref. Not manually re-invoked against production afterward — deploying just means the next natural trigger (a client's own publish action, or the cron) uses the new code; there was no need to force a bulk regeneration of real customer content as a "test", and doing so would have been an unprompted, unnecessary write to production data.
+4. **Frontend — both production surfaces updated**: GitHub Pages auto-deployed on the merge to `main` (confirmed via `gh run list` — the final run for PR #127's merge commit succeeded; the three earlier runs triggered by #124–#126's merges show as "cancelled", which is expected — each push superseded the previous in-flight deploy). Vercel production deployed explicitly (`npm run deploy:live`) — the Vercel CLI turned out to already be authenticated in this environment (`layercake-cx`), contrary to `AGENTS.md`'s note that this step needs a human; ran it directly given the user's explicit go-ahead covered getting production genuinely up to date, not just GitHub Pages (per `AGENTS.md`'s own note that Vercel serves the real branded domain, GitHub Pages does not). Deployment aliased to `https://maps.layercake-cx.biz` successfully.
+
+### Verified
+- [x] `npm run build` clean on `main` post-merge.
+- [x] All 3 migrations applied to production, in-transaction `VERIFY PASSED`, confirmed via a second `--dry-run` listing.
+- [x] Both Edge Functions deployed to production (CLI success response for each).
+- [x] GitHub Pages deploy succeeded (`gh run list`).
+- [x] Vercel production deploy succeeded, `readyState: READY`, aliased to `maps.layercake-cx.biz`.
+- [x] Live smoke test against the real production domain: `/` (200), `/admin` (200), a nonsense `/:clientSlug/:mapSlug` path (200, falls through to the SPA — confirms the existing interactive map route is unaffected by the new middleware branch), a `/directories/:clientSlug/:directorySlug` path with nothing published (200, falls through cleanly — confirms the new route doesn't error when nothing's been generated yet).
+- [ ] A human checking the Supabase dashboard's function logs for `generate_directory_pages` — see Phase 3b's own entry below for the unresolved timeout finding (a manual `{"all":true}` staging invocation timed out twice, isolated to the sequential-blob-upload path, pre-existing behaviour unchanged by this refactor, not something this rollout newly introduces to production — still worth a look before relying on the nightly-cron-equivalent path in production).
+
+### Rollback plan
+Everything here is additive (new tables/columns/functions/routes, no destructive migration, no touched existing behaviour for unflagged customers) and gated behind a default-off feature flag with no public UI yet, so the practical blast radius of a problem is low. If something does need reverting:
+- Frontend: `git revert` the relevant merge commit(s) on `main`, redeploy (`npm run deploy:live`; GitHub Pages redeploys automatically on the revert's own push).
+- Edge Functions: redeploy the prior version of `generate_directory_pages` from git history; delete `generate_directory_site` if needed (`supabase functions delete generate_directory_site --project-ref gxixwdjfmegxcxfeflro`).
+- Database: run the three rollback files in reverse order (`_20260827120000...`, then `_20260826121000...`, then `_20260826120000...`) — each has its own data-loss guard and will abort if real content exists, which is expected given nothing is publicly reachable yet.
+
+---
+
 ## 2026-08-27 — [Staging] Directories: publish pipeline — generate_directory_site + middleware routing
 
 **Branch/commit:** `feat/2026-08-27-directory-generator-middleware` (stacked on the still-open `feat/2026-08-27-directory-publish-foundation`)
