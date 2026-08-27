@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Staging] Directories: Publish UI (Phase 3c)
+
+**Branch/commit:** `feat/2026-08-27-directory-publish-ui`
+**Deployed by:** Claude (agent), continuing the Directories build-out at the user's request ("proceed with development").
+
+### What changed
+The piece that makes Phase 3a/3b's plumbing reachable: `DirectoryPublishPanel.jsx`, a Publish panel on the directory dashboard (owners/managers can publish; a Member with directory access can view status/history but not publish, matching the persona rules in `docs/DIRECTORIES.md` §2). Publishing calls the existing `publish_directory` RPC with a config built from directory settings + the categorisation taxonomy (no theme/branding to snapshot yet — Phase 4), then fire-and-forget triggers `generate_directory_site`, mirroring the map feature's own `triggerDirectoryPagesRegeneration` retry-once shape. History list with per-version **Restore**. New admin events (`directory_publish_requested/published/failed/rolled_back`) as direct analogs of the existing `map_publish_*` category.
+
+Pure frontend — no new migration, no Edge Function change. `getDirectory`/`listDirectories` (`src/lib/directories.js`) extended to select the Phase 3a columns (`seo_defaults_json`, `current_publication_id`, `published_at`) they were missing.
+
+### Frontend
+`src/components/directories/DirectoryPublishPanel.jsx` (new), `src/lib/directoryPublications.js` (extended), wired into `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx`. `npm run build` clean.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Manual click-through — publish a real directory, confirm the public page appears at `/directories/:clientSlug/:directorySlug`, confirm restore. Not done by the agent (needs the admin/client portal login the agent won't perform).
+
+### Rollback plan
+Revert this branch/commit. No database or Edge Function changes to unwind.
+
+---
+
 ## 2026-08-27 — [Production] Directories build-out Phases 1–3b — merged and rolled out together
 
 **Branch/commit:** `chore/2026-08-27-directories-production-rollout` (this entry only); the actual code landed via PRs #124–#127, merged in sequence.
