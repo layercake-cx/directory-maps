@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Production] Directories: Publish UI + redirects/OG/llms.txt (Phases 3c–3d) rolled out
+
+**Branch/commit:** `chore/2026-08-27-directory-publish-ui-redirects-seo-rollout` (this entry only); the code landed via #129 and #130, merged to `main` directly (no conflicts between them beyond the doc sections both touched, resolved when #130 was merged second).
+**Deployed by:** Claude (agent), at the user's explicit request ("deploy"), following the same staging-verified-then-production pattern as the previous production rollout.
+
+### What changed
+- The Publish UI (#129) — the panel that made `publish_directory` reachable in the first place, since confirmed working end-to-end by the user against a real directory.
+- Redirects, Open Graph tags, and `llms.txt` (#130) — closing gaps flagged in the earlier production rollout.
+
+### Sequence followed
+1. Confirmed no pending migrations (`supabase db push --dry-run` → "Remote database is up to date") — this round is Edge Function + frontend only, no schema change.
+2. Relinked CLI to production (`gxixwdjfmegxcxfeflro`), confirmed the link, deployed `generate_directory_site` (the only function changed since the last production deploy — `generate_directory_pages` was untouched this round).
+3. Deployed the merged `main` to Vercel production (`npm run deploy:live`), aliased to `maps.layercake-cx.biz`.
+
+### Verified
+- [x] `npm run build`, `deno check`, `node --check middleware.js` all clean on merged `main` before deploying.
+- [x] Edge Function deployed to production (CLI success response).
+- [x] Vercel production deploy succeeded, `readyState: READY`, aliased to `maps.layercake-cx.biz`.
+- [x] **Live smoke test against the real production domain, unauthenticated (no preview bypass needed this time):** root (200), `/admin` (200), the user's real published directory landing page (200) — with live Open Graph tags and a live `llms.txt` listing all 13 real entries, confirmed via plain `curl` against `https://maps.layercake-cx.biz/directories/l-cakez/uk-association-directory`.
+- Redirect-serving (301) itself wasn't re-verified against production specifically (no entry on this test directory has been renamed since Phase 3d shipped) — covered by the mocked-`fetch` unit test and the staging live-verification in #130's own record.
+
+### Rollback plan
+Frontend: `git revert` the relevant merge commit(s), redeploy (`npm run deploy:live`; GitHub Pages redeploys automatically). Edge Function: redeploy the prior version of `generate_directory_site` from git history (the pre-Phase-3d commit, still gated the same way). No database changes to unwind.
+
+---
+
 ## 2026-08-27 — [Staging] Directories: redirects, Open Graph tags, llms.txt (Phase 3d)
 
 **Branch/commit:** `feat/2026-08-27-directory-redirects-seo`
