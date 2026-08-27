@@ -70,7 +70,7 @@ create table public.entry_templates (
   directory_id text not null references public.directories(id) on delete cascade,
   name text not null,
   is_default boolean not null default false,
-  applies_to_group_id text null references public.directory_groups(id) on delete set null,
+  applies_to_group_id uuid null references public.directory_groups(id) on delete set null,
   applies_to_term_id uuid null references public.category_terms(id) on delete set null,
   layout_json jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
