@@ -8,6 +8,41 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Production] Directories: custom domains + branding generalized (Phases 4a–4c) rolled out
+
+**Branch/commit:** PR [#132](https://github.com/layercake-cx/directory-maps/pull/132), merged to `main` (`ceddc99`).
+**Deployed by:** Claude (agent), at the user's explicit request ("merge deploy to production. run any scripts you need as per process").
+
+### What changed
+All three sub-phases from PR #132 (see their own entries below for full detail), landing together since 4b/4c both depend on 4a's schema:
+1. **Phase 4a** — `client_domains`/`resolve_custom_domain()`/`middleware.js` generalized from map-only to entity-polymorphic (map or directory); `directories.theme_json` column added. Already staging-verified before this rollout.
+2. **Phase 4b** — `DomainSettings.jsx`'s "Publishes" dropdown (Maps/Directories) and `manage_client_domain` accepting `directoryId`; directory domains gate on the `directories` flag, maps keep the existing paid entitlement. Not previously deployed anywhere.
+3. **Phase 4c** — `DirectoryBrandingPanel.jsx` (colour tokens + logo) and `generate_directory_site` rendering them as CSS custom properties + a themed header. Not previously deployed anywhere.
+
+### Sequence followed
+1. Merged PR #132 into `main` (regular merge commit, matching this repo's convention). `npm run build`, `node --check middleware.js`, `deno check` on both changed Edge Functions all clean on merged `main`.
+2. **Edge Functions deployed to staging first** (`manage_client_domain`, `generate_directory_site`) — unlike Phase 4a, these had only been unit/type-checked, never actually deployed anywhere; staging deploy succeeded for both before touching production, per the same discipline as `AGENTS.md`'s Edge Function policy.
+3. Relinked CLI to production (`gxixwdjfmegxcxfeflro`). `supabase db push --dry-run` confirmed exactly the one already-staging-verified migration (`20260827130000_directory_domains_branding_foundation.sql`) pending. Applied — `VERIFY PASSED`.
+4. Both Edge Functions deployed to production, same project ref.
+5. Frontend: GitHub Pages auto-deployed on the merge (`gh run list` confirms success). Vercel production deployed explicitly (`npm run deploy:live`), aliased to `maps.layercake-cx.biz`.
+
+### Verified
+- [x] `npm run build`, `node --check middleware.js`, `deno check` (both functions) clean on merged `main`.
+- [x] Both Edge Functions deployed successfully to staging, then production (CLI success response each time).
+- [x] Migration applied to production, in-transaction `VERIFY PASSED`.
+- [x] `resolve_custom_domain()` checked directly against the production DB: the one real existing custom domain (`ethical-elephant-sanctuaries.com`) resolves via the new shape (`entity_type: "map"`), its `client_domains` row still has `map_id` set and `directory_id` null — no data loss from the schema change.
+- [x] GitHub Pages deploy succeeded; Vercel production deploy succeeded (`readyState: READY`), aliased correctly.
+- [x] **Live smoke test against real production**: `/` (200), `/admin` (200), the real published directory landing page (200, still correct content). **The one place this is structurally impossible to fake**: hit the real attached custom domain (`https://ethical-elephant-sanctuaries.com/`) directly — 200, correct content — confirming the updated `middleware.js` + new RPC shape route real live customer traffic correctly through the actual Vercel edge network, not just a preview.
+- [ ] The real directory landing page's HTML does **not** yet contain the new theme CSS/header markup — `generate_directory_site` only regenerates a directory's static output when explicitly triggered (a publish action, or the cron), not automatically on Edge Function deploy, same as every previous rollout of this function. The new code is live and will apply the next time that directory is republished; nothing is broken by its absence in the meantime (the old cached output continues to serve correctly, as confirmed above).
+- [ ] Interactive click-through of the new "Publishes" dropdown and Branding panel — still not done (no login credentials in this session's sandboxed browser, same limitation noted in the 4b/4c entries). Recommend the user do this directly against production now that it's live.
+
+### Rollback plan
+- Frontend: `git revert` the merge commit, redeploy (`npm run deploy:live`; GitHub Pages redeploys automatically).
+- Edge Functions: redeploy the prior version of `manage_client_domain`/`generate_directory_site` from git history (pre-PR-#132 commit).
+- Database: `_20260827130000_directory_domains_branding_foundation.rollback.sql` — refuses to run if any `client_domains` row has `directory_id` set or any `directories.theme_json` is non-null; on production today neither is true yet, so a rollback would succeed cleanly if needed.
+
+---
+
 ## 2026-08-27 — [Not yet deployed] Directory branding editor + themed static output (Phase 4c)
 
 **Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it uses the `directories.theme_json` column added there.
