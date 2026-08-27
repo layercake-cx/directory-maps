@@ -40,18 +40,36 @@ export function buildDirectoryPublicationConfig({ directory, categorisations }) 
 /**
  * Fire-and-forget regeneration of the Directory entity's static pages after
  * a publish. Peer of triggerDirectoryPagesRegeneration (src/lib/mapPublication.js)
- * for the unrelated map feature — same retry-once-then-log shape. No-ops
- * server-side (skipped, not an error) for clients without the `directories`
- * flag — safe to call unconditionally.
+ * for the unrelated map feature — same retry-once-then-log shape.
+ *
+ * `generate_directory_site`'s server-side flag check only honours an
+ * explicit per-client `directories` override/default — unlike the
+ * client-side `get_my_feature_flags()` the rest of the app uses, it does NOT
+ * grant internal @layercake-cx.biz staff an automatic bypass (deliberately —
+ * that bypass exists so staff can navigate an unreleased feature's UI, not
+ * so a client that was never actually granted the flag gets a real public
+ * site generated). That split means a staff member can publish a directory
+ * for a client with no explicit grant and see it "succeed" with nothing
+ * actually generated — HTTP 200, `{skipped: "flag_disabled"}`, which reads
+ * as success to a naive fire-and-forget caller. `onResult` exists
+ * specifically so callers can surface that distinction instead of silently
+ * reporting success.
  */
-export function triggerDirectorySiteRegeneration(directoryId) {
+export function triggerDirectorySiteRegeneration(directoryId, { onResult } = {}) {
   const attempt = () => invokeFunction("generate_directory_site", { body: { directory_id: directoryId } });
+  const report = (res) => {
+    if (res?.error) throw res.error;
+    onResult?.(res?.data ?? null);
+  };
   attempt()
-    .then((res) => {
-      if (res?.error) throw res.error;
-    })
+    .then(report)
     .catch(() =>
-      attempt().catch((e) => console.warn("Directory site generation failed after retry (non-fatal):", e)),
+      attempt()
+        .then(report)
+        .catch((e) => {
+          console.warn("Directory site generation failed after retry (non-fatal):", e);
+          onResult?.({ error: e?.message ?? String(e) });
+        }),
     );
 }
 

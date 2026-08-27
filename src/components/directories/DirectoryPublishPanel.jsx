@@ -27,6 +27,25 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
+  function handleGenerationResult(successMsg, result) {
+    if (result?.skipped === "flag_disabled") {
+      setMsg("");
+      setErr(
+        "Published, but the public pages weren't generated: the Directories feature isn't enabled for this client yet. " +
+        "Ask an admin to enable it under Feature access (beta) on the customer's detail page, then publish again.",
+      );
+    } else if (result?.skipped) {
+      setMsg("");
+      setErr(`Published, but page generation was skipped (${result.skipped}). Ask an admin to check the customer's plan/entitlements, then publish again.`);
+    } else if (result?.error) {
+      setMsg("");
+      setErr(`Published, but page generation failed: ${result.error}`);
+    } else {
+      setErr("");
+      setMsg(successMsg);
+    }
+  }
+
   const refreshHistory = useCallback(async () => {
     if (!directory?.id) return;
     try {
@@ -50,10 +69,12 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       const config = buildDirectoryPublicationConfig({ directory, categorisations });
       recordEvent?.("directory_publish_requested", { directory_id: directory.id, note_present: !!note.trim() });
       await publishDirectory(directory.id, config, note);
-      triggerDirectorySiteRegeneration(directory.id);
+      triggerDirectorySiteRegeneration(directory.id, {
+        onResult: (result) => handleGenerationResult("Published and public pages generated.", result),
+      });
       recordEvent?.("directory_published", { directory_id: directory.id, note_present: !!note.trim() });
       setNote("");
-      setMsg("Published. It may take a few moments for the public pages to update.");
+      setMsg("Published — generating public pages…");
       await refreshHistory();
       onPublished?.();
     } catch (e) {
@@ -71,9 +92,11 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
     try {
       setRollingBackId(pub.id);
       await rollbackDirectoryTo(directory.id, pub.id);
-      triggerDirectorySiteRegeneration(directory.id);
+      triggerDirectorySiteRegeneration(directory.id, {
+        onResult: (result) => handleGenerationResult(`Restored version ${pub.version} and regenerated public pages.`, result),
+      });
       recordEvent?.("directory_publish_rolled_back", { directory_id: directory.id, from_publication_id: directory.current_publication_id, to_publication_id: pub.id });
-      setMsg(`Restored version ${pub.version}.`);
+      setMsg(`Restored version ${pub.version} — regenerating public pages…`);
       await refreshHistory();
       onPublished?.();
     } catch (e) {

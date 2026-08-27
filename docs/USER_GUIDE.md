@@ -130,6 +130,8 @@ Open a directory to see its entries table:
 
 From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
+**If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
+
 ### Archiving or deleting a directory
 
 From a directory's page (owners and managers only):
