@@ -8,6 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Directory visual design system rebuild (DIR-E3, Phase 6)
+
+**Branch:** `feat/2026-08-27-directory-entry-layout-designer` (stacked on the DIR-E6 branch, since this rebuilds the same block-rendering code)
+**Status:** implemented, build/`deno check` clean, standalone-script-verified; not yet deployed.
+
+### What changed
+The user, viewing a real published directory, flagged that it didn't look like the actual design ("100% width header, header across all pages etc."). Investigation found the real cause: the brief names a companion design canvas ("Ethical Elephant Directory canvas") that was never shared or read in any prior phase — everything built through Phase 5 used a plain generic template built from the brief's *prose* description alone. The user shared the canvas's Artifact link this session; it was read directly (`Artifact({action:"read"})`, then extracting the four `.dc.html` artboards embedded in the canvas's own `appifact-doc` JSON) and used as the actual visual source of truth for this rebuild. Full context and the decisions made (scope, DIR-E6 fit, search bar, theme presets, map embed architecture) are recorded in the approved plan.
+
+- **Design tokens + presets**: `generate_directory_site` now resolves a full 13-colour + heading/body-font token set (previously 3 fields), matching the canvas's own CSS custom property names (`--primary`, `--sage`, `--gold`, `--teal`, etc.) exactly, with a Google Fonts `<link>` built dynamically from whichever fonts are actually configured. `DirectoryBrandingPanel.jsx` gets 5 named presets (Natural/Midnight/Coastal/Heritage/Slate, `src/lib/directoryThemePresets.js`) that bulk-fill the form; every field stays individually editable afterward — a preset is a frontend convenience, never a persisted concept.
+- **Full-bleed header/footer**: new `siteHeader()`/`siteFooter()` — an outer unconstrained `<div>` carries the background, an inner `.wrap` (`max-width:1200px`) centers content — used on every page (previously entry pages had no header at all). This is the direct fix for what the user flagged.
+- **Homepage rebuild**: hero, a real client-side keyword search (filters the rendered result cards, no new backend — DIR-E7 will replace this with real NL search later), an "Explore" section with inert (this phase) filter chips and a real pins-only map, a real results card grid.
+- **Homepage map**: new `/directory-embed` SPA route + `DirectoryEmbedMap.jsx`, reusing `DirectoryMap.jsx` (confirmed data-agnostic, already used the same way by maps' own directory pages) via a same-origin iframe. Fed by a new static `entries.json` blob `generate_directory_site` now writes — mirrors `EmbedMap.jsx`'s own `snapshot.json` fetch pattern exactly, chosen specifically because `directory_entries` has no anon-select RLS policy today (unlike `listings`) and this avoids needing one.
+- **`middleware.js`**: added a `/directory-embed` passthrough for directory-hosted custom domains (mirroring the existing `/map`/`/embed` passthrough for map-hosted ones) — without it, a directory custom domain would treat `directory-embed` as an unrecognised entry slug instead of falling through to the SPA.
+- **Listing/entry pages**: breadcrumb + on-brand per-block styling matching the canvas (hero with rounded corners, quick-facts as tag chips via the categorisation block, Viator-style product tile cards, contact/address as a bordered card). Per the approved plan, DIR-E6's full-page block reordering is kept as-is rather than hard-coding the canvas's fixed 2-column sticky-aside layout — a deliberate simplification, single reorderable column instead of a structural split.
+
+### Not in this phase (deferred, see the plan file)
+Filtering/results page (new page type, real client-side faceted filtering) and the standalone map embed's bespoke floating AI/filter-panel chrome. Real NL/AI search (DIR-E7). Category/location index pages.
+
+### This phase breaks the "zero behaviour change" bar
+Every prior phase held itself to zero visible change for a directory that hadn't touched the new feature. This one deliberately doesn't: a directory with no `theme_json` set now renders with the Natural preset's colours and fonts by default, replacing the old plain template — because that plain template was never the intended design, not because behaviour needed preserving. Flagged here explicitly rather than presented as risk-free.
+
+### Verified
+- [x] `npm run build`, `deno check` on `generate_directory_site/index.ts`, `node --check middleware.js` all clean.
+- [x] Standalone Deno script: theme resolution falls back to Natural defaults correctly, valid overrides apply, and CSS/font-name injection attempts across multiple fields (not just `primaryColor`) are all blocked by the hex/font-catalogue allowlist.
+- [ ] Live regeneration of a real directory and visual confirmation of the full-bleed header/footer, working search, and real map pins — not done yet, pending deployment. Recommend doing this as part of the staging deploy, same as prior phases.
+- [ ] Interactive click-through of the new preset picker/advanced-colours UI — same login-credential limitation as recent phases.
+
+### Rollback plan
+Frontend/Edge Function only — no schema change (reuses the existing `theme_json` jsonb column, no new fields require a migration). Revert the relevant commits and redeploy. The `middleware.js` `/directory-embed` passthrough addition is inert until a real directory custom domain requests that path, so reverting it carries no other risk.
+
+---
+
 ## 2026-08-27 — [Not yet deployed] Directory entry layout designer (DIR-E6, Phase 5)
 
 **Branch:** `feat/2026-08-27-directory-entry-layout-designer`

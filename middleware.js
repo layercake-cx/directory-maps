@@ -147,10 +147,16 @@ async function handleCustomDomain(host, segments, blobBase) {
   // /map's client-side route resolves client/map by hostname itself; /embed
   // is the pre-existing query-param-driven route, also used by the
   // directory landing page's own embedded iframe (src="/embed?map=...").
-  // A directory-hosted domain has no interactive-map equivalent yet — these
-  // two segments just fall through to the SPA's own not-found handling for
-  // that case, same as any other unmatched path.
+  // These two segments just fall through to the SPA's own not-found
+  // handling for that case, same as any other unmatched path.
   if (domain.entityType === "map" && segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
+
+  // /directory-embed — the directory homepage's own pins-only map iframe
+  // (src="/directory-embed?..."), same pattern as /embed above. Without
+  // this, a directory custom domain would treat "directory-embed" as an
+  // unrecognised entry slug and serve a 404-ish blob lookup instead of
+  // falling through to the SPA.
+  if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "directory-embed") return;
 
   if (!domain.clientSlug || !domain.entitySlug || !blobBase) {
     return htmlResponse(404, "Domain not configured", "This domain isn&apos;t connected to a Layercake Maps directory.");

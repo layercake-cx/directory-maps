@@ -85,7 +85,28 @@ type Entry = {
   structured_data_type: string | null;
 };
 
-type DirectoryTheme = { primaryColor?: string; headerBg?: string; headerText?: string; logoUrl?: string };
+// Full DIR-E3 branding token set (docs/DIRECTORIES.md §4.1) — kept in sync
+// by hand with src/lib/directoryThemePresets.js's field list (JS/TS
+// runtimes can't share a module here). A directory that has never opened
+// the Branding panel has none of these set — see NATURAL_DEFAULTS below.
+type DirectoryTheme = {
+  primaryColor?: string;
+  primaryDarkColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  surfaceColor?: string;
+  surfaceAltColor?: string;
+  inkColor?: string;
+  mutedColor?: string;
+  lineColor?: string;
+  sageColor?: string;
+  sageInkColor?: string;
+  goldColor?: string;
+  tealColor?: string;
+  fontHeading?: string;
+  fontBody?: string;
+  logoUrl?: string;
+};
 
 type BlockDescriptor = { type: string; key?: string };
 type EntryTemplateRow = {
@@ -151,21 +172,58 @@ type AccreditationHeld = { entry_id: string; name: string; issuing_body: string 
 type EntryLink = { entry_id: string | null; directory_id: string | null; label: string; url: string; style: string; open_in_new: boolean; tracking: boolean };
 type ProductTile = { entry_id: string; title: string; image_url: string | null; price: number | null; currency: string | null; rating: number | null; provider: string | null; destination_url: string };
 
+// Design system ported from the "Ethical Elephant Directory" companion
+// design canvas (see docs/DEPLOYMENTS.md's DIR-E3 visual-rebuild entry for
+// how it was sourced) — class names and structure match that canvas
+// directly so the site actually looks like the design, not a generic
+// template. `.wrap` is the full-bleed-background/centered-content pattern
+// that makes the header/footer span 100% of the viewport while their
+// content stays a readable width.
+const BASE_STYLE = `
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { color: var(--primary-2); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 15px; border-radius: 11px; padding: 13px 20px; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .chip { display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; color: var(--ink); font-weight: 500; }
+  .facet { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--sage); color: var(--sage-ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 700; letter-spacing: .01em; }
+  .badge img { height: 16px; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--ink); border-radius: 7px; padding: 5px 9px; font-size: 12px; font-weight: 600; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .eyebrow { font-size: 12.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .muted { color: var(--muted); }
+  .prose p { font-size: 16.5px; line-height: 1.7; margin: 0 0 16px; }
+  .prose h2 { font-size: 24px; margin: 24px 0 14px; }
+  @media (max-width: 900px) { .wrap { padding: 0 20px; } }
+`;
+
 const EXTRA_STYLE = `
-  .hero { width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
+  .entry-logo { height: 40px; width: auto; display: block; margin-bottom: 10px; }
+  .hero { width: 100%; max-height: 380px; object-fit: cover; border-radius: 16px; margin-bottom: 16px; }
   .gallery { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  .gallery img { width: 100px; height: 80px; object-fit: cover; border-radius: 6px; }
+  .gallery img { width: 110px; height: 84px; object-fit: cover; border-radius: 8px; }
   .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: #f3f4f6; border-radius: 999px; padding: 4px 10px; }
-  .badge img { height: 20px; }
+  .category-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .category-chip { display: inline-block; font-size: 12px; background: var(--surface-2); border-radius: 999px; padding: 5px 11px; text-decoration: none; color: var(--ink); font-weight: 600; }
   .link-tiles { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  .link-tile { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 14px; }
-  .link-tile--primary { background: var(--brand-primary, #2563eb); color: #fff; }
-  .link-tile--secondary { background: #f3f4f6; color: #111827; }
-  .product-tiles { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
-  .product-tile { display: flex; gap: 10px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; text-decoration: none; color: inherit; width: 220px; }
-  .product-tile img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; }
-  .provider { font-size: 12px; opacity: 0.65; }
+  .link-tile { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
+  .link-tile--primary { background: var(--primary); color: #fff; }
+  .link-tile--secondary { background: var(--surface-2); color: var(--ink); }
+  .product-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 12px 0; }
+  .product-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; }
+  .product-tile__img { height: 130px; object-fit: cover; width: 100%; }
+  .product-tile__body { padding: 14px 15px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+  .product-tile__price { font-size: 18px; font-weight: 800; }
+  .provider { font-size: 12px; opacity: .65; }
+  .contact-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+  .contact-card p { margin: 0; font-size: 14.5px; }
+  .evidence-list dt { font-weight: 700; margin-top: 12px; font-size: 15.5px; }
+  .evidence-list dd { margin: 0 0 4px; font-size: 15px; color: var(--muted); }
 `;
 
 /**
@@ -173,8 +231,7 @@ const EXTRA_STYLE = `
  * pageShell(), deliberately: that one is kept byte-stable for the existing
  * map feature. This local variant adds Open Graph/Twitter Card tags (absent
  * from the map feature's own pages — a known, documented gap there) and the
- * extra CSS classes buildEntryPage/buildDirectoryLandingPage actually use
- * for media/badges/links/tiles.
+ * design-system CSS above.
  */
 // Loose but real validation — a raw hex colour only. theme_json is written
 // via a <input type="color"> plus a paired text field, but it's still a
@@ -187,11 +244,77 @@ function sanitizeHexColor(value: string | undefined, fallback: string): string {
   return value && /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : fallback;
 }
 
+// The "Natural" preset (src/lib/directoryThemePresets.js) — also the
+// default look for any directory that has never opened the Branding panel.
+// This is a deliberate design change from the plain generic template this
+// generator used before DIR-E3's visual rebuild; unlike every prior phase,
+// this is NOT "zero behaviour change" for existing directories.
+const NATURAL_DEFAULTS: Required<Omit<DirectoryTheme, "logoUrl">> = {
+  primaryColor: "#2E5A39",
+  primaryDarkColor: "#24462D",
+  accentColor: "#C06B37",
+  backgroundColor: "#FAF6EE",
+  surfaceColor: "#FFFFFF",
+  surfaceAltColor: "#F1ECDF",
+  inkColor: "#232820",
+  mutedColor: "#6F7567",
+  lineColor: "#E6DFCF",
+  sageColor: "#E9EEDD",
+  sageInkColor: "#3C5733",
+  goldColor: "#D6A23E",
+  tealColor: "#0E6F68",
+  fontHeading: "Spectral",
+  fontBody: "Hanken Grotesk",
+};
+
+// Google Fonts CSS2 family+weight query segment per font name — kept in
+// sync by hand with src/lib/directoryThemePresets.js's FONT_CATALOG.
+const FONT_CATALOG: Record<string, string> = {
+  Spectral: "Spectral:wght@400;500;600;700",
+  "Playfair Display": "Playfair+Display:wght@400;500;600;700",
+  Fraunces: "Fraunces:wght@400;500;600;700",
+  Inter: "Inter:wght@400;500;600;700;800",
+  "Hanken Grotesk": "Hanken+Grotesk:wght@400;500;600;700;800",
+};
+
+function resolvedTheme(theme: DirectoryTheme) {
+  return {
+    primaryColor: sanitizeHexColor(theme.primaryColor, NATURAL_DEFAULTS.primaryColor),
+    primaryDarkColor: sanitizeHexColor(theme.primaryDarkColor, NATURAL_DEFAULTS.primaryDarkColor),
+    accentColor: sanitizeHexColor(theme.accentColor, NATURAL_DEFAULTS.accentColor),
+    backgroundColor: sanitizeHexColor(theme.backgroundColor, NATURAL_DEFAULTS.backgroundColor),
+    surfaceColor: sanitizeHexColor(theme.surfaceColor, NATURAL_DEFAULTS.surfaceColor),
+    surfaceAltColor: sanitizeHexColor(theme.surfaceAltColor, NATURAL_DEFAULTS.surfaceAltColor),
+    inkColor: sanitizeHexColor(theme.inkColor, NATURAL_DEFAULTS.inkColor),
+    mutedColor: sanitizeHexColor(theme.mutedColor, NATURAL_DEFAULTS.mutedColor),
+    lineColor: sanitizeHexColor(theme.lineColor, NATURAL_DEFAULTS.lineColor),
+    sageColor: sanitizeHexColor(theme.sageColor, NATURAL_DEFAULTS.sageColor),
+    sageInkColor: sanitizeHexColor(theme.sageInkColor, NATURAL_DEFAULTS.sageInkColor),
+    goldColor: sanitizeHexColor(theme.goldColor, NATURAL_DEFAULTS.goldColor),
+    tealColor: sanitizeHexColor(theme.tealColor, NATURAL_DEFAULTS.tealColor),
+    fontHeading: FONT_CATALOG[theme.fontHeading ?? ""] ? theme.fontHeading! : NATURAL_DEFAULTS.fontHeading,
+    fontBody: FONT_CATALOG[theme.fontBody ?? ""] ? theme.fontBody! : NATURAL_DEFAULTS.fontBody,
+  };
+}
+
 function themeStyleBlock(theme: DirectoryTheme): string {
-  const primary = sanitizeHexColor(theme.primaryColor, "#2563eb");
-  const headerBg = sanitizeHexColor(theme.headerBg, "#111827");
-  const headerText = sanitizeHexColor(theme.headerText, "#ffffff");
-  return `:root { --brand-primary: ${primary}; --brand-header-bg: ${headerBg}; --brand-header-text: ${headerText}; }`;
+  const t = resolvedTheme(theme);
+  return `:root {
+    --bg: ${t.backgroundColor}; --surface: ${t.surfaceColor}; --surface-2: ${t.surfaceAltColor};
+    --ink: ${t.inkColor}; --muted: ${t.mutedColor}; --line: ${t.lineColor};
+    --primary: ${t.primaryColor}; --primary-2: ${t.primaryDarkColor}; --accent: ${t.accentColor};
+    --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor}; --gold: ${t.goldColor}; --teal: ${t.tealColor};
+    --font-heading: "${t.fontHeading}", Georgia, serif; --font-body: "${t.fontBody}", system-ui, sans-serif;
+  }`;
+}
+
+/** <link> for exactly the Google Fonts families this theme actually uses —
+ * never a fixed Spectral+Hanken Grotesk pair, since presets vary fonts. */
+function fontLinkTag(theme: DirectoryTheme): string {
+  const t = resolvedTheme(theme);
+  const families = [...new Set([t.fontHeading, t.fontBody])].map((f) => FONT_CATALOG[f]).filter(Boolean);
+  const query = families.map((f) => `family=${f}`).join("&");
+  return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${query}&display=swap">`;
 }
 
 function directoryPageShell(opts: {
@@ -221,21 +344,10 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 <meta property="og:url" content="${escapeAttr(opts.canonicalUrl)}">
 ${ogImage}
 <script type="application/ld+json">${JSON.stringify(opts.jsonLd)}</script>
+${fontLinkTag(opts.theme ?? {})}
 <style>
   ${themeStyleBlock(opts.theme ?? {})}
-  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px 16px; line-height: 1.5; color: #111827; }
-  a { color: var(--brand-primary); }
-  dt { font-weight: 600; margin-top: 10px; }
-  dd { margin-left: 0; }
-  .back-link { font-size: 14px; margin-bottom: 16px; display: inline-block; }
-  .listing-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-  .site-header { display: flex; align-items: center; gap: 12px; background: var(--brand-header-bg); color: var(--brand-header-text); margin: -24px -16px 20px; padding: 20px 16px; }
-  .site-header h1 { margin: 0; color: inherit; }
-  .site-header p { margin: 4px 0 0; color: inherit; opacity: 0.85; }
-  .site-header__logo { height: 40px; width: auto; }
-  .entry-logo { height: 48px; width: auto; display: block; margin-bottom: 10px; }
-  .category-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-  .category-chip { display: inline-block; font-size: 12px; background: #f3f4f6; border-radius: 999px; padding: 4px 10px; text-decoration: none; color: #111827; }
+  ${BASE_STYLE}
   ${EXTRA_STYLE}
 </style>
 </head>
@@ -243,6 +355,40 @@ ${ogImage}
 ${opts.body}
 </body>
 </html>`;
+}
+
+/** Full-bleed header — background spans the viewport, content stays inside
+ * `.wrap`. Used on every page (landing + entry), matching the canvas's own
+ * consistent-header-everywhere pattern. */
+function siteHeader(opts: { directoryName: string; tagline: string | null; homeUrl: string; logoUrl?: string | null }): string {
+  const logo = opts.logoUrl
+    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(opts.directoryName)} logo" style="width:42px;height:42px;border-radius:12px;object-fit:cover;">`
+    : `<div style="width:42px;height:42px;border-radius:12px;background:var(--primary);"></div>`;
+  return `<div style="border-bottom:1px solid var(--line);background:rgba(255,255,255,.6);backdrop-filter:blur(6px);">
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;height:76px;">
+    <a href="${escapeAttr(opts.homeUrl)}" style="display:flex;align-items:center;gap:12px;color:inherit;">
+      ${logo}
+      <div style="line-height:1.05;">
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--ink);">${escapeHtml(opts.directoryName)}</div>
+        ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
+      </div>
+    </a>
+    <span class="chip" style="font-size:12px;color:var(--muted);">Powered by Layercake&nbsp;Maps</span>
+  </div>
+</div>`;
+}
+
+/** Full-bleed dark footer, identical on every page. */
+function siteFooter(opts: { directoryName: string; homeUrl: string }): string {
+  return `<div style="margin-top:56px;background:#0E3A34;color:#CFE3DE;">
+  <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+    <div>
+      <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:#fff;">${escapeHtml(opts.directoryName)}</div>
+      <a href="${escapeAttr(opts.homeUrl)}" style="color:#CFE3DE;font-size:13.5px;">Browse all entries</a>
+    </div>
+    <span style="font-size:12.5px;color:#8FB4AD;">Published with Layercake Maps · content is editorial, commercial links never affect inclusion.</span>
+  </div>
+</div>`;
 }
 
 function linkTiles(links: EntryLink[]): string {
@@ -314,18 +460,26 @@ function buildEntryPage(opts: {
   // One HTML fragment per DIR-E6 block type (docs/DIRECTORIES.md §4.4) —
   // rendered in whatever order `layout` specifies rather than a fixed
   // sequence. Each returns "" when it has nothing to show, so an empty
-  // section never leaves a gap.
+  // section never leaves a gap. Styling matches the design canvas per
+  // block (hero image, quick-facts-style tag chips via the categorisation
+  // block, Viator-style product tiles, a bordered "at-a-glance" contact
+  // card) rather than the mockup's fixed 2-column sticky-aside layout —
+  // see docs/DEPLOYMENTS.md's DIR-E3 visual-rebuild entry for why: this
+  // keeps every block independently reorderable, which the aside's fixed
+  // structural split wouldn't allow.
+  const contactParts = [
+    entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
+    entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : "",
+    entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : "",
+  ].filter(Boolean);
+
   const blockHtml: Record<string, string> = {
     logo: entry.logo_url ? `<img class="entry-logo" src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo">` : "",
-    heading: `<h1>${escapeHtml(entry.name)}</h1>`,
-    address_map: location ? `<p>${escapeHtml(location)}</p>` : "",
-    contact_details: [
-      entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
-      entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : "",
-      entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    heading: `<h1 style="font-size:36px;margin:8px 0;">${escapeHtml(entry.name)}</h1>`,
+    address_map: location
+      ? `<p class="muted" style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;">${escapeHtml(location)}</p>`
+      : "",
+    contact_details: contactParts.length ? `<div class="contact-card">${contactParts.join("")}</div>` : "",
     hero: hero ? `<img class="hero" src="${escapeAttr(hero.url)}" alt="${escapeAttr(hero.alt_text)}">` : "",
     gallery: gallery.length
       ? `<div class="gallery">${gallery.map((m) => `<img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.alt_text)}">`).join("")}</div>`
@@ -335,17 +489,17 @@ function buildEntryPage(opts: {
           .map((a) => `<span class="badge" title="${escapeAttr(a.issuing_body || "")}">${a.badge_image_url ? `<img src="${escapeAttr(a.badge_image_url)}" alt="${escapeAttr(a.name)}">` : escapeHtml(a.name)}</span>`)
           .join("")}</div>`
       : "",
-    notes_html: notes,
+    notes_html: notes ? `<div class="prose">${notes}</div>` : "",
     evidence: evidence.length
-      ? `<h2>Evidence</h2><dl>${evidence
-          .map((e) => `<dt>${escapeHtml(e.claim)}${e.confidence ? ` <span class="confidence">(${escapeHtml(e.confidence)})</span>` : ""}</dt><dd>${escapeHtml(e.value || "")}${e.source_url ? ` — <a href="${escapeAttr(e.source_url)}" rel="noopener noreferrer">source</a>` : ""}</dd>`)
+      ? `<h2>Evidence</h2><dl class="evidence-list">${evidence
+          .map((e) => `<dt>${escapeHtml(e.claim)}${e.confidence ? ` <span class="tag">${escapeHtml(e.confidence)}</span>` : ""}</dt><dd>${escapeHtml(e.value || "")}${e.source_url ? ` — <a href="${escapeAttr(e.source_url)}" rel="noopener noreferrer">source</a>` : ""}</dd>`)
           .join("")}</dl>`
       : "",
     product_tiles: tiles.length
       ? `<div class="product-tiles">${tiles
           .map(
             (t) =>
-              `<a class="product-tile" href="${escapeAttr(t.destination_url)}" target="_blank" rel="noopener noreferrer sponsored">${t.image_url ? `<img src="${escapeAttr(t.image_url)}" alt="${escapeAttr(t.title)}">` : ""}<div><strong>${escapeHtml(t.title)}</strong>${t.price != null ? `<div>${escapeHtml(t.currency || "")} ${escapeHtml(String(t.price))}</div>` : ""}${t.provider ? `<div class="provider">via ${escapeHtml(t.provider)}</div>` : ""}</div></a>`,
+              `<a class="product-tile" href="${escapeAttr(t.destination_url)}" target="_blank" rel="noopener noreferrer sponsored">${t.image_url ? `<img class="product-tile__img" src="${escapeAttr(t.image_url)}" alt="${escapeAttr(t.title)}">` : ""}<div class="product-tile__body">${t.rating != null ? `<span class="muted" style="font-size:12.5px;font-weight:600;">★ ${escapeHtml(String(t.rating))}</span>` : ""}<strong>${escapeHtml(t.title)}</strong>${t.price != null ? `<span class="product-tile__price">${escapeHtml(t.currency || "")} ${escapeHtml(String(t.price))}</span>` : ""}${t.provider ? `<span class="provider">via ${escapeHtml(t.provider)}</span>` : ""}</div></a>`,
           )
           .join("")}</div>`
       : "",
@@ -366,9 +520,15 @@ function buildEntryPage(opts: {
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
+  const breadcrumb = `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; All entries in ${escapeHtml(directoryName)}</a>`;
+
   const body = `
-<a class="back-link" href="${escapeAttr(landingUrl)}">&larr; Back to ${escapeHtml(directoryName)}</a>
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
+<div class="wrap" style="padding-bottom:40px;">
+${breadcrumb}
 ${layout.map(renderBlock).join("\n")}
+</div>
+${siteFooter({ directoryName, homeUrl: landingUrl })}
 `.trim();
 
   return directoryPageShell({
@@ -383,6 +543,43 @@ ${layout.map(renderBlock).join("\n")}
   });
 }
 
+/** Inert (this phase) filter-bar chips above the map — visual placeholders
+ * for the categorisation-driven faceted filtering DIR-E5-S4 will wire up.
+ * Real, working search on this page is the keyword script below. */
+function exploreFilterBar(categorisationLabels: string[]): string {
+  if (categorisationLabels.length === 0) return "";
+  const chips = categorisationLabels
+    .map((label) => `<span class="facet">${escapeHtml(label)} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>`)
+    .join("");
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:18px;">${chips}</div>`;
+}
+
+/** Simple client-side keyword search over the already-rendered result
+ * cards — no new backend, no LLM call (DIR-E7 replaces this later). Reads
+ * data-search attributes baked into each card at generation time. */
+const SEARCH_SCRIPT = `
+<script>
+(function () {
+  var form = document.getElementById('dir-search-form');
+  var input = document.getElementById('dir-search-input');
+  var cards = document.querySelectorAll('[data-search]');
+  var countEl = document.getElementById('dir-result-count');
+  if (!form || !input) return;
+  function apply() {
+    var q = input.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (card) {
+      var match = !q || card.getAttribute('data-search').indexOf(q) !== -1;
+      card.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+    if (countEl) countEl.textContent = shown + (shown === 1 ? ' entry' : ' entries');
+  }
+  form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
+  input.addEventListener('input', apply);
+})();
+</script>`;
+
 function buildDirectoryLandingPage(opts: {
   clientSlug: string;
   directorySlug: string;
@@ -391,15 +588,25 @@ function buildDirectoryLandingPage(opts: {
   entries: Entry[];
   directoryLinks: EntryLink[];
   theme: DirectoryTheme;
+  entriesJsonUrl: string | null;
+  categorisationLabels: string[];
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, entriesJsonUrl, categorisationLabels } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
+  const visibleEntries = entries.filter((e) => !e.noindex);
 
-  const items = entries
-    .filter((e) => !e.noindex)
+  const cards = visibleEntries
     .map((e) => {
       const location = e.show_address ? [e.address, e.city, e.country].filter(Boolean).join(", ") : "";
-      return `<div class="listing-card"><a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}"><strong>${escapeHtml(e.name)}</strong></a>${location ? `<div>${escapeHtml(location)}</div>` : ""}</div>`;
+      const searchText = escapeAttr(`${e.name} ${location}`.toLowerCase());
+      return `<div class="card" data-search="${searchText}">
+  <div style="height:158px;background:var(--surface-2);"></div>
+  <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
+    ${location ? `<div class="muted" style="font-size:13px;font-weight:600;">${escapeHtml(location)}</div>` : ""}
+    <h3 style="font-size:19px;line-height:1.2;"><a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}">${escapeHtml(e.name)}</a></h3>
+    <a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}" style="margin-top:auto;padding-top:8px;font-size:14.5px;font-weight:700;">View &rarr;</a>
+  </div>
+</div>`;
     })
     .join("\n");
 
@@ -407,27 +614,53 @@ function buildDirectoryLandingPage(opts: {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: directoryName,
-    itemListElement: entries
-      .filter((e) => !e.noindex)
-      .map((e, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        url: `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${e.slug}`,
-        name: e.name,
-      })),
+    itemListElement: visibleEntries.map((e, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${e.slug}`,
+      name: e.name,
+    })),
   };
 
-  const logoHtml = theme.logoUrl ? `<img class="site-header__logo" src="${escapeAttr(theme.logoUrl)}" alt="${escapeAttr(directoryName)} logo">` : "";
+  const mapEmbed = entriesJsonUrl
+    ? `<iframe src="/directory-embed?src=${encodeURIComponent(entriesJsonUrl)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
+    : "";
+
   const body = `
-<header class="site-header">${logoHtml}<div><h1>${escapeHtml(directoryName)}</h1>${directoryDescription ? `<p>${escapeHtml(directoryDescription)}</p>` : ""}</div></header>
-${linkTiles(directoryLinks)}
-<p>${entries.length} entr${entries.length === 1 ? "y" : "ies"}.</p>
-${items}
+${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUrl })}
+<div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
+  <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
+    <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
+    <h1 style="font-size:44px;line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>
+    ${directoryDescription ? `<p class="muted" style="font-size:18px;max-width:600px;margin:0 auto 28px;">${escapeHtml(directoryDescription)}</p>` : ""}
+    <form id="dir-search-form" style="max-width:640px;margin:0 auto;display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 18px;box-shadow:0 12px 32px -18px rgba(0,0,0,.35);">
+      <input id="dir-search-input" type="text" placeholder="Search by name or location…" style="flex-grow:1;border:0;outline:0;font-size:16px;font-family:inherit;background:transparent;color:var(--ink);">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+  </div>
+</div>
+<div class="wrap" style="padding-top:48px;">
+  <div class="eyebrow" style="margin-bottom:8px;">Explore</div>
+  <h2 style="font-size:26px;margin-bottom:16px;">The map &amp; the directory</h2>
+  ${exploreFilterBar(categorisationLabels)}
+  ${mapEmbed}
+</div>
+<div class="wrap" style="padding-top:48px;padding-bottom:20px;">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:20px;">
+    <h2 style="font-size:26px;"><span id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</span></h2>
+  </div>
+  ${linkTiles(directoryLinks)}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;">
+    ${cards}
+  </div>
+</div>
+${siteFooter({ directoryName, homeUrl: "." })}
+${SEARCH_SCRIPT}
 `.trim();
 
   return directoryPageShell({
     title: directoryName,
-    description: directoryDescription || `${directoryName} — ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`,
+    description: directoryDescription || `${directoryName} — ${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}`,
     canonicalUrl,
     jsonLd,
     body,
@@ -582,15 +815,16 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
   const entryTermIdsByEntry = new Map<string, Set<string>>();
   const entryTermsByEntry = new Map<string, Map<string, CategorisationTerm[]>>();
   const termSortOrder = new Map<string, number>();
+  const categorisationLabelByKey = new Map<string, string>();
 
   if (entryIds.length > 0) {
     const { data: ectRows, error: ectErr } = await db
       .from("entry_category_terms")
-      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key))")
+      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label))")
       .in("entry_id", entryIds);
     if (ectErr) throw new Error(`Entry category terms query failed: ${ectErr.message}`);
 
-    type TermEmbed = CategorisationTerm & { categorisations: { key: string } | { key: string }[] | null };
+    type TermEmbed = CategorisationTerm & { categorisations: { key: string; label: string } | { key: string; label: string }[] | null };
     for (const row of (ectRows ?? []) as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
       const term = Array.isArray(row.category_terms) ? row.category_terms[0] : row.category_terms;
       if (!term) continue;
@@ -598,6 +832,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
       if (!cat) continue;
 
       termSortOrder.set(term.id, term.sort_order);
+      categorisationLabelByKey.set(cat.key, cat.label);
 
       const idSet = entryTermIdsByEntry.get(row.entry_id) ?? new Set<string>();
       idSet.add(term.id);
@@ -632,6 +867,26 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   }
 
+  // Pins-only map data for the homepage's /directory-embed iframe — mirrors
+  // EmbedMap.jsx's own snapshot.json fetch pattern (see docs/DEPLOYMENTS.md's
+  // DIR-E3 visual-rebuild entry) rather than a live anon Supabase query,
+  // since directory_entries has no anon-select RLS policy today.
+  const pinnableEntries = entries.filter((e) => !e.noindex && e.lat != null && e.lng != null);
+  let entriesJsonUrl: string | null = null;
+  if (pinnableEntries.length > 0) {
+    const entriesJson = JSON.stringify(
+      pinnableEntries.map((e) => ({
+        id: e.id,
+        slug: e.slug,
+        name: e.name,
+        lat: e.lat,
+        lng: e.lng,
+        location: e.show_address ? [e.city, e.country].filter(Boolean).join(", ") : "",
+      })),
+    );
+    entriesJsonUrl = await uploadToBlob(`${basePath}/entries.json`, entriesJson, "application/json; charset=utf-8");
+  }
+
   const landingHtml = buildDirectoryLandingPage({
     clientSlug: client.slug,
     directorySlug: directory.slug,
@@ -640,6 +895,8 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     entries,
     directoryLinks,
     theme,
+    entriesJsonUrl,
+    categorisationLabels: [...categorisationLabelByKey.values()],
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
