@@ -27,7 +27,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
   if (!clientId) return [];
   let query = supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, created_at, updated_at, directory_entries(count)")
+    .select("id, client_id, name, slug, description, is_active, published_at, created_at, updated_at, directory_entries(count)")
     .eq("client_id", clientId)
     .order("updated_at", { ascending: false });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -41,7 +41,7 @@ export async function getDirectory(directoryId) {
   if (!directoryId) return null;
   const { data, error } = await supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, created_at, updated_at")
+    .select("id, client_id, name, slug, description, is_active, seo_defaults_json, current_publication_id, published_at, created_at, updated_at")
     .eq("id", directoryId)
     .single();
   if (error) throw error;

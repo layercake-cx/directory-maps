@@ -10,6 +10,7 @@ import DirectoryEntriesPanel from "../../components/directories/DirectoryEntries
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
 import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
 import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
+import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
@@ -38,19 +39,25 @@ export default function ClientDirectoryEntries() {
   const [directoryTermIds, setDirectoryTermIds] = useState([]);
   const [savingTerms, setSavingTerms] = useState(false);
 
+  const reloadDirectory = useCallback(async () => {
+    try {
+      setDirectory(await getDirectory(directoryId));
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    }
+  }, [directoryId]);
+
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         setErr("");
-        setDirectory(await getDirectory(directoryId));
-      } catch (e) {
-        setErr(e?.message ?? String(e));
+        await reloadDirectory();
       } finally {
         setLoading(false);
       }
     })();
-  }, [directoryId]);
+  }, [directoryId, reloadDirectory]);
 
   useEffect(() => {
     loadDirectoryTermIds(directoryId).then(setDirectoryTermIds).catch(() => {});
@@ -156,6 +163,16 @@ export default function ClientDirectoryEntries() {
           scope="directory"
           selectedTermIds={directoryTermIds}
           onChange={canManage ? handleDirectoryTermsChange : () => {}}
+        />
+      </div>
+
+      <div className="admin-card" style={{ marginBottom: 16 }}>
+        <DirectoryPublishPanel
+          directory={directory}
+          clientSlug={client?.slug}
+          canPublish={canManage}
+          recordEvent={recordEvent}
+          onPublished={reloadDirectory}
         />
       </div>
 

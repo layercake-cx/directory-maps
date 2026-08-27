@@ -124,6 +124,12 @@ Open a directory to see its entries table:
 
 **Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
 
+### Publishing a directory
+
+> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website — but there's no branding/custom-domain step yet (that's a later phase), and it currently only reaches customers who also have this specific piece enabled.
+
+From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
+
 ### Archiving or deleting a directory
 
 From a directory's page (owners and managers only):
