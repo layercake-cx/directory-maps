@@ -62,8 +62,9 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
   const [msg, setMsg] = useState("");
   const [domains, setDomains] = useState([]);
   const [maps, setMaps] = useState([]);
+  const [directories, setDirectories] = useState([]);
   const [newHostname, setNewHostname] = useState("");
-  const [newMapId, setNewMapId] = useState("");
+  const [newTarget, setNewTarget] = useState(""); // "map:<id>" or "directory:<id>"
   const [adding, setAdding] = useState(false);
   const [busyDomainId, setBusyDomainId] = useState(null);
   const [feedbackByDomain, setFeedbackByDomain] = useState({});
@@ -90,27 +91,45 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
     };
   }, [isClientPortal, clientId]);
 
+  // Maps: gated by the paid maps.custom_domain entitlement (unchanged).
+  // Directories: no commercial entitlement exists for this entity yet — the
+  // add action gates on the `directories` beta flag server-side instead, so
+  // a client with directories but no map entitlement can still publish one
+  // of those on a custom domain. The form only needs to stay hidden when
+  // neither path is available.
   const customDomainAllowed = isClientPortal ? !!myCustomDomainEnabled : !!clientCustomDomainEnabled;
   const gateLoading = isClientPortal ? myEntitlementLoading : clientCustomDomainEnabled === null;
+  const canPublishAnything = customDomainAllowed || directories.length > 0;
 
   const load = useCallback(async () => {
     if (!clientId) return;
     setLoading(true);
     setErr("");
     try {
-      const [{ data: d, error: dErr }, { data: m, error: mErr }] = await Promise.all([
+      const [{ data: d, error: dErr }, { data: m, error: mErr }, { data: dir, error: dirErr }] = await Promise.all([
         supabase
           .from("client_domains")
-          .select("id,map_id,hostname,status,dns_records,vercel_domain_id,verified_at,created_at")
+          .select("id,map_id,directory_id,hostname,status,dns_records,vercel_domain_id,verified_at,created_at")
           .eq("client_id", clientId)
           .order("created_at", { ascending: true }),
         supabase.from("maps").select("id,name").eq("client_id", clientId).order("name", { ascending: true }),
+        supabase
+          .from("directories")
+          .select("id,name")
+          .eq("client_id", clientId)
+          .eq("is_active", true)
+          .order("name", { ascending: true }),
       ]);
       if (dErr) throw dErr;
       if (mErr) throw mErr;
+      if (dirErr) throw dirErr;
       setDomains(d ?? []);
       setMaps(m ?? []);
-      if (!newMapId && (m ?? []).length > 0) setNewMapId(m[0].id);
+      setDirectories(dir ?? []);
+      if (!newTarget) {
+        if ((m ?? []).length > 0) setNewTarget(`map:${m[0].id}`);
+        else if ((dir ?? []).length > 0) setNewTarget(`directory:${dir[0].id}`);
+      }
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -127,11 +146,20 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
     return maps.find((m) => m.id === mapId)?.name ?? "Unknown map";
   }
 
+  function directoryName(directoryId) {
+    return directories.find((d) => d.id === directoryId)?.name ?? "Unknown directory";
+  }
+
+  function targetLabel(domain) {
+    return domain.directory_id ? `${directoryName(domain.directory_id)} (directory)` : mapName(domain.map_id);
+  }
+
   async function handleAddDomain(e) {
     e.preventDefault();
     if (!clientId) return;
-    if (!newMapId) {
-      setErr("Choose which map this domain publishes.");
+    const [targetType, targetId] = newTarget.split(":");
+    if (!targetId) {
+      setErr("Choose which map or directory this domain publishes.");
       return;
     }
     if (!newHostname.trim()) {
@@ -145,15 +173,22 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       const data = await invokeManageClientDomain({
         clientId,
         action: "add",
-        mapId: newMapId,
+        mapId: targetType === "map" ? targetId : undefined,
+        directoryId: targetType === "directory" ? targetId : undefined,
         hostname: newHostname.trim(),
       });
       setDomains((prev) => [...prev, data.domain]);
       recordAdminEvent(supabase, {
         eventType: "domain_added",
         clientId,
-        mapId: newMapId,
-        meta: { client_id: clientId, map_id: newMapId, hostname: data.domain.hostname, source: eventSource },
+        mapId: data.domain.map_id,
+        meta: {
+          client_id: clientId,
+          map_id: data.domain.map_id,
+          directory_id: data.domain.directory_id,
+          hostname: data.domain.hostname,
+          source: eventSource,
+        },
       });
       setNewHostname("");
       setMsg("Domain added. Add the DNS records below, then verify.");
@@ -176,7 +211,13 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
         eventType: active ? "domain_verified" : "domain_verify_failed",
         clientId,
         mapId: domain.map_id,
-        meta: { client_id: clientId, map_id: domain.map_id, hostname: domain.hostname, source: eventSource },
+        meta: {
+          client_id: clientId,
+          map_id: domain.map_id,
+          directory_id: domain.directory_id,
+          hostname: domain.hostname,
+          source: eventSource,
+        },
       });
       let text = active
         ? "Domain verified — DNS is correctly configured."
@@ -206,7 +247,13 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
         eventType: "domain_removed",
         clientId,
         mapId: domain.map_id,
-        meta: { client_id: clientId, map_id: domain.map_id, hostname: domain.hostname, source: eventSource },
+        meta: {
+          client_id: clientId,
+          map_id: domain.map_id,
+          directory_id: domain.directory_id,
+          hostname: domain.hostname,
+          source: eventSource,
+        },
       });
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -223,17 +270,30 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       {loading ? (
         <p>Loading…</p>
       ) : (
-        <EntitlementGate allowed={customDomainAllowed} loading={gateLoading} message={getBlockedMessage("custom_domain")}>
+        <EntitlementGate allowed={canPublishAnything} loading={gateLoading} message={getBlockedMessage("custom_domain")}>
           <form onSubmit={handleAddDomain} className={styles.addForm}>
             <label className={`${emailStyles.field} ${styles.field}`}>
-              <span>Map</span>
-              <select value={newMapId} onChange={(e) => setNewMapId(e.target.value)}>
-                {maps.length === 0 ? <option value="">No maps yet</option> : null}
-                {maps.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
+              <span>Publishes</span>
+              <select value={newTarget} onChange={(e) => setNewTarget(e.target.value)}>
+                {maps.length === 0 && directories.length === 0 ? <option value="">Nothing to publish yet</option> : null}
+                {maps.length > 0 ? (
+                  <optgroup label="Maps">
+                    {maps.map((m) => (
+                      <option key={m.id} value={`map:${m.id}`}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {directories.length > 0 ? (
+                  <optgroup label="Directories">
+                    {directories.map((d) => (
+                      <option key={d.id} value={`directory:${d.id}`}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
             </label>
             <label className={`${emailStyles.field} ${styles.field}`}>
@@ -245,7 +305,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
                 placeholder="directory.yourcompany.com"
               />
             </label>
-            <button type="submit" className="btn btn-primary" disabled={adding || maps.length === 0}>
+            <button type="submit" className="btn btn-primary" disabled={adding || (maps.length === 0 && directories.length === 0)}>
               {adding ? "Adding…" : "Add domain"}
             </button>
           </form>
@@ -270,7 +330,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
                       <h3 className={styles.domainHostname}>{domain.hostname}</h3>
                       <span className={`${emailStyles.badge} ${emailStyles[`badge--${tone}`]}`}>{label}</span>
                     </div>
-                    <p className={styles.domainMapLabel}>Publishes: {mapName(domain.map_id)}</p>
+                    <p className={styles.domainMapLabel}>Publishes: {targetLabel(domain)}</p>
 
                     <div className={emailStyles.actions}>
                       <button

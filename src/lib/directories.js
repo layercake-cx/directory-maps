@@ -41,7 +41,7 @@ export async function getDirectory(directoryId) {
   if (!directoryId) return null;
   const { data, error } = await supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, seo_defaults_json, current_publication_id, published_at, created_at, updated_at")
+    .select("id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at")
     .eq("id", directoryId)
     .single();
   if (error) throw error;

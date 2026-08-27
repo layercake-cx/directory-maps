@@ -11,6 +11,7 @@ import CategoryTagPicker from "../../components/directories/CategoryTagPicker.js
 import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
 import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
 import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
+import DirectoryBrandingPanel from "../../components/directories/DirectoryBrandingPanel.jsx";
 
 export default function ClientDirectoryEntries() {
   const { directoryId } = useParams();
@@ -175,6 +176,19 @@ export default function ClientDirectoryEntries() {
           onPublished={reloadDirectory}
         />
       </div>
+
+      {canManage && (
+        <div className="admin-card" style={{ marginBottom: 16 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Branding</p>
+          <DirectoryBrandingPanel
+            directory={directory}
+            directoryId={directoryId}
+            canManage={canManage}
+            recordEvent={recordEvent}
+            onSaved={reloadDirectory}
+          />
+        </div>
+      )}
 
       {canManage && (
         <div className="admin-card" style={{ marginBottom: 16 }}>

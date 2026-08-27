@@ -8,6 +8,95 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Directory branding editor + themed static output (Phase 4c)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it uses the `directories.theme_json` column added there.
+**Status:** implemented, build/type-checked; not yet deployed.
+
+### What changed
+Closes the last gap flagged in Phases 4a/4b — `directories.theme_json` existed as a bare column with no editor and nothing reading it:
+- **`DirectoryBrandingPanel.jsx`** (new, shared by client portal and admin, same convention as `AccreditationSchemesPanel.jsx`) — a small, deliberately minimal token set per the original brief (§5.1 "Theme: token overrides... logo"): primary colour, header background, header text colour, logo URL. Persists to `directories.theme_json` via the existing generic `updateDirectory()` patch helper — no new RPC needed, `directories_own_client` RLS already scopes writes correctly.
+- **`generate_directory_site`** now reads `theme_json` and injects it as CSS custom properties (`--brand-primary`, `--brand-header-bg`, `--brand-header-text`) into every generated page's `<style>` block, and renders a themed header bar (background/text colour + optional logo) on the directory landing page specifically — entry pages pick up the accent colour on links/buttons but don't repeat the full header.
+- **Colour values are validated** against a strict `^#[0-9a-fA-F]{3,8}$` pattern before being interpolated into the generated `<style>` block — `theme_json` is reachable by direct API access, not just this new form, so a malformed value (e.g. one attempting to close the CSS declaration and inject a new rule) falls back to the default colour rather than corrupting the generated page. Verified with a standalone Deno script covering exactly this case.
+- Directory custom domains (Phase 4b) already serve whatever `generate_directory_site` outputs, so this styling reaches both the branded-domain fallback and a client's own custom domain once published — no additional wiring needed there.
+
+### Not yet built
+Font, corner-radius, and favicon tokens from the original brief's theme spec — this phase covers colours + logo only, matching what the generator actually renders today.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on `generate_directory_site/index.ts`.
+- [x] Standalone Deno script verifying `sanitizeHexColor`/the CSS block builder: valid hex values pass through, a CSS-injection attempt (`"red; } body { display:none } /*"`) falls back to the default instead of breaking out of the `<style>` block.
+- [ ] Interactive browser click-through of the new Branding panel, and a live-rendered themed page — **not done this round**, same login-credential limitation as Phase 4b. Recommend the user set a branding value, publish, and confirm the header/colours render on the live directory page once deployed.
+
+### Rollback plan
+Frontend/Edge Function only — no schema change in this phase (reuses Phase 4a's `theme_json` column). Revert the relevant commits and redeploy; `supabase functions deploy generate_directory_site --project-ref <ref>` with the prior version if only the function needs rolling back. A directory with no `theme_json` set (the case for every directory before this phase) renders identically to before — the CSS vars have hardcoded fallback defaults matching the previous literal colours.
+
+---
+
+## 2026-08-27 — [Not yet deployed] Custom domain management UI + Edge Function generalized to directories (Phase 4b)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it depends on that migration's `client_domains.directory_id` column and the new `resolve_custom_domain()` shape.
+**Status:** implemented and build/type-checked; not yet deployed to staging or production — pending explicit go-ahead.
+
+### What changed
+Phase 4a generalized the data layer and routing; this phase generalizes the actual domain-management UI and its Edge Function so a client can use it, not just the plumbing:
+- `DomainSettings.jsx` (shared by the client portal and admin) — the "Map" dropdown is now a **"Publishes"** dropdown grouped into Maps / Directories optgroups, fetching both from Supabase. Domain cards show which entity they publish either way.
+- `manage_client_domain` Edge Function — the `add` action now accepts `directoryId` as an alternative to `mapId` (exactly one required). Gating differs by entity: maps keep the existing `maps.custom_domain` paid entitlement check unchanged; directories gate on the `directories` beta feature flag only, since no commercial entitlement exists for that entity yet — same decision already made for `generate_directory_site`.
+- Extracted the flag-resolution query (override → default) shared between `generate_directory_site` and `manage_client_domain` into `_shared/featureFlags.ts` (`resolveFeatureFlag(db, clientId, flagKey)`) — no behaviour change to the existing map-side feature, verified via `deno check` on both functions.
+- The `domain_added`/`domain_verified`/`domain_verify_failed`/`domain_removed` admin events now carry both `map_id` and `directory_id` (whichever doesn't apply is `null`) — `AGENTS.md`'s event catalogue updated to match.
+- `docs/USER_GUIDE.md` Domains section updated: a domain now publishes "a map or a directory," the entitlement note is split by entity, and the Directories section's "custom domains... not built yet" line is corrected.
+
+### Not yet built
+The branding/theme editor for `directories.theme_json` (added in Phase 4a as a bare column) — still no UI to set it.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on both `manage_client_domain/index.ts` and `generate_directory_site/index.ts` (post-extraction).
+- [ ] Interactive browser click-through of the new "Publishes" dropdown — **not done this round**: no login credentials were available in this session's sandboxed browser for either the client portal or admin. Recommend the user click through `/client/domains` (or the admin customer detail Domains tab) once deployed, picking a directory and confirming DNS records appear and verification completes end-to-end.
+
+### Rollback plan
+Frontend/Edge Function only — no schema change in this phase (reuses Phase 4a's migration). Revert the relevant commits and redeploy; `supabase functions deploy manage_client_domain --project-ref <ref>` with the prior version if only the function needs rolling back.
+
+---
+
+## 2026-08-27 — [Staging] Custom domains generalized to directories (Phase 4a — data layer)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132))
+**Deployed by:** Claude (agent), at the user's explicit request ("deploy to staging").
+**Status:** deployed to staging (migration + Vercel preview), verified. Production not yet deployed — pending a fresh explicit go-ahead, same discipline as every prior phase.
+
+### What changed
+User confirmed custom domains should be generic across both entities ("shouldn't custom domains be genericised? i.e. applicable to both maps and directories?"), so `client_domains`/`resolve_custom_domain()`/`middleware.js`'s custom-domain handling were generalized rather than building a parallel directory-only mechanism:
+- `directories.theme_json` added (same flat-jsonb convention as `maps.theme_json`) — column only, no editor UI yet.
+- `client_domains.map_id` made nullable; `client_domains.directory_id` added; `client_domains_one_entity` check constraint requires exactly one of the two set.
+- `resolve_custom_domain(hostname)` dropped and recreated with a new return shape: `(entity_type, client_slug, entity_slug, status)` instead of the old `(client_slug, map_slug, status)` — a Postgres return-type change can't be done via `CREATE OR REPLACE`.
+- `middleware.js`'s `resolveCustomDomain()`/`handleCustomDomain()`/`rewriteForCustomDomain()` generalized to branch on `entityType`, including new `llms.txt` and redirect-manifest (`redirects.json`) support for directory-hosted custom domains, matching the branded-domain directory routes already shipped in Phase 3d.
+- **Deployment-order safety:** the DB migration and the Vercel deploy are two independent, non-atomic operations, so `resolveCustomDomain()` was made tolerant of both the old and new RPC response shapes (detected by the presence of `entity_type` on the returned row) — this means the migration and the `middleware.js` deploy can land in either order, or with a gap between them, without breaking live custom-domain routing for existing map customers.
+
+### Not yet built (later phases)
+`DomainSettings.jsx` (client UI) and the `manage_client_domain` Edge Function are still map-only — a client cannot yet actually add/verify/remove a domain for a directory through the UI. This migration is data-layer-only groundwork.
+
+### Sequence followed
+1. Confirmed already linked to the staging project (`beqejxneehilplrtpntn`).
+2. `supabase db push --dry-run` — confirmed exactly one pending migration, nothing unexpected.
+3. `supabase db push` — applied; embedded post-migration check printed `VERIFY PASSED`.
+4. `npm run deploy:test` — Vercel preview deploy of the updated `middleware.js`.
+
+### Verified
+- [x] Migration's own pre/post-flight `do $$ ... raise exception ... $$` blocks (integrity checks, `VERIFY PASSED` assertions) — passed on staging.
+- [x] `node --check middleware.js` clean.
+- [x] Mocked-`fetch` Node.js test script (scratchpad, not committed): old-shape and new-shape map RPC responses resolve to byte-identical middleware output; new-shape directory RPC response resolves without error via the correct `directories/<client>/<slug>` blob path; unresolved hostname still 404s.
+- [x] **Real staging DB check, post-migration:** `resolve_custom_domain()` RPC hit directly against staging — the one pre-existing real domain (`ethical-elephant-sanctuaries.com`) still resolves, now via the new shape (`{"entity_type":"map","client_slug":"l-cakez","entity_slug":"elephants","status":"active"}`); its `client_domains` row confirmed to still have `map_id` set and `directory_id` null (no data loss from the nullability/constraint change). An unregistered hostname still returns `[]`.
+- [x] **Real Vercel preview regression check** (via `npx vercel curl` deployment-protection bypass, since previews require auth): the branded-domain directory route (`/directories/l-cakez/uk-association-directory` and its `llms.txt`) and the pre-existing map directory-pages route (`/l-cakez/elephants/directory`) both still return 200 with correct content — zero regression to either existing feature from this change.
+- [ ] Real custom-domain routing through the new entity-polymorphic path — not verified this round. Vercel only routes an attached custom domain's live traffic to the project's **production** deployment, not a Preview build (confirmed in an earlier phase — forging the `Host` header against a Preview URL gets rejected with `DEPLOYMENT_NOT_FOUND` before this app's code runs), so the `entityType === "directory"` custom-domain branch can only be end-to-end verified once this ships to production. Covered up to that point by the mocked-`fetch` unit test.
+
+### Rollback plan
+- `_20260827130000_directory_domains_branding_foundation.rollback.sql` — refuses to run if any `client_domains` row has `directory_id` set or any `directories.theme_json` is non-null (data-loss guards), otherwise restores the original map-only schema and RPC shape.
+- Frontend: revert the `middleware.js` changes — safe to do independently of the DB rollback in either order, since `resolveCustomDomain()` tolerates both RPC shapes.
+
+---
+
 ## 2026-08-27 — [Production] Directories: Publish UI + redirects/OG/llms.txt (Phases 3c–3d) rolled out
 
 **Branch/commit:** `chore/2026-08-27-directory-publish-ui-redirects-seo-rollout` (this entry only); the code landed via #129 and #130, merged to `main` directly (no conflicts between them beyond the doc sections both touched, resolved when #130 was merged second).

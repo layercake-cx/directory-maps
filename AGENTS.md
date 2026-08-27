@@ -386,15 +386,17 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 
 #### Domains (custom domain / subdomain publishing — Bring Your Own Domain epic)
 
+A domain publishes exactly one entity — a map or a directory (`client_domains.map_id` XOR `directory_id`). Events carry both `map_id`/`directory_id` fields; whichever doesn't apply is `null`.
+
 - **`domain_added`**
-  - `meta`: `client_id`, `map_id`, `hostname`, `source` (`client_portal` / `admin_dashboard`)
+  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source` (`client_portal` / `admin_dashboard`)
 - **`domain_verified`**
-  - `meta`: `client_id`, `map_id`, `hostname`, `source`
+  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
 - **`domain_verify_failed`**
-  - `meta`: `client_id`, `map_id`, `hostname`, `source`
+  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
   - Fired when a verify attempt completes but DNS isn't fully correct yet — not a hard error, just "not active yet."
 - **`domain_removed`**
-  - `meta`: `client_id`, `map_id`, `hostname`, `source`
+  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
 
 ### 4) Rule for future features
 

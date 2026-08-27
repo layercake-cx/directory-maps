@@ -97,7 +97,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, and categorisation-driven filtering are not built yet. Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
 
 ### Creating a directory
 
@@ -126,11 +126,15 @@ Open a directory to see its entries table:
 
 ### Publishing a directory
 
-> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website — but there's no branding/custom-domain step yet (that's a later phase), and it currently only reaches customers who also have this specific piece enabled.
+> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
 
 From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
+
+### Branding
+
+From a directory's page, the **Branding** panel (owners and managers only) sets a small set of tokens applied to the directory's published pages: a **primary colour** (links and buttons), a **header background** and **header text colour** for the bar at the top of the directory's landing page, and an optional **logo URL** shown in that header. Click **Save branding**, then **Publish** again for the change to appear on the live site — saving branding doesn't publish automatically. Font, corner radius, and favicon controls aren't built yet.
 
 ### Archiving or deleting a directory
 
@@ -454,13 +458,13 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ## Domains
 
-The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map to it. Once verified: the root of your domain shows the SEO-friendly directory listing, `/map` shows the full interactive map (also usable as an iframe source elsewhere), and each listing gets its own page.
+The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map or a directory to it. Once verified: the root of your domain shows the published entity's landing page — for a map, that's the SEO-friendly listing page, with `/map` showing the full interactive map (also usable as an iframe source elsewhere); for a directory, that's the directory's own landing page. Either way, each listing/entry gets its own page at the root.
 
-Custom domains require the **Professional plan or above**. On the Basic plan, the section is dimmed with a note to upgrade; contact Layercake to change your plan.
+Custom domains for **maps** require the **Professional plan or above** — on the Basic plan, that option is unavailable and the section shows a note to upgrade. Custom domains for **directories** are included with early access to the Directories beta — no separate upgrade needed while that feature is in beta.
 
 ### Add a domain
 
-1. Choose which **map** this domain will publish (each domain publishes exactly one map — register a second domain if you want a different address for another map).
+1. Choose which **map or directory** this domain will publish, from the **Publishes** dropdown (each domain publishes exactly one map or directory — register a second domain if you want a different address for another one).
 2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com` or a root domain like `yourcompany.com`. Don't include `https://` or a trailing path.
 3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a routing record. **A root/apex domain** (e.g. `yourcompany.com`) gets an `A` record; **a subdomain** (e.g. `directory.yourcompany.com`) gets a `CNAME` record — DNS doesn't allow a literal CNAME on a root domain, so the record type differs depending on which you use.
 
@@ -499,7 +503,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
 | Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
-| Add a custom domain for a map | `/client/domains` → Add domain |
+| Add a custom domain for a map or directory | `/client/domains` → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |

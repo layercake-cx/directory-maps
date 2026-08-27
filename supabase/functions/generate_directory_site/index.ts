@@ -46,6 +46,7 @@
  */
 
 import { createServiceClient } from "../_shared/supabase.ts";
+import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import {
   CORS,
   json,
@@ -83,28 +84,13 @@ type Entry = {
   structured_data_type: string | null;
 };
 
+type DirectoryTheme = { primaryColor?: string; headerBg?: string; headerText?: string; logoUrl?: string };
+
 type EvidenceItem = { entry_id: string; claim: string; value: string | null; source_url: string | null; confidence: string | null };
 type MediaAsset = { entry_id: string; url: string; alt_text: string; caption: string | null; is_hero: boolean };
 type AccreditationHeld = { entry_id: string; name: string; issuing_body: string | null; badge_image_url: string | null };
 type EntryLink = { entry_id: string | null; directory_id: string | null; label: string; url: string; style: string; open_in_new: boolean; tracking: boolean };
 type ProductTile = { entry_id: string; title: string; image_url: string | null; price: number | null; currency: string | null; rating: number | null; provider: string | null; destination_url: string };
-
-async function resolveDirectoriesFlag(db: ReturnType<typeof createServiceClient>, clientId: string): Promise<boolean> {
-  const { data: override } = await db
-    .from("feature_flag_overrides")
-    .select("enabled")
-    .eq("client_id", clientId)
-    .eq("flag_key", "directories")
-    .maybeSingle();
-  if (override) return override.enabled === true;
-
-  const { data: flag } = await db
-    .from("feature_flags")
-    .select("default_enabled")
-    .eq("key", "directories")
-    .maybeSingle();
-  return flag?.default_enabled === true;
-}
 
 const EXTRA_STYLE = `
   .hero { width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
@@ -115,7 +101,7 @@ const EXTRA_STYLE = `
   .badge img { height: 20px; }
   .link-tiles { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
   .link-tile { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 14px; }
-  .link-tile--primary { background: #2563eb; color: #fff; }
+  .link-tile--primary { background: var(--brand-primary, #2563eb); color: #fff; }
   .link-tile--secondary { background: #f3f4f6; color: #111827; }
   .product-tiles { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
   .product-tile { display: flex; gap: 10px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; text-decoration: none; color: inherit; width: 220px; }
@@ -131,6 +117,24 @@ const EXTRA_STYLE = `
  * extra CSS classes buildEntryPage/buildDirectoryLandingPage actually use
  * for media/badges/links/tiles.
  */
+// Loose but real validation — a raw hex colour only. theme_json is written
+// via a <input type="color"> plus a paired text field, but it's still a
+// jsonb column reachable by direct API/RPC access, and this value gets
+// interpolated straight into a <style> block below, so a non-hex value
+// (e.g. containing "}" ) could break out of its declaration. Falling back
+// to the default is preferable to rejecting generation entirely over a bad
+// theme value.
+function sanitizeHexColor(value: string | undefined, fallback: string): string {
+  return value && /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : fallback;
+}
+
+function themeStyleBlock(theme: DirectoryTheme): string {
+  const primary = sanitizeHexColor(theme.primaryColor, "#2563eb");
+  const headerBg = sanitizeHexColor(theme.headerBg, "#111827");
+  const headerText = sanitizeHexColor(theme.headerText, "#ffffff");
+  return `:root { --brand-primary: ${primary}; --brand-header-bg: ${headerBg}; --brand-header-text: ${headerText}; }`;
+}
+
 function directoryPageShell(opts: {
   title: string;
   description: string;
@@ -139,6 +143,7 @@ function directoryPageShell(opts: {
   body: string;
   imageUrl?: string | null;
   noindex?: boolean;
+  theme?: DirectoryTheme;
 }): string {
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
@@ -158,12 +163,17 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 ${ogImage}
 <script type="application/ld+json">${JSON.stringify(opts.jsonLd)}</script>
 <style>
+  ${themeStyleBlock(opts.theme ?? {})}
   body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px 16px; line-height: 1.5; color: #111827; }
-  a { color: #2563eb; }
+  a { color: var(--brand-primary); }
   dt { font-weight: 600; margin-top: 10px; }
   dd { margin-left: 0; }
   .back-link { font-size: 14px; margin-bottom: 16px; display: inline-block; }
   .listing-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .site-header { display: flex; align-items: center; gap: 12px; background: var(--brand-header-bg); color: var(--brand-header-text); margin: -24px -16px 20px; padding: 20px 16px; }
+  .site-header h1 { margin: 0; color: inherit; }
+  .site-header p { margin: 4px 0 0; color: inherit; opacity: 0.85; }
+  .site-header__logo { height: 40px; width: auto; }
   ${EXTRA_STYLE}
 </style>
 </head>
@@ -221,8 +231,9 @@ function buildEntryPage(opts: {
   accreditations: AccreditationHeld[];
   links: EntryLink[];
   tiles: ProductTile[];
+  theme: DirectoryTheme;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
 
@@ -287,6 +298,7 @@ ${linkTiles(links)}
     body,
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
+    theme,
   });
 }
 
@@ -297,8 +309,9 @@ function buildDirectoryLandingPage(opts: {
   directoryDescription: string | null;
   entries: Entry[];
   directoryLinks: EntryLink[];
+  theme: DirectoryTheme;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
 
   const items = entries
@@ -323,8 +336,9 @@ function buildDirectoryLandingPage(opts: {
       })),
   };
 
+  const logoHtml = theme.logoUrl ? `<img class="site-header__logo" src="${escapeAttr(theme.logoUrl)}" alt="${escapeAttr(directoryName)} logo">` : "";
   const body = `
-<header><h1>${escapeHtml(directoryName)}</h1>${directoryDescription ? `<p>${escapeHtml(directoryDescription)}</p>` : ""}</header>
+<header class="site-header">${logoHtml}<div><h1>${escapeHtml(directoryName)}</h1>${directoryDescription ? `<p>${escapeHtml(directoryDescription)}</p>` : ""}</div></header>
 ${linkTiles(directoryLinks)}
 <p>${entries.length} entr${entries.length === 1 ? "y" : "ies"}.</p>
 ${items}
@@ -336,6 +350,7 @@ ${items}
     canonicalUrl,
     jsonLd,
     body,
+    theme,
   });
 }
 
@@ -363,16 +378,19 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
 
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, theme_json")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
   if (!directory?.current_publication_id) throw new Error(`Directory ${directoryId} has no current publication — publish it first`);
 
+  const theme: DirectoryTheme =
+    directory.theme_json && typeof directory.theme_json === "object" ? (directory.theme_json as DirectoryTheme) : {};
+
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
 
-  const flagEnabled = await resolveDirectoriesFlag(db, client.id);
+  const flagEnabled = await resolveFeatureFlag(db, client.id, "directories");
   if (!flagEnabled) return { directory_id: directoryId, skipped: "flag_disabled" };
 
   const { data: entryRows, error: entryErr } = await db
@@ -464,6 +482,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
       accreditations: accreditationsByEntry.get(entry.id) ?? [],
       links: linksByEntry.get(entry.id) ?? [],
       tiles: tilesByEntry.get(entry.id) ?? [],
+      theme,
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   }
@@ -475,6 +494,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     directoryDescription: directory.description,
     entries,
     directoryLinks,
+    theme,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
