@@ -8,6 +8,42 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Production] Entry layout designer + visual design system rebuild (DIR-E6 + DIR-E3 Phase 6) rolled out
+
+**Branch/commit:** PRs [#134](https://github.com/layercake-cx/directory-maps/pull/134) and [#135](https://github.com/layercake-cx/directory-maps/pull/135), merged to `main`.
+**Deployed by:** Claude (agent), at the user's explicit request ("merge and deploy").
+
+### What changed
+Both phases from PR #134 (see their own entries below for full detail) plus a bug fix found during this rollout:
+1. **DIR-E6** — entry page layout designer (`entry_templates`, drag-and-drop block editor).
+2. **DIR-E3 Phase 6** — visual design system rebuild matching the "Ethical Elephant Directory" companion design canvas: full-bleed header/footer, 5 named theme presets, real homepage search + map, on-brand entry-page blocks.
+3. **PR #135** — a real bug caught by the actual staging migration attempt: `entry_templates.applies_to_group_id` was declared `text`, but `directory_groups.id` is `uuid` (`SQLSTATE 42804`, incompatible foreign key types). Nothing had been created anywhere yet, so fixed directly and re-applied — no data-loss risk.
+
+### Sequence followed
+1. Merged PR #134 into `main`. `npm run build`, `deno check`, `node --check middleware.js` all clean.
+2. `supabase db push` to staging failed on the `applies_to_group_id` type bug — the failed transaction rolled back cleanly (Postgres DDL is transactional), so nothing was left in a partial state. Fixed the type, opened/merged PR #135, re-applied — `VERIFY PASSED`.
+3. `generate_directory_site` deployed to staging first (never actually deployed anywhere since the DIR-E6/visual-rebuild code was written — only unit-tested until now).
+4. **Live regeneration on staging**: called `generate_directory_site` directly for the real `uk-association-directory` directory (`e270f4a4-...`) — `{"ok":true,"count":13}`, confirming the whole new rendering pipeline runs cleanly against real data before touching production.
+5. Preview Vercel deploy attempted first, then the user said to skip it ("forget preview deploy, just go ahead there is no risk here") and proceed straight to production.
+6. Production: migration applied (`VERIFY PASSED`), `generate_directory_site` deployed, frontend deployed (`npm run deploy:live`, aliased to `maps.layercake-cx.biz`; GitHub Pages auto-deployed on merge).
+7. **Did not** trigger regeneration of the real production `elephants` directory — the user asked to do that themselves rather than have it triggered via a direct service-role API call.
+
+### Verified
+- [x] `npm run build`, `deno check`, `node --check middleware.js` clean on merged `main`.
+- [x] Both migrations (this one + the type-fix) applied cleanly to staging and production, `VERIFY PASSED` each time.
+- [x] `generate_directory_site` deployed successfully to staging then production.
+- [x] Real regeneration against real staging data succeeded end-to-end (13 entries, no errors) — the one thing that could only be proven by actually running it, not by type-checking alone.
+- [x] Vercel production deploy succeeded (`readyState: READY`), aliased correctly; GitHub Pages deploy succeeded.
+- [x] Production root and `/admin` both 200.
+- [ ] The real production `elephants` directory has not been regenerated yet — pending the user doing this themselves via the Publish UI. Until then it continues serving its pre-rebuild static output; nothing is broken by the delay.
+- [ ] Interactive click-through of the branding preset picker / entry layout designer — same login-credential limitation as recent phases.
+
+### Rollback plan
+- Frontend/Edge Function: revert the relevant commits, redeploy.
+- Database: `_20260827140000_create_entry_templates.rollback.sql` (refuses to run if any row exists). No rollback needed for the type-fix itself — it landed before the table had any real data anywhere.
+
+---
+
 ## 2026-08-27 — [Not yet deployed] Directory visual design system rebuild (DIR-E3, Phase 6)
 
 **Branch:** `feat/2026-08-27-directory-entry-layout-designer` (stacked on the DIR-E6 branch, since this rebuilds the same block-rendering code)
