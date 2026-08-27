@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Custom domains generalized to directories (Phase 4a — data layer)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation`
+**Status:** implemented and verified locally; not yet applied to staging or production — pending explicit go-ahead per the established pattern (staging apply is pre-authorized in this repo's migration policy; production always needs a fresh ask).
+
+### What changed
+User confirmed custom domains should be generic across both entities ("shouldn't custom domains be genericised? i.e. applicable to both maps and directories?"), so `client_domains`/`resolve_custom_domain()`/`middleware.js`'s custom-domain handling were generalized rather than building a parallel directory-only mechanism:
+- `directories.theme_json` added (same flat-jsonb convention as `maps.theme_json`) — column only, no editor UI yet.
+- `client_domains.map_id` made nullable; `client_domains.directory_id` added; `client_domains_one_entity` check constraint requires exactly one of the two set.
+- `resolve_custom_domain(hostname)` dropped and recreated with a new return shape: `(entity_type, client_slug, entity_slug, status)` instead of the old `(client_slug, map_slug, status)` — a Postgres return-type change can't be done via `CREATE OR REPLACE`.
+- `middleware.js`'s `resolveCustomDomain()`/`handleCustomDomain()`/`rewriteForCustomDomain()` generalized to branch on `entityType`, including new `llms.txt` and redirect-manifest (`redirects.json`) support for directory-hosted custom domains, matching the branded-domain directory routes already shipped in Phase 3d.
+- **Deployment-order safety:** the DB migration and the Vercel deploy are two independent, non-atomic operations, so `resolveCustomDomain()` was made tolerant of both the old and new RPC response shapes (detected by the presence of `entity_type` on the returned row) — this means the migration and the `middleware.js` deploy can land in either order, or with a gap between them, without breaking live custom-domain routing for existing map customers.
+
+### Not yet built (later phases)
+`DomainSettings.jsx` (client UI) and the `manage_client_domain` Edge Function are still map-only — a client cannot yet actually add/verify/remove a domain for a directory through the UI. This migration is data-layer-only groundwork.
+
+### Verified
+- [x] Migration's own pre/post-flight `do $$ ... raise exception ... $$` blocks (integrity checks, `VERIFY PASSED` assertions).
+- [x] `node --check middleware.js` clean.
+- [x] Mocked-`fetch` Node.js test script (scratchpad, not committed): old-shape and new-shape map RPC responses resolve to byte-identical middleware output; new-shape directory RPC response resolves without error via the correct `directories/<client>/<slug>` blob path; unresolved hostname still 404s. Confirms the shape-tolerance fix works and the map branch has zero behaviour change.
+
+### Rollback plan
+- `_20260827130000_directory_domains_branding_foundation.rollback.sql` — refuses to run if any `client_domains` row has `directory_id` set or any `directories.theme_json` is non-null (data-loss guards), otherwise restores the original map-only schema and RPC shape.
+- Frontend: revert the `middleware.js` changes — safe to do independently of the DB rollback in either order, since `resolveCustomDomain()` tolerates both RPC shapes.
+
+---
+
 ## 2026-08-27 — [Production] Directories: Publish UI + redirects/OG/llms.txt (Phases 3c–3d) rolled out
 
 **Branch/commit:** `chore/2026-08-27-directory-publish-ui-redirects-seo-rollout` (this entry only); the code landed via #129 and #130, merged to `main` directly (no conflicts between them beyond the doc sections both touched, resolved when #130 was merged second).

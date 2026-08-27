@@ -85,14 +85,20 @@ async function fetchBlobHtml(blobBase, pathname) {
 }
 
 /**
- * Resolves a hostname to the client/map slugs it publishes, via the
- * resolve_custom_domain() RPC — deliberately not a raw select against
- * client_domains with an embedded clients(slug)/maps(slug) join: the
- * clients table has no anon-select policy (it carries columns, like
- * plan_key and email_domain_status, that maps/groups/listings never had
- * when their anon-read policies were written), so the embed would just
+ * Resolves a hostname to the client + (map or directory) it publishes, via
+ * the resolve_custom_domain() RPC — deliberately not a raw select against
+ * client_domains with an embedded clients(slug)/maps(slug)/directories(slug)
+ * join: the clients table has no anon-select policy (it carries columns,
+ * like plan_key and email_domain_status, that maps/groups/listings never
+ * had when their anon-read policies were written), so the embed would just
  * return null for clients. The RPC is security definer and returns only
- * the two slugs + status, nothing else. Null return means not found.
+ * entity_type + the two slugs + status, nothing else. Null return means
+ * not found.
+ *
+ * entity_type/entity_slug replaced the original map-only (client_slug,
+ * map_slug, status) shape in 20260827130000 — this function's contract
+ * with callers (below) is the only thing that changed; the request itself
+ * still costs exactly one round-trip, same as before.
  */
 async function resolveCustomDomain(host) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -113,7 +119,16 @@ async function resolveCustomDomain(host) {
     const rows = await res.json();
     const row = Array.isArray(rows) ? rows[0] : null;
     if (!row) return null;
-    return { status: row.status, clientSlug: row.client_slug, mapSlug: row.map_slug };
+    // Tolerate the pre-20260827130000 (map-only) return shape too — a DB
+    // migration and a Vercel deploy are two independent operations with no
+    // atomic joint release, so there's a real window where this code can
+    // run against either the old or new RPC shape regardless of deploy
+    // order. Detected by the new entity_type column's presence, not a
+    // version flag, since the RPC itself carries no version marker.
+    if ("entity_type" in row) {
+      return { status: row.status, entityType: row.entity_type, clientSlug: row.client_slug, entitySlug: row.entity_slug };
+    }
+    return { status: row.status, entityType: "map", clientSlug: row.client_slug, entitySlug: row.map_slug };
   } catch {
     return null;
   }
@@ -128,34 +143,63 @@ async function handleCustomDomain(host, segments, blobBase) {
     return htmlResponse(200, "This domain is being verified", "DNS setup is still in progress. Check back soon.");
   }
 
-  // /map and /embed — the live interactive SPA. Fall through to index.html.
+  // /map and /embed — the live interactive SPA, map-hosted domains only.
   // /map's client-side route resolves client/map by hostname itself; /embed
   // is the pre-existing query-param-driven route, also used by the
   // directory landing page's own embedded iframe (src="/embed?map=...").
-  if (segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
+  // A directory-hosted domain has no interactive-map equivalent yet — these
+  // two segments just fall through to the SPA's own not-found handling for
+  // that case, same as any other unmatched path.
+  if (domain.entityType === "map" && segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
 
-  if (!domain.clientSlug || !domain.mapSlug || !blobBase) {
+  if (!domain.clientSlug || !domain.entitySlug || !blobBase) {
     return htmlResponse(404, "Domain not configured", "This domain isn&apos;t connected to a Layercake Maps directory.");
   }
+
+  // Same "directory/" (map) vs "directories/" (directory entity) Blob path
+  // split as the branded-domain routes above — see this file's header
+  // comment and generate_directory_site's own header comment for why.
+  const basePath =
+    domain.entityType === "directory"
+      ? `directories/${domain.clientSlug}/${domain.entitySlug}`
+      : `directory/${domain.clientSlug}/${domain.entitySlug}`;
 
   let pathname;
   let contentType = "text/html; charset=utf-8";
   if (segments.length === 0) {
-    pathname = `directory/${domain.clientSlug}/${domain.mapSlug}/index.html`;
+    pathname = `${basePath}/index.html`;
   } else if (segments.length === 1 && segments[0] === "sitemap.xml") {
-    pathname = `directory/${domain.clientSlug}/${domain.mapSlug}/sitemap.xml`;
+    pathname = `${basePath}/sitemap.xml`;
     contentType = "application/xml; charset=utf-8";
+  } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "llms.txt") {
+    pathname = `${basePath}/llms.txt`;
+    contentType = "text/plain; charset=utf-8";
   } else if (segments.length === 1) {
-    pathname = `directory/${domain.clientSlug}/${domain.mapSlug}/${segments[0]}.html`;
+    pathname = `${basePath}/${segments[0]}.html`;
   } else {
     return htmlResponse(404, "Not found", "Nothing here.");
   }
 
   const html = await fetchBlobHtml(blobBase, pathname);
   if (html == null) {
-    return contentType.includes("xml")
-      ? new Response("", { status: 404 })
-      : htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
+    if (contentType.includes("xml") || contentType.includes("text/plain")) return new Response("", { status: 404 });
+
+    // Directory entries can be renamed — check the redirect manifest before
+    // giving up, same mechanism as the branded-domain directory routes.
+    if (domain.entityType === "directory" && segments.length === 1 && segments[0] !== "sitemap.xml" && segments[0] !== "llms.txt") {
+      const redirectsJson = await fetchBlobHtml(blobBase, `${basePath}/redirects.json`);
+      if (redirectsJson != null) {
+        try {
+          const redirects = JSON.parse(redirectsJson);
+          const newSlug = redirects[segments[0]];
+          if (newSlug) return new Response(null, { status: 301, headers: { location: `/${newSlug}` } });
+        } catch {
+          // malformed manifest — fall through to the "not published" response below
+        }
+      }
+    }
+
+    return htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
   }
   return new Response(rewriteForCustomDomain(html, host, domain), {
     status: 200,
@@ -164,33 +208,43 @@ async function handleCustomDomain(host, segments, blobBase) {
 }
 
 /**
- * generate_directory_pages (Epic 3) bakes links/canonical/JSON-LD as
- * absolute paths rooted at the BRANDED domain's own URL shape
- * (/:clientSlug/:mapSlug/directory[/:listingSlug] — where that content
- * normally lives). Serving the exact same static content at a custom
- * domain's root needs those rewritten to the custom domain's own shape
- * (/ for the directory root, /:listingSlug for a listing, /map for the
- * interactive map) — otherwise every internal link and the canonical URL
- * point at a path structure that doesn't exist on the custom domain at
- * all. Real per-domain content generation (Phase 3) would be the more
- * thorough fix; this is a serve-time rewrite of the one shared static
+ * generate_directory_pages (map entity) and generate_directory_site
+ * (directory entity) both bake links/canonical/JSON-LD as absolute paths
+ * rooted at the BRANDED domain's own URL shape — /:clientSlug/:mapSlug/
+ * directory[/:listingSlug] for maps, /directories/:clientSlug/:directorySlug
+ * [/:entrySlug] for directories (see each function's own header comment).
+ * Serving the exact same static content at a custom domain's root needs
+ * those rewritten to the custom domain's own shape (/ for the root,
+ * /:slug for an entry/listing, plus /map for a map's interactive embed —
+ * directories have no such embed yet) — otherwise every internal link and
+ * the canonical URL point at a path structure that doesn't exist on the
+ * custom domain at all. Real per-domain content generation would be the
+ * more thorough fix; this is a serve-time rewrite of the one shared static
  * asset, scoped tightly enough (quote/tag-bounded patterns) that it can't
- * touch unrelated content like a listing's own external website link.
+ * touch unrelated content like an entry's own external website link.
  */
-function rewriteForCustomDomain(text, host, { clientSlug, mapSlug }) {
-  const brandedDirBase = `https://maps.layercake-cx.biz/${clientSlug}/${mapSlug}/directory`;
-  const rootRelativeDirBase = `/${clientSlug}/${mapSlug}/directory`;
-  const brandedMapUrl = `https://maps.layercake-cx.biz/${clientSlug}/${mapSlug}`;
-  const rootRelativeMapUrl = `/${clientSlug}/${mapSlug}`;
+function rewriteForCustomDomain(text, host, { entityType, clientSlug, entitySlug }) {
+  const brandedBase =
+    entityType === "directory"
+      ? `https://maps.layercake-cx.biz/directories/${clientSlug}/${entitySlug}`
+      : `https://maps.layercake-cx.biz/${clientSlug}/${entitySlug}/directory`;
+  const rootRelativeBase =
+    entityType === "directory" ? `/directories/${clientSlug}/${entitySlug}` : `/${clientSlug}/${entitySlug}/directory`;
   const customOrigin = `https://${host}`;
 
   let out = text;
-  out = out.split(`${brandedDirBase}/`).join(`${customOrigin}/`);
-  out = out.split(brandedDirBase).join(customOrigin);
-  out = out.split(`${rootRelativeDirBase}/`).join("/");
-  out = out.split(rootRelativeDirBase).join("/");
-  out = out.split(`${brandedMapUrl}"`).join(`${customOrigin}/map"`);
-  out = out.split(`${rootRelativeMapUrl}"`).join(`/map"`);
+  out = out.split(`${brandedBase}/`).join(`${customOrigin}/`);
+  out = out.split(brandedBase).join(customOrigin);
+  out = out.split(`${rootRelativeBase}/`).join("/");
+  out = out.split(rootRelativeBase).join("/");
+
+  if (entityType !== "directory") {
+    const brandedMapUrl = `https://maps.layercake-cx.biz/${clientSlug}/${entitySlug}`;
+    const rootRelativeMapUrl = `/${clientSlug}/${entitySlug}`;
+    out = out.split(`${brandedMapUrl}"`).join(`${customOrigin}/map"`);
+    out = out.split(`${rootRelativeMapUrl}"`).join(`/map"`);
+  }
+
   return out;
 }
 
