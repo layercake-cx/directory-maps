@@ -97,7 +97,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing and custom domains are available (see [Domains](#domains) below); branding and categorisation-driven filtering are not built yet (see `docs/DIRECTORIES.md` for the full roadmap). Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
 
 ### Creating a directory
 
@@ -126,11 +126,15 @@ Open a directory to see its entries table:
 
 ### Publishing a directory
 
-> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website — but there's no branding/custom-domain step yet (that's a later phase), and it currently only reaches customers who also have this specific piece enabled.
+> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
 
 From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
+
+### Branding
+
+From a directory's page, the **Branding** panel (owners and managers only) sets a small set of tokens applied to the directory's published pages: a **primary colour** (links and buttons), a **header background** and **header text colour** for the bar at the top of the directory's landing page, and an optional **logo URL** shown in that header. Click **Save branding**, then **Publish** again for the change to appear on the live site — saving branding doesn't publish automatically. Font, corner radius, and favicon controls aren't built yet.
 
 ### Archiving or deleting a directory
 

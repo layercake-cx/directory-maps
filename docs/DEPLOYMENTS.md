@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Directory branding editor + themed static output (Phase 4c)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it uses the `directories.theme_json` column added there.
+**Status:** implemented, build/type-checked; not yet deployed.
+
+### What changed
+Closes the last gap flagged in Phases 4a/4b — `directories.theme_json` existed as a bare column with no editor and nothing reading it:
+- **`DirectoryBrandingPanel.jsx`** (new, shared by client portal and admin, same convention as `AccreditationSchemesPanel.jsx`) — a small, deliberately minimal token set per the original brief (§5.1 "Theme: token overrides... logo"): primary colour, header background, header text colour, logo URL. Persists to `directories.theme_json` via the existing generic `updateDirectory()` patch helper — no new RPC needed, `directories_own_client` RLS already scopes writes correctly.
+- **`generate_directory_site`** now reads `theme_json` and injects it as CSS custom properties (`--brand-primary`, `--brand-header-bg`, `--brand-header-text`) into every generated page's `<style>` block, and renders a themed header bar (background/text colour + optional logo) on the directory landing page specifically — entry pages pick up the accent colour on links/buttons but don't repeat the full header.
+- **Colour values are validated** against a strict `^#[0-9a-fA-F]{3,8}$` pattern before being interpolated into the generated `<style>` block — `theme_json` is reachable by direct API access, not just this new form, so a malformed value (e.g. one attempting to close the CSS declaration and inject a new rule) falls back to the default colour rather than corrupting the generated page. Verified with a standalone Deno script covering exactly this case.
+- Directory custom domains (Phase 4b) already serve whatever `generate_directory_site` outputs, so this styling reaches both the branded-domain fallback and a client's own custom domain once published — no additional wiring needed there.
+
+### Not yet built
+Font, corner-radius, and favicon tokens from the original brief's theme spec — this phase covers colours + logo only, matching what the generator actually renders today.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on `generate_directory_site/index.ts`.
+- [x] Standalone Deno script verifying `sanitizeHexColor`/the CSS block builder: valid hex values pass through, a CSS-injection attempt (`"red; } body { display:none } /*"`) falls back to the default instead of breaking out of the `<style>` block.
+- [ ] Interactive browser click-through of the new Branding panel, and a live-rendered themed page — **not done this round**, same login-credential limitation as Phase 4b. Recommend the user set a branding value, publish, and confirm the header/colours render on the live directory page once deployed.
+
+### Rollback plan
+Frontend/Edge Function only — no schema change in this phase (reuses Phase 4a's `theme_json` column). Revert the relevant commits and redeploy; `supabase functions deploy generate_directory_site --project-ref <ref>` with the prior version if only the function needs rolling back. A directory with no `theme_json` set (the case for every directory before this phase) renders identically to before — the CSS vars have hardcoded fallback defaults matching the previous literal colours.
+
+---
+
 ## 2026-08-27 — [Not yet deployed] Custom domain management UI + Edge Function generalized to directories (Phase 4b)
 
 **Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it depends on that migration's `client_domains.directory_id` column and the new `resolve_custom_domain()` shape.
