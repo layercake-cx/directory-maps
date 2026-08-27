@@ -8,10 +8,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-27 — [Not yet deployed] Custom domains generalized to directories (Phase 4a — data layer)
+## 2026-08-27 — [Staging] Custom domains generalized to directories (Phase 4a — data layer)
 
-**Branch:** `feat/2026-08-27-directory-domains-branding-foundation`
-**Status:** implemented and verified locally; not yet applied to staging or production — pending explicit go-ahead per the established pattern (staging apply is pre-authorized in this repo's migration policy; production always needs a fresh ask).
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132))
+**Deployed by:** Claude (agent), at the user's explicit request ("deploy to staging").
+**Status:** deployed to staging (migration + Vercel preview), verified. Production not yet deployed — pending a fresh explicit go-ahead, same discipline as every prior phase.
 
 ### What changed
 User confirmed custom domains should be generic across both entities ("shouldn't custom domains be genericised? i.e. applicable to both maps and directories?"), so `client_domains`/`resolve_custom_domain()`/`middleware.js`'s custom-domain handling were generalized rather than building a parallel directory-only mechanism:
@@ -24,10 +25,19 @@ User confirmed custom domains should be generic across both entities ("shouldn't
 ### Not yet built (later phases)
 `DomainSettings.jsx` (client UI) and the `manage_client_domain` Edge Function are still map-only — a client cannot yet actually add/verify/remove a domain for a directory through the UI. This migration is data-layer-only groundwork.
 
+### Sequence followed
+1. Confirmed already linked to the staging project (`beqejxneehilplrtpntn`).
+2. `supabase db push --dry-run` — confirmed exactly one pending migration, nothing unexpected.
+3. `supabase db push` — applied; embedded post-migration check printed `VERIFY PASSED`.
+4. `npm run deploy:test` — Vercel preview deploy of the updated `middleware.js`.
+
 ### Verified
-- [x] Migration's own pre/post-flight `do $$ ... raise exception ... $$` blocks (integrity checks, `VERIFY PASSED` assertions).
+- [x] Migration's own pre/post-flight `do $$ ... raise exception ... $$` blocks (integrity checks, `VERIFY PASSED` assertions) — passed on staging.
 - [x] `node --check middleware.js` clean.
-- [x] Mocked-`fetch` Node.js test script (scratchpad, not committed): old-shape and new-shape map RPC responses resolve to byte-identical middleware output; new-shape directory RPC response resolves without error via the correct `directories/<client>/<slug>` blob path; unresolved hostname still 404s. Confirms the shape-tolerance fix works and the map branch has zero behaviour change.
+- [x] Mocked-`fetch` Node.js test script (scratchpad, not committed): old-shape and new-shape map RPC responses resolve to byte-identical middleware output; new-shape directory RPC response resolves without error via the correct `directories/<client>/<slug>` blob path; unresolved hostname still 404s.
+- [x] **Real staging DB check, post-migration:** `resolve_custom_domain()` RPC hit directly against staging — the one pre-existing real domain (`ethical-elephant-sanctuaries.com`) still resolves, now via the new shape (`{"entity_type":"map","client_slug":"l-cakez","entity_slug":"elephants","status":"active"}`); its `client_domains` row confirmed to still have `map_id` set and `directory_id` null (no data loss from the nullability/constraint change). An unregistered hostname still returns `[]`.
+- [x] **Real Vercel preview regression check** (via `npx vercel curl` deployment-protection bypass, since previews require auth): the branded-domain directory route (`/directories/l-cakez/uk-association-directory` and its `llms.txt`) and the pre-existing map directory-pages route (`/l-cakez/elephants/directory`) both still return 200 with correct content — zero regression to either existing feature from this change.
+- [ ] Real custom-domain routing through the new entity-polymorphic path — not verified this round. Vercel only routes an attached custom domain's live traffic to the project's **production** deployment, not a Preview build (confirmed in an earlier phase — forging the `Host` header against a Preview URL gets rejected with `DEPLOYMENT_NOT_FOUND` before this app's code runs), so the `entityType === "directory"` custom-domain branch can only be end-to-end verified once this ships to production. Covered up to that point by the mocked-`fetch` unit test.
 
 ### Rollback plan
 - `_20260827130000_directory_domains_branding_foundation.rollback.sql` — refuses to run if any `client_domains` row has `directory_id` set or any `directories.theme_json` is non-null (data-loss guards), otherwise restores the original map-only schema and RPC shape.
