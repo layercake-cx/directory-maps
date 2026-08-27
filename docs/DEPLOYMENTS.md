@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Directory entry layout designer (DIR-E6, Phase 5)
+
+**Branch:** `feat/2026-08-27-directory-entry-layout-designer`
+**Status:** implemented, build/`deno check` clean; not yet deployed.
+
+### What changed
+Per docs/DIRECTORIES.md §4.4/DIR-E6-S1–S4, a client can now control the order (and presence) of the sections on their directory's entry pages, rather than a fixed hardcoded sequence:
+- **`entry_templates`** (new table) — one `layout_json` ordered block array per directory by default, with multi-template support built in from v1 (not deferred): additional templates can target a specific `directory_group_id` or `category_term_id` (mutually exclusive, unique per directory — enforced by partial unique indexes, not just app logic).
+- **`EntryLayoutDesigner.jsx`** (client + admin) — a drag-and-drop block list (native HTML5 drag-and-drop; no new dependency added, per the spec's own note that no drag-and-drop library exists in this codebase today), a live preview pane rendering a real entry from the directory (or a labelled placeholder if it has none yet), and management of the additional group/term-targeted templates.
+- **Block palette extended beyond the original spec example**: the spec was written 2026-07-14, before Phase 2 added evidence/media/accreditations/links/product tiles — those are now all separately reorderable/removable blocks too, otherwise the designer would only control a fraction of what an entry page actually shows. Also added a `logo` block rendering `directory_entries.logo_url` — a real field that has existed since entries were built but that `generate_directory_site` never actually rendered anywhere until now.
+- **`generate_directory_site`** resolves the applicable template per entry (term match > group match > directory default > implicit pre-DIR-E6 order, per §4.4's resolution rule) and renders blocks in that order via a small per-type dispatch table, replacing the old fixed sequence.
+- **Categorisation blocks** render an entry's terms for a chosen categorisation as chips linking to `?<categorisation_key>=<term_slug>` on the directory index — the URL shape DIR-E5-S4's faceted filtering (not built yet) is specified to read, added now so nothing needs reworking when that ships. Today those links just land on the unfiltered index.
+
+### Backward compatibility
+A directory with no `entry_templates` rows (every directory today, until someone opens the designer) renders with the **exact pre-existing block order** — verified via a standalone resolution-order test covering the term/group/default precedence and the no-templates fallback. Content and section order are unchanged; one incidental difference: the three contact-detail lines (phone/email/website) are now built as a single merged block rather than three separate template positions, so the raw HTML has fewer blank lines between them in the (common) case where not all three are set on an entry — invisible in rendering, no SEO/functional effect, not literally byte-identical.
+
+### Not yet built
+An embedded interactive map per entry — `address_map` renders the address as text only, same as before this phase. Per-entry map embeds are a separate, larger feature (see the "next step: UI for frontend" discussion in this session) deliberately out of scope here.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on `generate_directory_site/index.ts`.
+- [x] Standalone Deno script verifying `resolveLayout()`'s resolution order exactly against docs/DIRECTORIES.md §4.4's rule: no-templates fallback, default-only, group-beats-default, term-beats-group, and the sort-order tie-break for multiple term matches.
+- [ ] Interactive click-through of the new drag-and-drop designer and a live-rendered custom-layout entry page — **not done this round**, same login-credential limitation as Phases 4b/4c. Recommend the user try reordering blocks on a real directory once deployed.
+
+### Deployment-order safety
+The `entry_templates` query in `generate_directory_site` is deliberately tolerant of the table not existing at all (logs and falls back to the implicit default order rather than throwing) — this query runs on every directory's publish, not just ones using the new designer, so a hard failure here during a migration/deploy gap (or after a rollback that hasn't also reverted this code) would have broken publishing entirely rather than just degrading gracefully. Same class of risk as the custom-domain RPC shape fix in Phase 4a, applied here before shipping rather than after.
+
+### Rollback plan
+- `_20260827140000_create_entry_templates.rollback.sql` — refuses to run if any row exists (a real layout has been designed); otherwise drops the table cleanly. Safe to run independently of the code revert, in either order, per the tolerance above.
+- Frontend/Edge Function: revert the relevant commits and redeploy.
+
+---
+
 ## 2026-08-27 — [Production] Directories: custom domains + branding generalized (Phases 4a–4c) rolled out
 
 **Branch/commit:** PR [#132](https://github.com/layercake-cx/directory-maps/pull/132), merged to `main` (`ceddc99`).

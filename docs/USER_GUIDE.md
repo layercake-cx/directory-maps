@@ -136,6 +136,18 @@ From a directory's page, the **Publish** panel (visible to everyone with access;
 
 From a directory's page, the **Branding** panel (owners and managers only) sets a small set of tokens applied to the directory's published pages: a **primary colour** (links and buttons), a **header background** and **header text colour** for the bar at the top of the directory's landing page, and an optional **logo URL** shown in that header. Click **Save branding**, then **Publish** again for the change to appear on the live site — saving branding doesn't publish automatically. Font, corner radius, and favicon controls aren't built yet.
 
+### Entry layout
+
+From a directory's page, the **Entry layout** panel (owners and managers only) controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation that applies to entries (shown as clickable tag chips).
+
+- **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
+- **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
+- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes.
+- Click **Save layout**, then **Publish** again for it to reach the live site.
+- **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
+
+A directory that has never opened this panel keeps its original section order — nothing changes until you save a layout here.
+
 ### Archiving or deleting a directory
 
 From a directory's page (owners and managers only):

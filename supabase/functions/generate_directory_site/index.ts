@@ -70,6 +70,7 @@ type Entry = {
   phone: string | null;
   email: string | null;
   website_url: string | null;
+  logo_url: string | null;
   notes_html: string | null;
   allow_html: boolean;
   lat: number | null;
@@ -85,6 +86,64 @@ type Entry = {
 };
 
 type DirectoryTheme = { primaryColor?: string; headerBg?: string; headerText?: string; logoUrl?: string };
+
+type BlockDescriptor = { type: string; key?: string };
+type EntryTemplateRow = {
+  id: string;
+  is_default: boolean;
+  applies_to_group_id: string | null;
+  applies_to_term_id: string | null;
+  layout_json: BlockDescriptor[];
+};
+type CategorisationTerm = { id: string; categorisation_id: string; label: string; slug: string; sort_order: number };
+type Categorisation = { id: string; key: string; label: string; applies_to: string };
+
+// DIR-E6 (docs/DIRECTORIES.md §4.4) — the block order generate_directory_site
+// used before entry_templates existed. A directory with no entry_templates
+// rows at all (the common case until an Owner/Manager opens the layout
+// designer) renders with exactly this order — kept in sync by hand with
+// src/lib/entryTemplates.js's IMPLICIT_DEFAULT_LAYOUT (JS/TS runtimes can't
+// share a module here). `logo` (entry.logo_url) is deliberately absent —
+// that field was never rendered before this feature, so including it by
+// default would be a real behaviour change for every existing directory.
+const IMPLICIT_DEFAULT_LAYOUT: BlockDescriptor[] = [
+  { type: "hero" },
+  { type: "heading" },
+  { type: "address_map" },
+  { type: "contact_details" },
+  { type: "accreditations" },
+  { type: "notes_html" },
+  { type: "gallery" },
+  { type: "evidence" },
+  { type: "product_tiles" },
+  { type: "links" },
+];
+
+/**
+ * Resolves which entry_templates row applies to a given entry, per the
+ * order decided in §4.4: a template targeting one of the entry's category
+ * terms > a template targeting the entry's group > the directory's default
+ * > (no entry_templates rows at all) the implicit pre-DIR-E6 order.
+ */
+function resolveLayout(
+  entry: Entry,
+  templates: EntryTemplateRow[],
+  entryTermIds: Set<string>,
+  termSortOrder: Map<string, number>,
+): BlockDescriptor[] {
+  if (templates.length === 0) return IMPLICIT_DEFAULT_LAYOUT;
+
+  const termMatches = templates
+    .filter((t) => t.applies_to_term_id && entryTermIds.has(t.applies_to_term_id))
+    .sort((a, b) => (termSortOrder.get(a.applies_to_term_id!) ?? 0) - (termSortOrder.get(b.applies_to_term_id!) ?? 0));
+  if (termMatches.length > 0) return termMatches[0].layout_json;
+
+  const groupMatch = templates.find((t) => t.applies_to_group_id && t.applies_to_group_id === entry.directory_group_id);
+  if (groupMatch) return groupMatch.layout_json;
+
+  const defaultTemplate = templates.find((t) => t.is_default);
+  return defaultTemplate ? defaultTemplate.layout_json : IMPLICIT_DEFAULT_LAYOUT;
+}
 
 type EvidenceItem = { entry_id: string; claim: string; value: string | null; source_url: string | null; confidence: string | null };
 type MediaAsset = { entry_id: string; url: string; alt_text: string; caption: string | null; is_hero: boolean };
@@ -174,6 +233,9 @@ ${ogImage}
   .site-header h1 { margin: 0; color: inherit; }
   .site-header p { margin: 4px 0 0; color: inherit; opacity: 0.85; }
   .site-header__logo { height: 40px; width: auto; }
+  .entry-logo { height: 48px; width: auto; display: block; margin-bottom: 10px; }
+  .category-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .category-chip { display: inline-block; font-size: 12px; background: #f3f4f6; border-radius: 999px; padding: 4px 10px; text-decoration: none; color: #111827; }
   ${EXTRA_STYLE}
 </style>
 </head>
@@ -232,8 +294,10 @@ function buildEntryPage(opts: {
   links: EntryLink[];
   tiles: ProductTile[];
   theme: DirectoryTheme;
+  layout: BlockDescriptor[];
+  entryTerms: Map<string, CategorisationTerm[]>; // categorisation.key -> this entry's terms for it
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, entryTerms } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
 
@@ -246,48 +310,65 @@ function buildEntryPage(opts: {
 
   const hero = media.find((m) => m.is_hero) ?? null;
   const gallery = media.filter((m) => m !== hero);
-  const heroHtml = hero ? `<img class="hero" src="${escapeAttr(hero.url)}" alt="${escapeAttr(hero.alt_text)}">` : "";
-  const galleryHtml = gallery.length
-    ? `<div class="gallery">${gallery.map((m) => `<img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.alt_text)}">`).join("")}</div>`
-    : "";
 
-  const accreditationsHtml = accreditations.length
-    ? `<div class="badges">${accreditations
-        .map((a) => `<span class="badge" title="${escapeAttr(a.issuing_body || "")}">${a.badge_image_url ? `<img src="${escapeAttr(a.badge_image_url)}" alt="${escapeAttr(a.name)}">` : escapeHtml(a.name)}</span>`)
-        .join("")}</div>`
-    : "";
+  // One HTML fragment per DIR-E6 block type (docs/DIRECTORIES.md §4.4) —
+  // rendered in whatever order `layout` specifies rather than a fixed
+  // sequence. Each returns "" when it has nothing to show, so an empty
+  // section never leaves a gap.
+  const blockHtml: Record<string, string> = {
+    logo: entry.logo_url ? `<img class="entry-logo" src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo">` : "",
+    heading: `<h1>${escapeHtml(entry.name)}</h1>`,
+    address_map: location ? `<p>${escapeHtml(location)}</p>` : "",
+    contact_details: [
+      entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
+      entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : "",
+      entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    hero: hero ? `<img class="hero" src="${escapeAttr(hero.url)}" alt="${escapeAttr(hero.alt_text)}">` : "",
+    gallery: gallery.length
+      ? `<div class="gallery">${gallery.map((m) => `<img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.alt_text)}">`).join("")}</div>`
+      : "",
+    accreditations: accreditations.length
+      ? `<div class="badges">${accreditations
+          .map((a) => `<span class="badge" title="${escapeAttr(a.issuing_body || "")}">${a.badge_image_url ? `<img src="${escapeAttr(a.badge_image_url)}" alt="${escapeAttr(a.name)}">` : escapeHtml(a.name)}</span>`)
+          .join("")}</div>`
+      : "",
+    notes_html: notes,
+    evidence: evidence.length
+      ? `<h2>Evidence</h2><dl>${evidence
+          .map((e) => `<dt>${escapeHtml(e.claim)}${e.confidence ? ` <span class="confidence">(${escapeHtml(e.confidence)})</span>` : ""}</dt><dd>${escapeHtml(e.value || "")}${e.source_url ? ` — <a href="${escapeAttr(e.source_url)}" rel="noopener noreferrer">source</a>` : ""}</dd>`)
+          .join("")}</dl>`
+      : "",
+    product_tiles: tiles.length
+      ? `<div class="product-tiles">${tiles
+          .map(
+            (t) =>
+              `<a class="product-tile" href="${escapeAttr(t.destination_url)}" target="_blank" rel="noopener noreferrer sponsored">${t.image_url ? `<img src="${escapeAttr(t.image_url)}" alt="${escapeAttr(t.title)}">` : ""}<div><strong>${escapeHtml(t.title)}</strong>${t.price != null ? `<div>${escapeHtml(t.currency || "")} ${escapeHtml(String(t.price))}</div>` : ""}${t.provider ? `<div class="provider">via ${escapeHtml(t.provider)}</div>` : ""}</div></a>`,
+          )
+          .join("")}</div>`
+      : "",
+    links: linkTiles(links),
+  };
 
-  const evidenceHtml = evidence.length
-    ? `<h2>Evidence</h2><dl>${evidence
-        .map((e) => `<dt>${escapeHtml(e.claim)}${e.confidence ? ` <span class="confidence">(${escapeHtml(e.confidence)})</span>` : ""}</dt><dd>${escapeHtml(e.value || "")}${e.source_url ? ` — <a href="${escapeAttr(e.source_url)}" rel="noopener noreferrer">source</a>` : ""}</dd>`)
-        .join("")}</dl>`
-    : "";
-
-  const tilesHtml = tiles.length
-    ? `<div class="product-tiles">${tiles
-        .map(
-          (t) =>
-            `<a class="product-tile" href="${escapeAttr(t.destination_url)}" target="_blank" rel="noopener noreferrer sponsored">${t.image_url ? `<img src="${escapeAttr(t.image_url)}" alt="${escapeAttr(t.title)}">` : ""}<div><strong>${escapeHtml(t.title)}</strong>${t.price != null ? `<div>${escapeHtml(t.currency || "")} ${escapeHtml(String(t.price))}</div>` : ""}${t.provider ? `<div class="provider">via ${escapeHtml(t.provider)}</div>` : ""}</div></a>`,
-        )
-        .join("")}</div>`
-    : "";
+  function renderBlock(block: BlockDescriptor): string {
+    if (block.type === "categorisation") {
+      const terms = (block.key && entryTerms.get(block.key)) || [];
+      if (terms.length === 0) return "";
+      const chips = terms
+        .map((t) => `<a class="category-chip" href="${escapeAttr(`${landingUrl}?${encodeURIComponent(block.key!)}=${encodeURIComponent(t.slug)}`)}">${escapeHtml(t.label)}</a>`)
+        .join("");
+      return `<div class="category-chips">${chips}</div>`;
+    }
+    return blockHtml[block.type] ?? "";
+  }
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
   const body = `
 <a class="back-link" href="${escapeAttr(landingUrl)}">&larr; Back to ${escapeHtml(directoryName)}</a>
-${heroHtml}
-<h1>${escapeHtml(entry.name)}</h1>
-${location ? `<p>${escapeHtml(location)}</p>` : ""}
-${entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : ""}
-${entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : ""}
-${entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : ""}
-${accreditationsHtml}
-${notes}
-${galleryHtml}
-${evidenceHtml}
-${tilesHtml}
-${linkTiles(links)}
+${layout.map(renderBlock).join("\n")}
 `.trim();
 
   return directoryPageShell({
@@ -396,7 +477,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")
     .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type",
+      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type",
     )
     .eq("directory_id", directoryId)
     .eq("is_active", true)
@@ -469,9 +550,71 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     directoryLinks = (dirLinkRows ?? []) as EntryLink[];
   }
 
+  // DIR-E6 — entry_templates (block order) and the entry-scoped
+  // categorisation terms needed both to resolve which template applies per
+  // entry (term match takes precedence) and to render "categorisation"
+  // blocks. Client-scoped, not directory-scoped, same as categorisations
+  // generally (docs/DIRECTORIES.md §4.3) — filtered to this directory's
+  // actual usage via entry_category_terms below.
+  //
+  // Tolerant of the table not existing at all: the migration and this
+  // deploy are two independent, non-atomic operations (same class of risk
+  // as the custom-domain RPC shape in 20260827130000), and unlike that
+  // change, this query runs on EVERY directory's publish, not just ones
+  // using the new feature — a hard failure here during any deploy-ordering
+  // gap, or after a rollback that hasn't also reverted this code, would
+  // break publishing entirely rather than just degrading to the pre-DIR-E6
+  // block order. A real permissions/schema problem still surfaces via the
+  // downstream queries below, which are not given this same tolerance.
+  let templates: EntryTemplateRow[] = [];
+  {
+    const { data: templateRows, error: templateErr } = await db
+      .from("entry_templates")
+      .select("id, is_default, applies_to_group_id, applies_to_term_id, layout_json")
+      .eq("directory_id", directoryId);
+    if (templateErr) {
+      console.error(`entry_templates query failed, falling back to the implicit default layout: ${templateErr.message}`);
+    } else {
+      templates = (templateRows ?? []) as EntryTemplateRow[];
+    }
+  }
+
+  const entryTermIdsByEntry = new Map<string, Set<string>>();
+  const entryTermsByEntry = new Map<string, Map<string, CategorisationTerm[]>>();
+  const termSortOrder = new Map<string, number>();
+
+  if (entryIds.length > 0) {
+    const { data: ectRows, error: ectErr } = await db
+      .from("entry_category_terms")
+      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key))")
+      .in("entry_id", entryIds);
+    if (ectErr) throw new Error(`Entry category terms query failed: ${ectErr.message}`);
+
+    type TermEmbed = CategorisationTerm & { categorisations: { key: string } | { key: string }[] | null };
+    for (const row of (ectRows ?? []) as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
+      const term = Array.isArray(row.category_terms) ? row.category_terms[0] : row.category_terms;
+      if (!term) continue;
+      const cat = Array.isArray(term.categorisations) ? term.categorisations[0] : term.categorisations;
+      if (!cat) continue;
+
+      termSortOrder.set(term.id, term.sort_order);
+
+      const idSet = entryTermIdsByEntry.get(row.entry_id) ?? new Set<string>();
+      idSet.add(term.id);
+      entryTermIdsByEntry.set(row.entry_id, idSet);
+
+      const byKey = entryTermsByEntry.get(row.entry_id) ?? new Map<string, CategorisationTerm[]>();
+      const list = byKey.get(cat.key) ?? [];
+      list.push({ id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order });
+      byKey.set(cat.key, list);
+      entryTermsByEntry.set(row.entry_id, byKey);
+    }
+  }
+
   const basePath = `directories/${client.slug}/${directory.slug}`;
 
   for (const entry of entries) {
+    const layout = resolveLayout(entry, templates, entryTermIdsByEntry.get(entry.id) ?? new Set(), termSortOrder);
     const html = buildEntryPage({
       clientSlug: client.slug,
       directorySlug: directory.slug,
@@ -483,6 +626,8 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
       links: linksByEntry.get(entry.id) ?? [],
       tiles: tilesByEntry.get(entry.id) ?? [],
       theme,
+      layout,
+      entryTerms: entryTermsByEntry.get(entry.id) ?? new Map(),
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   }
