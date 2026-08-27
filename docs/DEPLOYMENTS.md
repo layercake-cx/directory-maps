@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Staging] Directories: redirects, Open Graph tags, llms.txt (Phase 3d)
+
+**Branch/commit:** `feat/2026-08-27-directory-redirects-seo`
+**Deployed by:** Claude (agent), continuing the Directories build-out at the user's request ("carry on with implementation"). Closes two gaps flagged (not fixed) in Phase 3b: `directory_redirects` had a data model and a slug-change trigger but nothing ever served a redirect; the generator had no Open Graph tags or `llms.txt`, both explicitly called for in the build-scope brief and `docs/DIRECTORIES.md` §5.
+
+### What changed
+
+- **Redirects, actually served.** `generate_directory_site` now also uploads `directories/<client>/<dir>/redirects.json` (old entry slug → current slug of whichever entry holds it now) alongside each generation. `middleware.js`'s directory branch, when a requested entry slug's `.html` isn't found, fetches this manifest and issues a real HTTP 301 to the current URL if a match exists — otherwise falls through to the SPA exactly as before. Only ever consulted on an already-missing-page path, never on the hot landing/entry/sitemap requests, so it adds no cost to the common case.
+- **Open Graph + Twitter Card tags**, entry and landing pages — a documented gap in the *map* feature's own directory pages, not repeated here. Added via a new local `directoryPageShell()` in `generate_directory_site/index.ts`, deliberately **not** a change to the shared `_shared/staticSiteRenderer.ts` `pageShell()` — that one stays byte-stable for the map feature, per its own doc comment.
+- **`llms.txt`**, per `docs/DIRECTORIES.md` §4/DIR-E2-S4: directory name/description/entry count plus a link list, honouring `seo_defaults_json.llms_txt_extra` when set. Served at `/directories/:clientSlug/:directorySlug/llms.txt`.
+- **A real, unrelated bug fixed in passing:** the original `buildEntryPage` output referenced CSS classes (`.hero`, `.gallery`, `.badges`, `.link-tiles`, `.product-tiles`) that were never actually styled anywhere — `directoryPageShell()`'s stylesheet now defines them. Also fixed: a `noindex` `<meta>` tag was being string-prepended *before* `<!doctype html>` (invalid placement) rather than inside `<head>`.
+- **Not built:** robots.txt (a site-wide, domain-root file by web standard — a per-directory one would never be honoured by real crawlers; the existing map feature has the same documented gap and this doesn't compound it), category/location index pages.
+
+### Verified
+- [x] `deno check` clean.
+- [x] `node --check middleware.js` clean.
+- [x] Redirect-found (301) and redirect-not-found (fall through) cases verified with a mocked-`fetch` Node script (not committed) — confirmed exact fetch sequence and response shape for both.
+- [x] Deployed `generate_directory_site` to staging; **regenerated the user's own real, already-published directory** (`l-cakez/uk-association-directory`, 13 entries) — clean `{ok:true, count:13}`.
+- [x] **Verified against real production content** via a Vercel preview deploy (`npm run deploy:test`, using Vercel's deployment-protection bypass proxy since previews require auth): confirmed live Open Graph tags on both the landing page and a real entry page, confirmed `llms.txt` renders the real 13-entry list, confirmed a genuinely-unknown entry slug on the real directory falls through cleanly (redirects.json fetched, parsed, no match, no error).
+- [x] Confirmed the existing map/interactive routes are untouched — this branch's only `middleware.js` change is inside the already-isolated directory-entity handler.
+- **Production not touched** — staging only this round; left for explicit review/merge rather than auto-deployed, per the default workflow.
+
+### Rollback plan
+Frontend: revert this branch/commit, redeploy `middleware.js`'s previous version (Vercel picks it up automatically from the reverted `main`). Edge Function: redeploy the prior version of `generate_directory_site` from git history. No database changes in this piece.
+
+---
+
 ## 2026-08-27 — [Staging] Directories: Publish UI (Phase 3c)
 
 **Branch/commit:** `feat/2026-08-27-directory-publish-ui`
@@ -23,7 +50,8 @@ Pure frontend — no new migration, no Edge Function change. `getDirectory`/`lis
 
 ### Verified
 - [x] `npm run build` clean.
-- [ ] Manual click-through — publish a real directory, confirm the public page appears at `/directories/:clientSlug/:directorySlug`, confirm restore. Not done by the agent (needs the admin/client portal login the agent won't perform).
+- [x] Manual click-through — the user published a real directory and confirmed the public page at `/directories/l-cakez/uk-association-directory`. (One real bug found along the way and fixed separately: `generate_directory_site`'s server-side flag check didn't honour the internal-staff bypass the client-side app grants, so a client with no explicit `directories` override could "publish" with nothing actually generated, silently. Fixed same day — see the `directoryPublications.js`/`DirectoryPublishPanel.jsx` commit on this branch.)
+- [ ] Restore (rolling back to an earlier version) not yet click-tested.
 
 ### Rollback plan
 Revert this branch/commit. No database or Edge Function changes to unwind.
