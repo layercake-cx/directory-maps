@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] Custom domain management UI + Edge Function generalized to directories (Phase 4b)
+
+**Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132)), stacked on Phase 4a since it depends on that migration's `client_domains.directory_id` column and the new `resolve_custom_domain()` shape.
+**Status:** implemented and build/type-checked; not yet deployed to staging or production — pending explicit go-ahead.
+
+### What changed
+Phase 4a generalized the data layer and routing; this phase generalizes the actual domain-management UI and its Edge Function so a client can use it, not just the plumbing:
+- `DomainSettings.jsx` (shared by the client portal and admin) — the "Map" dropdown is now a **"Publishes"** dropdown grouped into Maps / Directories optgroups, fetching both from Supabase. Domain cards show which entity they publish either way.
+- `manage_client_domain` Edge Function — the `add` action now accepts `directoryId` as an alternative to `mapId` (exactly one required). Gating differs by entity: maps keep the existing `maps.custom_domain` paid entitlement check unchanged; directories gate on the `directories` beta feature flag only, since no commercial entitlement exists for that entity yet — same decision already made for `generate_directory_site`.
+- Extracted the flag-resolution query (override → default) shared between `generate_directory_site` and `manage_client_domain` into `_shared/featureFlags.ts` (`resolveFeatureFlag(db, clientId, flagKey)`) — no behaviour change to the existing map-side feature, verified via `deno check` on both functions.
+- The `domain_added`/`domain_verified`/`domain_verify_failed`/`domain_removed` admin events now carry both `map_id` and `directory_id` (whichever doesn't apply is `null`) — `AGENTS.md`'s event catalogue updated to match.
+- `docs/USER_GUIDE.md` Domains section updated: a domain now publishes "a map or a directory," the entitlement note is split by entity, and the Directories section's "custom domains... not built yet" line is corrected.
+
+### Not yet built
+The branding/theme editor for `directories.theme_json` (added in Phase 4a as a bare column) — still no UI to set it.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on both `manage_client_domain/index.ts` and `generate_directory_site/index.ts` (post-extraction).
+- [ ] Interactive browser click-through of the new "Publishes" dropdown — **not done this round**: no login credentials were available in this session's sandboxed browser for either the client portal or admin. Recommend the user click through `/client/domains` (or the admin customer detail Domains tab) once deployed, picking a directory and confirming DNS records appear and verification completes end-to-end.
+
+### Rollback plan
+Frontend/Edge Function only — no schema change in this phase (reuses Phase 4a's migration). Revert the relevant commits and redeploy; `supabase functions deploy manage_client_domain --project-ref <ref>` with the prior version if only the function needs rolling back.
+
+---
+
 ## 2026-08-27 — [Staging] Custom domains generalized to directories (Phase 4a — data layer)
 
 **Branch:** `feat/2026-08-27-directory-domains-branding-foundation` (PR [#132](https://github.com/layercake-cx/directory-maps/pull/132))

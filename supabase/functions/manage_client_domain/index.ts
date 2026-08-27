@@ -1,6 +1,7 @@
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
 import { resolveTxt } from "../_shared/dns.ts";
 import { attachVercelDomain, detachVercelDomain, isVercelDomainConfigured, recommendedRoutingRecord } from "../_shared/vercel.ts";
+import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -63,6 +64,7 @@ function normalizeClientDomainRow(row: Record<string, unknown> | null) {
     id: row.id,
     client_id: row.client_id,
     map_id: row.map_id,
+    directory_id: row.directory_id,
     hostname: row.hostname,
     status: row.status ?? "pending",
     dns_records: Array.isArray(row.dns_records) ? row.dns_records : [],
@@ -75,7 +77,7 @@ function normalizeClientDomainRow(row: Record<string, unknown> | null) {
 }
 
 const DOMAIN_COLUMNS =
-  "id,client_id,map_id,hostname,status,dns_records,vercel_domain_id,ga_measurement_id,is_primary,verified_at,created_at";
+  "id,client_id,map_id,directory_id,hostname,status,dns_records,vercel_domain_id,ga_measurement_id,is_primary,verified_at,created_at";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -97,23 +99,42 @@ Deno.serve(async (req) => {
 
     if (action === "add") {
       const mapId = typeof body?.mapId === "string" ? body.mapId.trim() : "";
+      const directoryId = typeof body?.directoryId === "string" ? body.directoryId.trim() : "";
       const hostname = normalizeHostname(typeof body?.hostname === "string" ? body.hostname : "");
 
-      if (!mapId) return jsonResponse({ error: "Choose which map this domain publishes." }, 400);
+      if (!mapId && !directoryId) return jsonResponse({ error: "Choose which map or directory this domain publishes." }, 400);
+      if (mapId && directoryId) return jsonResponse({ error: "A domain can only publish one map or directory, not both." }, 400);
       const hostnameError = validateHostname(hostname);
       if (hostnameError) return jsonResponse({ error: hostnameError }, 400);
 
-      const allowed = await service.rpc("resolve_custom_domain_entitlement", { p_client_id: clientId });
-      if (allowed.error) throw allowed.error;
-      if (allowed.data !== true) {
-        return jsonResponse(
-          { error: "Custom domains require the Professional plan or above. Contact Layercake to upgrade." },
-          403,
-        );
-      }
+      // Maps: a paid entitlement (maps.custom_domain). Directories: the
+      // `directories` beta feature flag only — no commercial entitlement
+      // exists for this entity yet, same gating decision already made for
+      // generate_directory_site's own directories-flag check.
+      if (mapId) {
+        const allowed = await service.rpc("resolve_custom_domain_entitlement", { p_client_id: clientId });
+        if (allowed.error) throw allowed.error;
+        if (allowed.data !== true) {
+          return jsonResponse(
+            { error: "Custom domains require the Professional plan or above. Contact Layercake to upgrade." },
+            403,
+          );
+        }
 
-      const { data: map } = await service.from("maps").select("id").eq("id", mapId).eq("client_id", clientId).maybeSingle();
-      if (!map) return jsonResponse({ error: "Map not found." }, 404);
+        const { data: map } = await service.from("maps").select("id").eq("id", mapId).eq("client_id", clientId).maybeSingle();
+        if (!map) return jsonResponse({ error: "Map not found." }, 404);
+      } else {
+        const flagEnabled = await resolveFeatureFlag(service, clientId, "directories");
+        if (!flagEnabled) return jsonResponse({ error: "Directories aren't enabled for this account yet." }, 403);
+
+        const { data: directory } = await service
+          .from("directories")
+          .select("id")
+          .eq("id", directoryId)
+          .eq("client_id", clientId)
+          .maybeSingle();
+        if (!directory) return jsonResponse({ error: "Directory not found." }, 404);
+      }
 
       const { data: existing } = await service
         .from("client_domains")
@@ -135,7 +156,14 @@ Deno.serve(async (req) => {
 
       const { data, error } = await service
         .from("client_domains")
-        .insert({ client_id: clientId, map_id: mapId, hostname, status: "pending", dns_records: dnsRecords })
+        .insert({
+          client_id: clientId,
+          map_id: mapId || null,
+          directory_id: directoryId || null,
+          hostname,
+          status: "pending",
+          dns_records: dnsRecords,
+        })
         .select(DOMAIN_COLUMNS)
         .single();
       if (error) throw error;

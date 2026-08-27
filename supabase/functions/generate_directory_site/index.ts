@@ -46,6 +46,7 @@
  */
 
 import { createServiceClient } from "../_shared/supabase.ts";
+import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import {
   CORS,
   json,
@@ -88,23 +89,6 @@ type MediaAsset = { entry_id: string; url: string; alt_text: string; caption: st
 type AccreditationHeld = { entry_id: string; name: string; issuing_body: string | null; badge_image_url: string | null };
 type EntryLink = { entry_id: string | null; directory_id: string | null; label: string; url: string; style: string; open_in_new: boolean; tracking: boolean };
 type ProductTile = { entry_id: string; title: string; image_url: string | null; price: number | null; currency: string | null; rating: number | null; provider: string | null; destination_url: string };
-
-async function resolveDirectoriesFlag(db: ReturnType<typeof createServiceClient>, clientId: string): Promise<boolean> {
-  const { data: override } = await db
-    .from("feature_flag_overrides")
-    .select("enabled")
-    .eq("client_id", clientId)
-    .eq("flag_key", "directories")
-    .maybeSingle();
-  if (override) return override.enabled === true;
-
-  const { data: flag } = await db
-    .from("feature_flags")
-    .select("default_enabled")
-    .eq("key", "directories")
-    .maybeSingle();
-  return flag?.default_enabled === true;
-}
 
 const EXTRA_STYLE = `
   .hero { width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
@@ -372,7 +356,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
 
-  const flagEnabled = await resolveDirectoriesFlag(db, client.id);
+  const flagEnabled = await resolveFeatureFlag(db, client.id, "directories");
   if (!flagEnabled) return { directory_id: directoryId, skipped: "flag_disabled" };
 
   const { data: entryRows, error: entryErr } = await db

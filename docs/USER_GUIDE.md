@@ -97,7 +97,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. This is the first phase of the feature (see `docs/DIRECTORIES.md` for the full roadmap): publishing, branding, custom domains, and categorisation-driven filtering are not built yet. Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing and custom domains are available (see [Domains](#domains) below); branding and categorisation-driven filtering are not built yet (see `docs/DIRECTORIES.md` for the full roadmap). Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
 
 ### Creating a directory
 
@@ -454,13 +454,13 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ## Domains
 
-The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map to it. Once verified: the root of your domain shows the SEO-friendly directory listing, `/map` shows the full interactive map (also usable as an iframe source elsewhere), and each listing gets its own page.
+The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map or a directory to it. Once verified: the root of your domain shows the published entity's landing page — for a map, that's the SEO-friendly listing page, with `/map` showing the full interactive map (also usable as an iframe source elsewhere); for a directory, that's the directory's own landing page. Either way, each listing/entry gets its own page at the root.
 
-Custom domains require the **Professional plan or above**. On the Basic plan, the section is dimmed with a note to upgrade; contact Layercake to change your plan.
+Custom domains for **maps** require the **Professional plan or above** — on the Basic plan, that option is unavailable and the section shows a note to upgrade. Custom domains for **directories** are included with early access to the Directories beta — no separate upgrade needed while that feature is in beta.
 
 ### Add a domain
 
-1. Choose which **map** this domain will publish (each domain publishes exactly one map — register a second domain if you want a different address for another map).
+1. Choose which **map or directory** this domain will publish, from the **Publishes** dropdown (each domain publishes exactly one map or directory — register a second domain if you want a different address for another one).
 2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com` or a root domain like `yourcompany.com`. Don't include `https://` or a trailing path.
 3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a routing record. **A root/apex domain** (e.g. `yourcompany.com`) gets an `A` record; **a subdomain** (e.g. `directory.yourcompany.com`) gets a `CNAME` record — DNS doesn't allow a literal CNAME on a root domain, so the record type differs depending on which you use.
 
@@ -499,7 +499,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
 | Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
-| Add a custom domain for a map | `/client/domains` → Add domain |
+| Add a custom domain for a map or directory | `/client/domains` → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |

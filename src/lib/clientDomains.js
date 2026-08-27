@@ -1,10 +1,10 @@
 import { supabase } from "./supabase";
 import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
-export async function invokeManageClientDomain({ clientId, action, mapId, hostname, domainId }) {
+export async function invokeManageClientDomain({ clientId, action, mapId, directoryId, hostname, domainId }) {
   return invokeEdgeFunction(
     "manage_client_domain",
-    { clientId, action, mapId, hostname, domainId },
+    { clientId, action, mapId, directoryId, hostname, domainId },
     { supabase, requireAuth: true }
   );
 }
