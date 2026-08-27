@@ -52,7 +52,6 @@ import {
   escapeHtml,
   escapeAttr,
   uploadToBlob,
-  pageShell,
   buildSitemapXml,
 } from "../_shared/staticSiteRenderer.ts";
 
@@ -105,6 +104,73 @@ async function resolveDirectoriesFlag(db: ReturnType<typeof createServiceClient>
     .eq("key", "directories")
     .maybeSingle();
   return flag?.default_enabled === true;
+}
+
+const EXTRA_STYLE = `
+  .hero { width: 100%; max-height: 320px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
+  .gallery { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .gallery img { width: 100px; height: 80px; object-fit: cover; border-radius: 6px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: #f3f4f6; border-radius: 999px; padding: 4px 10px; }
+  .badge img { height: 20px; }
+  .link-tiles { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .link-tile { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 14px; }
+  .link-tile--primary { background: #2563eb; color: #fff; }
+  .link-tile--secondary { background: #f3f4f6; color: #111827; }
+  .product-tiles { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+  .product-tile { display: flex; gap: 10px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; text-decoration: none; color: inherit; width: 220px; }
+  .product-tile img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; }
+  .provider { font-size: 12px; opacity: 0.65; }
+`;
+
+/**
+ * Directory entity page shell — NOT the shared _shared/staticSiteRenderer.ts
+ * pageShell(), deliberately: that one is kept byte-stable for the existing
+ * map feature. This local variant adds Open Graph/Twitter Card tags (absent
+ * from the map feature's own pages — a known, documented gap there) and the
+ * extra CSS classes buildEntryPage/buildDirectoryLandingPage actually use
+ * for media/badges/links/tiles.
+ */
+function directoryPageShell(opts: {
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  jsonLd: Record<string, unknown>;
+  body: string;
+  imageUrl?: string | null;
+  noindex?: boolean;
+}): string {
+  const ogImage = opts.imageUrl
+    ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
+    : `<meta name="twitter:card" content="summary">`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(opts.title)}</title>
+<meta name="description" content="${escapeAttr(opts.description)}">
+<link rel="canonical" href="${escapeAttr(opts.canonicalUrl)}">
+${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeAttr(opts.title)}">
+<meta property="og:description" content="${escapeAttr(opts.description)}">
+<meta property="og:url" content="${escapeAttr(opts.canonicalUrl)}">
+${ogImage}
+<script type="application/ld+json">${JSON.stringify(opts.jsonLd)}</script>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px 16px; line-height: 1.5; color: #111827; }
+  a { color: #2563eb; }
+  dt { font-weight: 600; margin-top: 10px; }
+  dd { margin-left: 0; }
+  .back-link { font-size: 14px; margin-bottom: 16px; display: inline-block; }
+  .listing-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  ${EXTRA_STYLE}
+</style>
+</head>
+<body>
+${opts.body}
+</body>
+</html>`;
 }
 
 function linkTiles(links: EntryLink[]): string {
@@ -196,7 +262,6 @@ function buildEntryPage(opts: {
     : "";
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
-  const noindexTag = entry.noindex ? '<meta name="robots" content="noindex">' : "";
 
   const body = `
 <a class="back-link" href="${escapeAttr(landingUrl)}">&larr; Back to ${escapeHtml(directoryName)}</a>
@@ -214,12 +279,14 @@ ${tilesHtml}
 ${linkTiles(links)}
 `.trim();
 
-  return noindexTag + pageShell({
+  return directoryPageShell({
     title: entry.meta_title || `${entry.name} — ${directoryName}`,
     description,
     canonicalUrl,
     jsonLd: entrySchemaOrg(entry, canonicalUrl),
     body,
+    imageUrl: hero?.url ?? null,
+    noindex: !!entry.noindex,
   });
 }
 
@@ -263,13 +330,32 @@ ${linkTiles(directoryLinks)}
 ${items}
 `.trim();
 
-  return pageShell({
+  return directoryPageShell({
     title: directoryName,
     description: directoryDescription || `${directoryName} — ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`,
     canonicalUrl,
     jsonLd,
     body,
   });
+}
+
+function buildLlmsTxt(opts: {
+  clientSlug: string;
+  directorySlug: string;
+  directoryName: string;
+  directoryDescription: string | null;
+  entries: Entry[];
+  extra: string | null;
+}): string {
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, extra } = opts;
+  const lines = [`# ${directoryName}`, ""];
+  if (directoryDescription) lines.push(directoryDescription, "");
+  lines.push(`${entries.length} entr${entries.length === 1 ? "y" : "ies"}:`, "");
+  for (const e of entries.filter((e) => !e.noindex)) {
+    lines.push(`- [${e.name}](${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${e.slug})`);
+  }
+  if (extra) lines.push("", extra);
+  return lines.join("\n");
 }
 
 async function generateForDirectory(directoryId: string): Promise<{ directory_id: string; skipped?: string; count?: number }> {
@@ -397,6 +483,39 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     ...entries.filter((e) => !e.noindex).map((e) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${e.slug}`),
   ];
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
+
+  const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
+  const llmsTxt = buildLlmsTxt({
+    clientSlug: client.slug,
+    directorySlug: directory.slug,
+    directoryName: directory.name,
+    directoryDescription: directory.description,
+    entries,
+    extra: llmsExtra,
+  });
+  await uploadToBlob(`${basePath}/llms.txt`, llmsTxt, "text/plain; charset=utf-8");
+
+  // Redirects (docs/DIRECTORIES.md §5.11): old slug -> current slug of
+  // whichever entry now holds it, so a renamed entry's previous public URL
+  // keeps working. Only entries generated above (active, in `entries`) are
+  // valid targets — a redirect to an archived/deleted entry is dropped
+  // rather than pointed at a page that doesn't exist.
+  const { data: redirectRows, error: redirectErr } = await db
+    .from("directory_redirects")
+    .select("old_slug, entry_id")
+    .eq("directory_id", directoryId);
+  if (redirectErr) throw new Error(`Redirects query failed: ${redirectErr.message}`);
+  const entrySlugById = new Map(entries.map((e) => [e.id, e.slug]));
+  const currentSlugs = new Set(entries.map((e) => e.slug));
+  const redirectMap: Record<string, string> = {};
+  for (const r of (redirectRows ?? []) as { old_slug: string; entry_id: string }[]) {
+    const targetSlug = entrySlugById.get(r.entry_id);
+    // A redirect old_slug that collides with a *current* entry's own slug
+    // must not override that entry's real page — drop it rather than shadow
+    // the live entry (can happen if a slug is reused a second time).
+    if (targetSlug && !currentSlugs.has(r.old_slug)) redirectMap[r.old_slug] = targetSlug;
+  }
+  await uploadToBlob(`${basePath}/redirects.json`, JSON.stringify(redirectMap), "application/json; charset=utf-8");
 
   return { directory_id: directoryId, count: entries.length };
 }

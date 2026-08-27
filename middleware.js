@@ -208,22 +208,50 @@ async function handleDirectorySite(segments, blobBase) {
   if (!clientSlug || !directorySlug || segments.length > 4) return;
   if (!blobBase) return; // misconfigured — fail open to the normal SPA route rather than break the site
 
+  const base = `directories/${clientSlug}/${directorySlug}`;
+
   let pathname;
   let contentType;
   if (!entrySlug) {
-    pathname = `directories/${clientSlug}/${directorySlug}/index.html`;
+    pathname = `${base}/index.html`;
     contentType = "text/html; charset=utf-8";
   } else if (entrySlug === "sitemap.xml") {
-    pathname = `directories/${clientSlug}/${directorySlug}/sitemap.xml`;
+    pathname = `${base}/sitemap.xml`;
     contentType = "application/xml; charset=utf-8";
+  } else if (entrySlug === "llms.txt") {
+    pathname = `${base}/llms.txt`;
+    contentType = "text/plain; charset=utf-8";
   } else {
-    pathname = `directories/${clientSlug}/${directorySlug}/${entrySlug}.html`;
+    pathname = `${base}/${entrySlug}.html`;
     contentType = "text/html; charset=utf-8";
   }
 
   const html = await fetchBlobHtml(blobBase, pathname);
-  if (html == null) return; // nothing generated at this path — fall through to the SPA, same convention as the map branch below
-  return new Response(html, { status: 200, headers: { "content-type": contentType } });
+  if (html != null) return new Response(html, { status: 200, headers: { "content-type": contentType } });
+
+  // Only a plain entry-slug lookup can be a stale/renamed URL — the
+  // directory landing page, sitemap.xml and llms.txt are never redirect
+  // targets. Check the pre-generated redirect manifest (docs/DIRECTORIES.md
+  // §5.11) before giving up and falling through to the SPA.
+  if (entrySlug && entrySlug !== "sitemap.xml" && entrySlug !== "llms.txt") {
+    const redirectsJson = await fetchBlobHtml(blobBase, `${base}/redirects.json`);
+    if (redirectsJson != null) {
+      try {
+        const redirects = JSON.parse(redirectsJson);
+        const newSlug = redirects[entrySlug];
+        if (newSlug) {
+          return new Response(null, {
+            status: 301,
+            headers: { location: `/directories/${clientSlug}/${directorySlug}/${newSlug}` },
+          });
+        }
+      } catch {
+        // malformed manifest — fall through to the SPA rather than error
+      }
+    }
+  }
+
+  return; // nothing generated at this path and no redirect found — fall through to the SPA, same convention as the map branch below
 }
 
 export default async function middleware(request) {
