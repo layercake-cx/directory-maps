@@ -12,6 +12,7 @@ import AccreditationSchemesPanel from "../../components/directories/Accreditatio
 import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
 import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
 import DirectoryBrandingPanel from "../../components/directories/DirectoryBrandingPanel.jsx";
+import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
@@ -177,6 +178,11 @@ export default function AdminDirectoryEntries() {
                 recordEvent={recordEvent}
                 onSaved={reloadDirectory}
               />
+            </div>
+
+            <div className="admin-card" style={{ marginBottom: 16 }}>
+              <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Entry layout</p>
+              <EntryLayoutDesigner directoryId={directoryId} canManage recordEvent={recordEvent} />
             </div>
 
             <div className="admin-card" style={{ marginBottom: 16 }}>

@@ -130,11 +130,31 @@ Open a directory to see its entries table:
 
 From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
+The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map. Full natural-language search and clickable filter chips are planned but not built yet — the filter chips shown on the homepage don't do anything yet.
+
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
 
 ### Branding
 
-From a directory's page, the **Branding** panel (owners and managers only) sets a small set of tokens applied to the directory's published pages: a **primary colour** (links and buttons), a **header background** and **header text colour** for the bar at the top of the directory's landing page, and an optional **logo URL** shown in that header. Click **Save branding**, then **Publish** again for the change to appear on the live site — saving branding doesn't publish automatically. Font, corner radius, and favicon controls aren't built yet.
+From a directory's page, the **Branding** panel (owners and managers only) sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design.
+
+- **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it.
+- **Primary colour**, **accent colour**, **background colour**, and **logo URL** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours) and the heading/body fonts — a preset is a starting point, not a limit, so any field can be changed afterward.
+- Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically.
+
+Font, corner radius, and favicon controls beyond the heading/body font pickers aren't built yet.
+
+### Entry layout
+
+From a directory's page, the **Entry layout** panel (owners and managers only) controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation that applies to entries (shown as clickable tag chips).
+
+- **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
+- **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
+- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes.
+- Click **Save layout**, then **Publish** again for it to reach the live site.
+- **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
+
+A directory that has never opened this panel keeps its original section order — nothing changes until you save a layout here.
 
 ### Archiving or deleting a directory
 
