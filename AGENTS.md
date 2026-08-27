@@ -324,6 +324,8 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - `meta`: `client_id`, `map_id`, `provider`, `error`
 - **`data_geocode_started` / `data_geocode_completed` / `data_geocode_failed`**
   - `meta`: `client_id`, `map_id`, `rows_queued` / `rows_geocoded`, `error` (on fail)
+- **`data_directory_linked` / `data_directory_unlinked`** (DIR-E4-S2 — map reads pins live from a directory)
+  - `meta`: `client_id`, `map_id`, `directory_id`, `source` (`admin_map` / `client_portal`)
 
 #### Team and users
 

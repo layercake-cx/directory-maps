@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-27 — [Not yet deployed] DIR-E4: map reads pins live from a directory
+
+**Branch:** `feat/2026-08-27-map-directory-datasource`
+**Status:** implemented, `npm run build` clean; not yet applied to staging or production.
+**Context:** first slice of the "Unify Map & Directory Data Model" epic (Monday item 3189433497) — the user wants to convert the production map "UK Associations Sample" into a directory with map and directory sharing one copy of the data, no drift. This slice builds the already-spec'd DIR-E4 mechanism (docs/DIRECTORIES.md §4.7) that a later migration (not part of this PR) will use to actually convert that map. No existing map, listing, or embed is touched by this change on its own.
+
+### What changed
+1. **Schema** (`supabase/migrations/20260827150000_directory_map_datasource.sql`, additive only): `directory_map_associations` (map → directory, one directory per map via pk on `map_id`), `attach_directory_to_map()`/`detach_directory_from_map()` security-definer RPCs (verify the map and directory belong to the same client — mirrors `publish_directory`'s manual tenant re-check), `public_directory_entries` view (live read of `directory_entries`, not a publication snapshot — same precedent as `public_listings`, scoped to `is_active = true` and the owning directory having `current_publication_id is not null`). Also adds anon-select RLS + grants on `directories`/`directory_entries` (published-only), deliberately deferred by the original DIR-E1 migration pending this exact work.
+2. **Map Data panel**: new "Directories" tab in both `AdminMapData.jsx` and `ClientMapData.jsx` — pick a client directory, attach/detach live. Mutually exclusive with Manual entry/Upload CSV/Sync data in both directions (the first two-way tab-exclusivity relationship in this UI; previously only Sync was exclusive with Manual/CSV). Extracted the shared tab-strip markup into `src/components/MapDataTabs.jsx` (the spec's own decision — this was the third near-duplicate copy). New `data_directory_linked`/`data_directory_unlinked` admin events (catalogued in AGENTS.md).
+3. **Live embed** (`EmbedMap.jsx`): checks `directory_map_associations` ahead of the CDN-snapshot attempt (snapshots only ever contain this map's own `listings` as of last publish, so a directory-linked map always takes the live-query path). When linked, fetches `public_directory_entries`/`directory_groups` instead of `public_listings`/`groups`, normalizing `directory_group_id → group_id` so `PublishedMapView` needs no changes. Deliberately skips `mergeGroupWithPublication`'s byName fallback for directory groups — that fallback exists for the map's *own* publication history and could spuriously match a same-named leftover group after a future map→directory conversion. No filter chips for a directory-sourced map yet (directory entries have no `map_filter_fields` equivalent — flagged as a known v1 gap in USER_GUIDE.md/FEATURES.md).
+
+### Sequence followed
+1. Wrote and reviewed the schema migration + rollback by hand.
+2. Delegated the Data-panel tab UI + `lib/directories.js` helpers + docs updates to a background agent with a fully-specified brief; reviewed the resulting diff and confirmed it against the schema.
+3. Wrote the `EmbedMap.jsx` live-read path by hand (the field-mapping/byName-fallback risk needed direct reasoning, not delegation).
+4. `npm run build` clean with everything together.
+5. Regression check: loaded the real staging "UK Associations" map (`e0e5f376-...`, `beqejxneehilplrtpntn`) via `/embed?map=` on the local dev server (which already points at staging) — self-authored path renders exactly as before (list panel, filters, logos), confirming the new directory-association check ahead of the snapshot fetch doesn't affect maps that aren't linked.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] Self-authored embed regression-tested against real staging data — unaffected.
+- [ ] Directory-sourced embed path not interactively tested end-to-end — needs an authenticated client/admin session (no login credentials available to this agent) and a published directory to attach. Should be exercised as part of the UK Associations Sample pilot conversion (the next slice of this epic), before that conversion is treated as verified.
+- [ ] Migration not yet dry-run or applied to staging.
+- [ ] Data-panel tab UI not interactively click-tested (same credential limitation).
+
+### Rollback plan
+- Frontend: revert the relevant commit(s) on this branch (not yet merged).
+- Database: `_20260827150000_directory_map_datasource.rollback.sql` — additive-only forward migration, rollback is a straight drop; warns (does not block) if any live associations exist, since dropping them reverts affected maps to their own unchanged `listings`.
+
+---
+
 ## 2026-08-27 — [Production] Entry layout designer + visual design system rebuild (DIR-E6 + DIR-E3 Phase 6) rolled out
 
 **Branch/commit:** PRs [#134](https://github.com/layercake-cx/directory-maps/pull/134) and [#135](https://github.com/layercake-cx/directory-maps/pull/135), merged to `main`.
