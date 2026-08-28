@@ -8,6 +8,25 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Not yet deployed] Warn before archiving/deleting a directory with a linked map
+
+**Branch:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`
+**Status:** implemented, `npm run build` clean; not yet deployed.
+**Context:** after validating the "two independent products, linkable from either direction" model, two real gaps: deleting a directory silently breaks any attached map (cascades the association, no warning), and archiving a directory does nothing to a linked map's public visibility (by design — archiving isn't the same as unpublishing — but nothing told the client that). Decided: no schema/behavior change, just make both consequences visible before the action, with the exact expected-behavior wording the user specified.
+
+### What changed
+- `lib/directories.js`: new `getMapsLinkedToDirectory(directoryId)`.
+- `AdminDirectoryEntries.jsx` / `ClientDirectoryEntries.jsx`: fetch linked maps on load; the archive confirm and the delete modal both now name the linked map(s) and state the actual consequence — delete reverts the map to manually-edited data (its own datasource link is removed, it doesn't lose its pins with no explanation); archive does not remove a published map's public view, so the client is pointed at archiving/deleting the map itself instead.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested (no login credentials this session).
+
+### Rollback plan
+- Revert the commit, redeploy. No schema change.
+
+---
+
 ## 2026-08-28 — [Production] Fix: directory-sourced map embeds showed zero pins
 
 **Branch:** `fix/2026-08-28-directory-map-associations-anon-select`

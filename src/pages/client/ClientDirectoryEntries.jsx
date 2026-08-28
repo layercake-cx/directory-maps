@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { canManageOrg } from "../../lib/clientAuth.js";
-import { archiveDirectory, deleteDirectoryPermanently, getContactDirectoryPermission, getDirectory } from "../../lib/directories.js";
+import { archiveDirectory, deleteDirectoryPermanently, getContactDirectoryPermission, getDirectory, getMapsLinkedToDirectory } from "../../lib/directories.js";
 import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
@@ -40,6 +40,7 @@ export default function ClientDirectoryEntries() {
 
   const [directoryTermIds, setDirectoryTermIds] = useState([]);
   const [savingTerms, setSavingTerms] = useState(false);
+  const [linkedMaps, setLinkedMaps] = useState([]);
 
   const reloadDirectory = useCallback(async () => {
     try {
@@ -66,6 +67,10 @@ export default function ClientDirectoryEntries() {
   }, [directoryId]);
 
   useEffect(() => {
+    getMapsLinkedToDirectory(directoryId).then(setLinkedMaps).catch(() => {});
+  }, [directoryId]);
+
+  useEffect(() => {
     if (canManage) { setPermissionChecked(true); return; }
     if (!contact?.id || !directoryId) return;
     setPermissionChecked(false);
@@ -89,7 +94,12 @@ export default function ClientDirectoryEntries() {
   }
 
   async function handleArchive() {
-    if (!window.confirm(`Archive "${directory?.name}"? It will be hidden from your directories list.`)) return;
+    const publishedLinkedMaps = linkedMaps.filter((m) => m.current_publication_id);
+    const warning = linkedMaps.length
+      ? `\n\nWarning: ${linkedMaps.length === 1 ? "the map" : "maps"} "${linkedMaps.map((m) => m.name).join('", "')}" use${linkedMaps.length === 1 ? "s" : ""} this directory as ${linkedMaps.length === 1 ? "its" : "their"} live pin source. Archiving does NOT remove ${linkedMaps.length === 1 ? "it" : "them"} from public view` +
+        (publishedLinkedMaps.length ? ` — ${publishedLinkedMaps.length === 1 ? "it is" : "they are"} published and will keep showing this directory's data. Archive or delete the map itself to remove it from public view.` : ".")
+      : "";
+    if (!window.confirm(`Archive "${directory?.name}"? It will be hidden from your directories list.${warning}`)) return;
     try {
       setArchiving(true);
       await archiveDirectory(directoryId);
@@ -222,6 +232,11 @@ export default function ClientDirectoryEntries() {
             <p style={{ margin: "0 0 8px", fontSize: 13 }}>
               This removes the directory and all of its entries. This can't be undone.
             </p>
+            {linkedMaps.length > 0 && (
+              <p style={{ margin: "0 0 8px", fontSize: 13, background: "#fef3c7", color: "#92400e", padding: "8px 10px", borderRadius: 6 }}>
+                {linkedMaps.length === 1 ? "The map" : "Maps"} "{linkedMaps.map((m) => m.name).join('", "')}" {linkedMaps.length === 1 ? "uses" : "use"} this directory as {linkedMaps.length === 1 ? "its" : "their"} live pin datasource. Deleting the directory removes {linkedMaps.length === 1 ? "its" : "their"} datasource link — {linkedMaps.length === 1 ? "it" : "they"} will revert to being manually-edited data instead of disappearing.
+              </p>
+            )}
             <p style={{ margin: "0 0 6px", fontSize: 13 }}>Type <strong>DELETE</strong> to confirm:</p>
             <input
               value={deleteText}

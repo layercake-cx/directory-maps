@@ -160,8 +160,8 @@ A directory that has never opened this panel keeps its original section order �
 
 From a directory's page (owners and managers only):
 
-- **Archive** — hides the directory from your list; entries are kept.
-- **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm.
+- **Archive** — hides the directory from your list; entries are kept. If a map uses this directory as its live pin source, archiving does **not** remove it from that map's public embed — you'll see a warning naming the map(s); archive or delete the map itself to take it out of public view.
+- **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm. If a map uses this directory as its live pin source, you'll see a warning naming the map(s) — deleting the directory removes that link and the map reverts to being manually-edited data, rather than losing its pins with no explanation.
 
 ### Categorisations
 
