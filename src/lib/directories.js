@@ -226,6 +226,17 @@ export async function upsertDirectoryEntries(rows) {
   return data ?? [];
 }
 
+/** Copies mapId's groups and listings into a brand-new directory. Does not publish it or attach it back to the map. */
+export async function createDirectoryFromMap(mapId, { name, slug } = {}) {
+  const { data, error } = await supabase.rpc("create_directory_from_map", {
+    p_map_id: mapId,
+    p_name: name ? String(name).trim() : null,
+    p_slug: slug ? String(slug).trim() : null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ---- Map <-> directory datasource association (DIR-E4-S2) ----
 
 /** The map's directory datasource association, or null if the map is self-authored. */

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
@@ -13,7 +13,7 @@ import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
-import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap } from "../../lib/directories.js";
+import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap, createDirectoryFromMap } from "../../lib/directories.js";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -135,6 +135,7 @@ async function stableListingId(mapIdValue, listingName) {
 
 export default function ClientMapData() {
   const { mapId } = useParams();
+  const navigate = useNavigate();
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [map, setMap] = useState(null);
@@ -162,6 +163,7 @@ export default function ClientMapData() {
   const [selectedDirectoryId, setSelectedDirectoryId] = useState("");
   const [attachingDirectory, setAttachingDirectory] = useState(false);
   const [detachingDirectory, setDetachingDirectory] = useState(false);
+  const [buildingDirectory, setBuildingDirectory] = useState(false);
 
   // ── CSV tab ───────────────────────────────────────────────────────────────
   const [fileErr, setFileErr] = useState("");
@@ -990,6 +992,24 @@ export default function ClientMapData() {
     }
   }
 
+  async function handleBuildDirectoryFromMap() {
+    try {
+      setBuildingDirectory(true); setDirectoriesError("");
+      const dir = await createDirectoryFromMap(mapId);
+      recordAdminEvent(supabase, {
+        eventType: "directory_created",
+        meta: { name: dir.name, slug: dir.slug, directory_id: dir.id, source_map_id: mapId },
+        source: "client_portal",
+        clientId,
+      });
+      navigate(`/client/directories/${encodeURIComponent(dir.id)}`);
+    } catch (e) {
+      setDirectoriesError(e?.message ?? String(e));
+    } finally {
+      setBuildingDirectory(false);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -1252,7 +1272,7 @@ export default function ClientMapData() {
             <Stack gap="sm">
               {directoriesLoading && <Text size="xs" c="dimmed">Loading directories…</Text>}
               {!directoriesLoading && clientDirectories.length === 0 ? (
-                <Text size="xs" c="dimmed">No directories yet — create one first.</Text>
+                <Text size="xs" c="dimmed">No directories yet.</Text>
               ) : (
                 !directoriesLoading && (
                   <>
@@ -1271,6 +1291,17 @@ export default function ClientMapData() {
                     </Group>
                   </>
                 )
+              )}
+
+              {!directoriesLoading && (
+                <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: 14, marginTop: 4 }}>
+                  <Text size="xs" c="dimmed" maw={560} mb={8}>
+                    Or copy this map's groups and listings into a brand-new directory. You'll review and publish it before it's linked back to this map.
+                  </Text>
+                  <Button size="sm" variant="default" leftSection={<FolderOpen size={14} />} onClick={handleBuildDirectoryFromMap} loading={buildingDirectory} disabled={buildingDirectory}>
+                    Build a directory from this map
+                  </Button>
+                </div>
               )}
             </Stack>
           )}
