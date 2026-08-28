@@ -220,6 +220,8 @@ export default function AdminMapDashboard() {
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [groups, setGroups] = useState([]);
+  /** DIR-E4: true when this map's pins/groups come from a linked directory instead of its own listings/groups. */
+  const [isDirectorySourced, setIsDirectorySourced] = useState(false);
   const [filterFields, setFilterFields] = useState([]);
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
 
@@ -541,6 +543,10 @@ export default function AdminMapDashboard() {
   }, [dataPage, totalPages]);
 
   async function updateListingLogoBg(listingId, newValue) {
+    if (isDirectorySourced) {
+      setErr("This map's entries are managed in its linked directory — edit the logo there.");
+      return;
+    }
     const normalizedValue = newValue || null;
     const { error } = await supabase.from("listings").update({ logo_bg: normalizedValue }).eq("id", listingId);
     if (error) {
@@ -591,6 +597,31 @@ export default function AdminMapDashboard() {
           if (res.error) throw res.error;
           g = res.data;
         } else if (ge) throw ge;
+
+        // DIR-E4: if this map reads its pins live from a directory, the
+        // design preview needs to show that data too — same normalization
+        // as EmbedMap.jsx (directory_group_id -> group_id, no per-group
+        // theme_json since directory_groups has no such column).
+        const { data: mapAssoc } = await supabase
+          .from("directory_map_associations")
+          .select("directory_id")
+          .eq("map_id", mapId)
+          .maybeSingle();
+        const directorySourced = !!mapAssoc?.directory_id;
+        if (directorySourced) {
+          const [{ data: entries, error: eErr }, { data: dGroups, error: dgErr }] = await Promise.all([
+            supabase.from("public_directory_entries").select("*").eq("directory_id", mapAssoc.directory_id),
+            supabase
+              .from("directory_groups")
+              .select("id,directory_id,name,sort_order,color")
+              .eq("directory_id", mapAssoc.directory_id)
+              .order("sort_order", { ascending: true }),
+          ]);
+          if (eErr) throw eErr;
+          if (dgErr) throw dgErr;
+          l = (entries ?? []).map((e) => ({ ...e, group_id: e.directory_group_id ?? null }));
+          g = (dGroups ?? []).map((gr) => ({ ...gr, theme_json: null }));
+        }
 
         const { data: mapRow, error: me } = await supabase
           .from("maps")
@@ -644,6 +675,7 @@ export default function AdminMapDashboard() {
           setMap(m);
           setGroups(g ?? []);
           setListings(l ?? []);
+          setIsDirectorySourced(directorySourced);
           setAiSearchFlagEnabled(
             (flagOverrides ?? []).some((o) => o.flag_key === AI_SEARCH_FLAG && o.enabled === true)
           );
@@ -2078,6 +2110,11 @@ export default function AdminMapDashboard() {
             </header>
             <div className="admin-map-overlay__body">
               {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
+              {isDirectorySourced && (
+                <p style={{ fontSize: 12.5, opacity: 0.75, marginBottom: 12 }}>
+                  This map's pins come from its linked directory — shown here for preview, but add or edit entries there rather than in this dashboard.
+                </p>
+              )}
 
               {overlayTab === "detail" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
