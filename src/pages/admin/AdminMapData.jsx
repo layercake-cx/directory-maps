@@ -836,7 +836,6 @@ export default function AdminMapData() {
   function handleTabChange(tab) {
     if (integrationLinked && (tab === "manual" || tab === "spreadsheet")) return;
     if (directoryAssoc && (tab === "manual" || tab === "spreadsheet" || tab === "drive")) return;
-    if (integrationLinked && tab === "directories") return;
     setMsg(""); setErr(""); setSheetErr(""); setSheetMsg("");
     setJustDisconnected(false);
     setActiveTab(tab);
@@ -868,6 +867,13 @@ export default function AdminMapData() {
     try {
       setAttachingDirectory(true); setDirectoriesError("");
       const assoc = await attachDirectoryToMap(mapId, selectedDirectoryId);
+      // A map is either self-authored or directory-sourced, never both — attaching
+      // a directory takes over as the datasource, so an active Sheets sync is
+      // disconnected the same way switching to CSV already disconnects it.
+      if (integrationLinked) {
+        await supabase.from("map_data_sources").delete().eq("map_id", mapId).eq("provider", "google_sheets");
+        setIntegrationLinked(false);
+      }
       setDirectoryAssoc(assoc);
       setSelectedDirectoryId("");
       recordAdminEvent(supabase, {
@@ -931,7 +937,7 @@ export default function AdminMapData() {
     { id: "manual", label: "Manual entry", disabled: integrationLinked || !!directoryAssoc, disabledReason: directoryAssoc ? directoryLockedReason : syncLockedReason },
     { id: "spreadsheet", label: "Upload CSV", disabled: integrationLinked || !!directoryAssoc, disabledReason: directoryAssoc ? directoryLockedReason : syncLockedReason },
     { id: "drive", label: "Sync data", disabled: !!directoryAssoc, disabledReason: directoryLockedReason },
-    { id: "directories", label: "Directories", disabled: integrationLinked, disabledReason: syncLockedReason },
+    { id: "directories", label: "Directories" },
     ...(syncLogCount > 0 ? [{ id: "sync_history", label: "Sync History" }] : []),
   ];
 
@@ -1175,6 +1181,12 @@ export default function AdminMapData() {
             <p style={{ margin: 0, fontSize: 13, opacity: 0.7, maxWidth: 560 }}>
               Use one of this client's directories as this map's live pin datasource instead of its own listings.
             </p>
+
+            {integrationLinked && !directoryAssoc && (
+              <Alert color="yellow" variant="light">
+                A Google Sheets sync is currently active on this map. Attaching a directory will disconnect it.
+              </Alert>
+            )}
 
             {directoriesError && <Alert color="red" variant="light">{directoriesError}</Alert>}
 
