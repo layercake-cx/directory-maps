@@ -45,6 +45,8 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
     "geocode_completed",
     "geocode_failed",
     "filter_values_bulk_tagged",
+    "directory_linked",
+    "directory_unlinked",
   ],
   team: [
     "invite_created",

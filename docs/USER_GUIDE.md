@@ -97,7 +97,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). Using a directory as the live pin data for a map is a later capability (DIR-E4), not available yet.
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
 ### Creating a directory
 
@@ -311,6 +311,10 @@ Under **Auto-sync schedule**, choose **Off** (manual only) or **Daily**, then pi
 On **Data** (`/client/maps/<id>/data`), open **Manual entry** to add, edit, or delete individual listings. Use the **Filter by name or address…** field above the table to narrow a long list. If Google Drive sync is connected, disconnect it first — manual editing is locked while sync is active.
 
 When you change the **Address** (and leave the field, or save), latitude and longitude update automatically from geocoding. You can still override the coordinates manually if needed.
+
+### Directory as data source
+
+*(Requires the Directories beta — see above.)* On **Data**, the **Directories** tab lets a map read its pins live from one of your directories instead of its own listings — pick a directory and click **Use this directory**. There's no separate sync step: the map's published embed shows the directory's published entries as they currently stand, and updates automatically the next time the directory is published — not on every draft edit. This is mutually exclusive with **Manual entry**, **Upload CSV**, and **Sync data** — those tabs (and the Directories tab itself, if Google Drive sync is connected) lock while a directory is linked. Click **Disconnect** on the Directories tab to revert the map to its own listings. Note: custom filter fields aren't available for a directory-sourced map yet, since directory entries don't have an equivalent to map filter fields.
 
 ### Loaded Data (logo + logo background per listing)
 

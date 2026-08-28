@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
 import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
-import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Stack, Text, Group } from "@mantine/core";
+import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Select, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
+import MapDataTabs from "../../components/MapDataTabs.jsx";
+import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap, createDirectoryFromMap } from "../../lib/directories.js";
 
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
@@ -133,9 +135,11 @@ async function stableListingId(mapIdValue, listingName) {
 
 export default function ClientMapData() {
   const { mapId } = useParams();
+  const navigate = useNavigate();
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [map, setMap] = useState(null);
+  const [clientId, setClientId] = useState(null);
   const [groups, setGroups] = useState([]);
   const [listings, setListings] = useState([]);
 
@@ -150,6 +154,16 @@ export default function ClientMapData() {
   const [syncSchedule, setSyncSchedule] = useState(null);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [integrationLinked, setIntegrationLinked] = useState(false);
+
+  // ── Directory datasource (DIR-E4-S2) ──────────────────────────────────────
+  const [directoryAssoc, setDirectoryAssoc] = useState(null);
+  const [clientDirectories, setClientDirectories] = useState([]);
+  const [directoriesLoading, setDirectoriesLoading] = useState(false);
+  const [directoriesError, setDirectoriesError] = useState("");
+  const [selectedDirectoryId, setSelectedDirectoryId] = useState("");
+  const [attachingDirectory, setAttachingDirectory] = useState(false);
+  const [detachingDirectory, setDetachingDirectory] = useState(false);
+  const [buildingDirectory, setBuildingDirectory] = useState(false);
 
   // ── CSV tab ───────────────────────────────────────────────────────────────
   const [fileErr, setFileErr] = useState("");
@@ -249,20 +263,23 @@ export default function ClientMapData() {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data: m }, { data: g }, { data: ds }, l, { count }] = await Promise.all([
-          supabase.from("maps").select("id,name").eq("id", mapId).single(),
+        const [{ data: m }, { data: g }, { data: ds }, l, { count }, assoc] = await Promise.all([
+          supabase.from("maps").select("id,name,client_id").eq("id", mapId).single(),
           supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
           supabase.from("map_data_sources").select("id").eq("map_id", mapId).eq("provider", "google_sheets").eq("enabled", true).limit(1),
           fetchListings(),
           supabase.from("sync_logs").select("id", { count: "exact", head: true }).eq("map_id", mapId),
+          getMapDirectoryAssociation(mapId),
         ]);
         setMap(m ?? null);
+        setClientId(m?.client_id ?? null);
         setGroups(g ?? []);
         const linked = (ds?.length ?? 0) > 0;
         setIntegrationLinked(linked);
         setActiveTab(linked ? "drive" : "branding");
         setListings(l ?? []);
         setSyncLogCount(count ?? 0);
+        setDirectoryAssoc(assoc);
       } catch (e) {
         setErr(e?.message ?? String(e));
       }
@@ -908,9 +925,89 @@ export default function ClientMapData() {
 
   function handleTabChange(tab) {
     if (integrationLinked && (tab === "manual" || tab === "spreadsheet")) return;
+    if (directoryAssoc && (tab === "manual" || tab === "spreadsheet" || tab === "drive")) return;
+    if (integrationLinked && tab === "directories") return;
     setMsg(""); setErr(""); setSheetErr(""); setSheetMsg("");
     setJustDisconnected(false);
     setActiveTab(tab);
+  }
+
+  // ── Directory datasource functions (DIR-E4-S2) ────────────────────────────
+
+  useEffect(() => {
+    if (activeTab !== "directories" || clientDirectories.length > 0 || directoriesLoading) return;
+    (async () => {
+      try {
+        setDirectoriesLoading(true); setDirectoriesError("");
+        const dirs = await listDirectories(clientId);
+        setClientDirectories(dirs);
+      } catch (e) {
+        setDirectoriesError(e?.message ?? String(e));
+      } finally {
+        setDirectoriesLoading(false);
+      }
+    })();
+  }, [activeTab, clientId, clientDirectories.length, directoriesLoading]);
+
+  const linkedDirectory = directoryAssoc
+    ? clientDirectories.find((d) => d.id === directoryAssoc.directory_id) ?? null
+    : null;
+
+  async function handleAttachDirectory() {
+    if (!selectedDirectoryId) return;
+    try {
+      setAttachingDirectory(true); setDirectoriesError("");
+      const assoc = await attachDirectoryToMap(mapId, selectedDirectoryId);
+      setDirectoryAssoc(assoc);
+      setSelectedDirectoryId("");
+      recordAdminEvent(supabase, {
+        eventType: "data_directory_linked",
+        clientId,
+        mapId,
+        meta: { client_id: clientId, map_id: mapId, directory_id: selectedDirectoryId, source: "client_portal" },
+      });
+    } catch (e) {
+      setDirectoriesError(e?.message ?? String(e));
+    } finally {
+      setAttachingDirectory(false);
+    }
+  }
+
+  async function handleDetachDirectory() {
+    const detachedDirectoryId = directoryAssoc?.directory_id ?? null;
+    try {
+      setDetachingDirectory(true); setDirectoriesError("");
+      await detachDirectoryFromMap(mapId);
+      setDirectoryAssoc(null);
+      recordAdminEvent(supabase, {
+        eventType: "data_directory_unlinked",
+        clientId,
+        mapId,
+        meta: { client_id: clientId, map_id: mapId, directory_id: detachedDirectoryId, source: "client_portal" },
+      });
+    } catch (e) {
+      setDirectoriesError(e?.message ?? String(e));
+    } finally {
+      setDetachingDirectory(false);
+    }
+  }
+
+  async function handleBuildDirectoryFromMap() {
+    try {
+      setBuildingDirectory(true); setDirectoriesError("");
+      const dir = await createDirectoryFromMap(mapId);
+      recordAdminEvent(supabase, {
+        eventType: "directory_created",
+        meta: { name: dir.name, slug: dir.slug, directory_id: dir.id, source_map_id: mapId },
+        source: "client_portal",
+        clientId,
+      });
+      navigate(`/client/directories/${encodeURIComponent(dir.id)}`);
+    } catch (e) {
+      setDirectoriesError(e?.message ?? String(e));
+    } finally {
+      setBuildingDirectory(false);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -918,11 +1015,13 @@ export default function ClientMapData() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const syncLockedReason = "Disconnect Google Drive to use this tab";
+  const directoryLockedReason = "Disconnect the linked directory to use this tab";
   const tabs = [
     { id: "branding", label: "Map data" },
-    { id: "manual", label: "Manual entry", disabled: integrationLinked, disabledReason: syncLockedReason },
-    { id: "spreadsheet", label: "Upload CSV", disabled: integrationLinked, disabledReason: syncLockedReason },
-    { id: "drive", label: "Sync data" },
+    { id: "manual", label: "Manual entry", disabled: integrationLinked || !!directoryAssoc, disabledReason: directoryAssoc ? directoryLockedReason : syncLockedReason },
+    { id: "spreadsheet", label: "Upload CSV", disabled: integrationLinked || !!directoryAssoc, disabledReason: directoryAssoc ? directoryLockedReason : syncLockedReason },
+    { id: "drive", label: "Sync data", disabled: !!directoryAssoc, disabledReason: directoryLockedReason },
+    { id: "directories", label: "Directories", disabled: integrationLinked, disabledReason: syncLockedReason },
     ...(syncLogCount > 0 ? [{ id: "sync_history", label: "Sync History" }] : []),
   ];
 
@@ -953,20 +1052,7 @@ export default function ClientMapData() {
       </div>
 
       {/* ── Tab bar ── */}
-      <div className="admin-map-tabs" style={{ marginBottom: 20 }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`admin-map-tabs__tab ${activeTab === tab.id ? "is-active" : ""} ${tab.disabled ? "is-disabled" : ""}`}
-            onClick={() => !tab.disabled && handleTabChange(tab.id)}
-            title={tab.disabled ? tab.disabledReason : undefined}
-            style={tab.disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
 
       {justDisconnected && (
         <Alert color="teal" variant="light" mb="md" withCloseButton onClose={() => setJustDisconnected(false)}>
@@ -1152,6 +1238,73 @@ export default function ClientMapData() {
               {sheetStatus.issues.map((x) => <div key={x}>{x}</div>)}
             </Alert>
           ) : null}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: Directories (DIR-E4-S2)
+      ══════════════════════════════════════════════════════════════════════ */}
+
+      {activeTab === "directories" && (
+        <div className="admin-card" style={{ padding: 20, display: "grid", gap: 16 }}>
+          <p style={{ margin: 0, fontSize: 13, opacity: 0.7, maxWidth: 560 }}>
+            Use one of your directories as this map's live pin datasource instead of its own listings.
+          </p>
+
+          {directoriesError && <Alert color="red" variant="light">{directoriesError}</Alert>}
+
+          {directoryAssoc ? (
+            <Stack gap="sm">
+              <div style={{ padding: "8px 10px", background: "rgba(0,0,0,0.04)", borderRadius: 6 }}>
+                <Text size="xs" c="dimmed" mb={2}>Linked directory</Text>
+                <Text size="sm" fw={500}>{linkedDirectory?.name ?? directoryAssoc.directory_id}</Text>
+              </div>
+              <Text size="xs" c="dimmed" maw={560}>
+                This map's pins are read live from the directory's published entries — no separate sync step. Edits only appear here once the directory is next published.
+              </Text>
+              <Group gap="xs">
+                <Button size="xs" variant="subtle" color="red" leftSection={<Unlink size={13} />} onClick={handleDetachDirectory} loading={detachingDirectory} disabled={detachingDirectory}>
+                  Disconnect
+                </Button>
+              </Group>
+            </Stack>
+          ) : (
+            <Stack gap="sm">
+              {directoriesLoading && <Text size="xs" c="dimmed">Loading directories…</Text>}
+              {!directoriesLoading && clientDirectories.length === 0 ? (
+                <Text size="xs" c="dimmed">No directories yet.</Text>
+              ) : (
+                !directoriesLoading && (
+                  <>
+                    <Select
+                      size="sm"
+                      placeholder="Choose a directory"
+                      value={selectedDirectoryId || null}
+                      onChange={(v) => setSelectedDirectoryId(v ?? "")}
+                      data={clientDirectories.map((d) => ({ value: d.id, label: d.name }))}
+                      style={{ maxWidth: 380 }}
+                    />
+                    <Group gap="xs">
+                      <Button size="sm" onClick={handleAttachDirectory} disabled={!selectedDirectoryId || attachingDirectory} loading={attachingDirectory}>
+                        Use this directory
+                      </Button>
+                    </Group>
+                  </>
+                )
+              )}
+
+              {!directoriesLoading && (
+                <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: 14, marginTop: 4 }}>
+                  <Text size="xs" c="dimmed" maw={560} mb={8}>
+                    Or copy this map's groups and listings into a brand-new directory. You'll review and publish it before it's linked back to this map.
+                  </Text>
+                  <Button size="sm" variant="default" leftSection={<FolderOpen size={14} />} onClick={handleBuildDirectoryFromMap} loading={buildingDirectory} disabled={buildingDirectory}>
+                    Build a directory from this map
+                  </Button>
+                </div>
+              )}
+            </Stack>
+          )}
         </div>
       )}
 

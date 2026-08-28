@@ -226,6 +226,47 @@ export async function upsertDirectoryEntries(rows) {
   return data ?? [];
 }
 
+/** Copies mapId's groups and listings into a brand-new directory. Does not publish it or attach it back to the map. */
+export async function createDirectoryFromMap(mapId, { name, slug } = {}) {
+  const { data, error } = await supabase.rpc("create_directory_from_map", {
+    p_map_id: mapId,
+    p_name: name ? String(name).trim() : null,
+    p_slug: slug ? String(slug).trim() : null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// ---- Map <-> directory datasource association (DIR-E4-S2) ----
+
+/** The map's directory datasource association, or null if the map is self-authored. */
+export async function getMapDirectoryAssociation(mapId) {
+  if (!mapId) return null;
+  const { data, error } = await supabase
+    .from("directory_map_associations")
+    .select("map_id, directory_id, created_at")
+    .eq("map_id", mapId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Makes mapId read its pins live from directoryId instead of its own listings. */
+export async function attachDirectoryToMap(mapId, directoryId) {
+  const { data, error } = await supabase.rpc("attach_directory_to_map", {
+    p_map_id: mapId,
+    p_directory_id: directoryId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Reverts mapId to self-authored mode (Manual entry / Upload CSV / Sync data). */
+export async function detachDirectoryFromMap(mapId) {
+  const { error } = await supabase.rpc("detach_directory_from_map", { p_map_id: mapId });
+  if (error) throw error;
+}
+
 // ---- Member-level per-directory permissions (contact_directory_permissions) ----
 
 /**
