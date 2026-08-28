@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-27 — [Staging] Directory homepage: entry logos + embed the attached map
+## 2026-08-27 — [Production] Directory homepage: entry logos + embed the attached map
 
-**Branch:** `feat/2026-08-27-map-directory-datasource-homepage`
-**Status:** implemented, `deno check` clean, real regeneration verified against staging data; not yet deployed to production.
+**Branch/PR:** `feat/2026-08-27-map-directory-datasource-homepage`, [#140](https://github.com/layercake-cx/directory-maps/pull/140), merged to `main`.
+**Status:** deployed to staging and production (`generate_directory_site` Edge Function only — no frontend/`src/` changes, so no GitHub Pages/Vercel deploy needed for this one). Takes effect the next time any directory is published or republished; not forced against any real production directory content this session — that's the client's own action via the Publish button.
 **Context:** the user, testing the DIR-E4 rollout above, flagged two homepage issues on a real published directory: entry tiles had no logos, and the homepage's embedded map was a homegrown pins-only view built straight from `directory_entries` rather than the actual map that already has this directory as its DIR-E4 datasource.
 
 ### What changed (`supabase/functions/generate_directory_site/index.ts`)
@@ -28,7 +28,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check` clean.
 - [x] Real regeneration against real staging data (directory with a real attached map) succeeded, no errors.
 - [ ] Visual confirmation (screenshot of the actual rendered homepage) not done — couldn't resolve the deterministic Vercel Blob URL this session; the successful regeneration count is the verification, per this function's own established precedent (see the DIR-E6 entry below).
-- [ ] Not yet deployed to production.
+- [x] Deployed to production (`gxixwdjfmegxcxfeflro`).
 
 ### Rollback plan
 - Revert this branch's commit, redeploy `generate_directory_site` to whichever environment(s) it was deployed to.
