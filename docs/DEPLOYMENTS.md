@@ -8,10 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-28 — [Not yet deployed] Directory homepage map is exclusively the attached Map product
+## 2026-08-28 — [Production] Directory homepage map is exclusively the attached Map product
 
-**Branch:** `feat/2026-08-28-directory-map-product-boundary`
-**Status:** implemented, `deno check`/`npm run build`/`node --check middleware.js` clean, real regeneration verified against staging for both cases (map attached / no map attached); not yet deployed to production.
+**Branch/PR:** `feat/2026-08-28-directory-map-product-boundary`, [#143](https://github.com/layercake-cx/directory-maps/pull/143), merged and deployed — `generate_directory_site` to staging then production, plus GitHub Pages and `npm run deploy:live` (frontend + `middleware.js` both changed this time).
 **Context:** the user's framing after seeing the previous entry's fix working: "two separate Layercake products working together" — Maps and Directories shouldn't each maintain their own map-rendering implementation. Decided to remove the homegrown pins-only homepage map entirely rather than keep it as a fallback.
 
 ### What changed
@@ -23,7 +22,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check`, `npm run build`, `node --check middleware.js` all clean.
 - [x] Deployed to staging; real regeneration succeeded for both a directory with an attached map (`e270f4a4-...`, `{"ok":true,"count":13}`) and one without (`387fb4b3-...`, `{"ok":true,"count":204}`) — confirms the map-present and map-absent code paths both run cleanly against real data.
 - [ ] Visual confirmation not done — same blob-URL-resolution limitation as the earlier homepage entry.
-- [ ] Not yet deployed to production.
+- [x] Deployed to production (`generate_directory_site`, GitHub Pages, Vercel).
 
 ### Rollback plan
 - Revert this branch's commit, redeploy `generate_directory_site` + frontend to whichever environment(s) it reached.
