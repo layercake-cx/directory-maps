@@ -21,7 +21,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `deno check`, `npm run build` clean.
-- [ ] Not yet applied to staging/production or interactively tested.
+- [x] Applied to staging; real regeneration against real data wrote `site_generation_status="succeeded"` with correct timestamps.
+- [x] Real failure path verified against real data too — a directory hit a genuine (repeated, not one-off) Vercel Blob 503 during this testing, and the exact error message landed in `site_generation_error` with `status="failed"`, `site_generated_at` left untouched. This is the same class of failure that made the earlier production incident invisible; confirms the fix actually surfaces it.
+- [ ] Not yet deployed to production.
+- [ ] Frontend panel (`DirectoryPublishPanel.jsx`) not interactively tested — same login-credential limitation as other admin/client UI this session.
 
 ### Rollback plan
 - Frontend/Edge Function: revert the commit, redeploy.
