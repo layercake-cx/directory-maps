@@ -8,7 +8,25 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-28 — [Not yet deployed] Directory publish status visibility
+## 2026-08-28 — [Production] Fix: directory-sourced map embeds showed zero pins
+
+**Branch:** `fix/2026-08-28-directory-map-associations-anon-select`
+**Status:** deployed to staging then production directly (urgent — a real production map, "UK Associations Sample Map", was showing zero pins live). Documented after the fact.
+**Context:** the user reported the map's public embed showed "No listings match your filters." after linking it to a directory and publishing. Root cause: `directory_map_associations` (`20260827150000`) was created with only `admin`/`own_client` authenticated RLS policies — no anon-select policy. `EmbedMap.jsx`'s directory-check (`resolveDirectoryAssociation`) deliberately uses an anon-only Supabase client (documented in that file: the embed must always hit PostgREST as anon, matching real embed behaviour regardless of viewer login state). Without an anon policy, that check always returned null, so every directory-sourced map's *public embed* silently fell back to the map's own (now-empty, since the data lives in the directory) `listings` — while the design/edit dashboard (authenticated) and the directory's own homepage (uses a service-role Edge Function) both worked fine, masking the bug until someone checked the actual public embed.
+
+### What changed
+`supabase/migrations/20260828130000_directory_map_associations_anon_select.sql`: adds `directory_map_associations_anon_select` (`using (true)`) + anon grant — matches the existing (deliberately unconditional) anon policy already on `maps`/`groups`/`listings`, not a stricter or looser posture, just the policy this table should have had from the start.
+
+### Verified
+- [x] Applied to staging; anon can now read the association (confirmed via curl).
+- [x] Applied to production; confirmed live — `https://maps.layercake-cx.biz/layercake/uk-associations-sample-map` now shows real pins/clusters and the populated list panel, screenshot-verified.
+
+### Rollback plan
+- `_20260828130000_directory_map_associations_anon_select.rollback.sql` — drops the policy/grant. **Do not roll back while any directory-sourced map is live** — this is the fix for the exact bug the rollback would reintroduce.
+
+---
+
+## 2026-08-28 — [Production] Directory publish status visibility
 
 **Branch:** `feat/2026-08-28-directory-publish-status`
 **Status:** implemented, `deno check`/`npm run build` clean; not yet deployed.
@@ -23,7 +41,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check`, `npm run build` clean.
 - [x] Applied to staging; real regeneration against real data wrote `site_generation_status="succeeded"` with correct timestamps.
 - [x] Real failure path verified against real data too — a directory hit a genuine (repeated, not one-off) Vercel Blob 503 during this testing, and the exact error message landed in `site_generation_error` with `status="failed"`, `site_generated_at` left untouched. This is the same class of failure that made the earlier production incident invisible; confirms the fix actually surfaces it.
-- [ ] Not yet deployed to production.
+- [x] Deployed to production (migration, `generate_directory_site`, GitHub Pages, Vercel).
 - [ ] Frontend panel (`DirectoryPublishPanel.jsx`) not interactively tested — same login-credential limitation as other admin/client UI this session.
 
 ### Rollback plan
