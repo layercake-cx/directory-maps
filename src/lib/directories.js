@@ -239,6 +239,29 @@ export async function createDirectoryFromMap(mapId, { name, slug } = {}) {
 
 // ---- Map <-> directory datasource association (DIR-E4-S2) ----
 
+/**
+ * Maps that use this directory as their live pin datasource — [] if none.
+ * Used to warn before archiving/deleting a directory (a linked map either
+ * silently keeps serving stale data forever, if published and the
+ * directory is archived, or reverts to its own manually-edited listings,
+ * if the directory is deleted).
+ */
+export async function getMapsLinkedToDirectory(directoryId) {
+  if (!directoryId) return [];
+  const { data: assocs, error } = await supabase
+    .from("directory_map_associations")
+    .select("map_id")
+    .eq("directory_id", directoryId);
+  if (error) throw error;
+  if (!assocs?.length) return [];
+  const { data: maps, error: mapsErr } = await supabase
+    .from("maps")
+    .select("id, name, slug, current_publication_id")
+    .in("id", assocs.map((a) => a.map_id));
+  if (mapsErr) throw mapsErr;
+  return maps ?? [];
+}
+
 /** The map's directory datasource association, or null if the map is self-authored. */
 export async function getMapDirectoryAssociation(mapId) {
   if (!mapId) return null;
