@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { listCategorisations } from "../../lib/categorisations";
 import {
   buildDirectoryPublicationConfig,
+  getDirectorySiteGenerationStatus,
   listDirectoryPublications,
   publishDirectory,
   rollbackDirectoryTo,
@@ -26,6 +27,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   const [rollingBackId, setRollingBackId] = useState(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const [genStatus, setGenStatus] = useState(null);
 
   function handleGenerationResult(successMsg, result) {
     if (result?.skipped === "flag_disabled") {
@@ -60,6 +62,26 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
 
   useEffect(() => { void refreshHistory(); }, [refreshHistory]);
 
+  const refreshGenStatus = useCallback(async () => {
+    if (!directory?.id) return;
+    try {
+      setGenStatus(await getDirectorySiteGenerationStatus(directory.id));
+    } catch {
+      /* non-fatal: status display just stays stale/empty */
+    }
+  }, [directory?.id]);
+
+  useEffect(() => { void refreshGenStatus(); }, [refreshGenStatus]);
+
+  // Poll while a generation is in progress, so this reflects reality even if
+  // it was triggered from a different tab, or this tab was reloaded after
+  // the triggering fire-and-forget call already resolved/failed elsewhere.
+  useEffect(() => {
+    if (genStatus?.site_generation_status !== "running") return;
+    const id = setInterval(() => { void refreshGenStatus(); }, 3000);
+    return () => clearInterval(id);
+  }, [genStatus?.site_generation_status, refreshGenStatus]);
+
   async function handlePublish() {
     setErr("");
     setMsg("");
@@ -69,8 +91,9 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       const config = buildDirectoryPublicationConfig({ directory, categorisations });
       recordEvent?.("directory_publish_requested", { directory_id: directory.id, note_present: !!note.trim() });
       await publishDirectory(directory.id, config, note);
+      setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
       triggerDirectorySiteRegeneration(directory.id, {
-        onResult: (result) => handleGenerationResult("Published and public pages generated.", result),
+        onResult: (result) => { handleGenerationResult("Published and public pages generated.", result); void refreshGenStatus(); },
       });
       recordEvent?.("directory_published", { directory_id: directory.id, note_present: !!note.trim() });
       setNote("");
@@ -92,8 +115,9 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
     try {
       setRollingBackId(pub.id);
       await rollbackDirectoryTo(directory.id, pub.id);
+      setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
       triggerDirectorySiteRegeneration(directory.id, {
-        onResult: (result) => handleGenerationResult(`Restored version ${pub.version} and regenerated public pages.`, result),
+        onResult: (result) => { handleGenerationResult(`Restored version ${pub.version} and regenerated public pages.`, result); void refreshGenStatus(); },
       });
       recordEvent?.("directory_publish_rolled_back", { directory_id: directory.id, from_publication_id: directory.current_publication_id, to_publication_id: pub.id });
       setMsg(`Restored version ${pub.version} — regenerating public pages…`);
@@ -110,6 +134,34 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
     ? `https://maps.layercake-cx.biz/directories/${clientSlug}/${directory.slug}`
     : null;
 
+  async function handleRegenerate() {
+    setErr(""); setMsg("");
+    setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
+    triggerDirectorySiteRegeneration(directory.id, {
+      onResult: (result) => { handleGenerationResult("Public pages regenerated.", result); void refreshGenStatus(); },
+    });
+  }
+
+  const genStatusLine = (() => {
+    if (!genStatus?.site_generation_status) return null;
+    if (genStatus.site_generation_status === "running") {
+      return <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>⏳ Generating public pages…</p>;
+    }
+    if (genStatus.site_generation_status === "failed") {
+      return (
+        <p style={{ fontSize: 12, color: "#b91c1c", margin: "0 0 8px" }}>
+          Public pages generation failed{genStatus.site_generated_at ? ` (last succeeded ${new Date(genStatus.site_generated_at).toLocaleString()})` : ""}: {genStatus.site_generation_error || "unknown error"}.{" "}
+          <button type="button" className="btn" style={{ fontSize: 11, padding: "2px 6px" }} onClick={handleRegenerate}>Retry</button>
+        </p>
+      );
+    }
+    return (
+      <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
+        Public pages last generated {new Date(genStatus.site_generated_at).toLocaleString()}.
+      </p>
+    );
+  })();
+
   return (
     <div>
       <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Publish</p>
@@ -122,6 +174,8 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       ) : (
         <p style={{ fontSize: 13, opacity: 0.7, margin: "0 0 8px" }}>Not published yet.</p>
       )}
+
+      {genStatusLine}
 
       {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
       {msg && <p style={{ color: "#166534", fontSize: 12, margin: "0 0 8px" }}>{msg}</p>}

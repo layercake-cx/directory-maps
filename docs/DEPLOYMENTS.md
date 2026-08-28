@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-28 — [Not yet deployed] Directory publish status visibility
+
+**Branch:** `feat/2026-08-28-directory-publish-status`
+**Status:** implemented, `deno check`/`npm run build` clean; not yet deployed.
+**Context:** immediately after the previous entry's rollout, the user republished the real production "UK Associations Sample Map" directory and its homepage still showed the old map view. Investigation found a genuine race (their publish landed within seconds of the `generate_directory_site` production deploy, running the previous version) plus a transient Vercel Blob 503 on the manual retry — both invisible to the user, because `triggerDirectorySiteRegeneration` (`lib/directoryPublications.js`) is fire-and-forget: its result only ever reaches whichever browser tab triggered it, and is lost on navigation/reload. The user asked directly for "something to tell me publishing was in progress, and then when it last ran once completed."
+
+### What changed
+- **Schema** (`supabase/migrations/20260828120000_directory_site_generation_status.sql`, additive only): `directories` gains `site_generation_status` (`running`/`succeeded`/`failed`/null), `site_generation_started_at`, `site_generated_at`, `site_generation_error`.
+- **Edge Function** (`generate_directory_site/index.ts`): the existing function body was renamed to `generateForDirectoryInner` and wrapped in a new thin `generateForDirectory`, which sets `running` before the real work starts, `succeeded` (+ timestamp, clearing any old error) on success, `failed` (+ error message) on any thrown error — before re-throwing, so the existing HTTP error response is unchanged. Applies to both single-directory and bulk (`all: true`) regeneration, since both paths call the same function per directory.
+- **Frontend** (`DirectoryPublishPanel.jsx`, `lib/directoryPublications.js`): new `getDirectorySiteGenerationStatus()` reads the four columns; the panel fetches on mount and polls every 3s while status is `running` (so it stays correct across reloads or a generation triggered elsewhere), shows "Generating…", "Public pages last generated at X", or "Generation failed: <error> [Retry]", and optimistically flips to "running" the moment a publish/rollback/retry is triggered rather than waiting for the first poll.
+
+### Verified
+- [x] `deno check`, `npm run build` clean.
+- [x] Applied to staging; real regeneration against real data wrote `site_generation_status="succeeded"` with correct timestamps.
+- [x] Real failure path verified against real data too — a directory hit a genuine (repeated, not one-off) Vercel Blob 503 during this testing, and the exact error message landed in `site_generation_error` with `status="failed"`, `site_generated_at` left untouched. This is the same class of failure that made the earlier production incident invisible; confirms the fix actually surfaces it.
+- [ ] Not yet deployed to production.
+- [ ] Frontend panel (`DirectoryPublishPanel.jsx`) not interactively tested — same login-credential limitation as other admin/client UI this session.
+
+### Rollback plan
+- Frontend/Edge Function: revert the commit, redeploy.
+- Database: `_20260828120000_directory_site_generation_status.rollback.sql` — additive-only, straight column drop.
+
+---
+
 ## 2026-08-28 — [Production] Directory homepage map is exclusively the attached Map product
 
 **Branch/PR:** `feat/2026-08-28-directory-map-product-boundary`, [#143](https://github.com/layercake-cx/directory-maps/pull/143), merged and deployed — `generate_directory_site` to staging then production, plus GitHub Pages and `npm run deploy:live` (frontend + `middleware.js` both changed this time).

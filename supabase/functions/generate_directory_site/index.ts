@@ -702,9 +702,34 @@ function buildLlmsTxt(opts: {
   return lines.join("\n");
 }
 
+/**
+ * Records generate_directory_site's outcome on directories.site_generation_*
+ * so the Publish panel can show live status regardless of whether the
+ * browser tab that triggered it is still open (see
+ * 20260828120000_directory_site_generation_status.sql).
+ */
 async function generateForDirectory(directoryId: string): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const db = createServiceClient();
+  try {
+    const result = await generateForDirectoryInner(db, directoryId);
+    if (!result.skipped) {
+      await db
+        .from("directories")
+        .update({ site_generation_status: "succeeded", site_generated_at: new Date().toISOString(), site_generation_error: null })
+        .eq("id", directoryId);
+    }
+    return result;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await db.from("directories").update({ site_generation_status: "failed", site_generation_error: msg }).eq("id", directoryId);
+    throw e;
+  }
+}
 
+async function generateForDirectoryInner(
+  db: ReturnType<typeof createServiceClient>,
+  directoryId: string,
+): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
     .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, theme_json")
@@ -721,6 +746,11 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
 
   const flagEnabled = await resolveFeatureFlag(db, client.id, "directories");
   if (!flagEnabled) return { directory_id: directoryId, skipped: "flag_disabled" };
+
+  await db
+    .from("directories")
+    .update({ site_generation_status: "running", site_generation_started_at: new Date().toISOString() })
+    .eq("id", directoryId);
 
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")

@@ -97,3 +97,20 @@ export async function listDirectoryPublications(directoryId) {
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * Persistent generate_directory_site status (docs/DEPLOYMENTS.md,
+ * "Publish status visibility" — a real production failure was invisible
+ * until manually investigated, since triggerDirectorySiteRegeneration above
+ * is fire-and-forget and its result only ever reached whichever browser tab
+ * triggered it). Written by the Edge Function itself; read-only here.
+ */
+export async function getDirectorySiteGenerationStatus(directoryId) {
+  const { data, error } = await supabase
+    .from("directories")
+    .select("site_generation_status, site_generation_started_at, site_generated_at, site_generation_error")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
