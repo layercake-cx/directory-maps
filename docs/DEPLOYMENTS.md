@@ -8,10 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Not yet deployed] Warn before archiving/deleting a directory with a linked map
+## 2026-08-29 — [Production] Warn before archiving/deleting a directory with a linked map
 
-**Branch:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`
-**Status:** implemented, `npm run build` clean; not yet deployed.
+**Branch/PR:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`, [#147](https://github.com/layercake-cx/directory-maps/pull/147), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).
 **Context:** after validating the "two independent products, linkable from either direction" model, two real gaps: deleting a directory silently breaks any attached map (cascades the association, no warning), and archiving a directory does nothing to a linked map's public visibility (by design — archiving isn't the same as unpublishing — but nothing told the client that). Decided: no schema/behavior change, just make both consequences visible before the action, with the exact expected-behavior wording the user specified.
 
 ### What changed
@@ -20,6 +19,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` clean.
+- [x] Deployed to production (GitHub Pages, Vercel).
 - [ ] Not interactively tested (no login credentials this session).
 
 ### Rollback plan
