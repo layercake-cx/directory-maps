@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-28 — [Not yet deployed] Map design/edit preview now shows directory-sourced pins
+
+**Branch:** `fix/2026-08-28-map-design-preview-directory-sourced`
+**Status:** implemented, `npm run build` clean; not yet deployed.
+**Context:** the user linked a real map to a directory and reported the map's design/edit dashboard showed no pins and no entries — the DIR-E4 fix two entries below only updated the public embed (`EmbedMap.jsx`); the separate design/editing dashboards were missed.
+
+### What changed
+`AdminMapDashboard.jsx` and `ClientMapDashboard.jsx` (the design/theme editor with a live `PublishedMapView` preview — distinct from `AdminMapData.jsx`/`ClientMapData.jsx`'s Data tab) now check `directory_map_associations` in their main load effect exactly like `EmbedMap.jsx` does, and fetch `public_directory_entries`/`directory_groups` (normalizing `directory_group_id` → `group_id`, no per-group `theme_json`) instead of `listings`/`groups` when linked. Also:
+- Guarded `updateListingLogoBg` (the per-listing logo-background picker in the Data overlay tab) to refuse and show a message instead of silently updating zero rows, since a directory-sourced pin's `id` doesn't exist in `listings`.
+- Added a small note in both dashboards' overlay panel when directory-sourced, pointing people at the directory for entry edits.
+
+**Known gap, not fixed in this pass:** `ClientMapDashboard.jsx` has a second, narrower `groups` reload (inside the "restore/reset design" flow around line ~1581) that still reads the map's own `groups` table unconditionally — for a directory-sourced map this would briefly repaint the preview with the (unused) map-level groups after a rollback/reset action specifically. Not fixed here to keep this change scoped to the reported bug (pins/entries not showing on normal load); worth revisiting if a rollback while directory-linked turns out to be a real workflow.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested — same login-credential limitation as other admin/client dashboard changes this session.
+
+### Rollback plan
+- Revert this branch's commit(s), redeploy.
+- No schema/data changes.
+
+---
+
 ## 2026-08-27 — [Production] Directory homepage: entry logos + embed the attached map
 
 **Branch/PR:** `feat/2026-08-27-map-directory-datasource-homepage`, [#140](https://github.com/layercake-cx/directory-maps/pull/140), merged to `main`.
