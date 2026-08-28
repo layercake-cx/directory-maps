@@ -195,6 +195,8 @@ const BASE_STYLE = `
   .badge img { height: 16px; }
   .tag { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--ink); border-radius: 7px; padding: 5px 9px; font-size: 12px; font-weight: 600; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .card-logo-box { height: 158px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
+  .card-logo-box img { max-width: 70%; max-height: 70%; object-fit: contain; }
   .eyebrow { font-size: 12.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .muted { color: var(--muted); }
   .prose p { font-size: 16.5px; line-height: 1.7; margin: 0 0 16px; }
@@ -589,9 +591,10 @@ function buildDirectoryLandingPage(opts: {
   directoryLinks: EntryLink[];
   theme: DirectoryTheme;
   entriesJsonUrl: string | null;
+  attachedMapEmbedSrc: string | null;
   categorisationLabels: string[];
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, entriesJsonUrl, categorisationLabels } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, entriesJsonUrl, attachedMapEmbedSrc, categorisationLabels } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -599,8 +602,11 @@ function buildDirectoryLandingPage(opts: {
     .map((e) => {
       const location = e.show_address ? [e.address, e.city, e.country].filter(Boolean).join(", ") : "";
       const searchText = escapeAttr(`${e.name} ${location}`.toLowerCase());
+      const logo = e.logo_url
+        ? `<img src="${escapeAttr(e.logo_url)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
+        : "";
       return `<div class="card" data-search="${searchText}">
-  <div style="height:158px;background:var(--surface-2);"></div>
+  <div class="card-logo-box">${logo}</div>
   <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
     ${location ? `<div class="muted" style="font-size:13px;font-weight:600;">${escapeHtml(location)}</div>` : ""}
     <h3 style="font-size:19px;line-height:1.2;"><a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}">${escapeHtml(e.name)}</a></h3>
@@ -622,8 +628,21 @@ function buildDirectoryLandingPage(opts: {
     })),
   };
 
-  const mapEmbed = entriesJsonUrl
-    ? `<iframe src="/directory-embed?src=${encodeURIComponent(entriesJsonUrl)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
+  // If a map has this directory attached as its live pin datasource (DIR-E4),
+  // the homepage embeds that actual map — its own full-featured embed
+  // (theme, clustering, search, pin detail panel) — rather than the
+  // homegrown pins-only view built straight from directory_entries below.
+  // This isn't a new "directory links to a map" feature (that direction was
+  // rejected — see docs/DIRECTORIES.md §4.7's DIR-E8 note); it's the
+  // existing map→directory attachment used bidirectionally, only ever
+  // showing a map that has *already* chosen this directory as its datasource.
+  const mapEmbedSrc = attachedMapEmbedSrc
+    ? attachedMapEmbedSrc
+    : entriesJsonUrl
+      ? `/directory-embed?src=${encodeURIComponent(entriesJsonUrl)}`
+      : null;
+  const mapEmbed = mapEmbedSrc
+    ? `<iframe src="${escapeAttr(mapEmbedSrc)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
     : "";
 
   const body = `
@@ -867,11 +886,30 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   }
 
-  // Pins-only map data for the homepage's /directory-embed iframe — mirrors
-  // EmbedMap.jsx's own snapshot.json fetch pattern (see docs/DEPLOYMENTS.md's
-  // DIR-E3 visual-rebuild entry) rather than a live anon Supabase query,
-  // since directory_entries has no anon-select RLS policy today.
-  const pinnableEntries = entries.filter((e) => !e.noindex && e.lat != null && e.lng != null);
+  // Does a map already use this directory as its live pin datasource
+  // (DIR-E4)? If so, the homepage embeds that map directly instead of the
+  // homegrown pins-only view below.
+  let attachedMapEmbedSrc: string | null = null;
+  const { data: mapAssoc } = await db
+    .from("directory_map_associations")
+    .select("map_id")
+    .eq("directory_id", directory.id)
+    .limit(1)
+    .maybeSingle();
+  if (mapAssoc?.map_id) {
+    const { data: attachedMap } = await db.from("maps").select("slug").eq("id", mapAssoc.map_id).maybeSingle();
+    attachedMapEmbedSrc = attachedMap?.slug
+      ? `${SITE_ORIGIN}/${client.slug}/${attachedMap.slug}`
+      : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
+  }
+
+  // Pins-only map data for the homepage's /directory-embed iframe — used
+  // only as a fallback when no map is attached. Mirrors EmbedMap.jsx's own
+  // snapshot.json fetch pattern (see docs/DEPLOYMENTS.md's DIR-E3
+  // visual-rebuild entry) rather than a live anon Supabase query, since this
+  // predates directory_entries having an anon-select RLS policy — kept as
+  // a static blob regardless, to avoid a live query on every homepage load.
+  const pinnableEntries = attachedMapEmbedSrc ? [] : entries.filter((e) => !e.noindex && e.lat != null && e.lng != null);
   let entriesJsonUrl: string | null = null;
   if (pinnableEntries.length > 0) {
     const entriesJson = JSON.stringify(
@@ -896,6 +934,7 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     directoryLinks,
     theme,
     entriesJsonUrl,
+    attachedMapEmbedSrc,
     categorisationLabels: [...categorisationLabelByKey.values()],
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");

@@ -8,16 +8,54 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-27 — [Not yet deployed] DIR-E4: map reads pins live from a directory
+## 2026-08-27 — [Staging] Directory homepage: entry logos + embed the attached map
 
-**Branch:** `feat/2026-08-27-map-directory-datasource`
-**Status:** implemented, `npm run build` clean; not yet applied to staging or production.
+**Branch:** `feat/2026-08-27-map-directory-datasource-homepage`
+**Status:** implemented, `deno check` clean, real regeneration verified against staging data; not yet deployed to production.
+**Context:** the user, testing the DIR-E4 rollout above, flagged two homepage issues on a real published directory: entry tiles had no logos, and the homepage's embedded map was a homegrown pins-only view built straight from `directory_entries` rather than the actual map that already has this directory as its DIR-E4 datasource.
+
+### What changed (`supabase/functions/generate_directory_site/index.ts`)
+1. **Entry tile logos**: the tile template's image placeholder was a plain empty `<div>`, not driven by any entry field, even though `logo_url` was already fetched and typed. Now renders `entry.logo_url` when present (new `.card-logo-box` style).
+2. **Homepage map embeds the attached map**: queries `directory_map_associations` for this directory before building the homepage; if a map has it as a datasource, the homepage `<iframe>` points at that map's real embed URL (`${SITE_ORIGIN}/${clientSlug}/${mapSlug}`, falling back to `/embed?map=<id>` if the map has no slug) instead of the `/directory-embed?src=entries.json` pins-only view — the `entries.json` blob is skipped entirely in that case. This reuses the *existing* map→directory attachment bidirectionally for display; it is explicitly not the abandoned DIR-E8 "directory links to a map" feature (docs/DIRECTORIES.md §4.7) since it never lets a directory choose an arbitrary map, only ever surfaces one that already chose this directory as its datasource.
+
+### Sequence followed
+1. Delegated research (which of the two `generate_directory_*` Edge Functions is actually live, exact template locations, existing embed-URL patterns) to a background agent before touching code.
+2. Wrote both fixes by hand, `deno check` clean.
+3. Deployed to staging (`beqejxneehilplrtpntn`).
+4. Triggered real regeneration against the actual staging directory the user had just attached a map to during testing (`e270f4a4-...`, "Boon Lott's Elephant Sanctuary" et al., with the "Elephants" map attached) — `{"ok":true,"count":13}`, confirming both new queries and the template changes run cleanly against real data with a real attached map, not just type-checking.
+
+### Verified
+- [x] `deno check` clean.
+- [x] Real regeneration against real staging data (directory with a real attached map) succeeded, no errors.
+- [ ] Visual confirmation (screenshot of the actual rendered homepage) not done — couldn't resolve the deterministic Vercel Blob URL this session; the successful regeneration count is the verification, per this function's own established precedent (see the DIR-E6 entry below).
+- [ ] Not yet deployed to production.
+
+### Rollback plan
+- Revert this branch's commit, redeploy `generate_directory_site` to whichever environment(s) it was deployed to.
+- No schema/data changes — code-only change to a static-site generator; re-running it for any directory regenerates its homepage from current data either way.
+
+---
+
+## 2026-08-27 — [Production] DIR-E4: map reads pins live from a directory
+
+**Branch:** `feat/2026-08-27-map-directory-datasource`, plus two follow-up fix branches (see below).
+**Status:** deployed to staging and production. Migration `VERIFY PASSED` on both, row counts unchanged. PR [#137](https://github.com/layercake-cx/directory-maps/pull/137) merged and deployed (GitHub Pages + `npm run deploy:live`). Click-tested live by the user on staging and production, including a real "build a directory from this map" conversion.
+**Outcome — two bugs found live and fixed same-day:**
+- [PR #138](https://github.com/layercake-cx/directory-maps/pull/138): the Directories tab was disabled whenever a Google Sheets sync was linked — exactly the case someone wants to switch away from. Fixed to always be open; attaching a directory now auto-disconnects an active sync instead of blocking the tab.
+- [PR #139](https://github.com/layercake-cx/directory-maps/pull/139): the tab's lazy-load effect guarded on `clientDirectories.length > 0`, which never becomes true for a client with zero directories — caused an infinite refetch loop ("loading, then reloading, then reloading" as reported live). Fixed with a separate `directoriesFetched` boolean.
+
+Both fixes followed the same staging-db-check → PR → merge → GitHub Pages + Vercel deploy sequence as the main change, and are folded into "What changed" below rather than getting their own entries.
+
+**Decision arising from this rollout:** a map with an *active* Google Sheets sync should not be encouraged to convert to a directory-sourced map yet — directories have no Sheets-sync equivalent of their own, so today that conversion is a real downgrade to manual/CSV upkeep, not a neutral change. Fine for self-authored/CSV-managed maps. Directory-side sync is tracked as follow-on work, not yet scoped.
+
+**Original pre-deployment status (superseded by the above):** implemented, `npm run build` clean; not yet applied to staging or production.
 **Context:** first slice of the "Unify Map & Directory Data Model" epic (Monday item 3189433497) — the user wants to convert the production map "UK Associations Sample" into a directory with map and directory sharing one copy of the data, no drift. This slice builds the already-spec'd DIR-E4 mechanism (docs/DIRECTORIES.md §4.7) that a later migration (not part of this PR) will use to actually convert that map. No existing map, listing, or embed is touched by this change on its own.
 
 ### What changed
 1. **Schema** (`supabase/migrations/20260827150000_directory_map_datasource.sql`, additive only): `directory_map_associations` (map → directory, one directory per map via pk on `map_id`), `attach_directory_to_map()`/`detach_directory_from_map()` security-definer RPCs (verify the map and directory belong to the same client — mirrors `publish_directory`'s manual tenant re-check), `public_directory_entries` view (live read of `directory_entries`, not a publication snapshot — same precedent as `public_listings`, scoped to `is_active = true` and the owning directory having `current_publication_id is not null`). Also adds anon-select RLS + grants on `directories`/`directory_entries` (published-only), deliberately deferred by the original DIR-E1 migration pending this exact work.
 2. **Map Data panel**: new "Directories" tab in both `AdminMapData.jsx` and `ClientMapData.jsx` — pick a client directory, attach/detach live. Mutually exclusive with Manual entry/Upload CSV/Sync data in both directions (the first two-way tab-exclusivity relationship in this UI; previously only Sync was exclusive with Manual/CSV). Extracted the shared tab-strip markup into `src/components/MapDataTabs.jsx` (the spec's own decision — this was the third near-duplicate copy). New `data_directory_linked`/`data_directory_unlinked` admin events (catalogued in AGENTS.md).
 3. **Live embed** (`EmbedMap.jsx`): checks `directory_map_associations` ahead of the CDN-snapshot attempt (snapshots only ever contain this map's own `listings` as of last publish, so a directory-linked map always takes the live-query path). When linked, fetches `public_directory_entries`/`directory_groups` instead of `public_listings`/`groups`, normalizing `directory_group_id → group_id` so `PublishedMapView` needs no changes. Deliberately skips `mergeGroupWithPublication`'s byName fallback for directory groups — that fallback exists for the map's *own* publication history and could spuriously match a same-named leftover group after a future map→directory conversion. No filter chips for a directory-sourced map yet (directory entries have no `map_filter_fields` equivalent — flagged as a known v1 gap in USER_GUIDE.md/FEATURES.md).
+4. **Build a directory from a map** (`supabase/migrations/20260827160000_create_directory_from_map.sql`): `create_directory_from_map()` RPC copies a map's groups/listings into a brand-new directory (`source = 'map_import'` on the copied entries — added to `directory_entries`'s check constraint). Scoped to creation + copy only; publishing and attaching stay separate, visible steps. Surfaced as a "Build a directory from this map" button on the same Directories tab. The source map's own data is never touched or deleted by this.
 
 ### Sequence followed
 1. Wrote and reviewed the schema migration + rollback by hand.
@@ -34,8 +72,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [ ] Data-panel tab UI not interactively click-tested (same credential limitation).
 
 ### Rollback plan
-- Frontend: revert the relevant commit(s) on this branch (not yet merged).
-- Database: `_20260827150000_directory_map_datasource.rollback.sql` — additive-only forward migration, rollback is a straight drop; warns (does not block) if any live associations exist, since dropping them reverts affected maps to their own unchanged `listings`.
+- Frontend: revert PRs #137/#138/#139 on `main`, redeploy (GitHub Pages auto, `npm run deploy:live` for Vercel).
+- Database: `_20260827150000_directory_map_datasource.rollback.sql` and `_20260827160000_create_directory_from_map.rollback.sql` — both additive-only forward migrations; rollback is a straight drop, warns (does not block) if any live associations/`map_import` entries exist.
 
 ---
 
