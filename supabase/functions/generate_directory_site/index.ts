@@ -590,11 +590,10 @@ function buildDirectoryLandingPage(opts: {
   entries: Entry[];
   directoryLinks: EntryLink[];
   theme: DirectoryTheme;
-  entriesJsonUrl: string | null;
   attachedMapEmbedSrc: string | null;
   categorisationLabels: string[];
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, entriesJsonUrl, attachedMapEmbedSrc, categorisationLabels } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisationLabels } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -628,21 +627,18 @@ function buildDirectoryLandingPage(opts: {
     })),
   };
 
-  // If a map has this directory attached as its live pin datasource (DIR-E4),
-  // the homepage embeds that actual map — its own full-featured embed
-  // (theme, clustering, search, pin detail panel) — rather than the
-  // homegrown pins-only view built straight from directory_entries below.
-  // This isn't a new "directory links to a map" feature (that direction was
-  // rejected — see docs/DIRECTORIES.md §4.7's DIR-E8 note); it's the
-  // existing map→directory attachment used bidirectionally, only ever
-  // showing a map that has *already* chosen this directory as its datasource.
-  const mapEmbedSrc = attachedMapEmbedSrc
-    ? attachedMapEmbedSrc
-    : entriesJsonUrl
-      ? `/directory-embed?src=${encodeURIComponent(entriesJsonUrl)}`
-      : null;
-  const mapEmbed = mapEmbedSrc
-    ? `<iframe src="${escapeAttr(mapEmbedSrc)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
+  // Decision (2026-08-28): a directory's homepage map is exclusively the
+  // Map product attached to it via DIR-E4 — never a second, homegrown map
+  // implementation built from directory_entries. Maps and Directories are
+  // two separate Layercake products that compose through this attachment;
+  // a directory doesn't reimplement map rendering when one isn't attached,
+  // it simply has no map section. This isn't the abandoned DIR-E8
+  // "directory links to a map" feature (docs/DIRECTORIES.md §4.7's note):
+  // it's the existing map→directory attachment used bidirectionally, only
+  // ever showing a map that has *already* chosen this directory as its
+  // datasource — a directory still can't pick an arbitrary map.
+  const mapEmbed = attachedMapEmbedSrc
+    ? `<iframe src="${escapeAttr(attachedMapEmbedSrc)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
     : "";
 
   const body = `
@@ -660,7 +656,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
 </div>
 <div class="wrap" style="padding-top:48px;">
   <div class="eyebrow" style="margin-bottom:8px;">Explore</div>
-  <h2 style="font-size:26px;margin-bottom:16px;">The map &amp; the directory</h2>
+  <h2 style="font-size:26px;margin-bottom:16px;">${attachedMapEmbedSrc ? "The map &amp; the directory" : "Filter the directory"}</h2>
   ${exploreFilterBar(categorisationLabels)}
   ${mapEmbed}
 </div>
@@ -886,9 +882,13 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   }
 
-  // Does a map already use this directory as its live pin datasource
-  // (DIR-E4)? If so, the homepage embeds that map directly instead of the
-  // homegrown pins-only view below.
+  // Decision (2026-08-28): a directory's homepage map is exclusively the
+  // Map product attached to it via DIR-E4 — Maps and Directories are two
+  // separate Layercake products that compose through this attachment, not
+  // two independent map implementations. No attached map means no map
+  // section on the homepage, not a homegrown fallback built from
+  // directory_entries (that fallback existed before this decision and has
+  // been removed, along with the /directory-embed route it fed).
   let attachedMapEmbedSrc: string | null = null;
   const { data: mapAssoc } = await db
     .from("directory_map_associations")
@@ -903,28 +903,6 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
       : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
   }
 
-  // Pins-only map data for the homepage's /directory-embed iframe — used
-  // only as a fallback when no map is attached. Mirrors EmbedMap.jsx's own
-  // snapshot.json fetch pattern (see docs/DEPLOYMENTS.md's DIR-E3
-  // visual-rebuild entry) rather than a live anon Supabase query, since this
-  // predates directory_entries having an anon-select RLS policy — kept as
-  // a static blob regardless, to avoid a live query on every homepage load.
-  const pinnableEntries = attachedMapEmbedSrc ? [] : entries.filter((e) => !e.noindex && e.lat != null && e.lng != null);
-  let entriesJsonUrl: string | null = null;
-  if (pinnableEntries.length > 0) {
-    const entriesJson = JSON.stringify(
-      pinnableEntries.map((e) => ({
-        id: e.id,
-        slug: e.slug,
-        name: e.name,
-        lat: e.lat,
-        lng: e.lng,
-        location: e.show_address ? [e.city, e.country].filter(Boolean).join(", ") : "",
-      })),
-    );
-    entriesJsonUrl = await uploadToBlob(`${basePath}/entries.json`, entriesJson, "application/json; charset=utf-8");
-  }
-
   const landingHtml = buildDirectoryLandingPage({
     clientSlug: client.slug,
     directorySlug: directory.slug,
@@ -933,7 +911,6 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
     entries,
     directoryLinks,
     theme,
-    entriesJsonUrl,
     attachedMapEmbedSrc,
     categorisationLabels: [...categorisationLabelByKey.values()],
   });

@@ -16,7 +16,6 @@ import Pricing from "./pages/Pricing.jsx";
 import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
-import DirectoryEmbedMap from "./pages/DirectoryEmbedMap.jsx";
 import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
 
@@ -73,7 +72,6 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/embed" element={<EmbedMap />} />
-      <Route path="/directory-embed" element={<DirectoryEmbedMap />} />
       <Route path="/map" element={<CustomDomainMap />} />
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
 
