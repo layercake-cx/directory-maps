@@ -8,10 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-28 — [Not yet deployed] Map design/edit preview now shows directory-sourced pins
+## 2026-08-28 — [Not yet deployed] Directory homepage map is exclusively the attached Map product
 
-**Branch:** `fix/2026-08-28-map-design-preview-directory-sourced`
-**Status:** implemented, `npm run build` clean; not yet deployed.
+**Branch:** `feat/2026-08-28-directory-map-product-boundary`
+**Status:** implemented, `deno check`/`npm run build`/`node --check middleware.js` clean, real regeneration verified against staging for both cases (map attached / no map attached); not yet deployed to production.
+**Context:** the user's framing after seeing the previous entry's fix working: "two separate Layercake products working together" — Maps and Directories shouldn't each maintain their own map-rendering implementation. Decided to remove the homegrown pins-only homepage map entirely rather than keep it as a fallback.
+
+### What changed
+- `generate_directory_site/index.ts`: removed the `entries.json` blob generation and the homegrown-map branch entirely. The homepage's map section now renders only when a real map has this directory as its DIR-E4 datasource (`attachedMapEmbedSrc`); otherwise the section (heading + map iframe) doesn't render at all — the filter chips and entry grid below are unaffected, since they don't depend on a map.
+- Deleted `src/pages/DirectoryEmbedMap.jsx` and its `/directory-embed` route in `src/App.jsx` — confirmed via grep it was used nowhere else (no per-entry mini-map exists yet).
+- Removed the now-dead `/directory-embed` passthrough in `middleware.js` (custom-domain routing).
+
+### Verified
+- [x] `deno check`, `npm run build`, `node --check middleware.js` all clean.
+- [x] Deployed to staging; real regeneration succeeded for both a directory with an attached map (`e270f4a4-...`, `{"ok":true,"count":13}`) and one without (`387fb4b3-...`, `{"ok":true,"count":204}`) — confirms the map-present and map-absent code paths both run cleanly against real data.
+- [ ] Visual confirmation not done — same blob-URL-resolution limitation as the earlier homepage entry.
+- [ ] Not yet deployed to production.
+
+### Rollback plan
+- Revert this branch's commit, redeploy `generate_directory_site` + frontend to whichever environment(s) it reached.
+- No schema/data changes. Any directory published before this change keeps whatever static homepage it already has until next republished — this only affects future publishes.
+
+---
+
+## 2026-08-28 — [Production] Map design/edit preview now shows directory-sourced pins
+
+**Branch/PR:** `fix/2026-08-28-map-design-preview-directory-sourced`, [#142](https://github.com/layercake-cx/directory-maps/pull/142), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).
 **Context:** the user linked a real map to a directory and reported the map's design/edit dashboard showed no pins and no entries — the DIR-E4 fix two entries below only updated the public embed (`EmbedMap.jsx`); the separate design/editing dashboards were missed.
 
 ### What changed

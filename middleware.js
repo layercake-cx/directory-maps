@@ -151,13 +151,6 @@ async function handleCustomDomain(host, segments, blobBase) {
   // handling for that case, same as any other unmatched path.
   if (domain.entityType === "map" && segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
 
-  // /directory-embed — the directory homepage's own pins-only map iframe
-  // (src="/directory-embed?..."), same pattern as /embed above. Without
-  // this, a directory custom domain would treat "directory-embed" as an
-  // unrecognised entry slug and serve a 404-ish blob lookup instead of
-  // falling through to the SPA.
-  if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "directory-embed") return;
-
   if (!domain.clientSlug || !domain.entitySlug || !blobBase) {
     return htmlResponse(404, "Domain not configured", "This domain isn&apos;t connected to a Layercake Maps directory.");
   }
