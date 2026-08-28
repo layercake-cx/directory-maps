@@ -159,6 +159,7 @@ export default function AdminMapData() {
   const [directoryAssoc, setDirectoryAssoc] = useState(null);
   const [clientDirectories, setClientDirectories] = useState([]);
   const [directoriesLoading, setDirectoriesLoading] = useState(false);
+  const [directoriesFetched, setDirectoriesFetched] = useState(false);
   const [directoriesError, setDirectoriesError] = useState("");
   const [selectedDirectoryId, setSelectedDirectoryId] = useState("");
   const [attachingDirectory, setAttachingDirectory] = useState(false);
@@ -844,7 +845,7 @@ export default function AdminMapData() {
   // ── Directory datasource functions (DIR-E4-S2) ────────────────────────────
 
   useEffect(() => {
-    if (activeTab !== "directories" || clientDirectories.length > 0 || directoriesLoading) return;
+    if (activeTab !== "directories" || directoriesFetched || directoriesLoading) return;
     (async () => {
       try {
         setDirectoriesLoading(true); setDirectoriesError("");
@@ -854,9 +855,10 @@ export default function AdminMapData() {
         setDirectoriesError(e?.message ?? String(e));
       } finally {
         setDirectoriesLoading(false);
+        setDirectoriesFetched(true);
       }
     })();
-  }, [activeTab, clientId, clientDirectories.length, directoriesLoading]);
+  }, [activeTab, clientId, directoriesFetched, directoriesLoading]);
 
   const linkedDirectory = directoryAssoc
     ? clientDirectories.find((d) => d.id === directoryAssoc.directory_id) ?? null
