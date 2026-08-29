@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: SEO social/AI fields (Phase 4)
+
+**Branch:** `feat/2026-08-29-directory-entry-seo-social-ai-fields`
+**Context:** continues the entry editor rebuild (#149/#150, merged and deployed). Adds the Open Graph/Twitter/canonical/keywords/AI-summary fields planned for the Search & Metadata tab; the pre-existing meta_title/meta_description/noindex/structured_data_type/sitemap_priority fields were already wired up in Phase 1.
+
+### What changed
+- **Migration** `20260829150000_directory_entry_seo_social_ai_fields.sql` (+ rollback): adds `og_title`, `og_description`, `og_image_url`, `twitter_card_type` (checked: `summary`/`summary_large_image`), `canonical_url`, `keywords`, `ai_summary` to `directory_entries`. All nullable, additive only, no data migration needed.
+- `lib/directories.js`'s `getDirectoryEntry` select list now includes the new columns.
+- `EntrySeoTab.jsx` gains a "Social & AI" section below the existing "Search engines" section, all writing through the same `updateDirectoryEntry` call.
+- The static site generator (`generate_directory_site`) does **not** read these columns yet — they have no public-facing effect until a later phase wires them into the entry page's actual `<meta>`/OG tags. This phase is UI + schema only.
+
+### ⚠️ Deployment ordering — read before merging
+This is different from Phases 1–3: those only touched existing columns or independent tables/buckets, so merging (which auto-deploys to production here) was safe regardless of DB state. **This phase's frontend code selects columns that don't exist until the migration runs.** If this PR is merged before the migration is applied to production, every entry-editor page load breaks immediately (Supabase returns an error for the unknown columns in `getDirectoryEntry`'s select). **Apply the migration to staging, then production, before merging this PR** — not after.
+I have no Supabase CLI credentials in this session (no `SUPABASE_ACCESS_TOKEN`, not logged in) and could not run the dry run or apply it myself; the migration is written and follows the required template (pre/post `do $$` checks, dry-run block, integrity checklist) but is **completely unverified against a real database**.
+
+### Verified
+- [x] `npm run build` clean (JS-only check — does not validate the migration against any real schema).
+- [ ] Migration not dry-run, not applied to staging, not applied to production.
+- [ ] Not interactively tested.
+- [ ] Not deployed (deliberately — see ordering note above).
+
+### Rollback plan
+- If applied and something's wrong: run `_20260829150000_directory_entry_seo_social_ai_fields.rollback.sql` (refuses if any of the seven columns has live data — override deliberately if that data can be discarded).
+- If not yet applied: just don't merge the PR; delete the branch.
+
+---
+
 ## 2026-08-29 — [Production] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
 
 **Branch/PR:** `feat/2026-08-29-directory-entry-tabbed-editor`, [#149](https://github.com/layercake-cx/directory-maps/pull/149) (same PR as Phase 1), merged and deployed.
