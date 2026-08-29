@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { createDirectoryEntry, createDirectoryGroup, listDirectoryGroups, updateDirectoryEntry } from "../../../lib/directories.js";
+import { uploadEntryLogo } from "../../../lib/entryLogo.js";
 
 const inputStyle = {
   width: "100%",
@@ -44,6 +45,8 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
   const [savingGroup, setSavingGroup] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoErr, setLogoErr] = useState("");
 
   useEffect(() => {
     if (!directoryId) return;
@@ -68,6 +71,25 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
       setErr(e2?.message ?? String(e2));
     } finally {
       setSavingGroup(false);
+    }
+  }
+
+  async function handleLogoFile(e) {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    setLogoErr("");
+    setLogoUploading(true);
+    try {
+      const url = await uploadEntryLogo(entryId, file);
+      fSet("logo_url", url);
+      await updateDirectoryEntry(entryId, { logo_url: url });
+      recordEvent?.("directory_entry_updated", { directory_id: directoryId, entry_id: entryId });
+      onSaved?.();
+    } catch (e2) {
+      setLogoErr(e2?.message ?? String(e2));
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
     }
   }
 
@@ -174,9 +196,27 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
           </div>
         </Group>
         <div>
-          <label style={labelStyle}>Logo URL</label>
+          <label style={labelStyle}>Logo</label>
           <input value={form.logo_url} onChange={(e) => fSet("logo_url", e.target.value)} disabled={!canEdit} placeholder="https://…/logo.png" type="url" style={inputStyle} />
-          <Text size="xs" c="dimmed" mt={4}>Direct file upload is coming in a later phase — paste a hosted image URL for now.</Text>
+          {canEdit && (
+            isNew ? (
+              <Text size="xs" c="dimmed" mt={4}>Save the entry first to unlock direct file upload — paste a hosted image URL for now.</Text>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+                {form.logo_url && (
+                  <img src={form.logo_url} alt="" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)", background: "#fff" }} />
+                )}
+                <label style={{ fontSize: 12 }}>
+                  <span style={{ color: "var(--lc-brand, #4a9baa)", textDecoration: "underline", cursor: "pointer" }}>
+                    {logoUploading ? "Uploading…" : "Upload a logo file"}
+                  </span>
+                  <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={handleLogoFile} disabled={logoUploading} style={{ display: "none" }} />
+                </label>
+                <Text size="xs" c="dimmed">PNG, JPG or WebP, max 2 MB.</Text>
+              </div>
+            )
+          )}
+          {logoErr && <Alert color="red" variant="light" mt={4}>{logoErr}</Alert>}
         </div>
 
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: canEdit ? "pointer" : "default" }}>

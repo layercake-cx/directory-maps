@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
+
+**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
+**Context:** continues Phase 1 (same PR/branch, not yet merged). Two of the "coming in a later phase" gaps from Phase 1's Basic Info and Content tabs.
+
+### What changed
+- **Logo upload** (`src/lib/entryLogo.js`): once an entry exists, Basic Info's logo field gets an upload control alongside the URL input — PNG/JPEG/WebP, 2MB app-level cap, uploaded to the existing `directory-media` Storage bucket at a fixed `${entryId}/logo.<ext>` path with `upsert: true` (mirrors `AdminMapData.jsx`'s `handleListingLogoFile` fixed-path convention; no SVG, since that bucket's policy only allows PNG/JPEG/WebP — SVG stays map-pins-only). Uploading writes `directory_entries.logo_url` immediately, independent of the Basic Info form's own Save button, matching the existing listing-logo UX. Still URL-only for a brand-new (unsaved) entry.
+- **WYSIWYG notes** (`src/components/directories/entryEdit/RichTextEditor.jsx`): replaces the plain `<textarea>` with TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link` — new dependencies, no existing rich-text editor in the app to reuse). Toolbar is deliberately restricted to bold/italic/underline/H2-H4/bullet+numbered lists/quote/link — strike, inline code, code blocks and horizontal rules are disabled in the TipTap config because their output tags aren't in `sanitizeNotesHtml`'s allowlist and would silently vanish on save otherwise, which would look like editor data loss.
+- No database migration; no changes to the `directory-media` bucket's existing policies.
+
+### Verified
+- [x] `npm run build` clean (in an isolated `git worktree`, since this machine's shared working directory had another session's branch checked out with its own uncommitted WIP — see the parallel-sessions note in this repo's agent memory).
+- [ ] Not interactively tested (no login credentials this session) — needs upload + WYSIWYG click-through alongside Phase 1's test plan.
+- [ ] Not yet deployed to staging or production.
+
+### Rollback plan
+- Revert the commit(s) on this branch. No schema change, no data migration to unwind. If `directory-media` ever needs the upload path cleaned up, uploaded logo objects live at `directory-media/<entryId>/logo.<ext>` — removing them is optional cleanup, not required for rollback (the app just stops referencing new ones).
+
+---
+
 ## 2026-08-29 — [Staging] Directory entry editor: full-page tabbed rebuild (Phase 1)
 
 **Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
