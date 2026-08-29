@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Not yet deployed] Categorisation attachment model (map ↔ directory shared filters)
+## 2026-08-29 — [Staging] Categorisation attachment model (map ↔ directory shared filters)
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#153](https://github.com/layercake-cx/directory-maps/pull/153) merged the earlier schema/revert commits; this migration is a follow-up commit on the same branch, not yet its own PR.
 **Context:** the entry below ("Revert: categorisations tagging self-authored map listings") corrected one wrong model but the replacement — my own reasoning that a self-authored map "has no directory relationship, so there's nothing for its filters to be the same as" — was also wrong, per direct correction. The actual model: a categorisation is a standalone entity that can be attached to a map, a directory, or both independently; when a map and directory happen to be linked, they share filters as a *consequence* of sharing the same entry data, not because of some special-cased relationship. This is the schema for that: explicit, per-instance attachment, replacing `categorisations.applies_to`'s automatic-everywhere gating entirely (not just adding a maps-specific flag to it).
@@ -20,7 +20,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `npm run build` clean.
 - [x] `deno check` clean on `generate_directory_site/index.ts`.
-- [ ] **Not yet applied to staging** — blocked by another session's in-flight migration (`20260829160000`, applied directly to staging via SQL editor) not yet present in this branch's local migration files, which the Supabase CLI needs to reconcile `db push`. Will apply once that migration lands on `main` and this branch picks it up.
+- [x] Applied to staging (`beqejxneehilplrtpntn`) via `supabase db push --include-all` (out-of-order relative to `20260829150000`/`20260829160000`, which landed on `main` first while this was blocked — confirmed no table overlap between them before using `--include-all`). Verification block passed: `VERIFY PASSED: categorisation_attachments + listing_category_terms created`. `supabase migration list` confirms applied remotely.
 - [ ] Not yet interactively smoke-tested.
 
 ### Rollback plan
