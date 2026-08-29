@@ -593,6 +593,13 @@ When I select "Healthcare"
 Then the entry list narrows to only entries tagged Healthcare, and the URL reflects the filter (shareable/bookmarkable, e.g. ?sector=healthcare)
 ```
 
+**Implementation note (2026-08-29): built, and extended beyond the original scope of this story.** `generate_directory_site`'s previously-inert `exploreFilterBar()` chips are now real and toggleable (client-side filtering of the rendered entry cards, no page reload — a JS-driven narrow rather than a URL-navigation-per-click, so counts update instantly). Two things not originally scoped here shipped alongside it:
+
+1. **The same filter action also drives an attached map (DIR-E4).** When a directory has a map attached as its live pin datasource, that map's embed (`EmbedMap.jsx`) now listens for a `postMessage` from the directory's landing page and applies the identical term selection to its own pins — one filter action narrows both surfaces. The map's own filter-bar UI is suppressed in this context (`?hideFilterBar=1`) so there's no duplicate control.
+2. **Categorisations can now also tag map listings, not just directory entries.** A new `listing_category_terms` table (peer of `entry_category_terms`) plus `categorisations.applies_to_listings` (an admin-facing toggle in `CategorisationsPanel.jsx`, independent of the existing `applies_to` directory/entry setting) let a client-wide categorisation apply to a **self-authored** map's listings too — via a `category_<key>` CSV import column (mirroring `category_<key>` for directory entries) or the same adapter feeding `PublishedMapView.jsx`'s existing filter bar. This was a gap discovered while building this story: a map's own `filter_<key>`/`map_filter_fields` import had no path to attach to a category at all. `map_filter_fields`/`listing_filter_values` are unchanged and remain the only mechanism for free-text filter fields, which categorisations don't model — full deprecation of that map-only path is tracked as a separate, later piece of work once the unified path is proven in production.
+
+Files: `src/lib/categorisations.js` (adapter + listing-tagging functions), `src/pages/EmbedMap.jsx`, `src/components/PublishedMapView.jsx` (`externalActiveFilters`/`hideFilterBar` props), `src/pages/client/ClientMapData.jsx` / `src/pages/admin/AdminMapData.jsx` (CSV import), `supabase/functions/generate_directory_site/index.ts`. Migrations: `20260829010000_categorisations_anon_select.sql`, `20260829020000_create_listing_category_terms.sql`.
+
 ---
 
 ### DIR-E6 — Entry page layout designer
