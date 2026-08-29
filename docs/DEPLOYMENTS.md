@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Staging] Parallelize per-entry page uploads in generate_directory_site
+## 2026-08-29 — [Production] Parallelize per-entry page uploads in generate_directory_site
 
 **Branch:** `perf/2026-08-29-parallelize-directory-entry-page-uploads`
 **Context:** spike (requested alongside the directory entry editor's Phase 6 single-entry-publish idea) into why full directory republishes are slow. The user triggered a real publish of the production "association directory" (177 entries) and it took ~120s. Reading the generator's code found a strictly sequential `for` loop uploading one entry page to Vercel Blob at a time — 120s / 177 ≈ 0.68s/entry, which matches the observed total almost exactly, strong evidence this loop (not the DB reads, already batched with `Promise.all`) is the dominant cost. This is a smaller, lower-risk fix to try before building an entirely new single-entry-publish code path — if it makes full republishes fast enough, that path may not be needed at all.
@@ -22,8 +22,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `deno check` clean on `generate_directory_site/index.ts` and `generate_directory_pages/index.ts` (shares the same module; only a new export was added, nothing existing changed).
 - [x] `npm run build` clean.
-- [ ] Not yet deployed to staging or production.
-- [ ] Not yet re-measured against the real 177-entry directory to confirm the actual speedup — that's the point of deploying to staging first.
+- [x] Deployed to staging then production (`supabase functions deploy generate_directory_site`), PR #155 merged.
+- [ ] Not yet re-measured against the real 177-entry association directory — republish it and compare against the ~120s baseline to confirm the actual speedup.
 
 ### Rollback plan
 - Revert the commit and redeploy the prior `generate_directory_site` version — no schema/data to unwind, purely a code change to an idempotent generator.
