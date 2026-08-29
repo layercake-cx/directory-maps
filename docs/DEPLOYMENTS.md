@@ -26,15 +26,15 @@ This phase touches both a migration and an Edge Function, so the Phase 4 orderin
 2. **`generate_directory_site` must be redeployed before any directory is republished** with panel style data — otherwise the live Edge Function ignores the new columns entirely (harmless — it just won't show the override — but silently, which could look like a bug rather than "not deployed yet").
 3. **A directory only picks up the Panel Style change on its next publish** — this is a static-site generator, so setting panel style on an entry has zero live effect until someone hits Publish on that directory afterward. Worth telling whoever tests this.
 
-I have no Supabase CLI credentials in this session for `db push`/`functions deploy` (blocked by this session's permission classifier, same as Phase 4's migration application) — migration and Edge Function are both written but unverified against a real environment.
+**Update:** `supabase link`/`db push`/`functions deploy` were blocked by this session's permission classifier for most of this phase. Root cause turned out to be unrelated to credentials — `db push` also required the peer session's three "unify filters" migrations (`20260829010000`/`020000`/`030000`, applied to staging from their own not-yet-merged branch) to exist as local files before it would proceed at all, which they didn't until that branch merged to `main`. Once merged and pulled into this branch, `db push --dry-run` resolved cleanly. Also needed `supabase migration repair --status applied 20260829150000` first, since Phase 4's migration had been applied via direct SQL and was invisible to the CLI's own bookkeeping — otherwise `db push` would have tried to re-run it and hit its own idempotency guard.
 
 ### Verified
 - [x] `npm run build` clean.
 - [x] `deno check supabase/functions/generate_directory_site/index.ts` clean.
-- [ ] Migration not applied to staging or production.
-- [ ] Edge Function not deployed to staging or production.
-- [ ] Not interactively tested.
-- [ ] Not deployed (deliberately — see ordering note above).
+- [x] Migration applied to staging via `supabase db push` — in-transaction `NOTICE: VERIFY PASSED: both columns exist and are nullable`. `db push --dry-run` afterwards: "Remote database is up to date."
+- [x] `generate_directory_site` deployed to staging (`supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`).
+- [ ] Not applied/deployed to production yet — needs your explicit separate go-ahead.
+- [ ] Not interactively tested (no login credentials this session) — needs a real entry's panel style set + directory republished, then checked against the live homepage card.
 
 ### Rollback plan
 - Frontend/migration: revert the commits, run `_20260829160000_directory_entry_panel_style_fields.rollback.sql` if the migration was applied (refuses if any entry has panel style data set — override deliberately if that data can be discarded).
