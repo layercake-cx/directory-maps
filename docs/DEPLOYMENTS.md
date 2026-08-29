@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Staging] Directory entry editor: SEO social/AI fields (Phase 4)
+## 2026-08-29 — [Production] Directory entry editor: SEO social/AI fields (Phase 4)
 
 **Branch:** `feat/2026-08-29-directory-entry-seo-social-ai-fields`
 **Context:** continues the entry editor rebuild (#149/#150, merged and deployed). Adds the Open Graph/Twitter/canonical/keywords/AI-summary fields planned for the Search & Metadata tab; the pre-existing meta_title/meta_description/noindex/structured_data_type/sitemap_priority fields were already wired up in Phase 1.
@@ -27,8 +27,8 @@ This is different from Phases 1–3: those only touched existing columns or inde
 ### Verified
 - [x] `npm run build` clean (JS-only check — does not validate the migration against any real schema).
 - [x] Applied to staging by the user directly via the SQL editor (dry-run `BEGIN;…ROLLBACK;` confirmed clean first, then applied for real) — see the migration-history note above for why this went through the SQL editor rather than `supabase db push`.
-- [ ] Not independently curl-verified this session (no anon/service key available) — relying on the user's confirmation and the migration's own embedded `VERIFY PASSED` check.
-- [ ] Not yet applied to production; PR not yet merged (deliberately — see ordering note above).
+- [x] Applied to production by the user the same way, after explicit separate sign-off (dry-run first, then the real migration file). Same CLI-linking block applied to production as to staging (couldn't link/dry-run via CLI myself this session), so this is on the same trust basis as the staging application.
+- [ ] Not independently curl-verified this session (no anon/service key available for either environment) — relying on the user's confirmation and the migration's own embedded `VERIFY PASSED` check.
 - [ ] Not interactively tested.
 
 ### Rollback plan
