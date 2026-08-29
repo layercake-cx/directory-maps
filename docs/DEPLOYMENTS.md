@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Staging] Directory entry editor: Panel Style tab (Phase 5)
+## 2026-08-29 — [Production] Directory entry editor: Panel Style tab (Phase 5)
 
 **Branch:** `feat/2026-08-29-directory-entry-panel-style`
 **Context:** continues the entry editor rebuild (#149/#150/#151, merged and deployed). Implements the Panel Style tab left as a placeholder since Phase 1 — a per-entry override for the homepage card's image and background colour (e.g. a white logo that needs a dark background instead of the directory's default themed surface).
@@ -28,12 +28,14 @@ This phase touches both a migration and an Edge Function, so the Phase 4 orderin
 
 **Update:** `supabase link`/`db push`/`functions deploy` were blocked by this session's permission classifier for most of this phase. Root cause turned out to be unrelated to credentials — `db push` also required the peer session's three "unify filters" migrations (`20260829010000`/`020000`/`030000`, applied to staging from their own not-yet-merged branch) to exist as local files before it would proceed at all, which they didn't until that branch merged to `main`. Once merged and pulled into this branch, `db push --dry-run` resolved cleanly. Also needed `supabase migration repair --status applied 20260829150000` first, since Phase 4's migration had been applied via direct SQL and was invisible to the CLI's own bookkeeping — otherwise `db push` would have tried to re-run it and hit its own idempotency guard.
 
+**Production:** applied by the user directly (ran `supabase db push --include-all` from the reconciled worktree, after explicit separate sign-off) alongside the peer session's three "unify filters" migrations, which were also pending on production and got bundled into the same push with the user's explicit go-ahead for both. All four `VERIFY PASSED`. `generate_directory_site` then deployed to production by me (`supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`). PR #152 merged; confirmed live by diffing the deployed bundle on `maps.layercake-cx.biz` ("Panel style" string present).
+
 ### Verified
 - [x] `npm run build` clean.
 - [x] `deno check supabase/functions/generate_directory_site/index.ts` clean.
 - [x] Migration applied to staging via `supabase db push` — in-transaction `NOTICE: VERIFY PASSED: both columns exist and are nullable`. `db push --dry-run` afterwards: "Remote database is up to date."
 - [x] `generate_directory_site` deployed to staging (`supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`).
-- [ ] Not applied/deployed to production yet — needs your explicit separate go-ahead.
+- [x] Migration applied to production, `generate_directory_site` deployed to production, PR merged, confirmed live via bundle diff.
 - [ ] Not interactively tested (no login credentials this session) — needs a real entry's panel style set + directory republished, then checked against the live homepage card.
 
 ### Rollback plan
