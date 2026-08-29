@@ -177,8 +177,9 @@ A directory is the peer of a map — a browsable, structured list of entries not
 |---------|-------|-------------|
 | Directories list | `/client/directories` | List/create directories for the client |
 | Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory; tag the directory and its entries with categorisation terms |
+| Directory entry editor | `/client/directories/:directoryId/entries/:entryId[/categories\|/content\|/seo\|/panel\|/preview]` | Full-page, tabbed entry editor (replaces the old edit modal — `DirectoryEntryEditor.jsx` + `entryEdit/Entry*Tab.jsx`, shared admin/client, mirrors the Map editor's route-per-tab convention). Basic Info/Categories/Content are fully wired; Panel Style and Preview & Publish are placeholders pending later phases (custom panel image/background + a single-entry publish action — directory-wide publish is unaffected and still the way to go live). Deliberately excludes lat/lng — coordinates are auto-geocoded, never hand-entered. Basic Info's logo field supports direct file upload (`lib/entryLogo.js`, `directory-media` bucket, fixed upsertable path, PNG/JPEG/WebP ≤2MB) once the entry exists, alongside the plain URL input. Content's notes field is a WYSIWYG editor (`entryEdit/RichTextEditor.jsx`, TipTap `StarterKit` + `Underline`/`Link`, deliberately configured to only expose formatting that `sanitizeNotesHtml` allows through — strike/code/codeBlock/horizontalRule are disabled since their tags get silently stripped on save otherwise). |
 
-- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active. `notes_html` is sanitised (DOMPurify, `src/lib/sanitizeHtml.js`) on every write path regardless of `allow_html`.
+- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active. `notes_html` is sanitised (DOMPurify, `src/lib/sanitizeHtml.js`) on every write path regardless of `allow_html`. lat/lng remain real columns (populated by geocoding) but have no editing UI.
 - **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model (§4.4b).
 - Entry deletion (and directory deletion) require typing `DELETE` to confirm — a deliberate departure from the plain `window.confirm()` used for `listings`, given the larger blast radius of losing directory content.
 - **CSV import** (add-to-existing only, no destructive overwrite) and **bulk actions** (archive/restore, bulk categorisation tagging) are now built — see `DirectoryEntriesPanel.jsx`. XLSX import remains a fast-follow.
@@ -187,7 +188,7 @@ A directory is the peer of a map — a browsable, structured list of entries not
 
 Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
 
-Files: `src/lib/directories.js`, `src/lib/sanitizeHtml.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `src/components/directories/BulkCategoryEditModal.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx`, `ClientTeam.jsx` (client); `AdminDirectories.jsx`, `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
+Files: `src/lib/directories.js`, `src/lib/sanitizeHtml.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `src/components/directories/DirectoryEntryEditor.jsx`, `src/components/directories/entryEdit/*.jsx`, `src/components/directories/BulkCategoryEditModal.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx`, `ClientDirectoryEntryEdit.jsx`, `ClientTeam.jsx` (client); `AdminDirectories.jsx`, `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, `AdminDirectoryEntryEdit.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
 
 ### 4.4a-2 Directory entry extras — evidence, media, accreditations, prominent links, product tiles, contact display prefs (new)
 
@@ -195,10 +196,10 @@ Six small, additive entities from the build-scope brief's data model (§5), reco
 
 | Entity | Scope | Notes |
 |---|---|---|
-| Evidence items | entry | Claim, value, source URL, date checked, confidence (verified/unverified/disputed), note. Immediate-save list on the entry edit form. |
+| Evidence items | entry | Claim, value, source URL, date checked, confidence (verified/unverified/disputed), note. Immediate-save list on the entry editor's Content tab. |
 | Media assets | entry | Gallery/hero images, uploaded to the new `directory-media` Storage bucket (PNG/JPEG/WebP, 5MB cap). `alt_text` required at the schema level. At most one `is_hero` per entry (partial unique index). Distinct from the existing `directory_entries.logo_url`. |
 | Accreditation schemes | directory | The directory defines the schemes (name, issuing body, badge image, description, verification note) — `AccreditationSchemesPanel.jsx`, modelled on the `directory_groups` inline-add pattern (per-directory, not client-wide like categorisations). |
-| Entry accreditations | entry | Which schemes an entry holds — `AccreditationsEditor.jsx`, an immediate-save checkbox picker (unlike `CategoryTagPicker`'s deferred-to-form-save pattern, since schemes are directory- not client-scoped). |
+| Entry accreditations | entry | Which schemes an entry holds — `AccreditationsEditor.jsx`, an immediate-save checkbox picker (schemes are directory- not client-scoped). |
 | Prominent links | directory or entry (polymorphic) | One `prominent_links` table with a `directory_id`/`entry_id` exclusive-or check constraint, rather than two near-identical tables. `ProminentLinksEditor.jsx` is reused for both the directory homepage's links and an entry's own links. URL is checked http(s)-only at the schema level (`check (url ~* '^https?://')`); `rel="noopener"`/`"sponsored nofollow"` rendering is an app-layer concern for when these are actually rendered (a later phase). |
 | Product tiles | entry only | External booking cards (title, image, price, currency, rating, review count, provider, destination URL) — manual entry only; provider-API import is a separate, later decision. Inclusion/ranking must never depend on these (an app-layer rule, not schema-enforceable). |
 | Contact display prefs | entry | Four boolean columns on `directory_entries` (`show_phone`/`show_email`/`show_website`/`show_address`, default `true`) — which fields will be public once publishing exists. No public rendering path reads these yet, so they're currently a no-op. |
@@ -269,7 +270,7 @@ Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be appli
 |---------|-------|-------------|
 | Categorisations | `/client/categorisations` (owners/managers) | Create/edit/archive/delete categorisations and their terms |
 | Admin "Categorisations" tab | `/admin/clients/:clientId` | Same management UI, for Layercake staff |
-| Entry tagging | Inside the entry create/edit modal on a directory's entries page | Checkbox picker per applicable categorisation |
+| Entry tagging | Entry editor's Categories tab | Checkbox picker per applicable categorisation, auto-saves on change |
 | Directory tagging | On a directory's entries page, above the entries table | Checkbox picker, auto-saves on change |
 
 Tables: `categorisations`, `category_terms`, `directory_category_terms`, `entry_category_terms` (`20260714130000_create_categorisations.sql`). RLS mirrors `directories`/`directory_entries` (`_admin_all` + `_own_client`, client-scoped via `categorisations.client_id` directly or a join); no anon-read policy yet.

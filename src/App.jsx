@@ -42,6 +42,7 @@ import AdminLeads from "./pages/admin/AdminLeads.jsx";
 import AdminDirectories from "./pages/admin/AdminDirectories.jsx";
 import AdminDirectoryNew from "./pages/admin/AdminDirectoryNew.jsx";
 import AdminDirectoryEntries from "./pages/admin/AdminDirectoryEntries.jsx";
+import AdminDirectoryEntryEdit from "./pages/admin/AdminDirectoryEntryEdit.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
@@ -57,6 +58,7 @@ import ListingStats from "./pages/client/ListingStats.jsx";
 import ClientDirectories from "./pages/client/ClientDirectories.jsx";
 import ClientDirectoryNew from "./pages/client/ClientDirectoryNew.jsx";
 import ClientDirectoryEntries from "./pages/client/ClientDirectoryEntries.jsx";
+import ClientDirectoryEntryEdit from "./pages/client/ClientDirectoryEntryEdit.jsx";
 import ClientCategorisations from "./pages/client/ClientCategorisations.jsx";
 
 export default function App() {
@@ -97,6 +99,12 @@ export default function App() {
         <Route path="directories" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectories /></FeatureGate>} />
         <Route path="directories/new" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryNew /></FeatureGate>} />
         <Route path="directories/:directoryId" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntries /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="basic" /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId/categories" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="categories" /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId/content" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="content" /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId/seo" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="seo" /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId/panel" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="panel" /></FeatureGate>} />
+        <Route path="directories/:directoryId/entries/:entryId/preview" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="preview" /></FeatureGate>} />
         <Route path="categorisations" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientCategorisations /></FeatureGate>} />
       </Route>
 
@@ -244,6 +252,55 @@ export default function App() {
         element={
           <AdminGate>
             <AdminDirectoryEntries />
+          </AdminGate>
+        }
+      />
+
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="basic" />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/categories"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="categories" />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/content"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="content" />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/seo"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="seo" />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/panel"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="panel" />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/preview"
+        element={
+          <AdminGate>
+            <AdminDirectoryEntryEdit tab="preview" />
           </AdminGate>
         }
       />

@@ -8,6 +8,48 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
+
+**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
+**Context:** continues Phase 1 (same PR/branch, not yet merged). Two of the "coming in a later phase" gaps from Phase 1's Basic Info and Content tabs.
+
+### What changed
+- **Logo upload** (`src/lib/entryLogo.js`): once an entry exists, Basic Info's logo field gets an upload control alongside the URL input — PNG/JPEG/WebP, 2MB app-level cap, uploaded to the existing `directory-media` Storage bucket at a fixed `${entryId}/logo.<ext>` path with `upsert: true` (mirrors `AdminMapData.jsx`'s `handleListingLogoFile` fixed-path convention; no SVG, since that bucket's policy only allows PNG/JPEG/WebP — SVG stays map-pins-only). Uploading writes `directory_entries.logo_url` immediately, independent of the Basic Info form's own Save button, matching the existing listing-logo UX. Still URL-only for a brand-new (unsaved) entry.
+- **WYSIWYG notes** (`src/components/directories/entryEdit/RichTextEditor.jsx`): replaces the plain `<textarea>` with TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link` — new dependencies, no existing rich-text editor in the app to reuse). Toolbar is deliberately restricted to bold/italic/underline/H2-H4/bullet+numbered lists/quote/link — strike, inline code, code blocks and horizontal rules are disabled in the TipTap config because their output tags aren't in `sanitizeNotesHtml`'s allowlist and would silently vanish on save otherwise, which would look like editor data loss.
+- No database migration; no changes to the `directory-media` bucket's existing policies.
+
+### Verified
+- [x] `npm run build` clean (in an isolated `git worktree`, since this machine's shared working directory had another session's branch checked out with its own uncommitted WIP — see the parallel-sessions note in this repo's agent memory).
+- [ ] Not interactively tested (no login credentials this session) — needs upload + WYSIWYG click-through alongside Phase 1's test plan.
+- [ ] Not yet deployed to staging or production.
+
+### Rollback plan
+- Revert the commit(s) on this branch. No schema change, no data migration to unwind. If `directory-media` ever needs the upload path cleaned up, uploaded logo objects live at `directory-media/<entryId>/logo.<ext>` — removing them is optional cleanup, not required for rollback (the app just stops referencing new ones).
+
+---
+
+## 2026-08-29 — [Staging] Directory entry editor: full-page tabbed rebuild (Phase 1)
+
+**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
+**Context:** the entry edit modal (`DirectoryEntriesPanel.jsx`) had grown into 14 form fields plus five independently-saving sub-editors bolted on below it, all inside a fixed-size overlay. Planned (with the user) as a full-page, tabbed editor instead, following the Map editor's route-per-tab convention. Monday: [main ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193120074), plus a separate [future-work ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193118049) for eventually replacing the Content tab's fixed sections with a block editor.
+
+### What changed
+- New route `.../directories/:directoryId/entries/:entryId[/categories|/content|/seo|/panel|/preview]` (client + admin) replaces the modal entirely — `DirectoryEntriesPanel.jsx`'s Add/Edit buttons now navigate instead of opening it.
+- `DirectoryEntryEditor.jsx` (shared orchestrator) + `entryEdit/Entry{BasicInfo,Categories,Content,Seo,Panel,PreviewPublish}Tab.jsx`, new wrapper pages `AdminDirectoryEntryEdit.jsx` / `ClientDirectoryEntryEdit.jsx`.
+- Basic Info, Categories, and Content are fully functional — Content relocates the five existing sub-editors (evidence/media/accreditations/prominent links/product tiles) unchanged. Search & Metadata now exposes `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority`, which existed on `directory_entries` since DIR-E2 but had no editing UI until now. Panel Style and Preview & Publish are placeholders — no schema change needed for this phase.
+- Deliberately excludes lat/lng from the Basic Info tab (user call — coordinates are auto-geocoded, never hand-entered); the old modal exposed them as free-text inputs.
+- No database migration in this phase.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested (no login credentials this session) — needs a manual click-through of Add entry → each tab → Save before calling Phase 1 done.
+- [ ] Not yet deployed to staging or production.
+
+### Rollback plan
+- Revert the commit / branch. No schema change, no data migration to unwind.
+
+---
+
 ## 2026-08-29 — [Production] Warn before archiving/deleting a directory with a linked map
 
 **Branch/PR:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`, [#147](https://github.com/layercake-cx/directory-maps/pull/147), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).

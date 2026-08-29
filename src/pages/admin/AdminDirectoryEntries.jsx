@@ -203,7 +203,13 @@ export default function AdminDirectoryEntries() {
               <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
             </div>
 
-            <DirectoryEntriesPanel directoryId={directoryId} clientId={clientId} canEdit recordEvent={recordEvent} />
+            <DirectoryEntriesPanel
+              directoryId={directoryId}
+              directoryBasePath={`/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(directoryId)}`}
+              clientId={clientId}
+              canEdit
+              recordEvent={recordEvent}
+            />
           </>
         )}
       </div>
