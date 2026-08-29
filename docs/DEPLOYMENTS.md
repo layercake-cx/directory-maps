@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Unify map filters and categories: schema foundation
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
+**Context:** map "filters" (`map_filter_fields`) and Directories "categories" (`categorisations`) were two structurally-identical but fully separate taxonomy systems — one tagging `listings`, one tagging `directory_entries`/`directories`, with no way for a category to apply to a map's own data at all, and no viewer-facing filter UI at all for a directory-sourced map or a directory's own published page. This deployment is the schema half of unifying them: categorisations become usable as a filter source for map listings too, and become anon-readable so a directory-sourced map's public embed can actually see them (the app-layer wiring — the adapter feeding `PublishedMapView.jsx`, CSV import, and the directory static site's filter chips — is in the same branch, applied separately from this schema step).
+
+### What changed
+- `supabase/migrations/20260829010000_categorisations_anon_select.sql`: adds anon-select RLS to `categorisations`/`category_terms`/`directory_category_terms`/`entry_category_terms` (created authenticated-only before directory publishing existed — same class of gap the `directory_map_associations_anon_select` fix above closed). Scoped to a published directory, mirroring `map_filter_fields_anon_select`'s "published only" gate rather than left unconditional.
+- `supabase/migrations/20260829020000_create_listing_category_terms.sql`: new `listing_category_terms` table (peer of `entry_category_terms`, keyed off `listings` instead of `directory_entries`) plus `categorisations.applies_to_listings` (boolean, default `false`) — an independent axis from the existing `applies_to` (directory/entry/both) column, so it doesn't redefine what `both` already means. Both changes are purely additive; `map_filter_fields`/`listing_filter_values` are completely untouched, so the one live client currently using map filter fields is unaffected.
+
+### Verified
+- [x] Both migrations' own pre/post `do $$ … end $$` blocks passed on apply (`supabase db push` against `beqejxneehilplrtpntn`): `VERIFY PASSED: anon_select policies created on all four categorisation tables`; `VERIFY PASSED: listing_category_terms + categorisations.applies_to_listings created`.
+- [x] `supabase migration list` confirms both now applied remotely on staging.
+- [ ] A real `BEGIN; … ROLLBACK;` dry run against staging was not achievable — the CLI's `cli_login_postgres` role returned `permission denied for table categorisations` (confirms the tooling gap already logged in `docs/DATABASE_MIGRATIONS.md`), so the documented fallback (`db push --dry-run` to confirm exactly what's pending, then `db push` for real) was used instead.
+- [ ] Not yet applied to production — needs your explicit go-ahead separately, per `AGENTS.md`.
+- [ ] Not yet interactively smoke-tested against real categorisation/listing data (none exists yet for this feature on staging).
+
+### Rollback plan
+- `_20260829020000_create_listing_category_terms.rollback.sql` then `_20260829010000_categorisations_anon_select.rollback.sql` (reverse order — the second migration's new column/table don't depend on the first, but rolling back in creation order keeps the sequence clean). Both are additive-only removals; safe to roll back even with data present, since nothing durable depends on `listing_category_terms` yet.
+
+---
+
 ## 2026-08-29 — [Production] Warn before archiving/deleting a directory with a linked map
 
 **Branch/PR:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`, [#147](https://github.com/layercake-cx/directory-maps/pull/147), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).
