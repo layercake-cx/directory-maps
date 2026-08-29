@@ -10,6 +10,7 @@ import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
 import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
+import { listCategorisations, appliesToListings, categoryColumnName, resolveImportedListingTerms, applyImportedListingTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
@@ -185,6 +186,7 @@ export default function AdminMapData() {
   const manualAddressBaselineRef = useRef("");
   const filterEditorRef = useRef(null);
   const [filterFields, setFilterFields] = useState([]);
+  const [categorisations, setCategorisations] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
@@ -196,6 +198,18 @@ export default function AdminMapData() {
       .catch(() => {});
     return () => { alive = false; };
   }, [mapId]);
+
+  // Client-wide categorisations that also apply to map listings (unified
+  // filters — src/lib/categorisations.js's applies_to_listings), used for
+  // CSV import's category_<key> columns.
+  useEffect(() => {
+    let alive = true;
+    if (!clientId) return;
+    listCategorisations(clientId)
+      .then((cats) => { if (alive) setCategorisations(cats.filter((c) => appliesToListings(c))); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [clientId]);
 
   const hasSelectFilterFields = filterFields.some((f) => f.is_active && isSelectType(f.field_type));
   function toggleSelected(id) {
@@ -505,8 +519,11 @@ export default function AdminMapData() {
       }
       return first;
     });
-    const header = [...baseHeader, ...filterCols];
-    const sample = [[...baseSample, ...filterSample]];
+    // Append one column per listing-applicable categorisation, same pipe-delimited convention.
+    const catCols = categorisations.map((c) => categoryColumnName(c.key));
+    const catSample = categorisations.map((c) => (c.terms || []).slice(0, 1).map((t) => t.slug).join("|"));
+    const header = [...baseHeader, ...filterCols, ...catCols];
+    const sample = [[...baseSample, ...filterSample, ...catSample]];
     const toCSV = (arr) => arr.map((row) => row.map((cell) => { const s = String(cell ?? ""); return (s.includes('"') || s.includes(",") || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s; }).join(",")).join("\n");
     const blob = new Blob([toCSV([header, ...sample])], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -623,8 +640,22 @@ export default function AdminMapData() {
           filterWarnings = [...filterWarnings, `Filter values could not be saved: ${fvErr?.message ?? fvErr}`];
         }
       }
+      // Resolve category_<key> columns against listing-applicable categorisations.
+      let categoryWarnings = [];
+      if (categorisations.length > 0) {
+        const listingIds = cleaned.map((c) => c.id);
+        const { termsByListing, warnings } = resolveImportedListingTerms({ rows, listingIds, categorisations });
+        categoryWarnings = warnings;
+        try {
+          await applyImportedListingTerms(termsByListing);
+        } catch (ctErr) {
+          categoryWarnings = [...categoryWarnings, `Category tags could not be saved: ${ctErr?.message ?? ctErr}`];
+        }
+      }
       const filterWarnSuffix = (filterCreatedSuffix ? filterCreatedSuffix : "") + (filterWarnings.length
         ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
+        : "") + (categoryWarnings.length
+        ? ` ⚠ ${categoryWarnings.length} category issue${categoryWarnings.length === 1 ? "" : "s"}: ${categoryWarnings.slice(0, 5).join("; ")}${categoryWarnings.length > 5 ? "…" : ""}`
         : "");
 
       if (geocodeMissing) {

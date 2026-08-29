@@ -352,6 +352,69 @@ export async function applyBulkListingTerms({ listingIds, categorisationId, term
   return ids.length;
 }
 
+// ---- CSV import: attach map listings to categories ----
+// Mirrors DirectoryEntriesPanel.jsx's doImport category_<key> resolution
+// exactly, retargeted at listings/listing_category_terms. Unknown tokens are
+// reported as warnings, not auto-created — a new taxonomy term is a category
+// management change, not a side effect of a data import.
+
+/** The CSV/Sheet column name for a categorisation (matches DirectoryEntriesPanel.jsx). */
+export function categoryColumnName(key) {
+  return `category_${key}`;
+}
+
+/**
+ * Resolve category_<key> cells from imported rows into termIds per listing,
+ * for listing-applicable (applies_to_listings) categorisations only.
+ * @param {object[]} rows        row objects keyed by lowercased header
+ * @param {string[]} listingIds  parallel array of resolved listing ids (same order as rows)
+ * @param {object[]} categorisations  categorisations with their terms loaded (listCategorisations())
+ * @returns {{ termsByListing: Map<string, string[]>, warnings: string[] }}
+ */
+export function resolveImportedListingTerms({ rows, listingIds, categorisations }) {
+  const listable = (categorisations || []).filter((c) => appliesToListings(c));
+  const termsByListing = new Map();
+  const warnings = [];
+  if (listable.length === 0) return { termsByListing, warnings };
+
+  const lookupByCat = new Map();
+  for (const cat of listable) {
+    const m = new Map();
+    for (const t of cat.terms || []) {
+      if (t.slug) m.set(String(t.slug).toLowerCase(), t.id);
+      if (t.label) m.set(String(t.label).toLowerCase(), t.id);
+    }
+    lookupByCat.set(cat.id, m);
+  }
+
+  (rows || []).forEach((r, idx) => {
+    const listingId = listingIds[idx];
+    if (!listingId) return;
+    const rowNum = idx + 2;
+    const termIds = [];
+    for (const cat of listable) {
+      const raw = String(r[categoryColumnName(cat.key)] ?? "").trim();
+      if (!raw) continue;
+      const lookup = lookupByCat.get(cat.id);
+      raw.split("|").map((s) => s.trim()).filter(Boolean).forEach((token) => {
+        const termId = lookup?.get(token.toLowerCase());
+        if (termId) termIds.push(termId);
+        else warnings.push(`Row ${rowNum}: unknown ${cat.label} term "${token}"`);
+      });
+    }
+    if (termIds.length) termsByListing.set(listingId, termIds);
+  });
+
+  return { termsByListing, warnings };
+}
+
+/** Apply resolved import terms — replace-mode per listing (matches setListingTerms). */
+export async function applyImportedListingTerms(termsByListing) {
+  for (const [listingId, termIds] of termsByListing) {
+    await setListingTerms(listingId, termIds);
+  }
+}
+
 // ---- Unified filter-bar adapter (maps <-> categorisations) ----
 //
 // Normalizes categorisations/category_terms into the same shape
