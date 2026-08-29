@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Revert: categorisations tagging self-authored map listings
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
+**Context:** on review, the `listing_category_terms`/`applies_to_listings` piece from the entry below doesn't serve the actual goal — a map and a directory filtered by the same categories, meaning a directory-sourced map and the directory it's attached to (they share the same underlying entries and category tags already, via `entry_category_terms`). Letting a categorisation tag a **self-authored** map's listings directly was solving an unrelated problem: that kind of map has no directory relationship at all, so there's no "same categories" for it to share with anything. It also applied globally to every map a client owns with no per-map scoping, which was the wrong shape regardless of the goal question. Corrected the same day, before this reached production or a PR was opened.
+
+### What changed
+- `supabase/migrations/20260829030000_drop_listing_category_terms.sql`: drops `listing_category_terms` and `categorisations.applies_to_listings`. Per migration convention, `20260829020000` and its rollback stay in the migration history as the record of what was tried, rather than being edited or deleted — this is a new forward migration that reverses it.
+- Reverted the app-layer code built on top of it: `categorisations.js` (listing-tagging functions, the `category_<key>` import resolver for listings, `loadCategorisationFiltersForListings`), `EmbedMap.jsx` (the two self-authored-map categorisation loads), `ClientMapData.jsx`/`AdminMapData.jsx` (CSV import wiring), `CategorisationsPanel.jsx` (the "also usable to tag map listings" checkbox).
+- **Unaffected, and this is the part that actually delivers the goal:** `categorisations_anon_select` (`20260829010000`), `loadCategorisationFiltersForEntries` (`categorisations.js`), `EmbedMap.jsx`'s directory-sourced branch + `postMessage` listener, `PublishedMapView.jsx`'s `externalActiveFilters`/`hideFilterBar`, and `generate_directory_site`'s real filter chips + postMessage bridge to an attached map.
+
+### Verified
+- [x] `20260829030000`'s own verification block passed on apply: `VERIFY PASSED: listing_category_terms and categorisations.applies_to_listings removed`.
+- [x] Table/column were empty/default (`false`) for every row before dropping — confirmed no data loss.
+- [x] `npm run build` clean after all reverts.
+
+### Rollback plan
+- `_20260829030000_drop_listing_category_terms.rollback.sql` re-creates `listing_category_terms` + `applies_to_listings` if this decision itself needs reversing — only expected if the per-map-scoped version of this idea gets built later and needs the same underlying table back.
+
+---
+
 ## 2026-08-29 — [Staging] Unify map filters and categories: schema foundation
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
