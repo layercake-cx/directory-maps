@@ -54,6 +54,7 @@ import {
   escapeAttr,
   uploadToBlob,
   buildSitemapXml,
+  mapWithConcurrency,
 } from "../_shared/staticSiteRenderer.ts";
 
 const SITE_ORIGIN = "https://maps.layercake-cx.biz";
@@ -994,7 +995,15 @@ async function generateForDirectoryInner(
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
 
-  for (const entry of entries) {
+  // Entry pages upload one at a time until this point — for a 177-entry
+  // production directory that measured ~120s end-to-end, essentially all of
+  // it this loop (every other step is a handful of batched Promise.all DB
+  // reads). Each iteration's Blob PUT is independent of every other, so
+  // there's no correctness reason for it to be sequential — bounded to 15
+  // concurrent uploads rather than unbounded Promise.all to stay well clear
+  // of any Vercel Blob per-second rate limit, not because 15 is some
+  // measured optimum.
+  await mapWithConcurrency(entries, 15, async (entry) => {
     const layout = resolveLayout(entry, templates, entryTermIdsByEntry.get(entry.id) ?? new Set(), termSortOrder);
     const html = buildEntryPage({
       clientSlug: client.slug,
@@ -1011,7 +1020,7 @@ async function generateForDirectoryInner(
       entryTerms: entryTermsByEntry.get(entry.id) ?? new Map(),
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
-  }
+  });
 
   // Decision (2026-08-28): a directory's homepage map is exclusively the
   // Map product attached to it via DIR-E4 — Maps and Directories are two

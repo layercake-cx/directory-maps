@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Parallelize per-entry page uploads in generate_directory_site
+
+**Branch:** `perf/2026-08-29-parallelize-directory-entry-page-uploads`
+**Context:** spike (requested alongside the directory entry editor's Phase 6 single-entry-publish idea) into why full directory republishes are slow. The user triggered a real publish of the production "association directory" (177 entries) and it took ~120s. Reading the generator's code found a strictly sequential `for` loop uploading one entry page to Vercel Blob at a time — 120s / 177 ≈ 0.68s/entry, which matches the observed total almost exactly, strong evidence this loop (not the DB reads, already batched with `Promise.all`) is the dominant cost. This is a smaller, lower-risk fix to try before building an entirely new single-entry-publish code path — if it makes full republishes fast enough, that path may not be needed at all.
+
+### What changed
+- `_shared/staticSiteRenderer.ts`: new `mapWithConcurrency(items, limit, fn)` — a worker-pool concurrency limiter (not fixed-size batching, so a slow item doesn't stall workers that could move on to the next one), exported for reuse by any future similar loop (e.g. `generate_directory_pages`, not touched in this change).
+- `generate_directory_site/index.ts`: the per-entry `for (const entry of entries) { await uploadToBlob(...) }` loop now goes through `mapWithConcurrency(entries, 15, ...)` — up to 15 entry pages rendered/uploaded concurrently. 15 is a conservative starting point to stay clear of any Vercel Blob per-second rate limit, not a measured optimum — worth revisiting with a real number once this is live.
+- No other loop in this function changed — the four single top-level uploads (index/sitemap/llms.txt/redirects) were never a meaningful cost.
+- No schema change, no new dependency, no API/UI surface — purely an internal performance change to an existing function.
+
+### Verified
+- [x] `deno check` clean on `generate_directory_site/index.ts` and `generate_directory_pages/index.ts` (shares the same module; only a new export was added, nothing existing changed).
+- [x] `npm run build` clean.
+- [ ] Not yet deployed to staging or production.
+- [ ] Not yet re-measured against the real 177-entry directory to confirm the actual speedup — that's the point of deploying to staging first.
+
+### Rollback plan
+- Revert the commit and redeploy the prior `generate_directory_site` version — no schema/data to unwind, purely a code change to an idempotent generator.
+
+---
+
 ## 2026-08-29 — [Production] Directory entry editor: Panel Style tab (Phase 5)
 
 **Branch:** `feat/2026-08-29-directory-entry-panel-style`

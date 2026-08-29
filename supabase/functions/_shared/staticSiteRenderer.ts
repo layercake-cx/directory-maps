@@ -70,6 +70,29 @@ export function renderResearchAsHtml(value: unknown, depth = 0): string {
   return escapeHtml(value);
 }
 
+/**
+ * Runs fn over items with at most `limit` calls in flight at once — a
+ * worker-pool concurrency limiter, not fixed-size batching, so a slow item
+ * doesn't stall workers that could be picking up the next one. Built for
+ * uploadToBlob call sites where each item's upload is independent of every
+ * other and a plain sequential loop was the dominant cost of a full
+ * directory/map republish (measured: ~120s for 177 entries, essentially all
+ * of it this loop).
+ */
+export async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 /** Upload a file to Vercel Blob at a deterministic (non-random-suffixed) path. */
 export async function uploadToBlob(pathname: string, body: string, contentType: string): Promise<string> {
   const token = Deno.env.get("BLOB_READ_WRITE_TOKEN");
