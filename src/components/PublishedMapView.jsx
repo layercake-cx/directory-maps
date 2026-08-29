@@ -256,6 +256,15 @@ export default function PublishedMapView({
   showZoomSlider = true,
   /** Overlays rendered inside the fullscreen root (e.g. message drawer) */
   mapOverlay = null,
+  /**
+   * When set, overrides the internal custom-filter-field selection —
+   * { [fieldId]: string[] of selected option ids }. Used when a directory's
+   * published static page drives this embedded map's filters via postMessage
+   * (see EmbedMap.jsx) instead of the viewer using this component's own bar.
+   */
+  externalActiveFilters = null,
+  /** Hide the custom-filter-fields UI block (groups/continent/search stay visible) — the parent page renders its own controls instead. */
+  hideFilterBar = false,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -418,6 +427,20 @@ export default function PublishedMapView({
     return s;
   }, [list]);
 
+  /**
+   * externalActiveFilters (plain { [fieldId]: string[] }), when provided,
+   * fully overrides the internal activeFilters state — the driving UI lives
+   * outside this component (e.g. a directory's published static page).
+   */
+  const effectiveActiveFilters = useMemo(() => {
+    if (!externalActiveFilters) return activeFilters;
+    const merged = {};
+    for (const [fieldId, ids] of Object.entries(externalActiveFilters)) {
+      merged[fieldId] = new Set(Array.isArray(ids) ? ids : []);
+    }
+    return merged;
+  }, [externalActiveFilters, activeFilters]);
+
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
@@ -429,7 +452,7 @@ export default function PublishedMapView({
       }
       // Custom filter fields: AND across fields, OR within a field's chosen values.
       for (const f of visibleFilterFields) {
-        const sel = activeFilters[f.id];
+        const sel = effectiveActiveFilters[f.id];
         const idx = listingFilterIndex.get(l.id)?.get(f.id);
         if (f.field_type === "text") {
           const q = typeof sel === "string" ? sel.trim().toLowerCase() : "";
@@ -444,7 +467,7 @@ export default function PublishedMapView({
       }
       return true;
     });
-  }, [list, activeGroupIds, activeContinents, visibleFilterFields, activeFilters, listingFilterIndex]);
+  }, [list, activeGroupIds, activeContinents, visibleFilterFields, effectiveActiveFilters, listingFilterIndex]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
@@ -1315,8 +1338,8 @@ export default function PublishedMapView({
                 })}
               </div>
             )}
-            {visibleFilterFields.map((field) => {
-              const selected = activeFilters[field.id];
+            {!hideFilterBar && visibleFilterFields.map((field) => {
+              const selected = effectiveActiveFilters[field.id];
               const selectedSet = selected instanceof Set ? selected : null;
               const textValue = typeof selected === "string" ? selected : "";
               // Only surface options that at least one listing actually uses.

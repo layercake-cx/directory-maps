@@ -35,6 +35,15 @@ export function appliesToDirectories(appliesTo) {
   return appliesTo === "directory" || appliesTo === "both";
 }
 
+/**
+ * Does this categorisation show up when tagging a map listing? Independent
+ * of applies_to (which only covers directory/entry) — see
+ * categorisations.applies_to_listings (20260829020000_create_listing_category_terms.sql).
+ */
+export function appliesToListings(categorisation) {
+  return !!categorisation?.applies_to_listings;
+}
+
 /** URL/import-safe slug from a human label (matches filterFields.js's slugifyKey). */
 export function slugify(label) {
   return String(label || "")
@@ -56,7 +65,7 @@ export async function listCategorisations(clientId, { includeArchived = false } 
 
   let query = supabase
     .from("categorisations")
-    .select("id, client_id, key, label, applies_to, is_active, created_at, updated_at")
+    .select("id, client_id, key, label, applies_to, applies_to_listings, is_active, created_at, updated_at")
     .eq("client_id", clientId)
     .order("label", { ascending: true });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -279,4 +288,158 @@ export async function setDirectoryTerms(directoryId, termIds) {
     .from("directory_category_terms")
     .insert(termIds.map((term_id) => ({ directory_id: directoryId, term_id })));
   if (insErr) throw insErr;
+}
+
+// ---- Tagging: map listings (20260829020000_create_listing_category_terms.sql) ----
+// Direct peer of the entry-tagging functions above, keyed off listing_category_terms.
+
+export async function loadListingTermIds(listingId) {
+  if (!listingId) return [];
+  const { data, error } = await supabase
+    .from("listing_category_terms")
+    .select("term_id")
+    .eq("listing_id", listingId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.term_id);
+}
+
+/** Replace all term tags for a listing with exactly termIds. */
+export async function setListingTerms(listingId, termIds) {
+  const { error: delErr } = await supabase.from("listing_category_terms").delete().eq("listing_id", listingId);
+  if (delErr) throw delErr;
+  if (termIds.length === 0) return;
+  const { error: insErr } = await supabase
+    .from("listing_category_terms")
+    .insert(termIds.map((term_id) => ({ listing_id: listingId, term_id })));
+  if (insErr) throw insErr;
+}
+
+/**
+ * Bulk-apply term(s) from one categorisation to many listings at once —
+ * mirrors applyBulkEntryTerms's add-vs-replace shape exactly.
+ */
+export async function applyBulkListingTerms({ listingIds, categorisationId, termIds, mode = "add" }) {
+  const ids = [...new Set((listingIds || []).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const terms = [...new Set((termIds || []).filter(Boolean))];
+
+  if (mode === "replace") {
+    const { data: catTerms, error: ctErr } = await supabase
+      .from("category_terms")
+      .select("id")
+      .eq("categorisation_id", categorisationId);
+    if (ctErr) throw ctErr;
+    const catTermIds = (catTerms ?? []).map((t) => t.id);
+    if (catTermIds.length) {
+      const { error: delErr } = await supabase
+        .from("listing_category_terms")
+        .delete()
+        .in("listing_id", ids)
+        .in("term_id", catTermIds);
+      if (delErr) throw delErr;
+    }
+  }
+
+  const rows = [];
+  for (const listingId of ids) {
+    for (const termId of terms) rows.push({ listing_id: listingId, term_id: termId });
+  }
+  if (rows.length === 0) return ids.length;
+  const { error } = await supabase
+    .from("listing_category_terms")
+    .upsert(rows, { onConflict: "listing_id,term_id", ignoreDuplicates: true });
+  if (error) throw error;
+  return ids.length;
+}
+
+// ---- Unified filter-bar adapter (maps <-> categorisations) ----
+//
+// Normalizes categorisations/category_terms into the same shape
+// filterFieldsForPublication() (src/lib/filterFields.js) produces for
+// map_filter_fields, so PublishedMapView.jsx's existing filter-bar
+// rendering and effectiveListings filtering logic can drive off either
+// source unmodified. A categorisation's id stands in for a map_filter_fields
+// row's id (`field_id` in the values-by-record map); a category_terms id
+// stands in for a map_filter_field_options id (`option_id`). Categorisations
+// have no free-text field_type equivalent — this adapter only ever produces
+// multi_select fields.
+
+/** Shape active categorisations (with their terms) into filterFields entries. */
+export function categorisationsAsFilterFields(categorisations) {
+  return (categorisations || [])
+    .filter((c) => c.is_active)
+    .map((c) => ({
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      field_type: "multi_select",
+      display_control: "multi_select",
+      show_in_filter_bar: true,
+      sort_order: 0,
+      options: (c.terms || []).map((t) => ({
+        id: t.id,
+        value: t.slug,
+        label: t.label,
+        color: t.color ?? null,
+        sort_order: t.sort_order ?? 0,
+      })),
+    }));
+}
+
+/**
+ * Load a client's entry-applicable categorisations, shaped as
+ * PublishedMapView-compatible filterFields, plus per-entry tag values for
+ * the given entry ids (pass ids you already have — e.g. from a
+ * public_directory_entries fetch — to avoid a redundant query).
+ * @returns {Promise<{ filterFields: object[], valuesByRecord: Record<string, object[]> }>}
+ */
+export async function loadCategorisationFiltersForEntries(clientId, entryIds) {
+  const cats = (await listCategorisations(clientId)).filter((c) => appliesToEntries(c.applies_to));
+  const filterFields = categorisationsAsFilterFields(cats);
+  const ids = [...new Set((entryIds || []).filter(Boolean))];
+  if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
+
+  const termToField = new Map();
+  for (const c of cats) for (const t of c.terms || []) termToField.set(t.id, c.id);
+
+  const { data, error } = await supabase
+    .from("entry_category_terms")
+    .select("entry_id, term_id")
+    .in("entry_id", ids);
+  if (error) throw error;
+
+  const valuesByRecord = {};
+  for (const row of data ?? []) {
+    const fieldId = termToField.get(row.term_id);
+    if (!fieldId) continue;
+    if (!valuesByRecord[row.entry_id]) valuesByRecord[row.entry_id] = [];
+    valuesByRecord[row.entry_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
+  }
+  return { filterFields, valuesByRecord };
+}
+
+/** Same shape as loadCategorisationFiltersForEntries, for map listings (applies_to_listings categorisations). */
+export async function loadCategorisationFiltersForListings(clientId, listingIds) {
+  const cats = (await listCategorisations(clientId)).filter((c) => appliesToListings(c));
+  const filterFields = categorisationsAsFilterFields(cats);
+  const ids = [...new Set((listingIds || []).filter(Boolean))];
+  if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
+
+  const termToField = new Map();
+  for (const c of cats) for (const t of c.terms || []) termToField.set(t.id, c.id);
+
+  const { data, error } = await supabase
+    .from("listing_category_terms")
+    .select("listing_id, term_id")
+    .in("listing_id", ids);
+  if (error) throw error;
+
+  const valuesByRecord = {};
+  for (const row of data ?? []) {
+    const fieldId = termToField.get(row.term_id);
+    if (!fieldId) continue;
+    if (!valuesByRecord[row.listing_id]) valuesByRecord[row.listing_id] = [];
+    valuesByRecord[row.listing_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
+  }
+  return { filterFields, valuesByRecord };
 }
