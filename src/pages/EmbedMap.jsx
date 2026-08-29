@@ -7,7 +7,7 @@ import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 import { loadFilterValuesForMap } from "../lib/filterFields.js";
-import { loadCategorisationFiltersForEntries, loadCategorisationFiltersForListings } from "../lib/categorisations.js";
+import { loadCategorisationFiltersForEntries } from "../lib/categorisations.js";
 
 /** Build listingId -> values[] from a flat snapshot array of listing_filter_values. */
 function groupFilterValuesByListing(rows) {
@@ -161,10 +161,12 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
   /**
-   * Categorisation-derived filter fields + per-record values (unified
-   * filters, see src/lib/categorisations.js's adapter functions) — merged
-   * with the map_filter_fields-derived data above for self-authored maps,
-   * or the sole source of filters for a directory-sourced map.
+   * Categorisation-derived filter fields + per-entry values (see
+   * loadCategorisationFiltersForEntries in src/lib/categorisations.js) —
+   * only ever populated for a directory-sourced map, where the map's pins
+   * and the directory's own entries share the same category tags. A
+   * self-authored map (its own listings, no directory) has no categorisation
+   * relationship and this stays empty for it.
    */
   const [categorisationFilters, setCategorisationFilters] = useState({ filterFields: [], valuesByRecord: {} });
   /**
@@ -336,11 +338,6 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           const resolvedClientId =
             snapshot.config?.map?.client_id ?? (await resolveMapClientId(supabase, mapId));
           if (!cancelled) setClientId(resolvedClientId);
-          try {
-            setCategorisationFilters(
-              await loadCategorisationFiltersForListings(resolvedClientId, (snapshot.listings ?? []).map((l) => l.id)),
-            );
-          } catch { /* non-fatal: filters just won't populate */ }
           const ms = await fetchClientMessagingSettings(supabase, resolvedClientId);
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
@@ -424,17 +421,11 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           liveFilterValues = await loadFilterValuesForMap(mapId);
         } catch { /* non-fatal */ }
 
-        let categorisation = { filterFields: [], valuesByRecord: {} };
-        try {
-          categorisation = await loadCategorisationFiltersForListings(mapRow?.client_id, (l ?? []).map((x) => x.id));
-        } catch { /* non-fatal: filters just won't populate */ }
-
         if (!cancelled) {
           setMap(mapRow);
           setListings(l ?? []);
           setGroups(g ?? []);
           setFilterValuesByListing(liveFilterValues);
-          setCategorisationFilters(categorisation);
           setPublicationConfig(resolvedPublication);
         }
       } catch (e) {

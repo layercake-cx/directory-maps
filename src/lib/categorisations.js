@@ -35,15 +35,6 @@ export function appliesToDirectories(appliesTo) {
   return appliesTo === "directory" || appliesTo === "both";
 }
 
-/**
- * Does this categorisation show up when tagging a map listing? Independent
- * of applies_to (which only covers directory/entry) — see
- * categorisations.applies_to_listings (20260829020000_create_listing_category_terms.sql).
- */
-export function appliesToListings(categorisation) {
-  return !!categorisation?.applies_to_listings;
-}
-
 /** URL/import-safe slug from a human label (matches filterFields.js's slugifyKey). */
 export function slugify(label) {
   return String(label || "")
@@ -65,7 +56,7 @@ export async function listCategorisations(clientId, { includeArchived = false } 
 
   let query = supabase
     .from("categorisations")
-    .select("id, client_id, key, label, applies_to, applies_to_listings, is_active, created_at, updated_at")
+    .select("id, client_id, key, label, applies_to, is_active, created_at, updated_at")
     .eq("client_id", clientId)
     .order("label", { ascending: true });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -95,7 +86,7 @@ export async function listCategorisations(clientId, { includeArchived = false } 
 }
 
 /** Create a categorisation plus its initial terms. terms: [{ label, color? }] */
-export async function createCategorisation({ clientId, label, key, appliesTo, appliesToListings = false, terms = [] }) {
+export async function createCategorisation({ clientId, label, key, appliesTo, terms = [] }) {
   const cleanLabel = String(label || "").trim();
   if (!cleanLabel) throw new Error("Label is required.");
   if (!["directory", "entry", "both"].includes(appliesTo)) throw new Error("Invalid applies_to.");
@@ -107,7 +98,6 @@ export async function createCategorisation({ clientId, label, key, appliesTo, ap
       key: key || slugify(cleanLabel),
       label: cleanLabel,
       applies_to: appliesTo,
-      applies_to_listings: !!appliesToListings,
       is_active: true,
     })
     .select()
@@ -291,131 +281,6 @@ export async function setDirectoryTerms(directoryId, termIds) {
   if (insErr) throw insErr;
 }
 
-// ---- Tagging: map listings (20260829020000_create_listing_category_terms.sql) ----
-// Direct peer of the entry-tagging functions above, keyed off listing_category_terms.
-
-export async function loadListingTermIds(listingId) {
-  if (!listingId) return [];
-  const { data, error } = await supabase
-    .from("listing_category_terms")
-    .select("term_id")
-    .eq("listing_id", listingId);
-  if (error) throw error;
-  return (data ?? []).map((r) => r.term_id);
-}
-
-/** Replace all term tags for a listing with exactly termIds. */
-export async function setListingTerms(listingId, termIds) {
-  const { error: delErr } = await supabase.from("listing_category_terms").delete().eq("listing_id", listingId);
-  if (delErr) throw delErr;
-  if (termIds.length === 0) return;
-  const { error: insErr } = await supabase
-    .from("listing_category_terms")
-    .insert(termIds.map((term_id) => ({ listing_id: listingId, term_id })));
-  if (insErr) throw insErr;
-}
-
-/**
- * Bulk-apply term(s) from one categorisation to many listings at once —
- * mirrors applyBulkEntryTerms's add-vs-replace shape exactly.
- */
-export async function applyBulkListingTerms({ listingIds, categorisationId, termIds, mode = "add" }) {
-  const ids = [...new Set((listingIds || []).filter(Boolean))];
-  if (ids.length === 0) return 0;
-  const terms = [...new Set((termIds || []).filter(Boolean))];
-
-  if (mode === "replace") {
-    const { data: catTerms, error: ctErr } = await supabase
-      .from("category_terms")
-      .select("id")
-      .eq("categorisation_id", categorisationId);
-    if (ctErr) throw ctErr;
-    const catTermIds = (catTerms ?? []).map((t) => t.id);
-    if (catTermIds.length) {
-      const { error: delErr } = await supabase
-        .from("listing_category_terms")
-        .delete()
-        .in("listing_id", ids)
-        .in("term_id", catTermIds);
-      if (delErr) throw delErr;
-    }
-  }
-
-  const rows = [];
-  for (const listingId of ids) {
-    for (const termId of terms) rows.push({ listing_id: listingId, term_id: termId });
-  }
-  if (rows.length === 0) return ids.length;
-  const { error } = await supabase
-    .from("listing_category_terms")
-    .upsert(rows, { onConflict: "listing_id,term_id", ignoreDuplicates: true });
-  if (error) throw error;
-  return ids.length;
-}
-
-// ---- CSV import: attach map listings to categories ----
-// Mirrors DirectoryEntriesPanel.jsx's doImport category_<key> resolution
-// exactly, retargeted at listings/listing_category_terms. Unknown tokens are
-// reported as warnings, not auto-created — a new taxonomy term is a category
-// management change, not a side effect of a data import.
-
-/** The CSV/Sheet column name for a categorisation (matches DirectoryEntriesPanel.jsx). */
-export function categoryColumnName(key) {
-  return `category_${key}`;
-}
-
-/**
- * Resolve category_<key> cells from imported rows into termIds per listing,
- * for listing-applicable (applies_to_listings) categorisations only.
- * @param {object[]} rows        row objects keyed by lowercased header
- * @param {string[]} listingIds  parallel array of resolved listing ids (same order as rows)
- * @param {object[]} categorisations  categorisations with their terms loaded (listCategorisations())
- * @returns {{ termsByListing: Map<string, string[]>, warnings: string[] }}
- */
-export function resolveImportedListingTerms({ rows, listingIds, categorisations }) {
-  const listable = (categorisations || []).filter((c) => appliesToListings(c));
-  const termsByListing = new Map();
-  const warnings = [];
-  if (listable.length === 0) return { termsByListing, warnings };
-
-  const lookupByCat = new Map();
-  for (const cat of listable) {
-    const m = new Map();
-    for (const t of cat.terms || []) {
-      if (t.slug) m.set(String(t.slug).toLowerCase(), t.id);
-      if (t.label) m.set(String(t.label).toLowerCase(), t.id);
-    }
-    lookupByCat.set(cat.id, m);
-  }
-
-  (rows || []).forEach((r, idx) => {
-    const listingId = listingIds[idx];
-    if (!listingId) return;
-    const rowNum = idx + 2;
-    const termIds = [];
-    for (const cat of listable) {
-      const raw = String(r[categoryColumnName(cat.key)] ?? "").trim();
-      if (!raw) continue;
-      const lookup = lookupByCat.get(cat.id);
-      raw.split("|").map((s) => s.trim()).filter(Boolean).forEach((token) => {
-        const termId = lookup?.get(token.toLowerCase());
-        if (termId) termIds.push(termId);
-        else warnings.push(`Row ${rowNum}: unknown ${cat.label} term "${token}"`);
-      });
-    }
-    if (termIds.length) termsByListing.set(listingId, termIds);
-  });
-
-  return { termsByListing, warnings };
-}
-
-/** Apply resolved import terms — replace-mode per listing (matches setListingTerms). */
-export async function applyImportedListingTerms(termsByListing) {
-  for (const [listingId, termIds] of termsByListing) {
-    await setListingTerms(listingId, termIds);
-  }
-}
-
 // ---- Unified filter-bar adapter (maps <-> categorisations) ----
 //
 // Normalizes categorisations/category_terms into the same shape
@@ -478,32 +343,6 @@ export async function loadCategorisationFiltersForEntries(clientId, entryIds) {
     if (!fieldId) continue;
     if (!valuesByRecord[row.entry_id]) valuesByRecord[row.entry_id] = [];
     valuesByRecord[row.entry_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
-  }
-  return { filterFields, valuesByRecord };
-}
-
-/** Same shape as loadCategorisationFiltersForEntries, for map listings (applies_to_listings categorisations). */
-export async function loadCategorisationFiltersForListings(clientId, listingIds) {
-  const cats = (await listCategorisations(clientId)).filter((c) => appliesToListings(c));
-  const filterFields = categorisationsAsFilterFields(cats);
-  const ids = [...new Set((listingIds || []).filter(Boolean))];
-  if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
-
-  const termToField = new Map();
-  for (const c of cats) for (const t of c.terms || []) termToField.set(t.id, c.id);
-
-  const { data, error } = await supabase
-    .from("listing_category_terms")
-    .select("listing_id, term_id")
-    .in("listing_id", ids);
-  if (error) throw error;
-
-  const valuesByRecord = {};
-  for (const row of data ?? []) {
-    const fieldId = termToField.get(row.term_id);
-    if (!fieldId) continue;
-    if (!valuesByRecord[row.listing_id]) valuesByRecord[row.listing_id] = [];
-    valuesByRecord[row.listing_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
   }
   return { filterFields, valuesByRecord };
 }

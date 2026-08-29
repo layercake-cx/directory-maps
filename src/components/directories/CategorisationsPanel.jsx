@@ -18,7 +18,6 @@ const emptyForm = {
   key: "",
   keyTouched: false,
   appliesTo: "entry",
-  appliesToListings: false,
   terms: [],
   originalAppliesTo: null,
 };
@@ -76,7 +75,6 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
       key: cat.key,
       keyTouched: true,
       appliesTo: cat.applies_to,
-      appliesToListings: !!cat.applies_to_listings,
       terms: (cat.terms || []).map((t) => ({ id: t.id, label: t.label, color: t.color || "" })),
       originalAppliesTo: cat.applies_to,
     });
@@ -121,11 +119,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
         .map((t) => ({ id: t.id, label: t.label.trim(), color: t.color || null }));
 
       if (form.id) {
-        await updateCategorisation(form.id, {
-          label: form.label.trim(),
-          key: form.key.trim(),
-          applies_to_listings: !!form.appliesToListings,
-        });
+        await updateCategorisation(form.id, { label: form.label.trim(), key: form.key.trim() });
         await replaceCategorisationTerms(form.id, cleanTerms);
         emit("directory_categorisation_updated", { categorisation_id: form.id, key: form.key.trim() });
       } else {
@@ -134,7 +128,6 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
           label: form.label.trim(),
           key: form.key.trim(),
           appliesTo: form.appliesTo,
-          appliesToListings: !!form.appliesToListings,
           terms: cleanTerms,
         });
         emit("directory_categorisation_created", { categorisation_id: cat?.id, key: form.key.trim(), applies_to: form.appliesTo });
@@ -226,23 +219,6 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
         </div>
 
         <div className="panel-section">
-          <p className="panel-section__title">Map listings</p>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-            <input
-              type="checkbox"
-              checked={!!form.appliesToListings}
-              onChange={(e) => setForm((f) => ({ ...f, appliesToListings: e.target.checked }))}
-            />
-            Also usable to tag map listings
-          </label>
-          <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.7 }}>
-            When on, this categorisation's terms appear as a filter on the map's own listings too (via a
-            category_{form.key || "key"} CSV import column, or manual tagging) — independent of "Applies to" above,
-            which only governs directories/entries.
-          </p>
-        </div>
-
-        <div className="panel-section">
           <p className="panel-section__title">Terms</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {form.terms.map((t, i) => (
@@ -298,7 +274,6 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
                   <span style={{ fontWeight: 600 }}>{c.label}</span>
                   <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
                     {appliesToLabel(c.applies_to)} · {c.terms.length} term{c.terms.length === 1 ? "" : "s"}
-                    {c.applies_to_listings ? " · Also tags map listings" : ""}
                     {!c.is_active ? " · Archived" : ""}
                   </span>
                 </span>
