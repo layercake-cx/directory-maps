@@ -112,11 +112,12 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 Open a directory to see its entries table:
 
-- **+ Add entry** — opens a form for name, address, postcode, country, group, latitude/longitude, website, email, phone, logo URL, and notes.
+- **+ Add entry** / **Edit** — opens a full-page entry editor (no longer a modal), with tabs: **Basic Info** (name, address, postcode, country, group, website, email, phone, logo, active flag, and which contact fields show publicly once published), **Categories**, **Content** (notes plus evidence/media/accreditations/prominent links/product tiles), **Search & Metadata** (meta title/description/keywords/canonical URL/structured data type/sitemap priority/noindex, plus a **Social & AI** section for the social share title/description/image, Twitter card type, and an AI-facing summary), **Panel Style**, and **Preview & Publish**. The last two are still placeholders — a custom panel image/background and a single-entry "publish just this entry" action are coming in a later phase. Coordinates (latitude/longitude) aren't shown or editable — they're calculated automatically from the address.
 - **Search** — filters entries by name or address (server-side, so it works across directories of any size).
-- **Edit** / **Delete** — Delete requires typing **DELETE** to confirm, since it can't be undone.
-- **Group** — a simple, single-value category per directory (add new groups inline from the entry form). This is distinct from the richer, reusable categorisation model planned for a later phase.
-- **Notes** can contain a small set of formatting HTML (paragraphs, bold/italic, lists, links) — anything else (scripts, embeds) is stripped automatically when the entry is saved.
+- **Delete** — requires typing **DELETE** to confirm, since it can't be undone.
+- **Group** — a simple, single-value category per directory (add new groups inline from the Basic Info tab). This is distinct from the richer, reusable categorisation model planned for a later phase.
+- **Logo** — paste a hosted image URL, or (once the entry has been saved once) upload a PNG/JPG/WebP file directly (max 2 MB); uploading replaces any previous file-based logo.
+- **Notes** use a rich text (WYSIWYG) editor — bold/italic/underline, headings, bullet/numbered lists, quotes and links. Anything else (scripts, embeds, other formatting) is stripped automatically when the entry is saved.
 
 **Bulk actions:** tick entries' checkboxes (or the header checkbox to select everything on the current page) to reveal a bulk action bar — **Archive**/**Restore** several entries at once, or **Bulk tag…** to add or replace a categorisation's term(s) across the selection.
 

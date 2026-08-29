@@ -150,6 +150,19 @@ export async function listDirectoryEntries(directoryId, { search = "", page = 0,
   return { rows: data ?? [], count: count ?? 0 };
 }
 
+export async function getDirectoryEntry(entryId) {
+  if (!entryId) return null;
+  const { data, error } = await supabase
+    .from("directory_entries")
+    .select(
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, created_at, updated_at",
+    )
+    .eq("id", entryId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createDirectoryEntry(entry) {
   const cleanName = String(entry?.name || "").trim();
   if (!cleanName) throw new Error("Name is required.");

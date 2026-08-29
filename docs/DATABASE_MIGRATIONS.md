@@ -383,6 +383,10 @@ The following SQL commands must **never** appear in a migration without a separa
 
 ---
 
+## CLI setup — use the installed binary, not `npx`
+
+See `AGENTS.md`'s "Supabase CLI" section. Short version: run `supabase ...` directly (already installed, already logged in) — never `npx supabase ...`, which fetches a separate unauthenticated copy that tries to start an interactive login flow (and can trigger a macOS Keychain prompt) the moment it needs auth. If a shared working directory might have another session's uncommitted migration file sitting in `supabase/migrations/`, run `db push` from an isolated worktree instead so it can't get swept up.
+
 ## Agents: when Cursor or Claude Code writes a migration
 
 - Output the migration file and rollback file.

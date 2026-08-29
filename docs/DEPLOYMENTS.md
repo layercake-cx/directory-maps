@@ -49,6 +49,77 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Production] Directory entry editor: SEO social/AI fields (Phase 4)
+
+**Branch:** `feat/2026-08-29-directory-entry-seo-social-ai-fields`
+**Context:** continues the entry editor rebuild (#149/#150, merged and deployed). Adds the Open Graph/Twitter/canonical/keywords/AI-summary fields planned for the Search & Metadata tab; the pre-existing meta_title/meta_description/noindex/structured_data_type/sitemap_priority fields were already wired up in Phase 1.
+
+### What changed
+- **Migration** `20260829150000_directory_entry_seo_social_ai_fields.sql` (+ rollback): adds `og_title`, `og_description`, `og_image_url`, `twitter_card_type` (checked: `summary`/`summary_large_image`), `canonical_url`, `keywords`, `ai_summary` to `directory_entries`. All nullable, additive only, no data migration needed.
+- `lib/directories.js`'s `getDirectoryEntry` select list now includes the new columns.
+- `EntrySeoTab.jsx` gains a "Social & AI" section below the existing "Search engines" section, all writing through the same `updateDirectoryEntry` call.
+- The static site generator (`generate_directory_site`) does **not** read these columns yet — they have no public-facing effect until a later phase wires them into the entry page's actual `<meta>`/OG tags. This phase is UI + schema only.
+
+### ⚠️ Deployment ordering — read before merging
+This is different from Phases 1–3: those only touched existing columns or independent tables/buckets, so merging (which auto-deploys to production here) was safe regardless of DB state. **This phase's frontend code selects columns that don't exist until the migration runs.** If this PR is merged before the migration is applied to production, every entry-editor page load breaks immediately (Supabase returns an error for the unknown columns in `getDirectoryEntry`'s select). **Apply the migration to staging, then production, before merging this PR** — not after.
+
+**Migration-history note:** staging (`beqejxneehilplrtpntn`) already had three unrelated migrations applied from a peer session's in-progress, not-yet-merged branch (`feat/2026-08-29-unify-map-filters-categories` — `20260829010000`/`020000`/`030000`, touching `categorisations`/`category_terms`/`listings`, zero overlap with `directory_entries` confirmed by reading the actual SQL). That put the Supabase CLI's migration-history table in a state where `supabase db push` refused to proceed (remote versions with no matching local file) and its own suggested fix (`migration repair --status reverted ...`) would have been factually wrong — those migrations are still live, not reverted. Reconciling history is a permission-gated action in this session that wasn't approved, so **the user applied this migration's forward SQL directly via the staging SQL editor instead**, bypassing the CLI's `db push` bookkeeping entirely. The actual columns should be live as a result, but `supabase migration list` still shows this version's remote column blank (the tracking table doesn't know about it) — harmless today, but a future `db push` from a reconciled checkout will hit this migration's own idempotency guard (`ABORT: column og_title already exists`) rather than silently re-running it. Worth reconciling with `migration repair --status applied 20260829010000 20260829020000 20260829030000` once that's approved, so this migration (and any future ones) can go through `db push` normally again.
+
+### Verified
+- [x] `npm run build` clean (JS-only check — does not validate the migration against any real schema).
+- [x] Applied to staging by the user directly via the SQL editor (dry-run `BEGIN;…ROLLBACK;` confirmed clean first, then applied for real) — see the migration-history note above for why this went through the SQL editor rather than `supabase db push`.
+- [x] Applied to production by the user the same way, after explicit separate sign-off (dry-run first, then the real migration file). Same CLI-linking block applied to production as to staging (couldn't link/dry-run via CLI myself this session), so this is on the same trust basis as the staging application.
+- [ ] Not independently curl-verified this session (no anon/service key available for either environment) — relying on the user's confirmation and the migration's own embedded `VERIFY PASSED` check.
+- [ ] Not interactively tested.
+
+### Rollback plan
+- If applied and something's wrong: run `_20260829150000_directory_entry_seo_social_ai_fields.rollback.sql` (refuses if any of the seven columns has live data — override deliberately if that data can be discarded).
+- If not yet applied: just don't merge the PR; delete the branch.
+
+---
+
+## 2026-08-29 — [Production] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
+
+**Branch/PR:** `feat/2026-08-29-directory-entry-tabbed-editor`, [#149](https://github.com/layercake-cx/directory-maps/pull/149) (same PR as Phase 1), merged and deployed.
+**Context:** continues Phase 1 (same PR/branch). Two of the "coming in a later phase" gaps from Phase 1's Basic Info and Content tabs.
+
+### What changed
+- **Logo upload** (`src/lib/entryLogo.js`): once an entry exists, Basic Info's logo field gets an upload control alongside the URL input — PNG/JPEG/WebP, 2MB app-level cap, uploaded to the existing `directory-media` Storage bucket at a fixed `${entryId}/logo.<ext>` path with `upsert: true` (mirrors `AdminMapData.jsx`'s `handleListingLogoFile` fixed-path convention; no SVG, since that bucket's policy only allows PNG/JPEG/WebP — SVG stays map-pins-only). Uploading writes `directory_entries.logo_url` immediately, independent of the Basic Info form's own Save button, matching the existing listing-logo UX. Still URL-only for a brand-new (unsaved) entry.
+- **WYSIWYG notes** (`src/components/directories/entryEdit/RichTextEditor.jsx`): replaces the plain `<textarea>` with TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link` — new dependencies, no existing rich-text editor in the app to reuse). Toolbar is deliberately restricted to bold/italic/underline/H2-H4/bullet+numbered lists/quote/link — strike, inline code, code blocks and horizontal rules are disabled in the TipTap config because their output tags aren't in `sanitizeNotesHtml`'s allowlist and would silently vanish on save otherwise, which would look like editor data loss.
+- No database migration; no changes to the `directory-media` bucket's existing policies.
+
+### Verified
+- [x] `npm run build` clean (in an isolated `git worktree`, since this machine's shared working directory had another session's branch checked out with its own uncommitted WIP — see the parallel-sessions note in this repo's agent memory).
+- [x] Merged to `main` and deployed to production: GitHub Pages ran automatically on push; Vercel's git integration auto-deployed `main` to `maps.layercake-cx.biz` on merge too (confirmed by diffing the live bundle, which now contains this change's UI strings) — `npm run deploy:live` afterwards was therefore redundant, and because it was run from the worktree directory (no `.vercel` project link there), it accidentally created a **new, separate Vercel project** (`directory-maps-entry-editor-wt`, live at `directory-maps-entry-editor-wt.vercel.app`) instead of redeploying the real one. That stray project needs manual cleanup (delete it in the Vercel dashboard, or ask an agent with account access to do it) — it's harmless (just an accidental duplicate) but shouldn't be left lying around.
+- [ ] Still not interactively tested (no login credentials this session) — needs upload + WYSIWYG click-through alongside Phase 1's test plan, now against production.
+
+### Rollback plan
+- Revert the merge commit on `main`, redeploy. No schema change, no data migration to unwind. If `directory-media` ever needs the upload path cleaned up, uploaded logo objects live at `directory-media/<entryId>/logo.<ext>` — removing them is optional cleanup, not required for rollback (the app just stops referencing new ones).
+
+---
+
+## 2026-08-29 — [Production] Directory entry editor: full-page tabbed rebuild (Phase 1)
+
+**Branch/PR:** `feat/2026-08-29-directory-entry-tabbed-editor`, [#149](https://github.com/layercake-cx/directory-maps/pull/149), merged and deployed (see Phase 2 entry above for deploy details — same PR covers both phases).
+**Context:** the entry edit modal (`DirectoryEntriesPanel.jsx`) had grown into 14 form fields plus five independently-saving sub-editors bolted on below it, all inside a fixed-size overlay. Planned (with the user) as a full-page, tabbed editor instead, following the Map editor's route-per-tab convention. Monday: [main ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193120074), plus a separate [future-work ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193118049) for eventually replacing the Content tab's fixed sections with a block editor.
+
+### What changed
+- New route `.../directories/:directoryId/entries/:entryId[/categories|/content|/seo|/panel|/preview]` (client + admin) replaces the modal entirely — `DirectoryEntriesPanel.jsx`'s Add/Edit buttons now navigate instead of opening it.
+- `DirectoryEntryEditor.jsx` (shared orchestrator) + `entryEdit/Entry{BasicInfo,Categories,Content,Seo,Panel,PreviewPublish}Tab.jsx`, new wrapper pages `AdminDirectoryEntryEdit.jsx` / `ClientDirectoryEntryEdit.jsx`.
+- Basic Info, Categories, and Content are fully functional — Content relocates the five existing sub-editors (evidence/media/accreditations/prominent links/product tiles) unchanged. Search & Metadata now exposes `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority`, which existed on `directory_entries` since DIR-E2 but had no editing UI until now. Panel Style and Preview & Publish are placeholders — no schema change needed for this phase.
+- Deliberately excludes lat/lng from the Basic Info tab (user call — coordinates are auto-geocoded, never hand-entered); the old modal exposed them as free-text inputs.
+- No database migration in this phase.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] Merged to `main` and deployed to production (GitHub Pages + Vercel — see the Phase 2 entry above, same PR/deploy).
+- [ ] Still not interactively tested (no login credentials this session) — needs a manual click-through of Add entry → each tab → Save, now against production.
+
+### Rollback plan
+- Revert the merge commit on `main`, redeploy. No schema change, no data migration to unwind.
+
+---
+
 ## 2026-08-29 — [Production] Warn before archiving/deleting a directory with a linked map
 
 **Branch/PR:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`, [#147](https://github.com/layercake-cx/directory-maps/pull/147), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).
