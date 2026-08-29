@@ -23,7 +23,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check` clean on `generate_directory_site/index.ts` and `generate_directory_pages/index.ts` (shares the same module; only a new export was added, nothing existing changed).
 - [x] `npm run build` clean.
 - [x] Deployed to staging then production (`supabase functions deploy generate_directory_site`), PR #155 merged.
-- [ ] Not yet re-measured against the real 177-entry association directory — republish it and compare against the ~120s baseline to confirm the actual speedup.
+- [x] Re-measured against the real 177-entry association directory in production: **~120s → ~16s** (a ~7.5x speedup — short of the theoretical 15x since DB reads, function cold-start, and the four single top-level uploads form a fixed floor that doesn't shrink with more concurrency).
+
+### Conclusion for the single-entry-publish idea (Phase 6)
+This changes the recommendation from the original entry-editor plan. A full directory republish at 16s for a 177-entry directory is fast enough that "publish just this entry" (a genuinely new RPC/Edge Function code path, new UI, new audit events) likely isn't worth building right now — the existing directory-wide Publish panel already gives an acceptable experience even for a large directory. The Preview & Publish tab can stay a placeholder, or get a lightweight link back to the directory's own Publish panel, rather than new targeted-regeneration plumbing. Revisit only if directories grow enough (many hundreds/thousands of entries) that even the parallelized 16s-for-177 cost becomes the actual complaint again.
 
 ### Rollback plan
 - Revert the commit and redeploy the prior `generate_directory_site` version — no schema/data to unwind, purely a code change to an idempotent generator.
