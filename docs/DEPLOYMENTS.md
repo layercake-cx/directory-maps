@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Not yet deployed] Categorisation attachment model (map ↔ directory shared filters)
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#153](https://github.com/layercake-cx/directory-maps/pull/153) merged the earlier schema/revert commits; this migration is a follow-up commit on the same branch, not yet its own PR.
+**Context:** the entry below ("Revert: categorisations tagging self-authored map listings") corrected one wrong model but the replacement — my own reasoning that a self-authored map "has no directory relationship, so there's nothing for its filters to be the same as" — was also wrong, per direct correction. The actual model: a categorisation is a standalone entity that can be attached to a map, a directory, or both independently; when a map and directory happen to be linked, they share filters as a *consequence* of sharing the same entry data, not because of some special-cased relationship. This is the schema for that: explicit, per-instance attachment, replacing `categorisations.applies_to`'s automatic-everywhere gating entirely (not just adding a maps-specific flag to it).
+
+### What changed
+- `supabase/migrations/20260829040000_create_categorisation_attachments.sql`: new `categorisation_attachments` (categorisation_id, target_type `map`|`directory`, target_id) — a categorisation is only usable as a filter on a specific map/directory once attached here. Re-creates `listing_category_terms` (peer of `entry_category_terms`, previously added then reverted in `20260829020000`/`20260829030000` — now correctly gated by attachment instead of a client-wide flag). Backfills an attachment row for every existing categorisation against every directory of its own client, preserving current behaviour for anything relying on the old automatic gating; no map attachments existed before, so nothing to backfill there. `categorisations.applies_to` is left in place but unused by app code — dropping it is a separate, later, explicitly-flagged migration (never bundle `DROP COLUMN` with additive changes, per `docs/DATABASE_MIGRATIONS.md`).
+- Full app-layer rebuild around attachment: `categorisations.js` (`listAttachedCategorisations`/`attachCategorisation`/`detachCategorisation`, adapters now scoped by directory/map id instead of client id), new `CategorisationAttachmentPicker.jsx` (used from both a map's Filters panel and a directory's settings), `CategoryTagPicker.jsx` (takes `directoryId` instead of `clientId`+`scope`), `EmbedMap.jsx` (both directory-sourced and self-authored branches), `ClientMapData.jsx`/`AdminMapData.jsx` (CSV import), `generate_directory_site` (filter bar only reflects currently-attached categorisations), `EntryLayoutDesigner.jsx`.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on `generate_directory_site/index.ts`.
+- [ ] **Not yet applied to staging** — blocked by another session's in-flight migration (`20260829160000`, applied directly to staging via SQL editor) not yet present in this branch's local migration files, which the Supabase CLI needs to reconcile `db push`. Will apply once that migration lands on `main` and this branch picks it up.
+- [ ] Not yet interactively smoke-tested.
+
+### Rollback plan
+- `_20260829040000_create_categorisation_attachments.rollback.sql` — drops `categorisation_attachments` and `listing_category_terms` entirely. Safe with data present; nothing else depends on either table yet.
+
+---
+
 ## 2026-08-29 — [Staging] Revert: categorisations tagging self-authored map listings
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
