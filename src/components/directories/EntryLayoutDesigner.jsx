@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { listDirectoryGroups } from "../../lib/directories.js";
-import { listCategorisations, appliesToEntries } from "../../lib/categorisations.js";
+import { listAttachedCategorisations } from "../../lib/categorisations.js";
 import { listEvidenceItems } from "../../lib/evidenceItems.js";
 import { listMediaAssets } from "../../lib/mediaAssets.js";
 import { listProductTiles } from "../../lib/productTiles.js";
@@ -134,7 +134,7 @@ export default function EntryLayoutDesigner({ directoryId, canManage, recordEven
   const otherTemplates = templates.filter((t) => !t.is_default);
   const selectedTemplate = selectedId === "default" ? null : templates.find((t) => t.id === selectedId) ?? null;
 
-  const entryCategorisations = useMemo(() => categorisations.filter((c) => appliesToEntries(c.applies_to)), [categorisations]);
+  const entryCategorisations = categorisations;
 
   const load = useCallback(async () => {
     if (!directoryId) return;
@@ -145,8 +145,7 @@ export default function EntryLayoutDesigner({ directoryId, canManage, recordEven
       setTemplates(tpl);
       setGroups(grp);
 
-      const { data: dir } = await supabase.from("directories").select("client_id").eq("id", directoryId).single();
-      if (dir?.client_id) setCategorisations(await listCategorisations(dir.client_id));
+      setCategorisations(await listAttachedCategorisations("directory", directoryId));
 
       const { data: entries } = await supabase
         .from("directory_entries")

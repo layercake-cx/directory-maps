@@ -10,7 +10,7 @@ import {
   listDirectoryGroups,
   upsertDirectoryEntries,
 } from "../../lib/directories";
-import { appliesToEntries, listCategorisations, setEntryTerms } from "../../lib/categorisations";
+import { listAttachedCategorisations, setEntryTerms } from "../../lib/categorisations";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
@@ -123,11 +123,11 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   }, [directoryId]);
 
   useEffect(() => {
-    if (!clientId) return;
-    listCategorisations(clientId)
-      .then((all) => setCategorisations(all.filter((c) => appliesToEntries(c.applies_to))))
+    if (!directoryId) return;
+    listAttachedCategorisations("directory", directoryId)
+      .then(setCategorisations)
       .catch(() => {});
-  }, [clientId]);
+  }, [directoryId]);
 
   // Selection is page-scoped (entry ids only exist once their page has loaded);
   // clear it whenever the underlying result set changes so stale ids can't linger.

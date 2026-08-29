@@ -1,40 +1,37 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { appliesToDirectories, appliesToEntries, listCategorisations } from "../../lib/categorisations";
+import { listAttachedCategorisations } from "../../lib/categorisations";
 
 /**
- * Renders a checkbox group per applicable categorisation, for tagging a
- * directory or a directory entry with terms (docs/DIRECTORIES.md DIR-E5-S2).
- * Categorisations not applicable to `scope` (directory-only vs entry-only)
- * are not shown — enforced client-side, matching how the entry-template
- * block palette hides directory-scoped categorisations (DIR-E6-S3).
+ * Renders a checkbox group per categorisation attached to this directory,
+ * for tagging a directory or a directory entry with terms
+ * (docs/DIRECTORIES.md DIR-E5-S2). Whole-directory tagging and entry
+ * tagging both draw from the same attached set — attachment (not a
+ * separate entry-vs-directory flag) is what gates whether a categorisation
+ * is usable here at all.
  *
- * @param {string} clientId
- * @param {"entry"|"directory"} scope
+ * @param {string} directoryId
  * @param {string[]} selectedTermIds
  * @param {(ids: string[]) => void} onChange
  */
-export default function CategoryTagPicker({ clientId, scope, selectedTermIds, onChange }) {
+export default function CategoryTagPicker({ directoryId, selectedTermIds, onChange }) {
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!directoryId) return;
     let alive = true;
     (async () => {
       try {
-        const all = await listCategorisations(clientId);
-        if (alive) setCats(all);
+        const attached = await listAttachedCategorisations("directory", directoryId);
+        if (alive) setCats(attached);
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [clientId]);
+  }, [directoryId]);
 
-  const applicable = useMemo(
-    () => cats.filter((c) => (scope === "entry" ? appliesToEntries(c.applies_to) : appliesToDirectories(c.applies_to))),
-    [cats, scope],
-  );
+  const applicable = cats;
 
   const selected = useMemo(() => new Set(selectedTermIds), [selectedTermIds]);
 

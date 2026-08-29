@@ -15,6 +15,7 @@ import {
   replaceFieldOptions,
   countListingsUsingOption,
 } from "../lib/filterFields.js";
+import CategorisationAttachmentPicker from "./directories/CategorisationAttachmentPicker.jsx";
 
 const DEFAULT_OPTION_COLOR = "#4A9BAA";
 
@@ -400,6 +401,10 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
         Filter fields are custom, filterable metadata for this map (e.g. Sector, Languages spoken) — separate from Groups.
         Turn on "Show in search bar" and Publish to make a field visible to viewers.
       </p>
+
+      {clientId && (
+        <CategorisationAttachmentPicker clientId={clientId} targetType="map" targetId={mapId} recordEvent={emit} />
+      )}
 
       {visibleFields.length === 0 ? (
         <div className="panel-section" style={{ textAlign: "center" }}>

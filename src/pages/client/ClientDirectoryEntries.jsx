@@ -8,6 +8,7 @@ import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
+import CategorisationAttachmentPicker from "../../components/directories/CategorisationAttachmentPicker.jsx";
 import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
 import ProminentLinksEditor from "../../components/directories/ProminentLinksEditor.jsx";
 import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
@@ -167,12 +168,21 @@ export default function ClientDirectoryEntries() {
       </div>
 
       <div className="admin-card" style={{ marginBottom: 16 }}>
+        <CategorisationAttachmentPicker
+          clientId={client?.id}
+          targetType="directory"
+          targetId={directoryId}
+          recordEvent={recordEvent}
+          canManage={canManage}
+        />
+      </div>
+
+      <div className="admin-card" style={{ marginBottom: 16 }}>
         <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
           Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
         </p>
         <CategoryTagPicker
-          clientId={client?.id}
-          scope="directory"
+          directoryId={directoryId}
           selectedTermIds={directoryTermIds}
           onChange={canManage ? handleDirectoryTermsChange : () => {}}
         />

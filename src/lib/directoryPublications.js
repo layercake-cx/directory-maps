@@ -31,7 +31,6 @@ export function buildDirectoryPublicationConfig({ directory, categorisations }) 
       id: c.id,
       key: c.key,
       label: c.label,
-      applies_to: c.applies_to,
       terms: (c.terms || []).map((t) => ({ id: t.id, label: t.label, slug: t.slug, color: t.color ?? null })),
     })),
   };

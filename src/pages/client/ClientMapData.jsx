@@ -4,6 +4,7 @@ import { supabase, invokeFunction } from "../../lib/supabase";
 import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
 import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
+import { listAttachedCategorisations, categoryColumnName, resolveImportedListingTerms, applyImportedListingTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Select, Stack, Text, Group } from "@mantine/core";
@@ -186,6 +187,7 @@ export default function ClientMapData() {
   const manualAddressBaselineRef = useRef("");
   const filterEditorRef = useRef(null);
   const [filterFields, setFilterFields] = useState([]);
+  const [categorisations, setCategorisations] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
@@ -194,6 +196,17 @@ export default function ClientMapData() {
     if (!mapId) return;
     loadFilterFields(mapId, { includeArchived: false })
       .then((f) => { if (alive) setFilterFields(f); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [mapId]);
+
+  // Categorisations attached to this map (categorisation_attachments), used
+  // for CSV import's category_<key> columns.
+  useEffect(() => {
+    let alive = true;
+    if (!mapId) return;
+    listAttachedCategorisations("map", mapId)
+      .then((cats) => { if (alive) setCategorisations(cats); })
       .catch(() => {});
     return () => { alive = false; };
   }, [mapId]);
@@ -519,8 +532,11 @@ export default function ClientMapData() {
       }
       return first;
     });
-    const header = [...baseHeader, ...filterCols];
-    const sample = [[...baseSample, ...filterSample]];
+    // Append one column per categorisation attached to this map, same pipe-delimited convention.
+    const catCols = categorisations.map((c) => categoryColumnName(c.key));
+    const catSample = categorisations.map((c) => (c.terms || []).slice(0, 1).map((t) => t.slug).join("|"));
+    const header = [...baseHeader, ...filterCols, ...catCols];
+    const sample = [[...baseSample, ...filterSample, ...catSample]];
     const toCSV = (arr) => arr.map((row) => row.map((cell) => { const s = String(cell ?? ""); return (s.includes('"') || s.includes(",") || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s; }).join(",")).join("\n");
     const blob = new Blob([toCSV([header, ...sample])], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -649,8 +665,22 @@ export default function ClientMapData() {
           filterWarnings = [...filterWarnings, `Filter values could not be saved: ${fvErr?.message ?? fvErr}`];
         }
       }
+      // Resolve category_<key> columns against categorisations attached to this map.
+      let categoryWarnings = [];
+      if (categorisations.length > 0) {
+        const listingIds = cleaned.map((c) => c.id);
+        const { termsByListing, warnings } = resolveImportedListingTerms({ rows, listingIds, categorisations });
+        categoryWarnings = warnings;
+        try {
+          await applyImportedListingTerms(termsByListing);
+        } catch (ctErr) {
+          categoryWarnings = [...categoryWarnings, `Category tags could not be saved: ${ctErr?.message ?? ctErr}`];
+        }
+      }
       const filterWarnSuffix = (filterCreatedSuffix ? filterCreatedSuffix : "") + (filterWarnings.length
         ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
+        : "") + (categoryWarnings.length
+        ? ` ⚠ ${categoryWarnings.length} category issue${categoryWarnings.length === 1 ? "" : "s"}: ${categoryWarnings.slice(0, 5).join("; ")}${categoryWarnings.length > 5 ? "…" : ""}`
         : "");
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });

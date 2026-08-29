@@ -1,39 +1,29 @@
 /**
  * Categorisations — shared data access.
  *
- * Reusable, client-wide taxonomies that can be applied to directories
- * and/or directory entries (docs/DIRECTORIES.md, epic DIR-E5). Additive
- * alongside directory_groups (the simple, per-directory, single-value
- * grouping) — never a replacement for it.
+ * A categorisation is a standalone, reusable, client-wide taxonomy (e.g.
+ * "Sector") with its own terms. What it can tag is governed entirely by
+ * explicit attachment (categorisation_attachments) — a categorisation is
+ * only usable on a specific map or directory once deliberately attached to
+ * it there; the same categorisation can be attached to any number of maps
+ * and directories independently. This replaced the earlier applies_to
+ * (directory/entry/both) column, which gated a categorisation automatically
+ * on every directory a client owned with no per-instance opt-in and no way
+ * for a categorisation to apply to a map at all (see
+ * 20260829040000_create_categorisation_attachments.sql for the full
+ * rationale). applies_to still exists as a column but is unused by app
+ * code — dropping it is a separate, later migration.
  *
- * Tables (see 20260714130000_create_categorisations.sql):
- *   - categorisations           taxonomy definitions per client
- *   - category_terms            term list per categorisation
- *   - directory_category_terms  tags on a whole directory
- *   - entry_category_terms      tags on a directory entry
+ * Tables:
+ *   - categorisations           taxonomy definitions per client (20260714130000)
+ *   - category_terms            term list per categorisation (20260714130000)
+ *   - categorisation_attachments  which map(s)/directory(ies) a categorisation is active on (20260829040000)
+ *   - directory_category_terms  tags on a whole directory (20260714130000)
+ *   - entry_category_terms      tags on a directory entry (20260714130000)
+ *   - listing_category_terms    tags on a map listing (20260829040000)
  */
 
 import { supabase } from "./supabase";
-
-export const APPLIES_TO_OPTIONS = [
-  { id: "entry", label: "Directory entries" },
-  { id: "directory", label: "Whole directories" },
-  { id: "both", label: "Both" },
-];
-
-export function appliesToLabel(id) {
-  return APPLIES_TO_OPTIONS.find((o) => o.id === id)?.label ?? id;
-}
-
-/** Does a categorisation with this applies_to show up when tagging an entry? */
-export function appliesToEntries(appliesTo) {
-  return appliesTo === "entry" || appliesTo === "both";
-}
-
-/** Does a categorisation with this applies_to show up when tagging a directory? */
-export function appliesToDirectories(appliesTo) {
-  return appliesTo === "directory" || appliesTo === "both";
-}
 
 /** URL/import-safe slug from a human label (matches filterFields.js's slugifyKey). */
 export function slugify(label) {
@@ -50,27 +40,13 @@ function sortTerms(a, b) {
   return (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.label || "").localeCompare(String(b.label || ""));
 }
 
-/** Load all categorisations (with their terms) for a client, ordered by label. */
-export async function listCategorisations(clientId, { includeArchived = false } = {}) {
-  if (!clientId) return [];
-
-  let query = supabase
-    .from("categorisations")
-    .select("id, client_id, key, label, applies_to, is_active, created_at, updated_at")
-    .eq("client_id", clientId)
-    .order("label", { ascending: true });
-  if (!includeArchived) query = query.eq("is_active", true);
-
-  const { data: cats, error: catsErr } = await query;
-  if (catsErr) throw catsErr;
-  const catRows = cats ?? [];
+/** Fetch + attach each categorisation's terms (shared by listCategorisations/listAttachedCategorisations). */
+async function withTerms(catRows) {
   if (catRows.length === 0) return [];
-
-  const ids = catRows.map((c) => c.id);
   const { data: terms, error: termsErr } = await supabase
     .from("category_terms")
     .select("id, categorisation_id, label, slug, sort_order, color")
-    .in("categorisation_id", ids)
+    .in("categorisation_id", catRows.map((c) => c.id))
     .order("sort_order", { ascending: true });
   if (termsErr) throw termsErr;
 
@@ -85,11 +61,26 @@ export async function listCategorisations(clientId, { includeArchived = false } 
   }));
 }
 
+/** Load all categorisations (with their terms) for a client, ordered by label. */
+export async function listCategorisations(clientId, { includeArchived = false } = {}) {
+  if (!clientId) return [];
+
+  let query = supabase
+    .from("categorisations")
+    .select("id, client_id, key, label, is_active, created_at, updated_at")
+    .eq("client_id", clientId)
+    .order("label", { ascending: true });
+  if (!includeArchived) query = query.eq("is_active", true);
+
+  const { data: cats, error: catsErr } = await query;
+  if (catsErr) throw catsErr;
+  return withTerms(cats ?? []);
+}
+
 /** Create a categorisation plus its initial terms. terms: [{ label, color? }] */
-export async function createCategorisation({ clientId, label, key, appliesTo, terms = [] }) {
+export async function createCategorisation({ clientId, label, key, terms = [] }) {
   const cleanLabel = String(label || "").trim();
   if (!cleanLabel) throw new Error("Label is required.");
-  if (!["directory", "entry", "both"].includes(appliesTo)) throw new Error("Invalid applies_to.");
 
   const { data: cat, error } = await supabase
     .from("categorisations")
@@ -97,7 +88,6 @@ export async function createCategorisation({ clientId, label, key, appliesTo, te
       client_id: clientId,
       key: key || slugify(cleanLabel),
       label: cleanLabel,
-      applies_to: appliesTo,
       is_active: true,
     })
     .select()
@@ -128,7 +118,7 @@ export async function setCategorisationActive(id, isActive) {
   return updateCategorisation(id, { is_active: isActive });
 }
 
-/** Permanently delete a categorisation (cascades to terms + all directory/entry tags). */
+/** Permanently delete a categorisation (cascades to terms + all attachments/tags). */
 export async function deleteCategorisationPermanently(id) {
   const { error } = await supabase.from("categorisations").delete().eq("id", id);
   if (error) throw error;
@@ -136,8 +126,8 @@ export async function deleteCategorisationPermanently(id) {
 
 /**
  * Replace the full term list for a categorisation, preserving existing term
- * ids (so directory_category_terms/entry_category_terms stay valid) where an
- * id is given. Each term: { id?, label, color?, sort_order? }
+ * ids (so directory_category_terms/entry_category_terms/listing_category_terms
+ * stay valid) where an id is given. Each term: { id?, label, color?, sort_order? }
  */
 export async function replaceCategorisationTerms(categorisationId, terms) {
   const existing = await supabase
@@ -183,15 +173,68 @@ export async function replaceCategorisationTerms(categorisationId, terms) {
   }
 }
 
-/** How many directories + entries currently carry this term (for delete-confirmation usage counts). */
+/** How many directories + entries + listings currently carry this term (for delete-confirmation usage counts). */
 export async function countUsageForTerm(termId) {
-  const [{ count: directoryCount, error: dErr }, { count: entryCount, error: eErr }] = await Promise.all([
+  const [
+    { count: directoryCount, error: dErr },
+    { count: entryCount, error: eErr },
+    { count: listingCount, error: lErr },
+  ] = await Promise.all([
     supabase.from("directory_category_terms").select("*", { count: "exact", head: true }).eq("term_id", termId),
     supabase.from("entry_category_terms").select("*", { count: "exact", head: true }).eq("term_id", termId),
+    supabase.from("listing_category_terms").select("*", { count: "exact", head: true }).eq("term_id", termId),
   ]);
   if (dErr) throw dErr;
   if (eErr) throw eErr;
-  return (directoryCount ?? 0) + (entryCount ?? 0);
+  if (lErr) throw lErr;
+  return (directoryCount ?? 0) + (entryCount ?? 0) + (listingCount ?? 0);
+}
+
+// ---- Attachment: which map(s)/directory(ies) a categorisation is active on ----
+// (20260829040000_create_categorisation_attachments.sql)
+
+/** Categorisations (with terms) currently attached to a specific map or directory. */
+export async function listAttachedCategorisations(targetType, targetId) {
+  if (!targetId) return [];
+  const { data: attachments, error: attErr } = await supabase
+    .from("categorisation_attachments")
+    .select("categorisation_id")
+    .eq("target_type", targetType)
+    .eq("target_id", targetId);
+  if (attErr) throw attErr;
+  const catIds = [...new Set((attachments ?? []).map((a) => a.categorisation_id))];
+  if (catIds.length === 0) return [];
+
+  const { data: cats, error: catsErr } = await supabase
+    .from("categorisations")
+    .select("id, client_id, key, label, is_active, created_at, updated_at")
+    .in("id", catIds)
+    .eq("is_active", true)
+    .order("label", { ascending: true });
+  if (catsErr) throw catsErr;
+  return withTerms(cats ?? []);
+}
+
+/** Attach a categorisation to a map or directory (idempotent). */
+export async function attachCategorisation({ categorisationId, targetType, targetId }) {
+  const { error } = await supabase
+    .from("categorisation_attachments")
+    .upsert(
+      { categorisation_id: categorisationId, target_type: targetType, target_id: targetId },
+      { onConflict: "categorisation_id,target_type,target_id", ignoreDuplicates: true },
+    );
+  if (error) throw error;
+}
+
+/** Detach a categorisation from a map or directory. */
+export async function detachCategorisation({ categorisationId, targetType, targetId }) {
+  const { error } = await supabase
+    .from("categorisation_attachments")
+    .delete()
+    .eq("categorisation_id", categorisationId)
+    .eq("target_type", targetType)
+    .eq("target_id", targetId);
+  if (error) throw error;
 }
 
 // ---- Tagging: directory entries ----
@@ -281,6 +324,129 @@ export async function setDirectoryTerms(directoryId, termIds) {
   if (insErr) throw insErr;
 }
 
+// ---- Tagging: map listings (peer of entry tagging above) ----
+
+export async function loadListingTermIds(listingId) {
+  if (!listingId) return [];
+  const { data, error } = await supabase
+    .from("listing_category_terms")
+    .select("term_id")
+    .eq("listing_id", listingId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.term_id);
+}
+
+/** Replace all term tags for a listing with exactly termIds. */
+export async function setListingTerms(listingId, termIds) {
+  const { error: delErr } = await supabase.from("listing_category_terms").delete().eq("listing_id", listingId);
+  if (delErr) throw delErr;
+  if (termIds.length === 0) return;
+  const { error: insErr } = await supabase
+    .from("listing_category_terms")
+    .insert(termIds.map((term_id) => ({ listing_id: listingId, term_id })));
+  if (insErr) throw insErr;
+}
+
+/** Bulk-apply term(s) from one categorisation to many listings at once — mirrors applyBulkEntryTerms. */
+export async function applyBulkListingTerms({ listingIds, categorisationId, termIds, mode = "add" }) {
+  const ids = [...new Set((listingIds || []).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const terms = [...new Set((termIds || []).filter(Boolean))];
+
+  if (mode === "replace") {
+    const { data: catTerms, error: ctErr } = await supabase
+      .from("category_terms")
+      .select("id")
+      .eq("categorisation_id", categorisationId);
+    if (ctErr) throw ctErr;
+    const catTermIds = (catTerms ?? []).map((t) => t.id);
+    if (catTermIds.length) {
+      const { error: delErr } = await supabase
+        .from("listing_category_terms")
+        .delete()
+        .in("listing_id", ids)
+        .in("term_id", catTermIds);
+      if (delErr) throw delErr;
+    }
+  }
+
+  const rows = [];
+  for (const listingId of ids) {
+    for (const termId of terms) rows.push({ listing_id: listingId, term_id: termId });
+  }
+  if (rows.length === 0) return ids.length;
+  const { error } = await supabase
+    .from("listing_category_terms")
+    .upsert(rows, { onConflict: "listing_id,term_id", ignoreDuplicates: true });
+  if (error) throw error;
+  return ids.length;
+}
+
+// ---- CSV import: attach map listings to categories ----
+// Mirrors DirectoryEntriesPanel.jsx's doImport category_<key> resolution,
+// retargeted at listings/listing_category_terms. `categorisations` here
+// should already be scoped to the ones attached to the target map (e.g.
+// via listAttachedCategorisations('map', mapId)) — this function does no
+// further gating of its own. Unknown tokens are reported as warnings, not
+// auto-created — a new taxonomy term is a category management change, not
+// a side effect of a data import.
+
+/** The CSV/Sheet column name for a categorisation (matches DirectoryEntriesPanel.jsx). */
+export function categoryColumnName(key) {
+  return `category_${key}`;
+}
+
+/**
+ * Resolve category_<key> cells from imported rows into termIds per listing.
+ * @param {object[]} rows        row objects keyed by lowercased header
+ * @param {string[]} listingIds  parallel array of resolved listing ids (same order as rows)
+ * @param {object[]} categorisations  categorisations (with terms) attached to this map
+ * @returns {{ termsByListing: Map<string, string[]>, warnings: string[] }}
+ */
+export function resolveImportedListingTerms({ rows, listingIds, categorisations }) {
+  const cats = categorisations || [];
+  const termsByListing = new Map();
+  const warnings = [];
+  if (cats.length === 0) return { termsByListing, warnings };
+
+  const lookupByCat = new Map();
+  for (const cat of cats) {
+    const m = new Map();
+    for (const t of cat.terms || []) {
+      if (t.slug) m.set(String(t.slug).toLowerCase(), t.id);
+      if (t.label) m.set(String(t.label).toLowerCase(), t.id);
+    }
+    lookupByCat.set(cat.id, m);
+  }
+
+  (rows || []).forEach((r, idx) => {
+    const listingId = listingIds[idx];
+    if (!listingId) return;
+    const rowNum = idx + 2;
+    const termIds = [];
+    for (const cat of cats) {
+      const raw = String(r[categoryColumnName(cat.key)] ?? "").trim();
+      if (!raw) continue;
+      const lookup = lookupByCat.get(cat.id);
+      raw.split("|").map((s) => s.trim()).filter(Boolean).forEach((token) => {
+        const termId = lookup?.get(token.toLowerCase());
+        if (termId) termIds.push(termId);
+        else warnings.push(`Row ${rowNum}: unknown ${cat.label} term "${token}"`);
+      });
+    }
+    if (termIds.length) termsByListing.set(listingId, termIds);
+  });
+
+  return { termsByListing, warnings };
+}
+
+/** Apply resolved import terms — replace-mode per listing (matches setListingTerms). */
+export async function applyImportedListingTerms(termsByListing) {
+  for (const [listingId, termIds] of termsByListing) {
+    await setListingTerms(listingId, termIds);
+  }
+}
+
 // ---- Unified filter-bar adapter (maps <-> categorisations) ----
 //
 // Normalizes categorisations/category_terms into the same shape
@@ -316,14 +482,14 @@ export function categorisationsAsFilterFields(categorisations) {
 }
 
 /**
- * Load a client's entry-applicable categorisations, shaped as
+ * Load a directory's attached categorisations, shaped as
  * PublishedMapView-compatible filterFields, plus per-entry tag values for
  * the given entry ids (pass ids you already have — e.g. from a
  * public_directory_entries fetch — to avoid a redundant query).
  * @returns {Promise<{ filterFields: object[], valuesByRecord: Record<string, object[]> }>}
  */
-export async function loadCategorisationFiltersForEntries(clientId, entryIds) {
-  const cats = (await listCategorisations(clientId)).filter((c) => appliesToEntries(c.applies_to));
+export async function loadCategorisationFiltersForEntries(directoryId, entryIds) {
+  const cats = await listAttachedCategorisations("directory", directoryId);
   const filterFields = categorisationsAsFilterFields(cats);
   const ids = [...new Set((entryIds || []).filter(Boolean))];
   if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
@@ -343,6 +509,32 @@ export async function loadCategorisationFiltersForEntries(clientId, entryIds) {
     if (!fieldId) continue;
     if (!valuesByRecord[row.entry_id]) valuesByRecord[row.entry_id] = [];
     valuesByRecord[row.entry_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
+  }
+  return { filterFields, valuesByRecord };
+}
+
+/** Same shape as loadCategorisationFiltersForEntries, for a map's attached categorisations + its listings. */
+export async function loadCategorisationFiltersForListings(mapId, listingIds) {
+  const cats = await listAttachedCategorisations("map", mapId);
+  const filterFields = categorisationsAsFilterFields(cats);
+  const ids = [...new Set((listingIds || []).filter(Boolean))];
+  if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
+
+  const termToField = new Map();
+  for (const c of cats) for (const t of c.terms || []) termToField.set(t.id, c.id);
+
+  const { data, error } = await supabase
+    .from("listing_category_terms")
+    .select("listing_id, term_id")
+    .in("listing_id", ids);
+  if (error) throw error;
+
+  const valuesByRecord = {};
+  for (const row of data ?? []) {
+    const fieldId = termToField.get(row.term_id);
+    if (!fieldId) continue;
+    if (!valuesByRecord[row.listing_id]) valuesByRecord[row.listing_id] = [];
+    valuesByRecord[row.listing_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
   }
   return { filterFields, valuesByRecord };
 }

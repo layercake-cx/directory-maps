@@ -938,7 +938,20 @@ async function generateForDirectoryInner(
   /** Distinct categorisations + terms actually in use on this directory's entries — feeds exploreFilterBar's real, working chips (DIR-E5-S4). */
   const categorisationCatalog = new Map<string, { id: string; key: string; label: string; termsById: Map<string, CategorisationTerm> }>();
 
-  if (entryIds.length > 0) {
+  // Only categorisations currently attached to this directory
+  // (categorisation_attachments, target_type='directory') feed the filter
+  // bar / template block rendering below — detaching a categorisation stops
+  // it appearing here even if entries still carry old tags for it, matching
+  // the explicit opt-in model (20260829040000_create_categorisation_attachments.sql).
+  const { data: attachmentRows, error: attachErr } = await db
+    .from("categorisation_attachments")
+    .select("categorisation_id")
+    .eq("target_type", "directory")
+    .eq("target_id", directory.id);
+  if (attachErr) throw new Error(`Categorisation attachments query failed: ${attachErr.message}`);
+  const attachedCategorisationIds = new Set((attachmentRows ?? []).map((r) => r.categorisation_id));
+
+  if (entryIds.length > 0 && attachedCategorisationIds.size > 0) {
     const { data: ectRows, error: ectErr } = await db
       .from("entry_category_terms")
       .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label))")
@@ -951,6 +964,7 @@ async function generateForDirectoryInner(
       if (!term) continue;
       const cat = Array.isArray(term.categorisations) ? term.categorisations[0] : term.categorisations;
       if (!cat) continue;
+      if (!attachedCategorisationIds.has(term.categorisation_id)) continue;
 
       termSortOrder.set(term.id, term.sort_order);
 
