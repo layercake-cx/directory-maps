@@ -55,6 +55,31 @@ export const IMPLICIT_DEFAULT_LAYOUT = [
   { type: "links" },
 ];
 
+/**
+ * Which entry_templates row applies to a given entry — client-side mirror
+ * of generate_directory_site/index.ts's resolveLayout (kept in sync by
+ * hand, JS/TS runtimes can't share a module here): a template targeting one
+ * of the entry's category terms > a template targeting the entry's group >
+ * the directory's default > (no entry_templates rows at all) the implicit
+ * pre-DIR-E6 order. Used by the entry editor's Preview & Publish tab; skips
+ * the server-side version's term-vs-term tie-break sort (multiple templates
+ * targeting different terms the entry holds is rare, and this is already a
+ * client-side approximation, not a byte-for-byte match — see PreviewBlock).
+ */
+export function resolveEntryLayout(entry, templates, entryTermIds = []) {
+  if (!templates || templates.length === 0) return IMPLICIT_DEFAULT_LAYOUT;
+
+  const termIdSet = new Set(entryTermIds);
+  const termMatch = templates.find((t) => t.applies_to_term_id && termIdSet.has(t.applies_to_term_id));
+  if (termMatch) return termMatch.layout_json;
+
+  const groupMatch = templates.find((t) => t.applies_to_group_id && t.applies_to_group_id === entry.directory_group_id);
+  if (groupMatch) return groupMatch.layout_json;
+
+  const defaultTemplate = templates.find((t) => t.is_default);
+  return defaultTemplate ? defaultTemplate.layout_json : IMPLICIT_DEFAULT_LAYOUT;
+}
+
 export async function listEntryTemplates(directoryId) {
   const { data, error } = await supabase
     .from("entry_templates")
