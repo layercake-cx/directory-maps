@@ -190,7 +190,10 @@ const BASE_STYLE = `
   .btn-primary { background: var(--primary); color: #fff; }
   .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
   .chip { display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; color: var(--ink); font-weight: 500; }
-  .facet { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .facet { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; font-family: inherit; }
+  .facet.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .facet-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .facet-group-label { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
   .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--sage); color: var(--sage-ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 700; letter-spacing: .01em; }
   .badge img { height: 16px; }
   .tag { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--ink); border-radius: 7px; padding: 5px 9px; font-size: 12px; font-weight: 600; }
@@ -545,42 +548,106 @@ ${siteFooter({ directoryName, homeUrl: landingUrl })}
   });
 }
 
-/** Inert (this phase) filter-bar chips above the map — visual placeholders
- * for the categorisation-driven faceted filtering DIR-E5-S4 will wire up.
- * Real, working search on this page is the keyword script below. */
-function exploreFilterBar(categorisationLabels: string[]): string {
-  if (categorisationLabels.length === 0) return "";
-  const chips = categorisationLabels
-    .map((label) => `<span class="facet">${escapeHtml(label)} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>`)
+/** One categorisation's terms as they'll appear in the filter bar, grouped
+ * under the categorisation's label. `id` is categorisations.id (the uuid)
+ * — kept, not just `key`, because it doubles as the field_id the embedded
+ * map's postMessage listener expects (see loadCategorisationFiltersForEntries
+ * in src/lib/categorisations.js, which the live app's PublishedMapView.jsx
+ * uses the same way for the in-app filter bar). */
+type FilterBarCategorisation = { id: string; key: string; label: string; terms: CategorisationTerm[] };
+
+/** Real, working faceted filter chips — DIR-E5-S4. Toggling a chip narrows
+ * the entry cards below (via data-term-ids baked into each card) and, when
+ * a map is attached, posts the same selection into its <iframe> so one
+ * filter action drives both (see FILTER_AND_SEARCH_SCRIPT below). */
+function exploreFilterBar(categorisations: FilterBarCategorisation[]): string {
+  if (categorisations.length === 0) return "";
+  const groups = categorisations
+    .map((cat) => {
+      const chips = cat.terms
+        .map(
+          (t) =>
+            `<button type="button" class="facet" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}">${escapeHtml(t.label)}</button>`,
+        )
+        .join("");
+      return `<div class="facet-group"><span class="facet-group-label">${escapeHtml(cat.label)}</span>${chips}</div>`;
+    })
     .join("");
-  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:18px;">${chips}</div>`;
+  return `<div id="dir-filter-bar" style="display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:18px;">${groups}</div>`;
 }
 
-/** Simple client-side keyword search over the already-rendered result
- * cards — no new backend, no LLM call (DIR-E7 replaces this later). Reads
- * data-search attributes baked into each card at generation time. */
-const SEARCH_SCRIPT = `
+/** Combined client-side keyword search + categorisation-term filtering over
+ * the already-rendered result cards — no new backend, no LLM call (DIR-E7
+ * replaces the search half later). Reads data-search / data-term-ids
+ * attributes baked into each card at generation time. AND across
+ * categorisations, OR within one categorisation's selected terms (matches
+ * the in-app map filter bar's semantics, PublishedMapView.jsx). When
+ * hasMap is true, also posts the active selection to the attached map's
+ * <iframe> so both stay in sync — see EmbedMap.jsx's `message` listener. */
+function buildFilterAndSearchScript(hasMap: boolean): string {
+  return `
 <script>
 (function () {
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
   var cards = document.querySelectorAll('[data-search]');
   var countEl = document.getElementById('dir-result-count');
-  if (!form || !input) return;
+  var chips = document.querySelectorAll('.facet[data-cat-id]');
+  var mapFrame = document.querySelector('#dir-map-embed iframe');
+  var active = {}; // catId -> Set-like object of termIds
+
+  function cardTermIds(card) {
+    var raw = card.getAttribute('data-term-ids') || '';
+    return raw ? raw.split(',') : [];
+  }
+
   function apply() {
-    var q = input.value.trim().toLowerCase();
+    var q = input ? input.value.trim().toLowerCase() : '';
     var shown = 0;
     cards.forEach(function (card) {
-      var match = !q || card.getAttribute('data-search').indexOf(q) !== -1;
+      var searchMatch = !q || card.getAttribute('data-search').indexOf(q) !== -1;
+      var terms = cardTermIds(card);
+      var categoryMatch = Object.keys(active).every(function (catId) {
+        var selected = active[catId];
+        if (!selected.length) return true;
+        return terms.some(function (t) { return selected.indexOf(t) !== -1; });
+      });
+      var match = searchMatch && categoryMatch;
       card.style.display = match ? '' : 'none';
       if (match) shown++;
     });
     if (countEl) countEl.textContent = shown + (shown === 1 ? ' entry' : ' entries');
+    ${hasMap ? "postToMap();" : ""}
   }
-  form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
-  input.addEventListener('input', apply);
+
+  ${hasMap ? `
+  function postToMap() {
+    if (!mapFrame || !mapFrame.contentWindow) return;
+    mapFrame.contentWindow.postMessage({ type: 'directory-filter-change', activeFilters: active }, '*');
+  }
+  ` : ""}
+
+  if (form && input) {
+    form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
+    input.addEventListener('input', apply);
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var catId = chip.getAttribute('data-cat-id');
+      var termId = chip.getAttribute('data-term-id');
+      var selected = active[catId] || [];
+      var idx = selected.indexOf(termId);
+      if (idx === -1) selected = selected.concat([termId]);
+      else selected = selected.slice(0, idx).concat(selected.slice(idx + 1));
+      active[catId] = selected;
+      chip.classList.toggle('active', idx === -1);
+      apply();
+    });
+  });
 })();
 </script>`;
+}
 
 function buildDirectoryLandingPage(opts: {
   clientSlug: string;
@@ -591,9 +658,10 @@ function buildDirectoryLandingPage(opts: {
   directoryLinks: EntryLink[];
   theme: DirectoryTheme;
   attachedMapEmbedSrc: string | null;
-  categorisationLabels: string[];
+  categorisations: FilterBarCategorisation[];
+  entryTermIds: Map<string, string[]>;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisationLabels } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -601,10 +669,11 @@ function buildDirectoryLandingPage(opts: {
     .map((e) => {
       const location = e.show_address ? [e.address, e.city, e.country].filter(Boolean).join(", ") : "";
       const searchText = escapeAttr(`${e.name} ${location}`.toLowerCase());
+      const termIds = escapeAttr((entryTermIds.get(e.id) ?? []).join(","));
       const logo = e.logo_url
         ? `<img src="${escapeAttr(e.logo_url)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
         : "";
-      return `<div class="card" data-search="${searchText}">
+      return `<div class="card" data-search="${searchText}" data-term-ids="${termIds}">
   <div class="card-logo-box">${logo}</div>
   <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
     ${location ? `<div class="muted" style="font-size:13px;font-weight:600;">${escapeHtml(location)}</div>` : ""}
@@ -637,8 +706,14 @@ function buildDirectoryLandingPage(opts: {
   // it's the existing map→directory attachment used bidirectionally, only
   // ever showing a map that has *already* chosen this directory as its
   // datasource — a directory still can't pick an arbitrary map.
-  const mapEmbed = attachedMapEmbedSrc
-    ? `<iframe src="${escapeAttr(attachedMapEmbedSrc)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe>`
+  // This page owns the filter bar (exploreFilterBar below) — tell the
+  // embedded map not to render its own duplicate one; it's driven via
+  // postMessage instead (buildFilterAndSearchScript's postToMap()).
+  const mapEmbedSrcWithFlag = attachedMapEmbedSrc
+    ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1`
+    : null;
+  const mapEmbed = mapEmbedSrcWithFlag
+    ? `<div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>`
     : "";
 
   const body = `
@@ -657,7 +732,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
 <div class="wrap" style="padding-top:48px;">
   <div class="eyebrow" style="margin-bottom:8px;">Explore</div>
   <h2 style="font-size:26px;margin-bottom:16px;">${attachedMapEmbedSrc ? "The map &amp; the directory" : "Filter the directory"}</h2>
-  ${exploreFilterBar(categorisationLabels)}
+  ${exploreFilterBar(categorisations)}
   ${mapEmbed}
 </div>
 <div class="wrap" style="padding-top:48px;padding-bottom:20px;">
@@ -670,7 +745,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: "." })}
-${SEARCH_SCRIPT}
+${buildFilterAndSearchScript(!!attachedMapEmbedSrc)}
 `.trim();
 
   return directoryPageShell({
@@ -860,7 +935,8 @@ async function generateForDirectoryInner(
   const entryTermIdsByEntry = new Map<string, Set<string>>();
   const entryTermsByEntry = new Map<string, Map<string, CategorisationTerm[]>>();
   const termSortOrder = new Map<string, number>();
-  const categorisationLabelByKey = new Map<string, string>();
+  /** Distinct categorisations + terms actually in use on this directory's entries — feeds exploreFilterBar's real, working chips (DIR-E5-S4). */
+  const categorisationCatalog = new Map<string, { id: string; key: string; label: string; termsById: Map<string, CategorisationTerm> }>();
 
   if (entryIds.length > 0) {
     const { data: ectRows, error: ectErr } = await db
@@ -877,7 +953,6 @@ async function generateForDirectoryInner(
       if (!cat) continue;
 
       termSortOrder.set(term.id, term.sort_order);
-      categorisationLabelByKey.set(cat.key, cat.label);
 
       const idSet = entryTermIdsByEntry.get(row.entry_id) ?? new Set<string>();
       idSet.add(term.id);
@@ -885,11 +960,33 @@ async function generateForDirectoryInner(
 
       const byKey = entryTermsByEntry.get(row.entry_id) ?? new Map<string, CategorisationTerm[]>();
       const list = byKey.get(cat.key) ?? [];
-      list.push({ id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order });
+      const termRow: CategorisationTerm = { id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order };
+      list.push(termRow);
       byKey.set(cat.key, list);
       entryTermsByEntry.set(row.entry_id, byKey);
+
+      const catEntry = categorisationCatalog.get(term.categorisation_id) ?? {
+        id: term.categorisation_id,
+        key: cat.key,
+        label: cat.label,
+        termsById: new Map<string, CategorisationTerm>(),
+      };
+      catEntry.termsById.set(term.id, termRow);
+      categorisationCatalog.set(term.categorisation_id, catEntry);
     }
   }
+
+  const filterBarCategorisations: FilterBarCategorisation[] = [...categorisationCatalog.values()]
+    .map((c) => ({
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      terms: [...c.termsById.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.label.localeCompare(b.label)),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const entryTermIdsFlat = new Map<string, string[]>();
+  for (const [entryId, idSet] of entryTermIdsByEntry) entryTermIdsFlat.set(entryId, [...idSet]);
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
 
@@ -942,7 +1039,8 @@ async function generateForDirectoryInner(
     directoryLinks,
     theme,
     attachedMapEmbedSrc,
-    categorisationLabels: [...categorisationLabelByKey.values()],
+    categorisations: filterBarCategorisations,
+    entryTermIds: entryTermIdsFlat,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
