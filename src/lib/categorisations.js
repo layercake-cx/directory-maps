@@ -95,7 +95,7 @@ export async function listCategorisations(clientId, { includeArchived = false } 
 }
 
 /** Create a categorisation plus its initial terms. terms: [{ label, color? }] */
-export async function createCategorisation({ clientId, label, key, appliesTo, terms = [] }) {
+export async function createCategorisation({ clientId, label, key, appliesTo, appliesToListings = false, terms = [] }) {
   const cleanLabel = String(label || "").trim();
   if (!cleanLabel) throw new Error("Label is required.");
   if (!["directory", "entry", "both"].includes(appliesTo)) throw new Error("Invalid applies_to.");
@@ -107,6 +107,7 @@ export async function createCategorisation({ clientId, label, key, appliesTo, te
       key: key || slugify(cleanLabel),
       label: cleanLabel,
       applies_to: appliesTo,
+      applies_to_listings: !!appliesToListings,
       is_active: true,
     })
     .select()
