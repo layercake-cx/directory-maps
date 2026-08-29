@@ -21,13 +21,15 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### ⚠️ Deployment ordering — read before merging
 This is different from Phases 1–3: those only touched existing columns or independent tables/buckets, so merging (which auto-deploys to production here) was safe regardless of DB state. **This phase's frontend code selects columns that don't exist until the migration runs.** If this PR is merged before the migration is applied to production, every entry-editor page load breaks immediately (Supabase returns an error for the unknown columns in `getDirectoryEntry`'s select). **Apply the migration to staging, then production, before merging this PR** — not after.
-I have no Supabase CLI credentials in this session (no `SUPABASE_ACCESS_TOKEN`, not logged in) and could not run the dry run or apply it myself; the migration is written and follows the required template (pre/post `do $$` checks, dry-run block, integrity checklist) but is **completely unverified against a real database**.
+
+**Migration-history note:** staging (`beqejxneehilplrtpntn`) already had three unrelated migrations applied from a peer session's in-progress, not-yet-merged branch (`feat/2026-08-29-unify-map-filters-categories` — `20260829010000`/`020000`/`030000`, touching `categorisations`/`category_terms`/`listings`, zero overlap with `directory_entries` confirmed by reading the actual SQL). That put the Supabase CLI's migration-history table in a state where `supabase db push` refused to proceed (remote versions with no matching local file) and its own suggested fix (`migration repair --status reverted ...`) would have been factually wrong — those migrations are still live, not reverted. Reconciling history is a permission-gated action in this session that wasn't approved, so **the user applied this migration's forward SQL directly via the staging SQL editor instead**, bypassing the CLI's `db push` bookkeeping entirely. The actual columns should be live as a result, but `supabase migration list` still shows this version's remote column blank (the tracking table doesn't know about it) — harmless today, but a future `db push` from a reconciled checkout will hit this migration's own idempotency guard (`ABORT: column og_title already exists`) rather than silently re-running it. Worth reconciling with `migration repair --status applied 20260829010000 20260829020000 20260829030000` once that's approved, so this migration (and any future ones) can go through `db push` normally again.
 
 ### Verified
 - [x] `npm run build` clean (JS-only check — does not validate the migration against any real schema).
-- [ ] Migration not dry-run, not applied to staging, not applied to production.
+- [x] Applied to staging by the user directly via the SQL editor (dry-run `BEGIN;…ROLLBACK;` confirmed clean first, then applied for real) — see the migration-history note above for why this went through the SQL editor rather than `supabase db push`.
+- [ ] Not independently curl-verified this session (no anon/service key available) — relying on the user's confirmation and the migration's own embedded `VERIFY PASSED` check.
+- [ ] Not yet applied to production; PR not yet merged (deliberately — see ordering note above).
 - [ ] Not interactively tested.
-- [ ] Not deployed (deliberately — see ordering note above).
 
 ### Rollback plan
 - If applied and something's wrong: run `_20260829150000_directory_entry_seo_social_ai_fields.rollback.sql` (refuses if any of the seven columns has live data — override deliberately if that data can be discarded).
