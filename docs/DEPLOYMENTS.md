@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Staging] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
+## 2026-08-29 — [Production] Directory entry editor: logo upload + WYSIWYG notes (Phase 2)
 
-**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
-**Context:** continues Phase 1 (same PR/branch, not yet merged). Two of the "coming in a later phase" gaps from Phase 1's Basic Info and Content tabs.
+**Branch/PR:** `feat/2026-08-29-directory-entry-tabbed-editor`, [#149](https://github.com/layercake-cx/directory-maps/pull/149) (same PR as Phase 1), merged and deployed.
+**Context:** continues Phase 1 (same PR/branch). Two of the "coming in a later phase" gaps from Phase 1's Basic Info and Content tabs.
 
 ### What changed
 - **Logo upload** (`src/lib/entryLogo.js`): once an entry exists, Basic Info's logo field gets an upload control alongside the URL input — PNG/JPEG/WebP, 2MB app-level cap, uploaded to the existing `directory-media` Storage bucket at a fixed `${entryId}/logo.<ext>` path with `upsert: true` (mirrors `AdminMapData.jsx`'s `handleListingLogoFile` fixed-path convention; no SVG, since that bucket's policy only allows PNG/JPEG/WebP — SVG stays map-pins-only). Uploading writes `directory_entries.logo_url` immediately, independent of the Basic Info form's own Save button, matching the existing listing-logo UX. Still URL-only for a brand-new (unsaved) entry.
@@ -20,17 +20,17 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` clean (in an isolated `git worktree`, since this machine's shared working directory had another session's branch checked out with its own uncommitted WIP — see the parallel-sessions note in this repo's agent memory).
-- [ ] Not interactively tested (no login credentials this session) — needs upload + WYSIWYG click-through alongside Phase 1's test plan.
-- [ ] Not yet deployed to staging or production.
+- [x] Merged to `main` and deployed to production: GitHub Pages ran automatically on push; Vercel's git integration auto-deployed `main` to `maps.layercake-cx.biz` on merge too (confirmed by diffing the live bundle, which now contains this change's UI strings) — `npm run deploy:live` afterwards was therefore redundant, and because it was run from the worktree directory (no `.vercel` project link there), it accidentally created a **new, separate Vercel project** (`directory-maps-entry-editor-wt`, live at `directory-maps-entry-editor-wt.vercel.app`) instead of redeploying the real one. That stray project needs manual cleanup (delete it in the Vercel dashboard, or ask an agent with account access to do it) — it's harmless (just an accidental duplicate) but shouldn't be left lying around.
+- [ ] Still not interactively tested (no login credentials this session) — needs upload + WYSIWYG click-through alongside Phase 1's test plan, now against production.
 
 ### Rollback plan
-- Revert the commit(s) on this branch. No schema change, no data migration to unwind. If `directory-media` ever needs the upload path cleaned up, uploaded logo objects live at `directory-media/<entryId>/logo.<ext>` — removing them is optional cleanup, not required for rollback (the app just stops referencing new ones).
+- Revert the merge commit on `main`, redeploy. No schema change, no data migration to unwind. If `directory-media` ever needs the upload path cleaned up, uploaded logo objects live at `directory-media/<entryId>/logo.<ext>` — removing them is optional cleanup, not required for rollback (the app just stops referencing new ones).
 
 ---
 
-## 2026-08-29 — [Staging] Directory entry editor: full-page tabbed rebuild (Phase 1)
+## 2026-08-29 — [Production] Directory entry editor: full-page tabbed rebuild (Phase 1)
 
-**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
+**Branch/PR:** `feat/2026-08-29-directory-entry-tabbed-editor`, [#149](https://github.com/layercake-cx/directory-maps/pull/149), merged and deployed (see Phase 2 entry above for deploy details — same PR covers both phases).
 **Context:** the entry edit modal (`DirectoryEntriesPanel.jsx`) had grown into 14 form fields plus five independently-saving sub-editors bolted on below it, all inside a fixed-size overlay. Planned (with the user) as a full-page, tabbed editor instead, following the Map editor's route-per-tab convention. Monday: [main ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193120074), plus a separate [future-work ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193118049) for eventually replacing the Content tab's fixed sections with a block editor.
 
 ### What changed
@@ -42,11 +42,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` clean.
-- [ ] Not interactively tested (no login credentials this session) — needs a manual click-through of Add entry → each tab → Save before calling Phase 1 done.
-- [ ] Not yet deployed to staging or production.
+- [x] Merged to `main` and deployed to production (GitHub Pages + Vercel — see the Phase 2 entry above, same PR/deploy).
+- [ ] Still not interactively tested (no login credentials this session) — needs a manual click-through of Add entry → each tab → Save, now against production.
 
 ### Rollback plan
-- Revert the commit / branch. No schema change, no data migration to unwind.
+- Revert the merge commit on `main`, redeploy. No schema change, no data migration to unwind.
 
 ---
 
