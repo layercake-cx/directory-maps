@@ -83,6 +83,8 @@ type Entry = {
   meta_description: string | null;
   noindex: boolean | null;
   structured_data_type: string | null;
+  panel_image_url: string | null;
+  panel_background_color: string | null;
 };
 
 // Full DIR-E3 branding token set (docs/DIRECTORIES.md §4.1) — kept in sync
@@ -601,11 +603,13 @@ function buildDirectoryLandingPage(opts: {
     .map((e) => {
       const location = e.show_address ? [e.address, e.city, e.country].filter(Boolean).join(", ") : "";
       const searchText = escapeAttr(`${e.name} ${location}`.toLowerCase());
-      const logo = e.logo_url
-        ? `<img src="${escapeAttr(e.logo_url)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
+      const panelImageUrl = e.panel_image_url || e.logo_url;
+      const logo = panelImageUrl
+        ? `<img src="${escapeAttr(panelImageUrl)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
         : "";
+      const panelBoxStyle = e.panel_background_color ? ` style="background:${escapeAttr(e.panel_background_color)};"` : "";
       return `<div class="card" data-search="${searchText}">
-  <div class="card-logo-box">${logo}</div>
+  <div class="card-logo-box"${panelBoxStyle}>${logo}</div>
   <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
     ${location ? `<div class="muted" style="font-size:13px;font-weight:600;">${escapeHtml(location)}</div>` : ""}
     <h3 style="font-size:19px;line-height:1.2;"><a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}">${escapeHtml(e.name)}</a></h3>
@@ -755,7 +759,7 @@ async function generateForDirectoryInner(
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")
     .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type",
+      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color",
     )
     .eq("directory_id", directoryId)
     .eq("is_active", true)

@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: Panel Style tab (Phase 5)
+
+**Branch:** `feat/2026-08-29-directory-entry-panel-style`
+**Context:** continues the entry editor rebuild (#149/#150/#151, merged and deployed). Implements the Panel Style tab left as a placeholder since Phase 1 — a per-entry override for the homepage card's image and background colour (e.g. a white logo that needs a dark background instead of the directory's default themed surface).
+
+### What changed
+- **Migration** `20260829160000_directory_entry_panel_style_fields.sql` (+ rollback): adds `panel_image_url`, `panel_background_color` to `directory_entries`. Both nullable, additive only.
+- `lib/directories.js`'s `getDirectoryEntry` select list now includes both columns.
+- `lib/entryLogo.js` renamed to `lib/entryImages.js` and gains `uploadEntryPanelImage` alongside the existing `uploadEntryLogo` — same fixed-path-upsert convention, uploads to `directory-media` at `<entryId>/panel.<ext>`.
+- `EntryPanelTab.jsx` is now real: background colour presets (matching `AdminMapData.jsx`'s `LOGO_BG_SWATCHES` convention) + a free-text colour input, panel image URL/upload, and a live preview that approximates the actual `.card-logo-box` markup — including fetching the directory's own `theme_json.surfaceAltColor` so the "no override" preview matches the real fallback.
+- **`generate_directory_site/index.ts`**: the `Entry` type and entries `select(...)` gain the two new columns; the homepage card renderer now uses `panel_image_url ?? logo_url` for the image and an inline `style` override on `.card-logo-box` when `panel_background_color` is set. `deno check` clean.
+
+### ⚠️ Deployment ordering — three things must happen in order, not just two
+This phase touches both a migration and an Edge Function, so the Phase 4 ordering concern applies twice over:
+1. **Migration must be applied before the frontend PR merges** (same reasoning as Phase 4 — `getDirectoryEntry`'s select would otherwise error on unknown columns, breaking the entry editor on this auto-deploying Vercel project).
+2. **`generate_directory_site` must be redeployed before any directory is republished** with panel style data — otherwise the live Edge Function ignores the new columns entirely (harmless — it just won't show the override — but silently, which could look like a bug rather than "not deployed yet").
+3. **A directory only picks up the Panel Style change on its next publish** — this is a static-site generator, so setting panel style on an entry has zero live effect until someone hits Publish on that directory afterward. Worth telling whoever tests this.
+
+I have no Supabase CLI credentials in this session for `db push`/`functions deploy` (blocked by this session's permission classifier, same as Phase 4's migration application) — migration and Edge Function are both written but unverified against a real environment.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check supabase/functions/generate_directory_site/index.ts` clean.
+- [ ] Migration not applied to staging or production.
+- [ ] Edge Function not deployed to staging or production.
+- [ ] Not interactively tested.
+- [ ] Not deployed (deliberately — see ordering note above).
+
+### Rollback plan
+- Frontend/migration: revert the commits, run `_20260829160000_directory_entry_panel_style_fields.rollback.sql` if the migration was applied (refuses if any entry has panel style data set — override deliberately if that data can be discarded).
+- Edge Function: `supabase functions deploy generate_directory_site --project-ref <ref>` with the prior version if only the function needs rolling back — no schema dependency in the rollback direction (old function code doesn't reference the new columns, so it keeps working even if the columns still exist).
+
+---
+
 ## 2026-08-29 — [Production] Directory entry editor: SEO social/AI fields (Phase 4)
 
 **Branch:** `feat/2026-08-29-directory-entry-seo-social-ai-fields`

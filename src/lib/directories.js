@@ -155,7 +155,7 @@ export async function getDirectoryEntry(entryId) {
   const { data, error } = await supabase
     .from("directory_entries")
     .select(
-      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, created_at, updated_at",
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, created_at, updated_at",
     )
     .eq("id", entryId)
     .single();

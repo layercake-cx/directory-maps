@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { createDirectoryEntry, createDirectoryGroup, listDirectoryGroups, updateDirectoryEntry } from "../../../lib/directories.js";
-import { uploadEntryLogo } from "../../../lib/entryLogo.js";
+import { uploadEntryLogo } from "../../../lib/entryImages.js";
 
 const inputStyle = {
   width: "100%",
