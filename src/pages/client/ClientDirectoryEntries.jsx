@@ -220,7 +220,13 @@ export default function ClientDirectoryEntries() {
         </div>
       )}
 
-      <DirectoryEntriesPanel directoryId={directoryId} clientId={client?.id} canEdit={canEditEntries} recordEvent={recordEvent} />
+      <DirectoryEntriesPanel
+        directoryId={directoryId}
+        directoryBasePath={`/client/directories/${encodeURIComponent(directoryId)}`}
+        clientId={client?.id}
+        canEdit={canEditEntries}
+        recordEvent={recordEvent}
+      />
 
       {deleteOpen && (
         <div

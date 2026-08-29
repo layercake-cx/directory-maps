@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: full-page tabbed rebuild (Phase 1)
+
+**Branch:** `feat/2026-08-29-directory-entry-tabbed-editor`
+**Context:** the entry edit modal (`DirectoryEntriesPanel.jsx`) had grown into 14 form fields plus five independently-saving sub-editors bolted on below it, all inside a fixed-size overlay. Planned (with the user) as a full-page, tabbed editor instead, following the Map editor's route-per-tab convention. Monday: [main ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193120074), plus a separate [future-work ticket](https://layercake-cx.monday.com/boards/5094351513/pulses/3193118049) for eventually replacing the Content tab's fixed sections with a block editor.
+
+### What changed
+- New route `.../directories/:directoryId/entries/:entryId[/categories|/content|/seo|/panel|/preview]` (client + admin) replaces the modal entirely — `DirectoryEntriesPanel.jsx`'s Add/Edit buttons now navigate instead of opening it.
+- `DirectoryEntryEditor.jsx` (shared orchestrator) + `entryEdit/Entry{BasicInfo,Categories,Content,Seo,Panel,PreviewPublish}Tab.jsx`, new wrapper pages `AdminDirectoryEntryEdit.jsx` / `ClientDirectoryEntryEdit.jsx`.
+- Basic Info, Categories, and Content are fully functional — Content relocates the five existing sub-editors (evidence/media/accreditations/prominent links/product tiles) unchanged. Search & Metadata now exposes `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority`, which existed on `directory_entries` since DIR-E2 but had no editing UI until now. Panel Style and Preview & Publish are placeholders — no schema change needed for this phase.
+- Deliberately excludes lat/lng from the Basic Info tab (user call — coordinates are auto-geocoded, never hand-entered); the old modal exposed them as free-text inputs.
+- No database migration in this phase.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested (no login credentials this session) — needs a manual click-through of Add entry → each tab → Save before calling Phase 1 done.
+- [ ] Not yet deployed to staging or production.
+
+### Rollback plan
+- Revert the commit / branch. No schema change, no data migration to unwind.
+
+---
+
 ## 2026-08-29 — [Production] Warn before archiving/deleting a directory with a linked map
 
 **Branch/PR:** `fix/2026-08-29-warn-directory-delete-archive-with-linked-map`, [#147](https://github.com/layercake-cx/directory-maps/pull/147), merged and deployed (GitHub Pages + `npm run deploy:live`, second Vercel attempt succeeded after a transient "Not authorized" on the first try).
