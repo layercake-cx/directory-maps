@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { getDirectory, updateDirectoryEntry } from "../../../lib/directories.js";
 import { uploadEntryPanelImage } from "../../../lib/entryImages.js";
+import EntryCardPreview from "./EntryCardPreview.jsx";
 
 const inputStyle = {
   width: "100%",
@@ -143,18 +144,7 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
 
       <div className="admin-card" style={{ padding: 20 }}>
         <Text size="sm" fw={600} mb={10}>Preview</Text>
-        <div style={{ width: 220, border: "1px solid var(--lc-border)", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,.04)" }}>
-          <div style={{ height: 158, background: previewBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {previewImage ? (
-              <img src={previewImage} alt="" style={{ maxWidth: "70%", maxHeight: "70%", objectFit: "contain" }} />
-            ) : (
-              <Text size="xs" c="dimmed">No image</Text>
-            )}
-          </div>
-          <div style={{ padding: 14 }}>
-            <Text size="sm" fw={700} truncate>{entry?.name || "Entry name"}</Text>
-          </div>
-        </div>
+        <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={previewBg} />
         <Text size="xs" c="dimmed" mt={8}>Approximates the homepage card — actual fonts/spacing come from the directory's theme.</Text>
       </div>
     </form>

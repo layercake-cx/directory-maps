@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Directory entry editor: Preview & Publish tab, for real
+
+**Branch:** `feat/2026-08-29-directory-entry-preview-publish-tab`
+**Context:** the Preview & Publish tab had been a placeholder since Phase 1. Per the user's clarification: it should be mostly preview (the entry as it would appear live — card and detail page), with a Publish button that publishes the whole directory (single-entry publish was deliberately dropped — see the publish-perf entry above).
+
+### What changed
+- `EntryPreviewBlock.jsx` (new, shared): the per-block renderer extracted verbatim out of `EntryLayoutDesigner.jsx`, which now imports it instead of defining it locally — no behaviour change to the layout designer.
+- `lib/entryTemplates.js` gains `resolveEntryLayout(entry, templates, entryTermIds)` — a client-side mirror of `generate_directory_site`'s server-side `resolveLayout` (term-targeted template > group-targeted template > directory default > `IMPLICIT_DEFAULT_LAYOUT`), kept in sync by hand like that file's existing `IMPLICIT_DEFAULT_LAYOUT` already is. Skips the server version's term-vs-term tie-break sort — rare case, and this is already a client-side approximation, not a byte-for-byte match.
+- `entryEdit/EntryCardPreview.jsx` (new, shared): the homepage-card preview extracted out of `EntryPanelTab.jsx`'s inline JSX, which now uses it too — no behaviour change there either.
+- `entryEdit/EntryPreviewPublishTab.jsx` is now real: fetches the entry's resolved layout + evidence/media/accreditations/links/tiles (same data as the layout designer), renders the homepage card preview and the entry-page block preview side by side, links to the live entry page URL once published, and embeds the existing `DirectoryPublishPanel` directly (full publish history/rollback, not reinvented) rather than a lightweight replacement.
+- No schema change, no Edge Function change — purely new frontend surface reusing existing data/components.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested (no login credentials this session).
+
+### Rollback plan
+- Revert the commits. `EntryLayoutDesigner.jsx` and `EntryPanelTab.jsx`'s behaviour is unchanged by the extractions (same JSX, moved not modified), so reverting is a clean no-op for those two.
+
+---
+
 ## 2026-08-29 — [Production] Parallelize per-entry page uploads in generate_directory_site
 
 **Branch:** `perf/2026-08-29-parallelize-directory-entry-page-uploads`
