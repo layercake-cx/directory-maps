@@ -171,6 +171,14 @@ Vite + React (BrowserRouter) · Supabase · Google Maps · Resend · Stripe (par
 
 **When deploying a frontend change that matters on the live customer-facing site, both need updating** — a GitHub Pages-only deploy leaves the real branded domain on stale code.
 
+## Supabase CLI — use the installed binary, never `npx supabase`
+
+**Always run `supabase ...` directly** (it's already installed via Homebrew at `/opt/homebrew/bin/supabase`, already logged in, and typically already linked to staging from the main repo checkout). Confirm with `command -v supabase` if unsure.
+
+**Never run `npx supabase ...`.** `npx` ignores the installed binary and downloads a separate, freshly-fetched copy with no stored login session. That fresh copy will try to start an interactive login flow the moment you run any command that needs auth (e.g. `projects list`, `db push`) — which can hang for its full timeout and, on macOS, trigger a Keychain permission prompt for the *user* to handle, not something an agent should be initiating. If a `supabase` command using `npx` hangs or looks like it's waiting on input, stop it immediately (don't wait it out) — it's not a slow network call, it's an auth flow that needs a human.
+
+**Before running `db push` (or any command that reads `supabase/migrations/`) in a shared working directory:** check `git status` for uncommitted/untracked migration files first. If another session's WIP migration is sitting there uncommitted, `db push` will happily try to apply it too — it has no concept of "whose" file it is. Prefer running from an isolated `git worktree` containing only your own branch's files when the shared directory might have someone else's in-progress migration in it.
+
 ## Edge Function deployments
 
 **Never deploy an Edge Function to production without explicit user confirmation.**
