@@ -593,6 +593,12 @@ When I select "Healthcare"
 Then the entry list narrows to only entries tagged Healthcare, and the URL reflects the filter (shareable/bookmarkable, e.g. ?sector=healthcare)
 ```
 
+**Implementation note (2026-08-29): built, scoped to the actual goal — a directory and a map that shares its data both filter by the same categories.** `generate_directory_site`'s previously-inert `exploreFilterBar()` chips are now real and toggleable (client-side filtering of the rendered entry cards, no page reload). When a directory has a map attached as its live pin datasource (DIR-E4), the same filter action also drives that map: its embed (`EmbedMap.jsx`) listens for a `postMessage` from the directory's landing page and applies the identical term selection to its own pins — one filter action narrows both surfaces, and the map's own filter-bar UI is suppressed in this context (`?hideFilterBar=1`) so there's no duplicate control. This only ever applies to a directory-sourced map, since only then do the map's pins and the directory's entries share the same underlying data (and therefore the same `entry_category_terms` tags) — a self-authored map has no directory relationship and no category filtering of its own.
+
+*(A first pass additionally let categorisations tag self-authored map listings directly, independent of any directory — `listing_category_terms` / `categorisations.applies_to_listings`. Reverted 2026-08-29: it didn't serve this story's actual goal and applied globally to every map a client owns with no way to scope it to one map, which was the wrong shape. See `docs/DEPLOYMENTS.md` for the rollback.)*
+
+Files: `src/lib/categorisations.js` (`loadCategorisationFiltersForEntries` adapter), `src/pages/EmbedMap.jsx` (directory-sourced branch + `postMessage` listener), `src/components/PublishedMapView.jsx` (`externalActiveFilters`/`hideFilterBar` props), `supabase/functions/generate_directory_site/index.ts`. Migration: `20260829010000_categorisations_anon_select.sql`.
+
 ---
 
 ### DIR-E6 — Entry page layout designer

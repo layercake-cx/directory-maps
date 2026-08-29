@@ -8,6 +8,47 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-29 — [Staging] Revert: categorisations tagging self-authored map listings
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
+**Context:** on review, the `listing_category_terms`/`applies_to_listings` piece from the entry below doesn't serve the actual goal — a map and a directory filtered by the same categories, meaning a directory-sourced map and the directory it's attached to (they share the same underlying entries and category tags already, via `entry_category_terms`). Letting a categorisation tag a **self-authored** map's listings directly was solving an unrelated problem: that kind of map has no directory relationship at all, so there's no "same categories" for it to share with anything. It also applied globally to every map a client owns with no per-map scoping, which was the wrong shape regardless of the goal question. Corrected the same day, before this reached production or a PR was opened.
+
+### What changed
+- `supabase/migrations/20260829030000_drop_listing_category_terms.sql`: drops `listing_category_terms` and `categorisations.applies_to_listings`. Per migration convention, `20260829020000` and its rollback stay in the migration history as the record of what was tried, rather than being edited or deleted — this is a new forward migration that reverses it.
+- Reverted the app-layer code built on top of it: `categorisations.js` (listing-tagging functions, the `category_<key>` import resolver for listings, `loadCategorisationFiltersForListings`), `EmbedMap.jsx` (the two self-authored-map categorisation loads), `ClientMapData.jsx`/`AdminMapData.jsx` (CSV import wiring), `CategorisationsPanel.jsx` (the "also usable to tag map listings" checkbox).
+- **Unaffected, and this is the part that actually delivers the goal:** `categorisations_anon_select` (`20260829010000`), `loadCategorisationFiltersForEntries` (`categorisations.js`), `EmbedMap.jsx`'s directory-sourced branch + `postMessage` listener, `PublishedMapView.jsx`'s `externalActiveFilters`/`hideFilterBar`, and `generate_directory_site`'s real filter chips + postMessage bridge to an attached map.
+
+### Verified
+- [x] `20260829030000`'s own verification block passed on apply: `VERIFY PASSED: listing_category_terms and categorisations.applies_to_listings removed`.
+- [x] Table/column were empty/default (`false`) for every row before dropping — confirmed no data loss.
+- [x] `npm run build` clean after all reverts.
+
+### Rollback plan
+- `_20260829030000_drop_listing_category_terms.rollback.sql` re-creates `listing_category_terms` + `applies_to_listings` if this decision itself needs reversing — only expected if the per-map-scoped version of this idea gets built later and needs the same underlying table back.
+
+---
+
+## 2026-08-29 — [Staging] Unify map filters and categories: schema foundation
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories` (not yet opened as a PR).
+**Context:** map "filters" (`map_filter_fields`) and Directories "categories" (`categorisations`) were two structurally-identical but fully separate taxonomy systems — one tagging `listings`, one tagging `directory_entries`/`directories`, with no way for a category to apply to a map's own data at all, and no viewer-facing filter UI at all for a directory-sourced map or a directory's own published page. This deployment is the schema half of unifying them: categorisations become usable as a filter source for map listings too, and become anon-readable so a directory-sourced map's public embed can actually see them (the app-layer wiring — the adapter feeding `PublishedMapView.jsx`, CSV import, and the directory static site's filter chips — is in the same branch, applied separately from this schema step).
+
+### What changed
+- `supabase/migrations/20260829010000_categorisations_anon_select.sql`: adds anon-select RLS to `categorisations`/`category_terms`/`directory_category_terms`/`entry_category_terms` (created authenticated-only before directory publishing existed — same class of gap the `directory_map_associations_anon_select` fix above closed). Scoped to a published directory, mirroring `map_filter_fields_anon_select`'s "published only" gate rather than left unconditional.
+- `supabase/migrations/20260829020000_create_listing_category_terms.sql`: new `listing_category_terms` table (peer of `entry_category_terms`, keyed off `listings` instead of `directory_entries`) plus `categorisations.applies_to_listings` (boolean, default `false`) — an independent axis from the existing `applies_to` (directory/entry/both) column, so it doesn't redefine what `both` already means. Both changes are purely additive; `map_filter_fields`/`listing_filter_values` are completely untouched, so the one live client currently using map filter fields is unaffected.
+
+### Verified
+- [x] Both migrations' own pre/post `do $$ … end $$` blocks passed on apply (`supabase db push` against `beqejxneehilplrtpntn`): `VERIFY PASSED: anon_select policies created on all four categorisation tables`; `VERIFY PASSED: listing_category_terms + categorisations.applies_to_listings created`.
+- [x] `supabase migration list` confirms both now applied remotely on staging.
+- [ ] A real `BEGIN; … ROLLBACK;` dry run against staging was not achievable — the CLI's `cli_login_postgres` role returned `permission denied for table categorisations` (confirms the tooling gap already logged in `docs/DATABASE_MIGRATIONS.md`), so the documented fallback (`db push --dry-run` to confirm exactly what's pending, then `db push` for real) was used instead.
+- [ ] Not yet applied to production — needs your explicit go-ahead separately, per `AGENTS.md`.
+- [ ] Not yet interactively smoke-tested against real categorisation/listing data (none exists yet for this feature on staging).
+
+### Rollback plan
+- `_20260829020000_create_listing_category_terms.rollback.sql` then `_20260829010000_categorisations_anon_select.rollback.sql` (reverse order — the second migration's new column/table don't depend on the first, but rolling back in creation order keeps the sequence clean). Both are additive-only removals; safe to roll back even with data present, since nothing durable depends on `listing_category_terms` yet.
+
+---
+
 ## 2026-08-29 — [Production] Directory entry editor: SEO social/AI fields (Phase 4)
 
 **Branch:** `feat/2026-08-29-directory-entry-seo-social-ai-fields`

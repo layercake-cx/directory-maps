@@ -7,6 +7,7 @@ import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 import { loadFilterValuesForMap } from "../lib/filterFields.js";
+import { loadCategorisationFiltersForEntries } from "../lib/categorisations.js";
 
 /** Build listingId -> values[] from a flat snapshot array of listing_filter_values. */
 function groupFilterValuesByListing(rows) {
@@ -142,6 +143,13 @@ async function fetchClientMessagingSettings(supabaseClient, clientId) {
 export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [params] = useSearchParams();
   const mapId = mapIdProp ?? params.get("map");
+  /**
+   * Set by a directory's published static page (generate_directory_site)
+   * when it renders its own filter controls above this iframe, driving them
+   * via postMessage instead — this embed's own filter bar would otherwise
+   * duplicate the same controls.
+   */
+  const hideFilterBar = params.get("hideFilterBar") === "1";
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -152,6 +160,22 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [groups, setGroups] = useState([]);
   /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
+  /**
+   * Categorisation-derived filter fields + per-entry values (see
+   * loadCategorisationFiltersForEntries in src/lib/categorisations.js) —
+   * only ever populated for a directory-sourced map, where the map's pins
+   * and the directory's own entries share the same category tags. A
+   * self-authored map (its own listings, no directory) has no categorisation
+   * relationship and this stays empty for it.
+   */
+  const [categorisationFilters, setCategorisationFilters] = useState({ filterFields: [], valuesByRecord: {} });
+  /**
+   * When set (via postMessage from a parent directory page — see the
+   * `message` listener below), overrides the filter bar's own selection so
+   * the directory's published static page can drive this embedded map's
+   * filtering directly. { [fieldId]: string[] of selected option ids }
+   */
+  const [externalActiveFilters, setExternalActiveFilters] = useState(null);
   /** Normalized publication snapshot (map + group styling); listings stay live. */
   const [publicationConfig, setPublicationConfig] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
@@ -256,15 +280,24 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
             setMessagingTestRecipient(ms.email_test_recipient ?? "");
           }
 
+          // Directory entries have no map_filter_fields/listing_filter_values
+          // equivalent — a directory-sourced map's filter chips instead come
+          // from the directory's own client-wide categorisations, via the
+          // same entry ids public_directory_entries just returned.
+          let categorisation = { filterFields: [], valuesByRecord: {} };
+          try {
+            categorisation = await loadCategorisationFiltersForEntries(
+              m?.client_id,
+              normalizedListings.map((e) => e.id),
+            );
+          } catch { /* non-fatal: filters just won't populate */ }
+
           if (!cancelled) {
             setMap(m);
             setListings(normalizedListings);
             setGroups(normalizedGroups);
-            // Directory entries have no map_filter_fields/listing_filter_values
-            // equivalent yet (categorisations are a separate, richer taxonomy
-            // not wired into the embed filter bar) — v1 scope: no filter chips
-            // for a directory-sourced map.
             setFilterValuesByListing({});
+            setCategorisationFilters(categorisation);
             setPublicationConfig(resolvedPublication);
           }
           return;
@@ -407,6 +440,26 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     };
   }, [mapId]);
 
+  /**
+   * Directory-page filter bridge: a directory's published static page
+   * (generate_directory_site) embeds this map in an <iframe> and, when its
+   * own filter chips change, posts the selected category-term ids here so
+   * one filter action drives both the entry list and this map's pins.
+   * Trust boundary: only accept messages whose event.source is this frame's
+   * immediate parent — the actual embedder — regardless of its origin
+   * (custom domains mean the parent's origin isn't knowable in advance).
+   */
+  useEffect(() => {
+    function handleMessage(event) {
+      if (event.source !== window.parent) return;
+      const data = event.data;
+      if (!data || data.type !== "directory-filter-change") return;
+      setExternalActiveFilters(data.activeFilters && typeof data.activeFilters === "object" ? data.activeFilters : null);
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   const groupsForEmbed = useMemo(() => {
     // Directory groups were never part of this map's own publication config,
     // so byId/byName lookups in mergeGroupWithPublication could spuriously
@@ -492,14 +545,21 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     });
   }, [listings, groupsForEmbed]);
 
-  const filterFieldsForEmbed = useMemo(
-    () => (Array.isArray(publicationConfig?.filterFields) ? publicationConfig.filterFields : []),
-    [publicationConfig]
-  );
+  const filterFieldsForEmbed = useMemo(() => {
+    const base = Array.isArray(publicationConfig?.filterFields) ? publicationConfig.filterFields : [];
+    return [...base, ...categorisationFilters.filterFields];
+  }, [publicationConfig, categorisationFilters]);
 
   const listingsForView = useMemo(
-    () => listingsWithOverrides.map((l) => ({ ...l, filterValues: filterValuesByListing[l.id] || [] })),
-    [listingsWithOverrides, filterValuesByListing]
+    () =>
+      listingsWithOverrides.map((l) => ({
+        ...l,
+        filterValues: [
+          ...(filterValuesByListing[l.id] || []),
+          ...(categorisationFilters.valuesByRecord[l.id] || []),
+        ],
+      })),
+    [listingsWithOverrides, filterValuesByListing, categorisationFilters]
   );
 
   const recordEngagement = useMemo(
@@ -709,6 +769,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           listingsWithColor={listingsForView}
           groups={groupsForEmbed}
           filterFields={filterFieldsForEmbed}
+          externalActiveFilters={externalActiveFilters}
+          hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}
           showSearch={parsedTheme.showSearch !== false}
