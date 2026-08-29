@@ -280,3 +280,69 @@ export async function setDirectoryTerms(directoryId, termIds) {
     .insert(termIds.map((term_id) => ({ directory_id: directoryId, term_id })));
   if (insErr) throw insErr;
 }
+
+// ---- Unified filter-bar adapter (maps <-> categorisations) ----
+//
+// Normalizes categorisations/category_terms into the same shape
+// filterFieldsForPublication() (src/lib/filterFields.js) produces for
+// map_filter_fields, so PublishedMapView.jsx's existing filter-bar
+// rendering and effectiveListings filtering logic can drive off either
+// source unmodified. A categorisation's id stands in for a map_filter_fields
+// row's id (`field_id` in the values-by-record map); a category_terms id
+// stands in for a map_filter_field_options id (`option_id`). Categorisations
+// have no free-text field_type equivalent — this adapter only ever produces
+// multi_select fields.
+
+/** Shape active categorisations (with their terms) into filterFields entries. */
+export function categorisationsAsFilterFields(categorisations) {
+  return (categorisations || [])
+    .filter((c) => c.is_active)
+    .map((c) => ({
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      field_type: "multi_select",
+      display_control: "multi_select",
+      show_in_filter_bar: true,
+      sort_order: 0,
+      options: (c.terms || []).map((t) => ({
+        id: t.id,
+        value: t.slug,
+        label: t.label,
+        color: t.color ?? null,
+        sort_order: t.sort_order ?? 0,
+      })),
+    }));
+}
+
+/**
+ * Load a client's entry-applicable categorisations, shaped as
+ * PublishedMapView-compatible filterFields, plus per-entry tag values for
+ * the given entry ids (pass ids you already have — e.g. from a
+ * public_directory_entries fetch — to avoid a redundant query).
+ * @returns {Promise<{ filterFields: object[], valuesByRecord: Record<string, object[]> }>}
+ */
+export async function loadCategorisationFiltersForEntries(clientId, entryIds) {
+  const cats = (await listCategorisations(clientId)).filter((c) => appliesToEntries(c.applies_to));
+  const filterFields = categorisationsAsFilterFields(cats);
+  const ids = [...new Set((entryIds || []).filter(Boolean))];
+  if (filterFields.length === 0 || ids.length === 0) return { filterFields, valuesByRecord: {} };
+
+  const termToField = new Map();
+  for (const c of cats) for (const t of c.terms || []) termToField.set(t.id, c.id);
+
+  const { data, error } = await supabase
+    .from("entry_category_terms")
+    .select("entry_id, term_id")
+    .in("entry_id", ids);
+  if (error) throw error;
+
+  const valuesByRecord = {};
+  for (const row of data ?? []) {
+    const fieldId = termToField.get(row.term_id);
+    if (!fieldId) continue;
+    if (!valuesByRecord[row.entry_id]) valuesByRecord[row.entry_id] = [];
+    valuesByRecord[row.entry_id].push({ field_id: fieldId, option_id: row.term_id, value_text: null });
+  }
+  return { filterFields, valuesByRecord };
+}
