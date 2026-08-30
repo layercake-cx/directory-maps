@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-08-30 — [Production] Categorisation attachment model (map ↔ directory shared filters)
+
+**Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#159](https://github.com/layercake-cx/directory-maps/pull/159) — the categorisation-attachment rebuild described in the entry below, deployed to production per explicit user sign-off after a direct safety check (confirmed no migration touches `map_filter_fields`/`map_filter_field_options`/`listing_filter_values`, and every new code path no-ops cleanly for a map with zero categorisation attachments — true of the one live client currently using map filter fields).
+
+### What changed
+- Merged PR #159 to `main` (real merge conflicts in `docs/DEPLOYMENTS.md`, `generate_directory_site/index.ts`, `EntryLayoutDesigner.jsx` against two other sessions' concurrently-merged work — resolved by hand; `generate_directory_site`'s conflict was against a real perf refactor (`mapWithConcurrency`) of the same entry-page-generation loop this feature also touches, verified semantically compatible since the attachment-filtering logic only reads pre-built `Map`s the parallelized loop doesn't mutate).
+- `supabase/migrations/20260829040000_create_categorisation_attachments.sql` applied to production (`gxixwdjfmegxcxfeflro`) via `supabase db push --include-all` — discovered `20260829010000`/`20260829020000`/`20260829030000` were already present on production (swept in automatically by another session's routine `db push` after PR #153 merged main forward, since the CLI applies all pending migrations in timestamp order, not selectively) — net effect exactly as intended: only the anon-select RLS from `20260829010000` persists, the create-then-drop of `listing_category_terms` in `020000`/`030000` left no lasting trace.
+- GitHub Pages auto-deployed on merge (`gh run list` confirms success).
+- `npm run deploy:live` — first attempt hit the known transient "Not authorized" (see the directory-delete-warning entry below for the same pattern), second attempt succeeded; live at `https://uk-associations.com` / `maps.layercake-cx.biz`.
+
+### Verified
+- [x] `npm run build` and `deno check` clean on `main` post-merge.
+- [x] Production migration's own verification block passed: `VERIFY PASSED: categorisation_attachments + listing_category_terms created`.
+- [x] `supabase migration list` confirms all migrations applied remotely on production.
+- [x] GitHub Actions "Deploy to GitHub Pages" run succeeded.
+- [x] Vercel production deploy succeeded on retry; live site loads with zero console errors (smoke check only, no login credentials this session).
+- [ ] Not interactively tested against real categorisation/attachment data by an authenticated user.
+
+### Rollback plan
+- Frontend: revert the PR #159 merge commit on `main`, redeploy (GitHub Pages auto, `npm run deploy:live` for Vercel).
+- Database: `_20260829040000_create_categorisation_attachments.rollback.sql` against production — drops `categorisation_attachments`/`listing_category_terms`. Safe with data present.
+
+---
+
 ## 2026-08-29 — [Staging] Categorisation attachment model (map ↔ directory shared filters)
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#153](https://github.com/layercake-cx/directory-maps/pull/153) merged the earlier schema/revert commits; this migration is a follow-up commit on the same branch, not yet its own PR.
