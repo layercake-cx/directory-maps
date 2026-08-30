@@ -28,7 +28,53 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-08-29 — [Staging] Directory entry editor: Panel Style tab (Phase 5)
+## 2026-08-29 — [Staging] Directory entry editor: Preview & Publish tab, for real
+
+**Branch:** `feat/2026-08-29-directory-entry-preview-publish-tab`
+**Context:** the Preview & Publish tab had been a placeholder since Phase 1. Per the user's clarification: it should be mostly preview (the entry as it would appear live — card and detail page), with a Publish button that publishes the whole directory (single-entry publish was deliberately dropped — see the publish-perf entry above).
+
+### What changed
+- `EntryPreviewBlock.jsx` (new, shared): the per-block renderer extracted verbatim out of `EntryLayoutDesigner.jsx`, which now imports it instead of defining it locally — no behaviour change to the layout designer.
+- `lib/entryTemplates.js` gains `resolveEntryLayout(entry, templates, entryTermIds)` — a client-side mirror of `generate_directory_site`'s server-side `resolveLayout` (term-targeted template > group-targeted template > directory default > `IMPLICIT_DEFAULT_LAYOUT`), kept in sync by hand like that file's existing `IMPLICIT_DEFAULT_LAYOUT` already is. Skips the server version's term-vs-term tie-break sort — rare case, and this is already a client-side approximation, not a byte-for-byte match.
+- `entryEdit/EntryCardPreview.jsx` (new, shared): the homepage-card preview extracted out of `EntryPanelTab.jsx`'s inline JSX, which now uses it too — no behaviour change there either.
+- `entryEdit/EntryPreviewPublishTab.jsx` is now real: fetches the entry's resolved layout + evidence/media/accreditations/links/tiles (same data as the layout designer), renders the homepage card preview and the entry-page block preview side by side, links to the live entry page URL once published, and embeds the existing `DirectoryPublishPanel` directly (full publish history/rollback, not reinvented) rather than a lightweight replacement.
+- No schema change, no Edge Function change — purely new frontend surface reusing existing data/components.
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] Not interactively tested (no login credentials this session).
+
+### Rollback plan
+- Revert the commits. `EntryLayoutDesigner.jsx` and `EntryPanelTab.jsx`'s behaviour is unchanged by the extractions (same JSX, moved not modified), so reverting is a clean no-op for those two.
+
+---
+
+## 2026-08-29 — [Production] Parallelize per-entry page uploads in generate_directory_site
+
+**Branch:** `perf/2026-08-29-parallelize-directory-entry-page-uploads`
+**Context:** spike (requested alongside the directory entry editor's Phase 6 single-entry-publish idea) into why full directory republishes are slow. The user triggered a real publish of the production "association directory" (177 entries) and it took ~120s. Reading the generator's code found a strictly sequential `for` loop uploading one entry page to Vercel Blob at a time — 120s / 177 ≈ 0.68s/entry, which matches the observed total almost exactly, strong evidence this loop (not the DB reads, already batched with `Promise.all`) is the dominant cost. This is a smaller, lower-risk fix to try before building an entirely new single-entry-publish code path — if it makes full republishes fast enough, that path may not be needed at all.
+
+### What changed
+- `_shared/staticSiteRenderer.ts`: new `mapWithConcurrency(items, limit, fn)` — a worker-pool concurrency limiter (not fixed-size batching, so a slow item doesn't stall workers that could move on to the next one), exported for reuse by any future similar loop (e.g. `generate_directory_pages`, not touched in this change).
+- `generate_directory_site/index.ts`: the per-entry `for (const entry of entries) { await uploadToBlob(...) }` loop now goes through `mapWithConcurrency(entries, 15, ...)` — up to 15 entry pages rendered/uploaded concurrently. 15 is a conservative starting point to stay clear of any Vercel Blob per-second rate limit, not a measured optimum — worth revisiting with a real number once this is live.
+- No other loop in this function changed — the four single top-level uploads (index/sitemap/llms.txt/redirects) were never a meaningful cost.
+- No schema change, no new dependency, no API/UI surface — purely an internal performance change to an existing function.
+
+### Verified
+- [x] `deno check` clean on `generate_directory_site/index.ts` and `generate_directory_pages/index.ts` (shares the same module; only a new export was added, nothing existing changed).
+- [x] `npm run build` clean.
+- [x] Deployed to staging then production (`supabase functions deploy generate_directory_site`), PR #155 merged.
+- [x] Re-measured against the real 177-entry association directory in production: **~120s → ~16s** (a ~7.5x speedup — short of the theoretical 15x since DB reads, function cold-start, and the four single top-level uploads form a fixed floor that doesn't shrink with more concurrency).
+
+### Conclusion for the single-entry-publish idea (Phase 6)
+This changes the recommendation from the original entry-editor plan. A full directory republish at 16s for a 177-entry directory is fast enough that "publish just this entry" (a genuinely new RPC/Edge Function code path, new UI, new audit events) likely isn't worth building right now — the existing directory-wide Publish panel already gives an acceptable experience even for a large directory. The Preview & Publish tab can stay a placeholder, or get a lightweight link back to the directory's own Publish panel, rather than new targeted-regeneration plumbing. Revisit only if directories grow enough (many hundreds/thousands of entries) that even the parallelized 16s-for-177 cost becomes the actual complaint again.
+
+### Rollback plan
+- Revert the commit and redeploy the prior `generate_directory_site` version — no schema/data to unwind, purely a code change to an idempotent generator.
+
+---
+
+## 2026-08-29 — [Production] Directory entry editor: Panel Style tab (Phase 5)
 
 **Branch:** `feat/2026-08-29-directory-entry-panel-style`
 **Context:** continues the entry editor rebuild (#149/#150/#151, merged and deployed). Implements the Panel Style tab left as a placeholder since Phase 1 — a per-entry override for the homepage card's image and background colour (e.g. a white logo that needs a dark background instead of the directory's default themed surface).
@@ -48,12 +94,14 @@ This phase touches both a migration and an Edge Function, so the Phase 4 orderin
 
 **Update:** `supabase link`/`db push`/`functions deploy` were blocked by this session's permission classifier for most of this phase. Root cause turned out to be unrelated to credentials — `db push` also required the peer session's three "unify filters" migrations (`20260829010000`/`020000`/`030000`, applied to staging from their own not-yet-merged branch) to exist as local files before it would proceed at all, which they didn't until that branch merged to `main`. Once merged and pulled into this branch, `db push --dry-run` resolved cleanly. Also needed `supabase migration repair --status applied 20260829150000` first, since Phase 4's migration had been applied via direct SQL and was invisible to the CLI's own bookkeeping — otherwise `db push` would have tried to re-run it and hit its own idempotency guard.
 
+**Production:** applied by the user directly (ran `supabase db push --include-all` from the reconciled worktree, after explicit separate sign-off) alongside the peer session's three "unify filters" migrations, which were also pending on production and got bundled into the same push with the user's explicit go-ahead for both. All four `VERIFY PASSED`. `generate_directory_site` then deployed to production by me (`supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`). PR #152 merged; confirmed live by diffing the deployed bundle on `maps.layercake-cx.biz` ("Panel style" string present).
+
 ### Verified
 - [x] `npm run build` clean.
 - [x] `deno check supabase/functions/generate_directory_site/index.ts` clean.
 - [x] Migration applied to staging via `supabase db push` — in-transaction `NOTICE: VERIFY PASSED: both columns exist and are nullable`. `db push --dry-run` afterwards: "Remote database is up to date."
 - [x] `generate_directory_site` deployed to staging (`supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`).
-- [ ] Not applied/deployed to production yet — needs your explicit separate go-ahead.
+- [x] Migration applied to production, `generate_directory_site` deployed to production, PR merged, confirmed live via bundle diff.
 - [ ] Not interactively tested (no login credentials this session) — needs a real entry's panel style set + directory republished, then checked against the live homepage card.
 
 ### Rollback plan

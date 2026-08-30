@@ -107,7 +107,9 @@ export default function DirectoryEntryEditor({
           {!isNew && tab === "panel" && (
             <EntryPanelTab directoryId={directoryId} entryId={entryId} entry={entry} canEdit={canEdit} recordEvent={recordEvent} onSaved={reload} />
           )}
-          {!isNew && tab === "preview" && <EntryPreviewPublishTab backPath={backPath} />}
+          {!isNew && tab === "preview" && (
+            <EntryPreviewPublishTab directoryId={directoryId} entryId={entryId} entry={entry} canEdit={canEdit} recordEvent={recordEvent} />
+          )}
         </>
       )}
     </div>
