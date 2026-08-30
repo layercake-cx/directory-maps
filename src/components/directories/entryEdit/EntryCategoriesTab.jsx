@@ -39,8 +39,7 @@ export default function EntryCategoriesTab({ clientId, directoryId, entryId, can
       </Text>
       {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
       <CategoryTagPicker
-        clientId={clientId}
-        scope="entry"
+        directoryId={directoryId}
         selectedTermIds={termIds}
         onChange={canEdit ? handleChange : () => {}}
       />

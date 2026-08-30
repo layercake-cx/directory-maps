@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  APPLIES_TO_OPTIONS,
-  appliesToLabel,
   slugify,
   listCategorisations,
   createCategorisation,
@@ -17,9 +15,7 @@ const emptyForm = {
   label: "",
   key: "",
   keyTouched: false,
-  appliesTo: "entry",
   terms: [],
-  originalAppliesTo: null,
 };
 
 const DEFAULT_TERM_COLOR = "#4A9BAA";
@@ -74,9 +70,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
       label: cat.label,
       key: cat.key,
       keyTouched: true,
-      appliesTo: cat.applies_to,
       terms: (cat.terms || []).map((t) => ({ id: t.id, label: t.label, color: t.color || "" })),
-      originalAppliesTo: cat.applies_to,
     });
   }
   function closeForm() { setForm(null); }
@@ -127,10 +121,9 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
           clientId,
           label: form.label.trim(),
           key: form.key.trim(),
-          appliesTo: form.appliesTo,
           terms: cleanTerms,
         });
-        emit("directory_categorisation_created", { categorisation_id: cat?.id, key: form.key.trim(), applies_to: form.appliesTo });
+        emit("directory_categorisation_created", { categorisation_id: cat?.id, key: form.key.trim() });
       }
       closeForm();
       await refresh();
@@ -196,26 +189,10 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
         </div>
 
         <div className="panel-section">
-          <p className="panel-section__title">Applies to</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {APPLIES_TO_OPTIONS.map((o) => (
-              <label key={o.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-                <input
-                  type="radio"
-                  name="appliesTo"
-                  checked={form.appliesTo === o.id}
-                  disabled={!!form.id}
-                  onChange={() => setForm((f) => ({ ...f, appliesTo: o.id }))}
-                />
-                {o.label}
-              </label>
-            ))}
-            {form.id && (
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-                Can't be changed after creation (it would orphan existing tags). Delete and recreate to change it.
-              </p>
-            )}
-          </div>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
+            A new categorisation isn't attached anywhere yet — attach it to a map or a directory from that map's
+            Filters panel or that directory's settings to make its terms usable there.
+          </p>
         </div>
 
         <div className="panel-section">
@@ -273,7 +250,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontWeight: 600 }}>{c.label}</span>
                   <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
-                    {appliesToLabel(c.applies_to)} · {c.terms.length} term{c.terms.length === 1 ? "" : "s"}
+                    {c.terms.length} term{c.terms.length === 1 ? "" : "s"}
                     {!c.is_active ? " · Archived" : ""}
                   </span>
                 </span>

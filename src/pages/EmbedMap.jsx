@@ -7,7 +7,7 @@ import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
 import { loadFilterValuesForMap } from "../lib/filterFields.js";
-import { loadCategorisationFiltersForEntries } from "../lib/categorisations.js";
+import { loadCategorisationFiltersForEntries, loadCategorisationFiltersForListings } from "../lib/categorisations.js";
 
 /** Build listingId -> values[] from a flat snapshot array of listing_filter_values. */
 function groupFilterValuesByListing(rows) {
@@ -161,12 +161,12 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
   /**
-   * Categorisation-derived filter fields + per-entry values (see
-   * loadCategorisationFiltersForEntries in src/lib/categorisations.js) —
-   * only ever populated for a directory-sourced map, where the map's pins
-   * and the directory's own entries share the same category tags. A
-   * self-authored map (its own listings, no directory) has no categorisation
-   * relationship and this stays empty for it.
+   * Categorisation-derived filter fields + per-record values (see
+   * src/lib/categorisations.js's loadCategorisationFiltersForEntries /
+   * loadCategorisationFiltersForListings) — for a directory-sourced map,
+   * sourced from categorisations attached to that directory (shared with
+   * the directory itself); for a self-authored map, from categorisations
+   * attached directly to this map.
    */
   const [categorisationFilters, setCategorisationFilters] = useState({ filterFields: [], valuesByRecord: {} });
   /**
@@ -282,12 +282,12 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
 
           // Directory entries have no map_filter_fields/listing_filter_values
           // equivalent — a directory-sourced map's filter chips instead come
-          // from the directory's own client-wide categorisations, via the
-          // same entry ids public_directory_entries just returned.
+          // from categorisations attached to this directory, via the same
+          // entry ids public_directory_entries just returned.
           let categorisation = { filterFields: [], valuesByRecord: {} };
           try {
             categorisation = await loadCategorisationFiltersForEntries(
-              m?.client_id,
+              directoryId,
               normalizedListings.map((e) => e.id),
             );
           } catch { /* non-fatal: filters just won't populate */ }
@@ -333,6 +333,11 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
             } catch { /* non-fatal: filters just won't populate */ }
           }
           setPublicationConfig(resolvedPublication);
+          try {
+            setCategorisationFilters(
+              await loadCategorisationFiltersForListings(mapId, (snapshot.listings ?? []).map((l) => l.id)),
+            );
+          } catch { /* non-fatal: filters just won't populate */ }
           // Publication snapshots omit client_id; resolve it live so messaging/test-mode
           // settings always reflect the current org configuration.
           const resolvedClientId =
@@ -421,11 +426,17 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           liveFilterValues = await loadFilterValuesForMap(mapId);
         } catch { /* non-fatal */ }
 
+        let categorisation = { filterFields: [], valuesByRecord: {} };
+        try {
+          categorisation = await loadCategorisationFiltersForListings(mapId, (l ?? []).map((x) => x.id));
+        } catch { /* non-fatal: filters just won't populate */ }
+
         if (!cancelled) {
           setMap(mapRow);
           setListings(l ?? []);
           setGroups(g ?? []);
           setFilterValuesByListing(liveFilterValues);
+          setCategorisationFilters(categorisation);
           setPublicationConfig(resolvedPublication);
         }
       } catch (e) {
