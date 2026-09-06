@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-06 — [Not yet deployed] Remove AI search enrichment from maps
+
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Context:** the map-level "Intent-Based AI Search" epic (enrichment pipeline + "Ask AI" chat) was always admin-only/beta-flagged and never released to customers. Removed in full and superseded by a directory-level AI content generation feature (separate entry below/to follow) that reshapes the same idea — admin prompt → Claude-written content — around directory entries instead.
+
+### What changed
+- Frontend: deleted `src/lib/aiSearch.js`; removed the `ai_search` feature flag, the enrichment-prompt tab/panel and publish wiring from `AdminMapDashboard.jsx`, the beta toggle from `AdminClientDetail.jsx`, and the entire "Ask AI" chat drawer (state, handlers, JSX, CSS) from `PublishedMapView.jsx`/`EmbedMap.jsx`/`style.css`.
+- Edge Functions: deleted `process_listing_enrichment` and `search_listings_by_intent` entirely. Updated `generate_directory_pages` to drop its `listing_research` lookup — it now renders `notes_html` only (its existing fallback, now the sole content source); removed the now-unused `renderResearchAsHtml`/`humanizeKey` helpers from `_shared/staticSiteRenderer.ts`.
+- Docs: `docs/FEATURES.md` §4.4d rewritten as a removal note (superseded by §4.4g); `docs/DATA_AND_PRIVACY.md` §10 (Anthropic) rewritten to describe the new directory-entry use instead of the removed map feature.
+- Database: **not yet applied**. The four previously-authored rollback files (`_20260822120000_gate_ai_search_entitlement.rollback.sql`, `_20260821140000_seed_ai_search_feature_flag.rollback.sql`, `_20260821130000_ai_search_enrichment_worker_cron.rollback.sql`, `_20260821120000_create_ai_search_enrichment.rollback.sql`, run in that order) still need to be executed against staging, then production — this CLI (2.75.0) has no working `db execute`/raw-SQL path for underscore-prefixed rollback files (see `docs/DATABASE_MIGRATIONS.md`'s documented tooling gap), so this needs either the Supabase Studio SQL editor or a properly-privileged direct Postgres connection, not `supabase db push`.
+
+### Verified
+- [x] `npm run build` clean after the frontend removal.
+- [ ] Staging DB rollback not yet run — blocked on the tooling gap above.
+- [ ] Production DB rollback not yet run.
+- [ ] Both Edge Functions undeployed from staging/production (`supabase functions delete <name> --project-ref ...`).
+- [ ] Manual smoke test of a published map (no "Ask AI" UI, no console errors) not yet done against a running dev server.
+
+### Rollback plan
+- Frontend/Edge Functions: revert this branch's commits.
+- Database: re-run the four original forward migrations (`20260821120000`, `20260821130000`, `20260821140000`, `20260822120000`) to restore the schema, if ever needed.
+
+---
+
 ## 2026-08-30 — [Production] Categorisation attachment model (map ↔ directory shared filters)
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#159](https://github.com/layercake-cx/directory-maps/pull/159) — the categorisation-attachment rebuild described in the entry below, deployed to production per explicit user sign-off after a direct safety check (confirmed no migration touches `map_filter_fields`/`map_filter_field_options`/`listing_filter_values`, and every new code path no-ops cleanly for a map with zero categorisation attachments — true of the one live client currently using map filter fields).

@@ -289,20 +289,21 @@ Depends on the SMTP configuration in Supabase Auth settings:
 
 ## 10. Anthropic (Claude API)
 
-**Role:** AI search enrichment and (planned) intent-based natural-language search for directory maps.
+**Role:** AI content generation for directory entries.
 
-**What it is:** Server-side calls from two Supabase Edge Functions (never called from the browser) to the Anthropic Messages API — (1) `process_listing_enrichment`: when a listing is created on a map that has AI search enrichment configured, sends that listing's existing directory content to Claude Haiku 4.5, which returns a structured research summary stored back in Supabase; (2) `search_listings_by_intent`: when a map visitor submits an "Ask AI" query, sends the map's listing corpus (core fields + stored research) and the visitor's free-text query to Claude Haiku 4.5, which returns matching listing ids — validated server-side against the map's real listings before any result is shown. This integration is **in development, feature-flag gated** — not yet live for clients.
+**What it is:** Server-side calls from Supabase Edge Functions (never called from the browser) to the Anthropic Messages API, used to write a directory entry's page content (`directory_entries.notes_html`) from an admin-authored directory-level prompt. Three trigger paths share the same underlying call: automatically when a new entry is created with no content yet (`process_entry_content_jobs`, via a job queue), on demand for a single entry (`generate_entry_content`, triggered by an admin/client clicking "Generate with AI"), and a directory-wide regenerate-all (also via the job queue, gated behind a type-to-confirm admin action). This integration is **in development** — not yet live for clients.
+
+Previously (2026-08-21 to 2026-09-06) this integration was used for a map-level feature — AI search enrichment and an "Ask AI" intent-based search chat (`process_listing_enrichment`, `search_listings_by_intent`) — which was removed and superseded by the directory-entry feature described here. See `docs/FEATURES.md` §4.4d.
 
 ### Data involved
 
-Each enrichment request sends:
+Each request sends:
 
-- **Listing content already stored in Supabase**: business name, address, city, postcode, country, website URL, and free-text notes (`listings.notes_html`, stripped of markup) — this is **listing subject** data (see People table above), not platform-user or map-visitor personal data.
-- The client's own admin-authored enrichment prompt (`maps.ai_search_enrichment_prompt`) describing what to extract — this is Layercake/client configuration text, not personal data.
-- **Search only**: the map visitor's free-text search query (capped at 500 characters) is sent to Anthropic as part of the search request. Comparable to the existing "Map engagement search queries" already logged to Supabase for the plain-text search box (see §1) — treat as map-visitor pseudonymous data, not tied to an account.
+- **Entry content already stored in Supabase**: business/organisation name, address, city, postcode, country, website URL, and any existing free-text notes (`directory_entries.notes_html`, stripped of markup) — this is **listing subject** data (see People table above), not platform-user or visitor personal data.
+- The client's own admin-authored content-generation prompt (`directories.ai_content_prompt`) describing what to write — this is Layercake/client configuration text, not personal data.
 - No account credentials or payment data is ever included in a request to Anthropic.
 
-The response (structured JSON research) is written back into Supabase (`listing_research`) and is not retained by Layercake Maps outside that table.
+The response (the generated page content) is written back into Supabase (`directory_entries.notes_html`, plus a version snapshot in `directory_entry_versions`) and is not retained by Layercake Maps outside those tables.
 
 ### Processing location
 
@@ -312,7 +313,7 @@ Anthropic PBC is a **US company**. API requests are processed on Anthropic's inf
 
 ### Legal basis & agreements
 
-- Anthropic acts as a **data processor** for enrichment requests made under Layercake Maps' instruction.
+- Anthropic acts as a **data processor** for generation requests made under Layercake Maps' instruction.
 - Governed by Anthropic's Commercial Terms of Service and Data Processing Addendum (confirm exact current links — see action item above).
 - The API key (`ANTHROPIC_API_KEY`) is server-side only (Supabase Edge Function secret), never exposed to the browser.
 
@@ -348,7 +349,7 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 | **Vercel** | Visitor IP, user-agent, request paths | Partial (global CDN, EU PoPs) | Yes |
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
 | **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
-| **Anthropic (Claude API)** | Listing content (name, address, notes) for enrichment; visitor search query text for search — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
+| **Anthropic (Claude API)** | Directory entry content (name, address, notes) for AI content generation — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
 | **Cloudflare (DNS-over-HTTPS)** | Hostname being verified only — no personal data | Global anycast | Not applicable — public DNS lookup, no account |
 
 ---
@@ -394,4 +395,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-08-22 (Anthropic/Claude API entry extended to cover the intent search-query feature, in addition to enrichment — both in development/feature-flag gated). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-09-06 (Anthropic/Claude API entry rewritten: the map-level AI search enrichment + intent search-query feature was removed; the integration now covers directory-entry AI content generation instead — in development). Maintained by the Layercake Maps engineering and privacy team.*

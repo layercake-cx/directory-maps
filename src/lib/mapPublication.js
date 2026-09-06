@@ -94,7 +94,6 @@ export function buildPublicationConfig(params) {
     showContinentFilter,
     showKey,
     filterFields,
-    aiSearchEnrichmentPromptSet,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -144,9 +143,6 @@ export function buildPublicationConfig(params) {
     marker_color: markerColor,
     custom_pin_url: customPinUrl || null,
     theme_json,
-    // Boolean only — the raw enrichment prompt text is admin config, not part
-    // of what's published for public embed consumption.
-    ai_search_enabled: !!aiSearchEnrichmentPromptSet,
   };
 
   const byId = {};
