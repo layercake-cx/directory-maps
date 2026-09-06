@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getDirectoryEntry } from "../../lib/directories.js";
+import { getDirectoryEntry, isDirectoryAiContentEnabled } from "../../lib/directories.js";
 import EntryEditSubNav from "./entryEdit/EntryEditSubNav.jsx";
 import EntryBasicInfoTab from "./entryEdit/EntryBasicInfoTab.jsx";
 import EntryCategoriesTab from "./entryEdit/EntryCategoriesTab.jsx";
@@ -33,6 +33,11 @@ export default function DirectoryEntryEditor({
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(!isNew);
   const [err, setErr] = useState("");
+  const [aiContentEnabled, setAiContentEnabled] = useState(false);
+
+  useEffect(() => {
+    isDirectoryAiContentEnabled(directoryId).then(setAiContentEnabled).catch(() => {});
+  }, [directoryId]);
 
   const reload = useCallback(async () => {
     if (isNew) return;
@@ -99,7 +104,16 @@ export default function DirectoryEntryEditor({
             <EntryCategoriesTab clientId={clientId} directoryId={directoryId} entryId={entryId} canEdit={canEdit} recordEvent={recordEvent} />
           )}
           {!isNew && tab === "content" && (
-            <EntryContentTab directoryId={directoryId} entryId={entryId} clientId={clientId} entry={entry} canEdit={canEdit} recordEvent={recordEvent} onSaved={reload} />
+            <EntryContentTab
+              directoryId={directoryId}
+              entryId={entryId}
+              clientId={clientId}
+              entry={entry}
+              canEdit={canEdit}
+              aiContentEnabled={aiContentEnabled}
+              recordEvent={recordEvent}
+              onSaved={reload}
+            />
           )}
           {!isNew && tab === "seo" && (
             <EntrySeoTab directoryId={directoryId} entryId={entryId} entry={entry} canEdit={canEdit} recordEvent={recordEvent} onSaved={reload} />

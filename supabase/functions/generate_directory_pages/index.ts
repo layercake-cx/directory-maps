@@ -15,15 +15,12 @@
  * on the site is untouched.
  *
  * Gated on both the `directory_pages` beta feature flag (per-client rollout
- * control) and the `maps.directory_pages` commercial entitlement — unlike
- * ai_search's enrichment, there's no per-map "prompt configured" opt-in
- * step here, since there's no LLM cost to generating these pages: any
- * entitled, flag-enabled client's published maps get them automatically.
+ * control) and the `maps.directory_pages` commercial entitlement — there's no
+ * per-map "prompt configured" opt-in step here, since there's no LLM cost to
+ * generating these pages: any entitled, flag-enabled client's published maps
+ * get them automatically.
  *
- * Content: listing_research (Epic 2 enrichment) when present, falling back
- * to notes_html. Research is admin-defined free-form JSON (whatever their
- * enrichment prompt asked for), so it's rendered generically as a
- * definition list rather than assuming any specific field names.
+ * Content: listing.notes_html, as authored on the listing itself.
  *
  * Called:
  *   - After every successful publish (fire-and-forget from the dashboard)
@@ -40,12 +37,11 @@ import {
   escapeHtml,
   escapeAttr,
   escapeXml,
-  renderResearchAsHtml,
   uploadToBlob,
   pageShell,
 } from "../_shared/staticSiteRenderer.ts";
 
-// escapeHtml/escapeAttr/escapeXml/renderResearchAsHtml/uploadToBlob/pageShell/
+// escapeHtml/escapeAttr/escapeXml/uploadToBlob/pageShell/
 // CORS/json moved to _shared/staticSiteRenderer.ts (Phase 3b of the
 // Directories build-out) so generate_directory_site (the new Directory
 // entity's own generator) can reuse them without duplication. Extracted
@@ -100,19 +96,14 @@ function buildListingPage(opts: {
   mapSlug: string;
   mapName: string;
   listing: Listing;
-  research: Record<string, unknown> | null;
 }): string {
-  const { clientSlug, mapSlug, mapName, listing, research } = opts;
+  const { clientSlug, mapSlug, mapName, listing } = opts;
   const canonicalUrl = `https://maps.layercake-cx.biz/${clientSlug}/${mapSlug}/directory/${listing.slug}`;
   const landingUrl = `/${clientSlug}/${mapSlug}/directory`;
   const interactiveUrl = `/${clientSlug}/${mapSlug}`;
 
   const location = [listing.address, listing.postcode, listing.country].filter(Boolean).join(", ");
-  const researchHtml = research ? renderResearchAsHtml(research) : "";
-  // Fall back to notes_html whenever research didn't actually render anything —
-  // not just when no research row exists. An empty/incomplete research row
-  // (e.g. {}) should still fall back, not silently produce a blank page.
-  const fallbackNotes = !researchHtml && listing.notes_html
+  const fallbackNotes = listing.notes_html
     ? listing.allow_html
       ? listing.notes_html
       : `<p>${escapeHtml(listing.notes_html)}</p>`
@@ -129,7 +120,7 @@ ${location ? `<p>${escapeHtml(location)}</p>` : ""}
 ${listing.phone ? `<p>Phone: ${escapeHtml(listing.phone)}</p>` : ""}
 ${listing.email ? `<p>Email: <a href="mailto:${escapeAttr(listing.email)}">${escapeHtml(listing.email)}</a></p>` : ""}
 ${listing.website_url ? `<p><a href="${escapeAttr(listing.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : ""}
-${researchHtml || fallbackNotes}
+${fallbackNotes}
 <p><a href="${escapeAttr(interactiveUrl)}">View on the interactive map</a></p>
 `.trim();
 
@@ -302,17 +293,6 @@ async function generateForMap(mapId: string): Promise<{ map_id: string; skipped?
   if (listErr) throw new Error(`Listings query failed: ${listErr.message}`);
   const activeListing = (listings ?? []) as Listing[];
 
-  const ids = activeListing.map((l) => l.id);
-  let researchByListing = new Map<string, Record<string, unknown>>();
-  if (ids.length > 0) {
-    const { data: research, error: researchErr } = await db
-      .from("listing_research")
-      .select("listing_id, data")
-      .in("listing_id", ids);
-    if (researchErr) throw new Error(`Research query failed: ${researchErr.message}`);
-    researchByListing = new Map((research ?? []).map((r) => [r.listing_id, r.data as Record<string, unknown>]));
-  }
-
   const basePath = `directory/${client.slug}/${mapRow.slug}`;
 
   for (const listing of activeListing) {
@@ -321,7 +301,6 @@ async function generateForMap(mapId: string): Promise<{ map_id: string; skipped?
       mapSlug: mapRow.slug,
       mapName: mapRow.name,
       listing,
-      research: researchByListing.get(listing.id) ?? null,
     });
     await uploadToBlob(`${basePath}/${listing.slug}.html`, html, "text/html; charset=utf-8");
   }

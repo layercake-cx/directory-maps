@@ -197,6 +197,17 @@ From a directory's page (owners and managers only), above the entries table:
 - **Accreditation schemes** — define the badges entries can hold (name, issuing body, badge image, description, verification note). Archiving a scheme hides it without losing which entries hold it; deleting it removes it from every entry that holds it.
 - **Prominent links (directory homepage)** — link tiles for the directory as a whole, separate from any single entry's own links.
 
+### AI content generation
+
+From a directory's page (owners and managers only), the **AI content generation** panel lets Claude write each entry's page content for you:
+
+1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
+2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.
+3. **One entry, any time** — on that entry's **Content** tab, click **Generate with AI**. This always runs immediately, even if the entry already has content (you'll be asked to confirm, since it overwrites what's there).
+4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; the panel shows a progress count while it runs.
+
+Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
+
 ---
 
 ## Map designer

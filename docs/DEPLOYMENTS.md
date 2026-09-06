@@ -8,6 +8,61 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-06 — [Staging] Directory AI content generation
+
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Context:** the companion build to the removal entry directly below this one. Ports the "admin prompt → Claude writes something" idea from the removed map-level AI search enrichment feature onto directory entries: one prompt per directory, three ways to trigger it (auto on empty entries, manual per-entry always, directory-wide bulk with a type-to-confirm guard), and a general-purpose version history so nothing is ever unrecoverably lost.
+
+### What changed
+- Schema: `20260906120000_create_directory_ai_content_generation.sql` — `directories.ai_content_prompt` + 6 bulk-run status columns, `directory_entries.ai_content_generated_at`, `entry_content_jobs` (job queue, mirrors the removed `listing_enrichment_jobs`), `directory_entry_versions` (append-only content history), an `AFTER INSERT` trigger enqueueing an auto job only when an entry has no content yet and its directory has opted in. `20260906130000_entry_content_generation_worker_cron.sql` — `claim_pending_entry_content_jobs()`, a 2-minute `pg_cron` dispatch to `process_entry_content_jobs`, and `enqueue_directory_entry_content_jobs()` (client-callable, queues every active entry for the bulk action).
+- Edge Functions: new `generate_entry_content` (synchronous, single-entry, user-invoked — bypasses the empty-content rule) and `process_entry_content_jobs` (cron-invoked batch worker, handles both auto and bulk jobs); shared Claude-calling logic + a defense-in-depth HTML allowlist sanitizer in new `_shared/entryContentGeneration.ts`; new `requireDirectoryAccess()` helper in `_shared/supabase.ts` (mirrors `requireMapAccess`).
+- Frontend: new `DirectoryAiContentPanel.jsx` (prompt field + "Generate all entry content" type-`CREATE`-to-confirm modal + progress poll), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx` next to Branding. `EntryContentTab.jsx` gets a "Generate with AI" button and a version-history list with per-version "Restore". `updateDirectoryEntry()` (`src/lib/directories.js`) now records a `directory_entry_versions` row on every manual `notes_html` save.
+- Admin events: `directory_ai_content_prompt_updated`, `_requested`, `_generated`, `_failed`, `_bulk_requested`, `_bulk_completed`, `directory_entry_content_restored` — added to `AGENTS.md`'s event catalogue.
+- Docs: `docs/FEATURES.md` §4.4g (new), `docs/DIRECTORIES.md` §4.8 (new) + schema table updates, `docs/USER_GUIDE.md` (new "AI content generation" subsection under Directories).
+- No feature-flag/entitlement gating, unlike the removed map feature — this is a permanent capability behind the existing `canEdit`/`canManage` directory permission checks only.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on both new Edge Functions and the modified `_shared` modules.
+- [x] Staging DB migration applied (`supabase db push` against `beqejxneehilplrtpntn`) — both verification blocks passed (`VERIFY PASSED: directory AI content generation schema created`, `VERIFY PASSED: claim RPC + bulk enqueue RPC + dispatch cron registered`).
+- [x] Both Edge Functions deployed to staging (`generate_entry_content`, `process_entry_content_jobs`); `ANTHROPIC_API_KEY` was already set as a secret there from the removed feature, so no new secret was needed.
+- [ ] Manual smoke test (auto-generate on empty entry, manual per-entry generate, bulk regenerate-all, version restore) not yet done — needs an authenticated admin/client session, which this agent doesn't have credentials for.
+- [ ] Production not touched — needs explicit sign-off per `AGENTS.md`.
+
+### Rollback plan
+- Frontend/Edge Functions: revert this branch's commits.
+- Database: `_20260906130000_entry_content_generation_worker_cron.rollback.sql` then `_20260906120000_create_directory_ai_content_generation.rollback.sql`, in that order. Both have data-loss guards (abort if `directory_entry_versions` has rows) — back up first if real content generation has already happened.
+
+---
+
+## 2026-09-06 — [Staging] Remove AI search enrichment from maps
+
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Context:** the map-level "Intent-Based AI Search" epic (enrichment pipeline + "Ask AI" chat) was always admin-only/beta-flagged and never released to customers. Removed in full and superseded by the directory-level AI content generation feature in the entry above — admin prompt → Claude-written content — around directory entries instead.
+
+### What changed
+- Frontend: deleted `src/lib/aiSearch.js`; removed the `ai_search` feature flag, the enrichment-prompt tab/panel and publish wiring from `AdminMapDashboard.jsx`, the beta toggle from `AdminClientDetail.jsx`, and the entire "Ask AI" chat drawer (state, handlers, JSX, CSS) from `PublishedMapView.jsx`/`EmbedMap.jsx`/`style.css`.
+- Edge Functions: deleted `process_listing_enrichment` and `search_listings_by_intent` entirely (undeployed from staging). Updated `generate_directory_pages` to drop its `listing_research` lookup — it now renders `notes_html` only (its existing fallback, now the sole content source); removed the now-unused `renderResearchAsHtml`/`humanizeKey` helpers from `_shared/staticSiteRenderer.ts`; redeployed to staging.
+- Docs: `docs/FEATURES.md` §4.4d rewritten as a removal note (superseded by §4.4g); `docs/DATA_AND_PRIVACY.md` §10 (Anthropic) rewritten to describe the new directory-entry use instead of the removed map feature.
+- Database (staging): the four original rollback files can't be executed directly — this CLI (2.75.0) has no working `db execute`/raw-SQL path for underscore-prefixed files (see `docs/DATABASE_MIGRATIONS.md`'s documented tooling gap). Instead, their SQL bodies were concatenated verbatim, in the same order, into a normally-named migration: `20260906140000_remove_ai_search_enrichment_schema.sql` (paired rollback: `_20260906140000_remove_ai_search_enrichment_schema.rollback.sql`, which similarly concatenates the four *original forward* migrations to restore the schema if ever needed). Applied to staging via `supabase db push`; all 4 steps' verification blocks passed.
+- Two guarded conditions were hit and resolved with explicit user sign-off before the migration would proceed:
+  1. A `client_overrides` row granted `maps.ai_search` to one client (`4019b83b-b707-40ce-8948-16b3ae21de9d`, "L-Cakez" — an internal Layercake staff/test client, `bool_value=true`, no reason recorded). Confirmed safe to clear, removed via a scratch migration (applied, then its history entry marked `reverted` via `supabase migration repair` and the file deleted — it's not a permanent part of this branch).
+  2. `listing_research` had 13 real rows. Rather than aborting, the migration now backs them up into `listing_research_backup_20260906` (plain table, not read by any application code) immediately before dropping the live table — this behaviour is now baked into `20260906140000_remove_ai_search_enrichment_schema.sql` itself, not a one-off manual step.
+
+### Verified
+- [x] `npm run build` clean after the frontend removal.
+- [x] Staging DB migration applied — all 4 verification steps passed (`supabase db push` against `beqejxneehilplrtpntn`).
+- [x] Both old Edge Functions undeployed from staging (`process_listing_enrichment`, `search_listings_by_intent`); `generate_directory_pages` redeployed with the updated code.
+- [ ] Production DB migration not yet run — needs explicit sign-off per `AGENTS.md`.
+- [ ] Both Edge Functions not yet undeployed from production.
+- [ ] Manual smoke test of a published map (no "Ask AI" UI, no console errors) not yet done against a running dev server + staging DB.
+
+### Rollback plan
+- Frontend/Edge Functions: revert this branch's commits; redeploy `process_listing_enrichment`/`search_listings_by_intent` from git history, revert `generate_directory_pages`.
+- Database: `_20260906140000_remove_ai_search_enrichment_schema.rollback.sql` (re-creates the schema). Note this does NOT restore the 13 `listing_research` rows or the `4019b83b-b707-40ce-8948-16b3ae21de9d` override automatically — the backed-up rows are still sitting in `listing_research_backup_20260906` and can be copied back in (`insert into listing_research select * from listing_research_backup_20260906`) if the feature is ever reinstated.
+
+---
+
 ## 2026-08-30 — [Production] Categorisation attachment model (map ↔ directory shared filters)
 
 **Branch/PR:** `feat/2026-08-29-unify-map-filters-categories`, [#159](https://github.com/layercake-cx/directory-maps/pull/159) — the categorisation-attachment rebuild described in the entry below, deployed to production per explicit user sign-off after a direct safety check (confirmed no migration touches `map_filter_fields`/`map_filter_field_options`/`listing_filter_values`, and every new code path no-ops cleanly for a map with zero categorisation attachments — true of the one live client currently using map filter fields).

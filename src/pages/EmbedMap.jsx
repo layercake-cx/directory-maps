@@ -500,7 +500,6 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       clusterRadius: typeof src.cluster_radius === "number" ? src.cluster_radius : 80,
       customPinUrl: src.custom_pin_url ?? null,
       themeSource: src.theme_json ?? null,
-      aiSearchEnabled: !!src.ai_search_enabled,
     };
   }, [publicationConfig]);
 
@@ -772,7 +771,6 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
         <PublishedMapView
           apiKey={apiKey}
           mapId={mapId}
-          aiSearchEnabled={effectiveDefaults.aiSearchEnabled}
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
@@ -824,7 +822,6 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           centerOnListingId={centerOnListingId}
           setCenterOnListingId={setCenterOnListingId}
           showSendMessage={messagingEnabled}
-          onAiChatOpen={() => setMessageDrawerOpen(false)}
           onOpenSendMessage={() => {
             setMessageDrawerOpen(true);
             setContactFormSent(false);

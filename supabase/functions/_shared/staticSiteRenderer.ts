@@ -40,36 +40,6 @@ export function escapeXml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function humanizeKey(key: string): string {
-  return key.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/**
- * Renders arbitrary admin-defined research JSON (or any nested plain-object
- * data) as a readable nested definition list. Never assumes specific field
- * names.
- */
-export function renderResearchAsHtml(value: unknown, depth = 0): string {
-  if (value === null || value === undefined || value === "") return "";
-  if (Array.isArray(value)) {
-    const items = value.map((v) => renderResearchAsHtml(v, depth + 1)).filter(Boolean);
-    if (items.length === 0) return "";
-    return `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
-  }
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => {
-        const rendered = renderResearchAsHtml(v, depth + 1);
-        if (!rendered) return "";
-        return `<dt>${escapeHtml(humanizeKey(k))}</dt><dd>${rendered}</dd>`;
-      })
-      .filter(Boolean);
-    if (entries.length === 0) return "";
-    return `<dl>${entries.join("")}</dl>`;
-  }
-  return escapeHtml(value);
-}
-
 /**
  * Runs fn over items with at most `limit` calls in flight at once — a
  * worker-pool concurrency limiter, not fixed-size batching, so a slow item

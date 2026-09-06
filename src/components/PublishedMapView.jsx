@@ -3,7 +3,6 @@ import DirectoryMap from "./DirectoryMap.jsx";
 import LogoImage from "./LogoImage.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { continentForCountry } from "../lib/continents";
-import { searchListingsByIntent } from "../lib/aiSearch.js";
 function buildSearchIndex(listing, groupName = "") {
   const parts = [
     listing.name,
@@ -201,8 +200,6 @@ function ListingCardContent({
 export default function PublishedMapView({
   apiKey,
   mapId = null,
-  /** Show the "Ask AI" intent-search entry point (Pro-gated beta feature — only true once published). */
-  aiSearchEnabled = false,
   center,
   zoom,
   mapTypeId,
@@ -239,8 +236,6 @@ export default function PublishedMapView({
   setCenterOnListingId,
   showSendMessage = false,
   onOpenSendMessage,
-  /** Called when the AI chat drawer opens — lets the caller close any other drawer (e.g. the message drawer) so only one is ever visible. */
-  onAiChatOpen,
   height = "100%",
   listingsWithColor, // optional: listings with group color applied (for admin/client); falls back to listings
   /** @see DirectoryMap — `cooperative` avoids wheel zoom over the map while keeping pinch/2-finger zoom; embed passes this explicitly */
@@ -268,20 +263,6 @@ export default function PublishedMapView({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  /** Intent-search ("Ask AI") state — a small multi-turn chat, separate from the plain-text search box above. */
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiSearching, setAiSearching] = useState(false);
-  const [aiError, setAiError] = useState("");
-  /** null = AI search not active (normal browsing); Set = narrowed to these listing ids. */
-  const [aiResultIds, setAiResultIds] = useState(null);
-  /** Full conversation so far: [{ role: "user" | "assistant", content }]. Persists across drawer close/reopen. */
-  const [aiMessages, setAiMessages] = useState([]);
-  /** Whether the chat drawer is currently shown — independent of whether a conversation exists. */
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
-  /** Scrolled directly via scrollTop (never scrollIntoView) — scrollIntoView can walk up and scroll ancestor
-   * containers too, including the fullscreen root, which still has latent horizontal overflow from the closed
-   * message drawer's off-screen panel even with overflow:hidden. scrollTop only ever touches this one element. */
-  const aiMessagesContainerRef = useRef(null);
   /** Group ids selected as active filters. Empty set = show every group. */
   const [activeGroupIds, setActiveGroupIds] = useState(() => new Set());
   /** Continent names selected as active filters. Empty set = show every continent. */
@@ -484,21 +465,15 @@ export default function PublishedMapView({
     return s;
   }, [list]);
 
-  /** When an AI search is active, narrows effectiveListings to just the matched ids (markers + panel). */
-  const displayListings = useMemo(() => {
-    if (!aiResultIds) return effectiveListings;
-    return (effectiveListings || []).filter((l) => aiResultIds.has(l.id));
-  }, [effectiveListings, aiResultIds]);
-
   /** Flat, alphabetically-sorted listing list for the panel, filtered by group lozenges + search text. */
   const visibleListings = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const arr = (displayListings || []).slice();
+    const arr = (effectiveListings || []).slice();
     const filtered = q
       ? arr.filter((l) => buildSearchIndex(l, groupNameById.get(l.group_id) || "").includes(q))
       : arr;
     return filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [displayListings, searchQuery, groupNameById]);
+  }, [effectiveListings, searchQuery, groupNameById]);
 
   const searchIndex = useMemo(() => {
     return (effectiveListings || []).map((listing) => ({
@@ -960,68 +935,6 @@ export default function PublishedMapView({
     }
   }
 
-  async function handleAiSearchSubmit(e) {
-    e?.preventDefault?.();
-    const text = aiQuery.trim();
-    if (!text || !mapId || aiSearching) return;
-    const nextMessages = [...aiMessages, { role: "user", content: text }];
-    setAiMessages(nextMessages);
-    setAiQuery("");
-    setAiDrawerOpen(true);
-    onAiChatOpen?.(); // close any other drawer (e.g. the message drawer) so only one is ever visible
-    setAiSearching(true);
-    setAiError("");
-    try {
-      const res = await searchListingsByIntent({ mapId, messages: nextMessages });
-      if (res?.disabled) {
-        setAiResultIds(new Set());
-        setAiError("AI search is not available for this map.");
-        recordEngagement?.("search", { meta: { query: text, action: "submit", mode: "ai", result: "disabled" } });
-        return;
-      }
-      const ids = new Set(res?.listingIds ?? []);
-      setAiResultIds(ids);
-      setAiMessages((prev) => [...prev, { role: "assistant", content: res?.responseText || "" }]);
-      recordEngagement?.("search", {
-        meta: { query: text, action: "submit", mode: "ai", result_count: ids.size, turn: nextMessages.length },
-      });
-      const matched = (effectiveListings || []).filter((l) => ids.has(l.id));
-      const bounds = computeBoundsForListings(matched);
-      if (bounds) {
-        cameraSeqRef.current += 1;
-        setCameraRequest({ id: cameraSeqRef.current, bounds });
-      }
-    } catch (err) {
-      setAiError(err?.message || "AI search failed. Please try again.");
-    } finally {
-      setAiSearching(false);
-    }
-  }
-
-  function clearAiSearch() {
-    setAiQuery("");
-    setAiResultIds(null);
-    setAiError("");
-    setAiMessages([]);
-    setAiDrawerOpen(false);
-  }
-
-  function closeAiDrawer() {
-    setAiDrawerOpen(false);
-  }
-
-  /** Closes the AI chat drawer before opening the message drawer, so only one is ever visible at once. */
-  function handleOpenSendMessage() {
-    closeAiDrawer();
-    onOpenSendMessage?.();
-  }
-
-  useEffect(() => {
-    if (!aiDrawerOpen) return;
-    const el = aiMessagesContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [aiMessages.length, aiSearching, aiDrawerOpen]);
-
   return (
     <div
       data-map-fullscreen-root
@@ -1045,7 +958,7 @@ export default function PublishedMapView({
         center={center}
         zoom={zoom}
         mapTypeId={mapTypeId}
-        listings={displayListings}
+        listings={effectiveListings}
         onSelect={handleDirectoryMapSelect}
         centerOnListingId={centerOnListingId}
         defaultMarkerColor={markerColor}
@@ -1240,59 +1153,6 @@ export default function PublishedMapView({
               </ul>
             )}
           </div>
-
-            {aiSearchEnabled && aiMessages.length === 0 && (
-              <form
-                className="embed-list-panel__ai-search"
-                onSubmit={handleAiSearchSubmit}
-                style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}
-              >
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    type="text"
-                    value={aiQuery}
-                    onChange={(e) => setAiQuery(e.target.value)}
-                    placeholder="Ask AI — e.g. a family-friendly option near the coast"
-                    disabled={aiSearching}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      border: "1px solid var(--lc-border, #d1d5db)",
-                      fontSize: 13,
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={aiSearching || !aiQuery.trim()}
-                    style={{ margin: 0, whiteSpace: "nowrap" }}
-                  >
-                    {aiSearching ? "Searching…" : "Ask AI"}
-                  </button>
-                </div>
-                {aiError && <p style={{ margin: 0, fontSize: 12, color: "#b91c1c" }}>{aiError}</p>}
-              </form>
-            )}
-
-            {aiSearchEnabled && aiMessages.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                <p style={{ margin: 0, fontSize: 12, opacity: 0.75, flex: 1 }}>
-                  {aiResultIds
-                    ? `Showing ${aiResultIds.size} matching ${aiResultIds.size === 1 ? "listing" : "listings"}.`
-                    : "AI search conversation in progress."}
-                </p>
-                {!aiDrawerOpen && (
-                  <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setAiDrawerOpen(true)}>
-                    View chat
-                  </button>
-                )}
-                <button type="button" className="btn" style={{ margin: 0 }} onClick={clearAiSearch}>
-                  Clear
-                </button>
-              </div>
-            )}
 
             {(groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
               <div className="embed-list-panel__lozenges">
@@ -1508,7 +1368,7 @@ export default function PublishedMapView({
               listing={selectedListing}
               buttonColor={buttonColor}
               showSendMessage={showSendMessage}
-              onOpenSendMessage={handleOpenSendMessage}
+              onOpenSendMessage={onOpenSendMessage}
               onClosePin={onClosePin}
               extended
               recordEngagement={recordEngagement}
@@ -1540,7 +1400,7 @@ export default function PublishedMapView({
             listing={selectedListing}
             buttonColor={buttonColor}
             showSendMessage={showSendMessage}
-            onOpenSendMessage={handleOpenSendMessage}
+            onOpenSendMessage={onOpenSendMessage}
             onClosePin={onClosePin}
             extended={false}
             recordEngagement={recordEngagement}
@@ -1557,7 +1417,7 @@ export default function PublishedMapView({
                 listing={selectedListing}
                 buttonColor={buttonColor}
                 showSendMessage={showSendMessage}
-                onOpenSendMessage={handleOpenSendMessage}
+                onOpenSendMessage={onOpenSendMessage}
                 onClosePin={onClosePin}
                 extended
                 recordEngagement={recordEngagement}
@@ -1568,61 +1428,6 @@ export default function PublishedMapView({
       ) : null}
 
       {mapOverlay}
-
-      <div
-        className={`embed-ai-response-drawer ${aiDrawerOpen ? "embed-ai-response-drawer--open" : ""}`}
-        aria-hidden={!aiDrawerOpen}
-        inert={!aiDrawerOpen}
-      >
-        <div className="embed-ai-response-drawer__backdrop" onClick={closeAiDrawer} aria-label="Close" />
-        <div className="embed-ai-response-drawer__panel" role="dialog" aria-label="Ask AI">
-          <div className="embed-ai-response-drawer__header">
-            <h3 className="embed-ai-response-drawer__title">Ask AI</h3>
-            <button
-              type="button"
-              className="embed-ai-response-drawer__close"
-              onClick={closeAiDrawer}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-          <div className="embed-ai-response-drawer__messages" ref={aiMessagesContainerRef}>
-            {aiMessages.map((m, i) => (
-              <div
-                key={i}
-                className={`embed-ai-response-drawer__bubble embed-ai-response-drawer__bubble--${m.role}`}
-              >
-                {m.content}
-              </div>
-            ))}
-            {aiSearching && (
-              <div className="embed-ai-response-drawer__bubble embed-ai-response-drawer__bubble--assistant embed-ai-response-drawer__bubble--pending">
-                Thinking…
-              </div>
-            )}
-          </div>
-          {aiError && <p className="embed-ai-response-drawer__error">{aiError}</p>}
-          <form className="embed-ai-response-drawer__composer" onSubmit={handleAiSearchSubmit}>
-            <input
-              type="text"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              placeholder="Reply…"
-              disabled={aiSearching}
-              style={{ flex: 1, minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--listing-border, #d1d5db)", background: "var(--search-panel-bg, #fff)", color: "var(--search-panel-text, #111827)", fontSize: 13 }}
-            />
-            <button
-              type="submit"
-              className="btn"
-              disabled={aiSearching || !aiQuery.trim()}
-              style={{ margin: 0, whiteSpace: "nowrap" }}
-            >
-              {aiSearching ? "…" : "Send"}
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
   );
 }
