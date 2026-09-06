@@ -99,6 +99,8 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (categorisation tagging), **Publish**, **Branding**, **AI Content**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs — the rest are owner/manager-only.
+
 ### Creating a directory
 
 1. From **Directories**, click **New directory** (owners and managers only).
@@ -110,7 +112,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 ### Managing entries
 
-Open a directory to see its entries table:
+Open a directory to its **Entries** tab (the default view) to see its entries table:
 
 - **+ Add entry** / **Edit** — opens a full-page entry editor (no longer a modal), with tabs: **Basic Info** (name, address, postcode, country, group, website, email, phone, logo, active flag, and which contact fields show publicly once published), **Categories**, **Content** (notes plus evidence/media/accreditations/prominent links/product tiles), **Search & Metadata** (meta title/description/keywords/canonical URL/structured data type/sitemap priority/noindex, plus a **Social & AI** section for the social share title/description/image, Twitter card type, and an AI-facing summary), **Panel Style** (an optional image and background colour override for this entry's card on the directory homepage — e.g. a white logo that needs a dark background — with a live preview; leave blank to keep using the logo and the directory's own theme), and **Preview & Publish** (an approximate live preview of this entry's homepage card and its own page, plus the directory's Publish button — publishing always goes live for the whole directory, not just this entry; a single-entry "publish just this one" action was considered and deliberately not built once a full republish came down to a few seconds). Coordinates (latitude/longitude) aren't shown or editable — they're calculated automatically from the address.
 - **Search** — filters entries by name or address (server-side, so it works across directories of any size).
@@ -129,7 +131,7 @@ Open a directory to see its entries table:
 
 > **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
 
-From a directory's page, the **Publish** panel (visible to everyone with access; only owners and managers can actually publish) shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
+On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
 The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map. Full natural-language search and clickable filter chips are planned but not built yet — the filter chips shown on the homepage don't do anything yet.
 
@@ -137,7 +139,7 @@ The published homepage has a real keyword search (matches by entry name or locat
 
 ### Branding
 
-From a directory's page, the **Branding** panel (owners and managers only) sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design.
+On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design.
 
 - **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it.
 - **Primary colour**, **accent colour**, **background colour**, and **logo URL** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours) and the heading/body fonts — a preset is a starting point, not a limit, so any field can be changed afterward.
@@ -147,7 +149,7 @@ Font, corner radius, and favicon controls beyond the heading/body font pickers a
 
 ### Entry layout
 
-From a directory's page, the **Entry layout** panel (owners and managers only) controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation that applies to entries (shown as clickable tag chips).
+On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation that applies to entries (shown as clickable tag chips).
 
 - **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
 - **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
@@ -174,7 +176,7 @@ From a directory's page (owners and managers only):
 Create a categorisation, give it a label and a set of terms (each with an optional colour), and choose what it applies to. **Applies to** can't be changed after creation — delete and recreate it if you need to. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
 
 Once a categorisation exists, its terms appear as a checkbox picker:
-- On a directory's page, to tag the whole directory.
+- On a directory's **Settings** tab, to tag the whole directory.
 - On an entry's create/edit form, to tag that entry.
 
 Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
@@ -192,14 +194,14 @@ Open an existing entry (**Edit**) to see these below the main form — they're n
 
 ### Directory-level accreditation schemes and prominent links
 
-From a directory's page (owners and managers only), above the entries table:
+On a directory's **Accreditations** and **Prominent Links** tabs (owners and managers only):
 
 - **Accreditation schemes** — define the badges entries can hold (name, issuing body, badge image, description, verification note). Archiving a scheme hides it without losing which entries hold it; deleting it removes it from every entry that holds it.
 - **Prominent links (directory homepage)** — link tiles for the directory as a whole, separate from any single entry's own links.
 
 ### AI content generation
 
-From a directory's page (owners and managers only), the **AI content generation** panel lets Claude write each entry's page content for you:
+On a directory's **AI Content** tab (owners and managers only), the panel lets Claude write each entry's page content for you:
 
 1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
 2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.

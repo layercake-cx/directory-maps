@@ -6,6 +6,7 @@ import { archiveDirectory, deleteDirectoryPermanently, getContactDirectoryPermis
 import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
+import MapDataTabs from "../../components/MapDataTabs.jsx";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
 import CategorisationAttachmentPicker from "../../components/directories/CategorisationAttachmentPicker.jsx";
@@ -43,6 +44,8 @@ export default function ClientDirectoryEntries() {
   const [directoryTermIds, setDirectoryTermIds] = useState([]);
   const [savingTerms, setSavingTerms] = useState(false);
   const [linkedMaps, setLinkedMaps] = useState([]);
+
+  const [activeTab, setActiveTab] = useState("entries");
 
   const reloadDirectory = useCallback(async () => {
     try {
@@ -168,39 +171,74 @@ export default function ClientDirectoryEntries() {
         )}
       </div>
 
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <CategorisationAttachmentPicker
-          clientId={client?.id}
-          targetType="directory"
-          targetId={directoryId}
-          recordEvent={recordEvent}
-          canManage={canManage}
-        />
-      </div>
+      <MapDataTabs
+        tabs={[
+          { id: "entries", label: "Entries" },
+          { id: "settings", label: "Settings" },
+          { id: "publish", label: "Publish" },
+          ...(canManage
+            ? [
+                { id: "branding", label: "Branding" },
+                { id: "ai_content", label: "AI Content" },
+                { id: "entry_layout", label: "Entry Layout" },
+                { id: "accreditations", label: "Accreditations" },
+                { id: "links", label: "Prominent Links" },
+              ]
+            : []),
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
-          Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
-        </p>
-        <CategoryTagPicker
+      {activeTab === "entries" && (
+        <DirectoryEntriesPanel
           directoryId={directoryId}
-          selectedTermIds={directoryTermIds}
-          onChange={canManage ? handleDirectoryTermsChange : () => {}}
-        />
-      </div>
-
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <DirectoryPublishPanel
-          directory={directory}
-          clientSlug={client?.slug}
-          canPublish={canManage}
+          directoryBasePath={`/client/directories/${encodeURIComponent(directoryId)}`}
+          clientId={client?.id}
+          canEdit={canEditEntries}
           recordEvent={recordEvent}
-          onPublished={reloadDirectory}
         />
-      </div>
+      )}
 
-      {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
+      {activeTab === "settings" && (
+        <>
+          <div className="admin-card" style={{ marginBottom: 16 }}>
+            <CategorisationAttachmentPicker
+              clientId={client?.id}
+              targetType="directory"
+              targetId={directoryId}
+              recordEvent={recordEvent}
+              canManage={canManage}
+            />
+          </div>
+
+          <div className="admin-card">
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
+              Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
+            </p>
+            <CategoryTagPicker
+              directoryId={directoryId}
+              selectedTermIds={directoryTermIds}
+              onChange={canManage ? handleDirectoryTermsChange : () => {}}
+            />
+          </div>
+        </>
+      )}
+
+      {activeTab === "publish" && (
+        <div className="admin-card">
+          <DirectoryPublishPanel
+            directory={directory}
+            clientSlug={client?.slug}
+            canPublish={canManage}
+            recordEvent={recordEvent}
+            onPublished={reloadDirectory}
+          />
+        </div>
+      )}
+
+      {canManage && activeTab === "branding" && (
+        <div className="admin-card">
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Branding</p>
           <DirectoryBrandingPanel
             directory={directory}
@@ -212,8 +250,8 @@ export default function ClientDirectoryEntries() {
         </div>
       )}
 
-      {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
+      {canManage && activeTab === "ai_content" && (
+        <div className="admin-card">
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI content generation</p>
           <DirectoryAiContentPanel
             directory={directory}
@@ -225,32 +263,24 @@ export default function ClientDirectoryEntries() {
         </div>
       )}
 
-      {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
+      {canManage && activeTab === "entry_layout" && (
+        <div className="admin-card">
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Entry layout</p>
           <EntryLayoutDesigner directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
         </div>
       )}
 
-      {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
+      {canManage && activeTab === "accreditations" && (
+        <div className="admin-card">
           <AccreditationSchemesPanel directoryId={directoryId} recordEvent={recordEvent} />
         </div>
       )}
 
-      {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
+      {canManage && activeTab === "links" && (
+        <div className="admin-card">
           <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
         </div>
       )}
-
-      <DirectoryEntriesPanel
-        directoryId={directoryId}
-        directoryBasePath={`/client/directories/${encodeURIComponent(directoryId)}`}
-        clientId={client?.id}
-        canEdit={canEditEntries}
-        recordEvent={recordEvent}
-      />
 
       {deleteOpen && (
         <div
