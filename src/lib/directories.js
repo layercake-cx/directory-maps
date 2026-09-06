@@ -7,7 +7,7 @@
  * (DIR-E2/E3/E5) — this module only covers core CRUD.
  */
 
-import { supabase } from "./supabase";
+import { supabase, invokeFunction } from "./supabase";
 import { sanitizeNotesHtml } from "./sanitizeHtml.js";
 
 export const ENTRIES_PAGE_SIZE = 100;
@@ -41,7 +41,9 @@ export async function getDirectory(directoryId) {
   if (!directoryId) return null;
   const { data, error } = await supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at")
+    .select(
+      "id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed",
+    )
     .eq("id", directoryId)
     .single();
   if (error) throw error;
@@ -155,7 +157,7 @@ export async function getDirectoryEntry(entryId) {
   const { data, error } = await supabase
     .from("directory_entries")
     .select(
-      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, created_at, updated_at",
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, ai_content_generated_at, created_at, updated_at",
     )
     .eq("id", entryId)
     .single();
@@ -201,8 +203,73 @@ export async function updateDirectoryEntry(entryId, patch) {
   if ("lat" in clean) clean.lat = clean.lat === "" || clean.lat == null ? null : Number(clean.lat);
   if ("lng" in clean) clean.lng = clean.lng === "" || clean.lng == null ? null : Number(clean.lng);
   if ("notes_html" in clean) clean.notes_html = sanitizeNotesHtml(clean.notes_html) || null;
+  // A manual save overwrites whatever AI generated, so it's no longer "still AI, never hand-edited".
+  if ("notes_html" in clean && !("ai_content_generated_at" in clean)) clean.ai_content_generated_at = null;
   const { error } = await supabase.from("directory_entries").update(clean).eq("id", entryId);
   if (error) throw error;
+  if ("notes_html" in clean) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await supabase.from("directory_entry_versions").insert({
+      entry_id: entryId,
+      notes_html: clean.notes_html,
+      source: "manual",
+      actor_user_id: user?.id ?? null,
+    });
+  }
+}
+
+// ---- AI content generation (DIR-E-AI) ----
+
+/** Whether this directory has a non-blank ai_content_prompt — gates the entry editor's "Generate with AI" button. */
+export async function isDirectoryAiContentEnabled(directoryId) {
+  if (!directoryId) return false;
+  const { data, error } = await supabase
+    .from("directories")
+    .select("ai_content_prompt")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return !!data?.ai_content_prompt?.trim();
+}
+
+/** Synchronous single-entry generation — invoked by the "Generate with AI" button. */
+export async function generateEntryContent(entryId) {
+  const { data, error } = await invokeFunction("generate_entry_content", { body: { entry_id: entryId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+/** Queues a content-generation job for every active entry in the directory. Backs the type-to-confirm "Generate all entry content" action. */
+export async function triggerDirectoryAiContentBulkRun(directoryId) {
+  const { data, error } = await supabase.rpc("enqueue_directory_entry_content_jobs", { p_directory_id: directoryId });
+  if (error) throw error;
+  return data?.[0]?.queued_count ?? 0;
+}
+
+/** Persistent bulk-run status, for the poll loop while a "Generate all" run is in progress. */
+export async function getDirectoryAiContentStatus(directoryId) {
+  const { data, error } = await supabase
+    .from("directories")
+    .select("ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Version history for one entry's body content, most recent first. */
+export async function listEntryContentVersions(entryId) {
+  if (!entryId) return [];
+  const { data, error } = await supabase
+    .from("directory_entry_versions")
+    .select("id, entry_id, notes_html, source, actor_user_id, created_at")
+    .eq("entry_id", entryId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function deleteDirectoryEntry(entryId) {

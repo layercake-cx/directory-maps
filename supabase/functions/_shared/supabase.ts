@@ -78,3 +78,38 @@ export async function requireMapAccess(req: Request, mapId: string) {
   return user;
 }
 
+/** Allows admins OR client contacts who are owner/manager/primary or hold an explicit contact_directory_permissions grant for the given directory. */
+export async function requireDirectoryAccess(req: Request, directoryId: string) {
+  const user = await requireUser(req);
+  const service = createServiceClient();
+
+  const { data: profile } = await service.from("profiles").select("role").eq("user_id", user.id).maybeSingle();
+  if (profile?.role === "admin") return user;
+
+  const { data: directory } = await service.from("directories").select("client_id").eq("id", directoryId).maybeSingle();
+  if (!directory) throw new Error("Directory not found");
+
+  const { data: contact } = await service
+    .from("contacts")
+    .select("id, is_primary, role")
+    .eq("client_id", directory.client_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!contact) throw new Error("Access denied");
+  const role = typeof contact.role === "string" ? contact.role : "";
+  const isManagerRole = role === "owner" || role === "manager";
+  if (isManagerRole || contact.is_primary) return user;
+
+  const { data: perm } = await service
+    .from("contact_directory_permissions")
+    .select("can_edit_entries")
+    .eq("contact_id", contact.id)
+    .eq("directory_id", directoryId)
+    .maybeSingle();
+  if (!perm?.can_edit_entries) {
+    throw new Error("You need edit access to this directory");
+  }
+  return user;
+}
+

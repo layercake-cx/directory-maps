@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-06 — [Not yet deployed] Directory AI content generation
+
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Context:** the companion build to the removal entry directly below this one. Ports the "admin prompt → Claude writes something" idea from the removed map-level AI search enrichment feature onto directory entries: one prompt per directory, three ways to trigger it (auto on empty entries, manual per-entry always, directory-wide bulk with a type-to-confirm guard), and a general-purpose version history so nothing is ever unrecoverably lost.
+
+### What changed
+- Schema: `20260906120000_create_directory_ai_content_generation.sql` — `directories.ai_content_prompt` + 6 bulk-run status columns, `directory_entries.ai_content_generated_at`, `entry_content_jobs` (job queue, mirrors the removed `listing_enrichment_jobs`), `directory_entry_versions` (append-only content history), an `AFTER INSERT` trigger enqueueing an auto job only when an entry has no content yet and its directory has opted in. `20260906130000_entry_content_generation_worker_cron.sql` — `claim_pending_entry_content_jobs()`, a 2-minute `pg_cron` dispatch to `process_entry_content_jobs`, and `enqueue_directory_entry_content_jobs()` (client-callable, queues every active entry for the bulk action).
+- Edge Functions: new `generate_entry_content` (synchronous, single-entry, user-invoked — bypasses the empty-content rule) and `process_entry_content_jobs` (cron-invoked batch worker, handles both auto and bulk jobs); shared Claude-calling logic + a defense-in-depth HTML allowlist sanitizer in new `_shared/entryContentGeneration.ts`; new `requireDirectoryAccess()` helper in `_shared/supabase.ts` (mirrors `requireMapAccess`).
+- Frontend: new `DirectoryAiContentPanel.jsx` (prompt field + "Generate all entry content" type-`CREATE`-to-confirm modal + progress poll), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx` next to Branding. `EntryContentTab.jsx` gets a "Generate with AI" button and a version-history list with per-version "Restore". `updateDirectoryEntry()` (`src/lib/directories.js`) now records a `directory_entry_versions` row on every manual `notes_html` save.
+- Admin events: `directory_ai_content_prompt_updated`, `_requested`, `_generated`, `_failed`, `_bulk_requested`, `_bulk_completed`, `directory_entry_content_restored` — added to `AGENTS.md`'s event catalogue.
+- Docs: `docs/FEATURES.md` §4.4g (new), `docs/DIRECTORIES.md` §4.8 (new) + schema table updates, `docs/USER_GUIDE.md` (new "AI content generation" subsection under Directories).
+- No feature-flag/entitlement gating, unlike the removed map feature — this is a permanent capability behind the existing `canEdit`/`canManage` directory permission checks only.
+
+### Verified
+- [x] `npm run build` clean.
+- [x] `deno check` clean on both new Edge Functions and the modified `_shared` modules.
+- [ ] Staging DB migration not yet applied.
+- [ ] Both Edge Functions not yet deployed to staging.
+- [ ] Manual smoke test (auto-generate on empty entry, manual per-entry generate, bulk regenerate-all, version restore) not yet done against a running dev server + staging DB.
+
+### Rollback plan
+- Frontend/Edge Functions: revert this branch's commits.
+- Database: `_20260906130000_entry_content_generation_worker_cron.rollback.sql` then `_20260906120000_create_directory_ai_content_generation.rollback.sql`, in that order. Both have data-loss guards (abort if `directory_entry_versions` has rows) — back up first if real content generation has already happened.
+
+---
+
 ## 2026-09-06 — [Not yet deployed] Remove AI search enrichment from maps
 
 **Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).

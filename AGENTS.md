@@ -255,6 +255,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Leads (pre-account enquiries)**: `leads_*`
   - **Entitlements (commercial/tier gating)**: `entitlements_*`
   - **Domains (custom domain / subdomain publishing)**: `domain_*`
+  - **Directory AI content generation**: `directory_ai_content_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -407,6 +408,26 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
   - Fired when a verify attempt completes but DNS isn't fully correct yet — not a hard error, just "not active yet."
 - **`domain_removed`**
   - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
+
+#### Directory AI content generation
+
+Successor to the removed map-level "AI search enrichment" feature (`ai_search_*` events never existed under this catalogue — that feature predates this instrumentation convention).
+
+- **`directory_ai_content_prompt_updated`**
+  - `meta`: `client_id`, `directory_id`, `prompt_set` (boolean)
+- **`directory_ai_content_requested`**
+  - `meta`: `client_id`, `directory_id`, `entry_id`, `source` (`admin_dashboard` / `client_portal`)
+- **`directory_ai_content_generated`**
+  - `meta`: `client_id`, `directory_id`, `entry_id`
+- **`directory_ai_content_failed`**
+  - `meta`: `client_id`, `directory_id`, `entry_id`, `error`
+- **`directory_ai_content_bulk_requested`**
+  - `meta`: `client_id`, `directory_id`, `entries_queued`
+- **`directory_ai_content_bulk_completed`**
+  - `meta`: `client_id`, `directory_id`, `entries_processed`, `entries_failed`
+- **`directory_entry_content_restored`**
+  - `meta`: `client_id`, `directory_id`, `entry_id`, `version_id`
+  - Fired when an admin/client loads an old version from an entry's history back into the (unsaved) editor.
 
 ### 4) Rule for future features
 
