@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-06 — [Staging] Directory management page: tabbed layout
+
+**Branch/PR:** `feat/2026-09-06-directory-management-tabs`.
+
+### What changed
+The admin and client directory management pages (`AdminDirectoryEntries.jsx` / `ClientDirectoryEntries.jsx`) stacked all nine sections (Entries, Categorisation, Publish, Branding, AI content generation, Entry layout, Accreditation schemes, Prominent links) vertically on one long page. Restructured both into the tabbed layout already used by the Map Data page, reusing the existing shared `MapDataTabs.jsx` component rather than inventing a new pattern:
+
+- Tabs: **Entries** (default), **Settings** (the two categorisation pickers), **Publish**, **Branding**, **AI Content**, **Entry Layout**, **Accreditations**, **Prominent Links**.
+- Client portal: Branding/AI Content/Entry Layout/Accreditations/Prominent Links tabs are omitted entirely for non-manager contacts (Members), matching the previous behaviour where those sections weren't rendered at all for them. Entries/Settings/Publish remain visible to everyone with directory access, same as before.
+- Pure UI reorganisation — no data model, RPC, or permission logic changed. No new admin events needed (no new admin capability introduced).
+- Docs: `docs/USER_GUIDE.md` updated so each panel's description now points at its tab instead of implying one long page.
+
+### Verified
+- [x] `npm run build` / dev server starts clean, no console errors on load.
+- [ ] Manual click-through of all 8 tabs (both admin and client, manager and non-manager) — pending, needs an authenticated session.
+
+### Rollback plan
+Revert this branch's commits — no schema or Edge Function changes to unwind.
+
+---
+
 ## 2026-09-06 — [Production] Directory AI content generation + removal of map AI search enrichment
 
 **Branch/PR:** `feat/2026-09-06-directory-ai-content-generation`, [#161](https://github.com/layercake-cx/directory-maps/pull/161) — merged to `main` and deployed to production after the user manually verified staging against the test script below.
