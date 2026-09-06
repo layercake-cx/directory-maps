@@ -46,6 +46,18 @@ export async function getDirectory(directoryId) {
     )
     .eq("id", directoryId)
     .single();
+  // Schema-drift fallback — the AI content generation migration may not be
+  // applied yet in this environment. Retry without those columns rather than
+  // breaking the whole directory page.
+  if (error && String(error.message || "").includes("ai_content_")) {
+    const { data: fallback, error: fallbackErr } = await supabase
+      .from("directories")
+      .select("id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at")
+      .eq("id", directoryId)
+      .single();
+    if (fallbackErr) throw fallbackErr;
+    return fallback;
+  }
   if (error) throw error;
   return data;
 }
@@ -161,6 +173,18 @@ export async function getDirectoryEntry(entryId) {
     )
     .eq("id", entryId)
     .single();
+  // Schema-drift fallback — see getDirectory() above.
+  if (error && String(error.message || "").includes("ai_content_generated_at")) {
+    const { data: fallback, error: fallbackErr } = await supabase
+      .from("directory_entries")
+      .select(
+        "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, created_at, updated_at",
+      )
+      .eq("id", entryId)
+      .single();
+    if (fallbackErr) throw fallbackErr;
+    return fallback;
+  }
   if (error) throw error;
   return data;
 }
