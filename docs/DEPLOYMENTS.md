@@ -8,9 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-06 — [Production] Directory AI content generation + removal of map AI search enrichment
+
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation`, [#161](https://github.com/layercake-cx/directory-maps/pull/161) — merged to `main` and deployed to production after the user manually verified staging against the test script below.
+
+### What changed
+Both entries directly below this one (staging builds for the new feature and the removal) were promoted to production in full, after explicit user sign-off ("deploy live"):
+
+- **Database:** all three migrations applied to production (`gxixwdjfmegxcxfeflro`) via `supabase db push` — `20260906120000_create_directory_ai_content_generation.sql`, `20260906130000_entry_content_generation_worker_cron.sql` (both clean, no guards hit), and `20260906140000_remove_ai_search_enrichment_schema.sql` (same two guarded conditions as staging, resolved the same way with fresh user confirmation for production specifically):
+  1. One `client_overrides` row for `maps.ai_search`, this time on the **production** client `a1b92aba-fcfb-485a-b1ba-c8d93344ff72` ("Layercake" — the internal/house account). Confirmed safe, cleared via the same scratch-migration-then-repair pattern used on staging.
+  2. 13 real `listing_research` rows on production too — backed up to `listing_research_backup_20260906` automatically (same built-in behaviour as staging), then dropped.
+- **Edge Functions (production):** `generate_entry_content` and `process_entry_content_jobs` deployed; `process_listing_enrichment` and `search_listings_by_intent` undeployed; `generate_directory_pages` redeployed with its `listing_research` dependency removed. `ANTHROPIC_API_KEY` was already present as a production secret from the removed feature.
+- **Frontend:** merged to `main` → GitHub Pages auto-deployed (`gh run list` confirms success). `npm run deploy:live` — first attempt hit the same transient "Not authorized" seen in earlier entries in this log, second attempt succeeded; live at `https://uk-associations.com` / `maps.layercake-cx.biz`.
+
+### Verified
+- [x] User ran the manual UI test script against staging first (map-side removal, directory AI content panel, auto-generate, manual generate + overwrite confirm, version history + restore, type-`CREATE` bulk regenerate with progress) and confirmed it all worked before authorizing production.
+- [x] Production DB migrations applied, all verification blocks passed.
+- [x] Production Edge Functions deployed/undeployed as above.
+- [x] GitHub Pages deploy succeeded; Vercel production deploy succeeded on retry.
+- [x] Production site loads with zero console errors (smoke check only, no login credentials this session — full authenticated click-through on production was not re-run, since staging had just been verified against the identical code).
+
+### Rollback plan
+- Database: `_20260906140000_remove_ai_search_enrichment_schema.rollback.sql` against production restores the old schema (does not restore the 13 backed-up `listing_research` rows or the cleared override automatically — see that migration's own notes). `_20260906130000_entry_content_generation_worker_cron.rollback.sql` then `_20260906120000_create_directory_ai_content_generation.rollback.sql` remove the new feature's schema (both abort if `directory_entry_versions` has real rows by then).
+- Frontend: revert the PR #161 merge commit on `main`, redeploy (GitHub Pages auto, `npm run deploy:live` for Vercel).
+- Edge Functions: redeploy `process_listing_enrichment`/`search_listings_by_intent` from git history if the map feature is ever reinstated; undeploy `generate_entry_content`/`process_entry_content_jobs` if the new feature is reverted.
+
+---
+
 ## 2026-09-06 — [Staging] Directory AI content generation
 
-**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation`, [#161](https://github.com/layercake-cx/directory-maps/pull/161).
 **Context:** the companion build to the removal entry directly below this one. Ports the "admin prompt → Claude writes something" idea from the removed map-level AI search enrichment feature onto directory entries: one prompt per directory, three ways to trigger it (auto on empty entries, manual per-entry always, directory-wide bulk with a type-to-confirm guard), and a general-purpose version history so nothing is ever unrecoverably lost.
 
 ### What changed
@@ -26,8 +53,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check` clean on both new Edge Functions and the modified `_shared` modules.
 - [x] Staging DB migration applied (`supabase db push` against `beqejxneehilplrtpntn`) — both verification blocks passed (`VERIFY PASSED: directory AI content generation schema created`, `VERIFY PASSED: claim RPC + bulk enqueue RPC + dispatch cron registered`).
 - [x] Both Edge Functions deployed to staging (`generate_entry_content`, `process_entry_content_jobs`); `ANTHROPIC_API_KEY` was already set as a secret there from the removed feature, so no new secret was needed.
-- [ ] Manual smoke test (auto-generate on empty entry, manual per-entry generate, bulk regenerate-all, version restore) not yet done — needs an authenticated admin/client session, which this agent doesn't have credentials for.
-- [ ] Production not touched — needs explicit sign-off per `AGENTS.md`.
+- [x] Manual smoke test run by the user against staging (see the production entry above) — confirmed working.
+- [x] Promoted to production the same day — see the entry above.
 
 ### Rollback plan
 - Frontend/Edge Functions: revert this branch's commits.
@@ -37,7 +64,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-06 — [Staging] Remove AI search enrichment from maps
 
-**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation` (not yet opened as a PR).
+**Branch/PR:** `feat/2026-09-06-directory-ai-content-generation`, [#161](https://github.com/layercake-cx/directory-maps/pull/161).
 **Context:** the map-level "Intent-Based AI Search" epic (enrichment pipeline + "Ask AI" chat) was always admin-only/beta-flagged and never released to customers. Removed in full and superseded by the directory-level AI content generation feature in the entry above — admin prompt → Claude-written content — around directory entries instead.
 
 ### What changed
@@ -53,9 +80,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `npm run build` clean after the frontend removal.
 - [x] Staging DB migration applied — all 4 verification steps passed (`supabase db push` against `beqejxneehilplrtpntn`).
 - [x] Both old Edge Functions undeployed from staging (`process_listing_enrichment`, `search_listings_by_intent`); `generate_directory_pages` redeployed with the updated code.
-- [ ] Production DB migration not yet run — needs explicit sign-off per `AGENTS.md`.
-- [ ] Both Edge Functions not yet undeployed from production.
-- [ ] Manual smoke test of a published map (no "Ask AI" UI, no console errors) not yet done against a running dev server + staging DB.
+- [x] Promoted to production the same day, with fresh confirmation for the production-specific override — see the entry above.
+- [x] Production site smoke-checked post-deploy: loads with zero console errors.
 
 ### Rollback plan
 - Frontend/Edge Functions: revert this branch's commits; redeploy `process_listing_enrichment`/`search_listings_by_intent` from git history, revert `generate_directory_pages`.
