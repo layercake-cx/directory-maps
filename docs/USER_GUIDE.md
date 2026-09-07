@@ -123,7 +123,7 @@ Open a directory to its **Entries** tab (the default view) to see its entries ta
 
 **Bulk actions:** tick entries' checkboxes (or the header checkbox to select everything on the current page) to reveal a bulk action bar — **Archive**/**Restore** several entries at once, or **Bulk tag…** to add or replace a categorisation's term(s) across the selection.
 
-**CSV import:** click **Download CSV template** for a starter file with the seed columns plus one `category_<key>` column per categorisation that applies to entries (pipe-separate multiple term slugs, e.g. `healthcare|retail`). Click **Import CSV**, choose your file, review the preview, then import — this always adds to existing entries (matching on `id` when your file includes one); it never deletes what's already there. Unrecognised group names are created automatically; unrecognised categorisation terms are skipped with a warning rather than failing the import.
+**CSV import:** click **Download CSV template** for a starter file with the seed columns plus one `category_<key>` column per categorisation attached to this directory (pipe-separate multiple term slugs, e.g. `healthcare|retail`). Click **Import CSV**, choose your file, review the preview, then import — this always adds to existing entries (matching on `id` when your file includes one); it never deletes what's already there. Unrecognised group names are created automatically; unrecognised categorisation terms are skipped with a warning rather than failing the import.
 
 **Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
 
@@ -149,7 +149,7 @@ Font, corner radius, and favicon controls beyond the heading/body font pickers a
 
 ### Entry layout
 
-On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation that applies to entries (shown as clickable tag chips).
+On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips).
 
 - **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
 - **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
@@ -168,16 +168,18 @@ From a directory's page (owners and managers only):
 
 ### Categorisations
 
-**Categorisations** (`/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every directory you own. They're separate from a directory's simple **Group** field:
+**Categorisations** (`/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every map and directory you own. They're separate from a directory's simple **Group** field:
 
 - **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
-- A **categorisation** can apply to directory entries, whole directories, or both, and an entry/directory can carry any number of terms from it.
+- A **categorisation** has its own term list, and an entry, directory, or map listing can carry any number of terms from it.
 
-Create a categorisation, give it a label and a set of terms (each with an optional colour), and choose what it applies to. **Applies to** can't be changed after creation — delete and recreate it if you need to. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+Create a categorisation with just a label and a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
 
-Once a categorisation exists, its terms appear as a checkbox picker:
-- On a directory's **Settings** tab, to tag the whole directory.
+Once a categorisation is attached to a directory, its terms appear as a checkbox picker:
+- On that directory's **Settings** tab, to tag the whole directory.
 - On an entry's create/edit form, to tag that entry.
+
+Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
 
 Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
 

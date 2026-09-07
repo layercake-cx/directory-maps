@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-07 — [Production] Fix: creating a categorisation failed with a not-null violation
+
+**Branch/PR:** `fix/2026-09-07-categorisation-applies-to-null`, [#165](https://github.com/layercake-cx/directory-maps/pull/165) — migration applied to staging then production at the user's explicit request; PR left open for review/merge (no frontend code change to merge, but AGENTS.md still requires the PR step).
+
+### What changed
+Creating a categorisation (client portal or admin, `/client/categorisations`) has been broken since 2026-08-29: every attempt failed with `null value in column "applies_to" of relation "categorisations" violates not-null constraint`.
+
+Root cause: `20260829040000_create_categorisation_attachments.sql` replaced the old `applies_to` (directory/entry/both) gating model with the explicit `categorisation_attachments` model, and deliberately left `categorisations.applies_to`'s `NOT NULL` constraint in place — flagged in that migration's own comment as "a separate, standalone, explicitly-flagged migration" per this repo's rule against bundling constraint/destructive changes with additive ones. That follow-up migration was never written, so `createCategorisation()` (`src/lib/categorisations.js`), which has never populated `applies_to`, has failed on every call since.
+
+- `supabase/migrations/20260907120000_categorisations_applies_to_nullable.sql` — drops the `NOT NULL` constraint on `categorisations.applies_to`. Does **not** drop the column (that stays a separate, later decision) and does not touch any existing row's data. Not a forbidden operation under `docs/DATABASE_MIGRATIONS.md` (only `SET NOT NULL` without a default is forbidden; this is the reverse).
+- Rollback: `supabase/migrations/_20260907120000_categorisations_applies_to_nullable.rollback.sql`.
+- No frontend code change needed — the UI and `createCategorisation()` already don't reference `applies_to`; this was purely a stale schema constraint.
+- Docs: `docs/USER_GUIDE.md`'s Categorisations section was also out of date — it still described choosing "what it applies to" at creation time (the old, removed model). Rewritten to describe the current attach/detach-to-map-or-directory flow (`CategorisationAttachmentPicker.jsx`), and two other stray "applies to entries" references (CSV import column, Entry Layout blocks) reworded to "attached to this directory" for consistency.
+
+### Verified
+- [x] `supabase db push --dry-run` against staging (`beqejxneehilplrtpntn`) — listed exactly the one pending migration, no errors.
+- [x] Applied to staging (`supabase db push`) — migration's own post-migration `do $$` block raised `NOTICE: VERIFY PASSED: categorisations.applies_to is now nullable`. `ALTER COLUMN ... DROP NOT NULL` is a metadata-only change (no row can be deleted or modified by it), so no separate row-count check was needed.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) at the user's explicit request ("deploy to production") — `supabase db push --dry-run` confirmed exactly the same one migration was pending (matching staging), then `supabase db push` applied it; same `VERIFY PASSED: categorisations.applies_to is now nullable` notice fired.
+- [ ] **Not done:** an authenticated UI smoke test (actually clicking "Create categorisation") on staging or production — the agent session has no login credentials for either environment. Worth a quick manual check.
+
+### Rollback plan
+Run `supabase/migrations/_20260907120000_categorisations_applies_to_nullable.rollback.sql` on the affected environment (it refuses if any row was created with a null `applies_to` in the meantime — backfill a value first if so). No code revert needed since no application code changed.
+
+---
+
 ## 2026-09-07 — [Production] Map design: consolidated search panel display options
 
 **Branch/PR:** `feat/2026-09-07-map-design-search-display-options`, [#163](https://github.com/layercake-cx/directory-maps/pull/163) — merged to `main` and deployed to production same-session at the user's explicit request ("deploy live, open PR then merge"), without a separate staging soak.
