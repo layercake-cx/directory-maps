@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-07 — [Staging] Fix: creating a categorisation failed with a not-null violation
+## 2026-09-07 — [Production] Fix: creating a categorisation failed with a not-null violation
 
-**Branch/PR:** `fix/2026-09-07-categorisation-applies-to-null`.
+**Branch/PR:** `fix/2026-09-07-categorisation-applies-to-null`, [#165](https://github.com/layercake-cx/directory-maps/pull/165) — migration applied to staging then production at the user's explicit request; PR left open for review/merge (no frontend code change to merge, but AGENTS.md still requires the PR step).
 
 ### What changed
 Creating a categorisation (client portal or admin, `/client/categorisations`) has been broken since 2026-08-29: every attempt failed with `null value in column "applies_to" of relation "categorisations" violates not-null constraint`.
@@ -25,9 +25,8 @@ Root cause: `20260829040000_create_categorisation_attachments.sql` replaced the 
 ### Verified
 - [x] `supabase db push --dry-run` against staging (`beqejxneehilplrtpntn`) — listed exactly the one pending migration, no errors.
 - [x] Applied to staging (`supabase db push`) — migration's own post-migration `do $$` block raised `NOTICE: VERIFY PASSED: categorisations.applies_to is now nullable`. `ALTER COLUMN ... DROP NOT NULL` is a metadata-only change (no row can be deleted or modified by it), so no separate row-count check was needed.
-- [ ] **Not done:** an authenticated UI smoke test (actually clicking "Create categorisation" on staging) — the agent session has no staging login credentials. Worth a quick manual check before/soon after production.
-- [ ] Applied to production, with explicit user sign-off, after staging verified.
-- CLI was relinked back to the production ref (`gxixwdjfmegxcxfeflro`) afterwards to restore this shared checkout's prior linked state — no production changes were made.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) at the user's explicit request ("deploy to production") — `supabase db push --dry-run` confirmed exactly the same one migration was pending (matching staging), then `supabase db push` applied it; same `VERIFY PASSED: categorisations.applies_to is now nullable` notice fired.
+- [ ] **Not done:** an authenticated UI smoke test (actually clicking "Create categorisation") on staging or production — the agent session has no login credentials for either environment. Worth a quick manual check.
 
 ### Rollback plan
 Run `supabase/migrations/_20260907120000_categorisations_applies_to_nullable.rollback.sql` on the affected environment (it refuses if any row was created with a null `applies_to` in the meantime — backfill a value first if so). No code revert needed since no application code changed.
