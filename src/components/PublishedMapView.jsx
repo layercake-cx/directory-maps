@@ -333,6 +333,9 @@ export default function PublishedMapView({
   // Display options (Search tab): Key shows by default; continent filter is opt-in.
   const showKey = theme.showKey !== false;
   const showContinentFilter = theme.showContinentFilter === true;
+  const showLogo = theme.showLogo !== false;
+  const showTitle = theme.showTitle !== false;
+  const showListings = theme.showListings !== false;
 
   const list = listingsWithColor ?? listings;
 
@@ -1027,12 +1030,12 @@ export default function PublishedMapView({
             </div>
           )}
           <div className="embed-list-panel__header">
-            {logoUrl ? (
+            {showLogo && logoUrl ? (
               <div className="embed-list-panel__logo">
                 <LogoImage src={logoUrl} wrapClassName="embed-list-panel__logo-wrap" imgClassName="embed-list-panel__logo-img" maxWidth={220} maxHeight={70} />
               </div>
             ) : null}
-            {mapName ? <div className="embed-list-panel__title">{mapName}</div> : null}
+            {showTitle && mapName ? <div className="embed-list-panel__title">{mapName}</div> : null}
             {description ? <div className="embed-list-panel__desc">{description}</div> : null}
           </div>
 
@@ -1312,6 +1315,8 @@ export default function PublishedMapView({
             </>
           )}
 
+          {showListings && (
+          <>
           <div className="embed-list-panel__divider" aria-hidden />
 
           <div className="embed-list-panel__listings" role="list">
@@ -1347,6 +1352,8 @@ export default function PublishedMapView({
               <div className="embed-list-panel__empty">No listings match your filters.</div>
             ) : null}
           </div>
+          </>
+          )}
         </div>
       )}
 
