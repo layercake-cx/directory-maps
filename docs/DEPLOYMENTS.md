@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-07 — [Staging] Map design: consolidated search panel display options
+## 2026-09-07 — [Production] Map design: consolidated search panel display options
 
-**Branch/PR:** `feat/2026-09-07-map-design-search-display-options`.
+**Branch/PR:** `feat/2026-09-07-map-design-search-display-options`, [#163](https://github.com/layercake-cx/directory-maps/pull/163) — merged to `main` and deployed to production same-session at the user's explicit request ("deploy live, open PR then merge"), without a separate staging soak.
 
 ### What changed
 Consolidated map design's panel-visibility controls into a single "Display options" section at the top of the **Search** tab (admin and client dashboards), and expanded it:
@@ -33,12 +33,14 @@ Docs: `docs/USER_GUIDE.md` updated (map designer tab table, Search settings sect
 
 ### Verified
 - [x] `npm run build` — clean, no errors.
-- [ ] Manual click-through of the new Search tab toggles and the removed General tab checkboxes (admin + client) — pending, user will verify (no admin login credentials available in this session).
-- [ ] Publish + live embed check that each toggle's effect matches the preview — pending.
-- [ ] Confirm an existing already-published map keeps showing its title/logo/listings by default (no regression) — pending.
+- [x] PR #163 checks passed (Vercel preview build) before merge.
+- [x] GitHub Pages deploy succeeded (`gh run watch` on the post-merge workflow run).
+- [x] Vercel production deploy succeeded (`npm run deploy:live`, aliased to `uk-associations.com` / `maps.layercake-cx.biz`; first attempt hit the same transient "Not authorized" seen in earlier entries in this log, second attempt succeeded).
+- [x] Smoke check: production site loads, zero console errors (no login credentials in the agent session, so this was a load-only check, not an authenticated click-through).
+- [ ] **Not done:** manual click-through of the new Search/General tab toggles under an authenticated admin/client session, a real publish + live-embed comparison against the preview, and confirming an existing already-published map's title/logo/listings still default to shown. These were deliberately skipped for staging in favour of shipping straight to production at the user's request — worth an authenticated pass on a live map soon after, given the title-toggle regression risk this change was specifically designed to avoid.
 
 ### Rollback plan
-Revert this branch's merge commit — no schema or Edge Function changes to unwind.
+Revert PR #163's merge commit on `main`, then redeploy (GitHub Pages auto-deploys on push; Vercel needs `npm run deploy:live` run again from the reverted `main`). No schema or Edge Function changes to unwind.
 
 ---
 
