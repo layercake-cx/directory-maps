@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-07 — [Staging] Map design: consolidated search panel display options
+
+**Branch/PR:** `feat/2026-09-07-map-design-search-display-options`.
+
+### What changed
+Consolidated map design's panel-visibility controls into a single "Display options" section at the top of the **Search** tab (admin and client dashboards), and expanded it:
+
+- **Show search panel** — relabeled/relocated `showListPanel` (was "Show list panel" in the **General** tab). Same underlying `maps.show_list_panel` column, no behaviour change — still the real master switch that gates the whole panel.
+- **Show logo** *(new)* — new `theme_json.showLogo` key, default `true` (matches the previous implicit "always show if a logo is uploaded" behaviour).
+- **Show title** *(new field, replaces a dead one)* — new `theme_json.showTitle` key, default `true`. Deliberately a **new** key rather than reusing the existing `showMapTitle` field: that field has never actually been read by the renderer (titles always showed regardless of its value), and because its dashboard checkbox defaults to unchecked and is written on every autosave, most already-edited maps likely have it stored as `false`. Reusing it risked silently hiding titles on live published maps the moment it became functional. `showMapTitle` itself is left completely untouched (no longer rendered as a checkbox, otherwise unchanged) — inert legacy data, flagged as tech debt below.
+- **Show groups key** — pure relabel of the existing "Display Key" toggle (`showKey`). No behaviour change.
+- **Show listings** *(new)* — new `theme_json.showListings` key, default `true` (matches the previous implicit "always show" behaviour), now gates the listings list in `PublishedMapView`.
+- **Display continent filter** — deprecated: the checkbox is commented out (not deleted) in both dashboards, with a tech-debt note. `showContinentFilter` state, autosave, and the rendering gate are all untouched — existing per-map values keep working, they just can't be changed from the UI any more.
+- The old **General** tab "Show list panel" / "Show map title" checkboxes are removed (moved into the Search tab as above); "Enable clustering" stays in General.
+- `PublishedMapView.jsx` now actually reads `showLogo`/`showTitle`/`showListings` from `theme` and gates the logo, title, and listings blocks accordingly — the admin/client live edit-preview also reflects these correctly now (previously `showMapTitle` was passed as a direct prop that the component never consumed, so the preview never matched runtime behaviour for that field).
+- `EmbedMap.jsx`'s now-fully-inert `showMapTitle` direct prop to `PublishedMapView` was removed as part of this change (replaced by `showTitle` via the `theme` object, the pattern that's actually wired end-to-end).
+
+**Known gap, not fixed here:** the documented `map_design_updated` admin event (`AGENTS.md`) was never implemented for *any* existing design field, not just these — no admin event fires on any Search/General tab edit today. Left as pre-existing tech debt rather than building the event pipeline from scratch in this change; flagged as a follow-up task.
+
+No database migration — all fields live in the existing `maps.theme_json` jsonb column (or the existing `show_list_panel` column, reused as-is).
+
+Docs: `docs/USER_GUIDE.md` updated (map designer tab table, Search settings section, and the published search-panel layout description).
+
+### Verified
+- [x] `npm run build` — clean, no errors.
+- [ ] Manual click-through of the new Search tab toggles and the removed General tab checkboxes (admin + client) — pending, user will verify (no admin login credentials available in this session).
+- [ ] Publish + live embed check that each toggle's effect matches the preview — pending.
+- [ ] Confirm an existing already-published map keeps showing its title/logo/listings by default (no regression) — pending.
+
+### Rollback plan
+Revert this branch's merge commit — no schema or Edge Function changes to unwind.
+
+---
+
 ## 2026-09-06 — [Staging] Directory management page: tabbed layout
 
 **Branch/PR:** `feat/2026-09-06-directory-management-tabs`.

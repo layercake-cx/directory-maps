@@ -784,7 +784,6 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           showListPanel={effectiveDefaults.showListPanel}
           showSearch={parsedTheme.showSearch !== false}
           showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
-          showMapTitle={!!parsedTheme.showMapTitle}
           mapName={map?.name ?? ""}
           enableClustering={effectiveDefaults.enableClustering}
           clusterRadius={effectiveDefaults.clusterRadius}
@@ -806,7 +805,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           showTrafficLayer={parsedMapStyleSettings.overlays.traffic}
           showTransitLayer={parsedMapStyleSettings.overlays.transit}
           showBikeLayer={parsedMapStyleSettings.overlays.bikeLanes}
-          theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize, logoUrl, description: mapDescription, searchPanelBg, searchPanelTextColor, listingBg, listingBorder, showContinentFilter: parsedTheme.showContinentFilter === true, showKey: parsedTheme.showKey !== false }}
+          theme={{ panelBg, panelLinkColor, buttonColor, panelBorderRadius, pinDetailLayout, pinSize: embedPinSize, logoUrl, description: mapDescription, searchPanelBg, searchPanelTextColor, listingBg, listingBorder, showContinentFilter: parsedTheme.showContinentFilter === true, showKey: parsedTheme.showKey !== false, showLogo: parsedTheme.showLogo !== false, showTitle: parsedTheme.showTitle !== false, showListings: parsedTheme.showListings !== false }}
           selectedListing={selectedListing}
           selectedMarkerPoint={selectedMarkerPoint}
           clampedPanelPosition={clampedPanelPosition}

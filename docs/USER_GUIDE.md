@@ -218,14 +218,14 @@ The designer shows a **live preview** of your map. Use the header buttons to ope
 
 | Panel | What you can change |
 |-------|---------------------|
-| **General** | Name, slug, **description**, default center/zoom, list panel, map title, clustering (saves automatically as you edit) |
+| **General** | Name, slug, **description**, default center/zoom, clustering (saves automatically as you edit) |
 | **Pin Design** | Marker style (pin, rounded pin, dot, custom icon), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
 | **Panels** | Listing side panel layout and behaviour |
 | **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
 | **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
 | **Filters** | Create custom, filterable fields (e.g. Sector, Languages spoken); manage their options; choose which appear in the published search bar and how |
 | **Publish Map** | Publish, view history, rollback, embed URL, subscription |
-| **Search** | Upload a **logo**, style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency), and set **Display options** (continent filter, Key). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
+| **Search** | Set **Display options** (search panel, logo, title, groups key, listings — see below), upload a **logo**, and style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
 
 **Custom Icon pins:** upload your own SVG or PNG (max 200KB) instead of a built-in shape. It's shown exactly as uploaded — colour, border and drop shadow don't apply to it, and small/medium/large sizing still works. Groups can upload their own custom icon too, independent of the map's default.
 
@@ -272,24 +272,32 @@ When two or more listings share the exact same address, the map handles them aut
 
 ### Search panel (published map)
 
-The search panel sits flush to the **top-left** of the published map, full height, and is laid out top to bottom as:
+The whole panel only appears if **Show search panel** is on (see **Display options** below). When it is, the panel sits flush to the **top-left** of the published map, full height, and is laid out top to bottom as:
 
-1. **Logo** — the image you upload in the **Search** settings panel (optional).
-2. **Title** — your map name.
+1. **Logo** *(toggle: Show logo)* — the image you upload in the **Search** settings panel (optional).
+2. **Title** *(toggle: Show title)* — your map name.
 3. **Description** — the text from the **General** panel's Description field (only shown if set).
 4. **Search & filter** — a search box (find listings or jump to a place/location), plus **filter lozenges** for each group. Tap a lozenge to show only that group on the map and in the list; tap again to clear. Lozenges use each group's colour and border. When the **continent filter** is enabled, a second row of continent chips appears (derived automatically from each listing's country); these combine with the group filters. Any **custom filter fields** you set to show in the search bar (see **Filters panel**) appear here too, as dropdowns, checkbox lozenges, or type-to-search boxes.
-5. **Key** *(optional)* — every group listed in your chosen group order with a colour square.
-6. **Listings** — all listings in **alphabetical order**, each showing the logo (left), organisation name, city and country, and its group label. This list scrolls to the bottom of the screen.
+5. **Key** *(toggle: Show groups key)* — every group listed in your chosen group order with a colour square.
+6. **Listings** *(toggle: Show listings)* — all listings in **alphabetical order**, each showing the logo (left), organisation name, city and country, and its group label. This list scrolls to the bottom of the screen.
 
 **Styling the panel (Search settings):**
 
+- **Display options** — at the top of the **Search** panel:
+  - **Show search panel** — master switch for the whole panel (logo, title, search & filter, key, listings). Off hides all of it. On by default.
+  - **Show logo** — on by default; only has a visible effect once a logo is uploaded below.
+  - **Show title** — shows/hides the map name at the top of the panel. On by default.
+  - **Show groups key** — shows/hides the Key section. On by default.
+  - **Show listings** — shows/hides the scrolling listings list. On by default.
+  - *(Display continent filter is currently hidden from this panel — see note below.)*
 - **Logo** — Upload an SVG, PNG, JPG or WebP (max 500 KB) with a live preview; use **Remove** to clear it.
 - **Background colour** and **Background transparency** — the panel's background.
 - **Font colour** — text colour for the title, description, section labels, filter labels, inactive filter tabs (lozenges), and the Key. Does **not** change listing card text (those stay dark on the listing background).
 - **Search listing background colour**, **Search listing border**, and **Search listing transparency** — the appearance of each listing card.
-- **Display options** — toggle **Display continent filter** (off by default) and **Display Key** (on by default) on or off.
 
 All Search and Description settings save automatically to your draft and go live when you **Publish**.
+
+> **Continent filter (deprecated):** the continent-filter toggle has been removed from the Search panel UI as tech debt — existing maps keep whatever setting they already had, but it can no longer be changed from the dashboard.
 
 **Sub-navigation** (when editing a map):
 

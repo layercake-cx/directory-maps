@@ -276,6 +276,9 @@ export default function ClientMapDashboard() {
   const [listingOpacity, setListingOpacity] = useState(1);
   const [showContinentFilter, setShowContinentFilter] = useState(false);
   const [showKey, setShowKey] = useState(true);
+  const [showLogo, setShowLogo] = useState(true);
+  const [showTitle, setShowTitle] = useState(true);
+  const [showListings, setShowListings] = useState(true);
 
   const [centerLabel, setCenterLabel] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
@@ -641,6 +644,9 @@ export default function ClientMapDashboard() {
         listingOpacity,
         showContinentFilter,
         showKey,
+        showLogo,
+        showTitle,
+        showListings,
         filterFields: publishedFilterFields,
       }),
     [
@@ -685,6 +691,9 @@ export default function ClientMapDashboard() {
       listingOpacity,
       showContinentFilter,
       showKey,
+      showLogo,
+      showTitle,
+      showListings,
     ],
   );
 
@@ -866,6 +875,9 @@ export default function ClientMapDashboard() {
             setShowSearch(theme.showSearch !== false);
             setShowGroupDropdowns(theme.showGroupDropdowns !== false);
             setShowMapTitle(!!theme.showMapTitle);
+            setShowLogo(theme.showLogo !== false);
+            setShowTitle(theme.showTitle !== false);
+            setShowListings(theme.showListings !== false);
             setCenterLabel(theme.centerLabel ?? "");
             const loadedMapTypeId = theme.mapTypeId ?? "roadmap";
             const normalizedMapStyleSettings = normalizeMapStyleSettings({
@@ -969,7 +981,7 @@ export default function ClientMapDashboard() {
     draftTimerRef.current = setTimeout(() => saveDraftThemeRef.current?.(), 800);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, logoUrl, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
+  }, [markerStyle, pinSize, markerColor, customPinUrl, clusterColor, clusterOpacity, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, pinFaviconUrl, buttonColor, panelBackgroundColor, panelBackgroundOpacity, panelBorderRadius, pinDetailLayout, panelLinkColor, mapTypeId, mapStyleSettings, logoUrl, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey, showLogo, showTitle, showListings]);
 
   // Auto-save general fields whenever they change
   useEffect(() => {
@@ -1237,6 +1249,9 @@ export default function ClientMapDashboard() {
         showContinentFilter: !!showContinentFilter,
         showKey: !!showKey,
         showMapTitle: !!showMapTitle,
+        showLogo: !!showLogo,
+        showTitle: !!showTitle,
+        showListings: !!showListings,
         centerLabel: centerLabel || undefined,
         mapTypeId,
         mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
@@ -1312,6 +1327,9 @@ export default function ClientMapDashboard() {
         listingOpacity: Math.max(0, Math.min(1, Number(listingOpacity) ?? 1)),
         showContinentFilter: !!showContinentFilter,
         showKey: !!showKey,
+        showLogo: !!showLogo,
+        showTitle: !!showTitle,
+        showListings: !!showListings,
         mapTypeId,
         mapStyleSettings: normalizeMapStyleSettings(mapStyleSettings),
       };
@@ -1400,8 +1418,11 @@ export default function ClientMapDashboard() {
       listingBorder: (listingBorderColor || "").trim() || "#e5e7eb",
       showContinentFilter: !!showContinentFilter,
       showKey: !!showKey,
+      showLogo: !!showLogo,
+      showTitle: !!showTitle,
+      showListings: !!showListings,
     };
-  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey]);
+  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey, showLogo, showTitle, showListings]);
 
   async function publishMap() {
     if (!map) return;
@@ -1566,6 +1587,9 @@ export default function ClientMapDashboard() {
       setShowSearch(themeJson.showSearch !== false);
       setShowGroupDropdowns(themeJson.showGroupDropdowns !== false);
       setShowMapTitle(!!themeJson.showMapTitle);
+      setShowLogo(themeJson.showLogo !== false);
+      setShowTitle(themeJson.showTitle !== false);
+      setShowListings(themeJson.showListings !== false);
       const restoredMapTypeId = themeJson.mapTypeId ?? "roadmap";
       setMapTypeId(restoredMapTypeId);
       setMapStyleSettings(
@@ -2375,14 +2399,6 @@ export default function ClientMapDashboard() {
                   <div className="panel-section">
                     <p className="panel-section__title">Display</p>
                     <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                      <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
-                      Show list panel
-                    </label>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                      <input type="checkbox" checked={showMapTitle} onChange={(e) => setShowMapTitle(e.target.checked)} />
-                      Show map title
-                    </label>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
                       <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
                       Enable clustering
                     </label>
@@ -2991,6 +3007,39 @@ export default function ClientMapDashboard() {
                   </p>
 
                   <div className="panel-section">
+                    <p className="panel-section__title">Display options</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+                        Show search panel
+                      </label>
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} />
+                        Show logo
+                      </label>
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showTitle} onChange={(e) => setShowTitle(e.target.checked)} />
+                        Show title
+                      </label>
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showKey} onChange={(e) => setShowKey(e.target.checked)} />
+                        Show groups key
+                      </label>
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showListings} onChange={(e) => setShowListings(e.target.checked)} />
+                        Show listings
+                      </label>
+                      {/* Display continent filter — deprecated (tech debt), commented out for now. Underlying showContinentFilter
+                          state, save logic, and rendering gate are left intact; only this control is hidden.
+                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+                        <input type="checkbox" checked={showContinentFilter} onChange={(e) => setShowContinentFilter(e.target.checked)} />
+                        Display continent filter
+                      </label>
+                      */}
+                    </div>
+                  </div>
+
+                  <div className="panel-section">
                     <p className="panel-section__title">Logo</p>
                     <Field label="Logo image">
                       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -3038,18 +3087,6 @@ export default function ClientMapDashboard() {
                         <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(listingOpacity * 100)}%</span>
                       </div>
                     </Field>
-                  </div>
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Display options</p>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                      <input type="checkbox" checked={showContinentFilter} onChange={(e) => setShowContinentFilter(e.target.checked)} />
-                      Display continent filter
-                    </label>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                      <input type="checkbox" checked={showKey} onChange={(e) => setShowKey(e.target.checked)} />
-                      Display Key
-                    </label>
                   </div>
 
                   <div className="panel-section">
