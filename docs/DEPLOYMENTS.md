@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-08 — [Production] Fix: transparent background on type-to-confirm modals
 
-**Branch/PR:** `fix/2026-09-08-transparent-confirm-modal-bg` — deployed to production at the user's explicit request ("low risk change, you can deploy all the way up the chain").
+**Branch/PR:** `fix/2026-09-08-transparent-confirm-modal-bg`, [#167](https://github.com/layercake-cx/directory-maps/pull/167) — merged to `main` and deployed to production same-session at the user's explicit request ("low risk change, you can deploy all the way up the chain").
 
 ### What changed
 The "type DELETE (or the confirm word) to proceed" modals were rendering with a near-transparent background, making their text hard to read against the dark page overlay behind them. Affected: deleting a directory, deleting a directory entry, and the AI-content reset/regenerate confirm — in both the client portal and the admin console (`ClientDirectoryEntries.jsx`, `AdminDirectoryEntries.jsx`, `DirectoryEntriesPanel.jsx`, `DirectoryAiContentPanel.jsx`).
@@ -24,7 +24,10 @@ Root cause: these four dialogs apply both the `.panel-section` and `.admin-card`
 ### Verified
 - [x] Rendered the exact delete-directory modal markup through the local dev server with the fix applied — solid white background, fully legible text (confirmed by screenshot).
 - [x] `npm run build` — clean, no errors.
-- [ ] **Not done:** authenticated click-through of the real delete-entry/delete-directory/AI-content-reset modals in a running client or admin session — the agent session has no login credentials. The isolated markup test above used the identical class names, structure, and stylesheet, so risk is very low, but a quick manual look after deploy is worth it.
+- [x] PR #167 checks passed (Vercel preview build) before merge.
+- [x] GitHub Pages deploy succeeded (`gh run watch` on the post-merge workflow run).
+- [x] Vercel production deploy succeeded (`npm run deploy:live`); confirmed `maps.layercake-cx.biz` is serving the new build by matching the deployed JS asset hash (`index-CmN1Oi1r.js`) against the live page.
+- [ ] **Not done:** authenticated click-through of the real delete-entry/delete-directory/AI-content-reset modals in a running client or admin session — the agent session has no login credentials. The isolated markup test above used the identical class names, structure, and stylesheet, so risk is very low, but a quick manual look is worth doing when convenient.
 
 ### Rollback plan
 Revert this PR's merge commit on `main` (removes the `.panel-section.admin-card` CSS rule) and redeploy (GitHub Pages auto-deploys on push to `main`; Vercel needs `npm run deploy:live` run again from the reverted `main`). No schema or Edge Function changes to unwind.
