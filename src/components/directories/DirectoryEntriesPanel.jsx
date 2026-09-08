@@ -5,6 +5,7 @@ import {
   ENTRIES_PAGE_SIZE,
   bulkSetDirectoryEntriesActive,
   createDirectoryGroup,
+  deleteAllDirectoryEntries,
   deleteDirectoryEntry,
   listDirectoryEntries,
   listDirectoryGroups,
@@ -93,6 +94,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   const [csvFileErr, setCsvFileErr] = useState("");
   const [csvMsg, setCsvMsg] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importChoiceOpen, setImportChoiceOpen] = useState(false);
 
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const totalPages = Math.max(1, Math.ceil(count / ENTRIES_PAGE_SIZE));
@@ -205,7 +207,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     }
   }
 
-  // ── CSV import (DIR-E1-S6) — "add to existing" only; no destructive overwrite mode ──
+  // ── CSV import (DIR-E1-S6) — confirm overwrite vs. append, then upsert-by-id ──
 
   function getGroupLabel(r) {
     return String(r.group_name ?? r.group ?? "").trim();
@@ -249,12 +251,13 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     URL.revokeObjectURL(a.href);
   }
 
-  async function doImport() {
+  async function doImport(mode) {
     setErr(""); setCsvMsg("");
     if (!csvRows.length) { setErr("No rows loaded yet."); return; }
 
     try {
       setImporting(true);
+      setImportChoiceOpen(false);
 
       // Auto-create groups for any previously-unseen group_name values (matches
       // ClientMapData.jsx's doImport convention).
@@ -351,6 +354,12 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
         return;
       }
 
+      // Only delete existing data once the CSV has validated cleanly — never wipe
+      // entries ahead of a row-level error that would abort the import.
+      if (mode === "overwrite") {
+        await deleteAllDirectoryEntries(directoryId);
+      }
+
       const upserted = await upsertDirectoryEntries(cleaned);
       for (const [entryId, termIds] of entryTermsById) {
         await setEntryTerms(entryId, termIds);
@@ -360,10 +369,12 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
         directory_id: directoryId,
         rows_imported: upserted.length,
         rows_skipped: cleaned.length - upserted.length,
+        mode,
         warnings: warnings.slice(0, 20),
       });
 
-      setCsvMsg(`Imported ${upserted.length} row${upserted.length === 1 ? "" : "s"}.${warnings.length ? ` ${warnings.length} term warning(s) below.` : ""}`);
+      const modeLabel = mode === "overwrite" ? "Replaced existing entries — imported" : "Imported";
+      setCsvMsg(`${modeLabel} ${upserted.length} row${upserted.length === 1 ? "" : "s"}.${warnings.length ? ` ${warnings.length} term warning(s) below.` : ""}`);
       setErr(warnings.length ? warnings.slice(0, 40).join("\n") : "");
       setCsvRows([]);
       setCsvPreview([]);
@@ -406,7 +417,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
         <div className="admin-card" style={{ padding: 16 }}>
           <Text size="sm" fw={600} mb={4}>Import entries from CSV</Text>
           <Text size="xs" c="dimmed" mb={10}>
-            Add to existing entries — rows are matched by <code>id</code> when present, otherwise created new.
+            You'll be asked whether to replace all existing entries or add to them. Either way, rows with an <code>id</code> matching an existing entry update it in place — they don't create duplicates. Rows without an <code>id</code> (or with one that doesn't match) are created as new entries.
           </Text>
           <input type="file" accept=".csv" onChange={(e) => onPickCsvFile(e.target.files?.[0])} style={{ fontSize: 13 }} />
           {csvFileErr && <Alert color="red" variant="light" mt="xs">{csvFileErr}</Alert>}
@@ -437,7 +448,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                   </tbody>
                 </table>
               </div>
-              <Button size="sm" mt={10} onClick={doImport} loading={importing} disabled={importing}>
+              <Button size="sm" mt={10} onClick={() => setImportChoiceOpen(true)} loading={importing} disabled={importing}>
                 {importing ? "Importing…" : `Import ${csvRows.length} row${csvRows.length === 1 ? "" : "s"}`}
               </Button>
             </>
@@ -547,6 +558,38 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                 {deleting ? "Deleting…" : "Delete permanently"}
               </button>
               <button type="button" className="btn" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importChoiceOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: 16 }}
+          onClick={() => !importing && setImportChoiceOpen(false)}
+        >
+          <div className="panel-section admin-card" style={{ maxWidth: 440, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            <p className="panel-section__title" style={{ margin: 0 }}>How should this data be added?</p>
+            <p style={{ margin: "8px 0 12px", fontSize: 13 }}>
+              This directory has {count} existing {count === 1 ? "entry" : "entries"}. Choose whether to replace them or add to them.
+              Either way, rows in the CSV with an <code>id</code> matching an existing entry update it rather than creating a duplicate.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => doImport("overwrite")}
+                disabled={importing}
+                style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}
+              >
+                {importing ? "Importing…" : "Replace all existing entries"}
+              </button>
+              <button type="button" className="btn" onClick={() => doImport("append")} disabled={importing}>
+                {importing ? "Importing…" : "Add to existing entries"}
+              </button>
+              <button type="button" className="btn" onClick={() => setImportChoiceOpen(false)} disabled={importing}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>

@@ -301,6 +301,12 @@ export async function deleteDirectoryEntry(entryId) {
   if (error) throw error;
 }
 
+/** Deletes every entry in a directory — used by the CSV import "replace all" mode. */
+export async function deleteAllDirectoryEntries(directoryId) {
+  const { error } = await supabase.from("directory_entries").delete().eq("directory_id", directoryId);
+  if (error) throw error;
+}
+
 /** Bulk archive/restore (is_active toggle) — DIR-E1-S4. */
 export async function bulkSetDirectoryEntriesActive(entryIds, isActive) {
   const ids = [...new Set((entryIds || []).filter(Boolean))];

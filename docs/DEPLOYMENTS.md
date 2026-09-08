@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-08 — [Staging] Directory entries: confirm overwrite vs. add on CSV import
+
+**Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert` — not yet opened as a PR.
+
+### What changed
+Directory entries' CSV import (`src/components/directories/DirectoryEntriesPanel.jsx`, shared by admin and client per client/admin parity) previously always added the CSV to existing entries with no confirmation step, and the only place this "add vs. replace" choice existed at all was the older, separate map-listings importer (`ClientMapData.jsx`/`AdminMapData.jsx`).
+
+- Clicking **Import N rows** now opens a confirmation dialog — **Replace all existing entries** or **Add to existing entries** — showing the directory's current entry count, mirroring the map-listings importer's existing pattern.
+- **Replace** deletes every entry in the directory (cascades to that entry's categorisation tags via existing FK) before importing, but only *after* the CSV has validated cleanly — a validation error aborts before anything is deleted, so a bad file can't wipe existing data.
+- **Add** behaves as before: no deletions.
+- Upsert-by-`id` semantics (a CSV row whose `id` matches an existing entry updates it in place; a row with no `id` or a non-matching one is inserted as new) already existed in `upsertDirectoryEntries()` (`src/lib/directories.js`) for both modes — not new, but now stated explicitly in the dialog and the in-panel helper text so it isn't a surprise either way.
+- New `deleteAllDirectoryEntries(directoryId)` helper in `src/lib/directories.js`, used only by Replace mode.
+- The existing `directory_entry_imported` admin event now also carries `mode` (`"overwrite"` / `"append"`).
+- Docs: `docs/USER_GUIDE.md`'s directory Entries section rewritten to describe the new confirm step and upsert-by-id behaviour (previously said the import "always adds... never deletes").
+
+No database migration — no schema change, only a new client-side delete-all-then-upsert code path against the existing `directory_entries` table.
+
+### Verified
+- [x] `npm run build` — clean, no errors.
+- [ ] **Not done:** an authenticated UI smoke test (clicking through Import CSV → Replace/Add) on staging — the agent session has no login credentials for the app. Please verify in the browser before merging.
+
+### Rollback plan
+Revert this branch/commit — no migration or Edge Function involved, purely frontend logic plus one new client-side helper function.
+
+---
+
 ## 2026-09-07 — [Production] Fix: creating a categorisation failed with a not-null violation
 
 **Branch/PR:** `fix/2026-09-07-categorisation-applies-to-null`, [#165](https://github.com/layercake-cx/directory-maps/pull/165) — migration applied to staging then production at the user's explicit request; PR left open for review/merge (no frontend code change to merge, but AGENTS.md still requires the PR step).
