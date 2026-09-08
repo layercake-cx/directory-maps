@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-08 — [Production] Fix: transparent background on type-to-confirm modals
+
+**Branch/PR:** `fix/2026-09-08-transparent-confirm-modal-bg` — deployed to production at the user's explicit request ("low risk change, you can deploy all the way up the chain").
+
+### What changed
+The "type DELETE (or the confirm word) to proceed" modals were rendering with a near-transparent background, making their text hard to read against the dark page overlay behind them. Affected: deleting a directory, deleting a directory entry, and the AI-content reset/regenerate confirm — in both the client portal and the admin console (`ClientDirectoryEntries.jsx`, `AdminDirectoryEntries.jsx`, `DirectoryEntriesPanel.jsx`, `DirectoryAiContentPanel.jsx`).
+
+Root cause: these four dialogs apply both the `.panel-section` and `.admin-card` classes to the modal box. Both rules set `background`, and with equal CSS specificity the one declared later in the stylesheet wins — `.panel-section` (background: `rgba(0,0,0,0.025)`) is declared after `.admin-card` (background: `var(--lc-card)`, white) in `src/pages/admin/admin.css`, so the near-transparent tint silently overrode the intended solid white.
+
+- `src/pages/admin/admin.css` — added a `.panel-section.admin-card` compound-selector override forcing `background: var(--lc-card)`, so the solid card background always wins regardless of source order.
+- No other modal in the app combines these two classes, so no other dialog was affected.
+- No database migration, no user-guide change (visual bug fix only, no change in steps or behaviour).
+
+### Verified
+- [x] Rendered the exact delete-directory modal markup through the local dev server with the fix applied — solid white background, fully legible text (confirmed by screenshot).
+- [x] `npm run build` — clean, no errors.
+- [ ] **Not done:** authenticated click-through of the real delete-entry/delete-directory/AI-content-reset modals in a running client or admin session — the agent session has no login credentials. The isolated markup test above used the identical class names, structure, and stylesheet, so risk is very low, but a quick manual look after deploy is worth it.
+
+### Rollback plan
+Revert this PR's merge commit on `main` (removes the `.panel-section.admin-card` CSS rule) and redeploy (GitHub Pages auto-deploys on push to `main`; Vercel needs `npm run deploy:live` run again from the reverted `main`). No schema or Edge Function changes to unwind.
+
+---
+
 ## 2026-09-07 — [Production] Fix: creating a categorisation failed with a not-null violation
 
 **Branch/PR:** `fix/2026-09-07-categorisation-applies-to-null`, [#165](https://github.com/layercake-cx/directory-maps/pull/165) — migration applied to staging then production at the user's explicit request; PR left open for review/merge (no frontend code change to merge, but AGENTS.md still requires the PR step).
