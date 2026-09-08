@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-08 — [Staging] Directory entries: confirm overwrite vs. add on CSV import
+## 2026-09-08 — [Production] Directory entries: confirm overwrite vs. add on CSV import
 
 **Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert`, [#166](https://github.com/layercake-cx/directory-maps/pull/166).
 
@@ -27,10 +27,13 @@ No database migration — no schema change, only a new client-side delete-all-th
 
 ### Verified
 - [x] `npm run build` — clean, no errors.
-- [ ] **Not done:** an authenticated UI smoke test (clicking through Import CSV → Replace/Add) on staging — the agent session has no login credentials for the app. Please verify in the browser before merging.
+- [x] PR #166 checks passed (Vercel preview build) before merge.
+- [x] GitHub Pages deploy succeeded (`gh run watch` on the post-merge workflow run, `34230310518`).
+- [x] Vercel production deploy succeeded (`npm run deploy:live`) at the user's explicit request; confirmed `maps.layercake-cx.biz` is serving the new build by matching the deployed JS asset hash (`index-9HHE-U1l.js`) against the live page.
+- [ ] **Not done:** an authenticated UI smoke test (clicking through Import CSV → Replace/Add) — the agent session has no login credentials for the app. Worth a quick manual check.
 
 ### Rollback plan
-Revert this branch/commit — no migration or Edge Function involved, purely frontend logic plus one new client-side helper function.
+Revert this PR's merge commit (`65ee30f`) on `main` and redeploy (GitHub Pages auto-deploys on push to `main`; Vercel needs `npm run deploy:live` run again from the reverted `main`). No migration or Edge Function involved, purely frontend logic plus one new client-side helper function.
 
 ---
 
