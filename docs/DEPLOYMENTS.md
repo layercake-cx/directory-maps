@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-08 — [Staging] Directory entries: confirm overwrite vs. add on CSV import
 
-**Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert` — not yet opened as a PR.
+**Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert`, [#166](https://github.com/layercake-cx/directory-maps/pull/166).
 
 ### What changed
 Directory entries' CSV import (`src/components/directories/DirectoryEntriesPanel.jsx`, shared by admin and client per client/admin parity) previously always added the CSV to existing entries with no confirmation step, and the only place this "add vs. replace" choice existed at all was the older, separate map-listings importer (`ClientMapData.jsx`/`AdminMapData.jsx`).
@@ -31,6 +31,32 @@ No database migration — no schema change, only a new client-side delete-all-th
 
 ### Rollback plan
 Revert this branch/commit — no migration or Edge Function involved, purely frontend logic plus one new client-side helper function.
+
+---
+
+## 2026-09-08 — [Production] Fix: transparent background on type-to-confirm modals
+
+**Branch/PR:** `fix/2026-09-08-transparent-confirm-modal-bg`, [#167](https://github.com/layercake-cx/directory-maps/pull/167) — merged to `main` and deployed to production same-session at the user's explicit request ("low risk change, you can deploy all the way up the chain").
+
+### What changed
+The "type DELETE (or the confirm word) to proceed" modals were rendering with a near-transparent background, making their text hard to read against the dark page overlay behind them. Affected: deleting a directory, deleting a directory entry, and the AI-content reset/regenerate confirm — in both the client portal and the admin console (`ClientDirectoryEntries.jsx`, `AdminDirectoryEntries.jsx`, `DirectoryEntriesPanel.jsx`, `DirectoryAiContentPanel.jsx`).
+
+Root cause: these four dialogs apply both the `.panel-section` and `.admin-card` classes to the modal box. Both rules set `background`, and with equal CSS specificity the one declared later in the stylesheet wins — `.panel-section` (background: `rgba(0,0,0,0.025)`) is declared after `.admin-card` (background: `var(--lc-card)`, white) in `src/pages/admin/admin.css`, so the near-transparent tint silently overrode the intended solid white.
+
+- `src/pages/admin/admin.css` — added a `.panel-section.admin-card` compound-selector override forcing `background: var(--lc-card)`, so the solid card background always wins regardless of source order.
+- No other modal in the app combines these two classes, so no other dialog was affected.
+- No database migration, no user-guide change (visual bug fix only, no change in steps or behaviour).
+
+### Verified
+- [x] Rendered the exact delete-directory modal markup through the local dev server with the fix applied — solid white background, fully legible text (confirmed by screenshot).
+- [x] `npm run build` — clean, no errors.
+- [x] PR #167 checks passed (Vercel preview build) before merge.
+- [x] GitHub Pages deploy succeeded (`gh run watch` on the post-merge workflow run).
+- [x] Vercel production deploy succeeded (`npm run deploy:live`); confirmed `maps.layercake-cx.biz` is serving the new build by matching the deployed JS asset hash (`index-CmN1Oi1r.js`) against the live page.
+- [ ] **Not done:** authenticated click-through of the real delete-entry/delete-directory/AI-content-reset modals in a running client or admin session — the agent session has no login credentials. The isolated markup test above used the identical class names, structure, and stylesheet, so risk is very low, but a quick manual look is worth doing when convenient.
+
+### Rollback plan
+Revert this PR's merge commit on `main` (removes the `.panel-section.admin-card` CSS rule) and redeploy (GitHub Pages auto-deploys on push to `main`; Vercel needs `npm run deploy:live` run again from the reverted `main`). No schema or Edge Function changes to unwind.
 
 ---
 

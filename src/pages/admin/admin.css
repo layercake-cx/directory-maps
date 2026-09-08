@@ -1371,6 +1371,13 @@ a.btn-primary:hover {
   gap: 12px;
 }
 
+/* Confirmation dialogs combine .panel-section with .admin-card for a solid
+   modal surface — the near-transparent .panel-section background otherwise
+   wins the tie-break and makes the dialog unreadable against the overlay. */
+.panel-section.admin-card {
+  background: var(--lc-card);
+}
+
 .panel-section__title {
   margin: 0 0 4px;
   font-size: 11px;
