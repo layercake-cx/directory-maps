@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 3: entry page layout
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Third phase of the directory browse/entry redesign (see this doc's Phase 0/1 entries below for scope). Rebuilds `buildEntryPage` (`supabase/functions/generate_directory_site/builders.ts`):
+
+- **Fixed header band** (logo, name, description, tag chips, "Visit website"/"Show on map" buttons) — pulled out of the admin-reorderable block list into always-rendered structure above it. `logo`/`heading` block types still exist in a directory's saved `layout_json` for backward compatibility; they're now harmless no-ops rather than something that needs migrating away.
+- **Sticky jump-chip bar**: any block carrying the optional section label added in Phase 0 (`EntryLayoutDesigner.jsx`) now wraps in an anchored section and contributes a jump-chip. Unlabeled blocks are unaffected — no chip, renders inline as before.
+- **Right aside**: Location (Google Static Maps API thumbnail, additive and optional — see `docs/DATA_AND_PRIVACY.md`'s §3 update — plus an "Open in directory map" link; no changes to the interactive map component), Directory attributes (every attached single-select/boolean categorisation as a row, including "—"/"No" for values this entry doesn't hold, each linking back to the filtered landing page), one chip-list block per multi-select categorisation this entry holds terms for (a generic equivalent of the design's hardcoded "Who it is for" block — works for whatever categorisation an admin defines, not just a specific named one), and Related entries (up to 4, ranked by shared categorisation-term count, computed in memory from data the generator already loads for the filter rail — no extra DB query).
+
+**Bug found and fixed via the preview script, before touching any real directory:** the `evidence` block had its own hardcoded `<h2>Evidence</h2>`, which double-rendered once a block also gets a label-driven heading. Removed the hardcoded one — a directory using the evidence block without labeling it now shows no heading (label it "Evidence" in Entry Layout to get one back, plus a jump-chip).
+
+### Verified
+- [x] `deno check` — clean.
+- [x] Local preview, opened in the Browser pane: header/tags/action buttons render correctly; jump-chip bar navigates; all four aside blocks appear in order with correct content — Location's "Open in directory map" link, Directory attributes showing both a linked "Yes" and a correct unlinked "No", a Sector tag-chip block, and Related entries correctly ranked (including the zero-shared-terms case rendering nothing, not an empty block); mobile-width (375px) layout stacks correctly; no console errors. Landing page (Phase 1, unrelated code path but shares the new `TermMeta`/`buildTermMetaIndex` helper) re-verified with no regression.
+- [ ] Staging: not yet deployed.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase.
+
+---
+
 ## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 1: landing page layout
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
