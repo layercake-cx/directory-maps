@@ -713,6 +713,8 @@ When I select Sector = Healthcare and Region = North West from the filter contro
 Then the entry list shows only entries matching both, and the resulting URL is shareable/bookmarkable and reproduces the same filtered view when revisited directly
 ```
 
+*Status (2026-09-14):* Shipped as part of the directory browse/entry redesign's Phase 1 (`docs/DEPLOYMENTS.md`'s 2026-09-14 "Phase 1" entry) — `buildFilterAndSearchScript()` reads/writes `?q=&<facetKey>=<slug,slug>&view=` via `history.replaceState`, restoring query + every facet's selection + list/map view on load.
+
 ---
 
 ## 9. Decisions log (resolved 2026-07-14)

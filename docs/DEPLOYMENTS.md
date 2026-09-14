@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 1: landing page layout
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Second phase of the directory browse/entry redesign (see this doc's Phase 0 entry below for scope/decisions). Rebuilds `generate_directory_site`'s landing page (`buildDirectoryLandingPage` in `supabase/functions/generate_directory_site/builders.ts`):
+
+- **Filter rail** (left sidebar) replaces the horizontal categorisation chip bar — one control per attached categorisation, kind driven by Phase 0's `field_type`: tag chips (multi-select), a native dropdown (single-select), or a switch (boolean). Rendered in the admin-configured order (`categorisation_attachments.sort_order`).
+- **Result toolbar**: exact count-line copy ("All N entries" / "N entries" / "N entries match "query""), removable active-filter chips, "Clear all", and a List/Map segmented control.
+- **Row-based results** (logo, name, description, tag chips, address + single-select value) replace the card grid.
+- **Intent search**: ported the design concept's tokenize/stopword/score algorithm in place of plain substring matching — results re-rank by relevance instead of just filtering.
+- **List/Map toggle**: swaps the results column for the existing map `<iframe>` at full width (no new map UI — markers/clustering/Places autocomplete untouched, per the user's explicit "don't restyle the map" decision). The filter rail persists across both views.
+- **Shareable/bookmarkable filtered views**: `?q=&<facetKey>=<slug,slug>&view=` read on load, written via `history.replaceState`. Closes `docs/DIRECTORIES.md`'s DIR-E7-S3 gap. Defensive: wrapped in try/catch after the local preview caught it throwing in an opaque-origin document — a URL-sync failure must never break filtering or the map-sync that runs right after it.
+
+No colour/font/radius token changes — every new CSS class references only the existing 15 theme variables, so all 5 presets (`src/lib/directoryThemePresets.js`) keep their current look. Entry pages (`buildEntryPage`) are untouched — that's Phase 3.
+
+### Verified
+- [x] `deno check` on all three generator files — clean.
+- [x] Local preview (`deno run supabase/functions/generate_directory_site/preview.ts`), opened in the Browser pane: filter rail renders all three `field_type`s correctly; tag/select/switch filtering, chip removal and Clear all work; intent search scores and ranks correctly (`"architects in London"` → matches only the RIBA fixture entry, stopwords dropped); List/Map toggle swaps panes, shows the floating count chip, and the rail persists; Clear all resets query+filters but preserves the current view; mobile-width (375px) layout stacks without breaking; no console errors.
+- [ ] Staging: not yet deployed (`generate_directory_site` Edge Function unchanged in staging so far).
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase (that was Phase 0, separately rollback-able) — reverting the function alone is sufficient.
+
+---
+
 ## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 0: categorisation facet kinds
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).

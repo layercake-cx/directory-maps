@@ -190,7 +190,7 @@ Once a categorisation is attached to a directory, it appears as a checkbox picke
 
 Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
 
-Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
+A published directory's site has a search box and a filter rail built from your attached categorisations — see `docs/DIRECTORIES.md` for the roadmap of what's still ahead (natural-language search, portal-side faceted filtering).
 
 ### Entry details: evidence, media, accreditations, links and product tiles
 
