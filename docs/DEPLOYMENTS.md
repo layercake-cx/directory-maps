@@ -26,10 +26,11 @@ Public site layout changes (search bar, filter rail, list/map toggle, entry page
 
 ### Verified
 - [x] `npm run build` — clean.
-- [ ] Staging: migration dry-run + apply, integrity checklist, smoke-test Categorisations panel (create a single-select and a boolean facet, tag an entry, bulk-tag entries, reorder attachments).
+- [x] Staging: `supabase db push --dry-run` showed only this migration pending; a real transactional `BEGIN/ROLLBACK` dry run wasn't possible (the CLI's ephemeral dump role isn't the table owner — the known tooling gap documented in `docs/DATABASE_MIGRATIONS.md`), so applied for real via `supabase db push` per that doc's fallback procedure. Its own embedded post-migration check passed (`NOTICE: VERIFY PASSED: field_type and sort_order columns created, existing rows defaulted correctly`). RLS confirmed still enabled on both tables post-migration; row-count/field_type breakdown queries hit the same ephemeral-role permission limitation, not re-attempted.
+- [ ] Smoke-test the Categorisations panel in the running app (create a single-select and a boolean facet, tag an entry, bulk-tag entries, reorder attachments).
 
 ### Rollback plan
-Revert this branch's merge on `main` and redeploy the frontend. Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` (refuses if any categorisation has actually been set to `single_select`/`boolean`, or any attachment reordered — check first, since rolling back after real usage would discard that admin configuration).
+Revert this branch's merge on `main` and redeploy the frontend. Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` against staging (`supabase link --project-ref beqejxneehilplrtpntn` first) (refuses if any categorisation has actually been set to `single_select`/`boolean`, or any attachment reordered — check first, since rolling back after real usage would discard that admin configuration).
 
 ---
 
