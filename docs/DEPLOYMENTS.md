@@ -32,6 +32,28 @@ Run `_20260914200000_recover_industry_sector_entry_tags.rollback.sql` to remove 
 
 ---
 
+## 2026-09-14 — [Production] Directory browse/entry redesign: frontend merged + deployed (PR #171)
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` ([PR #171](https://github.com/layercake-cx/directory-maps/pull/171), merged to `main`).
+
+### What changed
+Merged PR #171 (user explicitly asked to merge, then explicitly asked to also deploy the frontend — see this doc's migration/Edge Function entry directly below, deployed earlier the same session). Two frontend deploys followed, per `AGENTS.md`'s "two live production frontends" note:
+
+- **GitHub Pages** (`layercake-cx.github.io/directory-maps`) — deployed automatically by GitHub Actions on the merge to `main` (run `34894284979`, succeeded in 39s).
+- **Vercel** (`maps.layercake-cx.biz` + other aliased domains, e.g. `uk-associations.com`) — does not auto-deploy on merge, so run explicitly with `npm run deploy:live` per the user's go-ahead. Succeeded (`readyState: READY`, `target: production`, deployment `dpl_FhyLapuTgzdkEaKxtLQu2RGZVkTe`).
+
+Feature branch deleted (local + remote) after merge.
+
+### Verified
+- [x] `gh run list` confirms the GitHub Pages Action completed successfully.
+- [x] Vercel CLI reported the deploy `READY` and promoted to `production`, aliased.
+- [ ] Not click-tested against the live admin UI post-deploy (the new categorisation facet-type picker etc.) — recommend the user spot-check `/client/categorisations` (or the admin equivalent) directly.
+
+### Rollback plan
+Revert the merge commit on `main` (or `git revert`), which redeploys GitHub Pages automatically; redeploy Vercel production from the reverted commit (`npm run deploy:live`). Backend rollback (migration/Edge Function) is documented in the entry directly below.
+
+---
+
 ## 2026-09-14 — [Production] Directory browse/entry redesign: migration + Edge Function deployed
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` ([PR #171](https://github.com/layercake-cx/directory-maps/pull/171)).
