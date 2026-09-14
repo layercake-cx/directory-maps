@@ -156,6 +156,7 @@ On a directory's **Entry Layout** tab (owners and managers only), the panel cont
 
 - **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
 - **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
+- **Section label** (optional, per block) — not yet reflected on the published page; reserved for an upcoming redesign that will turn a labelled block into a jump-linked section.
 - The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes.
 - Click **Save layout**, then **Publish** again for it to reach the live site.
 - **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
@@ -176,9 +177,14 @@ From a directory's page (owners and managers only):
 - **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
 - A **categorisation** has its own term list, and an entry, directory, or map listing can carry any number of terms from it.
 
-Create a categorisation with just a label and a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+When creating a categorisation, choose its **facet type** — this can't be changed later:
+- **Tags** (the original behaviour) — an entry can carry any number of the categorisation's terms.
+- **Single choice** — an entry can carry at most one term (e.g. Region); picking a different value replaces the previous one.
+- **Yes / No toggle** — a plain on/off switch (e.g. "Awards chartered status") with no term list to manage.
 
-Once a categorisation is attached to a directory, its terms appear as a checkbox picker:
+Add a label and, for Tags/Single choice, a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Where a directory or map has several categorisations attached, use the ▲/▼ buttons next to each one to set the order they're offered in. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+
+Once a categorisation is attached to a directory, it appears as a checkbox picker (Tags), a set of single-pick chips (Single choice), or a switch (Yes/No):
 - On that directory's **Settings** tab, to tag the whole directory.
 - On an entry's create/edit form, to tag that entry.
 

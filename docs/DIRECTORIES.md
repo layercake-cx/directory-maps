@@ -565,6 +565,8 @@ Then the save is rejected — key uniqueness is enforced per client (mirrors map
 ```
 *Tech guardrails:* New admin/client panel modelled directly on `FilterFieldsPanel.jsx` (§3.2), including its "type/applies_to is immutable after creation, delete-and-recreate to change it" convention and its typed-confirmation delete flow.
 
+*Status (2026-09-14):* `categorisations.field_type` (`multi_select` | `single_select` | `boolean`, immutable after creation, same convention as above) shipped as groundwork for the directory browse/entry redesign — see `docs/DEPLOYMENTS.md`'s 2026-09-14 "Phase 0" entry. `single_select` activates `PublishedMapView.jsx`'s existing dropdown filter control; `boolean` is one system-managed term (presence = true).
+
 **DIR-E5-S2 — Apply categorisation terms to entries and directories**
 As a **Client Owner/Manager/Member with edit access**, I want to tag an entry (or a whole directory) with one or more terms from a categorisation, so that visitors can filter/navigate by it.
 

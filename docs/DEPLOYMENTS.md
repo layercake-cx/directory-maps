@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 0: categorisation facet kinds
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+First phase of rebuilding the public directory browse/entry pages to a new Claude Design concept (search bar, filter rail, list/map toggle, redesigned entry profile — see the concept's `design_handoff_association_directory/README.md` for the full spec). Scope agreed with the user: the public static directory site only (not the internal admin/client entries table), keeping the existing per-directory theme/CSS system and the existing Google Maps embed exactly as-is — only page layout is changing, in later phases.
+
+This phase lays the data-model groundwork the new filter rail needs: today a "Categorisation" (the admin-configurable facet system) only supports multi-select tags. The design needs single-choice facets (e.g. Region) and yes/no switch facets (e.g. "Awards chartered status") too.
+
+- Migration `20260914170000_categorisations_field_type_and_attachment_order.sql`: adds `categorisations.field_type` (`multi_select` | `single_select` | `boolean`, default `multi_select` — existing categorisations are unaffected) and `categorisation_attachments.sort_order` (admin-controlled facet render order, default 0). A `boolean` categorisation is represented as exactly one system-managed term (`entry_category_terms` presence = true) — no new tables.
+- `src/lib/categorisations.js`: `createCategorisation` takes an optional `fieldType`; `categorisationsAsFilterFields()` now maps `single_select` onto `PublishedMapView.jsx`'s existing (previously unused by categorisations) dropdown/single-select filter control — no changes needed in that component. `boolean` still passes through as a one-option multi-select there, so the in-app map filter bar needed no new UI, per the "don't touch the map" constraint. Added `reorderAttachedCategorisations()`.
+- Admin UI (shared by client and admin, confirmed both import the same components): `CategorisationsPanel.jsx` gets a facet-type picker (locked after creation); `CategoryTagPicker.jsx` and `BulkCategoryEditModal.jsx` render radios/a switch instead of checkboxes for `single_select`/`boolean`; `CategorisationAttachmentPicker.jsx` gets up/down reordering.
+- `entryTemplates.js`/`EntryLayoutDesigner.jsx`: a block in an entry's layout can now carry an optional section `label` (no schema change — `layout_json` is jsonb) — groundwork for Phase 3's sticky jump-chip bar on the entry page; unlabeled blocks are unaffected.
+
+Public site layout changes (search bar, filter rail, list/map toggle, entry page rebuild) are later phases — not in this deploy.
+
+### Verified
+- [x] `npm run build` — clean.
+- [ ] Staging: migration dry-run + apply, integrity checklist, smoke-test Categorisations panel (create a single-select and a boolean facet, tag an entry, bulk-tag entries, reorder attachments).
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy the frontend. Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` (refuses if any categorisation has actually been set to `single_select`/`boolean`, or any attachment reordered — check first, since rolling back after real usage would discard that admin configuration).
+
+---
+
 ## 2026-09-14 — [Staging] Fix: directory-sourced maps showed zero pins (directory entries were never geocoded)
 
 **Branch/PR:** `fix/2026-09-14-directory-entries-geocoding` (PR not opened yet).

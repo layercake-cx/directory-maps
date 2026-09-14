@@ -131,6 +131,22 @@ export default function EntryLayoutDesigner({ directoryId, canManage, recordEven
     setDraft((d) => d.filter((_, i) => i !== index));
   }
 
+  /** Optional per-block section label — when set, generate_directory_site wraps
+   * this block in an anchored <section> and adds it to the entry page's
+   * sticky jump-chip bar, titled with this label. Empty clears it. */
+  function updateBlockLabel(index, label) {
+    setDraft((d) =>
+      d.map((b, i) => {
+        if (i !== index) return b;
+        const next = { ...b };
+        const trimmed = label.trim();
+        if (trimmed) next.label = trimmed;
+        else delete next.label;
+        return next;
+      }),
+    );
+  }
+
   function onDragStart(index) {
     setDragIndex(index);
   }
@@ -285,15 +301,23 @@ export default function EntryLayoutDesigner({ directoryId, canManage, recordEven
                 onDragStart={() => onDragStart(i)}
                 onDragOver={onDragOver}
                 onDrop={() => onDrop(i)}
-                style={{ ...cardStyle, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "grab", opacity: dragIndex === i ? 0.4 : 1 }}
+                style={{ ...cardStyle, cursor: "grab", opacity: dragIndex === i ? 0.4 : 1 }}
               >
-                <span style={{ fontSize: 13 }}>
-                  <span style={{ opacity: 0.4, marginRight: 8 }}>⠿</span>
-                  {block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type)}
-                </span>
-                <button type="button" className="btn" style={{ fontSize: 11, padding: "2px 6px" }} onClick={() => removeBlock(i)}>
-                  Remove
-                </button>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13 }}>
+                    <span style={{ opacity: 0.4, marginRight: 8 }}>⠿</span>
+                    {block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type)}
+                  </span>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "2px 6px" }} onClick={() => removeBlock(i)}>
+                    Remove
+                  </button>
+                </div>
+                <input
+                  value={block.label || ""}
+                  onChange={(e) => updateBlockLabel(i, e.target.value)}
+                  placeholder="Section label (optional — adds a jump-chip, e.g. Member benefits)"
+                  style={{ ...inputStyle, marginTop: 6, fontSize: 12 }}
+                />
               </div>
             ))}
             {draft.length === 0 && <p style={{ fontSize: 12, opacity: 0.6 }}>No blocks — add one below.</p>}

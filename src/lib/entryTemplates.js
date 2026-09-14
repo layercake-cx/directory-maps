@@ -15,6 +15,14 @@ const COLUMNS = "id, directory_id, name, is_default, applies_to_group_id, applie
  * rendered anywhere until this feature gave it a block to live in. Kept
  * distinct from `hero`/`gallery` (entry_media_assets), which is a
  * different, pre-existing concept.
+ *
+ * A block descriptor is `{ type, key?, label? }` — `label` is optional and
+ * new (directory browse/entry redesign, 2026-09): when an admin sets one,
+ * generate_directory_site wraps that block in an anchored `<section>` and
+ * contributes one entry to the entry page's sticky jump-chip bar, titled
+ * with the label. Blocks with no label render inline as before, with no
+ * jump-chip. No schema change needed — layout_json is jsonb, so this is
+ * purely additive to what's already stored per block.
  */
 export const BLOCK_TYPES = [
   { type: "logo", label: "Logo" },

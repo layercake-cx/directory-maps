@@ -4,6 +4,7 @@ import {
   listAttachedCategorisations,
   attachCategorisation,
   detachCategorisation,
+  reorderAttachedCategorisations,
 } from "../../lib/categorisations";
 
 /**
@@ -82,6 +83,30 @@ export default function CategorisationAttachmentPicker({ clientId, targetType, t
     }
   }
 
+  /** Move an attached categorisation up/down — the filter rail renders in this order. */
+  async function handleMove(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= attached.length) return;
+    const reordered = attached.slice();
+    [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+    setAttached(reordered); // optimistic — refresh() below reconciles with the server
+    setBusy(true);
+    try {
+      await reorderAttachedCategorisations({
+        targetType,
+        targetId,
+        orderedCategorisationIds: reordered.map((c) => c.id),
+      });
+      recordEvent?.(`${targetType}_categorisation_reordered`, { target_id: targetId, order: reordered.map((c) => c.id) });
+      await refresh();
+    } catch (e) {
+      setError(e?.message ?? String(e));
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading categories…</p>;
 
   return (
@@ -97,11 +122,17 @@ export default function CategorisationAttachmentPicker({ clientId, targetType, t
         <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.7 }}>No categories attached yet.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-          {attached.map((c) => (
+          {attached.map((c, i) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {canManage && (
+                <span style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  <button type="button" className="btn" disabled={busy || i === 0} onClick={() => handleMove(i, -1)} aria-label={`Move ${c.label} up`} style={{ padding: "0 6px", lineHeight: 1, fontSize: 11 }}>▲</button>
+                  <button type="button" className="btn" disabled={busy || i === attached.length - 1} onClick={() => handleMove(i, 1)} aria-label={`Move ${c.label} down`} style={{ padding: "0 6px", lineHeight: 1, fontSize: 11 }}>▼</button>
+                </span>
+              )}
               <span style={{ flex: 1, fontSize: 13, minWidth: 0 }}>
                 {c.label}
-                <span style={{ opacity: 0.6 }}> · {c.terms.length} term{c.terms.length === 1 ? "" : "s"}</span>
+                <span style={{ opacity: 0.6 }}> · {c.field_type !== "boolean" ? `${c.terms.length} term${c.terms.length === 1 ? "" : "s"}` : "Yes/No"}</span>
               </span>
               {canManage && (
                 <button type="button" className="btn" disabled={busy} onClick={() => handleDetach(c.id)}>Detach</button>
