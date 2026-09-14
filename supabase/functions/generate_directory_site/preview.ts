@@ -132,7 +132,10 @@ const landingHtml = buildDirectoryLandingPage({
   entries: ENTRIES,
   directoryLinks: [],
   theme: THEME,
-  attachedMapEmbedSrc: null,
+  // A real value here just needs to be *a* URL for the layout to render
+  // the List/Map toggle and iframe — the preview never actually loads it
+  // (no network in this script), so an example.com placeholder is fine.
+  attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
   categorisations: CATEGORISATIONS,
   entryTermIds: ENTRY_TERM_IDS,
 });

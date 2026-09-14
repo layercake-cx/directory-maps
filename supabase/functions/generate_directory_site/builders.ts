@@ -189,6 +189,59 @@ export const EXTRA_STYLE = `
   .evidence-list dd { margin: 0 0 4px; font-size: 15px; color: var(--muted); }
 `;
 
+// Directory browse layout — intent search, filter rail, result bar with
+// removable chips, list/map toggle (2026-09, directory browse/entry
+// redesign). Deliberately reuses only the theme variables above (no new
+// colour/font/radius tokens) so every existing preset keeps its own look;
+// only the page structure is new. Radius/shadow values match the existing
+// .card/.btn scale rather than the flat/zero-radius aesthetic of the
+// source design concept — that concept's colour system was explicitly not
+// adopted (see docs/DEPLOYMENTS.md's 2026-09-14 "Phase 0" entry).
+const LAYOUT_STYLE = `
+  .dir-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .dir-toolbar__left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dir-count { font-family: var(--font-heading); font-size: 21px; font-weight: 600; margin: 0; }
+  .dir-active-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 999px; padding: 6px 8px 6px 12px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .dir-active-chip button { border: 0; background: transparent; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 2px; }
+  .dir-clear-all { background: transparent; border: 0; color: var(--muted); font-size: 12.5px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; }
+  .dir-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
+  .dir-seg button { border: 0; background: var(--surface); color: var(--ink); font-family: inherit; font-weight: 600; font-size: 13px; padding: 8px 16px; cursor: pointer; }
+  .dir-seg button.active { background: var(--primary); color: #fff; }
+  .dir-body { display: flex; align-items: flex-start; gap: 28px; }
+  .dir-rail { width: 250px; flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+  .dir-rail__group { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .dir-rail__group:last-child { border-bottom: 0; }
+  .dir-rail__label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .dir-select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; }
+  .dir-tagwrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dir-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .dir-switch-label { font-size: 13.5px; font-weight: 500; }
+  .dir-switch { width: 38px; height: 21px; border-radius: 999px; background: var(--line); position: relative; border: 0; cursor: pointer; flex: none; padding: 0; }
+  .dir-switch.active { background: var(--primary); }
+  .dir-switch__knob { position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: left .12s; }
+  .dir-switch.active .dir-switch__knob { left: 19px; }
+  .dir-results { flex: 1; min-width: 0; }
+  .dir-rows { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); }
+  .dir-row { display: flex; gap: 20px; padding: 20px; border-bottom: 1px solid var(--line); align-items: flex-start; text-decoration: none; color: inherit; }
+  .dir-row:last-child { border-bottom: 0; }
+  .dir-row:hover { background: var(--surface-2); }
+  .dir-row__logo { width: 64px; height: 64px; border-radius: 12px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dir-row__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
+  .dir-row__body { flex: 1; min-width: 0; }
+  .dir-row__body h3 { font-size: 18px; margin: 0 0 6px; color: var(--ink); }
+  .dir-row__desc { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 0 0 8px; max-width: 66ch; }
+  .dir-row__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dir-row__aside { width: 170px; flex: none; padding-left: 16px; border-left: 1px solid var(--line); font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+  .dir-row__aside strong { display: block; font-weight: 700; color: var(--primary); margin-top: 6px; }
+  .dir-empty { padding: 48px 24px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  .dir-map-pane { flex: 1; min-width: 0; position: relative; }
+  .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
+  @media (max-width: 900px) {
+    .dir-body { flex-direction: column; }
+    .dir-rail { width: 100%; }
+  }
+`;
+
 /**
  * Directory entity page shell — NOT the shared _shared/staticSiteRenderer.ts
  * pageShell(), deliberately: that one is kept byte-stable for the existing
@@ -312,6 +365,7 @@ ${fontLinkTag(opts.theme ?? {})}
   ${themeStyleBlock(opts.theme ?? {})}
   ${BASE_STYLE}
   ${EXTRA_STYLE}
+  ${LAYOUT_STYLE}
 </style>
 </head>
 <body>
@@ -521,67 +575,263 @@ export type FilterBarCategorisation = {
   terms: CategorisationTerm[];
 };
 
-/** Real, working faceted filter chips — DIR-E5-S4. Toggling a chip narrows
- * the entry cards below (via data-term-ids baked into each card) and, when
- * a map is attached, posts the same selection into its <iframe> so one
- * filter action drives both (see FILTER_AND_SEARCH_SCRIPT below). */
-export function exploreFilterBar(categorisations: FilterBarCategorisation[]): string {
+/** Filter rail — DIR-E5-S4, restructured for the directory browse/entry
+ * redesign (2026-09) into a sidebar instead of a horizontal chip bar, with
+ * a control per categorisation.field_type: multi_select renders tag
+ * chips (unchanged behaviour), single_select a native <select> (replaces
+ * rather than adds to the selection), boolean a single on/off switch bound
+ * to its one system-managed term. Toggling narrows the entry rows below
+ * (via data-term-ids baked into each row) and, when a map is attached,
+ * posts the same selection into its <iframe> so one filter action drives
+ * both (see buildFilterAndSearchScript below). */
+export function filterRail(categorisations: FilterBarCategorisation[]): string {
   if (categorisations.length === 0) return "";
   const groups = categorisations
     .map((cat) => {
+      if (cat.field_type === "boolean") {
+        const t = cat.terms[0];
+        if (!t) return "";
+        return `<div class="dir-rail__group">
+  <div class="dir-switch-row">
+    <span class="dir-switch-label">${escapeHtml(cat.label)}</span>
+    <button type="button" class="dir-switch" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="boolean" aria-pressed="false"><span class="dir-switch__knob"></span></button>
+  </div>
+</div>`;
+      }
+      if (cat.field_type === "single_select") {
+        const options = cat.terms.map((t) => `<option value="${escapeAttr(t.id)}">${escapeHtml(t.label)}</option>`).join("");
+        return `<div class="dir-rail__group">
+  <span class="dir-rail__label">${escapeHtml(cat.label)}</span>
+  <select class="dir-select" data-cat-id="${escapeAttr(cat.id)}" data-kind="single_select">
+    <option value="">Any</option>
+    ${options}
+  </select>
+</div>`;
+      }
       const chips = cat.terms
         .map(
           (t) =>
-            `<button type="button" class="facet" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}">${escapeHtml(t.label)}</button>`,
+            `<button type="button" class="facet" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="multi_select">${escapeHtml(t.label)}</button>`,
         )
         .join("");
-      return `<div class="facet-group"><span class="facet-group-label">${escapeHtml(cat.label)}</span>${chips}</div>`;
+      return `<div class="dir-rail__group">
+  <span class="dir-rail__label">${escapeHtml(cat.label)}</span>
+  <div class="dir-tagwrap">${chips}</div>
+</div>`;
     })
     .join("");
-  return `<div id="dir-filter-bar" style="display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:18px;">${groups}</div>`;
+  return `<aside id="dir-filter-rail" class="dir-rail">${groups}</aside>`;
 }
 
-/** Combined client-side keyword search + categorisation-term filtering over
- * the already-rendered result cards — no new backend, no LLM call (DIR-E7
- * replaces the search half later). Reads data-search / data-term-ids
- * attributes baked into each card at generation time. AND across
- * categorisations, OR within one categorisation's selected terms (matches
- * the in-app map filter bar's semantics, PublishedMapView.jsx). When
- * hasMap is true, also posts the active selection to the attached map's
- * <iframe> so both stay in sync — see EmbedMap.jsx's `message` listener. */
-export function buildFilterAndSearchScript(hasMap: boolean): string {
+// Ported from the Claude Design concept's own logic class (design doc:
+// "the filter/search algorithms in it are directly portable") — tokenize,
+// drop stopwords, score by distinct-token presence, sort by score.
+const SEARCH_STOPWORDS = [
+  "find", "for", "an", "the", "and", "with", "who", "that", "are",
+  "association", "associations", "body", "bodies", "organisation", "organisations",
+  "working", "looking", "need", "want", "professionals", "professional",
+  "uk", "member", "members", "membership", "near", "me", "in", "of", "a",
+];
+
+/** Embeds a JSON value as a JS literal inside an inline <script> — escapes
+ * "</" so a label/slug containing "</script>" can't break out of the tag. */
+function embedJson(value: unknown): string {
+  return JSON.stringify(value).replace(/<\//g, "<\\/");
+}
+
+/** Combined client-side intent search + categorisation-facet filtering over
+ * the already-rendered result rows — no new backend, no LLM call (DIR-E7
+ * replaces the search half later, with true NL query parsing). Reads
+ * data-search / data-term-ids attributes baked into each row at generation
+ * time. AND across categorisations, OR within one categorisation's
+ * selected terms (matches the in-app map filter bar's semantics,
+ * PublishedMapView.jsx) — single_select and boolean facets simply never
+ * hold more than one selected term, so the same AND/OR logic covers all
+ * three field_types with no extra branching. When hasMap is true, also
+ * posts the active selection to the attached map's <iframe> so both stay
+ * in sync (EmbedMap.jsx's `message` listener), and mirrors state into the
+ * URL (?q=&<facetKey>=<slug,slug>&view=) so a filtered view is shareable/
+ * bookmarkable (closes docs/DIRECTORIES.md's DIR-E7-S3 gap). */
+export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[]): string {
+  const catsMeta = categorisations.map((c) => ({
+    id: c.id,
+    key: c.key,
+    label: c.label,
+    field_type: c.field_type,
+    terms: c.terms.map((t) => ({ id: t.id, slug: t.slug, label: t.label })),
+  }));
+
   return `
 <script>
 (function () {
+  var CATS = ${embedJson(catsMeta)};
+  var STOPWORDS = ${embedJson(SEARCH_STOPWORDS)};
+  var stopwordSet = {};
+  STOPWORDS.forEach(function (w) { stopwordSet[w] = true; });
+
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
-  var cards = document.querySelectorAll('[data-search]');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-search]'));
+  var totalCount = rows.length;
   var countEl = document.getElementById('dir-result-count');
-  var chips = document.querySelectorAll('.facet[data-cat-id]');
+  var chipsEl = document.getElementById('dir-active-chips');
+  var clearAllBtn = document.getElementById('dir-clear-all');
+  var emptyClearBtn = document.getElementById('dir-empty-clear');
+  var emptyEl = document.getElementById('dir-empty');
+  var rowsWrap = document.getElementById('dir-rows');
   var mapFrame = document.querySelector('#dir-map-embed iframe');
-  var active = {}; // catId -> Set-like object of termIds
+  var mapCountEl = document.getElementById('dir-map-count');
+  var segButtons = Array.prototype.slice.call(document.querySelectorAll('#dir-view-toggle button'));
+  var resultsCol = document.getElementById('dir-results-col');
+  var mapPane = document.getElementById('dir-map-pane');
 
-  function cardTermIds(card) {
-    var raw = card.getAttribute('data-term-ids') || '';
+  var active = {}; // catId -> string[] of selected term ids
+  var view = 'list';
+
+  function catById(catId) {
+    for (var i = 0; i < CATS.length; i++) if (CATS[i].id === catId) return CATS[i];
+    return null;
+  }
+  function termById(cat, termId) {
+    if (!cat) return null;
+    for (var i = 0; i < cat.terms.length; i++) if (cat.terms[i].id === termId) return cat.terms[i];
+    return null;
+  }
+  function termBySlug(cat, slug) {
+    if (!cat) return null;
+    for (var i = 0; i < cat.terms.length; i++) if (cat.terms[i].slug === slug) return cat.terms[i];
+    return null;
+  }
+
+  function tokens(q) {
+    var m = q.toLowerCase().match(/[a-z]{3,}/g) || [];
+    return m.filter(function (t) { return !stopwordSet[t]; });
+  }
+
+  function rowTermIds(row) {
+    var raw = row.getAttribute('data-term-ids') || '';
     return raw ? raw.split(',') : [];
   }
 
+  function setRowControlState() {
+    document.querySelectorAll('.facet[data-cat-id]').forEach(function (chip) {
+      var selected = active[chip.getAttribute('data-cat-id')] || [];
+      chip.classList.toggle('active', selected.indexOf(chip.getAttribute('data-term-id')) !== -1);
+    });
+    document.querySelectorAll('.dir-switch[data-cat-id]').forEach(function (sw) {
+      var selected = active[sw.getAttribute('data-cat-id')] || [];
+      var on = selected.indexOf(sw.getAttribute('data-term-id')) !== -1;
+      sw.classList.toggle('active', on);
+      sw.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('select.dir-select[data-cat-id]').forEach(function (sel) {
+      var selected = active[sel.getAttribute('data-cat-id')] || [];
+      sel.value = selected[0] || '';
+    });
+  }
+
+  function renderChips() {
+    if (!chipsEl) return;
+    chipsEl.innerHTML = '';
+    var any = false;
+    Object.keys(active).forEach(function (catId) {
+      var cat = catById(catId);
+      if (!cat) return;
+      (active[catId] || []).forEach(function (termId) {
+        var term = termById(cat, termId);
+        if (!term) return;
+        any = true;
+        var label = cat.field_type === 'boolean' ? cat.label : cat.field_type === 'single_select' ? (cat.label + ': ' + term.label) : term.label;
+        var chip = document.createElement('span');
+        chip.className = 'dir-active-chip';
+        var text = document.createElement('span');
+        text.textContent = label;
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.setAttribute('aria-label', 'Remove ' + label);
+        removeBtn.textContent = '\\u00d7';
+        removeBtn.addEventListener('click', function () {
+          active[catId] = (active[catId] || []).filter(function (id) { return id !== termId; });
+          setRowControlState();
+          apply();
+        });
+        chip.appendChild(text);
+        chip.appendChild(removeBtn);
+        chipsEl.appendChild(chip);
+      });
+    });
+    if (clearAllBtn) clearAllBtn.hidden = !any && !(input && input.value.trim());
+  }
+
+  function syncUrl() {
+    // Best-effort only — some embedding contexts (opaque-origin documents,
+    // sandboxed iframes without allow-same-origin) throw on replaceState.
+    // Losing URL shareability there is fine; breaking filtering itself
+    // because of it is not, so this never lets an error escape and stop
+    // whatever called it (apply() runs postToMap() right after).
+    try {
+      if (!window.history || !window.history.replaceState) return;
+      var params = new URLSearchParams();
+      var q = input ? input.value.trim() : '';
+      if (q) params.set('q', q);
+      CATS.forEach(function (cat) {
+        var ids = active[cat.id] || [];
+        if (!ids.length) return;
+        var slugs = ids.map(function (id) { var t = termById(cat, id); return t ? t.slug : null; }).filter(Boolean);
+        if (slugs.length) params.set(cat.key, slugs.join(','));
+      });
+      if (view !== 'list') params.set('view', view);
+      var qs = params.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+    } catch (err) {
+      // ignore — see comment above
+    }
+  }
+
   function apply() {
-    var q = input ? input.value.trim().toLowerCase() : '';
+    var q = input ? input.value.trim() : '';
+    var toks = tokens(q);
     var shown = 0;
-    cards.forEach(function (card) {
-      var searchMatch = !q || card.getAttribute('data-search').indexOf(q) !== -1;
-      var terms = cardTermIds(card);
+
+    rows.forEach(function (row) {
+      var terms = rowTermIds(row);
       var categoryMatch = Object.keys(active).every(function (catId) {
         var selected = active[catId];
-        if (!selected.length) return true;
+        if (!selected || !selected.length) return true;
         return terms.some(function (t) { return selected.indexOf(t) !== -1; });
       });
+      var searchMatch = true;
+      var order = 0;
+      if (toks.length) {
+        var hay = (row.getAttribute('data-search') || '');
+        var score = 0;
+        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
+        searchMatch = score > 0;
+        order = -score;
+      }
       var match = searchMatch && categoryMatch;
-      card.style.display = match ? '' : 'none';
+      row.style.display = match ? '' : 'none';
+      row.style.order = match ? String(order) : '';
       if (match) shown++;
     });
-    if (countEl) countEl.textContent = shown + (shown === 1 ? ' entry' : ' entries');
+
+    if (countEl) {
+      var line;
+      if (q) {
+        line = shown + (shown === 1 ? ' entry matches \\u201c' + q + '\\u201d' : ' entries match \\u201c' + q + '\\u201d');
+      } else if (shown === totalCount) {
+        line = 'All ' + shown + (shown === 1 ? ' entry' : ' entries');
+      } else {
+        line = shown + (shown === 1 ? ' entry' : ' entries');
+      }
+      countEl.textContent = line;
+    }
+    if (mapCountEl) mapCountEl.textContent = shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
+    if (rowsWrap) rowsWrap.hidden = shown === 0;
+    if (emptyEl) emptyEl.hidden = shown !== 0;
+
+    renderChips();
+    syncUrl();
     ${hasMap ? "postToMap();" : ""}
   }
 
@@ -592,27 +842,87 @@ export function buildFilterAndSearchScript(hasMap: boolean): string {
   }
   ` : ""}
 
+  function setView(next) {
+    view = next;
+    segButtons.forEach(function (btn) { btn.classList.toggle('active', btn.getAttribute('data-view') === next); });
+    if (resultsCol) resultsCol.hidden = next !== 'list';
+    if (mapPane) mapPane.hidden = next !== 'map';
+    syncUrl();
+  }
+
   if (form && input) {
     form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
     input.addEventListener('input', apply);
   }
 
-  chips.forEach(function (chip) {
+  document.querySelectorAll('.facet[data-cat-id][data-kind="multi_select"]').forEach(function (chip) {
     chip.addEventListener('click', function () {
       var catId = chip.getAttribute('data-cat-id');
       var termId = chip.getAttribute('data-term-id');
       var selected = active[catId] || [];
       var idx = selected.indexOf(termId);
-      if (idx === -1) selected = selected.concat([termId]);
-      else selected = selected.slice(0, idx).concat(selected.slice(idx + 1));
-      active[catId] = selected;
-      chip.classList.toggle('active', idx === -1);
+      active[catId] = idx === -1 ? selected.concat([termId]) : selected.slice(0, idx).concat(selected.slice(idx + 1));
+      setRowControlState();
       apply();
     });
   });
+
+  document.querySelectorAll('.dir-switch[data-cat-id]').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      var catId = sw.getAttribute('data-cat-id');
+      var termId = sw.getAttribute('data-term-id');
+      var on = (active[catId] || []).indexOf(termId) !== -1;
+      active[catId] = on ? [] : [termId];
+      setRowControlState();
+      apply();
+    });
+  });
+
+  document.querySelectorAll('select.dir-select[data-cat-id]').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      active[sel.getAttribute('data-cat-id')] = sel.value ? [sel.value] : [];
+      apply();
+    });
+  });
+
+  function clearAll() {
+    active = {};
+    if (input) input.value = '';
+    setRowControlState();
+    apply();
+  }
+  if (clearAllBtn) clearAllBtn.addEventListener('click', clearAll);
+  if (emptyClearBtn) emptyClearBtn.addEventListener('click', clearAll);
+
+  segButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () { setView(btn.getAttribute('data-view')); });
+  });
+
+  // Restore state from the URL (shareable/bookmarkable filtered views).
+  (function restoreFromUrl() {
+    var params = new URLSearchParams(location.search);
+    var q = params.get('q');
+    if (q && input) input.value = q;
+    CATS.forEach(function (cat) {
+      var raw = params.get(cat.key);
+      if (!raw) return;
+      var ids = raw.split(',').map(function (slug) { var t = termBySlug(cat, slug); return t ? t.id : null; }).filter(Boolean);
+      if (ids.length) active[cat.id] = ids;
+    });
+    setRowControlState();
+    var v = params.get('view');
+    if (v === 'map' && mapPane) setView('map');
+  })();
+
+  apply();
 })();
 </script>`;
 }
+
+/** One term's rendering metadata, resolved once per landing page build so
+ * each entry row can look up its own terms' labels without re-scanning
+ * `categorisations` per entry. */
+type TermMeta = { label: string; catId: string; catLabel: string; catFieldType: FilterBarCategorisation["field_type"] };
 
 export function buildDirectoryLandingPage(opts: {
   clientSlug: string;
@@ -630,24 +940,55 @@ export function buildDirectoryLandingPage(opts: {
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
-  const cards = visibleEntries
+  const termMeta = new Map<string, TermMeta>();
+  for (const cat of categorisations) {
+    for (const t of cat.terms) {
+      termMeta.set(t.id, { label: t.label, catId: cat.id, catLabel: cat.label, catFieldType: cat.field_type });
+    }
+  }
+
+  const rows = visibleEntries
     .map((e) => {
       const location = e.show_address ? [e.address, e.city, e.country].filter(Boolean).join(", ") : "";
-      const searchText = escapeAttr(`${e.name} ${location}`.toLowerCase());
-      const termIds = escapeAttr((entryTermIds.get(e.id) ?? []).join(","));
+      const termIds = entryTermIds.get(e.id) ?? [];
+      const terms = termIds.map((id) => termMeta.get(id)).filter((t): t is TermMeta => !!t);
+
+      // Chip labels: multi_select terms show their own label; a present
+      // boolean term shows its categorisation's label instead of "Yes"
+      // (matches the design's "switch chips read the switch label" rule).
+      // single_select terms are shown in the aside instead, not repeated
+      // here, to avoid saying the same thing twice in one row.
+      const tagLabels = terms
+        .filter((t) => t.catFieldType !== "single_select")
+        .map((t) => (t.catFieldType === "boolean" ? t.catLabel : t.label))
+        .slice(0, 3);
+      const asideTerm = terms.find((t) => t.catFieldType === "single_select");
+
+      const searchHaystack = [e.name, location, e.meta_description, ...terms.map((t) => t.label)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const searchText = escapeAttr(searchHaystack);
+      const termIdsAttr = escapeAttr(termIds.join(","));
       const panelImageUrl = e.panel_image_url || e.logo_url;
       const logo = panelImageUrl
         ? `<img src="${escapeAttr(panelImageUrl)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
         : "";
       const panelBoxStyle = e.panel_background_color ? ` style="background:${escapeAttr(e.panel_background_color)};"` : "";
-      return `<div class="card" data-search="${searchText}" data-term-ids="${termIds}">
-  <div class="card-logo-box"${panelBoxStyle}>${logo}</div>
-  <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
-    ${location ? `<div class="muted" style="font-size:13px;font-weight:600;">${escapeHtml(location)}</div>` : ""}
-    <h3 style="font-size:19px;line-height:1.2;"><a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}">${escapeHtml(e.name)}</a></h3>
-    <a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${e.slug}`)}" style="margin-top:auto;padding-top:8px;font-size:14.5px;font-weight:700;">View &rarr;</a>
+      const entryUrl = `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
+
+      return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-search="${searchText}" data-term-ids="${termIdsAttr}">
+  <div class="dir-row__logo"${panelBoxStyle}>${logo}</div>
+  <div class="dir-row__body">
+    <h3>${escapeHtml(e.name)}</h3>
+    ${e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
+    ${tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
   </div>
-</div>`;
+  <div class="dir-row__aside">
+    ${location ? escapeHtml(location) : ""}
+    ${asideTerm ? `<strong>${escapeHtml(asideTerm.label)}</strong>` : ""}
+  </div>
+</a>`;
     })
     .join("\n");
 
@@ -668,19 +1009,33 @@ export function buildDirectoryLandingPage(opts: {
   // implementation built from directory_entries. Maps and Directories are
   // two separate Layercake products that compose through this attachment;
   // a directory doesn't reimplement map rendering when one isn't attached,
-  // it simply has no map section. This isn't the abandoned DIR-E8
-  // "directory links to a map" feature (docs/DIRECTORIES.md §4.7's note):
-  // it's the existing map→directory attachment used bidirectionally, only
-  // ever showing a map that has *already* chosen this directory as its
+  // it simply has no map section (no List/Map toggle either — there's
+  // nothing to switch to). This isn't the abandoned DIR-E8 "directory
+  // links to a map" feature (docs/DIRECTORIES.md §4.7's note): it's the
+  // existing map→directory attachment used bidirectionally, only ever
+  // showing a map that has *already* chosen this directory as its
   // datasource — a directory still can't pick an arbitrary map.
-  // This page owns the filter bar (exploreFilterBar below) — tell the
-  // embedded map not to render its own duplicate one; it's driven via
-  // postMessage instead (buildFilterAndSearchScript's postToMap()).
+  // This page owns the filter rail (filterRail below) — tell the embedded
+  // map not to render its own duplicate one; it's driven via postMessage
+  // instead (buildFilterAndSearchScript's postToMap()).
   const mapEmbedSrcWithFlag = attachedMapEmbedSrc
     ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1`
     : null;
-  const mapEmbed = mapEmbedSrcWithFlag
-    ? `<div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:440px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>`
+  const hasMap = !!mapEmbedSrcWithFlag;
+  const rail = filterRail(categorisations);
+
+  const viewToggle = hasMap
+    ? `<div class="dir-seg" id="dir-view-toggle">
+    <button type="button" class="active" data-view="list">List</button>
+    <button type="button" data-view="map">Map</button>
+  </div>`
+    : "";
+
+  const mapPane = hasMap
+    ? `<div id="dir-map-pane" class="dir-map-pane" hidden>
+    <span class="chip dir-map-count" id="dir-map-count"></span>
+    <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
+  </div>`
     : "";
 
   const body = `
@@ -691,28 +1046,37 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
     <h1 style="font-size:44px;line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>
     ${directoryDescription ? `<p class="muted" style="font-size:18px;max-width:600px;margin:0 auto 28px;">${escapeHtml(directoryDescription)}</p>` : ""}
     <form id="dir-search-form" style="max-width:640px;margin:0 auto;display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 18px;box-shadow:0 12px 32px -18px rgba(0,0,0,.35);">
-      <input id="dir-search-input" type="text" placeholder="Search by name or location…" style="flex-grow:1;border:0;outline:0;font-size:16px;font-family:inherit;background:transparent;color:var(--ink);">
+      <input id="dir-search-input" type="text" placeholder="Describe what you are looking for, or search by name" style="flex-grow:1;border:0;outline:0;font-size:16px;font-family:inherit;background:transparent;color:var(--ink);">
       <button type="submit" class="btn btn-primary">Search</button>
     </form>
   </div>
 </div>
-<div class="wrap" style="padding-top:48px;">
-  <div class="eyebrow" style="margin-bottom:8px;">Explore</div>
-  <h2 style="font-size:26px;margin-bottom:16px;">${attachedMapEmbedSrc ? "The map &amp; the directory" : "Filter the directory"}</h2>
-  ${exploreFilterBar(categorisations)}
-  ${mapEmbed}
-</div>
-<div class="wrap" style="padding-top:48px;padding-bottom:20px;">
-  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:20px;">
-    <h2 style="font-size:26px;"><span id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</span></h2>
+<div class="wrap" style="padding-top:40px;padding-bottom:20px;">
+  <div class="dir-toolbar">
+    <div class="dir-toolbar__left">
+      <h2 class="dir-count" id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</h2>
+      <div id="dir-active-chips"></div>
+      <button type="button" class="dir-clear-all" id="dir-clear-all" hidden>Clear all</button>
+    </div>
+    ${viewToggle}
   </div>
   ${linkTiles(directoryLinks)}
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;">
-    ${cards}
+  <div class="dir-body">
+    ${rail}
+    <div class="dir-results" id="dir-results-col">
+      <div class="dir-rows" id="dir-rows">
+        ${rows}
+      </div>
+      <div class="dir-empty" id="dir-empty" hidden>
+        <p style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
+        <button type="button" class="btn btn-ghost" id="dir-empty-clear">Clear all filters</button>
+      </div>
+    </div>
+    ${mapPane}
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: "." })}
-${buildFilterAndSearchScript(!!attachedMapEmbedSrc)}
+${buildFilterAndSearchScript(hasMap, categorisations)}
 `.trim();
 
   return directoryPageShell({
