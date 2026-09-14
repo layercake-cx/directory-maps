@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 4: mobile filter drawer (final phase)
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Fourth and final phase of the directory browse/entry redesign (Phase 0/1/3 entries below). At ≤640px (the app's existing mobile-sheet breakpoint, matching `PublishedMapView.jsx`), the Phase 1 filter rail becomes a bottom-sheet drawer instead of stacking full-width above the results:
+
+- A "Filters (n)" trigger in the toolbar (badge count synced to active facets) opens it.
+- The rail's own element gets a sticky drawer header (Filters / Clear / Show N) via CSS-gated markup — same DOM element repositioned by CSS on narrow screens, not a duplicated copy of the controls.
+- Backdrop click, Escape, or "Show N" close it; "Show N"'s count updates live as facets are toggled (filtering already applies live underneath).
+- 641–900px (tablet) is unchanged from Phase 1 — rail stacks inline, no drawer.
+
+Also added a global `:focus-visible` outline (existing `--primary` token) on every interactive element.
+
+This completes the planned 4-phase scope.
+
+### Verified
+- [x] Browser pane at 375px: drawer opens/closes correctly, live count and active-facet badge sync, no console errors.
+- [x] 760px: confirms tablet width still uses the Phase 1 stacked layout, not the drawer.
+- [x] Entry page (Phase 3) re-checked for regressions — none.
+- [ ] Staging: Edge Function not yet deployed.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase.
+
+---
+
 ## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 3: entry page layout
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
