@@ -232,29 +232,34 @@ async function generateForDirectoryInner(
   const entryTermsByEntry = new Map<string, Map<string, CategorisationTerm[]>>();
   const termSortOrder = new Map<string, number>();
   /** Distinct categorisations + terms actually in use on this directory's entries — feeds exploreFilterBar's real, working chips (DIR-E5-S4). */
-  const categorisationCatalog = new Map<string, { id: string; key: string; label: string; termsById: Map<string, CategorisationTerm> }>();
+  const categorisationCatalog = new Map<string, { id: string; key: string; label: string; field_type: FilterBarCategorisation["field_type"]; termsById: Map<string, CategorisationTerm> }>();
 
   // Only categorisations currently attached to this directory
   // (categorisation_attachments, target_type='directory') feed the filter
   // bar / template block rendering below — detaching a categorisation stops
   // it appearing here even if entries still carry old tags for it, matching
   // the explicit opt-in model (20260829040000_create_categorisation_attachments.sql).
+  // sort_order (20260914170000) is the admin-configured filter-rail render
+  // order for the directory browse/entry redesign — falls back to label
+  // order (via the final .sort below) for any two attachments still tied
+  // at the default 0.
   const { data: attachmentRows, error: attachErr } = await db
     .from("categorisation_attachments")
-    .select("categorisation_id")
+    .select("categorisation_id, sort_order")
     .eq("target_type", "directory")
     .eq("target_id", directory.id);
   if (attachErr) throw new Error(`Categorisation attachments query failed: ${attachErr.message}`);
   const attachedCategorisationIds = new Set((attachmentRows ?? []).map((r) => r.categorisation_id));
+  const attachmentSortOrder = new Map<string, number>((attachmentRows ?? []).map((r) => [r.categorisation_id, r.sort_order ?? 0]));
 
   if (entryIds.length > 0 && attachedCategorisationIds.size > 0) {
     const { data: ectRows, error: ectErr } = await db
       .from("entry_category_terms")
-      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label))")
+      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label, field_type))")
       .in("entry_id", entryIds);
     if (ectErr) throw new Error(`Entry category terms query failed: ${ectErr.message}`);
 
-    type TermEmbed = CategorisationTerm & { categorisations: { key: string; label: string } | { key: string; label: string }[] | null };
+    type TermEmbed = CategorisationTerm & { categorisations: { key: string; label: string; field_type: string } | { key: string; label: string; field_type: string }[] | null };
     for (const row of (ectRows ?? []) as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
       const term = Array.isArray(row.category_terms) ? row.category_terms[0] : row.category_terms;
       if (!term) continue;
@@ -275,10 +280,13 @@ async function generateForDirectoryInner(
       byKey.set(cat.key, list);
       entryTermsByEntry.set(row.entry_id, byKey);
 
+      const fieldType: FilterBarCategorisation["field_type"] =
+        cat.field_type === "single_select" || cat.field_type === "boolean" ? cat.field_type : "multi_select";
       const catEntry = categorisationCatalog.get(term.categorisation_id) ?? {
         id: term.categorisation_id,
         key: cat.key,
         label: cat.label,
+        field_type: fieldType,
         termsById: new Map<string, CategorisationTerm>(),
       };
       catEntry.termsById.set(term.id, termRow);
@@ -291,9 +299,13 @@ async function generateForDirectoryInner(
       id: c.id,
       key: c.key,
       label: c.label,
+      field_type: c.field_type,
       terms: [...c.termsById.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.label.localeCompare(b.label)),
     }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort(
+      (a, b) =>
+        (attachmentSortOrder.get(a.id) ?? 0) - (attachmentSortOrder.get(b.id) ?? 0) || a.label.localeCompare(b.label),
+    );
 
   const entryTermIdsFlat = new Map<string, string[]>();
   for (const [entryId, idSet] of entryTermIdsByEntry) entryTermIdsFlat.set(entryId, [...idSet]);

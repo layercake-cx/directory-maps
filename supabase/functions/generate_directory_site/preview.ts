@@ -46,9 +46,17 @@ const REGION_TERMS = {
   scotland: term("term-region-scotland", "cat-region", "Scotland", "scotland", 2),
 };
 
+const CHARTERED_TERMS = {
+  yes: term("term-chartered-yes", "cat-chartered", "Yes", "yes", 0),
+};
+
+// One of each field_type, matching what the new filter rail needs to
+// render: multi_select (tags), single_select, boolean (a switch, always
+// exactly one term).
 const CATEGORISATIONS: FilterBarCategorisation[] = [
-  { id: "cat-sector", key: "sector", label: "Sector", terms: Object.values(SECTOR_TERMS) },
-  { id: "cat-region", key: "region", label: "Region", terms: Object.values(REGION_TERMS) },
+  { id: "cat-region", key: "region", label: "Region", field_type: "single_select", terms: Object.values(REGION_TERMS) },
+  { id: "cat-sector", key: "sector", label: "Sector", field_type: "multi_select", terms: Object.values(SECTOR_TERMS) },
+  { id: "cat-chartered", key: "chartered", label: "Awards chartered status", field_type: "boolean", terms: Object.values(CHARTERED_TERMS) },
 ];
 
 function makeEntry(opts: {
@@ -95,17 +103,17 @@ const ENTRIES: Entry[] = [
 ];
 
 const ENTRY_TERM_IDS = new Map<string, string[]>([
-  ["ioic", [SECTOR_TERMS.communications.id, REGION_TERMS.midlands.id]],
-  ["bcs", [SECTOR_TERMS.technology.id, REGION_TERMS.southWest.id]],
+  ["ioic", [SECTOR_TERMS.communications.id, REGION_TERMS.midlands.id, CHARTERED_TERMS.yes.id]],
+  ["bcs", [SECTOR_TERMS.technology.id, REGION_TERMS.southWest.id, CHARTERED_TERMS.yes.id]],
   ["scottish-renewables", [SECTOR_TERMS.energy.id, REGION_TERMS.scotland.id]],
-  ["riba", [SECTOR_TERMS.communications.id]],
+  ["riba", [SECTOR_TERMS.communications.id, CHARTERED_TERMS.yes.id]],
 ]);
 
 const ENTRY_TERMS_BY_KEY = new Map<string, Map<string, CategorisationTerm[]>>([
-  ["ioic", new Map([["sector", [SECTOR_TERMS.communications]], ["region", [REGION_TERMS.midlands]]])],
-  ["bcs", new Map([["sector", [SECTOR_TERMS.technology]], ["region", [REGION_TERMS.southWest]]])],
+  ["ioic", new Map([["sector", [SECTOR_TERMS.communications]], ["region", [REGION_TERMS.midlands]], ["chartered", [CHARTERED_TERMS.yes]]])],
+  ["bcs", new Map([["sector", [SECTOR_TERMS.technology]], ["region", [REGION_TERMS.southWest]], ["chartered", [CHARTERED_TERMS.yes]]])],
   ["scottish-renewables", new Map([["sector", [SECTOR_TERMS.energy]], ["region", [REGION_TERMS.scotland]]])],
-  ["riba", new Map([["sector", [SECTOR_TERMS.communications]]])],
+  ["riba", new Map([["sector", [SECTOR_TERMS.communications]], ["chartered", [CHARTERED_TERMS.yes]]])],
 ]);
 
 // Empty object = the "Natural" preset defaults (NATURAL_DEFAULTS in

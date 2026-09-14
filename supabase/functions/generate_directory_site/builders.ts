@@ -512,7 +512,14 @@ ${siteFooter({ directoryName, homeUrl: landingUrl })}
  * map's postMessage listener expects (see loadCategorisationFiltersForEntries
  * in src/lib/categorisations.js, which the live app's PublishedMapView.jsx
  * uses the same way for the in-app filter bar). */
-export type FilterBarCategorisation = { id: string; key: string; label: string; terms: CategorisationTerm[] };
+export type FilterBarCategorisation = {
+  id: string;
+  key: string;
+  label: string;
+  /** Facet kind (categorisations.field_type, 20260914170000) — drives which control the filter rail renders: tag chips (multi_select), a single-select control (single_select), or a switch (boolean, always exactly one term). */
+  field_type: "multi_select" | "single_select" | "boolean";
+  terms: CategorisationTerm[];
+};
 
 /** Real, working faceted filter chips — DIR-E5-S4. Toggling a chip narrows
  * the entry cards below (via data-term-ids baked into each card) and, when
