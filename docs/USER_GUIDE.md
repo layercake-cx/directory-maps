@@ -120,10 +120,13 @@ Open a directory to its **Entries** tab (the default view) to see its entries ta
 - **Group** — a simple, single-value category per directory (add new groups inline from the Basic Info tab). This is distinct from the richer, reusable categorisation model planned for a later phase.
 - **Logo** — paste a hosted image URL, or (once the entry has been saved once) upload a PNG/JPG/WebP file directly (max 2 MB); uploading replaces any previous file-based logo.
 - **Notes** use a rich text (WYSIWYG) editor — bold/italic/underline, headings, bullet/numbered lists, quotes and links. Anything else (scripts, embeds, other formatting) is stripped automatically when the entry is saved.
+- **Pin status** — the entries table shows a **Pin** column: **On map** once an entry has coordinates, **No pin** if it doesn't (e.g. an address that couldn't be found, or an entry created before coordinate lookup existed). Saving the Basic Info tab automatically looks up coordinates from the address/postcode/country whenever that changes or coordinates are still missing — no lat/lng fields are ever shown. Click **Geocode missing coords** above the table to look up every entry currently missing coordinates in one go, e.g. after a CSV import or to backfill older entries.
 
 **Bulk actions:** tick entries' checkboxes (or the header checkbox to select everything on the current page) to reveal a bulk action bar — **Archive**/**Restore** several entries at once, or **Bulk tag…** to add or replace a categorisation's term(s) across the selection.
 
 **CSV import:** click **Download CSV template** for a starter file with the seed columns plus one `category_<key>` column per categorisation attached to this directory (pipe-separate multiple term slugs, e.g. `healthcare|retail`). Click **Import CSV**, choose your file, review the preview, then click **Import**. You'll be asked to choose **Replace all existing entries** or **Add to existing entries** before anything is written. Either way, rows are matched on `id`: a row whose `id` matches an existing entry updates it in place rather than creating a duplicate, and a row with no `id` (or one that doesn't match) is created as a new entry. **Replace** additionally deletes every entry not present in the CSV first. Unrecognised group names are created automatically; unrecognised categorisation terms are skipped with a warning rather than failing the import.
+
+A CSV's own `lat`/`lng` columns are used as-is when filled in; rows left blank are **not** geocoded automatically by the import — click **Geocode missing coords** afterward to fill them in.
 
 **Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
 
@@ -339,6 +342,8 @@ When you change the **Address** (and leave the field, or save), latitude and lon
 ### Directory as data source
 
 *(Requires the Directories beta — see above.)* On **Data**, the **Directories** tab lets a map read its pins live from one of your directories instead of its own listings — pick a directory and click **Use this directory**, or click **Build a directory from this map** to copy this map's own groups and listings into a brand-new directory first (you'll review and publish it, then come back here to attach it). The Directories tab is always open, even if a Google Sheets sync is currently active — attaching a directory automatically disconnects that sync, since a map is either self-authored or directory-sourced, never both. There's no separate sync step once attached: the map's published embed shows the directory's published entries as they currently stand, and updates automatically the next time the directory is published — not on every draft edit. **Manual entry**, **Upload CSV**, and **Sync data** lock while a directory is linked; click **Disconnect** on the Directories tab to revert the map to its own listings. Note: custom filter fields aren't available for a directory-sourced map yet, since directory entries don't have an equivalent to map filter fields.
+
+**A directory entry needs coordinates to show a pin.** An entry without them still appears in the map's list panel, silently without a pin — before attaching a directory to a map, check its entries' **Pin** column (see [Managing entries](#managing-entries)) and click **Geocode missing coords** if any show **No pin**.
 
 ### Loaded Data (logo + logo background per listing)
 
