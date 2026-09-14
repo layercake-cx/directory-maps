@@ -23,11 +23,12 @@
 import {
   buildDirectoryLandingPage,
   buildEntryPage,
-  IMPLICIT_DEFAULT_LAYOUT,
+  relatedEntries,
   type Entry,
   type DirectoryTheme,
   type FilterBarCategorisation,
   type CategorisationTerm,
+  type BlockDescriptor,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -78,7 +79,11 @@ function makeEntry(opts: {
     email: "info@example.org",
     website_url: "https://example.org",
     logo_url: null,
-    notes_html: `<p>${opts.desc}</p>`,
+    // Plain text, not pre-wrapped in <p> — allow_html is false below, so
+    // buildEntryPage escapes and wraps this itself. A fixture bug here
+    // (double-wrapping) is exactly the kind of thing this preview script
+    // exists to catch before it reaches a real directory.
+    notes_html: opts.desc,
     allow_html: false,
     lat: 51.5,
     lng: -0.12,
@@ -109,12 +114,21 @@ const ENTRY_TERM_IDS = new Map<string, string[]>([
   ["riba", [SECTOR_TERMS.communications.id, CHARTERED_TERMS.yes.id]],
 ]);
 
-const ENTRY_TERMS_BY_KEY = new Map<string, Map<string, CategorisationTerm[]>>([
-  ["ioic", new Map([["sector", [SECTOR_TERMS.communications]], ["region", [REGION_TERMS.midlands]], ["chartered", [CHARTERED_TERMS.yes]]])],
-  ["bcs", new Map([["sector", [SECTOR_TERMS.technology]], ["region", [REGION_TERMS.southWest]], ["chartered", [CHARTERED_TERMS.yes]]])],
-  ["scottish-renewables", new Map([["sector", [SECTOR_TERMS.energy]], ["region", [REGION_TERMS.scotland]]])],
-  ["riba", new Map([["sector", [SECTOR_TERMS.communications]], ["chartered", [CHARTERED_TERMS.yes]]])],
-]);
+const ENTRY_TERM_IDS_BY_ENTRY = new Map<string, Set<string>>(
+  [...ENTRY_TERM_IDS.entries()].map(([id, ids]) => [id, new Set(ids)]),
+);
+
+// A couple of blocks carry a section label to exercise the sticky
+// jump-chip bar (Phase 3) — most directories won't label every block.
+const ENTRY_LAYOUT: BlockDescriptor[] = [
+  { type: "hero" },
+  { type: "notes_html", label: "Overview" },
+  { type: "evidence", label: "Evidence" },
+  { type: "accreditations", label: "Accreditations" },
+  { type: "gallery" },
+  { type: "product_tiles" },
+  { type: "links" },
+];
 
 // Empty object = the "Natural" preset defaults (NATURAL_DEFAULTS in
 // builders.ts) — swap in real hex/font values here to preview a different
@@ -147,14 +161,23 @@ for (const entry of ENTRIES) {
     directorySlug: "preview-directory",
     directoryName: "UK Associations (preview)",
     entry,
-    evidence: [],
+    evidence: [
+      { entry_id: entry.id, claim: "Founded", value: "1948", source_url: null, confidence: "High" },
+    ],
     media: [],
     accreditations: [],
     links: [],
     tiles: [],
     theme: THEME,
-    layout: IMPLICIT_DEFAULT_LAYOUT,
-    entryTerms: ENTRY_TERMS_BY_KEY.get(entry.id) ?? new Map(),
+    layout: ENTRY_LAYOUT,
+    categorisations: CATEGORISATIONS,
+    entryTermIds: [...(ENTRY_TERM_IDS.get(entry.id) ?? [])],
+    attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
+    // No key configured in this local script — the Location block still
+    // renders (address text + "Open in directory map"), just without the
+    // static thumbnail. Pass a real Google Maps key here to preview that.
+    staticMapsApiKey: null,
+    related: relatedEntries(entry, ENTRIES, ENTRY_TERM_IDS_BY_ENTRY),
   });
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), html);
 }

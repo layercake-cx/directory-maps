@@ -61,6 +61,7 @@ import {
   buildEntryPage,
   buildDirectoryLandingPage,
   buildLlmsTxt,
+  relatedEntries,
   type Entry,
   type DirectoryTheme,
   type EntryTemplateRow,
@@ -229,7 +230,6 @@ async function generateForDirectoryInner(
   }
 
   const entryTermIdsByEntry = new Map<string, Set<string>>();
-  const entryTermsByEntry = new Map<string, Map<string, CategorisationTerm[]>>();
   const termSortOrder = new Map<string, number>();
   /** Distinct categorisations + terms actually in use on this directory's entries — feeds exploreFilterBar's real, working chips (DIR-E5-S4). */
   const categorisationCatalog = new Map<string, { id: string; key: string; label: string; field_type: FilterBarCategorisation["field_type"]; termsById: Map<string, CategorisationTerm> }>();
@@ -273,13 +273,7 @@ async function generateForDirectoryInner(
       idSet.add(term.id);
       entryTermIdsByEntry.set(row.entry_id, idSet);
 
-      const byKey = entryTermsByEntry.get(row.entry_id) ?? new Map<string, CategorisationTerm[]>();
-      const list = byKey.get(cat.key) ?? [];
       const termRow: CategorisationTerm = { id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order };
-      list.push(termRow);
-      byKey.set(cat.key, list);
-      entryTermsByEntry.set(row.entry_id, byKey);
-
       const fieldType: FilterBarCategorisation["field_type"] =
         cat.field_type === "single_select" || cat.field_type === "boolean" ? cat.field_type : "multi_select";
       const catEntry = categorisationCatalog.get(term.categorisation_id) ?? {
@@ -312,6 +306,37 @@ async function generateForDirectoryInner(
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
 
+  // Decision (2026-08-28): a directory's homepage map is exclusively the
+  // Map product attached to it via DIR-E4 — Maps and Directories are two
+  // separate Layercake products that compose through this attachment, not
+  // two independent map implementations. No attached map means no map
+  // section on the homepage, not a homegrown fallback built from
+  // directory_entries (that fallback existed before this decision and has
+  // been removed, along with the /directory-embed route it fed). Computed
+  // before the entry-page loop below so each entry's "Show on map" /
+  // "Open in directory map" links (Phase 3) can use it too.
+  let attachedMapEmbedSrc: string | null = null;
+  const { data: mapAssoc } = await db
+    .from("directory_map_associations")
+    .select("map_id")
+    .eq("directory_id", directory.id)
+    .limit(1)
+    .maybeSingle();
+  if (mapAssoc?.map_id) {
+    const { data: attachedMap } = await db.from("maps").select("slug").eq("id", mapAssoc.map_id).maybeSingle();
+    attachedMapEmbedSrc = attachedMap?.slug
+      ? `${SITE_ORIGIN}/${client.slug}/${attachedMap.slug}`
+      : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
+  }
+
+  // Static Maps API key for each entry page's Location thumbnail (Phase 3)
+  // — additive and optional: falls back to no image (never blocks
+  // generation) if unset. Same env var precedence as geocode_listings/
+  // geocode_address/geocode_directory_entries; a key scoped for geocoding
+  // only may need the Static Maps API separately enabled in Google Cloud
+  // Console for the thumbnail to actually render.
+  const staticMapsApiKey = Deno.env.get("GOOGLE_GEOCODING_API_KEY") ?? Deno.env.get("GOOGLE_MAPS_API_KEY") ?? null;
+
   // Entry pages upload one at a time until this point — for a 177-entry
   // production directory that measured ~120s end-to-end, essentially all of
   // it this loop (every other step is a handful of batched Promise.all DB
@@ -334,31 +359,14 @@ async function generateForDirectoryInner(
       tiles: tilesByEntry.get(entry.id) ?? [],
       theme,
       layout,
-      entryTerms: entryTermsByEntry.get(entry.id) ?? new Map(),
+      categorisations: filterBarCategorisations,
+      entryTermIds: [...(entryTermIdsByEntry.get(entry.id) ?? [])],
+      attachedMapEmbedSrc,
+      staticMapsApiKey,
+      related: relatedEntries(entry, entries, entryTermIdsByEntry),
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
-
-  // Decision (2026-08-28): a directory's homepage map is exclusively the
-  // Map product attached to it via DIR-E4 — Maps and Directories are two
-  // separate Layercake products that compose through this attachment, not
-  // two independent map implementations. No attached map means no map
-  // section on the homepage, not a homegrown fallback built from
-  // directory_entries (that fallback existed before this decision and has
-  // been removed, along with the /directory-embed route it fed).
-  let attachedMapEmbedSrc: string | null = null;
-  const { data: mapAssoc } = await db
-    .from("directory_map_associations")
-    .select("map_id")
-    .eq("directory_id", directory.id)
-    .limit(1)
-    .maybeSingle();
-  if (mapAssoc?.map_id) {
-    const { data: attachedMap } = await db.from("maps").select("slug").eq("id", mapAssoc.map_id).maybeSingle();
-    attachedMapEmbedSrc = attachedMap?.slug
-      ? `${SITE_ORIGIN}/${client.slug}/${attachedMap.slug}`
-      : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
-  }
 
   const landingHtml = buildDirectoryLandingPage({
     clientSlug: client.slug,

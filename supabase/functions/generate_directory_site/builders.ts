@@ -236,9 +236,41 @@ const LAYOUT_STYLE = `
   .dir-empty { padding: 48px 24px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
+
+  .dir-entry-header { display: flex; gap: 24px; align-items: flex-start; padding: 32px 0 24px; flex-wrap: wrap; }
+  .dir-entry-header__logo { width: 96px; height: 96px; border-radius: 16px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dir-entry-header__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
+  .dir-entry-header__body { flex: 1; min-width: 240px; }
+  .dir-entry-header__desc { font-size: 16px; color: var(--muted); line-height: 1.6; margin: 10px 0 14px; max-width: 64ch; }
+  .dir-entry-header__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .dir-entry-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dir-jumpbar-outer { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .dir-jumpbar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0; }
+  .dir-jumpchip { flex: none; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink); text-decoration: none; white-space: nowrap; }
+  .dir-jumpchip:hover { background: var(--surface); }
+  .dir-entry-section { scroll-margin-top: 62px; padding-top: 28px; }
+  .dir-entry-body { display: flex; align-items: flex-start; gap: 32px; padding-top: 8px; padding-bottom: 48px; }
+  .dir-entry-main { flex: 1; min-width: 0; }
+  .dir-aside { width: 300px; flex: none; display: flex; flex-direction: column; gap: 24px; }
+  .dir-static-map { width: 100%; height: 160px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); display: block; margin-bottom: 8px; }
+  .dir-aside-location-text { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dir-attrs { display: flex; flex-direction: column; }
+  .dir-attr-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .dir-attr-row:last-child { border-bottom: 0; }
+  .dir-attr-row span:first-child { color: var(--muted); }
+  .dir-attr-row span:last-child { font-weight: 600; text-align: right; }
+  .dir-related-list { display: flex; flex-direction: column; gap: 10px; }
+  .dir-related-row { display: flex; gap: 10px; align-items: center; text-decoration: none; color: inherit; }
+  .dir-related-row__logo { width: 36px; height: 36px; border-radius: 8px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dir-related-row__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
+  .dir-related-row__body strong { display: block; font-size: 13px; }
+  .dir-related-row__body span { font-size: 12px; color: var(--muted); }
+
   @media (max-width: 900px) {
     .dir-body { flex-direction: column; }
     .dir-rail { width: 100%; }
+    .dir-entry-body { flex-direction: column; }
+    .dir-aside { width: 100%; }
   }
 `;
 
@@ -446,6 +478,13 @@ export function entrySchemaOrg(entry: Entry, canonicalUrl: string): Record<strin
   };
 }
 
+/** Anchor id for a jump-chip section — stable, URL-safe, and unique even
+ * across two blocks with the same admin-entered label (index suffix). */
+function sectionAnchorId(label: string, index: number): string {
+  const slug = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `s${index}-${slug || "section"}`;
+}
+
 export function buildEntryPage(opts: {
   clientSlug: string;
   directorySlug: string;
@@ -458,11 +497,22 @@ export function buildEntryPage(opts: {
   tiles: ProductTile[];
   theme: DirectoryTheme;
   layout: BlockDescriptor[];
-  entryTerms: Map<string, CategorisationTerm[]>; // categorisation.key -> this entry's terms for it
+  /** Every categorisation attached to this directory (not just ones this entry holds terms for) — needed so "Directory attributes" can show a row even for a value this entry doesn't have (e.g. a boolean's "No"). */
+  categorisations: FilterBarCategorisation[];
+  /** This entry's own held term ids. */
+  entryTermIds: string[];
+  /** The directory's attached map, if any — for "Show on map" / "Open in directory map". Same source as buildDirectoryLandingPage's map pane (DIR-E4), not a second map implementation. */
+  attachedMapEmbedSrc: string | null;
+  /** Google Static Maps API key for the Location aside's thumbnail. Omitted (block still renders, just without the image) if not configured — additive, never blocks generation. */
+  staticMapsApiKey: string | null;
+  /** Up to 4 other entries sharing at least one categorisation term, already ranked by shared-term count — computed once per directory in generateForDirectoryInner (all the data it needs is already in memory there) rather than re-queried per entry. */
+  related: Entry[];
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, entryTerms } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
+  const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
+  const filterLink = (catKey: string, slug: string) => `${landingUrl}?${encodeURIComponent(catKey)}=${encodeURIComponent(slug)}`;
 
   const location = entry.show_address ? [entry.address, entry.city, entry.postcode, entry.country].filter(Boolean).join(", ") : "";
   const notes = entry.notes_html
@@ -474,25 +524,57 @@ export function buildEntryPage(opts: {
   const hero = media.find((m) => m.is_hero) ?? null;
   const gallery = media.filter((m) => m !== hero);
 
-  // One HTML fragment per DIR-E6 block type (docs/DIRECTORIES.md §4.4) —
-  // rendered in whatever order `layout` specifies rather than a fixed
-  // sequence. Each returns "" when it has nothing to show, so an empty
-  // section never leaves a gap. Styling matches the design canvas per
-  // block (hero image, quick-facts-style tag chips via the categorisation
-  // block, Viator-style product tiles, a bordered "at-a-glance" contact
-  // card) rather than the mockup's fixed 2-column sticky-aside layout —
-  // see docs/DEPLOYMENTS.md's DIR-E3 visual-rebuild entry for why: this
-  // keeps every block independently reorderable, which the aside's fixed
-  // structural split wouldn't allow.
+  const heldIds = new Set(entryTermIds);
+  const termMeta = buildTermMetaIndex(categorisations);
+  const heldTerms = entryTermIds.map((id) => termMeta.get(id)).filter((t): t is TermMeta => !!t);
+  // categorisation.key -> this entry's terms for it, for the "categorisation" block type below.
+  const entryTermsByKey = new Map<string, CategorisationTerm[]>();
+  for (const t of heldTerms) {
+    const list = entryTermsByKey.get(t.catKey) ?? [];
+    list.push({ id: "", categorisation_id: t.catId, label: t.label, slug: t.slug, sort_order: 0 });
+    entryTermsByKey.set(t.catKey, list);
+  }
+
+  // ---- Fixed header band (logo, name, description, tag row, actions) ----
+  // Deliberately NOT one of the reorderable DIR-E6 blocks below — the
+  // design's header is structurally fixed above the body, so `logo` and
+  // `heading` blocks (still valid entries in an existing directory's
+  // layout_json for backward compatibility) are simply not repeated here;
+  // admin-configured order continues to control everything else.
+  const headerTagLabels = heldTerms
+    .filter((t) => t.catFieldType !== "single_select")
+    .map((t) => (t.catFieldType === "boolean" ? t.catLabel : t.label))
+    .slice(0, 4);
+  const websiteButton = entry.show_website && entry.website_url
+    ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a>`
+    : "";
+  const showOnMapButton = attachedMapEmbedSrc
+    ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}">Show on map</a>`
+    : "";
+
+  const header = `<div class="dir-entry-header">
+  ${entry.logo_url ? `<div class="dir-entry-header__logo"><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>` : ""}
+  <div class="dir-entry-header__body">
+    <h1 style="font-size:34px;line-height:1.1;">${escapeHtml(entry.name)}</h1>
+    ${entry.meta_description ? `<p class="dir-entry-header__desc">${escapeHtml(entry.meta_description)}</p>` : ""}
+    ${headerTagLabels.length ? `<div class="dir-entry-header__tags">${headerTagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
+    ${websiteButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${showOnMapButton}</div>` : ""}
+  </div>
+</div>`;
+
+  // ---- Body blocks (admin-ordered, DIR-E6 §4.4) ----
   const contactParts = [
     entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
     entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : "",
     entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : "",
   ].filter(Boolean);
 
+  // logo/heading render "" here — they're in the fixed header above, but
+  // stay valid block types so an existing directory's layout_json (which
+  // may still list them) doesn't error; harmless no-ops going forward.
   const blockHtml: Record<string, string> = {
-    logo: entry.logo_url ? `<img class="entry-logo" src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo">` : "",
-    heading: `<h1 style="font-size:36px;margin:8px 0;">${escapeHtml(entry.name)}</h1>`,
+    logo: "",
+    heading: "",
     address_map: location
       ? `<p class="muted" style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;">${escapeHtml(location)}</p>`
       : "",
@@ -507,8 +589,13 @@ export function buildEntryPage(opts: {
           .join("")}</div>`
       : "",
     notes_html: notes ? `<div class="prose">${notes}</div>` : "",
+    // No internal heading — every block relies on the admin-set section
+    // label (below) for one now; evidence used to hardcode "<h2>Evidence</h2>"
+    // here, which double-rendered once a label was added. A directory using
+    // this block without labeling it loses that heading; label it "Evidence"
+    // in Entry Layout to get one back (and a jump-chip alongside it).
     evidence: evidence.length
-      ? `<h2>Evidence</h2><dl class="evidence-list">${evidence
+      ? `<dl class="evidence-list">${evidence
           .map((e) => `<dt>${escapeHtml(e.claim)}${e.confidence ? ` <span class="tag">${escapeHtml(e.confidence)}</span>` : ""}</dt><dd>${escapeHtml(e.value || "")}${e.source_url ? ` — <a href="${escapeAttr(e.source_url)}" rel="noopener noreferrer">source</a>` : ""}</dd>`)
           .join("")}</dl>`
       : "",
@@ -523,17 +610,104 @@ export function buildEntryPage(opts: {
     links: linkTiles(links),
   };
 
-  function renderBlock(block: BlockDescriptor): string {
+  function renderBlockContent(block: BlockDescriptor): string {
     if (block.type === "categorisation") {
-      const terms = (block.key && entryTerms.get(block.key)) || [];
+      const terms = (block.key && entryTermsByKey.get(block.key)) || [];
       if (terms.length === 0) return "";
       const chips = terms
-        .map((t) => `<a class="category-chip" href="${escapeAttr(`${landingUrl}?${encodeURIComponent(block.key!)}=${encodeURIComponent(t.slug)}`)}">${escapeHtml(t.label)}</a>`)
+        .map((t) => `<a class="category-chip" href="${escapeAttr(filterLink(block.key!, t.slug))}">${escapeHtml(t.label)}</a>`)
         .join("");
       return `<div class="category-chips">${chips}</div>`;
     }
     return blockHtml[block.type] ?? "";
   }
+
+  // Sticky jump-chip bar (design's "On this page") — one chip per block
+  // that carries an admin-set section label (EntryLayoutDesigner.jsx,
+  // Phase 0). A block with no label renders inline with no chip/anchor, so
+  // existing configured layouts are unaffected until an admin opts in.
+  const jumpChips: string[] = [];
+  const sections = layout.map((block, i) => {
+    const content = renderBlockContent(block);
+    if (!content) return "";
+    if (!block.label) return content;
+    const id = sectionAnchorId(block.label, i);
+    jumpChips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(block.label)}</a>`);
+    return `<div class="dir-entry-section" id="${id}"><h2 style="font-size:22px;margin-bottom:12px;">${escapeHtml(block.label)}</h2>${content}</div>`;
+  }).join("\n");
+  const jumpBar = jumpChips.length
+    ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${jumpChips.join("")}</nav></div>`
+    : "";
+
+  // ---- Right aside ----
+  const primaryHex = resolvedTheme(theme).primaryColor.replace(/^#/, "");
+  const staticMap =
+    staticMapsApiKey && typeof entry.lat === "number" && typeof entry.lng === "number"
+      ? `<img class="dir-static-map" loading="lazy" alt="Map showing ${escapeAttr(entry.name)}'s location" src="${escapeAttr(
+          `https://maps.googleapis.com/maps/api/staticmap?center=${entry.lat},${entry.lng}&zoom=14&size=600x300&scale=2&markers=color:0x${primaryHex}%7C${entry.lat},${entry.lng}&key=${staticMapsApiKey}`,
+        )}">`
+      : "";
+  const locationBlock = location || attachedMapEmbedSrc
+    ? `<div class="dir-aside-block">
+  <span class="dir-rail__label">Location</span>
+  ${staticMap}
+  ${location ? `<div class="dir-aside-location-text">${escapeHtml(location)}</div>` : ""}
+  ${attachedMapEmbedSrc ? `<a href="${escapeAttr(attachedMapEmbedSrc)}">Open in directory map &rarr;</a>` : ""}
+</div>`
+    : "";
+
+  // Directory attributes: every single_select/boolean categorisation gets
+  // a row, even ones this entry has no value for ("—" / "No") — a
+  // consistent at-a-glance table, not just "whatever happens to be set".
+  const attrRows = categorisations
+    .filter((c) => c.field_type !== "multi_select")
+    .map((c) => {
+      if (c.field_type === "boolean") {
+        const term = c.terms[0];
+        const on = !!term && heldIds.has(term.id);
+        const value = on && term ? `<a href="${escapeAttr(filterLink(c.key, term.slug))}">Yes</a>` : "No";
+        return `<div class="dir-attr-row"><span>${escapeHtml(c.label)}</span><span>${value}</span></div>`;
+      }
+      const held = c.terms.find((t) => heldIds.has(t.id));
+      const value = held ? `<a href="${escapeAttr(filterLink(c.key, held.slug))}">${escapeHtml(held.label)}</a>` : "—";
+      return `<div class="dir-attr-row"><span>${escapeHtml(c.label)}</span><span>${value}</span></div>`;
+    })
+    .join("");
+  const attrsBlock = attrRows
+    ? `<div class="dir-aside-block"><span class="dir-rail__label">Directory attributes</span><div class="dir-attrs">${attrRows}</div></div>`
+    : "";
+
+  // One chip-list block per multi_select categorisation this entry holds
+  // terms for (e.g. "Sector", or an admin-defined "Audience") — generic
+  // equivalent of the design's single hardcoded "Who it is for" block.
+  const tagBlocks = categorisations
+    .filter((c) => c.field_type === "multi_select")
+    .map((c) => {
+      const held = c.terms.filter((t) => heldIds.has(t.id));
+      if (held.length === 0) return "";
+      const chips = held.map((t) => `<a class="category-chip" href="${escapeAttr(filterLink(c.key, t.slug))}">${escapeHtml(t.label)}</a>`).join("");
+      return `<div class="dir-aside-block"><span class="dir-rail__label">${escapeHtml(c.label)}</span><div class="category-chips" style="margin:0;">${chips}</div></div>`;
+    })
+    .join("");
+
+  const relatedBlock = related.length
+    ? `<div class="dir-aside-block">
+  <span class="dir-rail__label">Related entries</span>
+  <div class="dir-related-list">
+    ${related
+      .map((r) => {
+        const rLogo = r.panel_image_url || r.logo_url;
+        return `<a class="dir-related-row" href="${escapeAttr(entryUrl(r))}">
+      <div class="dir-related-row__logo">${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="">` : ""}</div>
+      <div class="dir-related-row__body"><strong>${escapeHtml(r.name)}</strong>${r.city ? `<span>${escapeHtml(r.city)}</span>` : ""}</div>
+    </a>`;
+      })
+      .join("\n")}
+  </div>
+</div>`
+    : "";
+
+  const aside = [locationBlock, attrsBlock, tagBlocks, relatedBlock].filter(Boolean).join("\n");
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
@@ -541,9 +715,14 @@ export function buildEntryPage(opts: {
 
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
-<div class="wrap" style="padding-bottom:40px;">
+<div class="wrap">
 ${breadcrumb}
-${layout.map(renderBlock).join("\n")}
+${header}
+</div>
+${jumpBar}
+<div class="wrap dir-entry-body">
+  <div class="dir-entry-main">${sections}</div>
+  ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl })}
 `.trim();
@@ -919,10 +1098,28 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 </script>`;
 }
 
-/** One term's rendering metadata, resolved once per landing page build so
- * each entry row can look up its own terms' labels without re-scanning
- * `categorisations` per entry. */
-type TermMeta = { label: string; catId: string; catLabel: string; catFieldType: FilterBarCategorisation["field_type"] };
+/** One term's rendering metadata, resolved once per page build (landing or
+ * entry) so a row/section can look up its own terms' labels without
+ * re-scanning `categorisations` per entry. Shared between
+ * buildDirectoryLandingPage and buildEntryPage. */
+type TermMeta = {
+  label: string;
+  slug: string;
+  catId: string;
+  catKey: string;
+  catLabel: string;
+  catFieldType: FilterBarCategorisation["field_type"];
+};
+
+function buildTermMetaIndex(categorisations: FilterBarCategorisation[]): Map<string, TermMeta> {
+  const termMeta = new Map<string, TermMeta>();
+  for (const cat of categorisations) {
+    for (const t of cat.terms) {
+      termMeta.set(t.id, { label: t.label, slug: t.slug, catId: cat.id, catKey: cat.key, catLabel: cat.label, catFieldType: cat.field_type });
+    }
+  }
+  return termMeta;
+}
 
 export function buildDirectoryLandingPage(opts: {
   clientSlug: string;
@@ -940,12 +1137,7 @@ export function buildDirectoryLandingPage(opts: {
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
-  const termMeta = new Map<string, TermMeta>();
-  for (const cat of categorisations) {
-    for (const t of cat.terms) {
-      termMeta.set(t.id, { label: t.label, catId: cat.id, catLabel: cat.label, catFieldType: cat.field_type });
-    }
-  }
+  const termMeta = buildTermMetaIndex(categorisations);
 
   const rows = visibleEntries
     .map((e) => {
@@ -1087,6 +1279,26 @@ ${buildFilterAndSearchScript(hasMap, categorisations)}
     body,
     theme,
   });
+}
+
+/** Up to `max` other active entries sharing at least one categorisation
+ * term with `entry`, ranked by shared-term count then name. Pure/in-memory
+ * — generateForDirectoryInner already loads every entry's term ids for the
+ * whole directory (for the filter rail), so this needs no extra DB query. */
+export function relatedEntries(entry: Entry, allEntries: Entry[], termIdsByEntry: Map<string, Set<string>>, max = 4): Entry[] {
+  const mine = termIdsByEntry.get(entry.id);
+  if (!mine || mine.size === 0) return [];
+  const scored: { entry: Entry; score: number }[] = [];
+  for (const other of allEntries) {
+    if (other.id === entry.id) continue;
+    const theirs = termIdsByEntry.get(other.id);
+    if (!theirs || theirs.size === 0) continue;
+    let score = 0;
+    for (const id of mine) if (theirs.has(id)) score++;
+    if (score > 0) scored.push({ entry: other, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+  return scored.slice(0, max).map((s) => s.entry);
 }
 
 export function buildLlmsTxt(opts: {
