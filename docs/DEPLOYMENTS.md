@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Production] Data recovery: "Industry Sector" categorisation for the UK Associations Sample Map directory
+
+**Branch/PR:** `fix/2026-09-14-recover-industry-sector-categorisation` (PR not opened yet).
+
+### What changed
+User-requested investigation + recovery, done live in production at the user's explicit direction. The directory backing the "UK Associations Sample Map" map (directory id `5645c858-0a9a-4787-8944-d8a5529089a9`, client `a1b92aba-fcfb-485a-b1ba-c8d93344ff72`, 329 entries, all `source='csv'`) had zero Categorisations — confirmed live via the production REST API (anon key; no service-role/DB access was otherwise available this session). Traced why: the map that reads its pins live from this directory (`24f52c3d-cbfc-446d-bffc-b500f257b90c`, `directory_as_datasource`) has its own native `map_filter_fields` row, "Industry Sector" (single_select, 42 real options + one "test" placeholder), with 176 `listing_filter_values` rows tagging its own `listings` — but that data was never connected to the directory side; the two are unrelated tables, and whatever originally populated the 329 CSV-sourced directory entries had no matching Categorisation to resolve a category column against, so nothing landed in `entry_category_terms`.
+
+Two migrations recreate and reconnect this data:
+- `20260914190000_recover_industry_sector_categorisation.sql` — creates the "Industry Sector" Categorisation (client-wide, `field_type: single_select`) with its 42 real terms (copied from `map_filter_field_options`, `test` excluded), and attaches it to the directory only (the map keeps its own separate, untouched `map_filter_fields` entry).
+- `20260914200000_recover_industry_sector_entry_tags.sql` — **fixes a wrong assumption in the first attempt**: the first migration tried to match entries to a `listings` row by name (assuming a normal `listings` table), which matched zero entries because this map has *zero* rows in `listings` at all (its pins come from the directory, not the other way). Investigated live and found the real relationship: `listing_filter_values.listing_id` for this field holds the exact same UUIDs as `directory_entries.id` (verified: all 176 values are a 100% subset of the directory's 329 entry ids) — almost certainly preserved from whatever originally connected this map and directory. The second migration joins on that direct id correspondence instead, and tagged 176 of 329 entries (the other 153 entries were never tagged with a sector on the map side to begin with — not a matching failure).
+
+After both migrations, triggered `generate_directory_site` directly via its HTTP endpoint (anon key was sufficient — the function creates its own privileged service-role DB client internally, so the caller's own auth level doesn't matter beyond passing Supabase's edge gateway) to republish the directory with the new filter. Verified live: `https://maps.layercake-cx.biz/directories/layercake/uk-associations-sample-map` now shows an "Industry Sector" filter with all 42 options; selecting "Legal" correctly narrows to the 4 real entries tagged with it (e.g. "Chartered Institute of Arbitrators").
+
+### Verified
+- [x] Both migrations' own pre/post assertions passed (the first migration's own post-check does not catch a zero-tag result — a lesson for next time: assert coverage, not just existence, when writing this kind of recovery migration).
+- [x] `generate_directory_site` re-triggered successfully (`{"ok":true,"count":329}`).
+- [x] Live production page: filter rail shows "Industry Sector" with all 42 terms; selecting "Legal" correctly filters to 4 real entries.
+- [ ] Not verified whether the 153 untagged entries are genuinely un-sectored on the source map, or represent a second, unaccounted-for data-loss point — out of scope for this fix, flagging in case it matters later.
+
+### Rollback plan
+Run `_20260914200000_recover_industry_sector_entry_tags.rollback.sql` to remove just the entry tags (keeps the categorisation/terms/attachment), or `_20260914190000_recover_industry_sector_categorisation.rollback.sql` to remove the whole thing (cascades to terms/attachment/tags) — both refuse safely if run out of order or if nothing exists to roll back. Republish the directory afterward (`generate_directory_site`) to remove the filter from the live page.
+
+---
+
 ## 2026-09-14 — [Production] Directory browse/entry redesign: migration + Edge Function deployed
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` ([PR #171](https://github.com/layercake-cx/directory-maps/pull/171)).
