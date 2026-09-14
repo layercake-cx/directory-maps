@@ -8,6 +8,54 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Fix: directory-sourced maps showed zero pins (directory entries were never geocoded)
+
+**Branch/PR:** `fix/2026-09-14-directory-entries-geocoding` (PR not opened yet).
+
+### What changed
+Production bug: a map using a directory as its live pin datasource (DIR-E4-S2) showed every listing in the sidebar but zero pins on the map (reported live on `layercake/uk-associations-sample-map`). Root cause: directory entries have never had a geocoding pipeline at all — unlike listings (`geocode_listings`), nothing ever populated `directory_entries.lat`/`lng`, even though the entry editor's own code comment claimed coordinates were "auto-geocoded". Confirmed against production: all 329 entries in the affected directory had `lat`/`lng`/`geocode_status` all null despite valid addresses. `DirectoryMap.jsx` silently drops any entry without coordinates from the map (no error, no empty-state messaging), while the list panel has no such filter — hence full list, no pins.
+
+- New `geocode_directory_entries` Edge Function (mirrors `geocode_listings`), gated by the existing `requireDirectoryAccess` helper. Batch-geocodes every active entry in a directory missing lat/lng, in the background.
+- `EntryBasicInfoTab` now calls the existing `geocode_address` function synchronously on save (create or update) when the address/postcode/country changed or coordinates are missing — makes the "auto-geocoded" comment actually true for the manual single-entry flow, with no lat/lng fields ever exposed in the form.
+- "Geocode missing coords" button and a **Pin** status column (On map / No pin) added to `DirectoryEntriesPanel.jsx` — shared by admin and client, so both surfaces get this together. Used to backfill existing entries (including CSV-imported ones).
+- `data_geocode_started` / `data_geocode_failed` admin events wired per AGENTS.md's admin event instrumentation rules (meta: `directory_id`, `client_id`, `error` on failure).
+- Migration `20260914120000_directory_entries_geocoded_at.sql` adds `directory_entries.geocoded_at` (peer of `listings.geocoded_at`) — additive only, no data touched.
+
+### Verified
+- [x] `npm run build` — passes.
+- [ ] Staging: migration dry-run + apply, Edge Function deploy, manual entry save geocodes, "Geocode missing coords" backfills a test directory.
+- [ ] Production: migration + Edge Function deploy, then backfill `layercake/uk-associations-sample-map`'s directory (329 entries) and confirm pins reappear on the live map.
+
+### Rollback plan
+Revert this branch's merge on `main`, redeploy the frontend, and run `_20260914120000_directory_entries_geocoded_at.rollback.sql` (refuses if `geocoded_at` has data — check first). No existing `lat`/`lng` values are touched or overwritten by this change; rolling back only removes the new column and the geocoding pathway, not any coordinates already backfilled.
+
+---
+
+## 2026-09-14 — [Staging] Directory listing cards: white logo background, auto-black for light-on-transparent logos
+
+**Branch/PR:** `feat/2026-09-14-directory-card-logo-bg-default` (PR not opened yet).
+
+### What changed
+Directory homepage listing cards (the logo box at the top of each entry tile) used the directory theme's alt surface colour as the default background — typically a warm grey/beige. Most logos are designed to sit on white, so they looked washed-out or muddy. White-on-transparent logos (common for dark brand marks saved as PNG) were the opposite problem: invisible on a light surface.
+
+- **Default is now white** (`#ffffff`) on `.card-logo-box`, instead of `var(--surface-2)`.
+- **Automatic flip to black** when the logo itself is mostly transparent with light/white ink. A small pixel heuristic (`src/lib/logoBackground.js`, mirrored in `generate_directory_site`'s `buildCardLogoBgScript()`) samples the image; if it can't read the pixels (CORS, decode failure, JPEG with no alpha) it keeps white.
+- Editors can still override per entry on **Panel Style** (Auto / White / Light / Mid / Dark / Black, plus a free-text colour). Auto means "use the detected default", not "use the directory theme". The editor preview uses the same detection so first load already looks right.
+- No database migration — `directory_entries.panel_background_color` is still the optional override; unset still means "automatic".
+- Published directories only pick this up after `generate_directory_site` is redeployed **and** that directory is republished (static HTML). The in-app editor preview updates with the frontend deploy alone.
+
+### Verified
+- [x] Heuristic checked against synthetic pixel buffers (white-on-transparent → black; dark-on-transparent / opaque colour → white).
+- [x] `deno check supabase/functions/generate_directory_site/index.ts` — clean.
+- [x] `npm run build` — clean, no errors.
+- [ ] Editor Panel Style preview in the running app (client and admin share `EntryPanelTab.jsx`).
+- [ ] Staging: `generate_directory_site` not yet deployed; no directory republished.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy the frontend. Redeploy `generate_directory_site` to the previous version (or revert the function in the same PR revert) and republish any directory that was published with the new generator. No schema to unwind; saved `panel_background_color` values are unchanged.
+
+---
+
 ## 2026-09-08 — [Production] Directory entries: confirm overwrite vs. add on CSV import
 
 **Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert`, [#166](https://github.com/layercake-cx/directory-maps/pull/166).
