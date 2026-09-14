@@ -237,6 +237,34 @@ const LAYOUT_STYLE = `
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
 
+  .dir-filters-trigger { display: none; }
+  .dir-rail__drawer-header { display: none; }
+  .dir-rail-backdrop { display: none; }
+  @media (max-width: 640px) {
+    .dir-filters-trigger { display: inline-flex; align-items: center; gap: 6px; }
+    .dir-rail {
+      display: none;
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 21;
+      max-height: 78vh; width: auto; border-radius: 18px 18px 0 0;
+      box-shadow: var(--shadow-lg, 0 -10px 34px rgba(0,0,0,.25));
+      overflow-y: auto; border-bottom: 0;
+    }
+    .dir-rail.dir-rail--open { display: block; }
+    .dir-rail__drawer-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+    }
+    .dir-rail__drawer-header span:first-child { font-family: var(--font-heading); font-weight: 600; font-size: 15px; }
+    .dir-rail-backdrop.dir-rail-backdrop--open {
+      display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 20;
+    }
+  }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 2px;
+  }
+
   .dir-entry-header { display: flex; gap: 24px; align-items: flex-start; padding: 32px 0 24px; flex-wrap: wrap; }
   .dir-entry-header__logo { width: 96px; height: 96px; border-radius: 16px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .dir-entry-header__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
@@ -799,7 +827,15 @@ export function filterRail(categorisations: FilterBarCategorisation[]): string {
 </div>`;
     })
     .join("");
-  return `<aside id="dir-filter-rail" class="dir-rail">${groups}</aside>`;
+  // The drawer header (mobile only, CSS-gated) turns this same element into
+  // a bottom sheet on narrow screens instead of a second, duplicate copy of
+  // the filter controls — one set of controls, one set of listeners.
+  const drawerHeader = `<div class="dir-rail__drawer-header">
+  <span id="dir-drawer-title">Filters</span>
+  <button type="button" class="dir-clear-all" id="dir-drawer-clear">Clear</button>
+  <button type="button" class="btn btn-primary" id="dir-drawer-show">Show <span id="dir-drawer-count"></span></button>
+</div>`;
+  return `<aside id="dir-filter-rail" class="dir-rail">${drawerHeader}${groups}</aside>`;
 }
 
 // Ported from the Claude Design concept's own logic class (design doc:
@@ -863,6 +899,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var segButtons = Array.prototype.slice.call(document.querySelectorAll('#dir-view-toggle button'));
   var resultsCol = document.getElementById('dir-results-col');
   var mapPane = document.getElementById('dir-map-pane');
+  var railEl = document.getElementById('dir-filter-rail');
+  var railBackdrop = document.getElementById('dir-rail-backdrop');
+  var filtersTriggerBtn = document.getElementById('dir-filters-trigger');
+  var filtersBadgeEl = document.getElementById('dir-filters-badge');
+  var drawerClearBtn = document.getElementById('dir-drawer-clear');
+  var drawerShowBtn = document.getElementById('dir-drawer-show');
+  var drawerCountEl = document.getElementById('dir-drawer-count');
 
   var active = {}; // catId -> string[] of selected term ids
   var view = 'list';
@@ -910,6 +953,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function renderChips() {
+    var activeFacetCount = Object.keys(active).filter(function (catId) { return (active[catId] || []).length > 0; }).length;
+    if (filtersBadgeEl) filtersBadgeEl.textContent = activeFacetCount ? '(' + activeFacetCount + ')' : '';
     if (!chipsEl) return;
     chipsEl.innerHTML = '';
     var any = false;
@@ -1006,6 +1051,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       countEl.textContent = line;
     }
     if (mapCountEl) mapCountEl.textContent = shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
+    if (drawerCountEl) drawerCountEl.textContent = String(shown);
     if (rowsWrap) rowsWrap.hidden = shown === 0;
     if (emptyEl) emptyEl.hidden = shown !== 0;
 
@@ -1028,6 +1074,27 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (mapPane) mapPane.hidden = next !== 'map';
     syncUrl();
   }
+
+  // Mobile filter drawer (≤640px, CSS-gated — see LAYOUT_STYLE). Same
+  // #dir-filter-rail element as the desktop rail, just repositioned; no
+  // second copy of the controls to keep in sync.
+  function openDrawer() {
+    if (railEl) railEl.classList.add('dir-rail--open');
+    if (railBackdrop) railBackdrop.classList.add('dir-rail-backdrop--open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    if (railEl) railEl.classList.remove('dir-rail--open');
+    if (railBackdrop) railBackdrop.classList.remove('dir-rail-backdrop--open');
+    document.body.style.overflow = '';
+  }
+  if (filtersTriggerBtn) filtersTriggerBtn.addEventListener('click', openDrawer);
+  if (railBackdrop) railBackdrop.addEventListener('click', closeDrawer);
+  if (drawerShowBtn) drawerShowBtn.addEventListener('click', closeDrawer);
+  if (drawerClearBtn) drawerClearBtn.addEventListener('click', clearAll);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && railEl && railEl.classList.contains('dir-rail--open')) closeDrawer();
+  });
 
   if (form && input) {
     form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
@@ -1223,6 +1290,12 @@ export function buildDirectoryLandingPage(opts: {
   </div>`
     : "";
 
+  // Mobile-only (CSS-gated, ≤640px) trigger that turns the filter rail into
+  // a bottom-sheet drawer — see LAYOUT_STYLE and filterRail()'s drawer header.
+  const filtersTrigger = rail
+    ? `<button type="button" class="btn btn-ghost dir-filters-trigger" id="dir-filters-trigger">Filters <span id="dir-filters-badge"></span></button>`
+    : "";
+
   const mapPane = hasMap
     ? `<div id="dir-map-pane" class="dir-map-pane" hidden>
     <span class="chip dir-map-count" id="dir-map-count"></span>
@@ -1250,11 +1323,13 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
       <div id="dir-active-chips"></div>
       <button type="button" class="dir-clear-all" id="dir-clear-all" hidden>Clear all</button>
     </div>
+    ${filtersTrigger}
     ${viewToggle}
   </div>
   ${linkTiles(directoryLinks)}
   <div class="dir-body">
     ${rail}
+    <div class="dir-rail-backdrop" id="dir-rail-backdrop"></div>
     <div class="dir-results" id="dir-results-col">
       <div class="dir-rows" id="dir-rows">
         ${rows}
