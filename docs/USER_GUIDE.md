@@ -152,10 +152,13 @@ Font, corner radius, and favicon controls beyond the heading/body font pickers a
 
 ### Entry layout
 
-On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) on every entry's published page: logo, name, address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips).
+On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) in the *main column* of every entry's published page: address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips). (Logo and name are no longer configurable here — they're always shown together at the top of the page, above these blocks.)
+
+The right-hand side of the entry page — **Location** (with a small map thumbnail when configured), **Directory attributes**, a chip list per categorisation the entry is tagged with, and up to 4 **Related entries** sharing a tag — is generated automatically from the entry's categorisation tags and isn't configured on this tab.
 
 - **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
 - **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
+- **Section label** (optional, per block) — when set, the published entry page wraps that block in its own anchored section with a heading, and adds a chip for it to the sticky "On this page" bar at the top. Leave it blank for a block that should just render inline with no heading or chip (the previous behaviour). Note: the **Evidence** block no longer shows its own heading automatically — give it a label (e.g. "Evidence") to get one back.
 - The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes.
 - Click **Save layout**, then **Publish** again for it to reach the live site.
 - **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
@@ -176,15 +179,20 @@ From a directory's page (owners and managers only):
 - **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
 - A **categorisation** has its own term list, and an entry, directory, or map listing can carry any number of terms from it.
 
-Create a categorisation with just a label and a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+When creating a categorisation, choose its **facet type** — this can't be changed later:
+- **Tags** (the original behaviour) — an entry can carry any number of the categorisation's terms.
+- **Single choice** — an entry can carry at most one term (e.g. Region); picking a different value replaces the previous one.
+- **Yes / No toggle** — a plain on/off switch (e.g. "Awards chartered status") with no term list to manage.
 
-Once a categorisation is attached to a directory, its terms appear as a checkbox picker:
+Add a label and, for Tags/Single choice, a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Where a directory or map has several categorisations attached, use the ▲/▼ buttons next to each one to set the order they're offered in. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+
+Once a categorisation is attached to a directory, it appears as a checkbox picker (Tags), a set of single-pick chips (Single choice), or a switch (Yes/No):
 - On that directory's **Settings** tab, to tag the whole directory.
 - On an entry's create/edit form, to tag that entry.
 
 Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
 
-Filtering a published directory by these terms, and other publishing/branding features, are not built yet (see `docs/DIRECTORIES.md`).
+A published directory's site has a search box and a filter rail built from your attached categorisations — see `docs/DIRECTORIES.md` for the roadmap of what's still ahead (natural-language search, portal-side faceted filtering).
 
 ### Entry details: evidence, media, accreditations, links and product tiles
 

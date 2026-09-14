@@ -15,10 +15,17 @@ const emptyForm = {
   label: "",
   key: "",
   keyTouched: false,
+  fieldType: "multi_select",
   terms: [],
 };
 
 const DEFAULT_TERM_COLOR = "#4A9BAA";
+
+const FIELD_TYPE_OPTIONS = [
+  { value: "multi_select", label: "Tags", hint: "Pick any number of values (e.g. Sector)." },
+  { value: "single_select", label: "Single choice", hint: "Pick exactly one value (e.g. Region)." },
+  { value: "boolean", label: "Yes / No toggle", hint: "A single switch (e.g. Awards chartered status) — no term list to manage." },
+];
 
 /**
  * Self-contained "Categorisations" panel — client-wide taxonomy
@@ -70,6 +77,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
       label: cat.label,
       key: cat.key,
       keyTouched: true,
+      fieldType: cat.field_type || "multi_select",
       terms: (cat.terms || []).map((t) => ({ id: t.id, label: t.label, color: t.color || "" })),
     });
   }
@@ -99,7 +107,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
     if (!form) return false;
     if (!form.label.trim()) return false;
     if (!(form.key || "").trim() || keyConflict) return false;
-    if (form.terms.filter((t) => t.label.trim()).length === 0) return false;
+    if (form.fieldType !== "boolean" && form.terms.filter((t) => t.label.trim()).length === 0) return false;
     return true;
   }, [form, keyConflict]);
 
@@ -114,16 +122,22 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
 
       if (form.id) {
         await updateCategorisation(form.id, { label: form.label.trim(), key: form.key.trim() });
-        await replaceCategorisationTerms(form.id, cleanTerms);
-        emit("directory_categorisation_updated", { categorisation_id: form.id, key: form.key.trim() });
+        // A boolean categorisation's single term is system-managed — never
+        // touch it here (the Terms editor is hidden for this fieldType, so
+        // cleanTerms would otherwise be empty and wipe it out).
+        if (form.fieldType !== "boolean") {
+          await replaceCategorisationTerms(form.id, cleanTerms);
+        }
+        emit("directory_categorisation_updated", { categorisation_id: form.id, key: form.key.trim(), field_type: form.fieldType });
       } else {
         const cat = await createCategorisation({
           clientId,
           label: form.label.trim(),
           key: form.key.trim(),
+          fieldType: form.fieldType,
           terms: cleanTerms,
         });
-        emit("directory_categorisation_created", { categorisation_id: cat?.id, key: form.key.trim() });
+        emit("directory_categorisation_created", { categorisation_id: cat?.id, key: form.key.trim(), field_type: form.fieldType });
       }
       closeForm();
       await refresh();
@@ -189,12 +203,38 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
         </div>
 
         <div className="panel-section">
+          <p className="panel-section__title">Facet type</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {FIELD_TYPE_OPTIONS.map((opt) => (
+              <label key={opt.value} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, opacity: form.id && form.fieldType !== opt.value ? 0.5 : 1 }}>
+                <input
+                  type="radio"
+                  name="fieldType"
+                  checked={form.fieldType === opt.value}
+                  disabled={!!form.id}
+                  onChange={() => setForm((f) => ({ ...f, fieldType: opt.value }))}
+                  style={{ marginTop: 2 }}
+                />
+                <span>
+                  <span style={{ display: "block", fontWeight: 600 }}>{opt.label}</span>
+                  <span style={{ display: "block", opacity: 0.7 }}>{opt.hint}</span>
+                </span>
+              </label>
+            ))}
+            {form.id && (
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Facet type can't be changed after a categorisation is created.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="panel-section">
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
             A new categorisation isn't attached anywhere yet — attach it to a map or a directory from that map's
             Filters panel or that directory's settings to make its terms usable there.
           </p>
         </div>
 
+        {form.fieldType !== "boolean" && (
         <div className="panel-section">
           <p className="panel-section__title">Terms</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -218,6 +258,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
             </div>
           </div>
         </div>
+        )}
 
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="btn btn-primary" onClick={saveForm} disabled={!canSave || busy}>
@@ -250,7 +291,8 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontWeight: 600 }}>{c.label}</span>
                   <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
-                    {c.terms.length} term{c.terms.length === 1 ? "" : "s"}
+                    {FIELD_TYPE_OPTIONS.find((o) => o.value === (c.field_type || "multi_select"))?.label}
+                    {c.field_type !== "boolean" ? ` · ${c.terms.length} term${c.terms.length === 1 ? "" : "s"}` : ""}
                     {!c.is_active ? " · Archived" : ""}
                   </span>
                 </span>

@@ -8,6 +8,148 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Production] Directory browse/entry redesign: migration + Edge Function deployed
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` ([PR #171](https://github.com/layercake-cx/directory-maps/pull/171)).
+
+### What changed
+User explicitly authorized deploying straight to production ("I'm happy for you to run migration on live and deploy, we have no live client directories") — no live client directories exist yet, so there was nothing this change could visibly break for a real customer. Deployed both the Phase 0 migration and the fully-built `generate_directory_site` (all four phases) to **production** (`gxixwdjfmegxcxfeflro`):
+
+1. Relinked CLI to production (`supabase link --project-ref gxixwdjfmegxcxfeflro`), confirmed via `supabase db push --dry-run` that exactly the one expected migration (`20260914170000_categorisations_field_type_and_attachment_order.sql`) was pending — no surprises.
+2. Applied it (`supabase db push`) — its own embedded post-migration check passed (`NOTICE: VERIFY PASSED`).
+3. Confirmed RLS still enabled on `categorisations`/`categorisation_attachments` post-migration.
+4. Deployed the Edge Function (`supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`) — succeeded.
+5. Relinked the CLI back to **staging** (`beqejxneehilplrtpntn`) as the default afterward, so a future session doesn't act against production by accident.
+
+### Verified
+- [x] Migration's own post-migration check passed on production.
+- [x] RLS confirmed enabled on both changed tables post-migration.
+- [x] Edge Function deploy succeeded (dashboard-confirmed).
+- [ ] Not exercised against a real directory — there are none in production yet (this is the reason the user was comfortable deploying directly). The extensive local-preview verification from the staging entries below is what stands in for that.
+
+### Rollback plan
+Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` against production (relink first: `supabase link --project-ref gxixwdjfmegxcxfeflro`) — it's a no-op-safe check-and-refuse if any categorisation has actually been set to non-default values by then. Redeploy the previous version of `generate_directory_site` to production to revert the function.
+
+---
+
+## 2026-09-14 — [Staging] Directory browse/entry redesign: Edge Function deployed to staging
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+`supabase/functions/generate_directory_site` (all four phases below — categorisation facet kinds, landing page, entry page, mobile drawer) deployed to the **staging** project (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`. Deploy succeeded (`builders.ts`, `index.ts`, and the shared renderer/featureFlags/supabase modules uploaded; `preview.ts` correctly excluded — it isn't imported by `index.ts`, confirming it really is dev-only tooling, not something that ships).
+
+### Verified
+- [x] Deploy command succeeded, function live on staging per the CLI's dashboard link.
+- [ ] **Not verified against a real staging directory.** This session has no service-role key or authenticated staging DB access (the CLI's own ephemeral dump role is read-restricted per `docs/DATABASE_MIGRATIONS.md`'s documented tooling gap — confirmed again here, `permission denied for table directories`), so nothing in this session could call `generate_directory_site` with a real `directory_id` or browse the result. **Needs the user**: open a staging directory's Publish panel and click Publish (or re-publish) to regenerate its site with this code, then view the published page directly to confirm the new layout renders correctly against real data (existing entries, real categorisation terms, and — importantly — a directory on a non-Natural preset, to confirm the theme-token boundary held).
+
+### Rollback plan
+Redeploy the previous version of `generate_directory_site` to staging (`git checkout` the prior commit's `supabase/functions/generate_directory_site/` and redeploy, or `supabase functions deploy` from a checkout of the commit before this branch).
+
+---
+
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 4: mobile filter drawer (final phase)
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Fourth and final phase of the directory browse/entry redesign (Phase 0/1/3 entries below). At ≤640px (the app's existing mobile-sheet breakpoint, matching `PublishedMapView.jsx`), the Phase 1 filter rail becomes a bottom-sheet drawer instead of stacking full-width above the results:
+
+- A "Filters (n)" trigger in the toolbar (badge count synced to active facets) opens it.
+- The rail's own element gets a sticky drawer header (Filters / Clear / Show N) via CSS-gated markup — same DOM element repositioned by CSS on narrow screens, not a duplicated copy of the controls.
+- Backdrop click, Escape, or "Show N" close it; "Show N"'s count updates live as facets are toggled (filtering already applies live underneath).
+- 641–900px (tablet) is unchanged from Phase 1 — rail stacks inline, no drawer.
+
+Also added a global `:focus-visible` outline (existing `--primary` token) on every interactive element.
+
+This completes the planned 4-phase scope.
+
+### Verified
+- [x] Browser pane at 375px: drawer opens/closes correctly, live count and active-facet badge sync, no console errors.
+- [x] 760px: confirms tablet width still uses the Phase 1 stacked layout, not the drawer.
+- [x] Entry page (Phase 3) re-checked for regressions — none.
+- [ ] Staging: Edge Function not yet deployed.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase.
+
+---
+
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 3: entry page layout
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Third phase of the directory browse/entry redesign (see this doc's Phase 0/1 entries below for scope). Rebuilds `buildEntryPage` (`supabase/functions/generate_directory_site/builders.ts`):
+
+- **Fixed header band** (logo, name, description, tag chips, "Visit website"/"Show on map" buttons) — pulled out of the admin-reorderable block list into always-rendered structure above it. `logo`/`heading` block types still exist in a directory's saved `layout_json` for backward compatibility; they're now harmless no-ops rather than something that needs migrating away.
+- **Sticky jump-chip bar**: any block carrying the optional section label added in Phase 0 (`EntryLayoutDesigner.jsx`) now wraps in an anchored section and contributes a jump-chip. Unlabeled blocks are unaffected — no chip, renders inline as before.
+- **Right aside**: Location (Google Static Maps API thumbnail, additive and optional — see `docs/DATA_AND_PRIVACY.md`'s §3 update — plus an "Open in directory map" link; no changes to the interactive map component), Directory attributes (every attached single-select/boolean categorisation as a row, including "—"/"No" for values this entry doesn't hold, each linking back to the filtered landing page), one chip-list block per multi-select categorisation this entry holds terms for (a generic equivalent of the design's hardcoded "Who it is for" block — works for whatever categorisation an admin defines, not just a specific named one), and Related entries (up to 4, ranked by shared categorisation-term count, computed in memory from data the generator already loads for the filter rail — no extra DB query).
+
+**Bug found and fixed via the preview script, before touching any real directory:** the `evidence` block had its own hardcoded `<h2>Evidence</h2>`, which double-rendered once a block also gets a label-driven heading. Removed the hardcoded one — a directory using the evidence block without labeling it now shows no heading (label it "Evidence" in Entry Layout to get one back, plus a jump-chip).
+
+### Verified
+- [x] `deno check` — clean.
+- [x] Local preview, opened in the Browser pane: header/tags/action buttons render correctly; jump-chip bar navigates; all four aside blocks appear in order with correct content — Location's "Open in directory map" link, Directory attributes showing both a linked "Yes" and a correct unlinked "No", a Sector tag-chip block, and Related entries correctly ranked (including the zero-shared-terms case rendering nothing, not an empty block); mobile-width (375px) layout stacks correctly; no console errors. Landing page (Phase 1, unrelated code path but shares the new `TermMeta`/`buildTermMetaIndex` helper) re-verified with no regression.
+- [x] Staging: Edge Function deployed (see this doc's combined "Edge Function deployed to staging" entry above); not yet verified against a real directory — needs the user, no DB access available in this session.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase.
+
+---
+
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 1: landing page layout
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+Second phase of the directory browse/entry redesign (see this doc's Phase 0 entry below for scope/decisions). Rebuilds `generate_directory_site`'s landing page (`buildDirectoryLandingPage` in `supabase/functions/generate_directory_site/builders.ts`):
+
+- **Filter rail** (left sidebar) replaces the horizontal categorisation chip bar — one control per attached categorisation, kind driven by Phase 0's `field_type`: tag chips (multi-select), a native dropdown (single-select), or a switch (boolean). Rendered in the admin-configured order (`categorisation_attachments.sort_order`).
+- **Result toolbar**: exact count-line copy ("All N entries" / "N entries" / "N entries match "query""), removable active-filter chips, "Clear all", and a List/Map segmented control.
+- **Row-based results** (logo, name, description, tag chips, address + single-select value) replace the card grid.
+- **Intent search**: ported the design concept's tokenize/stopword/score algorithm in place of plain substring matching — results re-rank by relevance instead of just filtering.
+- **List/Map toggle**: swaps the results column for the existing map `<iframe>` at full width (no new map UI — markers/clustering/Places autocomplete untouched, per the user's explicit "don't restyle the map" decision). The filter rail persists across both views.
+- **Shareable/bookmarkable filtered views**: `?q=&<facetKey>=<slug,slug>&view=` read on load, written via `history.replaceState`. Closes `docs/DIRECTORIES.md`'s DIR-E7-S3 gap. Defensive: wrapped in try/catch after the local preview caught it throwing in an opaque-origin document — a URL-sync failure must never break filtering or the map-sync that runs right after it.
+
+No colour/font/radius token changes — every new CSS class references only the existing 15 theme variables, so all 5 presets (`src/lib/directoryThemePresets.js`) keep their current look. Entry pages (`buildEntryPage`) are untouched — that's Phase 3.
+
+### Verified
+- [x] `deno check` on all three generator files — clean.
+- [x] Local preview (`deno run supabase/functions/generate_directory_site/preview.ts`), opened in the Browser pane: filter rail renders all three `field_type`s correctly; tag/select/switch filtering, chip removal and Clear all work; intent search scores and ranks correctly (`"architects in London"` → matches only the RIBA fixture entry, stopwords dropped); List/Map toggle swaps panes, shows the floating count chip, and the rail persists; Clear all resets query+filters but preserves the current view; mobile-width (375px) layout stacks without breaking; no console errors.
+- [x] Staging: Edge Function deployed (see this doc's combined "Edge Function deployed to staging" entry above); not yet verified against a real directory — needs the user, no DB access available in this session.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase (that was Phase 0, separately rollback-able) — reverting the function alone is sufficient.
+
+---
+
+## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 0: categorisation facet kinds
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+First phase of rebuilding the public directory browse/entry pages to a new Claude Design concept (search bar, filter rail, list/map toggle, redesigned entry profile — see the concept's `design_handoff_association_directory/README.md` for the full spec). Scope agreed with the user: the public static directory site only (not the internal admin/client entries table), keeping the existing per-directory theme/CSS system and the existing Google Maps embed exactly as-is — only page layout is changing, in later phases.
+
+This phase lays the data-model groundwork the new filter rail needs: today a "Categorisation" (the admin-configurable facet system) only supports multi-select tags. The design needs single-choice facets (e.g. Region) and yes/no switch facets (e.g. "Awards chartered status") too.
+
+- Migration `20260914170000_categorisations_field_type_and_attachment_order.sql`: adds `categorisations.field_type` (`multi_select` | `single_select` | `boolean`, default `multi_select` — existing categorisations are unaffected) and `categorisation_attachments.sort_order` (admin-controlled facet render order, default 0). A `boolean` categorisation is represented as exactly one system-managed term (`entry_category_terms` presence = true) — no new tables.
+- `src/lib/categorisations.js`: `createCategorisation` takes an optional `fieldType`; `categorisationsAsFilterFields()` now maps `single_select` onto `PublishedMapView.jsx`'s existing (previously unused by categorisations) dropdown/single-select filter control — no changes needed in that component. `boolean` still passes through as a one-option multi-select there, so the in-app map filter bar needed no new UI, per the "don't touch the map" constraint. Added `reorderAttachedCategorisations()`.
+- Admin UI (shared by client and admin, confirmed both import the same components): `CategorisationsPanel.jsx` gets a facet-type picker (locked after creation); `CategoryTagPicker.jsx` and `BulkCategoryEditModal.jsx` render radios/a switch instead of checkboxes for `single_select`/`boolean`; `CategorisationAttachmentPicker.jsx` gets up/down reordering.
+- `entryTemplates.js`/`EntryLayoutDesigner.jsx`: a block in an entry's layout can now carry an optional section `label` (no schema change — `layout_json` is jsonb) — groundwork for Phase 3's sticky jump-chip bar on the entry page; unlabeled blocks are unaffected.
+
+Public site layout changes (search bar, filter rail, list/map toggle, entry page rebuild) are later phases — not in this deploy.
+
+### Verified
+- [x] `npm run build` — clean.
+- [x] Staging: `supabase db push --dry-run` showed only this migration pending; a real transactional `BEGIN/ROLLBACK` dry run wasn't possible (the CLI's ephemeral dump role isn't the table owner — the known tooling gap documented in `docs/DATABASE_MIGRATIONS.md`), so applied for real via `supabase db push` per that doc's fallback procedure. Its own embedded post-migration check passed (`NOTICE: VERIFY PASSED: field_type and sort_order columns created, existing rows defaulted correctly`). RLS confirmed still enabled on both tables post-migration; row-count/field_type breakdown queries hit the same ephemeral-role permission limitation, not re-attempted.
+- [ ] Smoke-test the Categorisations panel in the running app (create a single-select and a boolean facet, tag an entry, bulk-tag entries, reorder attachments).
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy the frontend. Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` against staging (`supabase link --project-ref beqejxneehilplrtpntn` first) (refuses if any categorisation has actually been set to `single_select`/`boolean`, or any attachment reordered — check first, since rolling back after real usage would discard that admin configuration).
+
+---
+
 ## 2026-09-14 — [Staging] Fix: directory-sourced maps showed zero pins (directory entries were never geocoded)
 
 **Branch/PR:** `fix/2026-09-14-directory-entries-geocoding` (PR not opened yet).

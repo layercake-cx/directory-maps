@@ -67,7 +67,7 @@ export async function listCategorisations(clientId, { includeArchived = false } 
 
   let query = supabase
     .from("categorisations")
-    .select("id, client_id, key, label, is_active, created_at, updated_at")
+    .select("id, client_id, key, label, field_type, is_active, created_at, updated_at")
     .eq("client_id", clientId)
     .order("label", { ascending: true });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -77,10 +77,18 @@ export async function listCategorisations(clientId, { includeArchived = false } 
   return withTerms(cats ?? []);
 }
 
-/** Create a categorisation plus its initial terms. terms: [{ label, color? }] */
-export async function createCategorisation({ clientId, label, key, terms = [] }) {
+const FIELD_TYPES = ["multi_select", "single_select", "boolean"];
+
+/**
+ * Create a categorisation plus its initial terms. terms: [{ label, color? }]
+ * fieldType: "multi_select" (tags, default) | "single_select" (one value)
+ * | "boolean" (a single yes/no switch — its term list is system-managed,
+ * any `terms` passed in are ignored for that fieldType).
+ */
+export async function createCategorisation({ clientId, label, key, terms = [], fieldType = "multi_select" }) {
   const cleanLabel = String(label || "").trim();
   if (!cleanLabel) throw new Error("Label is required.");
+  if (!FIELD_TYPES.includes(fieldType)) throw new Error(`Invalid fieldType "${fieldType}".`);
 
   const { data: cat, error } = await supabase
     .from("categorisations")
@@ -88,6 +96,7 @@ export async function createCategorisation({ clientId, label, key, terms = [] })
       client_id: clientId,
       key: key || slugify(cleanLabel),
       label: cleanLabel,
+      field_type: fieldType,
       is_active: true,
     })
     .select()
@@ -97,7 +106,11 @@ export async function createCategorisation({ clientId, label, key, terms = [] })
     throw error;
   }
 
-  if (terms.length > 0) {
+  if (fieldType === "boolean") {
+    // A boolean categorisation is represented as exactly one system-managed
+    // term — presence of an entry_category_terms row for it means "true".
+    await replaceCategorisationTerms(cat.id, [{ label: "Yes" }]);
+  } else if (terms.length > 0) {
     await replaceCategorisationTerms(cat.id, terms);
   }
   return cat;
@@ -193,26 +206,57 @@ export async function countUsageForTerm(termId) {
 // ---- Attachment: which map(s)/directory(ies) a categorisation is active on ----
 // (20260829040000_create_categorisation_attachments.sql)
 
-/** Categorisations (with terms) currently attached to a specific map or directory. */
+/** Categorisations (with terms) currently attached to a specific map or directory, in admin-configured render order. */
 export async function listAttachedCategorisations(targetType, targetId) {
   if (!targetId) return [];
   const { data: attachments, error: attErr } = await supabase
     .from("categorisation_attachments")
-    .select("categorisation_id")
+    .select("categorisation_id, sort_order")
     .eq("target_type", targetType)
     .eq("target_id", targetId);
   if (attErr) throw attErr;
-  const catIds = [...new Set((attachments ?? []).map((a) => a.categorisation_id))];
+  const sortOrderByCat = new Map();
+  for (const a of attachments ?? []) {
+    if (!sortOrderByCat.has(a.categorisation_id)) sortOrderByCat.set(a.categorisation_id, a.sort_order ?? 0);
+  }
+  const catIds = [...sortOrderByCat.keys()];
   if (catIds.length === 0) return [];
 
   const { data: cats, error: catsErr } = await supabase
     .from("categorisations")
-    .select("id, client_id, key, label, is_active, created_at, updated_at")
+    .select("id, client_id, key, label, field_type, is_active, created_at, updated_at")
     .in("id", catIds)
-    .eq("is_active", true)
-    .order("label", { ascending: true });
+    .eq("is_active", true);
   if (catsErr) throw catsErr;
-  return withTerms(cats ?? []);
+  const withT = await withTerms(cats ?? []);
+  return withT
+    .slice()
+    .sort(
+      (a, b) =>
+        (sortOrderByCat.get(a.id) ?? 0) - (sortOrderByCat.get(b.id) ?? 0) ||
+        String(a.label || "").localeCompare(String(b.label || "")),
+    );
+}
+
+/**
+ * Persist a new render order for a target's attached categorisations (e.g.
+ * after an admin moves a facet up/down in CategorisationAttachmentPicker).
+ * orderedCategorisationIds must be every categorisation currently attached
+ * to this target, in the desired order.
+ */
+export async function reorderAttachedCategorisations({ targetType, targetId, orderedCategorisationIds }) {
+  const results = await Promise.all(
+    (orderedCategorisationIds || []).map((categorisationId, index) =>
+      supabase
+        .from("categorisation_attachments")
+        .update({ sort_order: index })
+        .eq("categorisation_id", categorisationId)
+        .eq("target_type", targetType)
+        .eq("target_id", targetId),
+    ),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
 }
 
 /** Attach a categorisation to a map or directory (idempotent). */
@@ -455,30 +499,38 @@ export async function applyImportedListingTerms(termsByListing) {
 // rendering and effectiveListings filtering logic can drive off either
 // source unmodified. A categorisation's id stands in for a map_filter_fields
 // row's id (`field_id` in the values-by-record map); a category_terms id
-// stands in for a map_filter_field_options id (`option_id`). Categorisations
-// have no free-text field_type equivalent — this adapter only ever produces
-// multi_select fields.
+// stands in for a map_filter_field_options id (`option_id`). A categorisation's
+// field_type maps onto map_filter_fields' vocabulary: single_select becomes a
+// real single_select/dropdown field (PublishedMapView.jsx already has this
+// control built — setSingleSelectFilter, display_control === "dropdown" —
+// just never fed one by categorisations before). boolean has no dedicated
+// switch UI in PublishedMapView.jsx and none is being added there (its
+// styling/behaviour is out of scope for this feature) — it passes through as
+// a one-option multi_select, which renders as a single toggle chip.
 
 /** Shape active categorisations (with their terms) into filterFields entries. */
 export function categorisationsAsFilterFields(categorisations) {
   return (categorisations || [])
     .filter((c) => c.is_active)
-    .map((c) => ({
-      id: c.id,
-      key: c.key,
-      label: c.label,
-      field_type: "multi_select",
-      display_control: "multi_select",
-      show_in_filter_bar: true,
-      sort_order: 0,
-      options: (c.terms || []).map((t) => ({
-        id: t.id,
-        value: t.slug,
-        label: t.label,
-        color: t.color ?? null,
-        sort_order: t.sort_order ?? 0,
-      })),
-    }));
+    .map((c) => {
+      const isSingleSelect = c.field_type === "single_select";
+      return {
+        id: c.id,
+        key: c.key,
+        label: c.label,
+        field_type: isSingleSelect ? "single_select" : "multi_select",
+        display_control: isSingleSelect ? "dropdown" : "multi_select",
+        show_in_filter_bar: true,
+        sort_order: 0,
+        options: (c.terms || []).map((t) => ({
+          id: t.id,
+          value: t.slug,
+          label: t.label,
+          color: t.color ?? null,
+          sort_order: t.sort_order ?? 0,
+        })),
+      };
+    });
 }
 
 /**

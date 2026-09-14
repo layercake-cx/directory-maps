@@ -117,6 +117,8 @@ When the Google Maps JS library loads, Google receives:
 
 **Layercake Maps does not send any user-supplied personal data to Google Maps.** Map coordinates, marker positions, and listing data are held in our own database and passed to the Google Maps library for rendering only.
 
+**Also covers the Google Static Maps API** (added 2026-09-14, directory browse/entry redesign, Phase 3): a directory entry's published page can show a small non-interactive location thumbnail as a plain `<img>` requesting `maps.googleapis.com/maps/api/staticmap` directly from the visitor's browser — same provider, same key, same "IP address + referrer, no personal data sent beyond the entry's own business location coordinates" shape as the interactive embed above, just a different Google Maps Platform product (a static image endpoint vs. the JS library). Gracefully omitted (falls back to address text only) if no key is configured, so it never blocks entry page generation.
+
 ### Processing location
 
 Google Maps is a global service operated by **Google LLC (US)**. Data is processed under Google's standard infrastructure, which spans multiple regions including the EU.
