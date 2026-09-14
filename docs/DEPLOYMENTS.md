@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Production] Directory browse/entry redesign: migration + Edge Function deployed
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` ([PR #171](https://github.com/layercake-cx/directory-maps/pull/171)).
+
+### What changed
+User explicitly authorized deploying straight to production ("I'm happy for you to run migration on live and deploy, we have no live client directories") — no live client directories exist yet, so there was nothing this change could visibly break for a real customer. Deployed both the Phase 0 migration and the fully-built `generate_directory_site` (all four phases) to **production** (`gxixwdjfmegxcxfeflro`):
+
+1. Relinked CLI to production (`supabase link --project-ref gxixwdjfmegxcxfeflro`), confirmed via `supabase db push --dry-run` that exactly the one expected migration (`20260914170000_categorisations_field_type_and_attachment_order.sql`) was pending — no surprises.
+2. Applied it (`supabase db push`) — its own embedded post-migration check passed (`NOTICE: VERIFY PASSED`).
+3. Confirmed RLS still enabled on `categorisations`/`categorisation_attachments` post-migration.
+4. Deployed the Edge Function (`supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`) — succeeded.
+5. Relinked the CLI back to **staging** (`beqejxneehilplrtpntn`) as the default afterward, so a future session doesn't act against production by accident.
+
+### Verified
+- [x] Migration's own post-migration check passed on production.
+- [x] RLS confirmed enabled on both changed tables post-migration.
+- [x] Edge Function deploy succeeded (dashboard-confirmed).
+- [ ] Not exercised against a real directory — there are none in production yet (this is the reason the user was comfortable deploying directly). The extensive local-preview verification from the staging entries below is what stands in for that.
+
+### Rollback plan
+Run `_20260914170000_categorisations_field_type_and_attachment_order.rollback.sql` against production (relink first: `supabase link --project-ref gxixwdjfmegxcxfeflro`) — it's a no-op-safe check-and-refuse if any categorisation has actually been set to non-default values by then. Redeploy the previous version of `generate_directory_site` to production to revert the function.
+
+---
+
 ## 2026-09-14 — [Staging] Directory browse/entry redesign: Edge Function deployed to staging
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
