@@ -13,8 +13,6 @@ import EntryCardPreview from "./EntryCardPreview.jsx";
 import PreviewBlock from "../EntryPreviewBlock.jsx";
 import DirectoryPublishPanel from "../DirectoryPublishPanel.jsx";
 
-const DEFAULT_THEME_SURFACE_ALT = "#F1ECDF"; // matches generate_directory_site's NATURAL_DEFAULTS.surfaceAltColor
-
 function blockKey(block) {
   return block.type === "categorisation" ? `categorisation:${block.key}` : block.type;
 }
@@ -32,7 +30,6 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
   const [clientSlug, setClientSlug] = useState(null);
   const [layout, setLayout] = useState(null);
   const [extras, setExtras] = useState({});
-  const [themeSurfaceAlt, setThemeSurfaceAlt] = useState(DEFAULT_THEME_SURFACE_ALT);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -46,7 +43,6 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
         const dir = await getDirectory(directoryId);
         if (cancelled) return;
         setDirectory(dir);
-        setThemeSurfaceAlt(dir?.theme_json?.surfaceAltColor || DEFAULT_THEME_SURFACE_ALT);
 
         const [{ data: client }, templates, termIds, evidence, media, tiles, links, heldSchemeIds, schemes] = await Promise.all([
           supabase.from("clients").select("slug").eq("id", dir.client_id).single(),
@@ -83,7 +79,6 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
   if (err) return <p style={{ color: "#b91c1c" }}>{err}</p>;
 
   const previewImage = entry?.panel_image_url || entry?.logo_url || "";
-  const previewBg = entry?.panel_background_color || themeSurfaceAlt;
   const entryUrl = directory?.published_at && clientSlug && directory?.slug && entry?.slug
     ? `https://maps.layercake-cx.biz/directories/${clientSlug}/${directory.slug}/${entry.slug}`
     : null;
@@ -98,7 +93,7 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           <div>
             <Text size="xs" fw={600} c="dimmed" mb={8}>Homepage card</Text>
-            <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={previewBg} />
+            <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={entry?.panel_background_color} />
           </div>
           <div style={{ flex: 1, minWidth: 280 }}>
             <Text size="xs" fw={600} c="dimmed" mb={8}>Entry page</Text>

@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory listing cards: white logo background, auto-black for light-on-transparent logos
+
+**Branch/PR:** `feat/2026-09-14-directory-card-logo-bg-default` (PR not opened yet).
+
+### What changed
+Directory homepage listing cards (the logo box at the top of each entry tile) used the directory theme's alt surface colour as the default background — typically a warm grey/beige. Most logos are designed to sit on white, so they looked washed-out or muddy. White-on-transparent logos (common for dark brand marks saved as PNG) were the opposite problem: invisible on a light surface.
+
+- **Default is now white** (`#ffffff`) on `.card-logo-box`, instead of `var(--surface-2)`.
+- **Automatic flip to black** when the logo itself is mostly transparent with light/white ink. A small pixel heuristic (`src/lib/logoBackground.js`, mirrored in `generate_directory_site`'s `buildCardLogoBgScript()`) samples the image; if it can't read the pixels (CORS, decode failure, JPEG with no alpha) it keeps white.
+- Editors can still override per entry on **Panel Style** (Auto / White / Light / Mid / Dark / Black, plus a free-text colour). Auto means "use the detected default", not "use the directory theme". The editor preview uses the same detection so first load already looks right.
+- No database migration — `directory_entries.panel_background_color` is still the optional override; unset still means "automatic".
+- Published directories only pick this up after `generate_directory_site` is redeployed **and** that directory is republished (static HTML). The in-app editor preview updates with the frontend deploy alone.
+
+### Verified
+- [x] Heuristic checked against synthetic pixel buffers (white-on-transparent → black; dark-on-transparent / opaque colour → white).
+- [x] `deno check supabase/functions/generate_directory_site/index.ts` — clean.
+- [x] `npm run build` — clean, no errors.
+- [ ] Editor Panel Style preview in the running app (client and admin share `EntryPanelTab.jsx`).
+- [ ] Staging: `generate_directory_site` not yet deployed; no directory republished.
+
+### Rollback plan
+Revert this branch's merge on `main` and redeploy the frontend. Redeploy `generate_directory_site` to the previous version (or revert the function in the same PR revert) and republish any directory that was published with the new generator. No schema to unwind; saved `panel_background_color` values are unchanged.
+
+---
+
 ## 2026-09-08 — [Production] Directory entries: confirm overwrite vs. add on CSV import
 
 **Branch/PR:** `feat/2026-09-08-csv-upload-confirm-upsert`, [#166](https://github.com/layercake-cx/directory-maps/pull/166).

@@ -201,7 +201,7 @@ const BASE_STYLE = `
   .badge img { height: 16px; }
   .tag { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--ink); border-radius: 7px; padding: 5px 9px; font-size: 12px; font-weight: 600; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-  .card-logo-box { height: 158px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
+  .card-logo-box { height: 158px; background: #ffffff; display: flex; align-items: center; justify-content: center; }
   .card-logo-box img { max-width: 70%; max-height: 70%; object-fit: contain; }
   .eyebrow { font-size: 12.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .muted { color: var(--muted); }
@@ -579,6 +579,65 @@ function exploreFilterBar(categorisations: FilterBarCategorisation[]): string {
   return `<div id="dir-filter-bar" style="display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:18px;">${groups}</div>`;
 }
 
+/** Default homepage card logo-box background: white, flipping to black when
+ * the logo looks like light ink on a transparent background. Heuristic must
+ * stay in sync with src/lib/logoBackground.js (cannot share a module from
+ * this Edge Function). Only runs on cards without a saved panel_background_color
+ * (`data-auto-logo-bg`). Probe-loads the image with CORS so a tainted canvas
+ * never hides the visible logo; CORS/decode failure keeps the CSS white default. */
+function buildCardLogoBgScript(): string {
+  return `
+<script>
+(function () {
+  var SAMPLE = 64;
+  var DEFAULT_BG = "#ffffff";
+  var LIGHT_BG = "#000000";
+  var boxes = document.querySelectorAll(".card-logo-box[data-auto-logo-bg]");
+  if (!boxes.length) return;
+
+  function suggest(data) {
+    var total = data.length / 4;
+    var transparent = 0, light = 0, dark = 0, mid = 0;
+    for (var i = 0; i < data.length; i += 4) {
+      var a = data[i + 3];
+      if (a < 32) { transparent++; continue; }
+      if (a < 160) continue;
+      var lum = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      if (lum >= 200) light++;
+      else if (lum <= 80) dark++;
+      else mid++;
+    }
+    var opaque = light + dark + mid;
+    if (!opaque) return DEFAULT_BG;
+    if (transparent / total >= 0.2 && light / opaque >= 0.65 && dark / opaque < 0.2) return LIGHT_BG;
+    return DEFAULT_BG;
+  }
+
+  function applyFromImage(img, box) {
+    try {
+      var canvas = document.createElement("canvas");
+      canvas.width = SAMPLE;
+      canvas.height = SAMPLE;
+      var ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE);
+      var color = suggest(ctx.getImageData(0, 0, SAMPLE, SAMPLE).data);
+      if (color !== DEFAULT_BG) box.style.background = color;
+    } catch (e) { /* tainted canvas or decode issue — keep white */ }
+  }
+
+  boxes.forEach(function (box) {
+    var img = box.querySelector("img");
+    if (!img || !img.getAttribute("src")) return;
+    var probe = new Image();
+    probe.crossOrigin = "anonymous";
+    probe.onload = function () { applyFromImage(probe, box); };
+    probe.src = img.getAttribute("src");
+  });
+})();
+</script>`;
+}
+
 /** Combined client-side keyword search + categorisation-term filtering over
  * the already-rendered result cards — no new backend, no LLM call (DIR-E7
  * replaces the search half later). Reads data-search / data-term-ids
@@ -677,7 +736,9 @@ function buildDirectoryLandingPage(opts: {
       const logo = panelImageUrl
         ? `<img src="${escapeAttr(panelImageUrl)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
         : "";
-      const panelBoxStyle = e.panel_background_color ? ` style="background:${escapeAttr(e.panel_background_color)};"` : "";
+      const panelBoxStyle = e.panel_background_color
+        ? ` style="background:${escapeAttr(e.panel_background_color)};"`
+        : ` data-auto-logo-bg="1"`;
       return `<div class="card" data-search="${searchText}" data-term-ids="${termIds}">
   <div class="card-logo-box"${panelBoxStyle}>${logo}</div>
   <div style="padding:18px;display:flex;flex-direction:column;gap:10px;flex-grow:1;">
@@ -750,6 +811,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: "." })}
+${buildCardLogoBgScript()}
 ${buildFilterAndSearchScript(!!attachedMapEmbedSrc)}
 `.trim();
 

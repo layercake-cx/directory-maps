@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
-import { getDirectory, updateDirectoryEntry } from "../../../lib/directories.js";
+import { updateDirectoryEntry } from "../../../lib/directories.js";
 import { uploadEntryPanelImage } from "../../../lib/entryImages.js";
 import EntryCardPreview from "./EntryCardPreview.jsx";
 
@@ -15,37 +15,29 @@ const inputStyle = {
 const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
 
 const BG_SWATCHES = [
-  { label: "None", value: "" },
+  { label: "Auto", value: "" },
+  { label: "White", value: "#ffffff" },
   { label: "Light", value: "#d4d4d4" },
   { label: "Mid", value: "#737373" },
   { label: "Dark", value: "#1a1a1a" },
+  { label: "Black", value: "#000000" },
 ];
-
-const DEFAULT_THEME_SURFACE_ALT = "#F1ECDF"; // matches generate_directory_site's NATURAL_DEFAULTS.surfaceAltColor
 
 /**
  * Panel Style tab — an optional override for the homepage card's image and
- * background (e.g. a white logo that needs a dark background instead of
- * the directory's default themed surface). Falls back to logo_url and the
- * directory's own theme when unset; live preview approximates the actual
- * .card-logo-box markup/CSS from generate_directory_site/index.ts.
+ * background. When the background is left blank, the card defaults to white
+ * (or black when the logo looks like light ink on a transparent background).
+ * Live preview approximates the actual .card-logo-box markup/CSS from
+ * generate_directory_site/index.ts.
  */
 export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, recordEvent, onSaved }) {
   const [form, setForm] = useState({
     panel_image_url: entry?.panel_image_url || "",
     panel_background_color: entry?.panel_background_color || "",
   });
-  const [themeSurfaceAlt, setThemeSurfaceAlt] = useState(DEFAULT_THEME_SURFACE_ALT);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
-
-  useEffect(() => {
-    if (!directoryId) return;
-    getDirectory(directoryId)
-      .then((d) => setThemeSurfaceAlt(d?.theme_json?.surfaceAltColor || DEFAULT_THEME_SURFACE_ALT))
-      .catch(() => {});
-  }, [directoryId]);
 
   function fSet(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -86,7 +78,6 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
   }
 
   const previewImage = form.panel_image_url || entry?.logo_url || "";
-  const previewBg = form.panel_background_color || themeSurfaceAlt;
 
   return (
     <form onSubmit={handleSave} style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
@@ -94,7 +85,7 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
         <Stack gap="sm">
           <Text size="sm" fw={600}>Panel style</Text>
           <Text size="xs" c="dimmed">
-            Overrides the image and background of this entry's card on the directory homepage. Leave blank to use the logo and the directory's own theme.
+            Overrides the image and background of this entry's card on the directory homepage. Leave the colour blank to use the automatic default: white, or black if the logo is light ink on a transparent background.
           </Text>
 
           <div>
@@ -129,7 +120,7 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
                 />
               ))}
             </Group>
-            <input value={form.panel_background_color} onChange={(e) => fSet("panel_background_color", e.target.value)} disabled={!canEdit} placeholder="Defaults to the directory theme, e.g. #1a1a1a" style={inputStyle} />
+            <input value={form.panel_background_color} onChange={(e) => fSet("panel_background_color", e.target.value)} disabled={!canEdit} placeholder="Auto (white, or black for light-on-transparent logos)" style={inputStyle} />
           </div>
 
           {err && <Alert color="red" variant="light">{err}</Alert>}
@@ -144,7 +135,7 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
 
       <div className="admin-card" style={{ padding: 20 }}>
         <Text size="sm" fw={600} mb={10}>Preview</Text>
-        <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={previewBg} />
+        <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={form.panel_background_color} />
         <Text size="xs" c="dimmed" mt={8}>Approximates the homepage card — actual fonts/spacing come from the directory's theme.</Text>
       </div>
     </form>
