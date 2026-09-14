@@ -19,6 +19,9 @@ supabase/.temp
 # `supabase functions deploy`, and this repo has no prior deno.lock convention.
 deno.lock
 
+# generate_directory_site's local preview output (supabase/functions/generate_directory_site/preview.ts)
+supabase/functions/generate_directory_site/.preview-output
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
