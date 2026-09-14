@@ -205,6 +205,8 @@ export async function createDirectoryEntry(entry) {
     city: entry.city || null,
     lat: entry.lat === "" || entry.lat == null ? null : Number(entry.lat),
     lng: entry.lng === "" || entry.lng == null ? null : Number(entry.lng),
+    geocode_status: entry.geocode_status ?? null,
+    geocoded_at: entry.geocoded_at ?? null,
     website_url: entry.website_url || null,
     email: entry.email || null,
     phone: entry.phone || null,
@@ -305,6 +307,38 @@ export async function deleteDirectoryEntry(entryId) {
 export async function deleteAllDirectoryEntries(directoryId) {
   const { error } = await supabase.from("directory_entries").delete().eq("directory_id", directoryId);
   if (error) throw error;
+}
+
+/**
+ * Queues geocoding (in the background) for every active entry in this directory
+ * missing lat/lng. Peer of listings' geocode_listings flow — see the
+ * geocode_directory_entries Edge Function. Returns the number of rows queued.
+ */
+export async function geocodeDirectoryEntries(directoryId) {
+  const { data, error } = await invokeFunction("geocode_directory_entries", { body: { directoryId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data?.queued ?? 0;
+}
+
+/**
+ * Single-address lookup via the shared geocode_address Edge Function (no
+ * directory/map scoping — any authenticated user may resolve an address).
+ * Used to auto-geocode an entry synchronously as it's saved, so the entry
+ * editor's "coordinates are auto-geocoded" promise (EntryBasicInfoTab) is
+ * actually true instead of silently leaving lat/lng null.
+ */
+export async function geocodeAddress(address) {
+  const trimmed = String(address || "").trim();
+  if (!trimmed) return { ok: false, status: "NO_ADDRESS", lat: null, lng: null };
+  const { data, error } = await invokeFunction("geocode_address", { body: { address: trimmed } });
+  if (error) return { ok: false, status: "ERROR", lat: null, lng: null };
+  return {
+    ok: !!data?.ok,
+    status: data?.status || "ERROR",
+    lat: data?.lat ?? null,
+    lng: data?.lng ?? null,
+  };
 }
 
 /** Bulk archive/restore (is_active toggle) — DIR-E1-S4. */

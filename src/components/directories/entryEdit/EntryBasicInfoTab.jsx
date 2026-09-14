@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
-import { createDirectoryEntry, createDirectoryGroup, listDirectoryGroups, updateDirectoryEntry } from "../../../lib/directories.js";
+import { createDirectoryEntry, createDirectoryGroup, geocodeAddress, listDirectoryGroups, updateDirectoryEntry } from "../../../lib/directories.js";
 import { uploadEntryLogo } from "../../../lib/entryImages.js";
 
 const inputStyle = {
@@ -12,6 +12,11 @@ const inputStyle = {
   fontSize: 13,
 };
 const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
+
+/** Address fields as a single comparable key, to detect whether re-geocoding is needed. */
+function addressKey(source) {
+  return [source?.address, source?.postcode, source?.country].map((v) => String(v || "").trim()).join("|");
+}
 
 function buildForm(entry) {
   return {
@@ -35,7 +40,7 @@ function buildForm(entry) {
 /**
  * Core entry fields — the first tab of the full-page entry editor.
  * Deliberately excludes lat/lng: coordinates are auto-geocoded from
- * address/postcode/country, never hand-entered.
+ * address/postcode/country on save (see handleSubmit), never hand-entered.
  */
 export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, canEdit, recordEvent, onSaved, onCreated }) {
   const [form, setForm] = useState(() => buildForm(entry));
@@ -47,6 +52,10 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
   const [err, setErr] = useState("");
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoErr, setLogoErr] = useState("");
+
+  // Baseline address the entry was last (successfully or not) geocoded against —
+  // re-geocode on save only when this changes, or coordinates are still missing.
+  const baselineAddressKeyRef = useRef(addressKey(entry));
 
   useEffect(() => {
     if (!directoryId) return;
@@ -102,15 +111,33 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
     }
     try {
       setSaving(true);
+
+      const hasAddressBits = !!(form.address || form.postcode || form.country);
+      const currentKey = addressKey(form);
+      const missingCoords = entry?.lat == null || entry?.lng == null;
+      let geo = {};
+      if (!hasAddressBits) {
+        geo = { lat: null, lng: null, geocode_status: null, geocoded_at: null };
+      } else if (isNew || currentKey !== baselineAddressKeyRef.current || missingCoords) {
+        const result = await geocodeAddress([form.address, form.postcode, form.country].filter(Boolean).join(", "));
+        geo = {
+          lat: result.ok ? result.lat : null,
+          lng: result.ok ? result.lng : null,
+          geocode_status: result.status,
+          geocoded_at: new Date().toISOString(),
+        };
+      }
+
       if (isNew) {
-        const id = await createDirectoryEntry({ ...form, directory_id: directoryId });
+        const id = await createDirectoryEntry({ ...form, ...geo, directory_id: directoryId });
         recordEvent?.("directory_entry_created", { directory_id: directoryId, entry_id: id, name: form.name });
         onCreated?.(id);
       } else {
-        await updateDirectoryEntry(entryId, form);
+        await updateDirectoryEntry(entryId, { ...form, ...geo });
         recordEvent?.("directory_entry_updated", { directory_id: directoryId, entry_id: entryId });
         onSaved?.();
       }
+      baselineAddressKeyRef.current = currentKey;
     } catch (e2) {
       setErr(e2?.message ?? String(e2));
     } finally {

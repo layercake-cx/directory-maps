@@ -7,6 +7,7 @@ import {
   createDirectoryGroup,
   deleteAllDirectoryEntries,
   deleteDirectoryEntry,
+  geocodeDirectoryEntries,
   listDirectoryEntries,
   listDirectoryGroups,
   upsertDirectoryEntries,
@@ -95,6 +96,9 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   const [csvMsg, setCsvMsg] = useState("");
   const [importing, setImporting] = useState(false);
   const [importChoiceOpen, setImportChoiceOpen] = useState(false);
+
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeMsg, setGeocodeMsg] = useState("");
 
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const totalPages = Math.max(1, Math.ceil(count / ENTRIES_PAGE_SIZE));
@@ -204,6 +208,29 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
       setErr(e?.message ?? String(e));
     } finally {
       setBulkBusy(false);
+    }
+  }
+
+  // ── Geocoding (DIR-E4 fix) — entries have no lat/lng unless geocoded here ───
+
+  async function handleGeocodeMissing() {
+    setErr(""); setGeocodeMsg("");
+    try {
+      setGeocoding(true);
+      recordEvent?.("data_geocode_started", { directory_id: directoryId });
+      const queued = await geocodeDirectoryEntries(directoryId);
+      if (queued === 0) {
+        setGeocodeMsg("No entries need geocoding — every active entry already has coordinates.");
+      } else {
+        setGeocodeMsg(`Geocoding ${queued} ${queued === 1 ? "entry" : "entries"} in the background — refresh in a moment to see pins update.`);
+      }
+      window.setTimeout(() => setGeocodeMsg(""), 8000);
+    } catch (e) {
+      const message = e?.message ?? String(e);
+      setErr(message);
+      recordEvent?.("data_geocode_failed", { directory_id: directoryId, error: message });
+    } finally {
+      setGeocoding(false);
     }
   }
 
@@ -400,10 +427,15 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
             <Button size="sm" variant="default" onClick={() => setImportOpen((v) => !v)}>
               {importOpen ? "Cancel import" : "Import CSV"}
             </Button>
+            <Button size="sm" variant="default" onClick={handleGeocodeMissing} loading={geocoding} disabled={geocoding}>
+              {geocoding ? "Geocoding…" : "Geocode missing coords"}
+            </Button>
             <Button size="sm" onClick={goToCreate}>+ Add entry</Button>
           </Group>
         )}
       </div>
+
+      {geocodeMsg && <Alert color="green" variant="light">{geocodeMsg}</Alert>}
 
       <input
         type="text"
@@ -486,6 +518,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                   <th style={{ padding: "9px 10px" }}>Name</th>
                   <th style={{ padding: "9px 10px" }}>Group</th>
                   <th style={{ padding: "9px 10px" }}>Address</th>
+                  <th style={{ padding: "9px 10px" }}>Pin</th>
                   <th style={{ padding: "9px 10px" }}>Status</th>
                   <th style={{ padding: "9px 10px" }} />
                 </tr>
@@ -501,6 +534,13 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                     <td style={{ padding: "8px 10px" }}>{entry.name}</td>
                     <td style={{ padding: "8px 10px" }}>{groupNameById.get(entry.directory_group_id) || "—"}</td>
                     <td style={{ padding: "8px 10px", opacity: 0.85 }}>{entry.address || "—"}</td>
+                    <td style={{ padding: "8px 10px" }}>
+                      {entry.lat != null && entry.lng != null ? (
+                        <Badge color="green" variant="light" size="sm">On map</Badge>
+                      ) : (
+                        <Badge color="yellow" variant="light" size="sm">No pin</Badge>
+                      )}
+                    </td>
                     <td style={{ padding: "8px 10px" }}>
                       <Badge color={entry.is_active ? "green" : "gray"} variant="light" size="sm">
                         {entry.is_active ? "Active" : "Hidden"}
@@ -520,7 +560,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={canEdit ? 6 : 5} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
+                    <td colSpan={canEdit ? 7 : 6} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
                       {search ? "No entries match your search." : "No entries yet."}
                     </td>
                   </tr>
