@@ -8,6 +8,22 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory browse/entry redesign: Edge Function deployed to staging
+
+**Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
+
+### What changed
+`supabase/functions/generate_directory_site` (all four phases below — categorisation facet kinds, landing page, entry page, mobile drawer) deployed to the **staging** project (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`. Deploy succeeded (`builders.ts`, `index.ts`, and the shared renderer/featureFlags/supabase modules uploaded; `preview.ts` correctly excluded — it isn't imported by `index.ts`, confirming it really is dev-only tooling, not something that ships).
+
+### Verified
+- [x] Deploy command succeeded, function live on staging per the CLI's dashboard link.
+- [ ] **Not verified against a real staging directory.** This session has no service-role key or authenticated staging DB access (the CLI's own ephemeral dump role is read-restricted per `docs/DATABASE_MIGRATIONS.md`'s documented tooling gap — confirmed again here, `permission denied for table directories`), so nothing in this session could call `generate_directory_site` with a real `directory_id` or browse the result. **Needs the user**: open a staging directory's Publish panel and click Publish (or re-publish) to regenerate its site with this code, then view the published page directly to confirm the new layout renders correctly against real data (existing entries, real categorisation terms, and — importantly — a directory on a non-Natural preset, to confirm the theme-token boundary held).
+
+### Rollback plan
+Redeploy the previous version of `generate_directory_site` to staging (`git checkout` the prior commit's `supabase/functions/generate_directory_site/` and redeploy, or `supabase functions deploy` from a checkout of the commit before this branch).
+
+---
+
 ## 2026-09-14 — [Staging] Directory browse/entry redesign, Phase 4: mobile filter drawer (final phase)
 
 **Branch/PR:** `feat/2026-09-14-directory-modernist-layout` (PR not opened yet).
@@ -51,7 +67,7 @@ Third phase of the directory browse/entry redesign (see this doc's Phase 0/1 ent
 ### Verified
 - [x] `deno check` — clean.
 - [x] Local preview, opened in the Browser pane: header/tags/action buttons render correctly; jump-chip bar navigates; all four aside blocks appear in order with correct content — Location's "Open in directory map" link, Directory attributes showing both a linked "Yes" and a correct unlinked "No", a Sector tag-chip block, and Related entries correctly ranked (including the zero-shared-terms case rendering nothing, not an empty block); mobile-width (375px) layout stacks correctly; no console errors. Landing page (Phase 1, unrelated code path but shares the new `TermMeta`/`buildTermMetaIndex` helper) re-verified with no regression.
-- [ ] Staging: not yet deployed.
+- [x] Staging: Edge Function deployed (see this doc's combined "Edge Function deployed to staging" entry above); not yet verified against a real directory — needs the user, no DB access available in this session.
 
 ### Rollback plan
 Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase.
@@ -77,7 +93,7 @@ No colour/font/radius token changes — every new CSS class references only the 
 ### Verified
 - [x] `deno check` on all three generator files — clean.
 - [x] Local preview (`deno run supabase/functions/generate_directory_site/preview.ts`), opened in the Browser pane: filter rail renders all three `field_type`s correctly; tag/select/switch filtering, chip removal and Clear all work; intent search scores and ranks correctly (`"architects in London"` → matches only the RIBA fixture entry, stopwords dropped); List/Map toggle swaps panes, shows the floating count chip, and the rail persists; Clear all resets query+filters but preserves the current view; mobile-width (375px) layout stacks without breaking; no console errors.
-- [ ] Staging: not yet deployed (`generate_directory_site` Edge Function unchanged in staging so far).
+- [x] Staging: Edge Function deployed (see this doc's combined "Edge Function deployed to staging" entry above); not yet verified against a real directory — needs the user, no DB access available in this session.
 
 ### Rollback plan
 Revert this branch's merge on `main` and redeploy `generate_directory_site` to its previous version. No schema/data changes in this phase (that was Phase 0, separately rollback-able) — reverting the function alone is sufficient.
