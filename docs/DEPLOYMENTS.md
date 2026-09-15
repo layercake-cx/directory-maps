@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-14 — [Staging] Directory Settings tab: title + SEO settings, real robots.txt via custom domains
 
-**Branch/PR:** `feat/2026-09-14-directory-title-seo-settings` (PR not opened yet).
+**Branch/PR:** `feat/2026-09-14-directory-title-seo-settings` ([PR #174](https://github.com/layercake-cx/directory-maps/pull/174)).
 
 ### What changed
 Adds a "General settings" (directory title — `directories.name`, pre-existing, just never had a Settings-tab UI) and "SEO settings" panel to the Directory Settings tab (admin + client portal, parity per `AGENTS.md`), plus wires up `seo_defaults_json` (`meta_title_template`/`meta_description`/`default_noindex`) which existed on `directories` since 20260827120000 but was never consumed by anything.
