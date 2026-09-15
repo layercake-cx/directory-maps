@@ -20,13 +20,18 @@
  *   directories/<client_slug>/<directory_slug>/index.html
  *   directories/<client_slug>/<directory_slug>/<entry_slug>.html
  *   directories/<client_slug>/<directory_slug>/sitemap.xml
+ *   directories/<client_slug>/<directory_slug>/robots.txt
  *
  * middleware.js serves these at /directories/:clientSlug/:directorySlug
  * [/:entrySlug] on the branded domain — a path shape chosen specifically to
  * never collide with the existing /:clientSlug/:mapSlug interactive-map
  * route (which is exactly 2 segments, client-side routed, and must not pay
- * for an extra lookup on every load). Custom-domain serving for directories
- * is a later phase (DIR-E3/Phase 4), not built here.
+ * for an extra lookup on every load). The same output also serves a
+ * directory's own custom domain root (client_domains.directory_id,
+ * DomainSettings.jsx, since 20260827130000) via middleware.js's
+ * handleCustomDomain — the one place robots.txt is actually honoured by a
+ * real crawler, since crawlers only ever fetch a domain's own root
+ * /robots.txt, never a per-path one.
  *
  * Gated on the `directories` feature flag only — this entity has no
  * separate commercial entitlement yet (unlike directory_pages, which is a
@@ -52,6 +57,7 @@ import {
   json,
   uploadToBlob,
   buildSitemapXml,
+  buildRobotsTxt,
   mapWithConcurrency,
 } from "../_shared/staticSiteRenderer.ts";
 
@@ -104,7 +110,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, theme_json")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -112,6 +118,20 @@ async function generateForDirectoryInner(
 
   const theme: DirectoryTheme =
     directory.theme_json && typeof directory.theme_json === "object" ? (directory.theme_json as DirectoryTheme) : {};
+
+  // Settings tab's "General settings"/"SEO settings" — seo_defaults_json
+  // existed as a data-layer-only column since 20260827120000 but was never
+  // consumed until now. default_noindex is the single "let search engines
+  // index this directory" switch: it gates the landing page's own noindex
+  // meta tag, whether its URL appears in sitemap.xml, and robots.txt
+  // Allow/Disallow below — entries keep their own independent per-entry
+  // noindex regardless of this directory-wide setting.
+  const seoDefaults = (directory.seo_defaults_json ?? {}) as {
+    meta_title_template?: string | null;
+    meta_description?: string | null;
+    default_noindex?: boolean | null;
+  };
+  const directoryNoindex = !!seoDefaults.default_noindex;
 
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
@@ -379,14 +399,20 @@ async function generateForDirectoryInner(
     attachedMapEmbedSrc,
     categorisations: filterBarCategorisations,
     entryTermIds: entryTermIdsFlat,
+    seoTitle: seoDefaults.meta_title_template || null,
+    seoDescription: seoDefaults.meta_description || null,
+    seoImageUrl: directory.seo_og_image_url || null,
+    seoNoindex: directoryNoindex,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
+  const sitemapUrl = `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/sitemap.xml`;
   const sitemapUrls = [
-    `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`,
+    ...(directoryNoindex ? [] : [`${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`]),
     ...entries.filter((e) => !e.noindex).map((e) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${e.slug}`),
   ];
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
+  await uploadToBlob(`${basePath}/robots.txt`, buildRobotsTxt(!directoryNoindex, sitemapUrl), "text/plain; charset=utf-8");
 
   const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
   const llmsTxt = buildLlmsTxt({

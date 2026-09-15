@@ -99,7 +99,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (categorisation tagging), **Publish**, **Branding**, **AI Content**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs — the rest are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI Content**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
 
 ### Creating a directory
 
@@ -129,6 +129,18 @@ Open a directory to its **Entries** tab (the default view) to see its entries ta
 A CSV's own `lat`/`lng` columns are used as-is when filled in; rows left blank are **not** geocoded automatically by the import — click **Geocode missing coords** afterward to fill them in.
 
 **Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
+
+### Directory settings
+
+On a directory's **Settings** tab, the top panel covers:
+
+- **General settings** — **Directory title**, editable at any time (this is the same name shown throughout the admin/client UI and, once published, as the page's on-site heading).
+- **SEO settings** — controls how the directory's published pages appear in search results and when shared on social media:
+  - **Let search engines index this directory** — a single switch. Turned off, the directory's `robots.txt` disallows crawling, its homepage is left out of `sitemap.xml`, and its homepage carries a "noindex" tag — all together. Individual entries keep their own separate index/no-index setting (see their **Search & Metadata** tab) regardless of this switch.
+  - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description.
+  - **Social/SEO image URL** — the image shown when the directory's homepage is shared on social media, and the fallback image for any entry that hasn't set its own.
+
+Click **Save settings**, then **Publish** (or republish) for changes to reach the live site.
 
 ### Publishing a directory
 

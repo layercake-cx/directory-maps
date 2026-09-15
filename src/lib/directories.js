@@ -37,29 +37,38 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
   return data ?? [];
 }
 
+const DIRECTORY_COLUMNS =
+  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed";
+
+/**
+ * Schema-drift fallback: a DB migration and a frontend deploy are two
+ * independent, non-atomic releases (frontend deploys automatically on merge
+ * to main; migrations need a separate explicit apply per environment — see
+ * AGENTS.md), so newer frontend code can briefly run against an older
+ * schema in some environment. Drops whichever newer column set the error
+ * names and retries, rather than breaking the whole directory page.
+ */
 export async function getDirectory(directoryId) {
   if (!directoryId) return null;
-  const { data, error } = await supabase
-    .from("directories")
-    .select(
-      "id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed",
-    )
-    .eq("id", directoryId)
-    .single();
-  // Schema-drift fallback — the AI content generation migration may not be
-  // applied yet in this environment. Retry without those columns rather than
-  // breaking the whole directory page.
-  if (error && String(error.message || "").includes("ai_content_")) {
-    const { data: fallback, error: fallbackErr } = await supabase
-      .from("directories")
-      .select("id, client_id, name, slug, description, is_active, seo_defaults_json, theme_json, current_publication_id, published_at, created_at, updated_at")
-      .eq("id", directoryId)
-      .single();
-    if (fallbackErr) throw fallbackErr;
-    return fallback;
+  let columns = DIRECTORY_COLUMNS;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase.from("directories").select(columns).eq("id", directoryId).single();
+    if (!error) return data;
+    const msg = String(error.message || "");
+    if (msg.includes("seo_og_image_url") && columns.includes("seo_og_image_url")) {
+      columns = columns.replace(", seo_og_image_url", "");
+      continue;
+    }
+    if (msg.includes("ai_content_") && columns.includes("ai_content_prompt")) {
+      columns = columns.replace(
+        ", ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed",
+        "",
+      );
+      continue;
+    }
+    throw error;
   }
-  if (error) throw error;
-  return data;
+  throw new Error("getDirectory: exhausted schema-drift fallback attempts");
 }
 
 export async function createDirectory({ clientId, name, slug, description }) {

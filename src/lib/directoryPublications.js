@@ -26,6 +26,7 @@ export function buildDirectoryPublicationConfig({ directory, categorisations }) 
       name: directory?.name ?? null,
       description: directory?.description ?? null,
       seo_defaults_json: directory?.seo_defaults_json ?? null,
+      seo_og_image_url: directory?.seo_og_image_url ?? null,
     },
     categorisations: (categorisations || []).map((c) => ({
       id: c.id,

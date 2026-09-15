@@ -1199,8 +1199,12 @@ export function buildDirectoryLandingPage(opts: {
   attachedMapEmbedSrc: string | null;
   categorisations: FilterBarCategorisation[];
   entryTermIds: Map<string, string[]>;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoImageUrl?: string | null;
+  seoNoindex?: boolean;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -1347,12 +1351,14 @@ ${buildFilterAndSearchScript(hasMap, categorisations)}
 `.trim();
 
   return directoryPageShell({
-    title: directoryName,
-    description: directoryDescription || `${directoryName} — ${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}`,
+    title: seoTitle || directoryName,
+    description: seoDescription || directoryDescription || `${directoryName} — ${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}`,
     canonicalUrl,
     jsonLd,
     body,
     theme,
+    imageUrl: seoImageUrl ?? null,
+    noindex: !!seoNoindex,
   });
 }
 

@@ -8,6 +8,7 @@ import { loadDirectoryTermIds, setDirectoryTerms } from "../../lib/categorisatio
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
+import DirectoryGeneralSettingsPanel from "../../components/directories/DirectoryGeneralSettingsPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
 import CategorisationAttachmentPicker from "../../components/directories/CategorisationAttachmentPicker.jsx";
 import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
@@ -189,6 +190,16 @@ export default function AdminDirectoryEntries() {
 
             {activeTab === "settings" && (
               <>
+                <div className="admin-card" style={{ marginBottom: 16 }}>
+                  <DirectoryGeneralSettingsPanel
+                    directory={directory}
+                    directoryId={directoryId}
+                    canManage
+                    recordEvent={recordEvent}
+                    onSaved={reloadDirectory}
+                  />
+                </div>
+
                 <div className="admin-card" style={{ marginBottom: 16 }}>
                   <CategorisationAttachmentPicker
                     clientId={clientId}
