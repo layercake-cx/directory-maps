@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-14 — [Staging] Directory Settings tab: title + SEO settings, real robots.txt via custom domains
+
+**Branch/PR:** `feat/2026-09-14-directory-title-seo-settings` (PR not opened yet).
+
+### What changed
+Adds a "General settings" (directory title — `directories.name`, pre-existing, just never had a Settings-tab UI) and "SEO settings" panel to the Directory Settings tab (admin + client portal, parity per `AGENTS.md`), plus wires up `seo_defaults_json` (`meta_title_template`/`meta_description`/`default_noindex`) which existed on `directories` since 20260827120000 but was never consumed by anything.
+
+- One combined **"let search engines index this directory"** switch (chosen over separate robots.txt/sitemap toggles, per discussion with the user) drives all three together in `generate_directory_site`: the landing page's `noindex` meta tag, whether it's included in `sitemap.xml`, and `robots.txt` `Allow`/`Disallow`. Per-entry `noindex` is unaffected.
+- **Default SEO title/description** now feed the landing page's `<title>`/meta description (previously hardcoded to the directory name/description only).
+- New column **`directories.seo_og_image_url`** (`20260914210000_directory_seo_og_image.sql`) feeds the landing page's `og:image`/`twitter:image`, and is a fallback for entries without their own.
+- **robots.txt, built for real** (`buildRobotsTxt()`, new in `_shared/staticSiteRenderer.ts`) — this reopens something `docs/FEATURES.md` §4.4a-6 explicitly said wasn't built, for a correct reason at the time (a per-path file under the shared branded host is never fetched by a real crawler — crawlers only ever request a domain's own root `/robots.txt`). What makes it real this time: directory custom domains already exist (`client_domains.directory_id`, shipped 20260827130000, `DomainSettings.jsx`'s `targetType === "directory"` path) — a directory with an active custom domain now gets its generated `robots.txt` served at that domain's actual root via `middleware.js`'s `handleCustomDomain`, which a real crawler will fetch. The branded-host path (`/directories/:clientSlug/:directorySlug/robots.txt`) is also served, for manual inspection/forward-compat, but isn't itself crawler-honoured — the Settings tab copy says so explicitly rather than overstating it.
+- Found and fixed two stale header comments while investigating this (`generate_directory_site/index.ts`, `middleware.js`) that still claimed directory custom domains "aren't built yet" — the code beneath them already fully handled `entityType === "directory"` everywhere; only the comments hadn't been updated when that shipped.
+- `getDirectory()` (`src/lib/directories.js`) generalised its existing ai_content-columns schema-drift fallback into a loop that drops whichever newer column the DB error names — needed because `seo_og_image_url` is a brand-new column and the frontend auto-deploys on merge while the migration needs separate sign-off per environment (see `AGENTS.md`); without this, every directory page would break in any environment that hasn't had the migration applied yet.
+- New admin event: `directory_settings_updated` (`meta`: `client_id`, `directory_id`, `changed_fields`) — added to `AGENTS.md`'s catalogue.
+
+### Verified
+- [x] Migration dry-run + applied to staging (`beqejxneehilplrtpntn`) via `supabase db push` — `VERIFY PASSED`, row count unchanged. (Two unrelated, already-in-the-repo production-only data-recovery migrations from earlier today were blocking the push — marked `applied` via `supabase migration repair` without running them, since they're guarded to abort against any dataset but production's, and were never meant to run on staging.)
+- [x] `generate_directory_site` deployed to staging and invoked directly against a real staging directory (204 entries) — `{"ok":true,"count":204}`, no errors, confirming the new column read + SEO defaults consumption + robots.txt upload all run cleanly against live staging data.
+- [x] `deno check` on `generate_directory_site/index.ts` — clean.
+- [x] `npm run build` — clean.
+- [ ] **Not interactively tested** — no login credentials available to this agent session (same limitation noted throughout this log for prior directory/admin UI work). The Settings tab panel itself (title save, SEO fields, the visibility toggle) needs a manual click-through by the user before calling this done.
+- [ ] `middleware.js`'s new/changed routing (branded-host + custom-domain robots.txt) not verified against a live Vercel deploy — `npm run deploy:test`/`deploy:live` need an interactively-authenticated Vercel CLI session, which this agent can't do (per `AGENTS.md`). Worth checking directly against a directory with an active custom domain once deployed.
+
+### Rollback plan
+Run `_20260914210000_directory_seo_og_image.rollback.sql` to drop `seo_og_image_url` (refuses if any directory has a non-null value set). Revert this branch's commit(s) for the rest — pure frontend/Edge Function/middleware changes, no other schema impact. `generate_directory_site` would need redeploying to the pre-change version alongside a schema rollback, since the deployed function currently expects the new column to exist.
+
+---
+
 ## 2026-09-14 — [Production] Data recovery: "Industry Sector" categorisation for the UK Associations Sample Map directory
 
 **Branch/PR:** `fix/2026-09-14-recover-industry-sector-categorisation` (PR not opened yet).

@@ -258,9 +258,21 @@ Closes two gaps flagged, not fixed, in Phase 3b:
 - **`llms.txt`** per `docs/DIRECTORIES.md` §4/DIR-E2-S4 — name/description/entry count/link list, honouring `seo_defaults_json.llms_txt_extra`.
 - Two small bugs fixed in passing: CSS classes (`.hero`/`.gallery`/`.badges`/`.link-tiles`/`.product-tiles`) referenced by the entry page markup since Phase 3b were never actually styled; a `noindex` meta tag was being string-prepended before `<!doctype html>` (invalid) instead of placed in `<head>`.
 - Verified against the user's own real, already-published directory (`l-cakez/uk-association-directory`) via a Vercel preview deploy — live Open Graph tags, live `llms.txt` with real entries, clean fallthrough for an unknown entry slug.
-- **Not built:** robots.txt (a domain-root file by web standard — a per-directory one wouldn't be honoured by real crawlers, same documented gap as the map feature), category/location index pages.
+- **Not built (at the time):** robots.txt (a domain-root file by web standard — a per-directory one wouldn't be honoured by real crawlers, same documented gap as the map feature), category/location index pages. Superseded by §4.4a-7 below once directory custom domains (§4.4f) gave a directory a real domain root to serve one from.
 
 Files: `supabase/functions/generate_directory_site/index.ts` (extended), `middleware.js` (extended).
+
+### 4.4a-7 Directory Settings tab: title + SEO settings, robots.txt (new)
+
+Adds the missing UI on top of `seo_defaults_json` (data-layer-only since Phase 3a/§4.4a-3) plus one new column, and finally resolves the robots.txt gap flagged in §4.4a-6.
+
+- **General settings**: directory title (`directories.name`, pre-existing column, previously only settable at creation).
+- **SEO settings**, both on the Directory Settings tab (admin + client portal): a single **"let search engines index this directory"** switch (`seo_defaults_json.default_noindex`, inverted) rather than separate robots.txt/sitemap toggles — one thing for a client to reason about, driving all three together: the landing page's own `noindex` meta tag, whether its URL appears in `sitemap.xml`, and robots.txt `Allow`/`Disallow`. Per-entry `noindex` stays independent. Also **default SEO title/description** (now actually consumed by `generate_directory_site`, previously unused) and a new **`directories.seo_og_image_url`** (`20260914210000_directory_seo_og_image.sql`) feeding the landing page's `og:image`/`twitter:image` and acting as a fallback for entries without their own.
+- **robots.txt, for real this time**: §4.4a-6 explicitly didn't build one, correctly noting that a per-path file under the shared branded host is never fetched by a real crawler (crawlers only ever request a domain's own root `/robots.txt`). What changed: directory custom domains (§4.4f's `client_domains.directory_id`, shipped since 20260827130000) give a directory an actual domain root — `middleware.js`'s `handleCustomDomain` now serves the generated `robots.txt` at that root, which real crawlers do honour. The branded-host path (`/directories/:clientSlug/:directorySlug/robots.txt`) is also served, for manual inspection and forward-compatibility, but isn't itself crawler-honoured — same limitation as before, now stated rather than left implicit. `buildRobotsTxt()` lives in `_shared/staticSiteRenderer.ts` (entity-agnostic, unused by the map feature so far).
+- New admin event: `directory_settings_updated` (`meta`: `client_id`, `directory_id`, `changed_fields`).
+- Corrected two stale header comments discovered while making this change: `generate_directory_site/index.ts` and `middleware.js` both still said directory custom domains weren't built yet, though the code beneath them (and `DomainSettings.jsx`'s `targetType === "directory"` path) already fully handled them.
+
+Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.sql`). Files: `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; `supabase/functions/generate_directory_site/{index.ts,builders.ts}`, `supabase/functions/_shared/staticSiteRenderer.ts`, `middleware.js` (all extended); `src/lib/directories.js` (`getDirectory` schema-drift fallback generalised), `src/lib/directoryPublications.js`.
 
 ### 4.4b Categorisations (new, DIR-E5)
 

@@ -409,6 +409,12 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`domain_removed`**
   - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
 
+#### Directory settings
+
+- **`directory_settings_updated`**
+  - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
+  - Fired from the Directory Settings tab's "General settings" (title) and "SEO settings" (search-engine visibility, default SEO title/description, social/SEO image) panel.
+
 #### Directory AI content generation
 
 Successor to the removed map-level "AI search enrichment" feature (`ai_search_*` events never existed under this catalogue — that feature predates this instrumentation convention).

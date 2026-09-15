@@ -129,3 +129,12 @@ export function buildSitemapXml(urls: string[]): string {
   const body = urls.map((u) => `<url><loc>${escapeXml(u)}</loc></url>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`;
 }
+
+/**
+ * A minimal robots.txt gating an entire site on/off, per the Settings tab's
+ * single "let search engines index this" switch — not a per-path rules
+ * engine, since there's no per-path UI driving one.
+ */
+export function buildRobotsTxt(indexable: boolean, sitemapUrl: string): string {
+  return indexable ? `User-agent: *\nAllow: /\n\nSitemap: ${sitemapUrl}\n` : `User-agent: *\nDisallow: /\n`;
+}
