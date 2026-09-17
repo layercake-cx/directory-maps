@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Security fix: PUBLIC/anon/authenticated could call the migration-tooling functions
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+The two migration-tooling migrations shipped earlier today (Group migration tooling, filter-option split tooling) documented their functions as "not granted to authenticated," but never issued an actual `REVOKE` — Postgres grants `EXECUTE` to `PUBLIC` by default on every new function, and this Supabase project's schema-level default privileges *also* grant `EXECUTE` to `anon` and `authenticated` explicitly at creation time. Net effect: **any unauthenticated or logged-in user could have called any of these eight functions against any map**, including the destructive ones (`migrate_map_groups_to_category`, `split_composite_filter_option`, `split_all_composite_options_for_field`) — all `security definer` (bypassing RLS), with no caller-identity check inside them.
+
+Confirmed directly, at the user's request, by POSTing to `/rest/v1/rpc/dry_run_group_migration` on **staging** with only the public anon key: it executed (returned the function's own "Map does not exist" error, not a permission error) before the fix, and returned `401 permission denied for function` after.
+
+- New migration revokes `EXECUTE` from `public`, `anon`, and `authenticated` on all eight functions (the two dry-run/verify read-only ones plus the six others: `migrate_map_groups_to_category`, `split_composite_filter_option`, `split_all_composite_options_for_field`, `verify_group_migration`, `verify_field_has_no_composite_options`, `_slugify_option_value`). Nothing is granted back to any role — only a superuser/service-role connection can invoke them from here on, which was always the intended behaviour.
+- **Neither of the underlying tooling migrations had reached production yet** — this fix ships before either does; production was never exposed.
+- Caught before any actual data-mutating call was made by anyone other than this session's own (legitimate) read-only dry-run test.
+
+### Verified
+- [x] Anon-key RPC call to `dry_run_group_migration` on staging: `permission denied for function` (was previously callable) — confirmed live.
+- [x] Migration's own post-check confirms zero rows in `information_schema.routine_privileges` for `PUBLIC`/`anon`/`authenticated` on all eight functions.
+- [x] `npm run build` clean (no app code touched).
+- [ ] Not yet applied to production — will ship in the same batch as the two tooling migrations, never separated from them.
+
+### Rollback plan
+Run `_20260917160000_revoke_public_execute_on_migration_tooling.rollback.sql` — re-grants `PUBLIC`/`anon`/`authenticated` execute (this re-opens the gap; only intended to be used if this fix itself needs reversing for some unforeseen reason, not as a normal operation).
+
+---
+
 ## 2026-09-17 — [Staging] Filter option repair tooling: composite (un-split) option labels
 
 **Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
