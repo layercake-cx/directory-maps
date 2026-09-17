@@ -426,6 +426,9 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_settings_updated`**
   - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
   - Fired from the Directory Settings tab's "General settings" (title) and "SEO settings" (search-engine visibility, default SEO title/description, social/SEO image) panel.
+- **`directory_created`**
+  - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
+  - Fired from both `ClientMapData.jsx`/`AdminMapData.jsx`'s "Build a directory from this map" action.
 
 #### Directory entries
 

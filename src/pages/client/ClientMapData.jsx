@@ -1034,9 +1034,13 @@ export default function ClientMapData() {
     try {
       setBuildingDirectory(true); setDirectoriesError("");
       const dir = await createDirectoryFromMap(mapId);
+      let categorisationsMigrated = null;
+      try {
+        categorisationsMigrated = (await listAttachedCategorisations("directory", dir.id)).length;
+      } catch { /* best-effort telemetry only */ }
       recordAdminEvent(supabase, {
         eventType: "directory_created",
-        meta: { name: dir.name, slug: dir.slug, directory_id: dir.id, source_map_id: mapId },
+        meta: { name: dir.name, slug: dir.slug, directory_id: dir.id, source_map_id: mapId, categorisations_migrated: categorisationsMigrated },
         source: "client_portal",
         clientId,
       });

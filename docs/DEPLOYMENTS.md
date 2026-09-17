@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] "Build a directory from this map" now carries filter fields across as categorisations
+
+**Branch/PR:** `feat/2026-09-17-map-to-directory-categorisation-migration` (PR not opened yet).
+
+### What changed
+The user pointed out that `docs/USER_GUIDE.md`/`docs/FEATURES.md`'s claim "directory entries don't have an equivalent to map filter fields" was wrong — directory entries already have a structurally equivalent, filterable taxonomy (`categorisations`/`category_terms`/`entry_category_terms`), it was just never populated by the map→directory conversion. `create_directory_from_map()` (`20260827160000`) copied a map's `groups`→`directory_groups` and `listings`→`directory_entries`, but silently left all `map_filter_fields` data behind.
+
+Fixed, automatically, bundled into directory creation itself (confirmed with the user — same trust level groups/listings already get):
+
+- `create_directory_from_map()` now also loops over the map's active (`is_active = true`) filter fields and, for each `single_select`/`multi_select`/`boolean` one (identical enum values to `categorisations.field_type` — no mapping table needed), creates a new `categorisations` row attached to the new directory (`categorisation_attachments`, `target_type = 'directory'`), copies its options as `category_terms` (label/slug/sort_order/color copied directly, slug reuses the option's already-stable `value`), and tags each copied entry with its corresponding terms via `entry_category_terms`. `text`-type fields have no categorisation equivalent (no free-text term type) — skipped, named in a closing `raise notice` rather than silently dropped.
+- Two new id-correspondence maps built inline during copying, mirroring the existing `v_group_map` pattern: `v_listing_map` (old `listings.id` → new `directory_entries.id`) and, per migrated field, `v_term_map` (old option id → new term id).
+- The categorisation's key is disambiguated against the client's existing categorisation keys with the same numeric-suffix loop this function already uses for the directory's own slug. `applies_to` is left `null`, matching how `createCategorisation()` already creates every categorisation today (legacy column, superseded by `categorisation_attachments`).
+- **Untouched**: the source map's own `groups`/`listings`/`map_filter_fields`/`listing_filter_values` — copy, not move, same as before. The new categorisation is attached only to the new directory, never back to the map (reusing `categorisations` for a map's *own* listings was already tried and reverted on 2026-08-29 as "the wrong shape" — this doesn't revisit that).
+- No RPC signature/return-type change (`src/lib/directories.js`'s `createDirectoryFromMap()` needed no changes). `src/pages/client/ClientMapData.jsx` / `src/pages/admin/AdminMapData.jsx`'s `directory_created` admin event gained a best-effort `categorisations_migrated` count (new catalogue entry in `AGENTS.md`, since `directory_created` had never actually been documented there despite `docs/DIRECTORIES.md` referencing it).
+- **Docs fix (two inaccuracies, not one)**: `docs/USER_GUIDE.md` and `docs/FEATURES.md` both also claimed "a directory-sourced map's embed has no filter chips" — that's been false since the 2026-08-29 "unify map filters and categories" work (`categorisationsAsFilterFields()`/`loadCategorisationFiltersForEntries` in `EmbedMap.jsx`); the doc line was simply never updated after that shipped. Both docs corrected to state plainly: directory entries have categorisations as their own equivalent taxonomy, a directory-sourced map already shows those as filter chips, and this change adds the missing direction (a map's own filter fields carrying across when a directory is built *from* it).
+
+### Verified
+- [x] Exercised end-to-end on staging with a throwaway test fixture (a temporary map + 2 groups + 2 listings + a `single_select` field, a `multi_select` field, and a `text` field, deleted immediately after): 2 fields correctly migrated to categorisations (with correct labels/slugs/colors/attachment), 1 (`text`) correctly skipped and named in the notice, 4 `entry_category_terms` rows created (matching the fixture's tagging exactly), and the source map's own `groups`/`listing_filter_values` confirmed unchanged by the same test. Fixture and its migration-history record fully cleaned up afterward — nothing test-only left on staging.
+- [x] `npm run build` clean.
+- [ ] Not yet applied to production — needs explicit sign-off, separately, per `AGENTS.md`.
+
+### Rollback plan
+Run `_20260917210000_create_directory_from_map_carries_filter_fields.rollback.sql` — restores `create_directory_from_map()` to its original groups/listings-only body. Does not undo categorisations/terms/attachments/tags already created by directories built while the fixed version was live (harmless, additive data) — only reverts behaviour for future calls.
+
+---
+
 ## 2026-09-17 — [Production] Data repair: APMG "Courses Offered" composite filter options split into atomic ones
 
 **Branch/PR:** `chore/2026-09-17-apmg-courses-offered-dry-run` (PR not opened yet).
