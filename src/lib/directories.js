@@ -173,6 +173,36 @@ export async function listDirectoryEntries(directoryId, { search = "", page = 0,
   return { rows: data ?? [], count: count ?? 0 };
 }
 
+/**
+ * Full column set needed by the CSV export (DIR-E1-S7) and by CSV import's
+ * slug-preservation lookup — kept separate from listDirectoryEntries's
+ * (narrower) admin-table column set rather than widening that query's
+ * payload for a view that doesn't need these fields.
+ */
+const ENTRY_EXPORT_COLUMNS =
+  "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, canonical_url, keywords, twitter_card_type, panel_image_url, panel_background_color";
+
+/** Fetches every entry in a directory (not paginated) — for CSV export and for the import's slug-preservation lookup. */
+export async function listAllDirectoryEntries(directoryId) {
+  if (!directoryId) return [];
+  const pageSize = 500;
+  const all = [];
+  for (let page = 0; ; page++) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await supabase
+      .from("directory_entries")
+      .select(ENTRY_EXPORT_COLUMNS, { count: "exact" })
+      .eq("directory_id", directoryId)
+      .order("name", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    all.push(...(data ?? []));
+    if (all.length >= (count ?? 0) || (data ?? []).length < pageSize) break;
+  }
+  return all;
+}
+
 export async function getDirectoryEntry(entryId) {
   if (!entryId) return null;
   const { data, error } = await supabase

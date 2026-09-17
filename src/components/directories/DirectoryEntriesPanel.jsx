@@ -8,11 +8,12 @@ import {
   deleteAllDirectoryEntries,
   deleteDirectoryEntry,
   geocodeDirectoryEntries,
+  listAllDirectoryEntries,
   listDirectoryEntries,
   listDirectoryGroups,
   upsertDirectoryEntries,
 } from "../../lib/directories";
-import { listAttachedCategorisations, setEntryTerms } from "../../lib/categorisations";
+import { listAttachedCategorisations, listEntryTermIdsByEntry, setEntryTerms } from "../../lib/categorisations";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
@@ -47,6 +48,34 @@ function boolish(v) {
 
 function categoryColumnName(key) {
   return `category_${key}`;
+}
+
+// ─── CSV column contract (import + export + template share these so they can
+// never drift apart — see AGENTS.md's "directory entries CSV contract" note).
+// System-managed/computed columns (timestamps, geocode status, AI-generated
+// fields) are deliberately excluded: they're written by other features and a
+// bulk CSV edit shouldn't be able to blank them out as a side effect.
+const BASE_HEADER = ["id", "name", "address", "postcode", "country", "city", "lat", "lng", "website_url", "email", "phone", "logo_url", "notes_html", "allow_html", "group_name", "is_active"];
+const EXTRA_FIELD_KEYS = ["show_phone", "show_email", "show_website", "show_address", "slug", "meta_title", "meta_description", "noindex", "structured_data_type", "sitemap_priority", "og_title", "og_description", "og_image_url", "canonical_url", "keywords", "twitter_card_type", "panel_image_url", "panel_background_color"];
+const BOOL_DEFAULT_TRUE_FIELDS = new Set(["show_phone", "show_email", "show_website", "show_address"]);
+const STRUCTURED_DATA_TYPES = ["LocalBusiness", "Organization", "Person"];
+const TWITTER_CARD_TYPES = ["summary", "summary_large_image"];
+
+function buildEntryCsvHeader(categorisations) {
+  return [...BASE_HEADER, ...EXTRA_FIELD_KEYS, ...categorisations.map((c) => categoryColumnName(c.key))];
+}
+
+function downloadCsv(filename, header, rows) {
+  const toCSV = (arr) => arr.map((row) => row.map((cell) => {
+    const s = String(cell ?? "");
+    return (s.includes('"') || s.includes(",") || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(",")).join("\n");
+  const blob = new Blob([toCSV([header, ...rows])], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 const inputStyle = {
@@ -96,6 +125,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   const [csvMsg, setCsvMsg] = useState("");
   const [importing, setImporting] = useState(false);
   const [importChoiceOpen, setImportChoiceOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
@@ -260,22 +290,74 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   }
 
   function downloadTemplate() {
-    const baseHeader = ["id", "name", "address", "postcode", "country", "city", "lat", "lng", "website_url", "email", "phone", "logo_url", "notes_html", "allow_html", "group_name", "is_active"];
+    const header = buildEntryCsvHeader(categorisations);
     const baseSample = ["", "Example Supplier Ltd", "1 Example Street", "SW1A 1AA", "UK", "", "", "", "https://example.com", "hello@example.com", "", "", "", "false", "", "true"];
-    const catCols = categorisations.map((c) => categoryColumnName(c.key));
+    const extraSample = EXTRA_FIELD_KEYS.map((key) => (BOOL_DEFAULT_TRUE_FIELDS.has(key) ? "true" : ""));
     const catSample = categorisations.map((c) => (c.terms || []).slice(0, 1).map((t) => t.slug).join("|"));
-    const header = [...baseHeader, ...catCols];
-    const sample = [[...baseSample, ...catSample]];
-    const toCSV = (arr) => arr.map((row) => row.map((cell) => {
-      const s = String(cell ?? "");
-      return (s.includes('"') || s.includes(",") || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s;
-    }).join(",")).join("\n");
-    const blob = new Blob([toCSV([header, ...sample])], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "directory-entries-template.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadCsv("directory-entries-template.csv", header, [[...baseSample, ...extraSample, ...catSample]]);
+  }
+
+  // ── CSV export (DIR-E1-S8) — every entry, live from the DB, in exactly the
+  // same column order the import expects, so a re-import updates in place.
+  async function exportEntriesCsv() {
+    setErr(""); setCsvMsg("");
+    try {
+      setExporting(true);
+      const entries = await listAllDirectoryEntries(directoryId);
+      const header = buildEntryCsvHeader(categorisations);
+
+      let termIdsByEntry = new Map();
+      const termIdToSlugByCat = new Map();
+      if (clientId && categorisations.length && entries.length) {
+        termIdsByEntry = await listEntryTermIdsByEntry(entries.map((e) => e.id));
+        for (const cat of categorisations) {
+          termIdToSlugByCat.set(cat.id, new Map((cat.terms || []).map((t) => [t.id, t.slug])));
+        }
+      }
+
+      const rows = entries.map((entry) => {
+        const base = [
+          entry.id,
+          entry.name,
+          entry.address ?? "",
+          entry.postcode ?? "",
+          entry.country ?? "",
+          entry.city ?? "",
+          entry.lat ?? "",
+          entry.lng ?? "",
+          entry.website_url ?? "",
+          entry.email ?? "",
+          entry.phone ?? "",
+          entry.logo_url ?? "",
+          entry.notes_html ?? "",
+          entry.allow_html ? "true" : "false",
+          groupNameById.get(entry.directory_group_id) || "",
+          entry.is_active ? "true" : "false",
+        ];
+        const extras = EXTRA_FIELD_KEYS.map((key) => {
+          const v = entry[key];
+          if (BOOL_DEFAULT_TRUE_FIELDS.has(key)) return v === false ? "false" : "true";
+          if (key === "noindex") return v === true ? "true" : v === false ? "false" : "";
+          return v == null ? "" : String(v);
+        });
+        const termIds = termIdsByEntry.get(entry.id) || [];
+        const cats = categorisations.map((cat) => {
+          const slugLookup = termIdToSlugByCat.get(cat.id);
+          return termIds.map((tid) => slugLookup?.get(tid)).filter(Boolean).join("|");
+        });
+        return [...base, ...extras, ...cats];
+      });
+
+      downloadCsv(`directory-entries-export-${directoryId}.csv`, header, rows);
+      recordEvent?.("directory_entry_csv_exported", { directory_id: directoryId, rows_exported: entries.length });
+      setCsvMsg(entries.length === 0
+        ? "Directory has no entries yet — exported an empty CSV with just the headers."
+        : `Exported ${entries.length} row${entries.length === 1 ? "" : "s"}.`);
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function doImport(mode) {
@@ -285,6 +367,11 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     try {
       setImporting(true);
       setImportChoiceOpen(false);
+
+      // Needed to preserve `slug` on blank cells for rows that update an
+      // existing entry (slug is NOT NULL + unique, and only auto-fills on
+      // insert — see the slug handling below).
+      const existingById = new Map((await listAllDirectoryEntries(directoryId)).map((e) => [e.id, e]));
 
       // Auto-create groups for any previously-unseen group_name values (matches
       // ClientMapData.jsx's doImport convention).
@@ -338,6 +425,38 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
         const groupKey = getGroupLabel(r).toLowerCase();
         const directory_group_id = groupKey ? groupLookup.get(groupKey) ?? null : null;
 
+        const structuredDataTypeRaw = String(r.structured_data_type ?? "").trim();
+        if (structuredDataTypeRaw && !STRUCTURED_DATA_TYPES.includes(structuredDataTypeRaw)) {
+          errors.push(`Row ${rowNum}: structured_data_type must be one of ${STRUCTURED_DATA_TYPES.join(", ")}`);
+          return;
+        }
+
+        const twitterCardTypeRaw = String(r.twitter_card_type ?? "").trim();
+        if (twitterCardTypeRaw && !TWITTER_CARD_TYPES.includes(twitterCardTypeRaw)) {
+          errors.push(`Row ${rowNum}: twitter_card_type must be one of ${TWITTER_CARD_TYPES.join(", ")}`);
+          return;
+        }
+
+        const sitemapPriorityRaw = String(r.sitemap_priority ?? "").trim();
+        let sitemap_priority = null;
+        if (sitemapPriorityRaw) {
+          const n = Number(sitemapPriorityRaw);
+          if (Number.isNaN(n) || n < 0 || n > 1) {
+            errors.push(`Row ${rowNum}: sitemap_priority must be a number between 0 and 1`);
+            return;
+          }
+          sitemap_priority = n;
+        }
+
+        // slug is NOT NULL + unique per directory and only auto-fills on
+        // INSERT (a DB trigger derives it from name) — so a blank cell means
+        // "leave the existing entry's slug alone" on an update, not "clear
+        // it". A blank cell on a new row is passed through as null so the
+        // insert trigger can derive it.
+        const slugRaw = String(r.slug ?? "").trim();
+        const existingEntry = existingById.get(id);
+        const slug = slugRaw || (existingEntry ? existingEntry.slug : null);
+
         cleaned.push({
           id,
           directory_id: directoryId,
@@ -357,6 +476,24 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
           allow_html: boolish(r.allow_html) ?? false,
           is_active: boolish(r.is_active) ?? true,
           source: "csv",
+          show_phone: boolish(r.show_phone) ?? true,
+          show_email: boolish(r.show_email) ?? true,
+          show_website: boolish(r.show_website) ?? true,
+          show_address: boolish(r.show_address) ?? true,
+          slug,
+          meta_title: String(r.meta_title ?? "").trim() || null,
+          meta_description: String(r.meta_description ?? "").trim() || null,
+          noindex: boolish(r.noindex),
+          structured_data_type: structuredDataTypeRaw || null,
+          sitemap_priority,
+          og_title: String(r.og_title ?? "").trim() || null,
+          og_description: String(r.og_description ?? "").trim() || null,
+          og_image_url: String(r.og_image_url ?? "").trim() || null,
+          canonical_url: String(r.canonical_url ?? "").trim() || null,
+          keywords: String(r.keywords ?? "").trim() || null,
+          twitter_card_type: twitterCardTypeRaw || null,
+          panel_image_url: String(r.panel_image_url ?? "").trim() || null,
+          panel_background_color: String(r.panel_background_color ?? "").trim() || null,
         });
 
         if (clientId) {
@@ -423,6 +560,9 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
         </div>
         {canEdit && (
           <Group gap="xs">
+            <Button size="sm" variant="default" onClick={exportEntriesCsv} loading={exporting} disabled={exporting}>
+              {exporting ? "Exporting…" : "Export CSV"}
+            </Button>
             <Button size="sm" variant="default" onClick={downloadTemplate}>Download CSV template</Button>
             <Button size="sm" variant="default" onClick={() => setImportOpen((v) => !v)}>
               {importOpen ? "Cancel import" : "Import CSV"}
