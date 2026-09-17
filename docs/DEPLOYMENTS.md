@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Bug fix: Group migration tooling dropped colours sourced from theme_json (and could destroy custom pin icons)
+
+**Branch/PR:** `fix/2026-09-17-group-migration-color-source` (PR not opened yet).
+
+### What changed
+Auditing IAPCO's two live maps (`0adab038-3cc6-41a5-8187-80e11404af86`, `bc37a36e-ca6d-48e7-b5db-65f78cbc80a3`) at the user's request found that `migrate_map_groups_to_category()` (shipped earlier today, `20260917140000_group_migration_tooling.sql`, applied to both staging and production but never yet invoked against real data) had a real bug: it only read the flat `groups.color` column for each option's colour, but per-group pin colour in this codebase almost always lives in `groups.theme_json->>'marker_color'` instead — `color` is only kept in sync when an admin sets a colour via the Groups tab's specific "Colours" override flow. On IAPCO's Community map, four of five coloured groups (Registered Office, Destination Partners, Service Providers, Convention Centres) would have lost their colour entirely if migrated as originally written.
+
+Worse: one group on that map ("IAPCO Accredited Member") has no colour at all — it renders via a **custom pin icon** (`theme_json.custom_pin_url` / `pin_favicon_mode: 'custom'`), confirmed visually in the admin design view (a distinct white pin with a checkmark icon). A category option only ever carries a flat colour, never an icon — migrating that map's colour source would have silently replaced a distinctive custom icon with a plain/default pin, a real visible regression for a live client, not just a missed colour.
+
+Fixed before this was ever run against any real map:
+
+- `migrate_map_groups_to_category()` now sources each option's colour via `coalesce(g.color, g.theme_json->>'marker_color')`, matching `mergeGroupWithPublication()`'s own precedent (`src/lib/mapPublication.js`) — the same logic the live embed itself already uses to resolve a group's actual rendered colour.
+- `migrate_map_groups_to_category()` now **aborts outright** if any group on the map has a custom pin icon (`custom_pin_url` set, or `pin_favicon_mode = 'custom'` with a `pin_favicon_url`) — this needs a human decision, not a script silently discarding it.
+- `dry_run_group_migration()` now reports, per group, both the flat column and the resolved colour it would actually use, plus a top-level `would_be_blocked_by_custom_icon` flag and which group(s) would block it — visible in the report *before* anyone attempts the real run.
+- `verify_group_migration()`'s colour-equivalence check now compares against the same coalesced value on both sides (previously it would have falsely reported a mismatch even for a correctly migrated map, since it compared the new option's colour against the flat `g.color` only).
+- Confirmed nothing was disturbed: no map anywhere has a `group_migrated` field yet, so this is a pure function-body fix, no data affected.
+
+### Verified
+- [x] Applied to staging (`beqejxneehilplrtpntn`); migration's own `VERIFY PASSED` notice fired.
+- [x] Confirmed via direct read-only queries against **production** (anon key + a scoped `psql` privilege check) that IAPCO's Community map has exactly this shape: 5 groups with `theme_json.marker_color` set and flat `color` null, plus "IAPCO Accredited Member" using a custom icon — matching the admin design view screenshot the user shared.
+- [x] `npm run build` clean (no app code touched).
+- [ ] Not yet applied to production — recommend doing so promptly given the tooling this fixes is already live there (unused, but the bug it fixes is real).
+
+### Rollback plan
+Run `_20260917180000_fix_group_migration_color_source.rollback.sql` — restores the original (buggy) function bodies. Refuses if any map already has a `group_migrated` field (review that map's colours by hand first — the bug this fixes may have already affected it).
+
+---
+
 ## 2026-09-17 — [Staging] Security fix: RLS disabled on listing_research_backup_20260906
 
 **Branch/PR:** `fix/2026-09-17-listing-research-backup-rls` ([PR #177](https://github.com/layercake-cx/directory-maps/pull/177), merged).
