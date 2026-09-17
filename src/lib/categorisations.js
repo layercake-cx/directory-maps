@@ -334,6 +334,24 @@ export async function applyBulkEntryTerms({ entryIds, categorisationId, termIds,
   return ids.length;
 }
 
+/** entry_id -> term_id[] for a batch of entries (CSV export's category_<key> columns). Chunks the `.in()` query to keep IN lists bounded. */
+export async function listEntryTermIdsByEntry(entryIds) {
+  const ids = [...new Set((entryIds || []).filter(Boolean))];
+  const byEntry = new Map();
+  if (ids.length === 0) return byEntry;
+  const CHUNK = 500;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const { data, error } = await supabase.from("entry_category_terms").select("entry_id, term_id").in("entry_id", chunk);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (!byEntry.has(row.entry_id)) byEntry.set(row.entry_id, []);
+      byEntry.get(row.entry_id).push(row.term_id);
+    }
+  }
+  return byEntry;
+}
+
 /** Replace all term tags for an entry with exactly termIds. */
 export async function setEntryTerms(entryId, termIds) {
   const { error: delErr } = await supabase.from("entry_category_terms").delete().eq("entry_id", entryId);

@@ -228,6 +228,14 @@ Migration files live in `supabase/migrations/` and are named `YYYYMMDDHHMMSS_sho
 - Do not commit unless the user asks.
 - Auth is **email + password** for signup/login; team invites use invitation links to signup/login, not magic-link OTP.
 
+## Directory entries CSV import/export contract
+
+The Entries tab's CSV import, export, and "Download CSV template" (`src/components/directories/DirectoryEntriesPanel.jsx`) share one column contract — `buildEntryCsvHeader()` builds the header all three use, so they cannot silently drift apart. **Whenever you add a column to `directory_entries`**, explicitly decide whether it belongs in this contract:
+
+- If it's a real, user-editable field (like the SEO/social/panel-style/visibility-toggle columns added 2026-09-17): add it to `EXTRA_FIELD_KEYS` (and `BOOL_DEFAULT_TRUE_FIELDS` / an allowed-values list if it needs one) in `DirectoryEntriesPanel.jsx`, wire its parsing/validation into `doImport()`'s row mapping, and add it to `docs/DIRECTORIES.md`'s column list.
+- If it's system-managed or computed (timestamps, `geocode_status`/`geocoded_at`, `source`, AI-generated fields like `ai_summary`) — **don't** add it. A bulk CSV round-trip shouldn't be able to blank out data another feature owns.
+- `slug` is a special case: it's `NOT NULL` and unique per directory, and only auto-fills from `name` on `INSERT` (not `UPDATE`). The import treats a blank `slug` cell as "leave it alone" on an existing entry and "let the DB trigger derive it" on a new one — see the comment in `doImport()` before copying this pattern for any other similarly-constrained column.
+
 ## Client vs admin parity
 
 Most user-facing pages exist in both a client portal version (`src/pages/client/`) and an admin version (`src/pages/admin/`). When asked to make a change to a map design view (or any other shared UI surface), **assume the request applies to both client and admin versions** and confirm this with the user before implementing. If the change is clearly admin-only or client-only from context, note that assumption explicitly.
@@ -256,6 +264,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Entitlements (commercial/tier gating)**: `entitlements_*`
   - **Domains (custom domain / subdomain publishing)**: `domain_*`
   - **Directory AI content generation**: `directory_ai_content_*`
+  - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -414,6 +423,22 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_settings_updated`**
   - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
   - Fired from the Directory Settings tab's "General settings" (title) and "SEO settings" (search-engine visibility, default SEO title/description, social/SEO image) panel.
+
+#### Directory entries
+
+Emitted by `DirectoryEntriesPanel.jsx` (shared by admin and client portal). These predate this
+catalogue's `data_*` convention for CSV import — kept as `directory_entry_*` for consistency within
+that one file rather than split across two prefixes; retrofitted here as documentation, not renamed.
+
+- **`directory_entry_imported`**
+  - `meta`: `directory_id`, `rows_imported`, `rows_skipped`, `mode` (`overwrite` / `append`), `warnings` (string[], unknown categorisation-term tokens)
+- **`directory_entry_csv_exported`**
+  - `meta`: `directory_id`, `rows_exported`
+  - Fired by the Entries tab's "Export CSV" action (DIR-E1-S8) — exports every entry (including inactive) in the same column order the import expects, so the file can be re-imported to update entries in place.
+- **`directory_entry_deleted`**
+  - `meta`: `directory_id`, `entry_id`, `name`
+- **`directory_entry_bulk_archived`**
+  - `meta`: `directory_id`, `entry_count`, `is_active` (the target state applied to the selection)
 
 #### Directory AI content generation
 

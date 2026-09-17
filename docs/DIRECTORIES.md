@@ -157,6 +157,8 @@ Seed schema requested: `id, name, address, postcode, country, website_url, email
 | `ai_content_generated_at` | `timestamptz null` | Set whenever AI last wrote this entry's current `notes_html` (§4.8); cleared on a manual save. Not a history — see `directory_entry_versions` for that. |
 | `created_at`, `updated_at` | `timestamptz` | |
 
+Columns added by later migrations, not shown above: `show_phone`/`show_email`/`show_website`/`show_address` (contact-field visibility toggles, boolean default `true`), `slug` (`not null`, unique per directory, auto-derived from `name` on insert), `og_title`/`og_description`/`og_image_url`/`canonical_url`/`keywords`/`twitter_card_type` (social/SEO), `panel_image_url`/`panel_background_color` (homepage card styling). All of these except `slug`'s auto-derivation, plus everything above from `meta_title` down to `sitemap_priority`, are part of the CSV import/export contract as of DIR-E1-S8 — see that story and AGENTS.md's "Directory entries CSV import/export contract" note for which columns are (and deliberately aren't) included.
+
 **Reconciling `group_name` with the new Categorisation model (scope item 5):** `group_name` remains, unchanged, as the simple single-value grouping column used by CSV import today — `directory_groups` is a straight copy of the existing `groups` table, scoped to `directory_id` instead of `map_id`, for exactly this purpose, and the CSV template keeps a `group_name` column with the same auto-create-on-import behaviour as `groups` has today. The new, richer **Categorisation** model (§4.3) is additive and reusable *across directories* — e.g. a "Sector" categorisation shared by every directory a client owns — which `directory_groups` structurally cannot do (it is per-directory only, single-valued, exactly like `groups` is per-map only). Put simply: `directory_group_id` answers "which single group is this entry filed under" (cheap, familiar, matches existing import UX); `entry_category_terms` answers "which of any number of reusable, multi-directory taxonomy terms apply to this entry" (the new capability). Both coexist, exactly as `groups` and `map_filter_fields` already coexist for maps today (§3.2) — this is not a novel shape for this codebase, it's the same precedent applied to a new entity.
 
 ### 4.3 Categorisations (taxonomies) — DIR-E5
@@ -380,6 +382,28 @@ When I click Confirm
 Then the deletion does not proceed and the entry is unchanged
 ```
 *Tech guardrails:* **Decision (2026-07-14): entry deletion uses the same typed-confirmation pattern as directory deletion (DIR-E1-S5) and categorisation-definition deletion (`FilterFieldsPanel.jsx`'s `ConfirmDelete`)**, not the plain `window.confirm()` used by `listings.delete()` today — a deliberate, consistent upgrade over the existing convention for this new entity, not an inherited default.
+
+**DIR-E1-S8 — Export entries to CSV, and re-import to update in place**
+As a **Client Owner/Manager**, I want to export every entry in a directory to a CSV file, edit it offline, and re-import it to update the matching existing entries, so that I can make bulk changes in a spreadsheet without duplicating data or re-keying it.
+
+```gherkin
+Given a directory with a mix of active and inactive entries, a group, and at least one categorisation tag
+When I choose "Export CSV" from the Entries tab
+Then a CSV downloads containing every entry (including inactive ones), fetched live from the database — not a cached copy of the last import — with exactly the same header and column order as "Download CSV template" / the import parser expects
+
+Given a directory with no entries
+When I choose "Export CSV"
+Then a CSV downloads containing just the header row, and I see a message that the directory has no entries yet — the export does not fail or show an error
+
+Given I edit a cell in a previously-exported CSV (e.g. flip is_active, or clear meta_title) without touching the id column
+When I re-import it via "Add to existing entries"
+Then the matching existing entry updates in place (matched on id, same as DIR-E1-S6) rather than creating a duplicate
+
+Given I add a brand-new row to an exported CSV with blank id and blank slug columns
+When I import it
+Then a new entry is created with a fresh id and a slug auto-derived from its name — existing rows' slugs are left unchanged even though their slug cells came back blank from the export
+```
+*Tech guardrails:* Export and import share one column-header builder (`buildEntryCsvHeader()` in `DirectoryEntriesPanel.jsx`) so they cannot drift apart — this is what makes the export a *true* mirror of the import format, not just a similarly-shaped one. The column set was extended in the same change to cover `show_phone`/`show_email`/`show_website`/`show_address`, `slug`, the SEO/social fields (`meta_title`, `meta_description`, `noindex`, `structured_data_type`, `sitemap_priority`, `og_title`, `og_description`, `og_image_url`, `canonical_url`, `keywords`, `twitter_card_type`), and the panel-style fields (`panel_image_url`, `panel_background_color`) — see §4.2 and AGENTS.md's "Directory entries CSV import/export contract" note for which columns are in scope and why. `slug` is handled specially: it's `NOT NULL` and unique per directory and only auto-fills on `INSERT`, so a blank cell means "preserve the existing value" on an update rather than "clear it".
 
 ---
 

@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Directory entries: Export CSV, and an extended import/export column contract
+
+**Branch/PR:** `feat/2026-09-17-directory-entries-csv-export` (PR not opened yet).
+
+### What changed
+Adds "Export CSV" to the Entries tab (`DirectoryEntriesPanel.jsx`, shared by admin + client portal) — downloads every entry in a directory, including inactive ones, fetched live from the DB (not a cached copy of the last import), in exactly the same column order the CSV import and "Download CSV template" already use. This closes the loop that made CSV import "add-to-existing"-by-`id` mostly theoretical: an admin can now actually get a live dataset out, edit it in a spreadsheet, and re-import it to update those entries in place rather than duplicate them (no changes needed to the import's upsert-by-`id` logic — it already did this).
+
+- New `listAllDirectoryEntries()` (`src/lib/directories.js`) — pages internally, returns every entry in a directory with the full CSV-contract column set. Used by both the export and by `doImport()`'s new slug-preservation lookup.
+- New `listEntryTermIdsByEntry()` (`src/lib/categorisations.js`) — batched `entry_category_terms` join (chunked `.in()`), used to rebuild each entry's `category_<key>` cells for export.
+- **Extended the CSV column contract** (import, export, and the template all build from one shared `buildEntryCsvHeader()` now, so they can't drift apart): added `show_phone`/`show_email`/`show_website`/`show_address`, `slug`, `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority`, `og_title`/`og_description`/`og_image_url`/`canonical_url`/`keywords`/`twitter_card_type`, `panel_image_url`/`panel_background_color` — all real `directory_entries` columns added by earlier migrations that had never been wired into CSV. Deliberately excluded: timestamps, `geocode_status`/`geocoded_at`, `source`, and the AI-generated `ai_summary`/`ai_content_generated_at` (owned by the separate AI content generation feature — a bulk CSV edit shouldn't be able to silently blank those out).
+- `slug` gets special handling in `doImport()`: it's `NOT NULL` and unique per directory, and only auto-fills from `name` via a DB trigger on `INSERT`, not `UPDATE`. A blank `slug` cell now means "leave the existing entry's slug alone" on a row that matches an existing `id`, and "let the DB trigger derive it" on a brand-new row — never "clear it".
+- New admin event `directory_entry_csv_exported` (`meta`: `directory_id`, `rows_exported`). Also retrofitted this file's three pre-existing, previously-uncatalogued events (`directory_entry_imported`, `directory_entry_deleted`, `directory_entry_bulk_archived`) into `AGENTS.md`'s catalogue as a documentation fix.
+- Added a standing "Directory entries CSV import/export contract" note to `AGENTS.md` so a future column added to `directory_entries` gets an explicit in/out decision instead of silently falling behind the CSV format.
+- No database migration — every new CSV column already existed on `directory_entries` from prior migrations; this is UI/library code only.
+- Docs: `docs/USER_GUIDE.md` (Export CSV + expanded import column list), `docs/FEATURES.md` (Directories entry), `docs/DIRECTORIES.md` (new user story DIR-E1-S8, extended §4.2 column notes).
+
+### Verified
+- [ ] `npm run dev` smoke test: Export CSV in both the admin console and the client portal Entries tab.
+- [ ] Export an empty directory → header-only CSV, friendly message, no error.
+- [ ] Export a directory with mixed active/inactive/grouped/tagged entries → header matches the template exactly; values look right.
+- [ ] Round-trip: edit a few cells (including clearing `meta_title`, flipping `is_active`) plus one brand-new blank-`id`/blank-`slug` row, re-import via "Add to existing" → matching rows update in place (no duplicates), new row gets an auto-derived slug, existing rows' slugs are unchanged.
+- [ ] `admin_events` row written for `directory_entry_csv_exported` with the right `meta`.
+- [ ] Browser console clean on both flows.
+
+### Rollback plan
+Revert this branch's commit(s) — pure frontend/library code, no schema change, so a straight `git revert` (or reverting the merge commit) is sufficient. No migration to roll back.
+
+---
+
 ## 2026-09-14 — [Staging] Directory Settings tab: title + SEO settings, real robots.txt via custom domains
 
 **Branch/PR:** `feat/2026-09-14-directory-title-seo-settings` ([PR #174](https://github.com/layercake-cx/directory-maps/pull/174)).
