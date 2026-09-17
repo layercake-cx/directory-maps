@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Production] Data repair: APMG "Courses Offered" composite filter options split into atomic ones
+
+**Branch/PR:** `chore/2026-09-17-apmg-courses-offered-dry-run` (PR not opened yet).
+
+### What changed
+Real production data repair, at the user's explicit direction after reviewing a dry-run report, using the tooling shipped and fixed earlier today (`20260917150000_filter_option_split_tooling.sql`). Map `275d7e76-bc3a-4535-ad48-f824d7651119` (APMG's `APMG_ Sample_Demo`, client `a011ee30-a532-4f17-bc2b-8bb36b4c86c6`) had 12 options on its "Courses Offered" filter field (`f990d4a6-842d-444d-b6a5-192396bf1f6f`, `multi_select`) whose labels were several course names joined by `", "` into one literal option, because this field's import path only ever split multi-value cells on `|`.
+
+- **Dry run first** (`20260917190000_dry_run_apmg_courses_offered_split.sql`, read-only): reported all 12 composite options, the pieces each would split into, and which pieces matched an existing atomic option. Reviewed with the user before proceeding.
+- **Real repair** (`20260917200000_repair_apmg_courses_offered_composite_options.sql`): backed up the field's pre-repair state first (`map_filter_field_options_backup_20260917_apmg_courses`, `listing_filter_values_backup_20260917_apmg_courses` — both RLS-locked immediately on creation, learning from the earlier `listing_research_backup_20260906` gap), then ran `split_all_composite_options_for_field('f990d4a6-842d-444d-b6a5-192396bf1f6f')` for real.
+- Result: all 12 composite options split correctly — 41 total pieces, 11 reused as matches against already-existing atomic options, 30 new atomic options created, 12 listings re-tagged with their correct atomic sets, all 12 composite options removed. `verify_field_has_no_composite_options` confirms `clean: true` — field now has 24 total options, 49 total listing tags, zero remaining composite labels.
+- This is unrelated to Group and to IAPCO — a separate client's map, a separate data-quality bug, found while investigating the map the original Categories V2 brief had flagged (incorrectly, as it turned out — see the earlier repair-tooling entry).
+
+### Verified
+- [x] Dry run reviewed with the user before the real run.
+- [x] Real repair applied directly to production (`gxixwdjfmegxcxfeflro`) — this map/field is real client data, never seeded on staging.
+- [x] `verify_field_has_no_composite_options` confirms `clean: true`, zero remaining composite options.
+- [x] Pre-repair backup tables created and RLS-locked before the repair ran.
+
+### Rollback plan
+Run `_20260917200000_repair_apmg_courses_offered_composite_options.rollback.sql` — deletes the field's current options/tags and restores the exact pre-repair snapshot from the two backup tables created by the forward migration. Backup tables are left in place (RLS-locked) after either a successful repair or a rollback, as a second safety net.
+
+---
+
 ## 2026-09-17 — [Staging] Bug fix: Group migration tooling dropped colours sourced from theme_json (and could destroy custom pin icons)
 
 **Branch/PR:** `fix/2026-09-17-group-migration-color-source` (PR not opened yet).
