@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-17 — [Staging] "Build a directory from this map" now carries filter fields across as categorisations
 
-**Branch/PR:** `feat/2026-09-17-map-to-directory-categorisation-migration` (PR not opened yet).
+**Branch/PR:** `feat/2026-09-17-map-to-directory-categorisation-migration` ([PR #182](https://github.com/layercake-cx/directory-maps/pull/182), merged).
 
 ### What changed
 The user pointed out that `docs/USER_GUIDE.md`/`docs/FEATURES.md`'s claim "directory entries don't have an equivalent to map filter fields" was wrong — directory entries already have a structurally equivalent, filterable taxonomy (`categorisations`/`category_terms`/`entry_category_terms`), it was just never populated by the map→directory conversion. `create_directory_from_map()` (`20260827160000`) copied a map's `groups`→`directory_groups` and `listings`→`directory_entries`, but silently left all `map_filter_fields` data behind.
@@ -27,7 +27,7 @@ Fixed, automatically, bundled into directory creation itself (confirmed with the
 ### Verified
 - [x] Exercised end-to-end on staging with a throwaway test fixture (a temporary map + 2 groups + 2 listings + a `single_select` field, a `multi_select` field, and a `text` field, deleted immediately after): 2 fields correctly migrated to categorisations (with correct labels/slugs/colors/attachment), 1 (`text`) correctly skipped and named in the notice, 4 `entry_category_terms` rows created (matching the fixture's tagging exactly), and the source map's own `groups`/`listing_filter_values` confirmed unchanged by the same test. Fixture and its migration-history record fully cleaned up afterward — nothing test-only left on staging.
 - [x] `npm run build` clean.
-- [ ] Not yet applied to production — needs explicit sign-off, separately, per `AGENTS.md`.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) — `VERIFY PASSED`.
 
 ### Rollback plan
 Run `_20260917210000_create_directory_from_map_carries_filter_fields.rollback.sql` — restores `create_directory_from_map()` to its original groups/listings-only body. Does not undo categorisations/terms/attachments/tags already created by directories built while the fixed version was live (harmless, additive data) — only reverts behaviour for future calls.
