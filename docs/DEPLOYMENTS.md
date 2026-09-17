@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Categories V2 for maps: schema foundation
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+First slice of "Categories V2" — replacing the map product's single-value Group mechanism with a proper multi-category model. Planning found that most of what the brief asked for already exists in production as `map_filter_fields`/`map_filter_field_options`/`listing_filter_values` (live for APMG since 2026-07-13) — this slice closes two small gaps rather than building a new system, per the plan at `/Users/damianwatson/.claude/plans/abstract-bubbling-bird.md`.
+
+- `map_filter_fields.field_type` now also allows `'boolean'`, matching `categorisations.field_type` (which already has it since 20260914170000). Existing rows/behaviour unaffected — this only widens the check constraint (looked up by its actual name at migration time rather than assumed, since it was originally created unnamed/inline).
+- New `maps.color_filter_field_id` (nullable FK → `map_filter_fields.id`, `on delete set null`) — which filter field's option colours should drive pin colour, in place of Group. `null` (the value for every existing map immediately after this migration) means "colour by Group" — today's exact behaviour, unchanged until an admin deliberately points colour at a category. This is schema only; nothing reads this column yet.
+- **Deliberately not included in this slice**: no Group data is touched, no UI changes yet, no migration of any map's actual Group values. Two live IAPCO maps (`0adab038-3cc6-41a5-8187-80e11404af86`, `bc37a36e-ca6d-48e7-b5db-65f78cbc80a3`) carry real Group + filter data in production and are the highest-risk maps for the *later* Group→category data migration — this migration does not touch them beyond adding a null column, but the migration file's verification block checks their `color_filter_field_id` explicitly anyway.
+- No app code changes in this slice — schema only.
+
+### Verified
+- [ ] Dry run (`BEGIN;...ROLLBACK;`) against staging.
+- [ ] Applied to staging (`beqejxneehilplrtpntn`), post-migration verification block passed.
+- [ ] Integrity checklist (row counts, RLS, orphan checks) unchanged before/after.
+- [ ] Not yet applied to production — needs explicit sign-off, separately, per `AGENTS.md`.
+
+### Rollback plan
+Run `_20260917130000_categories_v2_schema_foundation.rollback.sql` — drops `maps.color_filter_field_id` (refuses if any map has it set) and narrows `map_filter_fields.field_type` back to `single_select`/`multi_select`/`text` (refuses if any row uses `boolean`). Both refusals are expected to be no-ops immediately after this migration, since nothing has used either new capability yet.
+
+---
+
 ## 2026-09-17 — [Staging] Directory entries: Export CSV, and an extended import/export column contract
 
 **Branch/PR:** `feat/2026-09-17-directory-entries-csv-export` (PR not opened yet).

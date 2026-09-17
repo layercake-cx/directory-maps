@@ -118,7 +118,7 @@ The map editor (`ClientMapDashboard.jsx` / `AdminMapDashboard.jsx`) is a **live 
 | **Panels** | Listing panel layout and content options |
 | **Groups** | Group definitions and per-group theme JSON |
 | **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |
-| **Filters** | Define custom filter fields (single-select / multi-select / text), manage options + colours, and configure display (`show_in_filter_bar`, `display_control`, order). Definitions/options save immediately; display config is part of the draft→publish snapshot. Shared `FilterFieldsPanel.jsx` |
+| **Filters** | Define custom filter fields (single-select / multi-select / text / **boolean**, added 20260917130000), manage options + colours, and configure display (`show_in_filter_bar`, `display_control`, order). Definitions/options save immediately; display config is part of the draft→publish snapshot. Shared `FilterFieldsPanel.jsx`. **Categories V2 (in progress)**: `maps.color_filter_field_id` (schema only so far, 20260917130000) will let an admin pick one filter field to drive pin colour in place of Group — not yet wired into any UI or the pin renderer |
 | **Publish Map** | Publish snapshot, version history, rollback, embed URL, subscription gate |
 | **Search** | Search-panel logo upload + styling (panel background colour/transparency, **font colour** for title/description/labels/tabs/Key — not listing card text; listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft. Includes a read-only summary of custom filter fields with a link to the **Filters** panel |
 
