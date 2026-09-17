@@ -5,6 +5,9 @@ import {
   allowedControlsForType,
   defaultControlForType,
   isSelectType,
+  hasEditableOptions,
+  BOOLEAN_OPTION_VALUE,
+  BOOLEAN_OPTION_LABEL,
   slugifyKey,
   loadFilterFields,
   createFilterField,
@@ -53,7 +56,7 @@ const emptyForm = {
  * plus the viewer-facing display controls (show in filter bar / control type).
  * Used by both ClientMapDashboard and AdminMapDashboard.
  */
-export default function FilterFieldsPanel({ mapId, recordEvent, onChange, clientId }) {
+export default function FilterFieldsPanel({ mapId, recordEvent, onChange, clientId, colorFieldId = null, onColorFieldChange }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -120,13 +123,21 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     }));
   }
   function setFormType(fieldType) {
-    setForm((f) => ({
-      ...f,
-      fieldType,
-      displayControl: allowedControlsForType(fieldType).includes(f.displayControl)
-        ? f.displayControl
-        : defaultControlForType(fieldType),
-    }));
+    setForm((f) => {
+      const next = {
+        ...f,
+        fieldType,
+        displayControl: allowedControlsForType(fieldType).includes(f.displayControl)
+          ? f.displayControl
+          : defaultControlForType(fieldType),
+      };
+      // Boolean fields always have exactly one fixed option — no editor for it.
+      if (fieldType === "boolean") {
+        const existing = f.options.find((o) => o.value === BOOLEAN_OPTION_VALUE);
+        next.options = [{ id: existing?.id ?? null, label: BOOLEAN_OPTION_LABEL, value: BOOLEAN_OPTION_VALUE, color: existing?.color || "" }];
+      }
+      return next;
+    });
   }
   function addOption() {
     setForm((f) => ({ ...f, options: [...f.options, { id: null, label: "", value: "", color: "" }] }));
@@ -337,7 +348,7 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
           </div>
         </div>
 
-        {isSelectType(form.fieldType) && (
+        {hasEditableOptions(form.fieldType) && (
           <div className="panel-section">
             <p className="panel-section__title">Options</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -368,6 +379,20 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
           <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
             Free-text fields have no option list. Viewers filter them with a type-to-search box (typeahead).
           </p>
+        )}
+
+        {form.fieldType === "boolean" && (
+          <div className="panel-section">
+            <p className="panel-section__title">Colour (optional)</p>
+            <p style={{ margin: "0 0 8px", fontSize: 12, opacity: 0.75 }}>
+              Yes/No fields have a single implicit "Yes" option — nothing to add or rename. Set a colour here if you want to use this field to colour pins.
+            </p>
+            <MiniColorRow
+              value={form.options[0]?.color}
+              onChange={(v) => updateOption(0, { color: v })}
+              ariaLabel="Yes option colour"
+            />
+          </div>
         )}
 
         <div className="panel-section">
@@ -402,6 +427,30 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
         Turn on "Show in search bar" and Publish to make a field visible to viewers.
       </p>
 
+      {typeof onColorFieldChange === "function" && (
+        <div className="panel-section">
+          <p className="panel-section__title">Pin colour</p>
+          <label style={{ fontSize: 13 }}>
+            <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Colour pins by</span>
+            <select
+              value={colorFieldId || ""}
+              onChange={(e) => onColorFieldChange(e.target.value || null)}
+              style={{ width: "100%" }}
+            >
+              <option value="">Group (default)</option>
+              {activeFields
+                .filter((f) => f.field_type === "single_select" || f.field_type === "boolean")
+                .map((f) => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
+            </select>
+          </label>
+          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>
+            Which field's option colours set each pin's colour. "Group (default)" keeps today's current behaviour. Only single-choice and Yes/No fields can be used — a listing can only have one pin colour. Takes effect on next Publish.
+          </p>
+        </div>
+      )}
+
       {clientId && (
         <CategorisationAttachmentPicker clientId={clientId} targetType="map" targetId={mapId} recordEvent={emit} />
       )}
@@ -428,7 +477,7 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
                     <span style={{ fontWeight: 600 }}>{f.label}</span>
                     <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
                       {typeLabel(f.field_type)}
-                      {isSelectType(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
+                      {hasEditableOptions(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
                       {!f.is_active ? " · Archived" : ""}
                     </span>
                   </span>

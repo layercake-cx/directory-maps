@@ -277,6 +277,7 @@ Changes appear in the live preview immediately and are saved as part of your map
 1. **Create a field** — click **New filter field**, enter a **Label**, and pick a **type**:
    - **Single choice** — the listing has exactly one value (shown to visitors as a dropdown, checkbox list, or typeahead).
    - **Multiple choice** — the listing can have several values; visitors can select more than one.
+   - **Yes/No toggle** — a single on/off switch per listing (e.g. "Wheelchair accessible"). No option list to manage — just an optional colour if you want to use it to colour pins (see below).
    - **Free text** — a free-text tag visitors filter with a type-to-search box.
 2. **Key** — each field has a short **key** (auto-generated from the label). This is the column name used in CSV/Sheet imports (`filter_<key>`). The key can't be changed once options exist, so imports keep matching.
 3. **Options** — for single/multiple choice fields, add the option list (each with an optional colour). You can also let them build themselves: importing via CSV or Google Sheets **creates any new option automatically** from the values in the sheet, so you don't have to type every category by hand. Option labels can be renamed freely; the underlying import value stays stable. In the published search bar, only options that at least one listing actually uses are shown — empty options (and any select field with no populated options) are hidden automatically.
@@ -286,7 +287,9 @@ Changes appear in the live preview immediately and are saved as part of your map
 
 Filter fields, options, and display settings follow the **draft → publish** cycle: they appear in your live preview immediately but only reach visitors when you **Publish**. Matching within one field is "any of" (OR); across different fields a listing must match **all** active filters (AND) — the same behaviour as group and continent filters.
 
-Tag listings with filter values in three ways: individually (the **Data → Manual entry** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns.
+Tag listings with filter values in three ways: individually (the **Data → Manual entry** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns. For a Yes/No field, the cell just needs a recognisable Yes (`yes`/`y`/`true`/`1`) or No (`no`/`n`/`false`/`0`) — blank means "not set", same as No.
+
+**Colour pins by** — at the top of the Filters panel, choose which field's option colours set each pin's colour, in place of Group. Only single-choice and Yes/No fields can be picked (a listing can only have one pin colour). Choosing "Group (default)" keeps today's behaviour — every existing map is set to this until you change it. This setting saves immediately and updates your live preview straight away; visitors see it once you **Publish**.
 
 ### Co-located pins (same address)
 
@@ -566,6 +569,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
 | Create a custom filter field | Map → Design → Filters → New filter field |
 | Show a filter field in the search bar | Map → Design → Filters → Show in search bar |
+| Colour pins by a category instead of Group | Map → Design → Filters → Colour pins by |
 | Tag a listing's filter values | Map → Data → Manual entry → edit listing → Filters |
 | Bulk-tag filter values | Map → Data → Manual entry → select rows → Bulk edit filters |
 | Search manual listings | Map → Data → Manual entry → Filter by name or address |

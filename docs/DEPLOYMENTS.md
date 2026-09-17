@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-17 — [Staging] Security fix: RLS disabled on listing_research_backup_20260906
 
-**Branch/PR:** `fix/2026-09-17-listing-research-backup-rls` (PR not opened yet).
+**Branch/PR:** `fix/2026-09-17-listing-research-backup-rls` ([PR #177](https://github.com/layercake-cx/directory-maps/pull/177), merged).
 
 ### What changed
 Supabase's security advisor flagged `rls_disabled_in_public` on **both** `layercake-maps-production` and `layercake-maps-test` for the same table: `listing_research_backup_20260906`. That table was created by `20260906140000_remove_ai_search_enrichment_schema.sql` as a one-time safety backup of `listing_research` immediately before that migration dropped the live table (per `docs/DATABASE_MIGRATIONS.md`'s "back up before a destructive op" policy). `create table ... as select ...` does not inherit RLS, and no follow-up `enable row level security` was ever added — so the table has been **fully public** (any anon or authenticated client could read/edit/delete every row) since 2026-09-06.
@@ -18,17 +18,148 @@ Supabase's security advisor flagged `rls_disabled_in_public` on **both** `layerc
 The table's own comment already states "not read by any application code — safe to archive/export and drop once no longer needed," so this fix is a pure lockdown with zero behavioural impact: `alter table ... enable row level security` with **no policies added** (default-deny for every non-privileged role).
 
 - Confirmed the gap and the fix live against **staging**: an anon-key `GET` against `/rest/v1/listing_research_backup_20260906` returned real rows before the migration, and `200 []` (RLS blocking all rows, not an error) after.
-- Not applied to production yet — this table is exposed there right now (not merely a future risk), so this should get explicit sign-off and go out promptly rather than wait behind other work.
 - No data touched, no rows lost — this only changes an access-control flag.
 
 ### Verified
 - [x] Migration applied cleanly to staging; its own `VERIFY PASSED` notice fired.
 - [x] Anon-key REST read confirmed blocked after the fix (200, empty array — previously returned real rows).
 - [x] `npm run build` clean (no app code touched).
-- [ ] Not yet applied to production — needs explicit sign-off; recommended promptly given the live exposure.
+- [ ] Applying to production next, in the same batch as the pending `20260914210000_directory_seo_og_image` migration.
 
 ### Rollback plan
 Run `_20260917170000_enable_rls_listing_research_backup.rollback.sql` — disables RLS again (re-opens the exposure; only intended if this fix itself needs reversing for some unforeseen reason).
+
+---
+
+## 2026-09-17 — [Staging] Security fix: PUBLIC/anon/authenticated could call the migration-tooling functions
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+The two migration-tooling migrations shipped earlier today (Group migration tooling, filter-option split tooling) documented their functions as "not granted to authenticated," but never issued an actual `REVOKE` — Postgres grants `EXECUTE` to `PUBLIC` by default on every new function, and this Supabase project's schema-level default privileges *also* grant `EXECUTE` to `anon` and `authenticated` explicitly at creation time. Net effect: **any unauthenticated or logged-in user could have called any of these eight functions against any map**, including the destructive ones (`migrate_map_groups_to_category`, `split_composite_filter_option`, `split_all_composite_options_for_field`) — all `security definer` (bypassing RLS), with no caller-identity check inside them.
+
+Confirmed directly, at the user's request, by POSTing to `/rest/v1/rpc/dry_run_group_migration` on **staging** with only the public anon key: it executed (returned the function's own "Map does not exist" error, not a permission error) before the fix, and returned `401 permission denied for function` after.
+
+- New migration revokes `EXECUTE` from `public`, `anon`, and `authenticated` on all eight functions (the two dry-run/verify read-only ones plus the six others: `migrate_map_groups_to_category`, `split_composite_filter_option`, `split_all_composite_options_for_field`, `verify_group_migration`, `verify_field_has_no_composite_options`, `_slugify_option_value`). Nothing is granted back to any role — only a superuser/service-role connection can invoke them from here on, which was always the intended behaviour.
+- **Neither of the underlying tooling migrations had reached production yet** — this fix ships before either does; production was never exposed.
+- Caught before any actual data-mutating call was made by anyone other than this session's own (legitimate) read-only dry-run test.
+
+### Verified
+- [x] Anon-key RPC call to `dry_run_group_migration` on staging: `permission denied for function` (was previously callable) — confirmed live.
+- [x] Migration's own post-check confirms zero rows in `information_schema.routine_privileges` for `PUBLIC`/`anon`/`authenticated` on all eight functions.
+- [x] `npm run build` clean (no app code touched).
+- [ ] Not yet applied to production — will ship in the same batch as the two tooling migrations, never separated from them.
+
+### Rollback plan
+Run `_20260917160000_revoke_public_execute_on_migration_tooling.rollback.sql` — re-grants `PUBLIC`/`anon`/`authenticated` execute (this re-opens the gap; only intended to be used if this fix itself needs reversing for some unforeseen reason, not as a normal operation).
+
+---
+
+## 2026-09-17 — [Staging] Filter option repair tooling: composite (un-split) option labels
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+While auditing map `275d7e76-bc3a-4535-ad48-f824d7651119` (APMG's `APMG_ Sample_Demo` map, client `a011ee30-a532-4f17-bc2b-8bb36b4c86c6`) for the Categories V2 plan's flagged "corrupted Group data," found the actual bug is **unrelated to Group** (this map's Group data is clean — one group, no corruption) and **unrelated to the Group migration tooling shipped earlier today**. It's in this map's own `map_filter_fields` "Courses Offered" field (`multi_select`, id `f990d4a6-842d-444d-b6a5-192396bf1f6f`): several options are multiple course names joined by `", "` stored as one literal option (e.g. six certifications mashed into a single option), while atomic versions of some of those same course names *also* exist as separate options. Root cause: this field's import path only ever splits multi-value cells on `|` (`collectFieldTokens`/`buildImportFilterValueRows`, `src/lib/filterFields.js`) — whatever populated this data used commas, which were never split.
+
+Confirmed via a read-only pass against the **production** REST API using the public anon/publishable key (same class of access as a previous session's data-recovery investigation, logged elsewhere in this file) — no service-role/privileged DB connection was available this session, so the exact `listing_filter_values` blast radius (how many listings carry an affected composite option) wasn't pulled; a sandbox permission boundary blocked that specific follow-up query. The field/option-level corruption pattern itself is confirmed directly from the live data.
+
+Ships repair tooling as four SQL functions — same posture as the Group migration tooling: **applying this migration touches zero data**, and none of the repair functions have been run against any real option yet.
+
+- **`dry_run_split_composite_options(field_id, delimiter default ', ')`** — read-only: every option on the field whose label contains the delimiter, the pieces it would split into, whether each piece matches an existing option, and how many listings currently carry the composite option.
+- **`split_composite_filter_option(option_id, delimiter)`** — repairs one composite option: splits the label, finds-or-creates a matching atomic option per piece (case-insensitive label match; new options get a deterministic, collision-safe `value` slug via a small helper, `_slugify_option_value`), re-tags every listing that had the composite option with the full atomic set instead (additive, `ON CONFLICT DO NOTHING`), then deletes the now-unused composite option.
+- **`split_all_composite_options_for_field(field_id, delimiter)`** — convenience wrapper looping the above over every currently-composite option on a field, in one transaction.
+- **`verify_field_has_no_composite_options(field_id, delimiter)`** — read-only post-check.
+- Not granted to `authenticated`, same reasoning as the Group migration tooling.
+
+### Known limitation this session
+Same as the Group migration tooling: no service-role/privileged connection was available to actually invoke these functions or to pull exact listing-tagging counts. **Before this runs against APMG's real field, it needs `dry_run_split_composite_options('f990d4a6-842d-444d-b6a5-192396bf1f6f')` run first (with a privileged connection) and its report reviewed**, then `split_all_composite_options_for_field(...)`, then `verify_field_has_no_composite_options(...)`.
+
+### Verified
+- [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
+- [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
+- [ ] Not run against APMG's real field yet — see "Known limitation" above.
+- [ ] Not applied to production — needs explicit sign-off.
+
+### Rollback plan
+Run `_20260917150000_filter_option_split_tooling.rollback.sql` — drops all five functions. No data to lose either way — this migration never wrote any.
+
+---
+
+## 2026-09-17 — [Staging] Categories V2 for maps: Group migration tooling (functions only, not run against any map)
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+Third slice of Categories V2 (see the two entries below). Ships the tooling for the one-time Group → Categories data migration as three SQL functions — **this migration itself touches zero map/group/listing data**; it only defines functions that are inert until explicitly invoked, one map at a time, later:
+
+- **`dry_run_group_migration(map_id)`** — read-only preview: lists the map's groups (name, colour, listing count), whether it's already migrated, and its current `color_filter_field_id`. Zero side effects, safe to call against any map at any time.
+- **`migrate_map_groups_to_category(map_id)`** — the actual one-time conversion: creates one `map_filter_fields` row (`key: 'group_migrated'`, `single_select`), one option per existing group (colour preserved, keyed off the group's own uuid rather than its name so same-named groups can never collide or misroute listings), tags every listing that has a group with the matching new option, then points `maps.color_filter_field_id` at the new field. **Does not touch `groups` or `listings.group_id`** — both stay exactly as they are, for rollback safety and because the still-live Groups tab, filter lozenges, and Key legend keep reading them unchanged; only *pin colour's source* changes. Idempotent per map (aborts if that map already has a `group_migrated` field) — never re-runnable, never bulk.
+- **`verify_group_migration(map_id)`** — post-run comparison: per-group listing-count and colour equivalence between the old and new representation, flags any mismatch instead of assuming success.
+- **Deliberately not granted to `authenticated`** — these are internal migration tools invoked via a privileged connection (Supabase SQL editor / service role), not app-facing RPCs. All three are `security definer`, so granting broad execute would let any logged-in user trigger a one-time data conversion against any map — the wrong shape for a tool this sensitive, unlike the existing `publish_map`/`rollback_map_to` RPCs the app itself calls.
+- `docs/DATABASE_MIGRATIONS.md`'s integrity checklist gained items 8–9 (function existence; the `verify_group_migration` spot-check for any map that's been migrated).
+
+### Known limitation this session
+**Not exercised against any real map's data.** This agent session has no login credentials and no service-role/privileged DB connection beyond the Supabase CLI's own read/dump-scoped role (the same "known tooling gap" `docs/DATABASE_MIGRATIONS.md` already documents) — so while `supabase db push` succeeded (meaning Postgres accepted the plpgsql bodies, including their static references to real tables/columns), the actual data-conversion logic has only been verified by inspection, not by running it against a populated map. **Before this is ever invoked against a real map — starting with a low-stakes staging map, then eventually IAPCO's two live maps in production with explicit sign-off — it needs a first real run against staging data to confirm `dry_run_group_migration`'s report and `verify_group_migration`'s comparison actually behave as designed.**
+
+### Verified
+- [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
+- [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
+- [ ] **Not run against any map yet** — see "Known limitation" above.
+- [ ] Not applied to production — needs explicit sign-off, and only after a successful staging trial run against real (or realistic) data.
+
+### Rollback plan
+Run `_20260917140000_group_migration_tooling.rollback.sql` — drops all three functions (refuses if any map has actually been migrated via `migrate_map_groups_to_category`, since that would remove `verify_group_migration` for it while leaving the migrated data itself in place). No data to lose either way — this migration never wrote any.
+
+---
+
+## 2026-09-17 — [Staging] Categories V2 for maps: boolean fields + "Colour pins by"
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+Second slice of Categories V2 (see the schema-foundation entry below and the plan at `/Users/damianwatson/.claude/plans/abstract-bubbling-bird.md`) — wires up the two schema additions into the admin UI, live preview, and publish pipeline. **No Group data is touched, and Group remains the default pin colour source for every existing map, including both live IAPCO maps** (`0adab038-3cc6-41a5-8187-80e11404af86`, `bc37a36e-ca6d-48e7-b5db-65f78cbc80a3`) — nothing changes for them unless an admin explicitly opts in.
+
+- **Yes/No toggle field type** (`FilterFieldsPanel.jsx`, `src/lib/filterFields.js`): a new filter field type alongside single/multiple choice/free text. Backed by a single fixed option (`value: "yes"`) rather than an editable option list — the admin just sets an optional colour. `isSelectType()` now covers boolean (so it reuses all existing option-based storage/import/publication code); a new `hasEditableOptions()` distinguishes single/multi-select (which still get the manual option editor) from boolean (which doesn't). `ensureImportOptions()` (CSV/Sheet auto-create-missing-*option*-values, pre-existing behaviour) now checks `hasEditableOptions()` instead, so it never tries to invent new options for a boolean field. CSV import for boolean cells recognises common Yes/No tokens (`yes`/`y`/`true`/`1`, `no`/`n`/`false`/`0`); anything else is an import warning, matching how unmatched select values are already handled.
+- **"Colour pins by" selector** (top of the Filters panel): lets an admin pick one single-select or Yes/No field whose option colours drive pin colour, replacing Group's built-in colour link — the "one explicit, visible choice" called for in the Categories V2 plan. Writes `maps.color_filter_field_id` immediately (like other filter field definitions) via new `getMapColorFilterFieldId`/`setMapColorFilterFieldId` helpers; `null` ("Group (default)") is preserved for every map until an admin changes it. New admin event `map_design_color_field_changed` (added to `AGENTS.md`'s catalogue).
+- **Pin colour resolution** — new `resolveColorForListing()` helper (`filterFields.js`) shared by both the dashboard's own live preview and the public embed: looks up a listing's tagged value on the chosen colour field and returns that option's colour, or `null` (falls back to the map's default marker colour, not Group's — a deliberate, predictable "colour source fully replaces Group when set" rule rather than layering the two). Wired into `ClientMapDashboard.jsx`/`AdminMapDashboard.jsx` (`previewListings`, live/immediate, mirroring how filter field values already preview live) and `EmbedMap.jsx` (`listingsForView`, sourced from `publicationConfig.map.color_filter_field_id` — **gated behind Publish**, same as the rest of filter field display config, not live-immediate for visitors).
+- `buildPublicationConfig()` (`mapPublication.js`) gained a `colorFilterFieldId` param, baked into `config.map.color_filter_field_id` at publish time.
+- Docs: `docs/USER_GUIDE.md` (Filters panel section — Yes/No type, CSV Yes/No tokens, "Colour pins by"; quick-reference table), `docs/FEATURES.md` (§4.3 Filters row).
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] `npm run dev` smoke test: create a Yes/No field, set a colour, tag a listing, set it as the colour field, confirm the dashboard's own live preview updates immediately without publishing.
+- [ ] Confirm a map with no colour field set (the default for every existing map) shows zero visual change.
+- [ ] Publish a map with a colour field set and confirm the public embed reflects it.
+- [ ] Browser console clean.
+- [ ] Client + admin parity click-through (per `AGENTS.md`'s client/admin parity rule).
+- [ ] Not yet applied/exercised against IAPCO's two live maps — no plan to do so until the Group→Categories migration (a separate, later, explicitly-gated piece of work) is ready and signed off.
+
+### Rollback plan
+Pure frontend/library code — revert this branch's commit(s). No new schema in this slice (built on the additive columns from the entry below, which stay in place). A map that had `color_filter_field_id` set would simply lose the UI to change it back until re-deployed forward; the column itself is unaffected.
+
+---
+
+## 2026-09-17 — [Staging] Categories V2 for maps: schema foundation
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+First slice of "Categories V2" — replacing the map product's single-value Group mechanism with a proper multi-category model. Planning found that most of what the brief asked for already exists in production as `map_filter_fields`/`map_filter_field_options`/`listing_filter_values` (live for APMG since 2026-07-13) — this slice closes two small gaps rather than building a new system, per the plan at `/Users/damianwatson/.claude/plans/abstract-bubbling-bird.md`.
+
+- `map_filter_fields.field_type` now also allows `'boolean'`, matching `categorisations.field_type` (which already has it since 20260914170000). Existing rows/behaviour unaffected — this only widens the check constraint (looked up by its actual name at migration time rather than assumed, since it was originally created unnamed/inline).
+- New `maps.color_filter_field_id` (nullable FK → `map_filter_fields.id`, `on delete set null`) — which filter field's option colours should drive pin colour, in place of Group. `null` (the value for every existing map immediately after this migration) means "colour by Group" — today's exact behaviour, unchanged until an admin deliberately points colour at a category. This is schema only; nothing reads this column yet.
+- **Deliberately not included in this slice**: no Group data is touched, no UI changes yet, no migration of any map's actual Group values. Two live IAPCO maps (`0adab038-3cc6-41a5-8187-80e11404af86`, `bc37a36e-ca6d-48e7-b5db-65f78cbc80a3`) carry real Group + filter data in production and are the highest-risk maps for the *later* Group→category data migration — this migration does not touch them beyond adding a null column, but the migration file's verification block checks their `color_filter_field_id` explicitly anyway.
+- No app code changes in this slice — schema only.
+
+### Verified
+- [ ] Dry run (`BEGIN;...ROLLBACK;`) against staging.
+- [ ] Applied to staging (`beqejxneehilplrtpntn`), post-migration verification block passed.
+- [ ] Integrity checklist (row counts, RLS, orphan checks) unchanged before/after.
+- [ ] Not yet applied to production — needs explicit sign-off, separately, per `AGENTS.md`.
+
+### Rollback plan
+Run `_20260917130000_categories_v2_schema_foundation.rollback.sql` — drops `maps.color_filter_field_id` (refuses if any map has it set) and narrows `map_filter_fields.field_type` back to `single_select`/`multi_select`/`text` (refuses if any row uses `boolean`). Both refusals are expected to be no-ops immediately after this migration, since nothing has used either new capability yet.
 
 ---
 

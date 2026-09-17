@@ -308,6 +308,9 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - `meta`: `client_id`, `map_id`, `changed_fields` (string[]), `pin_style`, `pin_size`, `map_type_id`
 - **`map_design_group_created` / `map_design_group_updated` / `map_design_group_reordered` / `map_design_group_deleted`**
   - `meta`: `client_id`, `map_id`, `group_id`, optional `group_name`, `sort_order` / `order` (array of ids)
+- **`map_design_color_field_changed`** (Categories V2)
+  - `meta`: `client_id`, `map_id`, `field_id` (the `map_filter_fields` row now driving pin colour, or `null` for "Group (default)")
+  - Fired from the Filters panel's "Colour pins by" selector (`FilterFieldsPanel.jsx`). Takes effect on next Publish, same as other filter field display config.
 
 #### Publication
 

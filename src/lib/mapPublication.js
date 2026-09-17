@@ -97,6 +97,7 @@ export function buildPublicationConfig(params) {
     showContinentFilter,
     showKey,
     filterFields,
+    colorFilterFieldId,
   } = params;
 
   const baseTheme = parseJsonObject(mapThemeJsonBase, {});
@@ -149,6 +150,9 @@ export function buildPublicationConfig(params) {
     marker_color: markerColor,
     custom_pin_url: customPinUrl || null,
     theme_json,
+    // Categories V2: which filter field's option colours drive pin colour,
+    // in place of Group. null (default) = "colour by Group", unchanged.
+    color_filter_field_id: colorFilterFieldId || null,
   };
 
   const byId = {};

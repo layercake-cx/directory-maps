@@ -345,6 +345,19 @@ select count(*) as orphaned_filter_values_field
 from public.listing_filter_values v
 where not exists (select 1 from public.map_filter_fields f where f.id = v.field_id);
 -- Expected: 0 for all
+
+-- 8. Group migration tooling (present from 20260917140000_group_migration_tooling)
+-- — function existence only; these are inert until explicitly invoked per map.
+select routine_name
+from information_schema.routines
+where routine_schema = 'public'
+  and routine_name in ('dry_run_group_migration', 'migrate_map_groups_to_category', 'verify_group_migration');
+-- Expected: 3 rows
+
+-- 9. Once any map has been migrated (map_filter_fields.key = 'group_migrated'
+-- exists for it), spot-check it directly:
+--   select verify_group_migration('<map_id>');
+-- Expected: {"clean": true, "mismatches": []}
 ```
 
 Save the output. After the migration, rerun the same queries and confirm:
