@@ -24,7 +24,7 @@ The table's own comment already states "not read by any application code — saf
 - [x] Migration applied cleanly to staging; its own `VERIFY PASSED` notice fired.
 - [x] Anon-key REST read confirmed blocked after the fix (200, empty array — previously returned real rows).
 - [x] `npm run build` clean (no app code touched).
-- [ ] Applying to production next, in the same batch as the pending `20260914210000_directory_seo_og_image` migration.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) in the same batch as the pending `20260914210000_directory_seo_og_image` migration — `VERIFY PASSED`. Confirmed live: anon-key read against production now returns `200 []`.
 
 ### Rollback plan
 Run `_20260917170000_enable_rls_listing_research_backup.rollback.sql` — disables RLS again (re-opens the exposure; only intended if this fix itself needs reversing for some unforeseen reason).
@@ -48,7 +48,7 @@ Confirmed directly, at the user's request, by POSTing to `/rest/v1/rpc/dry_run_g
 - [x] Anon-key RPC call to `dry_run_group_migration` on staging: `permission denied for function` (was previously callable) — confirmed live.
 - [x] Migration's own post-check confirms zero rows in `information_schema.routine_privileges` for `PUBLIC`/`anon`/`authenticated` on all eight functions.
 - [x] `npm run build` clean (no app code touched).
-- [ ] Not yet applied to production — will ship in the same batch as the two tooling migrations, never separated from them.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) in the same batch as the two tooling migrations — `VERIFY PASSED`. Confirmed live: anon-key RPC call to `dry_run_group_migration` now returns `401 permission denied for function`.
 
 ### Rollback plan
 Run `_20260917160000_revoke_public_execute_on_migration_tooling.rollback.sql` — re-grants `PUBLIC`/`anon`/`authenticated` execute (this re-opens the gap; only intended to be used if this fix itself needs reversing for some unforeseen reason, not as a normal operation).
@@ -79,7 +79,7 @@ Same as the Group migration tooling: no service-role/privileged connection was a
 - [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
 - [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
 - [ ] Not run against APMG's real field yet — see "Known limitation" above.
-- [ ] Not applied to production — needs explicit sign-off.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) — `VERIFY PASSED`. Still not run against any real field/option (this only creates the functions) — see "Known limitation" above, unchanged.
 
 ### Rollback plan
 Run `_20260917150000_filter_option_split_tooling.rollback.sql` — drops all five functions. No data to lose either way — this migration never wrote any.
@@ -106,7 +106,7 @@ Third slice of Categories V2 (see the two entries below). Ships the tooling for 
 - [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
 - [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
 - [ ] **Not run against any map yet** — see "Known limitation" above.
-- [ ] Not applied to production — needs explicit sign-off, and only after a successful staging trial run against real (or realistic) data.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) — `VERIFY PASSED`. Still not run against any real map (this only creates the functions) — see "Known limitation" above, unchanged. `migrate_map_groups_to_category` should not be invoked against a real map, including IAPCO's two, without a prior staging trial run and explicit sign-off.
 
 ### Rollback plan
 Run `_20260917140000_group_migration_tooling.rollback.sql` — drops all three functions (refuses if any map has actually been migrated via `migrate_map_groups_to_category`, since that would remove `verify_group_migration` for it while leaving the migrated data itself in place). No data to lose either way — this migration never wrote any.
@@ -156,7 +156,7 @@ First slice of "Categories V2" — replacing the map product's single-value Grou
 - [ ] Dry run (`BEGIN;...ROLLBACK;`) against staging.
 - [ ] Applied to staging (`beqejxneehilplrtpntn`), post-migration verification block passed.
 - [ ] Integrity checklist (row counts, RLS, orphan checks) unchanged before/after.
-- [ ] Not yet applied to production — needs explicit sign-off, separately, per `AGENTS.md`.
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) — `VERIFY PASSED`.
 
 ### Rollback plan
 Run `_20260917130000_categories_v2_schema_foundation.rollback.sql` — drops `maps.color_filter_field_id` (refuses if any map has it set) and narrows `map_filter_fields.field_type` back to `single_select`/`multi_select`/`text` (refuses if any row uses `boolean`). Both refusals are expected to be no-ops immediately after this migration, since nothing has used either new capability yet.
@@ -214,6 +214,7 @@ Adds a "General settings" (directory title — `directories.name`, pre-existing,
 - [x] `npm run build` — clean.
 - [ ] **Not interactively tested** — no login credentials available to this agent session (same limitation noted throughout this log for prior directory/admin UI work). The Settings tab panel itself (title save, SEO fields, the visibility toggle) needs a manual click-through by the user before calling this done.
 - [ ] `middleware.js`'s new/changed routing (branded-host + custom-domain robots.txt) not verified against a live Vercel deploy — `npm run deploy:test`/`deploy:live` need an interactively-authenticated Vercel CLI session, which this agent can't do (per `AGENTS.md`). Worth checking directly against a directory with an active custom domain once deployed.
+- [x] **2026-09-17 update**: `20260914210000_directory_seo_og_image.sql` had been sitting unapplied on production for three days (code merged to `main`/deployed to the frontend, but the migration itself never run there) — applied to production (`gxixwdjfmegxcxfeflro`) alongside the Categories V2 and RLS-exposure fixes batched the same day, `VERIFY PASSED`. Interactive click-through and the Vercel-routing check above are still outstanding.
 
 ### Rollback plan
 Run `_20260914210000_directory_seo_og_image.rollback.sql` to drop `seo_og_image_url` (refuses if any directory has a non-null value set). Revert this branch's commit(s) for the rest — pure frontend/Edge Function/middleware changes, no other schema impact. `generate_directory_site` would need redeploying to the pre-change version alongside a schema rollback, since the deployed function currently expects the new column to exist.
