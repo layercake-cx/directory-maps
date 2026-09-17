@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Categories V2 for maps: boolean fields + "Colour pins by"
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+Second slice of Categories V2 (see the schema-foundation entry below and the plan at `/Users/damianwatson/.claude/plans/abstract-bubbling-bird.md`) — wires up the two schema additions into the admin UI, live preview, and publish pipeline. **No Group data is touched, and Group remains the default pin colour source for every existing map, including both live IAPCO maps** (`0adab038-3cc6-41a5-8187-80e11404af86`, `bc37a36e-ca6d-48e7-b5db-65f78cbc80a3`) — nothing changes for them unless an admin explicitly opts in.
+
+- **Yes/No toggle field type** (`FilterFieldsPanel.jsx`, `src/lib/filterFields.js`): a new filter field type alongside single/multiple choice/free text. Backed by a single fixed option (`value: "yes"`) rather than an editable option list — the admin just sets an optional colour. `isSelectType()` now covers boolean (so it reuses all existing option-based storage/import/publication code); a new `hasEditableOptions()` distinguishes single/multi-select (which still get the manual option editor) from boolean (which doesn't). `ensureImportOptions()` (CSV/Sheet auto-create-missing-*option*-values, pre-existing behaviour) now checks `hasEditableOptions()` instead, so it never tries to invent new options for a boolean field. CSV import for boolean cells recognises common Yes/No tokens (`yes`/`y`/`true`/`1`, `no`/`n`/`false`/`0`); anything else is an import warning, matching how unmatched select values are already handled.
+- **"Colour pins by" selector** (top of the Filters panel): lets an admin pick one single-select or Yes/No field whose option colours drive pin colour, replacing Group's built-in colour link — the "one explicit, visible choice" called for in the Categories V2 plan. Writes `maps.color_filter_field_id` immediately (like other filter field definitions) via new `getMapColorFilterFieldId`/`setMapColorFilterFieldId` helpers; `null` ("Group (default)") is preserved for every map until an admin changes it. New admin event `map_design_color_field_changed` (added to `AGENTS.md`'s catalogue).
+- **Pin colour resolution** — new `resolveColorForListing()` helper (`filterFields.js`) shared by both the dashboard's own live preview and the public embed: looks up a listing's tagged value on the chosen colour field and returns that option's colour, or `null` (falls back to the map's default marker colour, not Group's — a deliberate, predictable "colour source fully replaces Group when set" rule rather than layering the two). Wired into `ClientMapDashboard.jsx`/`AdminMapDashboard.jsx` (`previewListings`, live/immediate, mirroring how filter field values already preview live) and `EmbedMap.jsx` (`listingsForView`, sourced from `publicationConfig.map.color_filter_field_id` — **gated behind Publish**, same as the rest of filter field display config, not live-immediate for visitors).
+- `buildPublicationConfig()` (`mapPublication.js`) gained a `colorFilterFieldId` param, baked into `config.map.color_filter_field_id` at publish time.
+- Docs: `docs/USER_GUIDE.md` (Filters panel section — Yes/No type, CSV Yes/No tokens, "Colour pins by"; quick-reference table), `docs/FEATURES.md` (§4.3 Filters row).
+
+### Verified
+- [x] `npm run build` clean.
+- [ ] `npm run dev` smoke test: create a Yes/No field, set a colour, tag a listing, set it as the colour field, confirm the dashboard's own live preview updates immediately without publishing.
+- [ ] Confirm a map with no colour field set (the default for every existing map) shows zero visual change.
+- [ ] Publish a map with a colour field set and confirm the public embed reflects it.
+- [ ] Browser console clean.
+- [ ] Client + admin parity click-through (per `AGENTS.md`'s client/admin parity rule).
+- [ ] Not yet applied/exercised against IAPCO's two live maps — no plan to do so until the Group→Categories migration (a separate, later, explicitly-gated piece of work) is ready and signed off.
+
+### Rollback plan
+Pure frontend/library code — revert this branch's commit(s). No new schema in this slice (built on the additive columns from the entry below, which stay in place). A map that had `color_filter_field_id` set would simply lose the UI to change it back until re-deployed forward; the column itself is unaffected.
+
+---
+
 ## 2026-09-17 — [Staging] Categories V2 for maps: schema foundation
 
 **Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).

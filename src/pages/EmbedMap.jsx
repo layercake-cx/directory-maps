@@ -6,7 +6,7 @@ import { formatContactMessageError, submitContactMessage } from "../lib/contactM
 import PublishedMapView from "../components/PublishedMapView.jsx";
 import { normalizePinSize } from "../lib/markerIcons";
 import { mergeGroupWithPublication, normalizePublicationConfig } from "../lib/mapPublication.js";
-import { loadFilterValuesForMap } from "../lib/filterFields.js";
+import { loadFilterValuesForMap, resolveColorForListing } from "../lib/filterFields.js";
 import { loadCategorisationFiltersForEntries, loadCategorisationFiltersForListings } from "../lib/categorisations.js";
 
 /** Build listingId -> values[] from a flat snapshot array of listing_filter_values. */
@@ -560,16 +560,33 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     return [...base, ...categorisationFilters.filterFields];
   }, [publicationConfig, categorisationFilters]);
 
+  // Categories V2: which filter field (if any) should drive pin colour in
+  // place of Group. Baked into the publication snapshot (like the rest of
+  // filter field config) — takes effect on next Publish, not live-immediately.
+  const colorFilterFieldId = publicationConfig?.map?.color_filter_field_id || null;
+
   const listingsForView = useMemo(
     () =>
-      listingsWithOverrides.map((l) => ({
-        ...l,
-        filterValues: [
+      listingsWithOverrides.map((l) => {
+        const values = [
           ...(filterValuesByListing[l.id] || []),
           ...(categorisationFilters.valuesByRecord[l.id] || []),
-        ],
-      })),
-    [listingsWithOverrides, filterValuesByListing, categorisationFilters]
+        ];
+        const categoryColor = resolveColorForListing({
+          colorFieldId: colorFilterFieldId,
+          fields: filterFieldsForEmbed,
+          values,
+        });
+        return {
+          ...l,
+          filterValues: values,
+          // When a colour field is set, it fully replaces Group as the pin
+          // colour source (no value tagged -> falls back to the map's
+          // default marker colour, not Group's, for a predictable result).
+          ...(colorFilterFieldId ? { group_color: categoryColor } : {}),
+        };
+      }),
+    [listingsWithOverrides, filterValuesByListing, categorisationFilters, colorFilterFieldId, filterFieldsForEmbed]
   );
 
   const recordEngagement = useMemo(

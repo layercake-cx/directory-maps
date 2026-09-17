@@ -19,7 +19,7 @@ import {
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
-import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication } from "../../lib/filterFields.js";
+import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication, resolveColorForListing, setMapColorFilterFieldId } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { hasSubscriptionAccess } from "../../lib/subscriptionAccess.js";
 import { formatContactMessageError, submitContactMessage } from "../../lib/contactMessage.js";
@@ -543,10 +543,31 @@ export default function ClientMapDashboard() {
 
   const publishedFilterFields = useMemo(() => filterFieldsForPublication(filterFields), [filterFields]);
 
+  const colorFilterFieldId = map?.color_filter_field_id || null;
+
   const previewListings = useMemo(
-    () => listingsWithColor.map((l) => ({ ...l, filterValues: filterValuesByListing[l.id] || [] })),
-    [listingsWithColor, filterValuesByListing]
+    () =>
+      listingsWithColor.map((l) => {
+        const values = filterValuesByListing[l.id] || [];
+        const categoryColor = resolveColorForListing({ colorFieldId: colorFilterFieldId, fields: publishedFilterFields, values });
+        return {
+          ...l,
+          filterValues: values,
+          ...(colorFilterFieldId ? { group_color: categoryColor } : {}),
+        };
+      }),
+    [listingsWithColor, filterValuesByListing, colorFilterFieldId, publishedFilterFields]
   );
+
+  const updateColorFilterField = React.useCallback(async (fieldId) => {
+    try {
+      await setMapColorFilterFieldId(mapId, fieldId);
+      setMap((prev) => (prev ? { ...prev, color_filter_field_id: fieldId || null } : prev));
+      recordFilterEvent("map_design_color_field_changed", { field_id: fieldId || null });
+    } catch (e) {
+      setErr(e?.message || "Failed to update pin colour source");
+    }
+  }, [mapId, recordFilterEvent]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
@@ -648,9 +669,11 @@ export default function ClientMapDashboard() {
         showTitle,
         showListings,
         filterFields: publishedFilterFields,
+        colorFilterFieldId,
       }),
     [
       publishedFilterFields,
+      colorFilterFieldId,
       orderedGroupsList,
       defaultLat,
       defaultLng,
@@ -783,7 +806,7 @@ export default function ClientMapDashboard() {
         const { data: mapRow, error: me } = await supabase
           .from("maps")
           .select(
-            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at,current_publication_id",
+            "id,client_id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering,cluster_radius,marker_style,marker_color,theme_json,custom_pin_url,published_config,published_at,current_publication_id,color_filter_field_id",
           )
           .eq("id", mapId)
           .eq("client_id", currentClientId)
@@ -795,7 +818,8 @@ export default function ClientMapDashboard() {
           (msg.includes("cluster_radius") ||
             msg.includes("custom_pin_url") ||
             msg.includes("published_") ||
-            msg.includes("current_publication"))
+            msg.includes("current_publication") ||
+            msg.includes("color_filter_field_id"))
         ) {
           const { data: mapRowFallback, error: me2 } = await supabase
             .from("maps")
@@ -3113,6 +3137,8 @@ export default function ClientMapDashboard() {
                   clientId={client?.id ?? null}
                   recordEvent={recordFilterEvent}
                   onChange={refreshFilterFields}
+                  colorFieldId={colorFilterFieldId}
+                  onColorFieldChange={updateColorFilterField}
                 />
               )}
 

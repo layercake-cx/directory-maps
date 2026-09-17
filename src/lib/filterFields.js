@@ -26,6 +26,11 @@ export const FIELD_TYPES = [
     hint: "A listing can have several values; viewers can pick more than one (e.g. Services offered).",
   },
   {
+    id: "boolean",
+    label: "Yes/No toggle",
+    hint: "A single on/off switch per listing (e.g. \"Wheelchair accessible\"). Backed by one fixed option, no option list to manage.",
+  },
+  {
     id: "text",
     label: "Free text",
     hint: "Free-text tag with type-to-filter search. No fixed option list.",
@@ -42,6 +47,7 @@ export const DISPLAY_CONTROLS = [
 export function allowedControlsForType(fieldType) {
   if (fieldType === "text") return ["typeahead"];
   if (fieldType === "multi_select") return ["multi_select", "typeahead"];
+  if (fieldType === "boolean") return ["multi_select"];
   // single_select
   return ["dropdown", "multi_select", "typeahead"];
 }
@@ -50,9 +56,26 @@ export function defaultControlForType(fieldType) {
   return allowedControlsForType(fieldType)[0];
 }
 
+/**
+ * Whether this field type stores its values as option references
+ * (single_select/multi_select/boolean) rather than free text.
+ */
 export function isSelectType(fieldType) {
+  return fieldType === "single_select" || fieldType === "multi_select" || fieldType === "boolean";
+}
+
+/**
+ * Whether this field type has an admin-managed, arbitrary-length option
+ * list. Boolean is select-like for storage (isSelectType) but always has
+ * exactly one fixed option, so it has nothing to edit here.
+ */
+export function hasEditableOptions(fieldType) {
   return fieldType === "single_select" || fieldType === "multi_select";
 }
+
+/** The single fixed option every boolean field is created with. */
+export const BOOLEAN_OPTION_VALUE = "yes";
+export const BOOLEAN_OPTION_LABEL = "Yes";
 
 /** URL/import-safe slug from a human label. */
 export function slugifyKey(label) {
@@ -387,7 +410,9 @@ function collectFieldTokens(rows, field) {
  */
 export async function ensureImportOptions({ rows, fields }) {
   const base = (fields || []).map((f) => ({ ...f, options: (f.options || []).slice() }));
-  const selectFields = base.filter((f) => f.is_active && isSelectType(f.field_type));
+  // Boolean fields have a single fixed option and never gain new ones from
+  // import — only single_select/multi_select auto-create missing values.
+  const selectFields = base.filter((f) => f.is_active && hasEditableOptions(f.field_type));
   const created = [];
   if (selectFields.length === 0 || !(rows || []).length) return { fields: base, created };
 
@@ -443,6 +468,9 @@ export async function ensureImportOptions({ rows, fields }) {
  * @param {object[]} fields      active filter fields (with options)
  * @returns {{ valueRows: object[], warnings: string[] }}
  */
+const BOOLEAN_TRUTHY_TOKENS = new Set(["yes", "y", "true", "1", "x", "on"]);
+const BOOLEAN_FALSY_TOKENS = new Set(["no", "n", "false", "0", "off"]);
+
 export function buildImportFilterValueRows({ rows, listingIds, fields }) {
   const valueRows = [];
   const warnings = [];
@@ -472,6 +500,17 @@ export function buildImportFilterValueRows({ rows, listingIds, fields }) {
       if (!cell) continue;
       if (f.field_type === "text") {
         valueRows.push({ listing_id: listingId, field_id: f.id, value_text: cell });
+        continue;
+      }
+      if (f.field_type === "boolean") {
+        const norm = cell.toLowerCase();
+        if (BOOLEAN_FALSY_TOKENS.has(norm)) continue; // explicit "no" == unchecked, same as blank
+        const optionId = f.options?.[0]?.id;
+        if (BOOLEAN_TRUTHY_TOKENS.has(norm)) {
+          if (optionId) valueRows.push({ listing_id: listingId, field_id: f.id, option_id: optionId });
+          continue;
+        }
+        warnings.push(`Row ${rowNum}: "${cell}" is not a recognised Yes/No value for ${f.label}`);
         continue;
       }
       const lookup = lookups.get(f.id) || new Map();
@@ -545,4 +584,49 @@ export function filterFieldsForPublication(fields) {
           }))
         : [],
     }));
+}
+
+/**
+ * Categories V2: which filter field (if any) drives pin colour for this map,
+ * in place of Group. Read/write maps.color_filter_field_id directly —
+ * this is a definition-level setting that previews immediately (like filter
+ * field definitions/options), independent of draft/publish.
+ */
+export async function getMapColorFilterFieldId(mapId) {
+  if (!mapId) return null;
+  const { data, error } = await supabase
+    .from("maps")
+    .select("color_filter_field_id")
+    .eq("id", mapId)
+    .single();
+  if (error) throw error;
+  return data?.color_filter_field_id ?? null;
+}
+
+export async function setMapColorFilterFieldId(mapId, fieldId) {
+  const { error } = await supabase
+    .from("maps")
+    .update({ color_filter_field_id: fieldId || null })
+    .eq("id", mapId);
+  if (error) throw error;
+}
+
+/**
+ * Resolve a single listing's pin colour from its tagged value on the chosen
+ * colour field. Only single_select/boolean fields make sense as a colour
+ * source (a listing can only sensibly have one pin colour) — callers should
+ * only offer those as choices, but this is defensive regardless.
+ * @param {string|null} colorFieldId
+ * @param {object[]} fields   field definitions with `.options` (id, color)
+ * @param {object[]} values   this listing's raw filter values ({ field_id, option_id })
+ * @returns {string|null} a colour, or null if unset/no match (caller falls back to Group/default)
+ */
+export function resolveColorForListing({ colorFieldId, fields, values }) {
+  if (!colorFieldId) return null;
+  const field = (fields || []).find((f) => f.id === colorFieldId);
+  if (!field) return null;
+  const match = (values || []).find((v) => v.field_id === colorFieldId && v.option_id);
+  if (!match) return null;
+  const option = (field.options || []).find((o) => o.id === match.option_id);
+  return option?.color || null;
 }
