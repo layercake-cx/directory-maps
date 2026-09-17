@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Security fix: RLS disabled on listing_research_backup_20260906
+
+**Branch/PR:** `fix/2026-09-17-listing-research-backup-rls` ([PR #177](https://github.com/layercake-cx/directory-maps/pull/177), merged).
+
+### What changed
+Supabase's security advisor flagged `rls_disabled_in_public` on **both** `layercake-maps-production` and `layercake-maps-test` for the same table: `listing_research_backup_20260906`. That table was created by `20260906140000_remove_ai_search_enrichment_schema.sql` as a one-time safety backup of `listing_research` immediately before that migration dropped the live table (per `docs/DATABASE_MIGRATIONS.md`'s "back up before a destructive op" policy). `create table ... as select ...` does not inherit RLS, and no follow-up `enable row level security` was ever added — so the table has been **fully public** (any anon or authenticated client could read/edit/delete every row) since 2026-09-06.
+
+The table's own comment already states "not read by any application code — safe to archive/export and drop once no longer needed," so this fix is a pure lockdown with zero behavioural impact: `alter table ... enable row level security` with **no policies added** (default-deny for every non-privileged role).
+
+- Confirmed the gap and the fix live against **staging**: an anon-key `GET` against `/rest/v1/listing_research_backup_20260906` returned real rows before the migration, and `200 []` (RLS blocking all rows, not an error) after.
+- No data touched, no rows lost — this only changes an access-control flag.
+
+### Verified
+- [x] Migration applied cleanly to staging; its own `VERIFY PASSED` notice fired.
+- [x] Anon-key REST read confirmed blocked after the fix (200, empty array — previously returned real rows).
+- [x] `npm run build` clean (no app code touched).
+- [ ] Applying to production next, in the same batch as the pending `20260914210000_directory_seo_og_image` migration.
+
+### Rollback plan
+Run `_20260917170000_enable_rls_listing_research_backup.rollback.sql` — disables RLS again (re-opens the exposure; only intended if this fix itself needs reversing for some unforeseen reason).
+
+---
+
 ## 2026-09-17 — [Staging] Security fix: PUBLIC/anon/authenticated could call the migration-tooling functions
 
 **Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
