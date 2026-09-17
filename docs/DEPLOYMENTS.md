@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Categories V2 for maps: Group migration tooling (functions only, not run against any map)
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+Third slice of Categories V2 (see the two entries below). Ships the tooling for the one-time Group → Categories data migration as three SQL functions — **this migration itself touches zero map/group/listing data**; it only defines functions that are inert until explicitly invoked, one map at a time, later:
+
+- **`dry_run_group_migration(map_id)`** — read-only preview: lists the map's groups (name, colour, listing count), whether it's already migrated, and its current `color_filter_field_id`. Zero side effects, safe to call against any map at any time.
+- **`migrate_map_groups_to_category(map_id)`** — the actual one-time conversion: creates one `map_filter_fields` row (`key: 'group_migrated'`, `single_select`), one option per existing group (colour preserved, keyed off the group's own uuid rather than its name so same-named groups can never collide or misroute listings), tags every listing that has a group with the matching new option, then points `maps.color_filter_field_id` at the new field. **Does not touch `groups` or `listings.group_id`** — both stay exactly as they are, for rollback safety and because the still-live Groups tab, filter lozenges, and Key legend keep reading them unchanged; only *pin colour's source* changes. Idempotent per map (aborts if that map already has a `group_migrated` field) — never re-runnable, never bulk.
+- **`verify_group_migration(map_id)`** — post-run comparison: per-group listing-count and colour equivalence between the old and new representation, flags any mismatch instead of assuming success.
+- **Deliberately not granted to `authenticated`** — these are internal migration tools invoked via a privileged connection (Supabase SQL editor / service role), not app-facing RPCs. All three are `security definer`, so granting broad execute would let any logged-in user trigger a one-time data conversion against any map — the wrong shape for a tool this sensitive, unlike the existing `publish_map`/`rollback_map_to` RPCs the app itself calls.
+- `docs/DATABASE_MIGRATIONS.md`'s integrity checklist gained items 8–9 (function existence; the `verify_group_migration` spot-check for any map that's been migrated).
+
+### Known limitation this session
+**Not exercised against any real map's data.** This agent session has no login credentials and no service-role/privileged DB connection beyond the Supabase CLI's own read/dump-scoped role (the same "known tooling gap" `docs/DATABASE_MIGRATIONS.md` already documents) — so while `supabase db push` succeeded (meaning Postgres accepted the plpgsql bodies, including their static references to real tables/columns), the actual data-conversion logic has only been verified by inspection, not by running it against a populated map. **Before this is ever invoked against a real map — starting with a low-stakes staging map, then eventually IAPCO's two live maps in production with explicit sign-off — it needs a first real run against staging data to confirm `dry_run_group_migration`'s report and `verify_group_migration`'s comparison actually behave as designed.**
+
+### Verified
+- [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
+- [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
+- [ ] **Not run against any map yet** — see "Known limitation" above.
+- [ ] Not applied to production — needs explicit sign-off, and only after a successful staging trial run against real (or realistic) data.
+
+### Rollback plan
+Run `_20260917140000_group_migration_tooling.rollback.sql` — drops all three functions (refuses if any map has actually been migrated via `migrate_map_groups_to_category`, since that would remove `verify_group_migration` for it while leaving the migrated data itself in place). No data to lose either way — this migration never wrote any.
+
+---
+
 ## 2026-09-17 — [Staging] Categories V2 for maps: boolean fields + "Colour pins by"
 
 **Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
