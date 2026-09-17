@@ -29,7 +29,7 @@ Fixed before this was ever run against any real map:
 - [x] Applied to staging (`beqejxneehilplrtpntn`); migration's own `VERIFY PASSED` notice fired.
 - [x] Confirmed via direct read-only queries against **production** (anon key + a scoped `psql` privilege check) that IAPCO's Community map has exactly this shape: 5 groups with `theme_json.marker_color` set and flat `color` null, plus "IAPCO Accredited Member" using a custom icon — matching the admin design view screenshot the user shared.
 - [x] `npm run build` clean (no app code touched).
-- [ ] Not yet applied to production — recommend doing so promptly given the tooling this fixes is already live there (unused, but the bug it fixes is real).
+- [x] Applied to production (`gxixwdjfmegxcxfeflro`) — `VERIFY PASSED`. The migration's own guarded sanity check ran the fixed `dry_run_group_migration` live against both real IAPCO maps and confirmed the fix works as designed: the Pharma map (`0adab038...`) resolves all its real colours correctly (`would_be_blocked_by_custom_icon: false`); the Community map (`bc37a36e...`) correctly reports `would_be_blocked_by_custom_icon: true`, naming "IAPCO Accredited Member" — the exact group found to use a custom icon.
 
 ### Rollback plan
 Run `_20260917180000_fix_group_migration_color_source.rollback.sql` — restores the original (buggy) function bodies. Refuses if any map already has a `group_migrated` field (review that map's colours by hand first — the bug this fixes may have already affected it).
