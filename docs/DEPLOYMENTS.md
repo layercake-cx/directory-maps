@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-17 — [Staging] Filter option repair tooling: composite (un-split) option labels
+
+**Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
+
+### What changed
+While auditing map `275d7e76-bc3a-4535-ad48-f824d7651119` (APMG's `APMG_ Sample_Demo` map, client `a011ee30-a532-4f17-bc2b-8bb36b4c86c6`) for the Categories V2 plan's flagged "corrupted Group data," found the actual bug is **unrelated to Group** (this map's Group data is clean — one group, no corruption) and **unrelated to the Group migration tooling shipped earlier today**. It's in this map's own `map_filter_fields` "Courses Offered" field (`multi_select`, id `f990d4a6-842d-444d-b6a5-192396bf1f6f`): several options are multiple course names joined by `", "` stored as one literal option (e.g. six certifications mashed into a single option), while atomic versions of some of those same course names *also* exist as separate options. Root cause: this field's import path only ever splits multi-value cells on `|` (`collectFieldTokens`/`buildImportFilterValueRows`, `src/lib/filterFields.js`) — whatever populated this data used commas, which were never split.
+
+Confirmed via a read-only pass against the **production** REST API using the public anon/publishable key (same class of access as a previous session's data-recovery investigation, logged elsewhere in this file) — no service-role/privileged DB connection was available this session, so the exact `listing_filter_values` blast radius (how many listings carry an affected composite option) wasn't pulled; a sandbox permission boundary blocked that specific follow-up query. The field/option-level corruption pattern itself is confirmed directly from the live data.
+
+Ships repair tooling as four SQL functions — same posture as the Group migration tooling: **applying this migration touches zero data**, and none of the repair functions have been run against any real option yet.
+
+- **`dry_run_split_composite_options(field_id, delimiter default ', ')`** — read-only: every option on the field whose label contains the delimiter, the pieces it would split into, whether each piece matches an existing option, and how many listings currently carry the composite option.
+- **`split_composite_filter_option(option_id, delimiter)`** — repairs one composite option: splits the label, finds-or-creates a matching atomic option per piece (case-insensitive label match; new options get a deterministic, collision-safe `value` slug via a small helper, `_slugify_option_value`), re-tags every listing that had the composite option with the full atomic set instead (additive, `ON CONFLICT DO NOTHING`), then deletes the now-unused composite option.
+- **`split_all_composite_options_for_field(field_id, delimiter)`** — convenience wrapper looping the above over every currently-composite option on a field, in one transaction.
+- **`verify_field_has_no_composite_options(field_id, delimiter)`** — read-only post-check.
+- Not granted to `authenticated`, same reasoning as the Group migration tooling.
+
+### Known limitation this session
+Same as the Group migration tooling: no service-role/privileged connection was available to actually invoke these functions or to pull exact listing-tagging counts. **Before this runs against APMG's real field, it needs `dry_run_split_composite_options('f990d4a6-842d-444d-b6a5-192396bf1f6f')` run first (with a privileged connection) and its report reviewed**, then `split_all_composite_options_for_field(...)`, then `verify_field_has_no_composite_options(...)`.
+
+### Verified
+- [x] `supabase db push` applied cleanly to staging; migration's own `VERIFY PASSED` notice fired.
+- [x] Function existence + `security_type = DEFINER` confirmed via the migration's own post-check.
+- [ ] Not run against APMG's real field yet — see "Known limitation" above.
+- [ ] Not applied to production — needs explicit sign-off.
+
+### Rollback plan
+Run `_20260917150000_filter_option_split_tooling.rollback.sql` — drops all five functions. No data to lose either way — this migration never wrote any.
+
+---
+
 ## 2026-09-17 — [Staging] Categories V2 for maps: Group migration tooling (functions only, not run against any map)
 
 **Branch/PR:** `feat/2026-09-17-categories-v2-maps-schema-foundation` (PR not opened yet).
