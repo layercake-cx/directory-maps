@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-18 — [Production] Published directory desktop layout: horizontal filter bar, results widened to two-thirds
+
+**Branch/PR:** `feat/2026-09-18-directory-desktop-horizontal-filters` ([PR #190](https://github.com/layercake-cx/directory-maps/pull/190), merged).
+
+### What changed
+The user found the published directory's desktop layout — a fixed 250px filter rail, results, and map as three side-by-side columns — squeezed the results list too much once a map was attached, splitting the remaining space 50/50 between results and map.
+
+- `supabase/functions/generate_directory_site/builders.ts` (`LAYOUT_STYLE`): on desktop (`min-width: 901px`), `.dir-rail` switches from a fixed-width side column to a full-width, wrapping horizontal bar (`display: flex; flex-wrap: wrap`) above the content, with each `.dir-rail__group` becoming a compact ~220px inline control instead of a full-width bordered row. A new `.dir-content-row` wrapper holds results and map side by side below the bar, with results at two-thirds width (`flex: 0 0 calc(66.666% - 14px)`) and the map at one-third (`calc(33.333% - 14px)`), replacing the previous even 50/50 split.
+- HTML template in `buildDirectoryLandingPage()`: `dir-results-col` and the map pane are now wrapped in `<div class="dir-content-row">`, a sibling of the filter rail inside `.dir-body` rather than both being flattened into the same row as the rail.
+- Tablet (641–900px) and mobile (≤640px) are untouched — both already stacked the rail above a List/Map-toggled results/map pane (mobile also already collapsed the rail into a bottom-sheet drawer), and neither breakpoint's CSS was touched.
+- No JS changes — filtering, search, the List/Map toggle, and the mobile drawer all key off element IDs that didn't move; only the CSS layout and the results/map DOM nesting changed.
+- Docs: `docs/USER_GUIDE.md` (directory categorisations/search section) updated to describe the horizontal filter bar and the two-thirds/one-third split.
+
+### Verified
+- [x] Verified locally via `generate_directory_site`'s existing preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) at 1440px (filter bar full-width above the content, results ≈67% / map ≈33% of the row, List/Map toggle hidden), 800px (unchanged stacked rail + List/Map toggle), and 375px (unchanged Filters drawer + List/Map toggle) — including opening the multi-select ("Sector") dropdown and applying a filter end-to-end.
+- [x] Deployed to the test project (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn` from an isolated worktree — upload log confirms `builders.ts` shipped.
+- [x] Deployed to production (`gxixwdjfmegxcxfeflro`) via `supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro` from the same isolated worktree, on the user's explicit go-ahead.
+- [ ] **Not yet re-published against a real directory's live page** — neither staging nor production has had a directory actually hit Publish since this deployed, so the new layout hasn't been eyeballed against real data yet, only against the local preview-script fixture. Re-publish a directory with a map attached to confirm.
+
+### Rollback plan
+Revert this commit on `main` and redeploy `generate_directory_site` to both projects — restores the previous 250px fixed-rail, 50/50 results/map split.
+
+---
+
 ## 2026-09-18 — [Staging] Directory AI intent-driven search (migration + Edge Functions deployed)
 
 **Branch/PR:** `feat/2026-09-18-directory-ai-search`.
@@ -29,7 +53,7 @@ The user asked to reinstate the Claude-based AI intent-driven search the maps pr
 - [x] **Migration applied to staging** (`beqejxneehilplrtpntn`, 2026-09-18) via `supabase db push` — confirmed linked to the staging ref and that it was the only pending migration (`--dry-run` first) before applying for real, run from the shared working directory after confirming a clean `git status`/correct branch immediately beforehand (no isolated worktree available since this branch was already checked out there — see `AGENTS.md`'s shared-worktree lesson). The migration's own embedded post-migration block printed `NOTICE: VERIFY PASSED: directory AI search schema created` during the apply, confirming both new `directories` columns and `directory_ai_search_requests` now exist.
 - [ ] **Full integrity checklist not independently re-run** — this session's sandbox blocked passing the ephemeral `supabase db dump --dry-run` Postgres credential to `psql` (flagged as credential exposure, even though it's a short-lived, dump-scoped credential Supabase's own tooling generates for exactly this purpose) — worth re-running manually (row counts, RLS-enabled, orphan checks) before treating staging as fully verified, though the migration is purely additive (no drops, no data touched) and its own embedded checks already passed.
 - [x] **`directory_ai_search` deployed to staging** (`beqejxneehilplrtpntn`). Black-box verified directly against the live endpoint (anon key — the public, publishable one, not a secret): a real staging directory with no `ai_search_prompt` set (`e270f4a4-c2d8-46d4-962d-c32dd25e8618`, "UK Association Directory") returns `{"entry_ids":null,"disabled":true}` with a 200; a nonexistent `directory_id` returns the same rather than a 404/error (doesn't leak existence); missing `directory_id`/`query` return clean 400s; `OPTIONS` preflight returns 204 with CORS headers. No 500s, no crashes.
-- [x] **`generate_directory_site` redeployed to staging** with the AI-search wiring (it was already modified for this feature — needed a redeploy for a republish to actually pick up the new search script, not just for the `directory_ai_search` function to exist).
+- [x] **`generate_directory_site` deployed to staging twice**: once right after this feature's own changes (before merging `main`, so it did **not** yet include PR #190's horizontal-filter-bar/two-thirds-layout changes — an unintentional regression of that already-shipped feature on staging, caught while investigating why this PR showed merge conflicts against `main`), and again just now after merging `main` into this branch, which restores PR #190's layout changes alongside this feature's AI-search wiring. Production was never touched by either of those staging deploys.
 - [ ] **The "configured" path (a real prompt + a real Claude call) not yet exercised against staging** — this needs `directories.ai_search_prompt` actually set on a real directory, which means either a live admin/client-portal session (this session has no test credentials) or a direct DB write; deliberately not done via the service-role key from an agent session without being asked. Once a prompt is set on a real directory (e.g. via the AI tab, or ask this session to do it with explicit sign-off), re-test: a real query returns a plausible, real entry-id subset; republishing that directory picks up the debounced client-side call and filters the list correctly; and the keyword fallback still works if the call is made to fail.
 - [ ] Web-search-tool + forced-`tool_choice` interaction (the two-call design in `directory_ai_search`'s `runSearch()`) is built against Anthropic's current published docs (fetched this session) but hasn't been exercised against the live API with `ai_search_web_enabled = true` yet — needs the same "configured" prerequisite above, plus the web-search toggle on.
 
