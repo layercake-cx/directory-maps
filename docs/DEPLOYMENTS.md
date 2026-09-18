@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-18 — [Staging] Directory AI intent-driven search (not yet deployed)
+
+**Branch/PR:** `feat/2026-09-18-directory-ai-search` (not yet opened as a PR).
+
+### What changed
+The user asked to reinstate the Claude-based AI intent-driven search the maps product had before it was removed (2026-09-06), scoped to directories instead of maps: full data/metadata access, an optional web-search "reach out", a configurable directory-level prompt, and results that actually filter the directory down rather than the plain keyword substring match the published search box has used until now.
+
+- **New migration** (`20260918120000_create_directory_ai_search.sql` + rollback): `directories.ai_search_prompt` (text, null = off, mirrors `ai_content_prompt`), `directories.ai_search_web_enabled` (boolean, default false), and `directory_ai_search_requests` (a minimal per-call log used only to rate-limit the new public endpoint — no query text or results stored).
+- **New public Edge Function** `directory_ai_search`: loads a directory's visible entries + attached categorisation terms, sends them plus the visitor's query to Claude (`claude-haiku-4-5`) via forced tool-calling (`select_matching_entries`), and filters every returned id against the real entry-id set server-side before responding — the same safety property the removed map-level "Ask AI" search had, carried over unchanged. Web search (Anthropic's `web_search_20250305` tool) is attached only when a directory has opted in, with a system-prompt rule plus the same id-validation pass ensuring it can only inform reasoning, never surface an entry that isn't really in the directory. Rate-limited per directory (60 real Claude calls/minute) via `directory_ai_search_requests`.
+- **AI tab UI**: new `DirectoryAiSearchPanel.jsx` (search-instructions textarea + web-search toggle + an always-visible privacy note), added as a second card under the existing AI content-generation panel in both `AdminDirectoryEntries.jsx` and `ClientDirectoryEntries.jsx` (the tab itself relabelled "AI Content" → "AI"). Saves fire `directory_ai_search_prompt_updated` and (only when it actually changes) `directory_ai_search_web_toggled` — new events documented in `AGENTS.md`'s admin event catalogue.
+- **Published site**: `generate_directory_site`'s existing search box is upgraded in place (`builders.ts`'s `buildFilterAndSearchScript`/`buildDirectoryLandingPage`, plus `index.ts` passing through `directories.ai_search_prompt` and the public Supabase URL/anon key) — the `input` handler is now debounced and, when a directory has AI search configured, calls the new function and restricts/orders the rendered rows by its returned ids (new `data-entry-id` attribute per row) instead of the prior keyword-scoring pass. Every failure path (network error, timeout, non-2xx, a disabled response) falls straight through to the exact same keyword-matching code used when the feature is off, so the search box can never appear broken to a visitor. A shared `?q=...` link re-triggers the AI path on load when applicable.
+- **Docs**: `docs/USER_GUIDE.md` (new "AI search" section + corrected two stale "not built yet" claims about facet filtering, which had actually shipped 2026-09-14), `docs/DATA_AND_PRIVACY.md` §10 (Anthropic entry extended — this is the integration's first visitor-facing, not just admin-triggered, data flow), `docs/DIRECTORIES.md` (DIR-E7-S1 status note + §9 decision #3 updated to describe what was actually built vs. the original structured-predicate sketch), `docs/FEATURES.md` (new §4.4h + feature status table row).
+- No commercial entitlement gate — ships like `ai_content_prompt` did, with the per-directory prompt opt-in plus the new rate limit as the cost controls, per the plan's explicit rollout recommendation.
+
+### Verified
+- [x] `deno check` clean on `directory_ai_search/index.ts`, `generate_directory_site/index.ts`, and `generate_directory_site/builders.ts`.
+- [x] `npm run build` clean.
+- [x] Local preview (`generate_directory_site/preview.ts`) confirms `data-entry-id` is present on every row and, with a synthetic `AiSearchOptions` object, that `buildFilterAndSearchScript` embeds a real `AI_SEARCH_URL`/`AI_SEARCH_ANON_KEY`/`AI_SEARCH_DIRECTORY_ID` and wires `scheduleSearch`/`runAiSearch` correctly; with no AI search options, output is unchanged (`AI_SEARCH_ENABLED = false`, keyword matching only) — a directory with AI search off gets byte-for-byte the same search behaviour as before this feature.
+- [ ] **Migration not yet applied anywhere** — needs a dry run + staging apply (`beqejxneehilplrtpntn`) with the integrity checklist, per `AGENTS.md`.
+- [ ] **`directory_ai_search` not yet deployed** — staging first, production only after explicit user sign-off.
+- [ ] **No live end-to-end test yet** — admin/client AI tab UI hasn't been exercised against a real logged-in session (this session had no test credentials), and no directory has been republished with AI search configured to confirm the debounced call, the result filtering, and the keyword fallback against real data.
+- [ ] Web-search-tool + forced-`tool_choice` interaction (the two-call design in `directory_ai_search`'s `runSearch()`) is built against Anthropic's current published docs (fetched this session) but hasn't been exercised against the live API with `ai_search_web_enabled = true` yet — worth an explicit staging test of that path specifically, not just the no-web-search path.
+
+### Rollback plan
+Before any deploy: nothing to roll back, just don't merge. After a staging/production migration apply: run `_20260918120000_create_directory_ai_search.rollback.sql` (aborts if any directory has `ai_search_prompt` set — export it first) and undeploy the `directory_ai_search` Edge Function. Revert this branch's commits on `main` and redeploy `generate_directory_site` to restore the pre-existing keyword-only search box.
+
+---
+
 ## 2026-09-18 — [Production] Directory-attached map embed no longer shows a duplicate sidebar; results now sit beside the map on desktop
 
 **Branch/PR:** `feat/2026-09-18-directory-map-embed-sidebar` ([PR #184](https://github.com/layercake-cx/directory-maps/pull/184), merged).

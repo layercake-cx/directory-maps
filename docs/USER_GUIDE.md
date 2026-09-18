@@ -97,9 +97,9 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 > **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
 
-**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, and custom domains are available (see [Domains](#domains) below); categorisation-driven filtering on the published site is not built yet (see `docs/DIRECTORIES.md` for the full roadmap). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI Content**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
 
 ### Creating a directory
 
@@ -150,7 +150,7 @@ Click **Save settings**, then **Publish** (or republish) for changes to reach th
 
 On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
-The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map. Full natural-language search and clickable filter chips are planned but not built yet — the filter chips shown on the homepage don't do anything yet.
+The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has search instructions set, the same search box instead resolves the query with Claude — see **AI search** below; it falls back to plain keyword matching automatically if that call ever fails.
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
 
@@ -206,7 +206,7 @@ Once a categorisation is attached to a directory, it appears as a checkbox picke
 
 Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
 
-A published directory's site has a search box and a filter rail built from your attached categorisations. On the published site, a **Tags** categorisation renders as a compact multi-pick dropdown (its terms live behind a "Any"/"N selected" button, with a search box inside the panel once there are more than 8 terms) rather than a wall of buttons — this keeps the rail readable as you attach more categorisations to a directory. **Single choice** still renders as a native dropdown, and **Yes/No** as a switch. See `docs/DIRECTORIES.md` for the roadmap of what's still ahead (natural-language search, portal-side faceted filtering). If a map is attached (see **Directories** under a map's Data tab, above), its embed shows alongside the results list, side by side, on desktop — narrower screens show a **List / Map** toggle instead, to switch between the two. Filtering or searching the directory narrows the map's pins the same way it narrows the list; the map embed itself only shows its own controls (zoom, clustering) here, not a second copy of the search box or results.
+A published directory's site has a search box and a filter rail built from your attached categorisations. On the published site, a **Tags** categorisation renders as a compact multi-pick dropdown (its terms live behind a "Any"/"N selected" button, with a search box inside the panel once there are more than 8 terms) rather than a wall of buttons — this keeps the rail readable as you attach more categorisations to a directory. **Single choice** still renders as a native dropdown, and **Yes/No** as a switch. See `docs/DIRECTORIES.md` for the roadmap of what's still ahead (portal-side faceted filtering). If a map is attached (see **Directories** under a map's Data tab, above), its embed shows alongside the results list, side by side, on desktop — narrower screens show a **List / Map** toggle instead, to switch between the two. Filtering or searching the directory narrows the map's pins the same way it narrows the list; the map embed itself only shows its own controls (zoom, clustering) here, not a second copy of the search box or results.
 
 ### Entry details: evidence, media, accreditations, links and product tiles
 
@@ -228,7 +228,7 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
 
 ### AI content generation
 
-On a directory's **AI Content** tab (owners and managers only), the panel lets Claude write each entry's page content for you:
+On a directory's **AI** tab (owners and managers only), the first panel lets Claude write each entry's page content for you:
 
 1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
 2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.
@@ -236,6 +236,16 @@ On a directory's **AI Content** tab (owners and managers only), the panel lets C
 4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; the panel shows a progress count while it runs.
 
 Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
+
+### AI search
+
+Below the content panel on the same **AI** tab, a second panel controls the published site's search box:
+
+1. **Set search instructions** — free text describing how the AI should interpret and prioritise queries, e.g. "prioritise entries with a matching accreditation" or "treat a UK town or postcode as a location filter". Leave it blank to turn this off — the search box then stays on plain keyword matching, exactly as it always has.
+2. Once instructions are set, the published homepage's search box sends each typed query to Claude, which reasons over every entry in the directory (name, location, categorisation tags, and a short description) and returns the best matches, filtering the list down to just those — most relevant first. If that call ever fails or times out, the search box falls back to plain keyword matching automatically; visitors never see an error.
+3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation it doesn't recognise. This never adds a result that isn't already an entry in the directory — web results can only inform the AI's reasoning, not introduce new listings.
+
+Turning AI search on sends visitors' search text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration.
 
 ---
 

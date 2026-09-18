@@ -891,20 +891,37 @@ function embedJson(value: unknown): string {
   return JSON.stringify(value).replace(/<\//g, "<\\/");
 }
 
+/** AI-search wiring for buildFilterAndSearchScript — omitted (null) entirely
+ * disables the AI path, leaving the script's plain keyword matching as the
+ * only behaviour (identical output to before this option existed). */
+export type AiSearchOptions = {
+  directoryId: string;
+  enabled: boolean;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+};
+
 /** Combined client-side intent search + categorisation-facet filtering over
- * the already-rendered result rows — no new backend, no LLM call (DIR-E7
- * replaces the search half later, with true NL query parsing). Reads
- * data-search / data-term-ids attributes baked into each row at generation
- * time. AND across categorisations, OR within one categorisation's
- * selected terms (matches the in-app map filter bar's semantics,
- * PublishedMapView.jsx) — single_select and boolean facets simply never
- * hold more than one selected term, so the same AND/OR logic covers all
- * three field_types with no extra branching. When hasMap is true, also
- * posts the active selection to the attached map's <iframe> so both stay
- * in sync (EmbedMap.jsx's `message` listener), and mirrors state into the
- * URL (?q=&<facetKey>=<slug,slug>&view=) so a filtered view is shareable/
- * bookmarkable (closes docs/DIRECTORIES.md's DIR-E7-S3 gap). */
-export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[]): string {
+ * the already-rendered result rows. Reads data-search / data-term-ids /
+ * data-entry-id attributes baked into each row at generation time. AND
+ * across categorisations, OR within one categorisation's selected terms
+ * (matches the in-app map filter bar's semantics, PublishedMapView.jsx) —
+ * single_select and boolean facets simply never hold more than one selected
+ * term, so the same AND/OR logic covers all three field_types with no extra
+ * branching. When hasMap is true, also posts the active selection to the
+ * attached map's <iframe> so both stay in sync (EmbedMap.jsx's `message`
+ * listener), and mirrors state into the URL (?q=&<facetKey>=<slug,slug>&view=)
+ * so a filtered view is shareable/bookmarkable (closes
+ * docs/DIRECTORIES.md's DIR-E7-S3 gap).
+ *
+ * Search itself is plain keyword substring matching UNLESS aiSearch.enabled
+ * (directories.ai_search_prompt is set) — then a debounced query instead
+ * calls directory_ai_search (DIR-E7-S1) and restricts to its returned entry
+ * ids, preserving Claude's relevance order. Every failure path (network
+ * error, timeout, non-2xx, a disabled response) falls straight through to
+ * the same keyword-matching code that runs when AI search is off entirely —
+ * visitors never see a broken search box, see runAiSearch below. */
+export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null): string {
   const catsMeta = categorisations.map((c) => ({
     id: c.id,
     key: c.key,
@@ -920,6 +937,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var STOPWORDS = ${embedJson(SEARCH_STOPWORDS)};
   var stopwordSet = {};
   STOPWORDS.forEach(function (w) { stopwordSet[w] = true; });
+
+  var AI_SEARCH_ENABLED = ${embedJson(!!aiSearch?.enabled)};
+  var AI_SEARCH_DIRECTORY_ID = ${embedJson(aiSearch?.directoryId ?? null)};
+  var AI_SEARCH_URL = ${embedJson(aiSearch ? aiSearch.supabaseUrl + "/functions/v1/directory_ai_search" : null)};
+  var AI_SEARCH_ANON_KEY = ${embedJson(aiSearch?.supabaseAnonKey ?? null)};
+  var aiEntryIds = null; // null = no AI filter active (use keyword matching); array = restrict to these ids
+  var aiSearchToken = 0; // guards a stale in-flight response from clobbering a newer one
 
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
@@ -1079,7 +1103,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       });
       var searchMatch = true;
       var order = 0;
-      if (toks.length) {
+      if (aiEntryIds) {
+        // AI search result active — restrict to and order by Claude's
+        // relevance ranking instead of keyword scoring.
+        var aiIdx = aiEntryIds.indexOf(row.getAttribute('data-entry-id'));
+        searchMatch = aiIdx !== -1;
+        order = aiIdx === -1 ? 0 : aiIdx;
+      } else if (toks.length) {
         var hay = (row.getAttribute('data-search') || '');
         var score = 0;
         toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
@@ -1120,6 +1150,60 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
   ` : ""}
 
+  // AI intent search (DIR-E7-S1) — calls directory_ai_search with the typed
+  // query and restricts results to the entry ids it returns, preserving
+  // Claude's relevance order (see apply()'s aiEntryIds branch above). Any
+  // failure at all — network error, timeout, non-2xx, or a disabled/
+  // malformed response — clears aiEntryIds and re-applies, which is exactly
+  // the same code path as AI search being off entirely: the keyword-scoring
+  // branch in apply() takes over with no special-casing needed here.
+  var AI_SEARCH_MIN_QUERY_LENGTH = 2;
+  var aiSearchDebounceTimer = null;
+
+  function runAiSearch(q) {
+    var token = ++aiSearchToken;
+    var hasAbort = typeof AbortController !== 'undefined';
+    var controller = hasAbort ? new AbortController() : null;
+    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
+    fetch(AI_SEARCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY, 'Authorization': 'Bearer ' + AI_SEARCH_ANON_KEY },
+      body: JSON.stringify({ directory_id: AI_SEARCH_DIRECTORY_ID, query: q }),
+      signal: controller ? controller.signal : undefined
+    })
+      .then(function (res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('directory_ai_search returned ' + res.status);
+        return res.json();
+      })
+      .then(function (body) {
+        // A newer query has already superseded this response — drop it.
+        if (token !== aiSearchToken) return;
+        if (!body || !Array.isArray(body.entry_ids)) throw new Error('directory_ai_search disabled or malformed response');
+        aiEntryIds = body.entry_ids;
+        apply();
+      })
+      .catch(function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (token !== aiSearchToken) return;
+        aiEntryIds = null;
+        apply();
+      });
+  }
+
+  /** Debounced on keystroke; immediate (skips the timer) on submit/page-load restore. */
+  function scheduleSearch(immediate) {
+    var q = input ? input.value.trim() : '';
+    if (aiSearchDebounceTimer) { clearTimeout(aiSearchDebounceTimer); aiSearchDebounceTimer = null; }
+    if (!AI_SEARCH_ENABLED || q.length < AI_SEARCH_MIN_QUERY_LENGTH) {
+      aiEntryIds = null;
+      apply();
+      return;
+    }
+    if (immediate) runAiSearch(q);
+    else aiSearchDebounceTimer = setTimeout(function () { runAiSearch(q); }, 400);
+  }
+
   function setView(next) {
     view = next;
     segButtons.forEach(function (btn) { btn.classList.toggle('active', btn.getAttribute('data-view') === next); });
@@ -1153,8 +1237,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   });
 
   if (form && input) {
-    form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
-    input.addEventListener('input', apply);
+    form.addEventListener('submit', function (e) { e.preventDefault(); scheduleSearch(true); });
+    input.addEventListener('input', function () { scheduleSearch(false); });
   }
 
   document.querySelectorAll('.dir-msel__checkbox[data-cat-id][data-kind="multi_select"]').forEach(function (cb) {
@@ -1231,6 +1315,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function clearAll() {
     active = {};
     if (input) input.value = '';
+    aiEntryIds = null;
+    aiSearchToken++; // drop any in-flight AI search response
     setRowControlState();
     apply();
   }
@@ -1257,7 +1343,14 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (v === 'map' && mapPane) setView('map');
   })();
 
+  // Instant paint first (keyword matching, same as AI search being off —
+  // aiEntryIds is still null here), then upgrade to the AI result once it
+  // resolves, rather than leaving the page blank/unfiltered while it loads.
   apply();
+  if (AI_SEARCH_ENABLED) {
+    var restoredQuery = input ? input.value.trim() : '';
+    if (restoredQuery.length >= AI_SEARCH_MIN_QUERY_LENGTH) runAiSearch(restoredQuery);
+  }
 })();
 </script>`;
 }
@@ -1300,8 +1393,9 @@ export function buildDirectoryLandingPage(opts: {
   seoDescription?: string | null;
   seoImageUrl?: string | null;
   seoNoindex?: boolean;
+  aiSearch?: AiSearchOptions | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -1337,7 +1431,7 @@ export function buildDirectoryLandingPage(opts: {
       const panelBoxStyle = e.panel_background_color ? ` style="background:${escapeAttr(e.panel_background_color)};"` : "";
       const entryUrl = `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
 
-      return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-search="${searchText}" data-term-ids="${termIdsAttr}">
+      return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}">
   <div class="dir-row__logo"${panelBoxStyle}>${logo}</div>
   <div class="dir-row__body">
     <h3>${escapeHtml(e.name)}</h3>
@@ -1449,7 +1543,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: "." })}
-${buildFilterAndSearchScript(hasMap, categorisations)}
+${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
 `.trim();
 
   return directoryPageShell({
