@@ -150,6 +150,13 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
    * duplicate the same controls.
    */
   const hideFilterBar = params.get("hideFilterBar") === "1";
+  /**
+   * Set by a directory's published static page when it renders its own
+   * results list beside this iframe — forces the map's sidebar (search box,
+   * filter chips, and results list) off regardless of the map's own
+   * show_list_panel setting, so the directory doesn't get a duplicate list.
+   */
+  const hideListPanel = params.get("hideListPanel") === "1";
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -493,7 +500,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       lat: Number(src.default_lat ?? 0),
       lng: Number(src.default_lng ?? 0),
       zoom: Number(src.default_zoom ?? 3),
-      showListPanel: src.show_list_panel !== false,
+      showListPanel: hideListPanel ? false : src.show_list_panel !== false,
       enableClustering: !!src.enable_clustering,
       markerStyle: src.marker_style ?? "pin",
       markerColor: src.marker_color ?? "#4A9BAA",
@@ -501,7 +508,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       customPinUrl: src.custom_pin_url ?? null,
       themeSource: src.theme_json ?? null,
     };
-  }, [publicationConfig]);
+  }, [publicationConfig, hideListPanel]);
 
   const listingsWithOverrides = useMemo(() => {
     const overridesById = new Map();

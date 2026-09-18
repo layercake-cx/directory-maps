@@ -206,7 +206,7 @@ Once a categorisation is attached to a directory, it appears as a checkbox picke
 
 Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
 
-A published directory's site has a search box and a filter rail built from your attached categorisations — see `docs/DIRECTORIES.md` for the roadmap of what's still ahead (natural-language search, portal-side faceted filtering).
+A published directory's site has a search box and a filter rail built from your attached categorisations — see `docs/DIRECTORIES.md` for the roadmap of what's still ahead (natural-language search, portal-side faceted filtering). If a map is attached (see **Directories** under a map's Data tab, above), its embed shows alongside the results list, side by side, on desktop — narrower screens show a **List / Map** toggle instead, to switch between the two. Filtering or searching the directory narrows the map's pins the same way it narrows the list; the map embed itself only shows its own controls (zoom, clustering) here, not a second copy of the search box or results.
 
 ### Entry details: evidence, media, accreditations, links and product tiles
 

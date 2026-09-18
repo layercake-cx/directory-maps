@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-18 — [Staging] Directory-attached map embed no longer shows a duplicate sidebar; results now sit beside the map on desktop
+
+**Branch/PR:** `feat/2026-09-18-directory-map-embed-sidebar` (PR not opened yet).
+
+### What changed
+The user reported that when a directory has a map attached (DIR-E4), the embedded map still showed its own full search sidebar (header, search box, filter chips, and — crucially — its own results list), duplicating the directory's own list of entries. Separately, the directory's "Map" view swapped the results list out entirely for a full-width map instead of showing both side by side, as the design calls for.
+
+Two independent gaps, one root cause each:
+
+- **Map's own results list**: `hideFilterBar=1` (already set on the iframe `src` by `generate_directory_site`) only ever suppressed the map's custom filter-field chips (`PublishedMapView.jsx`'s `hideFilterBar` gate) — it never touched `showListPanel`, the flag that gates the map's *entire* sidebar (header, search box, filter chips, and results list). `showListPanel` came only from the map's own admin-configured `maps.show_list_panel` column, which is usually `true`, so the redundant list kept rendering regardless.
+  - Fix: new `hideListPanel=1` query param, read in `EmbedMap.jsx` the same way as `hideFilterBar`, forcing `showListPanel: false` in `effectiveDefaults` regardless of the map's own DB setting. This only affects embeds that explicitly pass the flag — the map's own standalone design/preview view is untouched. As a bonus, `PublishedMapView.jsx`'s existing `showListPanel`-driven control offset logic (line ~315) automatically repositions the native zoom/fullscreen controls to the left edge once the sidebar is gone — no separate control-positioning work needed.
+  - `generate_directory_site`'s `builders.ts` now appends `&hideListPanel=1` alongside the existing `&hideFilterBar=1` on the map iframe's `src`.
+- **List/Map toggle instead of side-by-side**: `builders.ts` implemented the directory's map as a mutually-exclusive List/Map toggle (`setView()` hid whichever pane wasn't selected) rather than a permanent layout. The `.dir-body`/`.dir-results`/`.dir-map-pane` flex scaffolding needed for side-by-side already existed (built for the mobile stacked fallback) but was unused for desktop.
+  - Fix: `setView()` now toggles a `.dir-pane-hidden` class instead of the `hidden` attribute, and that class is only given effect by a `@media (max-width: 900px)` rule — so above 900px both panes stay visible regardless of `view` state, and the List/Map segmented control (`#dir-view-toggle`) is itself hidden above 901px via CSS. Below 900px, behaviour is unchanged: the toggle switches between the two panes, defaulting to List.
+- Filter-to-pin sync (`postMessage('directory-filter-change')` → `EmbedMap.jsx`'s listener → `externalActiveFilters`) was already working correctly and needed no changes.
+- Docs: `docs/USER_GUIDE.md` (directory categorisations/search section) and `docs/FEATURES.md` (directory browse/entry redesign row) updated to describe the new side-by-side layout and mobile toggle fallback.
+
+### Verified
+- [x] Verified locally via `generate_directory_site`'s existing preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`, no Supabase project needed) — confirmed at 1280px the map pane renders visible (`display: block`) alongside the results column with the List/Map toggle hidden (`display: none`), and at 375px the map pane starts hidden with the toggle visible and functional (clicking "Map" correctly swaps panes).
+- [x] Verified `EmbedMap.jsx`'s new `hideListPanel=1` flag against a real published map on the test project (`beqejxneehilplrtpntn`, "UK Associations" map) via the local dev server — `/embed?map=<id>` shows the full sidebar as before; `/embed?map=<id>&hideListPanel=1` shows only the native map controls (fullscreen, zoom slider), no sidebar, no console errors.
+- [x] `npm run build` clean.
+- [ ] Deployed `generate_directory_site` to the test project (`beqejxneehilplrtpntn`) and regenerated a real directory's site to confirm end-to-end against live data.
+- [ ] Deployed to production — pending user sign-off after staging verification.
+
+### Rollback plan
+Revert this commit (or the merge commit once a PR lands) on `main`. No migration involved — pure frontend (`EmbedMap.jsx`) and Edge Function (`generate_directory_site`) code changes; reverting and redeploying the Edge Function restores the previous List/Map toggle and duplicate-sidebar behaviour.
+
+---
+
 ## 2026-09-17 — [Staging] "Build a directory from this map" now carries filter fields across as categorisations
 
 **Branch/PR:** `feat/2026-09-17-map-to-directory-categorisation-migration` ([PR #182](https://github.com/layercake-cx/directory-maps/pull/182), merged).
