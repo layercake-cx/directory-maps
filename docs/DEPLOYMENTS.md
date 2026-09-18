@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-18 — [Staging] robots.txt: explicit AI crawler allow rules + related-entry alt-text fix
+## 2026-09-18 — [Production] robots.txt: explicit AI crawler allow rules + related-entry alt-text fix
 
-**Branch/PR:** `feat/2026-09-18-directory-seo-ai-bots-alt-text` (not yet opened).
+**Branch/PR:** `feat/2026-09-18-directory-seo-ai-bots-alt-text` ([PR #193](https://github.com/layercake-cx/directory-maps/pull/193), open).
 
 ### What changed
 Phase 1 ("quick-win cluster") of the Directory Searchability & AI Metadata plan (`docs/Directory Searchability & AI Metadata — Product Definition.md`), which audited the uk-associations.com sample directory and found no explicit AI-crawler allowlisting in `robots.txt`. Most of that plan's Feature 1 (schema.org JSON-LD, sitemap.xml, robots.txt) turned out to already be built via the existing `generate_directory_site` pipeline — this is the one real gap it had.
@@ -26,10 +26,11 @@ Phase 1 ("quick-win cluster") of the Directory Searchability & AI Metadata plan 
 - [x] **Live regeneration on staging**: triggered `generate_directory_site` directly via its HTTP endpoint (anon key sufficient, per the existing pattern documented elsewhere in this log — the function creates its own service-role client internally) for the real `l-cakez/uk-association-directory` directory (`e270f4a4-...`) — `{"ok":true,"count":14}`.
 - [x] **Live `robots.txt` fetched from staging** (`https://maps.layercake-cx.biz/directories/l-cakez/uk-association-directory/robots.txt`) — confirmed all four AI crawlers now appear as explicit `Allow: /` blocks alongside the wildcard, with the `Sitemap:` line intact.
 - [ ] **Alt-text fix not yet eyeballed against real data** — none of this directory's entry pages currently render a "Related entries" block (no entries share categorisation tags in a way that populates it), so the fix is confirmed correct by code inspection and `deno check` only, not a live example. Low risk: one-line change matching an identical, already-verified pattern used twice elsewhere in the same file.
-- [ ] Not yet deployed to production — staging only so far, pending user review.
+- [x] **Deployed to production** (`gxixwdjfmegxcxfeflro`) via `supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`, on the user's explicit go-ahead ("go ahead to production, this is non-invasive").
+- [x] **Live production `robots.txt` already reflects the fix** — fetched `https://maps.layercake-cx.biz/directories/l-cakez/uk-association-directory/robots.txt` post-deploy and it already shows all four AI-crawler blocks. **Important nuance for future agents:** this is the *same* URL used for the "staging" verification step above — the branded domain / Vercel Blob store that `generate_directory_site` uploads to is shared across both Supabase projects; only the DB row (and which Supabase project's Edge Function executed the regeneration) differs. This means the earlier "staging" regeneration call against `e270f4a4-...` already wrote its output to the real, live, production-facing page for this real client directory, before the production Edge Function deploy even happened. Harmless here since the change is purely additive/corrective and the user had already signed off on it going to production, but worth knowing: **a "staging" `generate_directory_site` regeneration against a real client's directory is not staging-isolated in its output** — treat it as a production content write, same caution as a production deploy.
 
 ### Rollback plan
-Revert this commit on `main` (or this branch, if not yet merged) and redeploy `generate_directory_site` to whichever project(s) received it — restores the previous blanket-only `robots.txt` and the empty related-entry alt text. No database migration involved.
+Revert this commit on `main` (or this branch, if not yet merged) and redeploy `generate_directory_site` to both projects (`beqejxneehilplrtpntn`, `gxixwdjfmegxcxfeflro`) from the reverted code — restores the previous blanket-only `robots.txt` and the empty related-entry alt text. No database migration involved.
 
 ---
 
