@@ -8,9 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-18 — [Production] AI-generate action for entry and directory SEO metadata
+
+**Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), open).
+
+### What changed
+Phase 2 of the Directory Searchability & AI Metadata plan. `EntrySeoTab.jsx` and `DirectoryGeneralSettingsPanel.jsx` already had the SEO/social metadata fields and a Save action (from earlier work) but no AI drafting action — only entry body content (`notes_html`, §4.4g) had one.
+
+- New shared module `supabase/functions/_shared/seoMetadataGeneration.ts`: Claude-calling core for entry-level (`meta_title`, `meta_description`, `keywords`, `og_title`, `og_description`, `ai_summary`) and directory-level (`meta_title_template`, `meta_description`) metadata drafts. System prompt explicitly forbids placeholder/demo language ("Sample", "Example", etc.) per the product doc.
+- New Edge Functions `generate_entry_seo_metadata` and `generate_directory_seo_metadata` — both require a signed-in user with directory access (`requireDirectoryAccess`, same as `generate_entry_content`) and, deliberately, **never write to the database themselves**: they return a draft, and the panel's own pre-existing Save button is what persists it. This is a different contract from `generate_entry_content`, which does write directly — chosen because these panels already have their own separate "Save metadata"/"Save settings" actions, so writing straight to the DB would either double-save or silently bypass that review step.
+- "Generate with AI" buttons added to both panels, each with a confirm-before-overwrite prompt if the target fields already have content (mirroring `EntryContentTab.jsx`'s existing pattern). New admin-event usage: reuses `directory_ai_content_requested`/`_generated`/`_failed` with a new `target` meta key (`entry_seo_metadata` / `directory_seo_metadata`) rather than new event names, per AGENTS.md.
+- Docs: `docs/USER_GUIDE.md` (entry editor tabs, Directory Settings § SEO settings) and `docs/FEATURES.md` (new §4.4i) updated.
+
+### Verified
+- [x] `deno check` clean on both new Edge Functions.
+- [x] `npm run build` clean — no import/syntax errors in the three changed frontend files.
+- [x] Deployed both new Edge Functions to staging (`beqejxneehilplrtpntn`).
+- [x] Black-box checks against the live staging endpoints: missing `entry_id`/`directory_id` → clean `400`s; a call with only the anon key (no signed-in user) against a real `directory_id` → clean `"This endpoint requires a valid Bearer token"` error, not a crash; `OPTIONS` preflight → `204`.
+- [ ] **Full authenticated happy path not yet exercised** — both functions require a real signed-in user session (`requireDirectoryAccess`), which this agent doesn't have login credentials for. Still needs a click-through in the admin or client portal: open an entry's Search & Metadata tab (or a directory's Settings tab), click "Generate with AI", confirm the draft lands in the fields, confirm "Save metadata"/"Save settings" persists it, confirm a second generate-then-cancel doesn't lose the saved values.
+- [x] **Deployed to production** (`gxixwdjfmegxcxfeflro`) via `supabase functions deploy` for both functions, on the user's explicit go-ahead ("shit to live" — production, immediately after the staging deploy above, before the manual click-through happened). Low-risk call: worst case if something's wrong is a bad AI draft the editor would simply not save, since neither function writes to the DB itself.
+- [x] Both production endpoints respond correctly to `OPTIONS` preflight (`204`) — confirms the functions are live and reachable; full authenticated verification still pending as above.
+
+### Rollback plan
+Revert this commit on `main` (or this branch, if not yet merged) and redeploy `generate_entry_seo_metadata`/`generate_directory_seo_metadata` (or remove them from the project) to whichever project(s) received them. No database migration involved — nothing was ever persisted through these functions, so there's no data to roll back, only code.
+
+---
+
 ## 2026-09-18 — [Production] robots.txt: explicit AI crawler allow rules + related-entry alt-text fix
 
-**Branch/PR:** `feat/2026-09-18-directory-seo-ai-bots-alt-text` ([PR #193](https://github.com/layercake-cx/directory-maps/pull/193), open).
+**Branch/PR:** `feat/2026-09-18-directory-seo-ai-bots-alt-text` ([PR #193](https://github.com/layercake-cx/directory-maps/pull/193), merged).
 
 ### What changed
 Phase 1 ("quick-win cluster") of the Directory Searchability & AI Metadata plan (`docs/Directory Searchability & AI Metadata — Product Definition.md`), which audited the uk-associations.com sample directory and found no explicit AI-crawler allowlisting in `robots.txt`. Most of that plan's Feature 1 (schema.org JSON-LD, sitemap.xml, robots.txt) turned out to already be built via the existing `generate_directory_site` pipeline — this is the one real gap it had.

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
-import { updateDirectoryEntry } from "../../../lib/directories.js";
+import { updateDirectoryEntry, generateEntrySeoMetadata } from "../../../lib/directories.js";
 
 const inputStyle = {
   width: "100%",
@@ -36,20 +36,46 @@ function buildForm(entry) {
   };
 }
 
+const AI_DRAFT_FIELDS = ["meta_title", "meta_description", "keywords", "og_title", "og_description", "ai_summary"];
+
 /**
  * Search & metadata tab. Covers the original search-engine SEO columns
  * (meta_title/meta_description/noindex/structured_data_type/sitemap_priority,
  * DIR-E2) plus the social/AI columns added in Phase 4 (og_title,
  * og_description, og_image_url, twitter_card_type, canonical_url, keywords,
- * ai_summary — see 20260829150000).
+ * ai_summary — see 20260829150000). "Generate with AI" drafts
+ * AI_DRAFT_FIELDS from generate_entry_seo_metadata (Directory Searchability
+ * & AI Metadata plan, Phase 2) — landed in this form's state only, never
+ * auto-saved.
  */
 export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, recordEvent, onSaved }) {
   const [form, setForm] = useState(() => buildForm(entry));
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [err, setErr] = useState("");
 
   function fSet(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function handleGenerate() {
+    const hasExisting = AI_DRAFT_FIELDS.some((key) => form[key]?.trim());
+    if (hasExisting && !window.confirm("This entry already has metadata in one or more of these fields — generating with AI will overwrite it here in the editor (nothing is saved until you click Save metadata). Continue?")) {
+      return;
+    }
+    setErr("");
+    try {
+      setGenerating(true);
+      recordEvent?.("directory_ai_content_requested", { directory_id: directoryId, entry_id: entryId, target: "entry_seo_metadata" });
+      const draft = await generateEntrySeoMetadata(entryId);
+      setForm((f) => ({ ...f, ...Object.fromEntries(AI_DRAFT_FIELDS.map((key) => [key, draft?.[key] ?? f[key]])) }));
+      recordEvent?.("directory_ai_content_generated", { directory_id: directoryId, entry_id: entryId, target: "entry_seo_metadata" });
+    } catch (e) {
+      recordEvent?.("directory_ai_content_failed", { directory_id: directoryId, entry_id: entryId, target: "entry_seo_metadata", error: e?.message ?? String(e) });
+      setErr(e?.message ?? String(e));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleSave(e) {
@@ -84,7 +110,13 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
     <form onSubmit={handleSave} style={{ display: "grid", gap: 20 }}>
       <div className="admin-card" style={{ padding: 20, maxWidth: 560 }}>
         <Stack gap="sm">
-          <Text size="sm" fw={600}>Search engines</Text>
+          <Group justify="space-between">
+            <Text size="sm" fw={600}>Search engines</Text>
+            {canEdit && (
+              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating}>Generate with AI</Button>
+            )}
+          </Group>
+          <Text size="xs" c="dimmed" mt={-8}>Drafts every field below (including Social &amp; AI) from this entry's own data. Lands here for review — nothing is saved until you click Save metadata.</Text>
           <div>
             <label style={labelStyle}>Meta title</label>
             <input value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to entry name if left blank" style={inputStyle} />

@@ -311,6 +311,28 @@ export async function generateEntryContent(entryId) {
   return data;
 }
 
+/**
+ * Drafts SEO/social metadata (meta_title, meta_description, keywords,
+ * og_title, og_description, ai_summary) for one entry. Never persisted by
+ * the Edge Function — the caller lands the result in its own (unsaved) form
+ * state, same review-before-publish rule as generateEntryContent's output
+ * gets on the Content tab.
+ */
+export async function generateEntrySeoMetadata(entryId) {
+  const { data, error } = await invokeFunction("generate_entry_seo_metadata", { body: { entry_id: entryId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+/** Drafts a directory's homepage meta_title_template/meta_description from its own entry count/categorisations. Not persisted by the Edge Function. */
+export async function generateDirectorySeoMetadata(directoryId) {
+  const { data, error } = await invokeFunction("generate_directory_seo_metadata", { body: { directory_id: directoryId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 /** Queues a content-generation job for every active entry in the directory. Backs the type-to-confirm "Generate all entry content" action. */
 export async function triggerDirectoryAiContentBulkRun(directoryId) {
   const { data, error } = await supabase.rpc("enqueue_directory_entry_content_jobs", { p_directory_id: directoryId });

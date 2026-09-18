@@ -382,6 +382,17 @@ Tables/functions: `directories.ai_search_prompt`, `directories.ai_search_web_ena
 
 Files: `supabase/functions/directory_ai_search/index.ts`; `src/components/directories/DirectoryAiSearchPanel.jsx`; wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`'s AI tab; search-script changes in `supabase/functions/generate_directory_site/builders.ts` (`buildFilterAndSearchScript`, `buildDirectoryLandingPage`) and `index.ts`; data access in `src/lib/directories.js`.
 
+### 4.4i AI-generated SEO/social metadata drafts (new, 2026-09-18)
+
+Phase 2 of the Directory Searchability & AI Metadata plan. Distinct from §4.4g (which writes an entry's page body, `notes_html`): this drafts the short SEO/social text fields `EntrySeoTab.jsx`/`DirectoryGeneralSettingsPanel.jsx` already exposed with no AI action. No directory-level prompt/opt-in required — unlike §4.4g and §4.4h, generation here has a fixed built-in system prompt (grounded to the entry's/directory's own data, explicitly told to avoid placeholder/demo language like "Sample") rather than an editor-configured one, since there's no per-directory tone decision to make for meta tags.
+
+- **Entry-level**: "Generate with AI" on the Search & Metadata tab calls `generate_entry_seo_metadata` and drafts all six text fields at once — `meta_title`, `meta_description`, `keywords`, `og_title`, `og_description`, `ai_summary`.
+- **Directory-level**: "Generate with AI" on the Directory Settings tab's SEO settings section calls `generate_directory_seo_metadata` and drafts `meta_title_template`/`meta_description` from the directory's own entry count and attached categorisation labels (`categorisation_attachments`), in the style of the plan's own example copy.
+- **Never persisted by the Edge Function** — both return a draft only; it lands in the form's existing (unsaved) state, and the editor's pre-existing Save button is what actually writes it. Same "generate then editor decides" contract as §4.4g, reusing its `directory_ai_content_requested`/`_generated`/`_failed` event types with a new `target` meta field (`entry_seo_metadata` / `directory_seo_metadata`) rather than minting new event names, per AGENTS.md's admin-event conventions.
+- Shares one Claude-calling core, `_shared/seoMetadataGeneration.ts` — a separate implementation from `_shared/entryContentGeneration.ts` (different tool schemas, no HTML output/sanitisation needed since these are all plain-text fields).
+
+Files: `supabase/functions/generate_entry_seo_metadata/index.ts`, `supabase/functions/generate_directory_seo_metadata/index.ts`, `supabase/functions/_shared/seoMetadataGeneration.ts`; `src/components/directories/entryEdit/EntrySeoTab.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (both extended); data access in `src/lib/directories.js`.
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
