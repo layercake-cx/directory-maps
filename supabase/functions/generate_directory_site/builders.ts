@@ -237,6 +237,13 @@ const LAYOUT_STYLE = `
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
 
+  /* Desktop: results and map render permanently side by side (the List/Map
+     segmented control is mobile-only, see below) — .dir-pane-hidden is only
+     given effect under the 900px stacked-layout breakpoint. */
+  @media (min-width: 901px) {
+    #dir-view-toggle { display: none; }
+  }
+
   .dir-filters-trigger { display: none; }
   .dir-rail__drawer-header { display: none; }
   .dir-rail-backdrop { display: none; }
@@ -299,6 +306,9 @@ const LAYOUT_STYLE = `
     .dir-rail { width: 100%; }
     .dir-entry-body { flex-direction: column; }
     .dir-aside { width: 100%; }
+    /* Below the side-by-side breakpoint, results/map fall back to the
+       List/Map toggle (#dir-view-toggle) instead of stacking both in full. */
+    .dir-pane-hidden { display: none; }
   }
 `;
 
@@ -1070,8 +1080,11 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function setView(next) {
     view = next;
     segButtons.forEach(function (btn) { btn.classList.toggle('active', btn.getAttribute('data-view') === next); });
-    if (resultsCol) resultsCol.hidden = next !== 'list';
-    if (mapPane) mapPane.hidden = next !== 'map';
+    // .dir-pane-hidden only takes effect below the 900px side-by-side
+    // breakpoint (see LAYOUT_STYLE) — above it, both panes stay visible
+    // regardless of the "view" state.
+    if (resultsCol) resultsCol.classList.toggle('dir-pane-hidden', next !== 'list');
+    if (mapPane) mapPane.classList.toggle('dir-pane-hidden', next !== 'map');
     syncUrl();
   }
 
@@ -1278,11 +1291,13 @@ export function buildDirectoryLandingPage(opts: {
   // existing map→directory attachment used bidirectionally, only ever
   // showing a map that has *already* chosen this directory as its
   // datasource — a directory still can't pick an arbitrary map.
-  // This page owns the filter rail (filterRail below) — tell the embedded
-  // map not to render its own duplicate one; it's driven via postMessage
-  // instead (buildFilterAndSearchScript's postToMap()).
+  // This page owns the filter rail (filterRail below) and the results list
+  // (dir-results-col below) — tell the embedded map not to render its own
+  // duplicate filter bar or results sidebar; filtering is driven via
+  // postMessage instead (buildFilterAndSearchScript's postToMap()), and the
+  // map keeps just its own controls (zoom, clustering, etc).
   const mapEmbedSrcWithFlag = attachedMapEmbedSrc
-    ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1`
+    ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1&hideListPanel=1`
     : null;
   const hasMap = !!mapEmbedSrcWithFlag;
   const rail = filterRail(categorisations);
@@ -1300,8 +1315,11 @@ export function buildDirectoryLandingPage(opts: {
     ? `<button type="button" class="btn btn-ghost dir-filters-trigger" id="dir-filters-trigger">Filters <span id="dir-filters-badge"></span></button>`
     : "";
 
+  // Renders permanently alongside dir-results-col on desktop (side by side,
+  // see .dir-body/.dir-map-pane in LAYOUT_STYLE); dir-pane-hidden only takes
+  // effect below the 900px breakpoint, where the List/Map toggle applies.
   const mapPane = hasMap
-    ? `<div id="dir-map-pane" class="dir-map-pane" hidden>
+    ? `<div id="dir-map-pane" class="dir-map-pane dir-pane-hidden">
     <span class="chip dir-map-count" id="dir-map-count"></span>
     <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
   </div>`
