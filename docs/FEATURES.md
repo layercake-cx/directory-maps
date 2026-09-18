@@ -275,6 +275,12 @@ Adds the missing UI on top of `seo_defaults_json` (data-layer-only since Phase 3
 
 Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.sql`). Files: `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; `supabase/functions/generate_directory_site/{index.ts,builders.ts}`, `supabase/functions/_shared/staticSiteRenderer.ts`, `middleware.js` (all extended); `src/lib/directories.js` (`getDirectory` schema-drift fallback generalised), `src/lib/directoryPublications.js`.
 
+### 4.4a-8 robots.txt: explicit AI crawler allow rules (new)
+
+Phase 1 of the Directory Searchability & AI Metadata plan (2026-09-18). `buildRobotsTxt()` (`_shared/staticSiteRenderer.ts`) previously emitted only a blanket `User-agent: *` rule; it now also emits a matching block for four named AI crawlers — GPTBot, ClaudeBot, PerplexityBot, Google-Extended — mirroring whichever policy the directory's "let search engines index this directory" switch already sets, so AI search/citation tools are explicitly signalled rather than left to silent inclusion under the wildcard. Not yet client-configurable — same switch, same list for every directory. Also fixed in passing: the entry page's "Related entries" row logo (`builders.ts`) rendered with an empty `alt=""` instead of the `"{name} logo"` fallback used everywhere else.
+
+Files: `supabase/functions/_shared/staticSiteRenderer.ts`, `supabase/functions/generate_directory_site/builders.ts` (both extended).
+
 ### 4.4b Categorisations (new, DIR-E5)
 
 Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be applied to whole directories, directory entries, or both — additive alongside directory groups, never a replacement (a categorisation can tag entries across every directory a client owns; a group is per-directory and single-value). Modelled directly on the existing `map_filter_fields`/`FilterFieldsPanel` pattern: `applies_to` is immutable after creation (delete and recreate to change it), archive vs. typed-`DELETE`-confirmation permanent delete (showing a live usage count across directories + entries).

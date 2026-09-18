@@ -760,7 +760,7 @@ export function buildEntryPage(opts: {
       .map((r) => {
         const rLogo = r.panel_image_url || r.logo_url;
         return `<a class="dir-related-row" href="${escapeAttr(entryUrl(r))}">
-      <div class="dir-related-row__logo">${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="">` : ""}</div>
+      <div class="dir-related-row__logo">${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="${escapeAttr(r.name)} logo">` : ""}</div>
       <div class="dir-related-row__body"><strong>${escapeHtml(r.name)}</strong>${r.city ? `<span>${escapeHtml(r.city)}</span>` : ""}</div>
     </a>`;
       })

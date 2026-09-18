@@ -131,10 +131,20 @@ export function buildSitemapXml(urls: string[]): string {
 }
 
 /**
+ * AI crawlers explicitly named so directories signal AI-search/citation
+ * eligibility rather than relying on silent inclusion under `User-agent: *`
+ * (some AI providers' bots are blocked by default elsewhere on the web).
+ */
+const AI_CRAWLER_USER_AGENTS = ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"];
+
+/**
  * A minimal robots.txt gating an entire site on/off, per the Settings tab's
  * single "let search engines index this" switch — not a per-path rules
- * engine, since there's no per-path UI driving one.
+ * engine, since there's no per-path UI driving one. Named AI crawlers get
+ * their own block mirroring the same site-wide policy.
  */
 export function buildRobotsTxt(indexable: boolean, sitemapUrl: string): string {
-  return indexable ? `User-agent: *\nAllow: /\n\nSitemap: ${sitemapUrl}\n` : `User-agent: *\nDisallow: /\n`;
+  const rule = indexable ? "Allow: /" : "Disallow: /";
+  const blocks = ["*", ...AI_CRAWLER_USER_AGENTS].map((ua) => `User-agent: ${ua}\n${rule}`).join("\n\n");
+  return indexable ? `${blocks}\n\nSitemap: ${sitemapUrl}\n` : `${blocks}\n`;
 }
