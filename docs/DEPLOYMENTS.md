@@ -46,6 +46,29 @@ Revert this commit on `main` and redeploy `generate_directory_site` to both proj
 
 ---
 
+## 2026-09-18 — [Staging] Published directory filter rail: Tags categorisations now render as a multi-pick dropdown
+
+**Branch/PR:** `feat/2026-09-18-category-filter-multiselect-dropdown` (not yet opened).
+
+### What changed
+The user was looking at APMG's `APMG_ Sample_Demo` published directory (the same directory repaired in the 2026-09-17 "Courses Offered" entry below) and found its "Courses Offered" **Tags** categorisation — 22 terms — rendered as a tall wall of pill buttons in the filter rail, eating most of the sidebar's vertical space before any other categorisation could be seen. They asked for a modern multi-pick dropdown instead, since more categorisations will be attached to directories going forward and the pill-wall approach doesn't scale.
+
+- `filterRail()` (`supabase/functions/generate_directory_site/builders.ts`): the `multi_select` branch now renders a trigger button (`.dir-msel__trigger`, showing "Any" / the one selected term's label / "N selected") that opens an absolutely-positioned panel (`.dir-msel__panel`) of checkboxes, instead of a `.dir-tagwrap` of `.facet` buttons. A search box inside the panel appears once a field has more than 8 terms, so a long list (like "Courses Offered") stays scannable. `single_select` (native `<select>`) and `boolean` (switch) are unchanged.
+- `buildFilterAndSearchScript()`: `setRowControlState()` and the multi_select click handler were rewritten for checkbox `change` events instead of button `click`s; added open/close panel logic (one panel open at a time, closes on outside click, Escape, or picking a different dropdown) and the in-panel search filter. Chip rendering, URL sync, map postMessage sync, and the mobile bottom-sheet drawer are all untouched — the dropdown is just a new control inside the same `#dir-filter-rail` element, so none of that plumbing needed to change.
+- Removed the now-dead `.facet`/`.facet.active` CSS rules (only producer was the multi_select branch just replaced; confirmed via repo-wide grep that nothing else in `src/` or `supabase/` renders `class="facet"`).
+- No DB/schema change, no new categorisation `field_type` — this is presentation-only for existing `multi_select` fields.
+
+### Verified
+- [x] `deno check supabase/functions/generate_directory_site/builders.ts` clean.
+- [x] Local preview (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) checked in the browser: dropdown opens/closes, checkbox selection updates the trigger label, chips, and result count together, "Clear all" resets it, outside-click and picking another dropdown both close the panel, and (temporarily bumping the fixture to 9 terms, then reverting) the in-panel search box appears past the 8-term threshold and filters correctly.
+- [x] Mobile bottom-sheet drawer (375×812 viewport) re-checked with the dropdown inside it — opens and filters the same as desktop.
+- [ ] Not yet deployed to the test Edge Function project (`beqejxneehilplrtpntn`) or production (`gxixwdjfmegxcxfeflro`) — this is a pure static-HTML/CSS/JS change with no DB dependency, but still follows the same staging-first discipline as any Edge Function deploy.
+
+### Rollback plan
+Revert this commit (or the merge commit once a PR lands) on `main` and redeploy the Edge Function — no migration, no data to roll back.
+
+---
+
 ## 2026-09-17 — [Staging] "Build a directory from this map" now carries filter fields across as categorisations
 
 **Branch/PR:** `feat/2026-09-17-map-to-directory-categorisation-migration` ([PR #182](https://github.com/layercake-cx/directory-maps/pull/182), merged).
