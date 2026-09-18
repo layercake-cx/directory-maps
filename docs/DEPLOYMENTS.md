@@ -48,7 +48,7 @@ Revert this commit on `main` and redeploy `generate_directory_site` to both proj
 
 ## 2026-09-18 — [Staging] Published directory filter rail: Tags categorisations now render as a multi-pick dropdown
 
-**Branch/PR:** `feat/2026-09-18-category-filter-multiselect-dropdown` (not yet opened).
+**Branch/PR:** `feat/2026-09-18-category-filter-multiselect-dropdown` ([PR #187](https://github.com/layercake-cx/directory-maps/pull/187), merged).
 
 ### What changed
 The user was looking at APMG's `APMG_ Sample_Demo` published directory (the same directory repaired in the 2026-09-17 "Courses Offered" entry below) and found its "Courses Offered" **Tags** categorisation — 22 terms — rendered as a tall wall of pill buttons in the filter rail, eating most of the sidebar's vertical space before any other categorisation could be seen. They asked for a modern multi-pick dropdown instead, since more categorisations will be attached to directories going forward and the pill-wall approach doesn't scale.
@@ -62,7 +62,9 @@ The user was looking at APMG's `APMG_ Sample_Demo` published directory (the same
 - [x] `deno check supabase/functions/generate_directory_site/builders.ts` clean.
 - [x] Local preview (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) checked in the browser: dropdown opens/closes, checkbox selection updates the trigger label, chips, and result count together, "Clear all" resets it, outside-click and picking another dropdown both close the panel, and (temporarily bumping the fixture to 9 terms, then reverting) the in-panel search box appears past the 8-term threshold and filters correctly.
 - [x] Mobile bottom-sheet drawer (375×812 viewport) re-checked with the dropdown inside it — opens and filters the same as desktop.
-- [ ] Not yet deployed to the test Edge Function project (`beqejxneehilplrtpntn`) or production (`gxixwdjfmegxcxfeflro`) — this is a pure static-HTML/CSS/JS change with no DB dependency, but still follows the same staging-first discipline as any Edge Function deploy.
+- [x] `generate_directory_site` deployed to the test project (`beqejxneehilplrtpntn`) from an isolated `git worktree` (per the shared-worktree lesson in the 2026-09-18 embed-sidebar entry above) — confirmed the worktree's checked-out `builders.ts` contained the new `dir-msel` markup before deploying.
+- [x] PR #187 merged to `main`; GitHub Pages redeployed automatically (`gh run list` confirms success) — no effect on this change itself (it lives entirely in the Edge Function, not the client-portal frontend), just this repo's standard post-merge deploy.
+- [ ] **Not yet deployed to production** (`gxixwdjfmegxcxfeflro`) — this is a pure static-HTML/CSS/JS, no-DB-dependency change, but still follows the same staging-first discipline as any Edge Function deploy: waiting on the user to check staging (e.g. re-publish a directory with a multi-term Tags categorisation attached) before deploying to production.
 
 ### Rollback plan
 Revert this commit (or the merge commit once a PR lands) on `main` and redeploy the Edge Function — no migration, no data to roll back.
