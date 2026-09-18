@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-18 — [Staging] Directory-attached map embed no longer shows a duplicate sidebar; results now sit beside the map on desktop
+## 2026-09-18 — [Production] Directory-attached map embed no longer shows a duplicate sidebar; results now sit beside the map on desktop
 
-**Branch/PR:** `feat/2026-09-18-directory-map-embed-sidebar` (PR not opened yet).
+**Branch/PR:** `feat/2026-09-18-directory-map-embed-sidebar` ([PR #184](https://github.com/layercake-cx/directory-maps/pull/184), merged).
 
 ### What changed
 The user reported that when a directory has a map attached (DIR-E4), the embedded map still showed its own full search sidebar (header, search box, filter chips, and — crucially — its own results list), duplicating the directory's own list of entries. Separately, the directory's "Map" view swapped the results list out entirely for a full-width map instead of showing both side by side, as the design calls for.
@@ -29,11 +29,20 @@ Two independent gaps, one root cause each:
 - [x] Verified locally via `generate_directory_site`'s existing preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`, no Supabase project needed) — confirmed at 1280px the map pane renders visible (`display: block`) alongside the results column with the List/Map toggle hidden (`display: none`), and at 375px the map pane starts hidden with the toggle visible and functional (clicking "Map" correctly swaps panes).
 - [x] Verified `EmbedMap.jsx`'s new `hideListPanel=1` flag against a real published map on the test project (`beqejxneehilplrtpntn`, "UK Associations" map) via the local dev server — `/embed?map=<id>` shows the full sidebar as before; `/embed?map=<id>&hideListPanel=1` shows only the native map controls (fullscreen, zoom slider), no sidebar, no console errors.
 - [x] `npm run build` clean.
-- [ ] Deployed `generate_directory_site` to the test project (`beqejxneehilplrtpntn`) and regenerated a real directory's site to confirm end-to-end against live data.
-- [ ] Deployed to production — pending user sign-off after staging verification.
+- [x] `generate_directory_site` deployed to the test project (`beqejxneehilplrtpntn`) and to production (`gxixwdjfmegxcxfeflro`).
+- [x] PR #184 merged to `main`; GitHub Pages redeployed automatically (`gh run list` confirms success).
+- [ ] **Not yet regenerated against a real directory's live page** — no directory's static site (staging or production) has actually been re-published since this deployed, so the fix hasn't been eye-balled against real data yet, only against the local preview-script fixture and a bare `/embed` URL. Re-publish a directory with a map attached (e.g. staging's "UK Association Directory", `e270f4a4-c2d8-46d4-962d-c32dd25e8618`, or production's `l-cakez/uk-association-directory`) to confirm.
+- [ ] **Vercel production deploy (`maps.layercake-cx.biz`) not completed** — see incident note below; the branded domain still has the old duplicate-sidebar/List-Map-toggle behaviour until this runs.
+
+### Incident: shared-worktree mix-up during this deploy
+This session's `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn` was first run from the shared main working directory while a **different, parallel agent session had it checked out on an unrelated branch** (`feat/2026-09-18-category-filter-multiselect-dropdown`) — the deploy silently shipped that branch's (== `main`'s) old `generate_directory_site` code, not this fix, even though the CLI reported success. Caught by grepping the checked-out `builders.ts` for `hideListPanel` after the "successful" deploy and finding it absent. Fixed by deploying again from an isolated `git worktree` (`../directory-maps-embed-sidebar-wt`) checked out to this fix's own branch, which doesn't touch the shared directory other sessions use — both the staging and production deploys above were run from that worktree and confirmed to contain `hideListPanel` before deploying.
+
+A second, smaller mix-up: the first `npm run deploy:live` (Vercel) attempt was also run from that same fresh worktree, which had no `.vercel/project.json` — Vercel auto-created and deployed to a **brand-new project** (`directory-maps-embed-sidebar-wt` in the `layercake-apps` team) instead of the real linked `directory-maps` project, and that deploy then failed outright (`fetch failed`). The stray project was not deleted automatically — needs manual cleanup in the Vercel dashboard (project `directory-maps-embed-sidebar-wt`) if the user confirms it's not wanted. Fixed for the retry by copying the real `.vercel/project.json` into the worktree, but the retry itself was blocked by this session's own permission gate for production deploys — **the user needs to run `npm run deploy:live` themselves** (from either the main checkout once free, or this worktree, both now correctly linked) to actually update the branded domain.
+
+**Lesson for next time:** per `AGENTS.md`'s existing guidance for `supabase db push` in a shared working directory, use an isolated `git worktree` for *any* deploy command (Edge Functions, Vercel) in this repo, not just database migrations — the shared directory can be swapped out from under a session at any time by a parallel one.
 
 ### Rollback plan
-Revert this commit (or the merge commit once a PR lands) on `main`. No migration involved — pure frontend (`EmbedMap.jsx`) and Edge Function (`generate_directory_site`) code changes; reverting and redeploying the Edge Function restores the previous List/Map toggle and duplicate-sidebar behaviour.
+Revert this commit on `main` and redeploy `generate_directory_site` to both projects (`beqejxneehilplrtpntn`, `gxixwdjfmegxcxfeflro`) from the reverted code — restores the previous List/Map toggle and duplicate-sidebar behaviour. No database migration involved.
 
 ---
 
