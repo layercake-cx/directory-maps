@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-18 — [Production] Published directory desktop layout: horizontal filter bar, results widened to two-thirds
+
+**Branch/PR:** `feat/2026-09-18-directory-desktop-horizontal-filters` ([PR #190](https://github.com/layercake-cx/directory-maps/pull/190), open).
+
+### What changed
+The user found the published directory's desktop layout — a fixed 250px filter rail, results, and map as three side-by-side columns — squeezed the results list too much once a map was attached, splitting the remaining space 50/50 between results and map.
+
+- `supabase/functions/generate_directory_site/builders.ts` (`LAYOUT_STYLE`): on desktop (`min-width: 901px`), `.dir-rail` switches from a fixed-width side column to a full-width, wrapping horizontal bar (`display: flex; flex-wrap: wrap`) above the content, with each `.dir-rail__group` becoming a compact ~220px inline control instead of a full-width bordered row. A new `.dir-content-row` wrapper holds results and map side by side below the bar, with results at two-thirds width (`flex: 0 0 calc(66.666% - 14px)`) and the map at one-third (`calc(33.333% - 14px)`), replacing the previous even 50/50 split.
+- HTML template in `buildDirectoryLandingPage()`: `dir-results-col` and the map pane are now wrapped in `<div class="dir-content-row">`, a sibling of the filter rail inside `.dir-body` rather than both being flattened into the same row as the rail.
+- Tablet (641–900px) and mobile (≤640px) are untouched — both already stacked the rail above a List/Map-toggled results/map pane (mobile also already collapsed the rail into a bottom-sheet drawer), and neither breakpoint's CSS was touched.
+- No JS changes — filtering, search, the List/Map toggle, and the mobile drawer all key off element IDs that didn't move; only the CSS layout and the results/map DOM nesting changed.
+- Docs: `docs/USER_GUIDE.md` (directory categorisations/search section) updated to describe the horizontal filter bar and the two-thirds/one-third split.
+
+### Verified
+- [x] Verified locally via `generate_directory_site`'s existing preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) at 1440px (filter bar full-width above the content, results ≈67% / map ≈33% of the row, List/Map toggle hidden), 800px (unchanged stacked rail + List/Map toggle), and 375px (unchanged Filters drawer + List/Map toggle) — including opening the multi-select ("Sector") dropdown and applying a filter end-to-end.
+- [x] Deployed to the test project (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn` from an isolated worktree — upload log confirms `builders.ts` shipped.
+- [x] Deployed to production (`gxixwdjfmegxcxfeflro`) via `supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro` from the same isolated worktree, on the user's explicit go-ahead.
+- [ ] **Not yet re-published against a real directory's live page** — neither staging nor production has had a directory actually hit Publish since this deployed, so the new layout hasn't been eyeballed against real data yet, only against the local preview-script fixture. Re-publish a directory with a map attached to confirm.
+
+### Rollback plan
+Revert this commit on `main` and redeploy `generate_directory_site` to both projects — restores the previous 250px fixed-rail, 50/50 results/map split.
+
+---
+
 ## 2026-09-18 — [Production] Directory-attached map embed no longer shows a duplicate sidebar; results now sit beside the map on desktop
 
 **Branch/PR:** `feat/2026-09-18-directory-map-embed-sidebar` ([PR #184](https://github.com/layercake-cx/directory-maps/pull/184), merged).

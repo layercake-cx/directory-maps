@@ -205,7 +205,8 @@ const LAYOUT_STYLE = `
   .dir-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
   .dir-seg button { border: 0; background: var(--surface); color: var(--ink); font-family: inherit; font-weight: 600; font-size: 13px; padding: 8px 16px; cursor: pointer; }
   .dir-seg button.active { background: var(--primary); color: #fff; }
-  .dir-body { display: flex; align-items: flex-start; gap: 28px; }
+  .dir-body { display: flex; flex-direction: column; gap: 24px; }
+  .dir-content-row { display: flex; flex-direction: column; gap: 24px; }
   .dir-rail { width: 250px; flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
   .dir-rail__group { padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .dir-rail__group:last-child { border-bottom: 0; }
@@ -250,9 +251,21 @@ const LAYOUT_STYLE = `
 
   /* Desktop: results and map render permanently side by side (the List/Map
      segmented control is mobile-only, see below) — .dir-pane-hidden is only
-     given effect under the 900px stacked-layout breakpoint. */
+     given effect under the 900px stacked-layout breakpoint.
+     2026-09-18: the filter rail also switches from a fixed-width left
+     column to a horizontal, wrapping bar spanning the full width above
+     results+map — a 3-column (rail | results | map) row left results too
+     narrow. Tablet (641-900px, below) keeps its existing stacked full-width
+     rail and List/Map toggle untouched. */
   @media (min-width: 901px) {
     #dir-view-toggle { display: none; }
+
+    .dir-rail { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; width: 100%; padding: 16px; }
+    .dir-rail__group { flex: 0 1 220px; padding: 0; border-bottom: 0; }
+
+    .dir-content-row { flex-direction: row; align-items: flex-start; gap: 28px; }
+    .dir-results { flex: 0 0 calc(66.666% - 14px); }
+    .dir-map-pane { flex: 0 0 calc(33.333% - 14px); }
   }
 
   .dir-filters-trigger { display: none; }
@@ -1399,8 +1412,8 @@ export function buildDirectoryLandingPage(opts: {
     ? `<button type="button" class="btn btn-ghost dir-filters-trigger" id="dir-filters-trigger">Filters <span id="dir-filters-badge"></span></button>`
     : "";
 
-  // Renders permanently alongside dir-results-col on desktop (side by side,
-  // see .dir-body/.dir-map-pane in LAYOUT_STYLE); dir-pane-hidden only takes
+  // Renders permanently alongside dir-results-col on desktop (side by side
+  // inside .dir-content-row, see LAYOUT_STYLE); dir-pane-hidden only takes
   // effect below the 900px breakpoint, where the List/Map toggle applies.
   const mapPane = hasMap
     ? `<div id="dir-map-pane" class="dir-map-pane dir-pane-hidden">
@@ -1436,16 +1449,18 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
   <div class="dir-body">
     ${rail}
     <div class="dir-rail-backdrop" id="dir-rail-backdrop"></div>
-    <div class="dir-results" id="dir-results-col">
-      <div class="dir-rows" id="dir-rows">
-        ${rows}
+    <div class="dir-content-row">
+      <div class="dir-results" id="dir-results-col">
+        <div class="dir-rows" id="dir-rows">
+          ${rows}
+        </div>
+        <div class="dir-empty" id="dir-empty" hidden>
+          <p style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
+          <button type="button" class="btn btn-ghost" id="dir-empty-clear">Clear all filters</button>
+        </div>
       </div>
-      <div class="dir-empty" id="dir-empty" hidden>
-        <p style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
-        <button type="button" class="btn btn-ghost" id="dir-empty-clear">Clear all filters</button>
-      </div>
+      ${mapPane}
     </div>
-    ${mapPane}
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: "." })}
