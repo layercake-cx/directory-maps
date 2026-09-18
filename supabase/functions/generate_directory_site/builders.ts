@@ -148,8 +148,6 @@ export const BASE_STYLE = `
   .btn-primary { background: var(--primary); color: #fff; }
   .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
   .chip { display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; color: var(--ink); font-weight: 500; }
-  .facet { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; font-family: inherit; }
-  .facet.active { background: var(--primary); color: #fff; border-color: var(--primary); }
   .facet-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .facet-group-label { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
   .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--sage); color: var(--sage-ink); border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 700; letter-spacing: .01em; }
@@ -213,7 +211,20 @@ const LAYOUT_STYLE = `
   .dir-rail__group:last-child { border-bottom: 0; }
   .dir-rail__label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
   .dir-select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; }
-  .dir-tagwrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dir-msel { position: relative; }
+  .dir-msel__trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left; }
+  .dir-msel__trigger:hover { border-color: var(--primary); }
+  .dir-msel__trigger--active { border-color: var(--primary); color: var(--primary); font-weight: 700; }
+  .dir-msel__trigger-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dir-msel__chevron { flex: none; color: var(--muted); transition: transform .12s; }
+  .dir-msel__trigger[aria-expanded="true"] .dir-msel__chevron { transform: rotate(180deg); }
+  .dir-msel__panel { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 6; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 8px; }
+  .dir-msel__search { width: 100%; padding: 7px 9px; margin-bottom: 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13px; }
+  .dir-msel__options { display: flex; flex-direction: column; max-height: 240px; overflow-y: auto; }
+  .dir-msel__option { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; font-size: 13.5px; cursor: pointer; }
+  .dir-msel__option:hover { background: var(--surface-2); }
+  .dir-msel__option input { flex: none; width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  .dir-msel__option--hidden { display: none; }
   .dir-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .dir-switch-label { font-size: 13.5px; font-weight: 500; }
   .dir-switch { width: 38px; height: 21px; border-radius: 999px; background: var(--line); position: relative; border: 0; cursor: pointer; flex: none; padding: 0; }
@@ -825,15 +836,31 @@ export function filterRail(categorisations: FilterBarCategorisation[]): string {
   </select>
 </div>`;
       }
-      const chips = cat.terms
+      // Dropdown (not a pill wall) so a field's footprint stays one row tall
+      // regardless of term count — needed once a directory has more than a
+      // couple of multi_select categorisations stacked in the rail. A
+      // search box inside the panel only appears once there are enough
+      // terms that scanning them is slower than typing (matches the
+      // combobox convention: no point searching 3-4 options).
+      const useSearch = cat.terms.length > 8;
+      const options = cat.terms
         .map(
           (t) =>
-            `<button type="button" class="facet" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="multi_select">${escapeHtml(t.label)}</button>`,
+            `<label class="dir-msel__option"><input type="checkbox" class="dir-msel__checkbox" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="multi_select"><span>${escapeHtml(t.label)}</span></label>`,
         )
         .join("");
       return `<div class="dir-rail__group">
   <span class="dir-rail__label">${escapeHtml(cat.label)}</span>
-  <div class="dir-tagwrap">${chips}</div>
+  <div class="dir-msel" data-cat-id="${escapeAttr(cat.id)}">
+    <button type="button" class="dir-msel__trigger" data-msel-trigger aria-expanded="false" aria-haspopup="listbox">
+      <span class="dir-msel__trigger-text" data-msel-text>Any</span>
+      <svg class="dir-msel__chevron" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="dir-msel__panel" data-msel-panel hidden>
+      ${useSearch ? `<input type="text" class="dir-msel__search" data-msel-search placeholder="Search ${escapeAttr(cat.label)}...">` : ""}
+      <div class="dir-msel__options" data-msel-options>${options}</div>
+    </div>
+  </div>
 </div>`;
     })
     .join("");
@@ -946,9 +973,25 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function setRowControlState() {
-    document.querySelectorAll('.facet[data-cat-id]').forEach(function (chip) {
-      var selected = active[chip.getAttribute('data-cat-id')] || [];
-      chip.classList.toggle('active', selected.indexOf(chip.getAttribute('data-term-id')) !== -1);
+    document.querySelectorAll('.dir-msel[data-cat-id]').forEach(function (msel) {
+      var catId = msel.getAttribute('data-cat-id');
+      var cat = catById(catId);
+      var selected = active[catId] || [];
+      msel.querySelectorAll('.dir-msel__checkbox').forEach(function (cb) {
+        cb.checked = selected.indexOf(cb.getAttribute('data-term-id')) !== -1;
+      });
+      var textEl = msel.querySelector('[data-msel-text]');
+      if (textEl) {
+        if (!selected.length) textEl.textContent = 'Any';
+        else if (selected.length === 1) {
+          var t = termById(cat, selected[0]);
+          textEl.textContent = t ? t.label : 'Any';
+        } else {
+          textEl.textContent = selected.length + ' selected';
+        }
+      }
+      var trigger = msel.querySelector('[data-msel-trigger]');
+      if (trigger) trigger.classList.toggle('dir-msel__trigger--active', selected.length > 0);
     });
     document.querySelectorAll('.dir-switch[data-cat-id]').forEach(function (sw) {
       var selected = active[sw.getAttribute('data-cat-id')] || [];
@@ -1114,15 +1157,56 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     input.addEventListener('input', apply);
   }
 
-  document.querySelectorAll('.facet[data-cat-id][data-kind="multi_select"]').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      var catId = chip.getAttribute('data-cat-id');
-      var termId = chip.getAttribute('data-term-id');
+  document.querySelectorAll('.dir-msel__checkbox[data-cat-id][data-kind="multi_select"]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var catId = cb.getAttribute('data-cat-id');
+      var termId = cb.getAttribute('data-term-id');
       var selected = active[catId] || [];
       var idx = selected.indexOf(termId);
-      active[catId] = idx === -1 ? selected.concat([termId]) : selected.slice(0, idx).concat(selected.slice(idx + 1));
+      if (cb.checked && idx === -1) selected = selected.concat([termId]);
+      else if (!cb.checked && idx !== -1) selected = selected.slice(0, idx).concat(selected.slice(idx + 1));
+      active[catId] = selected;
       setRowControlState();
       apply();
+    });
+  });
+
+  // Multi-select dropdown open/close — one panel open at a time, closed on
+  // an outside click, an Escape press, or picking another dropdown.
+  var openMselPanel = null;
+  function closeAllMselPanels() {
+    document.querySelectorAll('.dir-msel__panel').forEach(function (p) { p.hidden = true; });
+    document.querySelectorAll('[data-msel-trigger]').forEach(function (t) { t.setAttribute('aria-expanded', 'false'); });
+    openMselPanel = null;
+  }
+  document.querySelectorAll('[data-msel-trigger]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var panel = trigger.parentElement.querySelector('[data-msel-panel]');
+      var wasOpen = panel && !panel.hidden;
+      closeAllMselPanels();
+      if (panel && !wasOpen) {
+        panel.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        openMselPanel = panel;
+        var searchInput = panel.querySelector('[data-msel-search]');
+        if (searchInput) searchInput.focus();
+      }
+    });
+  });
+  document.addEventListener('click', function (e) {
+    if (openMselPanel && !openMselPanel.parentElement.contains(e.target)) closeAllMselPanels();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && openMselPanel) closeAllMselPanels();
+  });
+  document.querySelectorAll('[data-msel-search]').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase();
+      var options = input.parentElement.querySelectorAll('.dir-msel__option');
+      options.forEach(function (opt) {
+        opt.classList.toggle('dir-msel__option--hidden', q.length > 0 && opt.textContent.toLowerCase().indexOf(q) === -1);
+      });
     });
   });
 
