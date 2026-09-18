@@ -16,6 +16,7 @@ import ProminentLinksEditor from "../../components/directories/ProminentLinksEdi
 import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
 import DirectoryBrandingPanel from "../../components/directories/DirectoryBrandingPanel.jsx";
 import DirectoryAiContentPanel from "../../components/directories/DirectoryAiContentPanel.jsx";
+import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
 export default function ClientDirectoryEntries() {
@@ -180,7 +181,7 @@ export default function ClientDirectoryEntries() {
           ...(canManage
             ? [
                 { id: "branding", label: "Branding" },
-                { id: "ai_content", label: "AI Content" },
+                { id: "ai_content", label: "AI" },
                 { id: "entry_layout", label: "Entry Layout" },
                 { id: "accreditations", label: "Accreditations" },
                 { id: "links", label: "Prominent Links" },
@@ -262,16 +263,29 @@ export default function ClientDirectoryEntries() {
       )}
 
       {canManage && activeTab === "ai_content" && (
-        <div className="admin-card">
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI content generation</p>
-          <DirectoryAiContentPanel
-            directory={directory}
-            directoryId={directoryId}
-            canManage={canManage}
-            recordEvent={recordEvent}
-            onSaved={reloadDirectory}
-          />
-        </div>
+        <>
+          <div className="admin-card" style={{ marginBottom: 16 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI content generation</p>
+            <DirectoryAiContentPanel
+              directory={directory}
+              directoryId={directoryId}
+              canManage={canManage}
+              recordEvent={recordEvent}
+              onSaved={reloadDirectory}
+            />
+          </div>
+
+          <div className="admin-card">
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI search</p>
+            <DirectoryAiSearchPanel
+              directory={directory}
+              directoryId={directoryId}
+              canManage={canManage}
+              recordEvent={recordEvent}
+              onSaved={reloadDirectory}
+            />
+          </div>
+        </>
       )}
 
       {canManage && activeTab === "entry_layout" && (

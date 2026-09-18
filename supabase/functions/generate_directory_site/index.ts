@@ -78,6 +78,7 @@ import {
   type EntryLink,
   type ProductTile,
   type FilterBarCategorisation,
+  type AiSearchOptions,
 } from "./builders.ts";
 
 /**
@@ -110,7 +111,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -357,6 +358,21 @@ async function generateForDirectoryInner(
   // Console for the thumbnail to actually render.
   const staticMapsApiKey = Deno.env.get("GOOGLE_GEOCODING_API_KEY") ?? Deno.env.get("GOOGLE_MAPS_API_KEY") ?? null;
 
+  // AI intent search (DIR-E7-S1) — the anon key is a public, publishable key
+  // by Supabase's own design (already shipped in the live app's committed JS
+  // bundle via VITE_SUPABASE_ANON_KEY), so embedding it in the static page's
+  // inline script is consistent with its existing exposure, not a new leak.
+  // aiSearch stays null (AI search path fully omitted from the generated
+  // script) when the directory hasn't configured a prompt.
+  const aiSearch: AiSearchOptions | null = directory.ai_search_prompt?.trim()
+    ? {
+        directoryId: directory.id,
+        enabled: true,
+        supabaseUrl: Deno.env.get("SUPABASE_URL") ?? "",
+        supabaseAnonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      }
+    : null;
+
   // Entry pages upload one at a time until this point — for a 177-entry
   // production directory that measured ~120s end-to-end, essentially all of
   // it this loop (every other step is a handful of batched Promise.all DB
@@ -403,6 +419,7 @@ async function generateForDirectoryInner(
     seoDescription: seoDefaults.meta_description || null,
     seoImageUrl: directory.seo_og_image_url || null,
     seoNoindex: directoryNoindex,
+    aiSearch,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 

@@ -291,21 +291,33 @@ Depends on the SMTP configuration in Supabase Auth settings:
 
 ## 10. Anthropic (Claude API)
 
-**Role:** AI content generation for directory entries.
+**Role:** AI content generation for directory entries, and AI-powered visitor search on published directories.
 
-**What it is:** Server-side calls from Supabase Edge Functions (never called from the browser) to the Anthropic Messages API, used to write a directory entry's page content (`directory_entries.notes_html`) from an admin-authored directory-level prompt. Three trigger paths share the same underlying call: automatically when a new entry is created with no content yet (`process_entry_content_jobs`, via a job queue), on demand for a single entry (`generate_entry_content`, triggered by an admin/client clicking "Generate with AI"), and a directory-wide regenerate-all (also via the job queue, gated behind a type-to-confirm admin action). This integration is **in development** — not yet live for clients.
+**What it is:** Server-side calls from Supabase Edge Functions (never called from the browser) to the Anthropic Messages API. Two separate features share this integration:
 
-Previously (2026-08-21 to 2026-09-06) this integration was used for a map-level feature — AI search enrichment and an "Ask AI" intent-based search chat (`process_listing_enrichment`, `search_listings_by_intent`) — which was removed and superseded by the directory-entry feature described here. See `docs/FEATURES.md` §4.4d.
+- **AI content generation** — writes a directory entry's page content (`directory_entries.notes_html`) from an admin-authored directory-level prompt. Three trigger paths share the same underlying call: automatically when a new entry is created with no content yet (`process_entry_content_jobs`, via a job queue), on demand for a single entry (`generate_entry_content`, triggered by an admin/client clicking "Generate with AI"), and a directory-wide regenerate-all (also via the job queue, gated behind a type-to-confirm admin action). This integration is **in development** — not yet live for clients.
+- **AI intent-driven search** (`directory_ai_search`, added 2026-09-18) — the directory-entry successor to the removed map-level "Ask AI" search below. When a directory has opted in (`directories.ai_search_prompt` set), the published site's search box sends an anonymous visitor's typed query to this function, which resolves it against Claude and filters the directory to the matching entries. Unlike content generation, this is triggered directly by anonymous public traffic, not an authenticated admin/client action — the first visitor-facing (rather than admin-triggered) data flow in this integration. Per-directory, it can additionally be configured (`directories.ai_search_web_enabled`) to let Claude use Anthropic's server-side web-search tool for outside context; when enabled, this sends a second, Claude-generated query derived from the visitor's search to Anthropic's web search, purely to inform the AI's reasoning — it can never cause an entry to appear that isn't already in the directory.
+
+Previously (2026-08-21 to 2026-09-06) this integration was used for a map-level feature — AI search enrichment and an "Ask AI" intent-based search chat (`process_listing_enrichment`, `search_listings_by_intent`) — which was removed and superseded by the two directory-entry features described here. See `docs/FEATURES.md` §4.4d.
 
 ### Data involved
 
-Each request sends:
+**AI content generation** requests send:
 
 - **Entry content already stored in Supabase**: business/organisation name, address, city, postcode, country, website URL, and any existing free-text notes (`directory_entries.notes_html`, stripped of markup) — this is **listing subject** data (see People table above), not platform-user or visitor personal data.
 - The client's own admin-authored content-generation prompt (`directories.ai_content_prompt`) describing what to write — this is Layercake/client configuration text, not personal data.
 - No account credentials or payment data is ever included in a request to Anthropic.
 
 The response (the generated page content) is written back into Supabase (`directory_entries.notes_html`, plus a version snapshot in `directory_entry_versions`) and is not retained by Layercake Maps outside those tables.
+
+**AI search** requests send:
+
+- **The anonymous visitor's typed search query text** — this is the one visitor-originated data point in this integration; no visitor identifier (IP, cookie, account) is sent alongside it.
+- The same entry corpus described above (name, location, categorisation tags, and a short description derived from `meta_description`/`notes_html`), plus the directory's admin-authored search prompt (`directories.ai_search_prompt`) — same non-personal-data character as content generation.
+- When a directory has web search enabled: a search-engine query Claude itself generates from the above (not sent verbatim as the visitor typed it) goes to Anthropic's web search tool, which in turn may query third-party sites.
+- No account credentials or payment data is ever included.
+
+The response (a list of matching entry ids) is used only to filter the already-rendered page in the visitor's browser and is not stored anywhere.
 
 ### Processing location
 
@@ -317,7 +329,7 @@ Anthropic PBC is a **US company**. API requests are processed on Anthropic's inf
 
 - Anthropic acts as a **data processor** for generation requests made under Layercake Maps' instruction.
 - Governed by Anthropic's Commercial Terms of Service and Data Processing Addendum (confirm exact current links — see action item above).
-- The API key (`ANTHROPIC_API_KEY`) is server-side only (Supabase Edge Function secret), never exposed to the browser.
+- The API key (`ANTHROPIC_API_KEY`) is server-side only (Supabase Edge Function secret), never exposed to the browser — this holds for `directory_ai_search` too even though its *endpoint* is public/anonymous: the key itself is only ever read inside the Edge Function, never returned to or held by the visitor's browser.
 
 ---
 
@@ -351,7 +363,7 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 | **Vercel** | Visitor IP, user-agent, request paths | Partial (global CDN, EU PoPs) | Yes |
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
 | **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
-| **Anthropic (Claude API)** | Directory entry content (name, address, notes) for AI content generation — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
+| **Anthropic (Claude API)** | Directory entry content (name, address, notes) for AI content generation; anonymous visitor search query text + entry content for AI search (`directory_ai_search`) — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
 | **Cloudflare (DNS-over-HTTPS)** | Hostname being verified only — no personal data | Global anycast | Not applicable — public DNS lookup, no account |
 
 ---
@@ -397,4 +409,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-09-06 (Anthropic/Claude API entry rewritten: the map-level AI search enrichment + intent search-query feature was removed; the integration now covers directory-entry AI content generation instead — in development). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-09-18 (Anthropic/Claude API entry extended: added `directory_ai_search`, the directory-entry successor to the removed map-level "Ask AI" search — the first visitor-facing, not just admin-triggered, data flow to Anthropic in this codebase, with an optional per-directory web-search opt-in). Maintained by the Layercake Maps engineering and privacy team.*

@@ -264,6 +264,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Entitlements (commercial/tier gating)**: `entitlements_*`
   - **Domains (custom domain / subdomain publishing)**: `domain_*`
   - **Directory AI content generation**: `directory_ai_content_*`
+  - **Directory AI search**: `directory_ai_search_*`
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
 
 ### 2) Required metadata (for all admin events)
@@ -465,6 +466,16 @@ Successor to the removed map-level "AI search enrichment" feature (`ai_search_*`
 - **`directory_entry_content_restored`**
   - `meta`: `client_id`, `directory_id`, `entry_id`, `version_id`
   - Fired when an admin/client loads an old version from an entry's history back into the (unsaved) editor.
+
+#### Directory AI search
+
+Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`), which predates this instrumentation convention. Only config-time (admin/client-portal) actions are logged here — a visitor's actual search query, run through the public `directory_ai_search` Edge Function, is anonymous public traffic, not an authenticated actor performing an admin-style action, so it deliberately isn't logged through this admin-event system (rely on Edge Function invocation/error logs instead).
+
+- **`directory_ai_search_prompt_updated`**
+  - `meta`: `client_id`, `directory_id`, `prompt_set` (boolean)
+- **`directory_ai_search_web_toggled`**
+  - `meta`: `client_id`, `directory_id`, `enabled` (boolean)
+  - Fired only when the web-search opt-in's value actually changes on save, not on every unrelated prompt save.
 
 ### 4) Rule for future features
 
