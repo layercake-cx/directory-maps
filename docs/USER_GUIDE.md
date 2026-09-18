@@ -138,7 +138,7 @@ On a directory's **Settings** tab, the top panel covers:
 
 - **General settings** — **Directory title**, editable at any time (this is the same name shown throughout the admin/client UI and, once published, as the page's on-site heading).
 - **SEO settings** — controls how the directory's published pages appear in search results and when shared on social media:
-  - **Let search engines index this directory** — a single switch. Turned off, the directory's `robots.txt` disallows crawling, its homepage is left out of `sitemap.xml`, and its homepage carries a "noindex" tag — all together. Individual entries keep their own separate index/no-index setting (see their **Search & Metadata** tab) regardless of this switch.
+  - **Let search engines index this directory** — a single switch. Turned off, the directory's `robots.txt` disallows crawling, its homepage is left out of `sitemap.xml`, and its homepage carries a "noindex" tag — all together. Individual entries keep their own separate index/no-index setting (see their **Search & Metadata** tab) regardless of this switch. `robots.txt` also names four AI crawlers explicitly (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) so AI search/citation tools are clearly allowed or disallowed rather than only implied by the general rule — this list isn't yet client-configurable, it follows the same switch.
   - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description.
   - **Social/SEO image URL** — the image shown when the directory's homepage is shared on social media, and the fallback image for any entry that hasn't set its own.
 
