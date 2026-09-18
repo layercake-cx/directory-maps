@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-18 — [Staging] Published directory desktop layout: horizontal filter bar, results widened to two-thirds
 
-**Branch/PR:** `feat/2026-09-18-directory-desktop-horizontal-filters` (not yet opened).
+**Branch/PR:** `feat/2026-09-18-directory-desktop-horizontal-filters` ([PR #190](https://github.com/layercake-cx/directory-maps/pull/190), open).
 
 ### What changed
 The user found the published directory's desktop layout — a fixed 250px filter rail, results, and map as three side-by-side columns — squeezed the results list too much once a map was attached, splitting the remaining space 50/50 between results and map.
@@ -23,8 +23,9 @@ The user found the published directory's desktop layout — a fixed 250px filter
 
 ### Verified
 - [x] Verified locally via `generate_directory_site`'s existing preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) at 1440px (filter bar full-width above the content, results ≈67% / map ≈33% of the row, List/Map toggle hidden), 800px (unchanged stacked rail + List/Map toggle), and 375px (unchanged Filters drawer + List/Map toggle) — including opening the multi-select ("Sector") dropdown and applying a filter end-to-end.
-- [ ] Not yet deployed to the test project (`beqejxneehilplrtpntn`) or production (`gxixwdjfmegxcxfeflro`) — pending PR review.
-- [ ] Not yet re-published against a real directory's live page.
+- [x] Deployed to the test project (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn` from an isolated worktree — upload log confirms `builders.ts` shipped.
+- [ ] Not yet re-published against a real directory's live page — needs the user (or a follow-up session with staging login) to hit Publish on a staging directory, ideally one with a map attached, and eyeball the result.
+- [ ] Not yet deployed to production (`gxixwdjfmegxcxfeflro`) — pending staging verification and explicit user sign-off.
 
 ### Rollback plan
 Revert this commit on `main` and redeploy `generate_directory_site` to both projects — restores the previous 250px fixed-rail, 50/50 results/map split.
