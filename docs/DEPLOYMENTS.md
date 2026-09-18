@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-18 — [Staging] Directory AI intent-driven search (not yet deployed)
+## 2026-09-18 — [Staging] Directory AI intent-driven search (migration applied; Edge Function not yet deployed)
 
-**Branch/PR:** `feat/2026-09-18-directory-ai-search` (not yet opened as a PR).
+**Branch/PR:** `feat/2026-09-18-directory-ai-search`.
 
 ### What changed
 The user asked to reinstate the Claude-based AI intent-driven search the maps product had before it was removed (2026-09-06), scoped to directories instead of maps: full data/metadata access, an optional web-search "reach out", a configurable directory-level prompt, and results that actually filter the directory down rather than the plain keyword substring match the published search box has used until now.
@@ -26,7 +26,8 @@ The user asked to reinstate the Claude-based AI intent-driven search the maps pr
 - [x] `deno check` clean on `directory_ai_search/index.ts`, `generate_directory_site/index.ts`, and `generate_directory_site/builders.ts`.
 - [x] `npm run build` clean.
 - [x] Local preview (`generate_directory_site/preview.ts`) confirms `data-entry-id` is present on every row and, with a synthetic `AiSearchOptions` object, that `buildFilterAndSearchScript` embeds a real `AI_SEARCH_URL`/`AI_SEARCH_ANON_KEY`/`AI_SEARCH_DIRECTORY_ID` and wires `scheduleSearch`/`runAiSearch` correctly; with no AI search options, output is unchanged (`AI_SEARCH_ENABLED = false`, keyword matching only) — a directory with AI search off gets byte-for-byte the same search behaviour as before this feature.
-- [ ] **Migration not yet applied anywhere** — needs a dry run + staging apply (`beqejxneehilplrtpntn`) with the integrity checklist, per `AGENTS.md`.
+- [x] **Migration applied to staging** (`beqejxneehilplrtpntn`, 2026-09-18) via `supabase db push` — confirmed linked to the staging ref and that it was the only pending migration (`--dry-run` first) before applying for real, run from the shared working directory after confirming a clean `git status`/correct branch immediately beforehand (no isolated worktree available since this branch was already checked out there — see `AGENTS.md`'s shared-worktree lesson). The migration's own embedded post-migration block printed `NOTICE: VERIFY PASSED: directory AI search schema created` during the apply, confirming both new `directories` columns and `directory_ai_search_requests` now exist.
+- [ ] **Full integrity checklist not independently re-run** — this session's sandbox blocked passing the ephemeral `supabase db dump --dry-run` Postgres credential to `psql` (flagged as credential exposure, even though it's a short-lived, dump-scoped credential Supabase's own tooling generates for exactly this purpose) — worth re-running manually (row counts, RLS-enabled, orphan checks) before treating staging as fully verified, though the migration is purely additive (no drops, no data touched) and its own embedded checks already passed.
 - [ ] **`directory_ai_search` not yet deployed** — staging first, production only after explicit user sign-off.
 - [ ] **No live end-to-end test yet** — admin/client AI tab UI hasn't been exercised against a real logged-in session (this session had no test credentials), and no directory has been republished with AI search configured to confirm the debounced call, the result filtering, and the keyword fallback against real data.
 - [ ] Web-search-tool + forced-`tool_choice` interaction (the two-call design in `directory_ai_search`'s `runSearch()`) is built against Anthropic's current published docs (fetched this session) but hasn't been exercised against the live API with `ai_search_web_enabled = true` yet — worth an explicit staging test of that path specifically, not just the no-web-search path.
