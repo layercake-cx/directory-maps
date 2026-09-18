@@ -46,7 +46,7 @@ Revert this commit on `main` and redeploy `generate_directory_site` to both proj
 
 ---
 
-## 2026-09-18 — [Staging] Published directory filter rail: Tags categorisations now render as a multi-pick dropdown
+## 2026-09-18 — [Production] Published directory filter rail: Tags categorisations now render as a multi-pick dropdown
 
 **Branch/PR:** `feat/2026-09-18-category-filter-multiselect-dropdown` ([PR #187](https://github.com/layercake-cx/directory-maps/pull/187), merged).
 
@@ -64,10 +64,11 @@ The user was looking at APMG's `APMG_ Sample_Demo` published directory (the same
 - [x] Mobile bottom-sheet drawer (375×812 viewport) re-checked with the dropdown inside it — opens and filters the same as desktop.
 - [x] `generate_directory_site` deployed to the test project (`beqejxneehilplrtpntn`) from an isolated `git worktree` (per the shared-worktree lesson in the 2026-09-18 embed-sidebar entry above) — confirmed the worktree's checked-out `builders.ts` contained the new `dir-msel` markup before deploying.
 - [x] PR #187 merged to `main`; GitHub Pages redeployed automatically (`gh run list` confirms success) — no effect on this change itself (it lives entirely in the Edge Function, not the client-portal frontend), just this repo's standard post-merge deploy.
-- [ ] **Not yet deployed to production** (`gxixwdjfmegxcxfeflro`) — this is a pure static-HTML/CSS/JS, no-DB-dependency change, but still follows the same staging-first discipline as any Edge Function deploy: waiting on the user to check staging (e.g. re-publish a directory with a multi-term Tags categorisation attached) before deploying to production.
+- [x] `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`) from a second isolated `git worktree`, again confirmed to contain the `dir-msel`/`hideListPanel` code before deploying — user explicitly signed off on the production deploy after the staging deploy above.
+- [ ] **Not yet regenerated against a real directory's live page** — no directory's static site has actually been re-published since this deployed, so the change hasn't been eye-balled against real data (e.g. APMG's `APMG_ Sample_Demo`, whose "Courses Offered" field prompted this change), only against the local preview-script fixture. Re-publish a directory with a multi-term Tags categorisation attached to confirm.
 
 ### Rollback plan
-Revert this commit (or the merge commit once a PR lands) on `main` and redeploy the Edge Function — no migration, no data to roll back.
+Revert PR #187's merge commit on `main` and redeploy `generate_directory_site` to both projects (`beqejxneehilplrtpntn`, `gxixwdjfmegxcxfeflro`) from the reverted code — restores the previous pill-wall rendering. No database migration involved.
 
 ---
 
