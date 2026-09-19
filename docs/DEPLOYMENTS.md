@@ -8,9 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Production] Frontend deploy: PR #195 and #196 merged, both live sites updated
+
+**Branch/PR:** `main` (merges [PR #195](https://github.com/layercake-cx/directory-maps/pull/195) and [PR #196](https://github.com/layercake-cx/directory-maps/pull/196), both merged).
+
+### What changed
+Closes out the backend-only production deploys recorded in the two entries below: merged both PRs to `main` so the frontend halves (the AI tab's "Backfill missing metadata" panel, and `MediaAssetsEditor.jsx`'s reworked upload flow with "Generate with AI") actually go live, on the user's explicit "deploy to live with these, non invasive changes". Merging PR #196 second hit a real conflict against PR #195 in `docs/DEPLOYMENTS.md`/`docs/FEATURES.md` (both had added entries in the same place) — resolved by merging `main` into the Feature 5 branch first, keeping both sets of entries (Feature 5's on top as the more recent work) before merging.
+
+- [PR #195](https://github.com/layercake-cx/directory-maps/pull/195) merged — backend (migration + both Edge Functions) was already live in production from the previous entry below.
+- [PR #196](https://github.com/layercake-cx/directory-maps/pull/196) merged — backend (`generate_media_alt_text`) was already live in production from the entry below this one.
+
+### Verified
+- [x] GitHub Pages: both merge commits' "Deploy to GitHub Pages" Actions runs completed successfully (`gh run list`).
+- [x] Vercel production (`uk-associations.com` / `maps.layercake-cx.biz`): `npm run deploy:live` — first attempt hit the known transient "Not authorized" seen in earlier entries in this log, second attempt succeeded (`readyState: READY`, `target: production`).
+- [ ] Not yet manually clicked through on the live site — the two "no live click-through" caveats in the entries below still stand; nothing about merging changes that.
+
+### Rollback plan
+Revert both merge commits on `main`; GitHub Pages redeploys automatically, run `npm run deploy:live` again for Vercel. Backend rollback is documented in each entry below.
+
+---
+
 ## 2026-09-19 — [Production] AI-generated image alt text (Feature 5)
 
-**Branch/PR:** `feat/2026-09-19-directory-image-alt-text` ([PR #196](https://github.com/layercake-cx/directory-maps/pull/196), open).
+**Branch/PR:** `feat/2026-09-19-directory-image-alt-text` ([PR #196](https://github.com/layercake-cx/directory-maps/pull/196), merged).
 
 ### What changed
 Feature 5 of the Directory Searchability & AI Metadata plan, done out of order per the user's explicit instruction to skip Feature 4 (heading structure) for now. Scoped down from the product doc's original ask after research found most of it already done: entry logos and panel images already get a synthesized `"{name} logo"` alt fallback at publish time. The one real gap — `entry_media_assets.alt_text`, a required column with no AI assistance and no "missing" state to backfill (it's `not null`) — is what this actually addresses, at upload time.
@@ -35,7 +55,7 @@ Revert this commit; `MediaAssetsEditor.jsx`'s upload flow reverts to typing alt 
 
 ## 2026-09-19 — [Production] SEO metadata backfill: async queue + AI tab panel, replacing the per-publish cap
 
-**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open — this redesigns that same PR before it was reviewed).
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), merged — this redesigns that same PR before it was reviewed).
 
 ### What changed
 Direct user feedback on the previous entry below: "20 records is a bit arbitrary. add ... a feature in the AI tab to backfill all Search metadata. Process that runs independently of publishing in the same way as the directory content builder in the same tab... there should be an indication of how many entries have missing metadata." This replaces the inline, per-publish, 20-entry-capped entry backfill entirely with an async queue architecturally identical to §4.4g's content-generation system — decoupling AI cost from the publish action, the same complaint the cap existed to paper over.
@@ -65,7 +85,7 @@ Direct user feedback on the previous entry below: "20 records is a bit arbitrary
 
 ## 2026-09-19 — [Production] Non-destructive SEO metadata backfill on directory build
 
-**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open).
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), merged).
 
 ### What changed
 Phase 3 of the Directory Searchability & AI Metadata plan. Extends `generate_directory_site` to fill any still-empty entry/directory SEO metadata fields on every publish, automatically — no button click needed, unlike Phase 2's editor-triggered "Generate with AI". The rule is presence, not authorship: a field with content, however it got there, is never touched.
