@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-19 — [Staging] Non-destructive SEO metadata backfill on directory build
+## 2026-09-19 — [Production] Non-destructive SEO metadata backfill on directory build
 
-**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` (not yet opened).
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open).
 
 ### What changed
 Phase 3 of the Directory Searchability & AI Metadata plan. Extends `generate_directory_site` to fill any still-empty entry/directory SEO metadata fields on every publish, automatically — no button click needed, unlike Phase 2's editor-triggered "Generate with AI". The rule is presence, not authorship: a field with content, however it got there, is never touched.
@@ -27,8 +27,9 @@ Phase 3 of the Directory Searchability & AI Metadata plan. Extends `generate_dir
 - [x] `npm run build` clean.
 - [x] Migration dry-run (`supabase db push --dry-run`) confirmed this was the only pending migration, then applied for real to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`.
 - [x] Deployed `generate_directory_site` to staging — upload log confirms `seoMetadataBackfill.ts`/`seoMetadataGeneration.ts` shipped.
-- [ ] **No live end-to-end regeneration run** — unlike Phase 1/2's staging checks, this session's safety guardrails correctly refused to let this agent trigger a real regeneration against the shared test directory (`e270f4a4-...`, a real, already-published customer directory): doing so would have AI-generated and immediately published real marketing copy into that customer's live entries, which is a materially different and more invasive action than Phase 1's template/robots.txt change or Phase 2's manual, editor-reviewed, never-auto-persisted draft. This needs an explicit, informed decision from the user before it's exercised live — either by publishing a real directory with some empty metadata fields themselves and watching what fills in, or by explicitly authorizing a specific test run.
-- [ ] Not yet deployed to production — **should not be**, until the live behaviour above has actually been observed once on staging.
+- [ ] **No live end-to-end regeneration run by this agent** — unlike Phase 1/2's staging checks, this session's safety guardrails correctly refused to let this agent trigger a real regeneration against the shared test directory (`e270f4a4-...`, a real, already-published customer directory): doing so would have AI-generated and immediately published real marketing copy into that customer's live entries, which is a materially different and more invasive action than Phase 1's template/robots.txt change or Phase 2's manual, editor-reviewed, never-auto-persisted draft.
+- [x] **Deployed to production** — migration applied to `gxixwdjfmegxcxfeflro` (dry-run confirmed it was the only pending migration, then applied for real, `NOTICE: VERIFY PASSED`) and `generate_directory_site` deployed, on the user's explicit go-ahead ("deploy to prod, safe change") despite the unverified live behaviour above. The backfill will first actually run the next time any real directory publishes or republishes in production — that will be its true first live test, not something staged in advance.
+- [ ] **Still worth watching the first real publish after this** — check `error_logs` for any `generate_directory_site` / SEO-backfill entries, and spot-check that a newly-filled `meta_title`/`meta_description` on a real entry reads sensibly, not just that it filled in.
 
 ### Rollback plan
 Redeploy `generate_directory_site` from the previous commit to stop the backfill from running (the migration is purely additive and doesn't need to be rolled back for that alone). If the flag column itself needs removing: `_20260919120000_directory_entry_seo_metadata_ai_flag.rollback.sql` (surfaces which rows would lose their flag first — the metadata text itself is untouched by this rollback, only the "was this backfilled?" marker is lost).
@@ -37,7 +38,7 @@ Redeploy `generate_directory_site` from the previous commit to stop the backfill
 
 ## 2026-09-18 — [Production] AI-generate action for entry and directory SEO metadata
 
-**Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), open).
+**Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), merged).
 
 ### What changed
 Phase 2 of the Directory Searchability & AI Metadata plan. `EntrySeoTab.jsx` and `DirectoryGeneralSettingsPanel.jsx` already had the SEO/social metadata fields and a Save action (from earlier work) but no AI drafting action — only entry body content (`notes_html`, §4.4g) had one.
