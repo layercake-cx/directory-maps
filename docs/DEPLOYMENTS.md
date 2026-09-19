@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Production] AI-generated image alt text (Feature 5)
+
+**Branch/PR:** `feat/2026-09-19-directory-image-alt-text` ([PR #196](https://github.com/layercake-cx/directory-maps/pull/196), open).
+
+### What changed
+Feature 5 of the Directory Searchability & AI Metadata plan, done out of order per the user's explicit instruction to skip Feature 4 (heading structure) for now. Scoped down from the product doc's original ask after research found most of it already done: entry logos and panel images already get a synthesized `"{name} logo"` alt fallback at publish time. The one real gap — `entry_media_assets.alt_text`, a required column with no AI assistance and no "missing" state to backfill (it's `not null`) — is what this actually addresses, at upload time.
+
+- New Edge Function `generate_media_alt_text` + shared `_shared/imageAltTextGeneration.ts`: the only AI feature in this codebase that sends Claude an actual image (vision, base64) rather than text — a genuinely descriptive caption needs to describe the photo, not guess from the entry's name alone.
+- `MediaAssetsEditor.jsx` reworked: picking a file shows a preview first (alt text was previously required *before* picking a file, which meant editors were typing blind), with a **Generate with AI** button next to the alt text field and an explicit **Upload** step. Alt text is still required before upload.
+- Nothing persisted by the Edge Function itself — same review-before-save pattern as every other AI action in this plan.
+- Docs: `docs/USER_GUIDE.md` and `docs/FEATURES.md` (new §4.4j) updated.
+
+### Verified
+- [x] `deno check` clean on both new Edge Function files.
+- [x] `npm run build` clean.
+- [x] Deployed `generate_media_alt_text` to staging (`beqejxneehilplrtpntn`).
+- [x] Black-box checks against the live staging endpoint: missing params → clean `400`; unsupported `media_type` (e.g. `image/gif`) → clean `400`; a valid tiny PNG against a nonexistent `entry_id` → clean `"Entry not found"`, not a crash; `OPTIONS` preflight → `204`.
+- [ ] **No live click-through / no real vision call verified** — this flow lives behind admin/client-portal login (`requireDirectoryAccess`), which this agent doesn't have credentials for (same limitation noted on Phase 2's metadata generate buttons). Needs a human to actually pick a real image, click Generate with AI, and confirm the caption is sensible and actually describes the photo.
+- [x] **Deployed to production** (`gxixwdjfmegxcxfeflro`) via `supabase functions deploy generate_media_alt_text`, on the user's explicit go-ahead ("deploy to live with these, non invasive changes"). No migration involved.
+
+### Rollback plan
+Revert this commit; `MediaAssetsEditor.jsx`'s upload flow reverts to typing alt text before picking a file. No database migration involved — no schema changed for this feature.
+
+---
+
 ## 2026-09-19 — [Production] SEO metadata backfill: async queue + AI tab panel, replacing the per-publish cap
 
 **Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open — this redesigns that same PR before it was reviewed).

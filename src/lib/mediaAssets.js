@@ -5,7 +5,7 @@
  * "directory-media" Storage bucket these upload into.
  */
 
-import { supabase } from "./supabase";
+import { supabase, invokeFunction } from "./supabase";
 
 const ALLOWED_EXT = /\.(png|jpe?g|webp)$/i;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -57,6 +57,37 @@ export async function uploadMediaAsset(entryId, file, { altText, caption, credit
     .single();
   if (error) throw error;
   return data;
+}
+
+/** Reads a File as a base64 string (no data: URL prefix), for sending to generate_media_alt_text. */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("Could not read file"));
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * AI-drafted alt text for an image, before it's even uploaded — sends the
+ * actual image bytes to Claude's vision API so the caption describes what
+ * the image really shows, not just a guess from the entry's name (Directory
+ * Searchability & AI Metadata plan, Feature 5). Never persisted here; the
+ * caller decides whether to use it, same as every other "Generate with AI"
+ * action in this codebase.
+ */
+export async function generateMediaAltText(entryId, file, imageKind = "gallery") {
+  const image_base64 = await fileToBase64(file);
+  const { data, error } = await invokeFunction("generate_media_alt_text", {
+    body: { entry_id: entryId, image_base64, media_type: file.type, image_kind: imageKind },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.alt_text;
 }
 
 async function clearHero(entryId) {
