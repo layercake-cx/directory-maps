@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-19 — [Staging] Directory content pages (Feature 6)
+## 2026-09-19 — [Production] Directory content pages (Feature 6)
 
-**Branch/PR:** `feat/2026-09-19-directory-content-pages` (not yet opened).
+**Branch/PR:** `feat/2026-09-19-directory-content-pages` ([PR #198](https://github.com/layercake-cx/directory-maps/pull/198), open).
 
 ### What changed
 Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pages alongside a directory's entries, organised into a nav hierarchy. Full write-up in `docs/FEATURES.md` §4.4k.
@@ -30,6 +30,7 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
 - [x] Black-box checks against the live staging `generate_content_page_draft` endpoint: missing `page_id`/`outline` → clean `400`s; nonexistent `page_id` → clean `"Page not found"`; `OPTIONS` preflight → `204`.
 - [x] Live regeneration triggered against the real staging test directory (`e270f4a4-...`, `{"ok":true,"count":14}`) to confirm the new content-pages query doesn't break the existing publish pipeline — safe to do since that directory has zero content pages yet, so this exercised the code path as a no-op, not a real content write. `sitemap.xml` and the landing page both still serve correctly (200) afterward.
 - [ ] **No live click-through** — creating a page, generating a draft, and publishing a directory that actually has one all require a real signed-in session, neither of which this agent has. Needs a human to build a real page end-to-end and confirm it looks right live.
+- [x] **Deployed to production** — migration applied to `gxixwdjfmegxcxfeflro` (`NOTICE: VERIFY PASSED`), both `generate_content_page_draft` and `generate_directory_site` deployed, on the user's explicit go-ahead ("deploy live").
 
 ### Rollback plan
 `_20260919150000_create_directory_content_pages.rollback.sql` (drops the table entirely — surfaces existing page content first, since it would be lost). Redeploy `generate_directory_site` from the previous commit to stop rendering/publishing pages without removing the schema.
