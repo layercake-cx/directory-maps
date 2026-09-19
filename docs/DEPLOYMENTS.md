@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] SEO metadata backfill: async queue + AI tab panel, replacing the per-publish cap
+
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open — this redesigns that same PR before it was reviewed).
+
+### What changed
+Direct user feedback on the previous entry below: "20 records is a bit arbitrary. add ... a feature in the AI tab to backfill all Search metadata. Process that runs independently of publishing in the same way as the directory content builder in the same tab... there should be an indication of how many entries have missing metadata." This replaces the inline, per-publish, 20-entry-capped entry backfill entirely with an async queue architecturally identical to §4.4g's content-generation system — decoupling AI cost from the publish action, the same complaint the cap existed to paper over.
+
+- New migration `20260919130000_directory_seo_metadata_backfill_queue.sql`: `entry_seo_metadata_jobs` queue table, an `AFTER INSERT` trigger (`enqueue_entry_seo_metadata_job()`) that auto-queues a new entry missing any of the six fields (no directory opt-in needed, unlike content generation), `claim_pending_entry_seo_metadata_jobs()`, `count_entries_missing_seo_metadata()` (a plain, no-elevated-privilege SQL function relying on the caller's own `directory_entries` RLS), `enqueue_directory_entry_seo_metadata_jobs()` (queues only entries actually missing a field — never everything, so no type-to-confirm needed, unlike "Generate all entry content"), and a `process-entry-seo-metadata-dispatch` cron job every 2 minutes.
+- New Edge Function `process_entry_seo_metadata_jobs` — mirrors `process_entry_content_jobs`'s claim/process/progress-update loop, but writes only the fields that were actually empty on each entry (`computeSeoMetadataUpdate()`), never a whole overwrite.
+- New `DirectoryAiSeoMetadataPanel.jsx` on the AI tab (admin + client portal): shows the missing-entries count upfront, a "Backfill missing metadata" button with no confirm dialog (it can't destroy data), and progress while a run is in flight.
+- `generate_directory_site`'s inline entry-level backfill (from the previous entry below) is removed — `_shared/seoMetadataBackfill.ts` now only keeps the directory-level one-off backfill (still inline, since it's at most one extra call per publish and self-limiting, so it never had the cost/time problem). `directory_entries.seo_metadata_ai_generated_at` (from the migration two entries below) is kept and reused by the new worker.
+- Reuses `directory_ai_content_bulk_requested`/`_bulk_completed` with `target: "seo_metadata"` rather than new event names.
+- Docs: `docs/USER_GUIDE.md` (new "SEO metadata backfill" section) and `docs/FEATURES.md` (revised §4.4i-2, new §4.4i-3) updated.
+
+### Verified
+- [x] `deno check` clean on all changed/new Edge Function files.
+- [x] `npm run build` clean.
+- [ ] Migration/deploy to staging and end-to-end verification — pending, next step in this same session.
+
+### Rollback plan
+`_20260919130000_directory_seo_metadata_backfill_queue.rollback.sql` (surfaces queued/in-flight job counts first). Redeploy `generate_directory_site` and `process_entry_seo_metadata_jobs` from the previous commit if only the code (not the schema) needs reverting.
+
+---
+
 ## 2026-09-19 — [Production] Non-destructive SEO metadata backfill on directory build
 
 **Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open).

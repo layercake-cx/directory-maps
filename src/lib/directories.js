@@ -351,6 +351,34 @@ export async function getDirectoryAiContentStatus(directoryId) {
   return data;
 }
 
+// ---- SEO metadata backfill queue (Directory Searchability & AI Metadata plan, Phase 3b) ----
+
+/** Count of active entries missing at least one of the six drafted SEO/social fields — backs the AI tab's "N entries missing metadata" readout. */
+export async function countEntriesMissingSeoMetadata(directoryId) {
+  if (!directoryId) return 0;
+  const { data, error } = await supabase.rpc("count_entries_missing_seo_metadata", { p_directory_id: directoryId });
+  if (error) throw error;
+  return data ?? 0;
+}
+
+/** Queues a 'bulk' SEO metadata job for every active entry still missing a field — never entries that already have everything, so this can't overwrite existing data. Backs the AI tab's "Backfill missing metadata" action. */
+export async function triggerDirectorySeoMetadataBackfill(directoryId) {
+  const { data, error } = await supabase.rpc("enqueue_directory_entry_seo_metadata_jobs", { p_directory_id: directoryId });
+  if (error) throw error;
+  return data?.[0]?.queued_count ?? 0;
+}
+
+/** Persistent bulk-run status, for the poll loop while a "Backfill missing metadata" run is in progress. */
+export async function getDirectorySeoMetadataBackfillStatus(directoryId) {
+  const { data, error } = await supabase
+    .from("directories")
+    .select("seo_metadata_backfill_status, seo_metadata_backfill_started_at, seo_metadata_backfill_completed_at, seo_metadata_backfill_error, seo_metadata_backfill_total, seo_metadata_backfill_processed")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 /** Version history for one entry's body content, most recent first. */
 export async function listEntryContentVersions(entryId) {
   if (!entryId) return [];
