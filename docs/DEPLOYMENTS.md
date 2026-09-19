@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Not deployed] Directory theming Phase 2: colour settings UI + live preview
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-region-ui`, stacked on Phase 1's `feat/2026-09-19-directory-theme-regions` (not yet opened as a PR — depends on Phase 1 merging first, or should be opened against Phase 1's branch rather than `main`).
+
+### What changed
+Phase 2 of 6 in the Directory Theming plan — the settings UI for the region model Phase 1 added to the renderer.
+
+- `DirectoryBrandingPanel.jsx` restructured into three `<details>` sections — **Header**, **Body**, **Footer** — each independently editable, plus a **live preview** strip above them that re-renders on every field change (no save/reload needed).
+- New `BackgroundEditor` component: a Solid/Gradient toggle; solid shows a colour picker, gradient shows type (linear/radial), an angle slider, and a stop editor (2–4 stops, each with colour + position) with a live gradient-bar preview. Switching solid→gradient seeds the gradient from the current solid colour so nothing is lost switching back.
+- The 4 non-Natural presets (Midnight, Coastal, Heritage, Slate) now also set the new header/footer fields — derived from each preset's own existing `surfaceColor`/`inkColor`/`primaryDarkColor`/`accentColor` (via a new `regionsFromPalette()` helper in `directoryThemePresets.js`) rather than inventing new hex constants. **Natural is deliberately left unchanged** — it's documented in `builders.ts` as also being "the look of a directory that never touched branding," and giving it different region values than the hardcoded fallback would break that equivalence.
+- Documented the previously-undocumented `directory_branding_updated` admin event in AGENTS.md's catalogue (it already existed in code, just wasn't in the catalogue).
+- `docs/USER_GUIDE.md`'s Branding section rewritten to describe the three regions, the live preview, and the gradient editor.
+
+### Verified
+- [x] `npm run build` — clean, both before and after removing a temporary preview harness (see below).
+- [x] **Isolated component verification without real credentials** (matches this repo's established pattern for agent sessions with no login — see e.g. the Feature 6 and Search-Metadata entries below): mounted `DirectoryBrandingPanel` directly via a temporary `preview-harness.html` + `src/__preview_harness_main.jsx` (both deleted before commit, never part of the diff) with a mock directory and a no-op save handler — never invoked the real `updateDirectory()`/Supabase write. Confirmed in the browser:
+  - Default (unset) state matches Phase 1's exact hardcoded defaults (`rgba(255,255,255,.6)` header, dark teal footer).
+  - Selecting "Midnight" fills header background/text and footer background/text/link/hover correctly from the preset, and the live preview updates instantly.
+  - Switching the header background to Gradient seeds two stops from the current solid colour, renders a correct gradient bar and live-preview gradient, editing a stop's hex and adding a 3rd stop both work, "Remove" appears once there are &gt;2 stops.
+  - Footer section renders and independently edits background/text/link/link-hover.
+- [ ] **No authenticated click-through** — same standing limitation as every prior directory-admin feature in this log: this agent session has no login credentials, so saving branding and confirming the round-trip through `theme_json` → republish → live site has not been exercised end-to-end. The isolated component test above used the real component with real state logic, so risk is low, but a human should click "Save branding" once for real before calling this done.
+- [ ] Not deployed anywhere yet — frontend-only change, ships with the next frontend deploy (GitHub Pages auto-deploys on merge to `main`; Vercel needs an explicit `npm run deploy:live`).
+
+### Rollback plan
+Revert this commit (and, if already merged, the merge commit). Purely a frontend/UI change — no migration, no Edge Function redeploy needed. Any directory whose owner already saved header/footer values through this UI keeps them in `theme_json`; a rollback stops rendering the settings UI but Phase 1's renderer changes (kept, since this doesn't revert that branch) continue to honour those saved values.
+
+---
+
 ## 2026-09-19 — [Staging] Directory theming Phase 1: independent header/footer colours + gradients
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-regions` (not yet opened as a PR).
