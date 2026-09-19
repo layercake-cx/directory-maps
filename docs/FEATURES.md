@@ -393,6 +393,34 @@ Phase 2 of the Directory Searchability & AI Metadata plan. Distinct from §4.4g 
 
 Files: `supabase/functions/generate_entry_seo_metadata/index.ts`, `supabase/functions/generate_directory_seo_metadata/index.ts`, `supabase/functions/_shared/seoMetadataGeneration.ts`; `src/components/directories/entryEdit/EntrySeoTab.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (both extended); data access in `src/lib/directories.js`.
 
+### 4.4i-2 Non-destructive SEO metadata backfill — directory-level, on build (new, 2026-09-19, revised same day)
+
+Phase 3 of the Directory Searchability & AI Metadata plan. §4.4i's "Generate with AI" is an explicit editor action; this is its unattended counterpart for the directory homepage's own `meta_title_template`/`meta_description` — filled automatically on `generate_directory_site` using the directory's real entry count and attached categorisation labels, skipped entirely once both fields are already set. The rule is presence, not authorship: a field with content, however it got there, is never touched.
+
+**Entry-level backfill originally lived here too** (inline, capped at 20 entries per publish) but was replaced the same day by §4.4i-3's async queue, per direct user feedback that the cap was arbitrary and that AI generation cost shouldn't be coupled to the publish action at all. The directory-level piece above is unaffected — it's at most one extra Claude call per publish and self-limiting, so it never had the cost/time problem the entry-level cap was working around.
+
+- **AI-drafted flag**: `directory_entries.seo_metadata_ai_generated_at` — set only by an unattended backfill (this one, or §4.4i-3's queue), never by §4.4i's editor-triggered button — answers the product doc's "should AI-generated fields carry a visible flag?" open question for the one path where an editor might not know a field was ever touched. `EntrySeoTab.jsx` shows a small banner when it's set.
+- **Never fails the publish** — a missing `ANTHROPIC_API_KEY` or an Anthropic error logs to `error_logs` and is skipped; the pages themselves still generate and upload normally.
+
+Tables: `directory_entries.seo_metadata_ai_generated_at` (`20260919120000_directory_entry_seo_metadata_ai_flag.sql`).
+
+Files: `supabase/functions/_shared/seoMetadataBackfill.ts` (`backfillDirectorySeoMetadata`); `supabase/functions/generate_directory_site/index.ts` (extended); `src/components/directories/entryEdit/EntrySeoTab.jsx` (AI-drafted banner); `src/lib/directories.js` (`getDirectoryEntry` extended, schema-drift fallback updated).
+
+### 4.4i-3 SEO metadata backfill queue + AI tab "Backfill missing metadata" (new, 2026-09-19)
+
+The entry-level half of Phase 3, redesigned per user feedback the same day it first shipped: rather than an inline, capped, per-publish loop, entry SEO/social metadata backfill is now its own async queue — architecturally identical to §4.4g's content-generation queue, just for a different set of fields and with no directory-level prompt to opt into (there's nothing to configure; it always runs).
+
+- **Automatic, on empty entries only**: an `AFTER INSERT` trigger on `directory_entries` (`enqueue_entry_seo_metadata_job()`) enqueues an `'auto'` job whenever a new entry is missing any of the six drafted fields (`meta_title`, `meta_description`, `keywords`, `og_title`, `og_description`, `ai_summary`) — no per-directory opt-in needed, unlike content generation. A `pg_cron` job (`process-entry-seo-metadata-dispatch`, every 2 minutes) claims a small batch via `claim_pending_entry_seo_metadata_jobs()` and dispatches to `process_entry_seo_metadata_jobs`.
+- **Manual, whole directory, no confirm needed**: a "Backfill missing metadata" button on the AI tab (`DirectoryAiSeoMetadataPanel.jsx`) calls `enqueue_directory_entry_seo_metadata_jobs`, which queues a `'bulk'` job for every active entry actually missing a field — deliberately **not** every entry (contrast with §4.4g's "Generate all entry content", which queues everything and is gated behind typing `CREATE` since it overwrites). This action can never overwrite existing data, so there's no destructive case to gate against.
+- **Missing-entries count**: `count_entries_missing_seo_metadata(p_directory_id)`, a plain SQL function with no elevated privilege (relies on the caller's own `directory_entries` RLS access) — shown on the panel before the button is even clicked, and re-checked once a run finishes.
+- **Progress**: `directories.seo_metadata_backfill_status/_total/_processed` (same shape as `ai_content_generation_*`), polled by the panel every 3s while a run is in progress.
+- **Non-destructive at every layer**: the worker only ever writes the fields that were actually empty on each entry (`computeSeoMetadataUpdate()` in `_shared/seoMetadataBackfill.ts`), sets `seo_metadata_ai_generated_at`, and never fails a whole run over one bad entry — same as the content-generation worker's per-job error handling.
+- Reuses `directory_ai_content_bulk_requested`/`_bulk_completed` event types with `target: "seo_metadata"` in `meta`, rather than minting new event names, per AGENTS.md's admin-event conventions (same pattern as §4.4i's single-entry events).
+
+Tables/functions: `entry_seo_metadata_jobs`, `directories.seo_metadata_backfill_status` + 5 sibling columns, `enqueue_entry_seo_metadata_job()` trigger, `claim_pending_entry_seo_metadata_jobs()`, `count_entries_missing_seo_metadata()`, `enqueue_directory_entry_seo_metadata_jobs()`, `process-entry-seo-metadata-dispatch` cron job (`20260919130000_directory_seo_metadata_backfill_queue.sql`).
+
+Files: `supabase/functions/process_entry_seo_metadata_jobs/index.ts` (new); `supabase/functions/_shared/seoMetadataBackfill.ts` (`computeSeoMetadataUpdate`, `missingAnySeoField`); `src/components/directories/DirectoryAiSeoMetadataPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`'s AI tab; data access in `src/lib/directories.js`.
+
 ### 4.4j AI-generated image alt text (Feature 5, new, 2026-09-19)
 
 Feature 5 of the Directory Searchability & AI Metadata plan — the only AI feature in this codebase that sends Claude an actual image (vision), not text, since a genuinely descriptive caption needs to describe what a photo actually shows. Scoped narrowly after research found most of the doc's stated ask already done: entry logos already get a synthesized `"{name} logo"` alt fallback at publish time (`generate_directory_site/builders.ts`, fixed for the one gap — the "related entries" row — in Phase 1), and `panel_image_url` already follows the same pattern. The one real, substantive gap was `entry_media_assets.alt_text` (gallery/hero photos): a required (`not null`) column that `MediaAssetsEditor.jsx` made editors type by hand with no assistance, and — being `not null` — has no "missing" state a backfill could ever target, so this is upload-time-only, not a queue.
