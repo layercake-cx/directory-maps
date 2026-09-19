@@ -99,7 +99,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
 
 ### Creating a directory
 
@@ -257,6 +257,17 @@ Below the content panel on the same **AI** tab, a second panel controls the publ
 3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation it doesn't recognise. This never adds a result that isn't already an entry in the directory — web results can only inform the AI's reasoning, not introduce new listings.
 
 Turning AI search on sends visitors' search text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration.
+
+### Content pages
+
+A directory's **Pages** tab (owners and managers only) is for editor-built pages that sit alongside your entry listings — an "About" page, "How to join", a sector guide — rather than describing a single organisation.
+
+1. Type a title and click **+ Add page** to create one — it's saved immediately so you can start editing it.
+2. Select a page on the left to edit its **Title**, **URL slug**, **Parent page** (choose another page to nest this one under it in the navigation — published URLs stay flat either way, this only affects how pages are grouped for browsing), **Position** (lower numbers appear earlier among sibling pages), and its **Content**, written in the same rich text editor entries use.
+3. **Generate with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**.
+4. **Meta title**, **Meta description**, and **Hide from search engines (noindex)** work the same as an entry's own Search & Metadata fields.
+5. Published pages get their own URL, appear in the directory's sitemap.xml, and show as links on the directory's homepage (top-level pages) and on their own parent page (as an "On this topic" list, for nested pages) — all live only after the next time you publish the directory.
+6. **Delete page** removes it immediately; any of its sub-pages move up to become top-level pages rather than being deleted with it.
 
 ---
 

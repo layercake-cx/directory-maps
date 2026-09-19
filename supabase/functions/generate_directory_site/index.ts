@@ -67,6 +67,7 @@ import {
   resolveLayout,
   buildEntryPage,
   buildDirectoryLandingPage,
+  buildContentPage,
   buildLlmsTxt,
   relatedEntries,
   type Entry,
@@ -80,6 +81,7 @@ import {
   type ProductTile,
   type FilterBarCategorisation,
   type AiSearchOptions,
+  type ContentPage,
 } from "./builders.ts";
 
 /**
@@ -425,6 +427,48 @@ async function generateForDirectoryInner(
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
 
+  // Feature 6 — content pages. Flat published URLs (same basePath as
+  // entries, same as this file's header comment on the migration explains)
+  // — parent_page_id only drives nav (buildContentPage's "On this topic"
+  // list and the landing page's top-level links below), never the URL
+  // itself. A page whose slug collides with a real entry's is skipped
+  // rather than silently overwriting that entry's page — a last-resort
+  // guard behind the application-level uniqueness check in
+  // src/lib/contentPages.js, which is what should normally prevent this.
+  const entrySlugSet = new Set(entries.map((e) => e.slug));
+  const { data: pageRows, error: pageErr } = await db
+    .from("directory_content_pages")
+    .select("id, parent_page_id, title, slug, body_html, meta_title, meta_description, noindex")
+    .eq("directory_id", directoryId)
+    .eq("is_active", true);
+  if (pageErr) throw new Error(`Content pages query failed: ${pageErr.message}`);
+  const contentPages = (pageRows ?? []) as ContentPage[];
+  const pagesById = new Map(contentPages.map((p) => [p.id, p]));
+  const childPagesByParent = new Map<string, ContentPage[]>();
+  for (const p of contentPages) {
+    if (!p.parent_page_id) continue;
+    const list = childPagesByParent.get(p.parent_page_id) ?? [];
+    list.push(p);
+    childPagesByParent.set(p.parent_page_id, list);
+  }
+
+  for (const page of contentPages) {
+    if (entrySlugSet.has(page.slug)) {
+      console.error(`Content page ${page.id} ("${page.title}") slug "${page.slug}" collides with an existing entry — skipped`);
+      continue;
+    }
+    const html = buildContentPage({
+      clientSlug: client.slug,
+      directorySlug: directory.slug,
+      directoryName: directory.name,
+      page,
+      parentPage: page.parent_page_id ? pagesById.get(page.parent_page_id) ?? null : null,
+      childPages: childPagesByParent.get(page.id) ?? [],
+      theme,
+    });
+    await uploadToBlob(`${basePath}/${page.slug}.html`, html, "text/html; charset=utf-8");
+  }
+
   const landingHtml = buildDirectoryLandingPage({
     clientSlug: client.slug,
     directorySlug: directory.slug,
@@ -441,6 +485,7 @@ async function generateForDirectoryInner(
     seoImageUrl: directory.seo_og_image_url || null,
     seoNoindex: directoryNoindex,
     aiSearch,
+    contentPages,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
@@ -448,6 +493,7 @@ async function generateForDirectoryInner(
   const sitemapUrls = [
     ...(directoryNoindex ? [] : [`${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`]),
     ...entries.filter((e) => !e.noindex).map((e) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${e.slug}`),
+    ...contentPages.filter((p) => !p.noindex && !entrySlugSet.has(p.slug)).map((p) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${p.slug}`),
   ];
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
   await uploadToBlob(`${basePath}/robots.txt`, buildRobotsTxt(!directoryNoindex, sitemapUrl), "text/plain; charset=utf-8");

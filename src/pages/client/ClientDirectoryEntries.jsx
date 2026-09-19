@@ -18,6 +18,7 @@ import DirectoryBrandingPanel from "../../components/directories/DirectoryBrandi
 import DirectoryAiContentPanel from "../../components/directories/DirectoryAiContentPanel.jsx";
 import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryAiSeoMetadataPanel.jsx";
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
+import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
 export default function ClientDirectoryEntries() {
@@ -184,6 +185,7 @@ export default function ClientDirectoryEntries() {
                 { id: "branding", label: "Branding" },
                 { id: "ai_content", label: "AI" },
                 { id: "entry_layout", label: "Entry Layout" },
+                { id: "content_pages", label: "Pages" },
                 { id: "accreditations", label: "Accreditations" },
                 { id: "links", label: "Prominent Links" },
               ]
@@ -303,6 +305,10 @@ export default function ClientDirectoryEntries() {
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Entry layout</p>
           <EntryLayoutDesigner directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
         </div>
+      )}
+
+      {canManage && activeTab === "content_pages" && (
+        <DirectoryContentPagesPanel directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
       )}
 
       {canManage && activeTab === "accreditations" && (

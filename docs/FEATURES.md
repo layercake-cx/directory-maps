@@ -431,6 +431,21 @@ Feature 5 of the Directory Searchability & AI Metadata plan — the only AI feat
 
 Files: `supabase/functions/generate_media_alt_text/index.ts` (new), `supabase/functions/_shared/imageAltTextGeneration.ts` (new); `src/lib/mediaAssets.js` (`generateMediaAltText`, new); `src/components/directories/MediaAssetsEditor.jsx` (reworked upload flow).
 
+### 4.4k Directory content pages (Feature 6, new, 2026-09-19)
+
+Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pages alongside a directory's entries ("About", "How to join", a sector guide), organised into a nav hierarchy via `parent_page_id`. Published pages get the same treatment as entries rather than a separate track: their own metadata, their own URL in the directory's `sitemap.xml`, and a `WebPage` schema.org block (not `Article` — these are editor-maintained reference pages, not dated/authored posts, resolving the product doc's own open question on this).
+
+- **Nav hierarchy, flat URLs**: `parent_page_id` drives the admin's nav-tree UI and the published site's page-to-page navigation only — a page's own URL is flat, `${basePath}/${slug}.html`, the same namespace entries already publish into. This was a deliberate choice to avoid touching `middleware.js`'s routing at all (it already serves any `<slug>.html` under a directory's basePath uniformly, whatever wrote it), rather than adding nested-path routing for a feature this new. A page's slug must be unique among the directory's other pages (DB constraint) and is checked against existing entry slugs in application code (`src/lib/contentPages.js`) — `generate_directory_site` additionally refuses to publish a page whose slug collides with a real entry's, as a last-resort guard, logging and skipping rather than overwriting that entry's page.
+- **Pages tab** (`DirectoryContentPagesPanel.jsx`, admin + client portal, owner/manager only): a page is created with just a title first (saved immediately, same "can't edit sub-panels until the record exists" pattern the entry editor already uses for its own Content tab), then edited — title, slug, parent page, position, body (`RichTextEditor.jsx`, the same TipTap editor entries use — no new editing surface built), meta title/description, noindex.
+- **`generate_content_page_draft`**: the editor supplies an outline (headings, bullet points, or a short brief); Claude writes a full draft into the (unsaved) editor for review. Reuses `entryContentGeneration.ts`'s `sanitizeGeneratedHtml` (same allowed-tag allowlist) via a new `_shared/pageContentGeneration.ts`, rather than a second sanitizer implementation.
+- **Publish integration** (`generate_directory_site`): renders each active page (`buildContentPage()` in `builders.ts`, reusing the existing `directoryPageShell`/`siteHeader`/`siteFooter` primitives — no new page-shell code), adds non-noindex pages to `sitemap.xml`, and shows top-level pages as links on the directory homepage plus an "On this topic" list of child pages on each parent page (drilling into the hierarchy without needing nested URLs).
+- **Non-destructive delete**: deleting a page sets its children's `parent_page_id` to null (promoted to top-level) rather than cascading the delete — losing a page's nav position is a much smaller mistake than silently deleting a whole subtree of content an editor wrote.
+- New admin events: `directory_content_page_created`/`_updated`/`_deleted`/`_ai_draft_requested`/`_ai_draft_generated`/`_ai_draft_failed` (AGENTS.md).
+
+Tables: `directory_content_pages` (`20260919150000_create_directory_content_pages.sql`).
+
+Files: `supabase/functions/generate_content_page_draft/index.ts` (new), `supabase/functions/_shared/pageContentGeneration.ts` (new); `supabase/functions/generate_directory_site/builders.ts` (`buildContentPage`, `contentPageSchemaOrg`, landing-page pages nav — all extended); `supabase/functions/generate_directory_site/index.ts` (extended — queries and renders pages alongside entries); `src/lib/contentPages.js` (new); `src/components/directories/DirectoryContentPagesPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`'s new "Pages" tab.
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
