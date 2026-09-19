@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { updateDirectory } from "../../lib/directories.js";
 import { DIRECTORY_THEME_PRESETS, NATURAL, FONT_CATALOG, getThemePreset } from "../../lib/directoryThemePresets.js";
+import { uploadDirectoryLogo } from "../../lib/directoryBranding.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 const colorRowStyle = { display: "flex", alignItems: "center", gap: 8 };
@@ -54,6 +55,9 @@ function themeFromDirectory(directory) {
   next.fontSizeH1 = t.fontSizeH1 || FONT_SIZE_H1_DEFAULT;
   next.fontSizeH2 = t.fontSizeH2 || FONT_SIZE_H2_DEFAULT;
   next.fontSizeH3 = t.fontSizeH3 || FONT_SIZE_H3_DEFAULT;
+  next.headerMode = t.headerMode === "logo" || t.headerMode === "text" ? t.headerMode : "logoText";
+  next.siteTitle = t.siteTitle || "";
+  next.logoMaxHeight = typeof t.logoMaxHeight === "number" && t.logoMaxHeight > 0 ? t.logoMaxHeight : 42;
   return next;
 }
 
@@ -228,13 +232,20 @@ function BackgroundEditor({ label, value, onChange, fallbackColor }) {
 function PreviewStrip({ theme, directoryName }) {
   const headerBg = backgroundToCss(theme.headerBackground, HEADER_BG_DEFAULT.color);
   const footerBg = backgroundToCss(theme.footerBackground, FOOTER_BG_DEFAULT.color);
-  const name = directoryName || "Your Directory";
+  const name = theme.siteTitle?.trim() || directoryName || "Your Directory";
+  const showLogo = theme.headerMode !== "text";
+  const showHeaderText = theme.headerMode !== "logo";
   return (
     <div style={{ border: "1px solid var(--lc-border)", borderRadius: 10, overflow: "hidden", fontSize: 13 }}>
       <style>{`.dtp-footer-link:hover { color: ${theme.footerLinkHover || theme.footerLink} !important; }`}</style>
       <div style={{ background: headerBg, color: theme.headerText, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 7, background: theme.primaryColor, flex: "none" }} />
-        <strong style={{ fontFamily: `"${theme.fontHeading}", serif` }}>{name}</strong>
+        {showLogo &&
+          (theme.logoUrl ? (
+            <img src={theme.logoUrl} alt="" style={{ height: Math.min(24, theme.logoMaxHeight), width: "auto", borderRadius: 7, objectFit: "contain" }} />
+          ) : (
+            <div style={{ width: 24, height: 24, borderRadius: 7, background: theme.primaryColor, flex: "none" }} />
+          ))}
+        {showHeaderText && <strong style={{ fontFamily: `"${theme.fontHeading}", serif` }}>{name}</strong>}
       </div>
       <div style={{ background: theme.backgroundColor, color: theme.inkColor, padding: 16, fontFamily: `"${theme.fontBody}", sans-serif` }}>
         Sample entry text with a{" "}
@@ -264,8 +275,10 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
   const [theme, setTheme] = useState(() => themeFromDirectory(directory));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setTheme(themeFromDirectory(directory));
@@ -283,13 +296,29 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
     setMsg("");
   }
 
+  async function handleLogoFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErr("");
+    try {
+      setUploading(true);
+      const url = await uploadDirectoryLogo(directoryId, file);
+      set("logoUrl", url);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function save(e) {
     e.preventDefault();
     setErr("");
     setMsg("");
     try {
       setSaving(true);
-      const next = { ...theme, logoUrl: theme.logoUrl.trim() };
+      const next = { ...theme, siteTitle: theme.siteTitle.trim() };
       await updateDirectory(directoryId, { theme_json: next });
       recordEvent?.("directory_branding_updated", { directory_id: directoryId, has_logo: !!next.logoUrl });
       setMsg("Branding saved. Republish for it to appear on the live site.");
@@ -332,6 +361,60 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
         <div style={sectionStyle}>
           <BackgroundEditor label="Background" value={theme.headerBackground} onChange={(v) => set("headerBackground", v)} fallbackColor={HEADER_BG_DEFAULT.color} />
           <ColorField label="Text colour" value={theme.headerText} onChange={(v) => set("headerText", v)} />
+
+          <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+            <span>Header shows</span>
+            <select value={theme.headerMode} onChange={(e) => set("headerMode", e.target.value)} style={inputStyle}>
+              <option value="logo">Logo only</option>
+              <option value="logoText">Logo + text</option>
+              <option value="text">Text only</option>
+            </select>
+          </label>
+
+          {theme.headerMode !== "text" && (
+            <div style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 13 }}>Logo</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {theme.logoUrl ? (
+                  <img src={theme.logoUrl} alt="Current logo" style={{ height: 36, width: "auto", maxWidth: 120, borderRadius: 6, objectFit: "contain", background: "#fff", border: "1px solid var(--lc-border)" }} />
+                ) : (
+                  <div style={{ height: 36, width: 36, borderRadius: 6, background: theme.primaryColor, flex: "none" }} />
+                )}
+                <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? "Uploading…" : theme.logoUrl ? "Replace logo" : "Upload logo"}
+                </button>
+                {theme.logoUrl && (
+                  <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => set("logoUrl", "")}>
+                    Remove
+                  </button>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} style={{ display: "none" }} />
+              </div>
+              <span style={{ fontSize: 11.5, opacity: 0.6 }}>PNG, JPG or WebP, up to 2 MB.</span>
+              <label style={{ display: "grid", gap: 4, fontSize: 13, marginTop: 4 }}>
+                <span>Logo max height ({theme.logoMaxHeight}px)</span>
+                <input
+                  type="range"
+                  min={24}
+                  max={120}
+                  value={theme.logoMaxHeight}
+                  onChange={(e) => set("logoMaxHeight", Number(e.target.value))}
+                />
+              </label>
+            </div>
+          )}
+
+          {theme.headerMode !== "logo" && (
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span>Site title {theme.headerMode === "logoText" || theme.headerMode === "text" ? "(optional — defaults to the directory name)" : ""}</span>
+              <input
+                value={theme.siteTitle}
+                onChange={(e) => set("siteTitle", e.target.value)}
+                placeholder={directory?.name || ""}
+                style={inputStyle}
+              />
+            </label>
+          )}
         </div>
       </details>
 
@@ -341,17 +424,6 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
           <ColorField label="Primary colour (links, buttons)" value={theme.primaryColor} onChange={(v) => set("primaryColor", v)} />
           <ColorField label="Accent colour (highlights, AI search icon)" value={theme.accentColor} onChange={(v) => set("accentColor", v)} />
           <ColorField label="Background colour" value={theme.backgroundColor} onChange={(v) => set("backgroundColor", v)} />
-
-          <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-            <span>Logo URL (optional)</span>
-            <input
-              type="url"
-              value={theme.logoUrl}
-              onChange={(e) => set("logoUrl", e.target.value)}
-              placeholder="https://yourcompany.com/logo.png"
-              style={inputStyle}
-            />
-          </label>
 
           <button
             type="button"

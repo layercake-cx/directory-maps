@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Directory theming Phase 4: real logo upload + header display modes
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-branding-logo`, stacked on Phase 3's `feat/2026-09-19-directory-theme-typography` (in turn stacked on Phases 2 and 1) — not yet opened as a PR.
+
+### What changed
+Phase 4 of 6 in the Directory Theming plan.
+
+- **Real logo upload.** The Branding tab's logo field was a plain `type="url"` paste box despite the app already having a working image-upload pattern elsewhere (`src/lib/entryImages.js`, against the existing `directory-media` Storage bucket). Added `src/lib/directoryBranding.js`'s `uploadDirectoryLogo()`, mirroring that exact pattern (fixed path `${directoryId}/logo.${ext}`, upsert, 2 MB cap) — no new bucket, no migration. **SVG is deliberately not supported**: `entryImages.js`'s own comment says the bucket's policy is PNG/JPEG/WebP only because "SVG is deliberately map-pins-only" (an existing, deliberate security boundary against SVG's script-injection risk) — widening that platform-wide policy just to support directory logos would be a real security-relevant decision this task doesn't need to make, so this phase stays within it and documents SVG as explicitly out of scope rather than silently working around it.
+- `theme_json` gains `headerMode` (`"logo" | "logoText" | "text"`, default `"logoText"` — matches current always-both behaviour), `siteTitle` (optional override, falls back to the directory's name), `logoMaxHeight` (default 42px, clamped 24–120 in the UI and clamped again server-side at 120px).
+- `siteHeader()` in `generate_directory_site/builders.ts` now branches on `headerMode`, derives the image `alt` text and the wrapping link's `aria-label` from the effective display title (`siteTitle` or the directory name) automatically — no separate alt-text field needed, it can't be saved empty since it's never a free-typed field.
+- **One deliberate (non-regressing-by-default) visual improvement**: a real uploaded logo now renders at `height: Npx; width: auto` (preserving its own aspect ratio) instead of being force-cropped into a 42×42 square via `object-fit: cover`. This only changes anything for a directory that already has a non-square `logoUrl` set — the "no logo" placeholder is unaffected (still a square, since there's no real image to preserve an aspect ratio from), and the default height (42px) is unchanged.
+- `DirectoryBrandingPanel.jsx`: replaced the logo URL text input with an upload button + thumbnail + remove button, added the header-mode segmented dropdown, a conditional site-title field, and a max-height slider — all inside the existing Header section.
+
+### Verified
+- [x] `deno check` + `npm run build` clean.
+- [x] Zero-regression check on the one non-additive change (aria-label): local preview script before/after diff shows only a new `aria-label` attribute added to the header link — no other byte changed for a directory with no `logoUrl` set.
+- [x] Direct `siteHeader()` exercise (scratch script, not checked in) covering all 3 header modes, a custom `siteTitle`, a custom `logoMaxHeight`, and an absurd `logoMaxHeight` (9999) correctly clamped to 120 — confirmed the real-aspect-ratio `<img>` markup, the alt text and `aria-label` both deriving from the effective display title, and that "logo" mode omits the text block entirely while "text" mode omits the image entirely.
+- [x] Isolated component check (temporary harness, not committed): header-mode dropdown, upload button, logo max-height slider, and conditional site-title field all render and update correctly; switching to "Text only" hides the logo controls and the live preview immediately drops the logo square, showing text only.
+- [x] Deployed to staging (`beqejxneehilplrtpntn`).
+- [ ] **Real upload not exercised against live Storage** — this agent has no login credentials, so the actual `supabase.storage.from("directory-media").upload(...)` call (which needs an authenticated session for RLS) was never invoked for real; only the pure `siteHeader()` rendering logic and the component's client-side state were verified. A human needs to actually upload a PNG/JPG once and confirm it lands in the bucket and renders correctly on a published page.
+- [ ] Not deployed to production.
+
+### Rollback plan
+Revert this commit (and merge commits above it in the stack) and redeploy `generate_directory_site` to staging from the previous commit. No migration, no Storage bucket changes — any logo already uploaded to `directory-media/<directoryId>/logo.*` is simply orphaned (harmless, small file) rather than needing cleanup.
+
+---
+
 ## 2026-09-19 — [Staging] Directory theming Phase 3: typography (font sizes + curated font catalog)
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-typography`, stacked on Phase 2's `feat/2026-09-19-directory-theme-region-ui` (stacked on Phase 1, in turn) — not yet opened as a PR.
