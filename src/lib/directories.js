@@ -212,12 +212,12 @@ export async function getDirectoryEntry(entryId) {
   const { data, error } = await supabase
     .from("directory_entries")
     .select(
-      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, ai_content_generated_at, created_at, updated_at",
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, ai_content_generated_at, seo_metadata_ai_generated_at, created_at, updated_at",
     )
     .eq("id", entryId)
     .single();
   // Schema-drift fallback — see getDirectory() above.
-  if (error && String(error.message || "").includes("ai_content_generated_at")) {
+  if (error && (String(error.message || "").includes("ai_content_generated_at") || String(error.message || "").includes("seo_metadata_ai_generated_at"))) {
     const { data: fallback, error: fallbackErr } = await supabase
       .from("directory_entries")
       .select(
@@ -345,6 +345,34 @@ export async function getDirectoryAiContentStatus(directoryId) {
   const { data, error } = await supabase
     .from("directories")
     .select("ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// ---- SEO metadata backfill queue (Directory Searchability & AI Metadata plan, Phase 3b) ----
+
+/** Count of active entries missing at least one of the six drafted SEO/social fields — backs the AI tab's "N entries missing metadata" readout. */
+export async function countEntriesMissingSeoMetadata(directoryId) {
+  if (!directoryId) return 0;
+  const { data, error } = await supabase.rpc("count_entries_missing_seo_metadata", { p_directory_id: directoryId });
+  if (error) throw error;
+  return data ?? 0;
+}
+
+/** Queues a 'bulk' SEO metadata job for every active entry still missing a field — never entries that already have everything, so this can't overwrite existing data. Backs the AI tab's "Backfill missing metadata" action. */
+export async function triggerDirectorySeoMetadataBackfill(directoryId) {
+  const { data, error } = await supabase.rpc("enqueue_directory_entry_seo_metadata_jobs", { p_directory_id: directoryId });
+  if (error) throw error;
+  return data?.[0]?.queued_count ?? 0;
+}
+
+/** Persistent bulk-run status, for the poll loop while a "Backfill missing metadata" run is in progress. */
+export async function getDirectorySeoMetadataBackfillStatus(directoryId) {
+  const { data, error } = await supabase
+    .from("directories")
+    .select("seo_metadata_backfill_status, seo_metadata_backfill_started_at, seo_metadata_backfill_completed_at, seo_metadata_backfill_error, seo_metadata_backfill_total, seo_metadata_backfill_processed")
     .eq("id", directoryId)
     .maybeSingle();
   if (error) throw error;

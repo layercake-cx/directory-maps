@@ -8,9 +8,67 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Production] SEO metadata backfill: async queue + AI tab panel, replacing the per-publish cap
+
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open — this redesigns that same PR before it was reviewed).
+
+### What changed
+Direct user feedback on the previous entry below: "20 records is a bit arbitrary. add ... a feature in the AI tab to backfill all Search metadata. Process that runs independently of publishing in the same way as the directory content builder in the same tab... there should be an indication of how many entries have missing metadata." This replaces the inline, per-publish, 20-entry-capped entry backfill entirely with an async queue architecturally identical to §4.4g's content-generation system — decoupling AI cost from the publish action, the same complaint the cap existed to paper over.
+
+- New migration `20260919130000_directory_seo_metadata_backfill_queue.sql`: `entry_seo_metadata_jobs` queue table, an `AFTER INSERT` trigger (`enqueue_entry_seo_metadata_job()`) that auto-queues a new entry missing any of the six fields (no directory opt-in needed, unlike content generation), `claim_pending_entry_seo_metadata_jobs()`, `count_entries_missing_seo_metadata()` (a plain, no-elevated-privilege SQL function relying on the caller's own `directory_entries` RLS), `enqueue_directory_entry_seo_metadata_jobs()` (queues only entries actually missing a field — never everything, so no type-to-confirm needed, unlike "Generate all entry content"), and a `process-entry-seo-metadata-dispatch` cron job every 2 minutes.
+- New Edge Function `process_entry_seo_metadata_jobs` — mirrors `process_entry_content_jobs`'s claim/process/progress-update loop, but writes only the fields that were actually empty on each entry (`computeSeoMetadataUpdate()`), never a whole overwrite.
+- New `DirectoryAiSeoMetadataPanel.jsx` on the AI tab (admin + client portal): shows the missing-entries count upfront, a "Backfill missing metadata" button with no confirm dialog (it can't destroy data), and progress while a run is in flight.
+- `generate_directory_site`'s inline entry-level backfill (from the previous entry below) is removed — `_shared/seoMetadataBackfill.ts` now only keeps the directory-level one-off backfill (still inline, since it's at most one extra call per publish and self-limiting, so it never had the cost/time problem). `directory_entries.seo_metadata_ai_generated_at` (from the migration two entries below) is kept and reused by the new worker.
+- Reuses `directory_ai_content_bulk_requested`/`_bulk_completed` with `target: "seo_metadata"` rather than new event names.
+- Docs: `docs/USER_GUIDE.md` (new "SEO metadata backfill" section) and `docs/FEATURES.md` (revised §4.4i-2, new §4.4i-3) updated.
+
+### Verified
+- [x] `deno check` clean on all changed/new Edge Function files.
+- [x] `npm run build` clean.
+- [x] Migration applied to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`.
+- [x] `generate_directory_site` and `process_entry_seo_metadata_jobs` deployed to staging.
+- [x] `process_entry_seo_metadata_jobs` triggered manually with an empty queue — `{"processed":0,"failed":0}`, no errors.
+- [x] `count_entries_missing_seo_metadata` called directly against the real staging test directory (`e270f4a4-...`) — returned `14`, a plausible real count, confirming the function and its RLS-based access check both work.
+- [ ] **No live bulk-backfill run against real data** — actually clicking "Backfill missing metadata" against a real customer directory writes real AI-generated copy live, so that's for the user to trigger, not this agent. This still applies in production.
+- [x] **Deployed to production** — migration applied to `gxixwdjfmegxcxfeflro` (`NOTICE: VERIFY PASSED`), both `generate_directory_site` and `process_entry_seo_metadata_jobs` deployed, on the user's explicit go-ahead ("deploy to live with these, non invasive changes"). This supersedes the earlier capped-inline version that was in production before this redesign.
+- [ ] **Worth watching**: the `AFTER INSERT` auto-enqueue trigger is now live for every new entry created in production across every directory — the first real, unattended run of this feature will be whatever the next entry someone creates happens to be, not something staged in advance. Check `error_logs` after a few days for any `process_entry_seo_metadata_jobs`/`generate_directory_site` entries.
+
+### Rollback plan
+`_20260919130000_directory_seo_metadata_backfill_queue.rollback.sql` (surfaces queued/in-flight job counts first). Redeploy `generate_directory_site` and `process_entry_seo_metadata_jobs` from the previous commit if only the code (not the schema) needs reverting.
+
+---
+
+## 2026-09-19 — [Production] Non-destructive SEO metadata backfill on directory build
+
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` ([PR #195](https://github.com/layercake-cx/directory-maps/pull/195), open).
+
+### What changed
+Phase 3 of the Directory Searchability & AI Metadata plan. Extends `generate_directory_site` to fill any still-empty entry/directory SEO metadata fields on every publish, automatically — no button click needed, unlike Phase 2's editor-triggered "Generate with AI". The rule is presence, not authorship: a field with content, however it got there, is never touched.
+
+- New `supabase/functions/_shared/seoMetadataBackfill.ts`: `backfillEntrySeoMetadata()` fills whichever of the six SEO/social fields are empty on each active entry (one Claude call per entry drafts all six, but only the empty ones are written), capped at `MAX_ENTRY_BACKFILL_PER_BUILD = 20` per build — a deliberate, documented answer to the product doc's own open question about cost/time budgeting on a large directory's first backfill (uk-associations.com has 329 entries; 329 sequential Claude calls in one Edge Function invocation risks a timeout and would fail the whole publish over metadata alone). Entries beyond the cap are picked up by a later republish. `backfillDirectorySeoMetadata()` does the directory-homepage equivalent, skipped entirely once both fields are set.
+- Both mutate the in-memory rows too, so the very same build's rendered pages already reflect the fill, not just the next one.
+- Neither function throws on failure (missing `ANTHROPIC_API_KEY`, an Anthropic error, one bad entry) — logs to `error_logs` and continues, so a metadata-generation problem never breaks the actual page publish.
+- New migration `20260919120000_directory_entry_seo_metadata_ai_flag.sql`: `directory_entries.seo_metadata_ai_generated_at`, set only by this backfill (never by the Phase 2 button) — a partial, deliberately-scoped answer to the product doc's "should AI-drafted fields be flagged?" open question, for the one path where an editor might not know a field was ever touched. `EntrySeoTab.jsx` shows a small banner when it's set.
+- `getDirectoryEntry()` (`src/lib/directories.js`) extended to select the new column, with the existing schema-drift fallback pattern updated to cover it.
+- Docs: `docs/USER_GUIDE.md` and `docs/FEATURES.md` (new §4.4i-2) updated.
+
+### Verified
+- [x] `deno check` clean on all changed/new Edge Function files.
+- [x] `npm run build` clean.
+- [x] Migration dry-run (`supabase db push --dry-run`) confirmed this was the only pending migration, then applied for real to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`.
+- [x] Deployed `generate_directory_site` to staging — upload log confirms `seoMetadataBackfill.ts`/`seoMetadataGeneration.ts` shipped.
+- [ ] **No live end-to-end regeneration run by this agent** — unlike Phase 1/2's staging checks, this session's safety guardrails correctly refused to let this agent trigger a real regeneration against the shared test directory (`e270f4a4-...`, a real, already-published customer directory): doing so would have AI-generated and immediately published real marketing copy into that customer's live entries, which is a materially different and more invasive action than Phase 1's template/robots.txt change or Phase 2's manual, editor-reviewed, never-auto-persisted draft.
+- [x] **Deployed to production** — migration applied to `gxixwdjfmegxcxfeflro` (dry-run confirmed it was the only pending migration, then applied for real, `NOTICE: VERIFY PASSED`) and `generate_directory_site` deployed, on the user's explicit go-ahead ("deploy to prod, safe change") despite the unverified live behaviour above. The backfill will first actually run the next time any real directory publishes or republishes in production — that will be its true first live test, not something staged in advance.
+- [ ] **Still worth watching the first real publish after this** — check `error_logs` for any `generate_directory_site` / SEO-backfill entries, and spot-check that a newly-filled `meta_title`/`meta_description` on a real entry reads sensibly, not just that it filled in.
+
+### Rollback plan
+Redeploy `generate_directory_site` from the previous commit to stop the backfill from running (the migration is purely additive and doesn't need to be rolled back for that alone). If the flag column itself needs removing: `_20260919120000_directory_entry_seo_metadata_ai_flag.rollback.sql` (surfaces which rows would lose their flag first — the metadata text itself is untouched by this rollback, only the "was this backfilled?" marker is lost).
+
+---
+
 ## 2026-09-18 — [Production] AI-generate action for entry and directory SEO metadata
 
-**Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), open).
+**Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), merged).
 
 ### What changed
 Phase 2 of the Directory Searchability & AI Metadata plan. `EntrySeoTab.jsx` and `DirectoryGeneralSettingsPanel.jsx` already had the SEO/social metadata fields and a Save action (from earlier work) but no AI drafting action — only entry body content (`notes_html`, §4.4g) had one.

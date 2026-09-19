@@ -52,6 +52,7 @@
 
 import { createServiceClient } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
+import { backfillDirectorySeoMetadata } from "../_shared/seoMetadataBackfill.ts";
 import {
   CORS,
   json,
@@ -127,12 +128,14 @@ async function generateForDirectoryInner(
   // meta tag, whether its URL appears in sitemap.xml, and robots.txt
   // Allow/Disallow below — entries keep their own independent per-entry
   // noindex regardless of this directory-wide setting.
-  const seoDefaults = (directory.seo_defaults_json ?? {}) as {
+  let seoDefaults = (directory.seo_defaults_json ?? {}) as {
     meta_title_template?: string | null;
     meta_description?: string | null;
     default_noindex?: boolean | null;
   };
   const directoryNoindex = !!seoDefaults.default_noindex;
+
+  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
@@ -324,6 +327,24 @@ async function generateForDirectoryInner(
 
   const entryTermIdsFlat = new Map<string, string[]>();
   for (const [entryId, idSet] of entryTermIdsByEntry) entryTermIdsFlat.set(entryId, [...idSet]);
+
+  // Directory-homepage SEO metadata backfill — one-off, skipped entirely
+  // once both fields are set. Stays inline here (unlike the entry-level
+  // backfill, which moved to an async queue — see _shared/seoMetadataBackfill.ts's
+  // header) since it's at most one extra Claude call per publish.
+  // filterBarCategorisations' labels double as the "categorised by X"
+  // context, no separate lookup needed.
+  const directorySeoBackfill = await backfillDirectorySeoMetadata(
+    db,
+    anthropicApiKey,
+    directory.id,
+    directory.name,
+    directory.description,
+    entries.length,
+    filterBarCategorisations.map((c) => c.label),
+    seoDefaults,
+  );
+  if (directorySeoBackfill) seoDefaults = directorySeoBackfill;
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
 

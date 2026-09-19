@@ -16,6 +16,7 @@ import ProminentLinksEditor from "../../components/directories/ProminentLinksEdi
 import DirectoryPublishPanel from "../../components/directories/DirectoryPublishPanel.jsx";
 import DirectoryBrandingPanel from "../../components/directories/DirectoryBrandingPanel.jsx";
 import DirectoryAiContentPanel from "../../components/directories/DirectoryAiContentPanel.jsx";
+import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryAiSeoMetadataPanel.jsx";
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
@@ -272,6 +273,15 @@ export default function ClientDirectoryEntries() {
               canManage={canManage}
               recordEvent={recordEvent}
               onSaved={reloadDirectory}
+            />
+          </div>
+
+          <div className="admin-card" style={{ marginBottom: 16 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>SEO metadata backfill</p>
+            <DirectoryAiSeoMetadataPanel
+              directoryId={directoryId}
+              canManage={canManage}
+              recordEvent={recordEvent}
             />
           </div>
 
