@@ -26,8 +26,10 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
 - [x] `npm run build` clean.
 - [x] Ran `generate_directory_site`'s local preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) — landing/entry page rendering unaffected by the shared-code changes (siteHeader/siteFooter/directoryPageShell untouched, only a new optional landing-page nav block added).
 - [x] Ad-hoc smoke test of the new `buildContentPage()` directly (a small scratch script, not checked in): confirmed H1, breadcrumb-to-parent, child-page nav links, custom meta title, and `WebPage` JSON-LD all render correctly for both a parent and a child page.
-- [ ] Not yet applied to staging — next step in this session.
-- [ ] **No live click-through** — creating a page, generating a draft, and publishing it all require a real signed-in session and an actual directory publish, neither of which this agent can do. Needs a human to build a real page end-to-end and confirm it looks right live.
+- [x] Migration applied to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`. Both Edge Functions deployed.
+- [x] Black-box checks against the live staging `generate_content_page_draft` endpoint: missing `page_id`/`outline` → clean `400`s; nonexistent `page_id` → clean `"Page not found"`; `OPTIONS` preflight → `204`.
+- [x] Live regeneration triggered against the real staging test directory (`e270f4a4-...`, `{"ok":true,"count":14}`) to confirm the new content-pages query doesn't break the existing publish pipeline — safe to do since that directory has zero content pages yet, so this exercised the code path as a no-op, not a real content write. `sitemap.xml` and the landing page both still serve correctly (200) afterward.
+- [ ] **No live click-through** — creating a page, generating a draft, and publishing a directory that actually has one all require a real signed-in session, neither of which this agent has. Needs a human to build a real page end-to-end and confirm it looks right live.
 
 ### Rollback plan
 `_20260919150000_create_directory_content_pages.rollback.sql` (drops the table entirely — surfaces existing page content first, since it would be lost). Redeploy `generate_directory_site` from the previous commit to stop rendering/publishing pages without removing the schema.
