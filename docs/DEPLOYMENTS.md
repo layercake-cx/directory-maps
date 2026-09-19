@@ -25,7 +25,12 @@ Direct user feedback on the previous entry below: "20 records is a bit arbitrary
 ### Verified
 - [x] `deno check` clean on all changed/new Edge Function files.
 - [x] `npm run build` clean.
-- [ ] Migration/deploy to staging and end-to-end verification — pending, next step in this same session.
+- [x] Migration applied to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`.
+- [x] `generate_directory_site` and `process_entry_seo_metadata_jobs` deployed to staging.
+- [x] `process_entry_seo_metadata_jobs` triggered manually with an empty queue — `{"processed":0,"failed":0}`, no errors.
+- [x] `count_entries_missing_seo_metadata` called directly against the real staging test directory (`e270f4a4-...`) — returned `14`, a plausible real count, confirming the function and its RLS-based access check both work.
+- [ ] **No live bulk-backfill run against real data** — same boundary as the previous entry below: actually clicking "Backfill missing metadata" against a real customer directory writes real AI-generated copy live, so that's for the user to trigger, not this agent.
+- [ ] **Production still runs the previous (capped, inline) version** — the migration/deploy done for the entry below is now superseded by this one, but production has not yet been updated to match. Needs a fresh, explicit go-ahead before redeploying, same as any other production change; the earlier "deploy to prod, safe change" approval was for that now-superseded version, not this redesign.
 
 ### Rollback plan
 `_20260919130000_directory_seo_metadata_backfill_queue.rollback.sql` (surfaces queued/in-flight job counts first). Redeploy `generate_directory_site` and `process_entry_seo_metadata_jobs` from the previous commit if only the code (not the schema) needs reverting.
