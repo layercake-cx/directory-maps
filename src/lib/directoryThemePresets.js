@@ -11,6 +11,14 @@
  *   surfaceColor, surfaceAltColor, inkColor, mutedColor, lineColor,
  *   sageColor, sageInkColor, goldColor, tealColor, fontHeading, fontBody,
  *   logoUrl (not part of a preset — always left for the client to set).
+ *
+ * Region overrides (header/footer independent bg/text/link — see
+ * generate_directory_site/builders.ts's DirectoryTheme type for the exact
+ * shape) exist in theme_json but are NOT part of any preset here yet and
+ * have no UI in DirectoryBrandingPanel.jsx — that lands with the region
+ * colour settings UI. Until then they're only reachable by editing
+ * theme_json directly, and every directory using this preset file falls
+ * back to generate_directory_site's own hardcoded region defaults.
  */
 
 export const NATURAL = {

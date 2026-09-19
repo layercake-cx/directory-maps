@@ -43,6 +43,20 @@ export type Entry = {
   panel_background_color: string | null;
 };
 
+// A region's background: either a flat colour, or a gradient built from 2+
+// stops. `color` is always present (used for solid, and as the fallback if
+// a gradient somehow resolves to zero stops) so switching solid <-> gradient
+// in the UI never loses the other setting — same rule as the dev spec's §4.
+export type RegionBackground = {
+  type?: "solid" | "gradient";
+  color?: string;
+  gradient?: {
+    type?: "linear" | "radial";
+    angle?: number;
+    stops?: { color?: string; position?: number }[];
+  };
+};
+
 // Full DIR-E3 branding token set (docs/DIRECTORIES.md §4.1) — kept in sync
 // by hand with src/lib/directoryThemePresets.js's field list (JS/TS
 // runtimes can't share a module here). A directory that has never opened
@@ -64,6 +78,16 @@ export type DirectoryTheme = {
   fontHeading?: string;
   fontBody?: string;
   logoUrl?: string;
+  // Region overrides (header/footer only — "body" is already the flat
+  // palette above). Each is optional; an unset region reproduces exactly
+  // what generate_directory_site rendered before these fields existed —
+  // see NATURAL_DEFAULTS and resolvedTheme() below.
+  headerBackground?: RegionBackground;
+  headerText?: string;
+  footerBackground?: RegionBackground;
+  footerText?: string;
+  footerLink?: string;
+  footerLinkHover?: string;
 };
 
 export type BlockDescriptor = { type: string; key?: string; label?: string };
@@ -143,6 +167,8 @@ export const BASE_STYLE = `
   h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
   a { color: var(--primary); text-decoration: none; }
   a:hover { color: var(--primary-2); }
+  .dir-footer-link { color: var(--ftr-link); }
+  .dir-footer-link:hover { color: var(--ftr-link-hover); }
   .wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
   .btn { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 15px; border-radius: 11px; padding: 13px 20px; }
   .btn-primary { background: var(--primary); color: #fff; }
@@ -354,12 +380,41 @@ export function sanitizeHexColor(value: string | undefined, fallback: string): s
   return value && /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : fallback;
 }
 
+// A region background's solid `color` isn't always a hex the user picked —
+// the built-in header default is a translucent white (`rgba(255,255,255,.6)`)
+// over the page background, which a plain hex can't express. Same
+// interpolate-into-<style> risk as sanitizeHexColor above, so validate
+// against the narrow set of forms this file actually emits rather than
+// accepting an arbitrary string.
+function sanitizeCssColorValue(value: string | undefined, fallback: string): string {
+  return value && /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s%]+\)|hsla?\([0-9.,\s%]+\))$/.test(value) ? value : fallback;
+}
+
+// Resolves a region's background to a single CSS `background` value, so
+// callers never branch on solid vs. gradient (dev spec §5). Gradient stops
+// use sanitizeHexColor (same as every other colour token) since they only
+// ever come from the <input type="color"> stop editor, never free text.
+function resolveRegionBackground(bg: RegionBackground | undefined, fallback: string): string {
+  const color = sanitizeCssColorValue(bg?.color, fallback);
+  if (bg?.type !== "gradient") return color;
+  const stops = (bg.gradient?.stops ?? []).filter((s) => s && typeof s.position === "number");
+  if (stops.length < 2) return color;
+  const stopList = stops
+    .map((s) => `${sanitizeHexColor(s.color, color)} ${Math.min(100, Math.max(0, s.position!))}%`)
+    .join(", ");
+  if (bg.gradient?.type === "radial") return `radial-gradient(circle, ${stopList})`;
+  const angle = typeof bg.gradient?.angle === "number" ? bg.gradient.angle : 135;
+  return `linear-gradient(${angle}deg, ${stopList})`;
+}
+
 // The "Natural" preset (src/lib/directoryThemePresets.js) — also the
 // default look for any directory that has never opened the Branding panel.
 // This is a deliberate design change from the plain generic template this
 // generator used before DIR-E3's visual rebuild; unlike every prior phase,
 // this is NOT "zero behaviour change" for existing directories.
-export const NATURAL_DEFAULTS: Required<Omit<DirectoryTheme, "logoUrl">> = {
+export const NATURAL_DEFAULTS: Required<
+  Omit<DirectoryTheme, "logoUrl" | "headerBackground" | "headerText" | "footerBackground" | "footerText" | "footerLink" | "footerLinkHover">
+> = {
   primaryColor: "#2E5A39",
   primaryDarkColor: "#24462D",
   accentColor: "#C06B37",
@@ -387,7 +442,18 @@ export const FONT_CATALOG: Record<string, string> = {
   "Hanken Grotesk": "Hanken+Grotesk:wght@400;500;600;700;800",
 };
 
+// Defaults for the region tokens below reproduce exactly what siteHeader()/
+// siteFooter() hardcoded before these fields existed (translucent glass
+// header, dark teal footer) — an unset region must render pixel-identically
+// to a directory that predates region theming.
+const HEADER_BG_DEFAULT = "rgba(255,255,255,.6)";
+const FOOTER_BG_DEFAULT = "#0E3A34";
+const FOOTER_TEXT_DEFAULT = "#FFFFFF";
+const FOOTER_LINK_DEFAULT = "#CFE3DE";
+
 export function resolvedTheme(theme: DirectoryTheme) {
+  const inkColor = sanitizeHexColor(theme.inkColor, NATURAL_DEFAULTS.inkColor);
+  const footerLink = sanitizeHexColor(theme.footerLink, FOOTER_LINK_DEFAULT);
   return {
     primaryColor: sanitizeHexColor(theme.primaryColor, NATURAL_DEFAULTS.primaryColor),
     primaryDarkColor: sanitizeHexColor(theme.primaryDarkColor, NATURAL_DEFAULTS.primaryDarkColor),
@@ -395,7 +461,7 @@ export function resolvedTheme(theme: DirectoryTheme) {
     backgroundColor: sanitizeHexColor(theme.backgroundColor, NATURAL_DEFAULTS.backgroundColor),
     surfaceColor: sanitizeHexColor(theme.surfaceColor, NATURAL_DEFAULTS.surfaceColor),
     surfaceAltColor: sanitizeHexColor(theme.surfaceAltColor, NATURAL_DEFAULTS.surfaceAltColor),
-    inkColor: sanitizeHexColor(theme.inkColor, NATURAL_DEFAULTS.inkColor),
+    inkColor,
     mutedColor: sanitizeHexColor(theme.mutedColor, NATURAL_DEFAULTS.mutedColor),
     lineColor: sanitizeHexColor(theme.lineColor, NATURAL_DEFAULTS.lineColor),
     sageColor: sanitizeHexColor(theme.sageColor, NATURAL_DEFAULTS.sageColor),
@@ -404,6 +470,12 @@ export function resolvedTheme(theme: DirectoryTheme) {
     tealColor: sanitizeHexColor(theme.tealColor, NATURAL_DEFAULTS.tealColor),
     fontHeading: FONT_CATALOG[theme.fontHeading ?? ""] ? theme.fontHeading! : NATURAL_DEFAULTS.fontHeading,
     fontBody: FONT_CATALOG[theme.fontBody ?? ""] ? theme.fontBody! : NATURAL_DEFAULTS.fontBody,
+    headerBackground: resolveRegionBackground(theme.headerBackground, HEADER_BG_DEFAULT),
+    headerText: sanitizeHexColor(theme.headerText, inkColor),
+    footerBackground: resolveRegionBackground(theme.footerBackground, FOOTER_BG_DEFAULT),
+    footerText: sanitizeHexColor(theme.footerText, FOOTER_TEXT_DEFAULT),
+    footerLink,
+    footerLinkHover: sanitizeHexColor(theme.footerLinkHover, footerLink),
   };
 }
 
@@ -415,6 +487,9 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --primary: ${t.primaryColor}; --primary-2: ${t.primaryDarkColor}; --accent: ${t.accentColor};
     --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor}; --gold: ${t.goldColor}; --teal: ${t.tealColor};
     --font-heading: "${t.fontHeading}", Georgia, serif; --font-body: "${t.fontBody}", system-ui, sans-serif;
+    --hdr-bg: ${t.headerBackground}; --hdr-text: ${t.headerText};
+    --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
+    --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
   }`;
 }
 
@@ -475,12 +550,12 @@ export function siteHeader(opts: { directoryName: string; tagline: string | null
   const logo = opts.logoUrl
     ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(opts.directoryName)} logo" style="width:42px;height:42px;border-radius:12px;object-fit:cover;">`
     : `<div style="width:42px;height:42px;border-radius:12px;background:var(--primary);"></div>`;
-  return `<div style="border-bottom:1px solid var(--line);background:rgba(255,255,255,.6);backdrop-filter:blur(6px);">
+  return `<div style="border-bottom:1px solid var(--line);background:var(--hdr-bg);backdrop-filter:blur(6px);">
   <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;height:76px;">
     <a href="${escapeAttr(opts.homeUrl)}" style="display:flex;align-items:center;gap:12px;color:inherit;">
       ${logo}
       <div style="line-height:1.05;">
-        <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--ink);">${escapeHtml(opts.directoryName)}</div>
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(opts.directoryName)}</div>
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
       </div>
     </a>
@@ -489,13 +564,17 @@ export function siteHeader(opts: { directoryName: string; tagline: string | null
 </div>`;
 }
 
-/** Full-bleed dark footer, identical on every page. */
+/** Full-bleed dark footer, identical on every page. Note the disclaimer
+ * span keeps its own fixed muted teal rather than a theme token — it's
+ * decorative platform copy, not part of the three-region model (dev
+ * spec's non-goals §3: no per-component overrides beyond header/body/
+ * footer). */
 export function siteFooter(opts: { directoryName: string; homeUrl: string }): string {
-  return `<div style="margin-top:56px;background:#0E3A34;color:#CFE3DE;">
+  return `<div style="margin-top:56px;background:var(--ftr-bg);">
   <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
     <div>
-      <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:#fff;">${escapeHtml(opts.directoryName)}</div>
-      <a href="${escapeAttr(opts.homeUrl)}" style="color:#CFE3DE;font-size:13.5px;">Browse all entries</a>
+      <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
+      <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
     </div>
     <span style="font-size:12.5px;color:#8FB4AD;">Published with Layercake Maps · content is editorial, commercial links never affect inclusion.</span>
   </div>

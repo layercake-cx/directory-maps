@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Directory theming Phase 1: independent header/footer colours + gradients
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-regions` (not yet opened as a PR).
+
+### What changed
+Phase 1 of 6 in the Directory Theming plan (adapted from a dev spec that assumed a greenfield Next.js build — this repo already has a simpler theming system, so the plan extends it rather than rewriting it; see the plan file for the full gap analysis and phasing). This phase is model + renderer only, with **no new settings UI** — it fixes a real bug and lays the groundwork Phase 2's UI will build on:
+
+- `directories.theme_json` gains optional region fields: `headerBackground`, `headerText`, `footerBackground`, `footerText`, `footerLink`, `footerLinkHover`. `headerBackground`/`footerBackground` accept either a solid colour or a gradient (`{type, color, gradient:{type, angle, stops}}`), resolved by a new `resolveRegionBackground()` in `generate_directory_site/builders.ts`.
+- **Fixes a real gap**: the public site's footer (`siteFooter()`) was previously hardcoded (`#0E3A34`/`#CFE3DE`) and ignored the directory's theme entirely. It's now driven by the same CSS-custom-property system as everything else (`--ftr-bg`, `--ftr-text`, `--ftr-link`, `--ftr-link-hover`).
+- All new fields are optional and default to exactly what was previously hardcoded, so no existing directory's public site changes appearance.
+- No database migration — `theme_json` is jsonb, already flexible; only the TypeScript type and the resolver/renderer changed.
+- `directoryThemePresets.js`'s header comment documents the new fields but the 5 built-in presets don't set them yet (inert until Phase 2's UI reads/writes them) — deliberately deferred rather than making a no-op change now.
+
+### Verified
+- [x] `deno check supabase/functions/generate_directory_site/builders.ts` — clean.
+- [x] Zero-regression check: ran the local preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) before and after the change (via `git stash`), diffed the output — every changed line is a literal hex/rgba value replaced by a CSS `var()` reference that resolves to the exact same value. No visible difference for an unthemed directory.
+- [x] Ad-hoc script exercising `resolvedTheme()`/`themeStyleBlock()` directly (scratch, not checked in): confirmed solid overrides, valid gradients (linear + implicit default angle), an invalid gradient (1 stop) falling back to solid, and an injection attempt (`}</style><script>...`) in a background/text value being rejected and falling back to the sanitized default.
+- [x] Deployed to staging (`beqejxneehilplrtpntn`) via `supabase functions deploy generate_directory_site --project-ref beqejxneehilplrtpntn`.
+- [ ] **No live invocation against a real staging directory** — this CLI version (2.75.0) has no `functions invoke` command, and reading `.env.local` for the anon key to call it directly was correctly blocked as credential access; needs a human (or a signed-in session) to trigger a real regeneration and eyeball a staging directory's public page.
+- [ ] Not deployed to production — staging-only per this session's own phased plan; Phase 1 has no UI yet for a human to verify against live data first.
+
+### Rollback plan
+Revert this commit and redeploy `generate_directory_site` to staging from the previous commit — purely additive (no migration), so nothing to undo in the database. No directory's `theme_json` has been written with the new fields yet (no UI exists to set them).
+
+---
+
 ## 2026-09-19 — [Production] Frontend deploy: PR #198 merged, both live sites updated
 
 **Branch/PR:** `main` (merges [PR #198](https://github.com/layercake-cx/directory-maps/pull/198), merged).
