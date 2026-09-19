@@ -117,6 +117,11 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
             )}
           </Group>
           <Text size="xs" c="dimmed" mt={-8}>Drafts every field below (including Social &amp; AI) from this entry's own data. Lands here for review — nothing is saved until you click Save metadata.</Text>
+          {entry?.seo_metadata_ai_generated_at && (
+            <Alert color="blue" variant="light" py={6}>
+              Some of these fields were auto-drafted by AI when this entry was published on {new Date(entry.seo_metadata_ai_generated_at).toLocaleDateString()} — worth checking over.
+            </Alert>
+          )}
           <div>
             <label style={labelStyle}>Meta title</label>
             <input value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to entry name if left blank" style={inputStyle} />

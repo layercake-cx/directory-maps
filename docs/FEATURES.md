@@ -393,6 +393,20 @@ Phase 2 of the Directory Searchability & AI Metadata plan. Distinct from §4.4g 
 
 Files: `supabase/functions/generate_entry_seo_metadata/index.ts`, `supabase/functions/generate_directory_seo_metadata/index.ts`, `supabase/functions/_shared/seoMetadataGeneration.ts`; `src/components/directories/entryEdit/EntrySeoTab.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (both extended); data access in `src/lib/directories.js`.
 
+### 4.4i-2 Non-destructive SEO metadata backfill on build (new, 2026-09-19)
+
+Phase 3 of the Directory Searchability & AI Metadata plan. §4.4i's "Generate with AI" is an explicit editor action; this is its unattended counterpart — on every `generate_directory_site` run, any entry or directory still missing SEO metadata gets it drafted automatically, no button click needed. The rule is presence, not authorship: a field with content — editor-written, or from §4.4i's button — is never touched.
+
+- **Entry-level**: before rendering, any active entry missing any of the six drafted fields gets `generate_entry_seo_metadata`'s underlying draft, but only the fields that were actually empty are written — an entry with a hand-written `meta_title` but no `keywords` gets just `keywords` filled. Mutated in memory too, so the very same build's rendered page already reflects it, not just the next one.
+- **Directory-level**: same idea for the landing page's `meta_title_template`/`meta_description` — skipped entirely once both are set, using the directory's real entry count and attached categorisation labels as context.
+- **Capped per build** (`MAX_ENTRY_BACKFILL_PER_BUILD = 20` in `_shared/seoMetadataBackfill.ts`): a large directory's first build with everything empty doesn't mean hundreds of sequential Claude calls in one Edge Function invocation risking a timeout — entries beyond the cap are simply picked up by a later republish, safe because the check is presence-based. This is a deliberate, documented answer to the product doc's own open question about cost/time budgeting; revisit if a directory's backlog of unfilled entries turns out to take too many republishes to clear.
+- **Never fails the publish** — a missing `ANTHROPIC_API_KEY`, an Anthropic error, or one bad entry logs to `error_logs` and is skipped; the pages themselves still generate and upload normally.
+- **AI-drafted flag**: new `directory_entries.seo_metadata_ai_generated_at` (set only by this backfill, never by §4.4i's editor-triggered button) — answers the product doc's "should AI-generated fields carry a visible flag?" open question for the one path where an editor might not know a field was ever touched. `EntrySeoTab.jsx` shows a small banner when it's set. No directory-level equivalent column yet — the directory-level backfill only ever fires once (both fields start empty and then aren't), so there's less ambiguity about which fields are AI-drafted.
+
+Tables: `directory_entries.seo_metadata_ai_generated_at` (`20260919120000_directory_entry_seo_metadata_ai_flag.sql`).
+
+Files: `supabase/functions/_shared/seoMetadataBackfill.ts` (new); `supabase/functions/generate_directory_site/index.ts` (extended — calls the backfill before rendering); `src/components/directories/entryEdit/EntrySeoTab.jsx` (AI-drafted banner); `src/lib/directories.js` (`getDirectoryEntry` extended, schema-drift fallback updated).
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |

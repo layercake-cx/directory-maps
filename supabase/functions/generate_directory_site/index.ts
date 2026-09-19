@@ -52,6 +52,7 @@
 
 import { createServiceClient } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
+import { backfillEntrySeoMetadata, backfillDirectorySeoMetadata, type EntrySeoBackfillRow } from "../_shared/seoMetadataBackfill.ts";
 import {
   CORS,
   json,
@@ -127,12 +128,14 @@ async function generateForDirectoryInner(
   // meta tag, whether its URL appears in sitemap.xml, and robots.txt
   // Allow/Disallow below — entries keep their own independent per-entry
   // noindex regardless of this directory-wide setting.
-  const seoDefaults = (directory.seo_defaults_json ?? {}) as {
+  let seoDefaults = (directory.seo_defaults_json ?? {}) as {
     meta_title_template?: string | null;
     meta_description?: string | null;
     default_noindex?: boolean | null;
   };
   const directoryNoindex = !!seoDefaults.default_noindex;
+
+  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
@@ -148,14 +151,24 @@ async function generateForDirectoryInner(
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")
     .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color",
+      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color, keywords, og_title, og_description, ai_summary",
     )
     .eq("directory_id", directoryId)
     .eq("is_active", true)
     .order("name", { ascending: true });
   if (entryErr) throw new Error(`Entries query failed: ${entryErr.message}`);
-  const entries = (entryRows ?? []) as Entry[];
+  // Widened past the Entry type builders.ts renders from — keywords/og_title/
+  // og_description/ai_summary are only needed here, to decide/persist the
+  // backfill below. Passing an EntrySeoBackfillRow anywhere an Entry is
+  // expected is fine (it's a structural superset).
+  const entries = (entryRows ?? []) as EntrySeoBackfillRow[];
   const entryIds = entries.map((e) => e.id);
+
+  // Phase 3 of the Directory Searchability & AI Metadata plan: fill any
+  // still-empty SEO/social fields before rendering, so this same build's
+  // pages already reflect them — never touches a field that already has
+  // content, whoever wrote it.
+  await backfillEntrySeoMetadata(db, anthropicApiKey, entries, directory.name);
 
   let evidenceByEntry = new Map<string, EvidenceItem[]>();
   let mediaByEntry = new Map<string, MediaAsset[]>();
@@ -324,6 +337,22 @@ async function generateForDirectoryInner(
 
   const entryTermIdsFlat = new Map<string, string[]>();
   for (const [entryId, idSet] of entryTermIdsByEntry) entryTermIdsFlat.set(entryId, [...idSet]);
+
+  // Directory-homepage equivalent of the entry backfill above — one-off,
+  // skipped entirely once both fields are set. filterBarCategorisations'
+  // labels double as the "categorised by X" context, same data the AI
+  // content/backfill only ever sees, no separate lookup needed.
+  const directorySeoBackfill = await backfillDirectorySeoMetadata(
+    db,
+    anthropicApiKey,
+    directory.id,
+    directory.name,
+    directory.description,
+    entries.length,
+    filterBarCategorisations.map((c) => c.label),
+    seoDefaults,
+  );
+  if (directorySeoBackfill) seoDefaults = directorySeoBackfill;
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
 

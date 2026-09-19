@@ -212,12 +212,12 @@ export async function getDirectoryEntry(entryId) {
   const { data, error } = await supabase
     .from("directory_entries")
     .select(
-      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, ai_content_generated_at, created_at, updated_at",
+      "id, directory_id, directory_group_id, name, address, postcode, country, city, lat, lng, website_url, email, phone, logo_url, notes_html, allow_html, is_active, source, show_phone, show_email, show_website, show_address, slug, meta_title, meta_description, noindex, structured_data_type, sitemap_priority, og_title, og_description, og_image_url, twitter_card_type, canonical_url, keywords, ai_summary, panel_image_url, panel_background_color, ai_content_generated_at, seo_metadata_ai_generated_at, created_at, updated_at",
     )
     .eq("id", entryId)
     .single();
   // Schema-drift fallback — see getDirectory() above.
-  if (error && String(error.message || "").includes("ai_content_generated_at")) {
+  if (error && (String(error.message || "").includes("ai_content_generated_at") || String(error.message || "").includes("seo_metadata_ai_generated_at"))) {
     const { data: fallback, error: fallbackErr } = await supabase
       .from("directory_entries")
       .select(
