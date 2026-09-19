@@ -8,6 +8,23 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Production] Frontend deploy: PR #198 merged, both live sites updated
+
+**Branch/PR:** `main` (merges [PR #198](https://github.com/layercake-cx/directory-maps/pull/198), merged).
+
+### What changed
+Closes out the backend-only production deploy recorded in the entry below: merged the PR to `main` so the "Pages" tab UI actually goes live, on the user's "deploy live" go-ahead.
+
+### Verified
+- [x] GitHub Pages: "Deploy to GitHub Pages" Action completed successfully.
+- [x] Vercel production (`uk-associations.com` / `maps.layercake-cx.biz`): `npm run deploy:live` succeeded on the first attempt this time (`readyState: READY`, `target: production`).
+- [ ] Not yet manually clicked through on the live site — the "no live click-through" caveat in the entry below still stands.
+
+### Rollback plan
+Revert the merge commit on `main`; GitHub Pages redeploys automatically, run `npm run deploy:live` again for Vercel. Backend rollback documented in the entry below.
+
+---
+
 ## 2026-09-19 — [Production] Directory content pages (Feature 6)
 
 **Branch/PR:** `feat/2026-09-19-directory-content-pages` ([PR #198](https://github.com/layercake-cx/directory-maps/pull/198), open).
