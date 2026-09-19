@@ -393,6 +393,16 @@ Phase 2 of the Directory Searchability & AI Metadata plan. Distinct from §4.4g 
 
 Files: `supabase/functions/generate_entry_seo_metadata/index.ts`, `supabase/functions/generate_directory_seo_metadata/index.ts`, `supabase/functions/_shared/seoMetadataGeneration.ts`; `src/components/directories/entryEdit/EntrySeoTab.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (both extended); data access in `src/lib/directories.js`.
 
+### 4.4j AI-generated image alt text (Feature 5, new, 2026-09-19)
+
+Feature 5 of the Directory Searchability & AI Metadata plan — the only AI feature in this codebase that sends Claude an actual image (vision), not text, since a genuinely descriptive caption needs to describe what a photo actually shows. Scoped narrowly after research found most of the doc's stated ask already done: entry logos already get a synthesized `"{name} logo"` alt fallback at publish time (`generate_directory_site/builders.ts`, fixed for the one gap — the "related entries" row — in Phase 1), and `panel_image_url` already follows the same pattern. The one real, substantive gap was `entry_media_assets.alt_text` (gallery/hero photos): a required (`not null`) column that `MediaAssetsEditor.jsx` made editors type by hand with no assistance, and — being `not null` — has no "missing" state a backfill could ever target, so this is upload-time-only, not a queue.
+
+- **`generate_media_alt_text`**: new Edge Function, sends the actual image bytes (base64, client-side `FileReader`) plus the entry's name as context to Claude via its vision API, returns a suggested caption. Nothing is persisted by the function itself — same review-before-save contract as every other "Generate with AI" action here.
+- **`MediaAssetsEditor.jsx` reworked**: picking a file no longer uploads immediately — it now shows a preview first, with an alt text field and a **Generate with AI** button next to it, and an explicit **Upload** step. Alt text is still required before upload (unchanged constraint), but typing it by hand is no longer the only option.
+- Capped at the same 5MB the upload itself already enforces (`src/lib/mediaAssets.js`'s `MAX_BYTES`) — checked again server-side on the base64 payload size.
+
+Files: `supabase/functions/generate_media_alt_text/index.ts` (new), `supabase/functions/_shared/imageAltTextGeneration.ts` (new); `src/lib/mediaAssets.js` (`generateMediaAltText`, new); `src/components/directories/MediaAssetsEditor.jsx` (reworked upload flow).
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |

@@ -213,7 +213,7 @@ A published directory's site has a search box and a filter bar built from your a
 Open an existing entry (**Edit**) to see these below the main form — they're not available until the entry has been saved once, since they attach to the entry's own record:
 
 - **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
-- **Media** — upload gallery photos (PNG/JPG/WebP, max 5MB). Alt text is required before you can upload. Mark one image as the **hero** image.
+- **Media** — pick a gallery photo (PNG/JPG/WebP, max 5MB) to see a preview, then either type alt text or click **Generate with AI** to have Claude describe the actual image (not just guess from the entry's name) — alt text is required before you can upload. Mark one image as the **hero** image.
 - **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
 - **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
 - **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
