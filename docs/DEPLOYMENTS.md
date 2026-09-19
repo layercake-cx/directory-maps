@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Directory theming Phase 3: typography (font sizes + curated font catalog)
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-typography`, stacked on Phase 2's `feat/2026-09-19-directory-theme-region-ui` (stacked on Phase 1, in turn) — not yet opened as a PR.
+
+### What changed
+Phase 3 of 6 in the Directory Theming plan.
+
+- **De-duplicated the Google Fonts catalog.** It was previously a 5-entry object hand-copied in both `src/lib/directoryThemePresets.js` and `generate_directory_site/builders.ts`, each carrying a comment warning the other had to be kept in sync by hand. Replaced with one canonical source, `scripts/directory-font-catalog.json` (now a curated ~45-family list, up from 5), and a generator (`scripts/generate-directory-font-catalog.mjs`) that writes two runtime-specific files — `src/lib/directoryFontCatalog.generated.js` and `supabase/functions/generate_directory_site/fontCatalog.generated.ts` — so the two runtimes (Vite/JS and Deno/TS, which can't share a module directly) can no longer drift. Both existing consumers now import `FONT_CATALOG` from their generated file instead of defining it inline. The 5 pre-existing fonts' exact CSS2 query strings are unchanged.
+- **Font sizes.** `theme_json` gains `fontSizeBase`/`fontSizeH1`/`fontSizeH2`/`fontSizeH3` (defaults `16px`/`2.5rem`/`2rem`/`1.5rem`, matching the dev spec's suggested scale exactly), compiled to `--fs-base`/`--fs-h1`/`--fs-h2`/`--fs-h3` CSS custom properties.
+- Every per-context heading in `generate_directory_site` (entry title, landing-page hero, content-page title, section headings, the directory-listing row title) previously had its own hardcoded pixel size (28–44px, all different, by design — a hero heading is bigger than an entry title). Converting all of them to one flat size would have flattened that intentional hierarchy, so instead each is now `calc(var(--fs-h*) * ratio)`, where `ratio` = the original hardcoded pixel value ÷ the new default — e.g. the entry title was `34px`, is now `calc(var(--fs-h1) * 0.85)` (2.5rem × 0.85 = 34px). An unset/default theme computes back to the exact original pixel value at every one of these 6 call sites; a directory that sets a custom H1 size scales all of them proportionally instead of flattening the hierarchy.
+- `DirectoryBrandingPanel.jsx`: pulled the heading/body font pickers out of "Advanced colours" into their own new **Typography** section, and added 4 number inputs (base in px, H1/H2/H3 in rem, matching the units the renderer stores) with clamped sane ranges.
+
+### Verified
+- [x] `deno check` clean on `builders.ts`.
+- [x] `npm run build` clean.
+- [x] **Arithmetic + real-browser verification of every calc() ratio** (not just a text diff, since the literal values necessarily changed): computed each ratio's result in Node first (all 6 reproduce the original pixel value exactly), then loaded the actual generated static HTML fixtures (`generate_directory_site/preview.ts`'s output, no auth needed — these are public-facing pages) directly in the browser and read `getComputedStyle(...).fontSize` for real: entry title 34px, landing hero 44px, directory-row heading 18px — all exactly match the pre-Phase-3 hardcoded values. (The content-page title's `clamp()` conversion — 28px/38px — was checked arithmetically only; the local preview fixture set doesn't include a content page.)
+- [x] Font catalog: confirmed the generated JS file exports all 45 families with correct CSS2 query segments, and that the 5 pre-existing fonts' query strings are byte-identical to before.
+- [x] Same isolated-component technique as Phase 2 (temporary, uncommitted `preview-harness.html`, deleted before commit): confirmed the new Typography section renders, the heading/body font `<select>`s list all 45 families, and the 4 size fields show the correct default values (16 / 2.5 / 2 / 1.5) with their fixed units (px / rem / rem / rem).
+- [x] Deployed to staging (`beqejxneehilplrtpntn`) — upload log confirms the new `fontCatalog.generated.ts` shipped alongside `builders.ts`.
+- [ ] No authenticated click-through (same standing limitation as Phase 2) and not deployed to production.
+
+### Rollback plan
+Revert this commit (and any merge commits above it in the stack) and redeploy `generate_directory_site` to staging from the previous commit. Purely additive — no migration. `scripts/directory-font-catalog.json` and the two generated files can be deleted; nothing else depends on them.
+
+---
+
 ## 2026-09-19 — [Not deployed] Directory theming Phase 2: colour settings UI + live preview
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-region-ui`, stacked on Phase 1's `feat/2026-09-19-directory-theme-regions` (not yet opened as a PR — depends on Phase 1 merging first, or should be opened against Phase 1's branch rather than `main`).
