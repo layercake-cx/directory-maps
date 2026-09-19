@@ -23,8 +23,10 @@ Feature 5 of the Directory Searchability & AI Metadata plan, done out of order p
 ### Verified
 - [x] `deno check` clean on both new Edge Function files.
 - [x] `npm run build` clean.
-- [ ] **No live click-through** — this flow lives behind admin/client-portal login, which this agent doesn't have credentials for (same limitation noted on Phase 2's metadata generate buttons). Needs a human to actually pick a real image, click Generate with AI, and confirm the caption is sensible.
-- [ ] Not yet deployed to staging or production.
+- [x] Deployed `generate_media_alt_text` to staging (`beqejxneehilplrtpntn`).
+- [x] Black-box checks against the live staging endpoint: missing params → clean `400`; unsupported `media_type` (e.g. `image/gif`) → clean `400`; a valid tiny PNG against a nonexistent `entry_id` → clean `"Entry not found"`, not a crash; `OPTIONS` preflight → `204`.
+- [ ] **No live click-through / no real vision call verified** — this flow lives behind admin/client-portal login (`requireDirectoryAccess`), which this agent doesn't have credentials for (same limitation noted on Phase 2's metadata generate buttons). Needs a human to actually pick a real image, click Generate with AI, and confirm the caption is sensible and actually describes the photo.
+- [ ] Not yet deployed to production.
 
 ### Rollback plan
 Revert this commit; `MediaAssetsEditor.jsx`'s upload flow reverts to typing alt text before picking a file. No database migration involved — no schema changed for this feature.
