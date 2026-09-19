@@ -266,6 +266,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory AI content generation**: `directory_ai_content_*`
   - **Directory AI search**: `directory_ai_search_*`
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
+  - **Directory content pages**: `directory_content_page_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -446,6 +447,20 @@ that one file rather than split across two prefixes; retrofitted here as documen
   - `meta`: `directory_id`, `entry_id`, `name`
 - **`directory_entry_bulk_archived`**
   - `meta`: `directory_id`, `entry_count`, `is_active` (the target state applied to the selection)
+
+#### Directory content pages
+
+Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pages (About, How to join, a sector guide) alongside a directory's entries. Emitted by `DirectoryContentPagesPanel.jsx`.
+
+- **`directory_content_page_created`**
+  - `meta`: `directory_id`, `page_id`, `title`
+- **`directory_content_page_updated`**
+  - `meta`: `directory_id`, `page_id`
+- **`directory_content_page_deleted`**
+  - `meta`: `directory_id`, `page_id`, `title`
+- **`directory_content_page_ai_draft_requested`** / **`_ai_draft_generated`** / **`_ai_draft_failed`**
+  - `meta`: `directory_id`, `page_id`, `error` (on fail)
+  - The editor supplies an outline; Claude drafts the page body. Never persisted by the Edge Function itself — lands in the (unsaved) rich text editor for review, same pattern as `directory_ai_content_*`.
 
 #### Directory AI content generation
 

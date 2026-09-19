@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Directory content pages (Feature 6)
+
+**Branch/PR:** `feat/2026-09-19-directory-content-pages` (not yet opened).
+
+### What changed
+Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pages alongside a directory's entries, organised into a nav hierarchy. Full write-up in `docs/FEATURES.md` §4.4k.
+
+- New table `directory_content_pages` (nav hierarchy via `parent_page_id`, flat published URLs — deliberately not touching `middleware.js`'s routing, see §4.4k for why).
+- New "Pages" tab (`DirectoryContentPagesPanel.jsx`) in both admin and client portal, owner/manager only.
+- New Edge Function `generate_content_page_draft` for AI drafting from an editor-supplied outline, reusing `entryContentGeneration.ts`'s HTML sanitizer.
+- `generate_directory_site` extended to render, publish, and sitemap-list content pages alongside entries, reusing existing `directoryPageShell`/`siteHeader`/`siteFooter` primitives — no new page-shell code.
+- New admin events (AGENTS.md): `directory_content_page_created`/`_updated`/`_deleted`/`_ai_draft_requested`/`_ai_draft_generated`/`_ai_draft_failed`.
+
+### Verified
+- [x] `deno check` clean on all new/changed Edge Function files, including the local `preview.ts` fixture (unaffected by the new optional `contentPages` param on `buildDirectoryLandingPage`).
+- [x] `npm run build` clean.
+- [x] Ran `generate_directory_site`'s local preview script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`) — landing/entry page rendering unaffected by the shared-code changes (siteHeader/siteFooter/directoryPageShell untouched, only a new optional landing-page nav block added).
+- [x] Ad-hoc smoke test of the new `buildContentPage()` directly (a small scratch script, not checked in): confirmed H1, breadcrumb-to-parent, child-page nav links, custom meta title, and `WebPage` JSON-LD all render correctly for both a parent and a child page.
+- [ ] Not yet applied to staging — next step in this session.
+- [ ] **No live click-through** — creating a page, generating a draft, and publishing it all require a real signed-in session and an actual directory publish, neither of which this agent can do. Needs a human to build a real page end-to-end and confirm it looks right live.
+
+### Rollback plan
+`_20260919150000_create_directory_content_pages.rollback.sql` (drops the table entirely — surfaces existing page content first, since it would be lost). Redeploy `generate_directory_site` from the previous commit to stop rendering/publishing pages without removing the schema.
+
+---
+
 ## 2026-09-19 — [Production] Frontend deploy: PR #195 and #196 merged, both live sites updated
 
 **Branch/PR:** `main` (merges [PR #195](https://github.com/layercake-cx/directory-maps/pull/195) and [PR #196](https://github.com/layercake-cx/directory-maps/pull/196), both merged).

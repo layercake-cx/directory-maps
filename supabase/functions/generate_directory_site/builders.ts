@@ -801,6 +801,81 @@ ${siteFooter({ directoryName, homeUrl: landingUrl })}
   });
 }
 
+// ---- Directory content pages (Feature 6) ----
+
+export type ContentPage = {
+  id: string;
+  parent_page_id: string | null;
+  title: string;
+  slug: string;
+  body_html: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  noindex: boolean;
+};
+
+/** WebPage, not Article — these are editor-maintained reference pages ("About", "How to join"), not dated/authored posts. */
+export function contentPageSchemaOrg(page: ContentPage, directoryName: string, canonicalUrl: string): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: page.title,
+    url: canonicalUrl,
+    isPartOf: { "@type": "CollectionPage", name: directoryName },
+  };
+}
+
+export function buildContentPage(opts: {
+  clientSlug: string;
+  directorySlug: string;
+  directoryName: string;
+  page: ContentPage;
+  parentPage: ContentPage | null;
+  childPages: ContentPage[];
+  theme: DirectoryTheme;
+}): string {
+  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, theme } = opts;
+  const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
+  const pageUrl = (p: Pick<ContentPage, "slug">) => `/directories/${clientSlug}/${directorySlug}/${p.slug}`;
+  const canonicalUrl = `${SITE_ORIGIN}${pageUrl(page)}`;
+
+  const breadcrumb = parentPage
+    ? `<a href="${escapeAttr(pageUrl(parentPage))}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; ${escapeHtml(parentPage.title)}</a>`
+    : `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; ${escapeHtml(directoryName)}</a>`;
+
+  const childList = childPages.length
+    ? `<div class="dir-aside-block" style="margin-top:32px;">
+  <span class="dir-rail__label">On this topic</span>
+  <div style="display:grid;gap:6px;margin-top:8px;">
+    ${childPages.map((c) => `<a href="${escapeAttr(pageUrl(c))}" style="font-size:14px;font-weight:600;">${escapeHtml(c.title)}</a>`).join("\n")}
+  </div>
+</div>`
+    : "";
+
+  const description = page.meta_description || `${page.title} — ${directoryName}`;
+
+  const body = `
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
+<div class="wrap" style="max-width:760px;">
+${breadcrumb}
+<h1 style="font-family:var(--font-heading);font-size:clamp(28px,4vw,38px);margin:0 0 24px;">${escapeHtml(page.title)}</h1>
+${page.body_html}
+${childList}
+</div>
+${siteFooter({ directoryName, homeUrl: landingUrl })}
+`.trim();
+
+  return directoryPageShell({
+    title: page.meta_title || `${page.title} — ${directoryName}`,
+    description,
+    canonicalUrl,
+    jsonLd: contentPageSchemaOrg(page, directoryName, canonicalUrl),
+    body,
+    noindex: !!page.noindex,
+    theme,
+  });
+}
+
 /** One categorisation's terms as they'll appear in the filter bar, grouped
  * under the categorisation's label. `id` is categorisations.id (the uuid)
  * — kept, not just `key`, because it doubles as the field_id the embedded
@@ -1407,8 +1482,10 @@ export function buildDirectoryLandingPage(opts: {
   seoImageUrl?: string | null;
   seoNoindex?: boolean;
   aiSearch?: AiSearchOptions | null;
+  /** Top-level entry point into Feature 6's content pages — just enough for discoverability from the homepage; each page's own "On this topic" list (buildContentPage) handles drilling into its children. */
+  contentPages?: ContentPage[];
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, contentPages } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
@@ -1557,6 +1634,14 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
     </div>
   </div>
 </div>
+${(() => {
+  const topLevelPages = (contentPages ?? []).filter((p) => !p.parent_page_id);
+  if (!topLevelPages.length) return "";
+  const links = topLevelPages
+    .map((p) => `<a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${p.slug}`)}" style="font-size:14px;font-weight:600;">${escapeHtml(p.title)}</a>`)
+    .join("\n");
+  return `<div class="wrap" style="padding:8px 0 32px;display:flex;gap:20px;flex-wrap:wrap;">${links}</div>`;
+})()}
 ${siteFooter({ directoryName, homeUrl: "." })}
 ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
 `.trim();
