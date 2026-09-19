@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Non-destructive SEO metadata backfill on directory build
+
+**Branch/PR:** `feat/2026-09-19-directory-seo-metadata-backfill` (not yet opened).
+
+### What changed
+Phase 3 of the Directory Searchability & AI Metadata plan. Extends `generate_directory_site` to fill any still-empty entry/directory SEO metadata fields on every publish, automatically — no button click needed, unlike Phase 2's editor-triggered "Generate with AI". The rule is presence, not authorship: a field with content, however it got there, is never touched.
+
+- New `supabase/functions/_shared/seoMetadataBackfill.ts`: `backfillEntrySeoMetadata()` fills whichever of the six SEO/social fields are empty on each active entry (one Claude call per entry drafts all six, but only the empty ones are written), capped at `MAX_ENTRY_BACKFILL_PER_BUILD = 20` per build — a deliberate, documented answer to the product doc's own open question about cost/time budgeting on a large directory's first backfill (uk-associations.com has 329 entries; 329 sequential Claude calls in one Edge Function invocation risks a timeout and would fail the whole publish over metadata alone). Entries beyond the cap are picked up by a later republish. `backfillDirectorySeoMetadata()` does the directory-homepage equivalent, skipped entirely once both fields are set.
+- Both mutate the in-memory rows too, so the very same build's rendered pages already reflect the fill, not just the next one.
+- Neither function throws on failure (missing `ANTHROPIC_API_KEY`, an Anthropic error, one bad entry) — logs to `error_logs` and continues, so a metadata-generation problem never breaks the actual page publish.
+- New migration `20260919120000_directory_entry_seo_metadata_ai_flag.sql`: `directory_entries.seo_metadata_ai_generated_at`, set only by this backfill (never by the Phase 2 button) — a partial, deliberately-scoped answer to the product doc's "should AI-drafted fields be flagged?" open question, for the one path where an editor might not know a field was ever touched. `EntrySeoTab.jsx` shows a small banner when it's set.
+- `getDirectoryEntry()` (`src/lib/directories.js`) extended to select the new column, with the existing schema-drift fallback pattern updated to cover it.
+- Docs: `docs/USER_GUIDE.md` and `docs/FEATURES.md` (new §4.4i-2) updated.
+
+### Verified
+- [x] `deno check` clean on all changed/new Edge Function files.
+- [x] `npm run build` clean.
+- [x] Migration dry-run (`supabase db push --dry-run`) confirmed this was the only pending migration, then applied for real to staging (`beqejxneehilplrtpntn`) — `NOTICE: VERIFY PASSED`.
+- [x] Deployed `generate_directory_site` to staging — upload log confirms `seoMetadataBackfill.ts`/`seoMetadataGeneration.ts` shipped.
+- [ ] **No live end-to-end regeneration run** — unlike Phase 1/2's staging checks, this session's safety guardrails correctly refused to let this agent trigger a real regeneration against the shared test directory (`e270f4a4-...`, a real, already-published customer directory): doing so would have AI-generated and immediately published real marketing copy into that customer's live entries, which is a materially different and more invasive action than Phase 1's template/robots.txt change or Phase 2's manual, editor-reviewed, never-auto-persisted draft. This needs an explicit, informed decision from the user before it's exercised live — either by publishing a real directory with some empty metadata fields themselves and watching what fills in, or by explicitly authorizing a specific test run.
+- [ ] Not yet deployed to production — **should not be**, until the live behaviour above has actually been observed once on staging.
+
+### Rollback plan
+Redeploy `generate_directory_site` from the previous commit to stop the backfill from running (the migration is purely additive and doesn't need to be rolled back for that alone). If the flag column itself needs removing: `_20260919120000_directory_entry_seo_metadata_ai_flag.rollback.sql` (surfaces which rows would lose their flag first — the metadata text itself is untouched by this rollback, only the "was this backfilled?" marker is lost).
+
+---
+
 ## 2026-09-18 — [Production] AI-generate action for entry and directory SEO metadata
 
 **Branch/PR:** `feat/2026-09-18-directory-seo-ai-generate` ([PR #194](https://github.com/layercake-cx/directory-maps/pull/194), open).
