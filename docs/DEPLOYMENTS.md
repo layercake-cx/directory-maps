@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Directory theming — all 6 phases merged and deployed
+
+**Branch/PR:** `main`, merging #200, #206 (replaces #201 — see note below), #202, #203, #204, #205, on the user's explicit "merge and deploy" go-ahead.
+
+### What changed
+Every phase of the Directory Theming plan (see the 6 entries below this one for what each phase actually did) is now live: independent header/footer colours + gradients, the colour settings UI + live preview, typography (font sizes + the expanded/de-duplicated font catalog), real logo upload + header display modes, DB-backed org presets, and accessibility contrast warnings.
+
+**Merge hiccup, self-corrected:** merging #200 with `--delete-branch` deleted its branch, which was PR #201's *base* branch — GitHub doesn't retarget a PR when its base branch disappears, it just auto-closes it (with the diff intact, nothing lost). #201 got stuck in a state where the API would neither reopen it (no valid base) nor let its base be edited (closed). Rather than fight that, closed #201 for good, opened #206 from the exact same branch/commit against `main`, and — before merging anything else — retargeted #202/#203/#204/#205 to `main` too while they were still open and healthy, so the same failure mode couldn't cascade down the rest of the stack. All 6 phases' code is identical to what was reviewed in the original PRs; only the PR/base-branch bookkeeping changed.
+
+**Deployed:**
+- GitHub Pages: automatic on push to `main` — confirmed via `gh run list`, run completed `success`.
+- Vercel production (`maps.layercake-cx.biz`): **blocked** — `npm run deploy:live` was refused by this session's own auto-mode classifier ("Production Deploy"), which requires a Bash permission rule this session doesn't have. **The user needs to run `npm run deploy:live` themselves** (or grant that permission) for the branded production domain to pick this up — GitHub Pages is live, but the real customer-facing domain is not yet, per AGENTS.md's "two live production frontends" note.
+- Supabase production (`gxixwdjfmegxcxfeflro`): re-linked the CLI explicitly (was on staging), confirmed `git status` had no other session's uncommitted migration files, dry-ran `20260919160000_create_directory_theme_presets.sql` (only pending migration), applied for real — `NOTICE: VERIFY PASSED`. Deployed `generate_directory_site` (picks up all of Phases 1–4's renderer changes). Re-linked the CLI back to staging afterward as the safer default.
+
+### Verified
+- [x] All 6 phases' own PRs carried their own verification (arithmetic + real-browser checks against generated static HTML, isolated component harnesses — see each phase's own entry below). Nothing new verified at merge time beyond confirming a clean fast-forward merge and successful migration/function deploys.
+- [ ] **No authenticated click-through anywhere in this feature yet** — every phase's own entry below already flagged this. It still stands after this production deploy. The user (or someone with real credentials) should open a real directory's Branding tab, try the header/footer colours, a gradient, a font/size change, a logo upload, saving/applying a preset, and confirm a low-contrast pair shows the warning — then Publish and confirm the live public page reflects it.
+- [ ] **Vercel production not deployed** — see above; this is the one piece of "deploy" not completed by this agent.
+
+### Rollback plan
+Revert the merge commits on `main` (GitHub Pages redeploys automatically; Vercel would need `npm run deploy:live` again once it's actually deployed). `_20260919160000_create_directory_theme_presets.rollback.sql` drops the presets table on production if needed (empty table — nothing saved yet as of this deploy). Redeploy `generate_directory_site` from the pre-Phase-1 commit to stop rendering the new theme fields without touching schema.
+
+---
+
 ## 2026-09-20 — [Not deployed] Directory theming Phase 6: accessibility contrast guardrails
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-contrast-warnings`, stacked on Phase 5's `feat/2026-09-19-directory-theme-presets` (in turn stacked on Phases 4/3/2/1) — not yet opened as a PR.
