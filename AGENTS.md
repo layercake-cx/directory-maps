@@ -428,6 +428,9 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_settings_updated`**
   - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
   - Fired from the Directory Settings tab's "General settings" (title) and "SEO settings" (search-engine visibility, default SEO title/description, social/SEO image) panel.
+- **`directory_branding_updated`**
+  - `meta`: `client_id`, `directory_id`, `has_logo` (boolean)
+  - Fired from the Branding tab (`DirectoryBrandingPanel.jsx`) on every save — colours (including the header/body/footer region overrides added in the Directory Theming plan), fonts, and logo URL all persist together as one `theme_json` write, so there's no `changed_fields` breakdown (unlike `directory_settings_updated`).
 - **`directory_created`**
   - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
   - Fired from both `ClientMapData.jsx`/`AdminMapData.jsx`'s "Build a directory from this map" action.

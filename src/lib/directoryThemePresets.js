@@ -14,12 +14,23 @@
  *
  * Region overrides (header/footer independent bg/text/link — see
  * generate_directory_site/builders.ts's DirectoryTheme type for the exact
- * shape) exist in theme_json but are NOT part of any preset here yet and
- * have no UI in DirectoryBrandingPanel.jsx — that lands with the region
- * colour settings UI. Until then they're only reachable by editing
- * theme_json directly, and every directory using this preset file falls
- * back to generate_directory_site's own hardcoded region defaults.
+ * shape): NATURAL deliberately omits them, since NATURAL is also "the
+ * look of a directory that never touched branding" and that equivalence
+ * (documented in builders.ts) would break if NATURAL diverged from the
+ * hardcoded region defaults. The other four presets derive their region
+ * values from fields they already have — see regionsFromPalette() below —
+ * rather than inventing new hex constants no other field references.
  */
+function regionsFromPalette(p) {
+  return {
+    headerBackground: { type: "solid", color: p.surfaceColor },
+    headerText: p.inkColor,
+    footerBackground: { type: "solid", color: p.primaryDarkColor },
+    footerText: "#FFFFFF",
+    footerLink: p.accentColor,
+    footerLinkHover: "#FFFFFF",
+  };
+}
 
 export const NATURAL = {
   primaryColor: "#2E5A39",
@@ -39,7 +50,7 @@ export const NATURAL = {
   fontBody: "Hanken Grotesk",
 };
 
-export const MIDNIGHT = {
+const MIDNIGHT_PALETTE = {
   primaryColor: "#5B6EF5",
   primaryDarkColor: "#3F4ECF",
   accentColor: "#D6A23E",
@@ -56,8 +67,9 @@ export const MIDNIGHT = {
   fontHeading: "Playfair Display",
   fontBody: "Hanken Grotesk",
 };
+export const MIDNIGHT = { ...MIDNIGHT_PALETTE, ...regionsFromPalette(MIDNIGHT_PALETTE) };
 
-export const COASTAL = {
+const COASTAL_PALETTE = {
   primaryColor: "#1F6E8C",
   primaryDarkColor: "#17546A",
   accentColor: "#E0714B",
@@ -74,8 +86,9 @@ export const COASTAL = {
   fontHeading: "Inter",
   fontBody: "Inter",
 };
+export const COASTAL = { ...COASTAL_PALETTE, ...regionsFromPalette(COASTAL_PALETTE) };
 
-export const HERITAGE = {
+const HERITAGE_PALETTE = {
   primaryColor: "#7A2E3A",
   primaryDarkColor: "#5C222C",
   accentColor: "#C6952E",
@@ -92,8 +105,9 @@ export const HERITAGE = {
   fontHeading: "Fraunces",
   fontBody: "Hanken Grotesk",
 };
+export const HERITAGE = { ...HERITAGE_PALETTE, ...regionsFromPalette(HERITAGE_PALETTE) };
 
-export const SLATE = {
+const SLATE_PALETTE = {
   primaryColor: "#3E4551",
   primaryDarkColor: "#2A2F38",
   accentColor: "#2F7DE1",
@@ -110,6 +124,7 @@ export const SLATE = {
   fontHeading: "Hanken Grotesk",
   fontBody: "Hanken Grotesk",
 };
+export const SLATE = { ...SLATE_PALETTE, ...regionsFromPalette(SLATE_PALETTE) };
 
 /** Google Fonts CSS2 family+weight query segment per font name — used both
  * by the frontend preview and (duplicated, TS runtime) by

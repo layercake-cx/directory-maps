@@ -156,10 +156,14 @@ The published homepage has a real keyword search (matches by entry name or locat
 
 ### Branding
 
-On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design.
+On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design. A **live preview** above the colour sections updates instantly as you make changes, before you save.
 
-- **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it.
-- **Primary colour**, **accent colour**, **background colour**, and **logo URL** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours) and the heading/body fonts — a preset is a starting point, not a limit, so any field can be changed afterward.
+- **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
+- **Header**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently:
+  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops) and text colour.
+  - **Body** — **primary colour**, **accent colour**, **background colour**, and **logo URL** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours) and the heading/body fonts.
+  - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
+- A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
 - Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically.
 
 Font, corner radius, and favicon controls beyond the heading/body font pickers aren't built yet.
