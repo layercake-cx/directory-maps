@@ -38,7 +38,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
 }
 
 const DIRECTORY_COLUMNS =
-  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label";
+  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label, analytics_json";
 
 /**
  * Schema-drift fallback: a DB migration and a frontend deploy are two
@@ -72,6 +72,10 @@ export async function getDirectory(directoryId) {
     }
     if (msg.includes("home_nav_label") && columns.includes("home_nav_label")) {
       columns = columns.replace(", home_nav_label", "");
+      continue;
+    }
+    if (msg.includes("analytics_json") && columns.includes("analytics_json")) {
+      columns = columns.replace(", analytics_json", "");
       continue;
     }
     throw error;

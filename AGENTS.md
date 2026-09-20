@@ -427,7 +427,7 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 
 - **`directory_settings_updated`**
   - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
-  - Fired from the Directory Settings tab's "General settings" (title) and "SEO settings" (search-engine visibility, default SEO title/description, social/SEO image) panel.
+  - Fired from the Directory Settings tab's "General settings" (title), "SEO settings", and **Analytics & Tracking** (`analytics_json` GA4/GTM destinations) panels.
 - **`directory_branding_updated`**
   - `meta`: `client_id`, `directory_id`, `has_logo` (boolean)
   - Fired from the Branding tab (`DirectoryBrandingPanel.jsx`) on every save — colours (including the header/body/footer region overrides added in the Directory Theming plan), fonts, and logo URL all persist together as one `theme_json` write, so there's no `changed_fields` breakdown (unlike `directory_settings_updated`).

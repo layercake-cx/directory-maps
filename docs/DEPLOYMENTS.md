@@ -8,6 +8,65 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Directory analytics (extend map engagement)
+
+**Branch/PR:** `feat/2026-09-20-directory-analytics`
+**Deployed by:** Cursor Grok, on the user's explicit "deploy to production" go-ahead after staging.
+
+### What changed
+Same as the staging entry below: first-party directory events on `map_engagement_events`, per-directory GA4/GTM destinations, consent banner on generated sites.
+
+### Database migrations applied
+- `20260920090000_directory_engagement_analytics.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Embedded `VERIFY PASSED: directory engagement analytics schema`. CLI relinked to staging afterwards.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Run `_20260920090000_directory_engagement_analytics.rollback.sql` on production, redeploy the previous `generate_directory_site` to production. Saved `analytics_json` is dropped by the rollback.
+
+### Verified on staging
+- [x] Staging migration + `generate_directory_site` already applied earlier this session.
+- [x] Production migration applied (`VERIFY PASSED`).
+- [x] Production `generate_directory_site` deployed.
+- [ ] Map Stats still load.
+- [ ] Settings UI + republish injects banner (frontend of this branch is not on GitHub Pages / Vercel production until merge / `deploy:live`).
+- [ ] Consent reject/accept behaviour on a live directory after republish.
+
+### Issues / notes
+Admin/client **Analytics & Tracking** UI and embed `directory_id` stamping still live only on this unmerged branch. Tags on a published directory appear after Save analytics + Publish against the new generator.
+
+---
+
+## 2026-09-20 — [Staging] Directory analytics (extend map engagement)
+
+**Branch/PR:** `feat/2026-09-20-directory-analytics`
+**Deployed by:** Cursor Grok, staging only (user asked)
+
+### What changed
+Published directories can record first-party engagement on the **existing** `map_engagement_events` table (not a second event product), and directory owners can attach GA4 and/or GTM IDs per directory.
+
+The store now allows a nullable `map_id`, a `directory_id`, and directory event types. `listing_id` is no longer a hard FK to map `listings`, so directory-sourced map pin clicks (which already used directory entry ids) can actually insert. Generated directory HTML records views, search, filters, and listing CTAs. A cookie banner + Google Consent Mode gates GA4/GTM; first-party rows still write if the visitor rejects Google cookies. No in-app directory analytics dashboard in this release.
+
+### Database migrations applied
+- `20260920090000_directory_engagement_analytics.sql` — **staging** (`beqejxneehilplrtpntn`). CLI 2.75.0 has no privileged `BEGIN; … ROLLBACK;` path; used `supabase db push --dry-run` (this file only pending) then `supabase db push`. Embedded `VERIFY PASSED: directory engagement analytics schema`. Rollback: `_20260920090000_directory_engagement_analytics.rollback.sql`. Production not applied.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production only after sign-off.
+
+### Rollback plan
+Run `_20260920090000_directory_engagement_analytics.rollback.sql` on staging, redeploy the previous `generate_directory_site` to staging, and revert this frontend. Saved `analytics_json` is dropped by the rollback.
+
+### Verified on staging
+- [x] Linked project-ref `beqejxneehilplrtpntn`; only this migration pending; apply succeeded with `VERIFY PASSED`.
+- [x] `generate_directory_site` deployed to staging.
+- [x] **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro` migration + `generate_directory_site`).
+
+### Issues / notes
+`client_domains.ga_measurement_id` (Epic 4 Phase 5) is still unused — destinations are per directory, not per hostname. The Settings UI is in this branch only until a frontend preview/production deploy.
+
+---
+
 ## 2026-09-20 — [Production] Header site-title On/Off toggle
 
 **Branch/PR:** `feat/2026-09-20-header-title-toggle` (opened as part of this production deploy).

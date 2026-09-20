@@ -197,6 +197,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [clientId, setClientId] = useState(null);
   /** DIR-E4: true when this map's pins/groups come from a linked directory instead of its own listings/groups. */
   const [isDirectorySourced, setIsDirectorySourced] = useState(false);
+  const [associatedDirectoryId, setAssociatedDirectoryId] = useState(null);
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -229,6 +230,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
 
         if (directoryId && !cancelled) {
           setIsDirectorySourced(true);
+          setAssociatedDirectoryId(directoryId);
 
           const [
             { data: m, error: mErr },
@@ -308,6 +310,11 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
             setPublicationConfig(resolvedPublication);
           }
           return;
+        }
+
+        if (!cancelled) {
+          setIsDirectorySourced(false);
+          setAssociatedDirectoryId(null);
         }
 
         // ── Try static CDN snapshot first ──────────────────────────────────
@@ -597,8 +604,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   );
 
   const recordEngagement = useMemo(
-    () => (map?.id ? createMapEngagementRecorder({ supabase, mapId: map.id, surface: "embed" }) : null),
-    [map?.id],
+    () =>
+      map?.id
+        ? createMapEngagementRecorder({
+            supabase,
+            mapId: map.id,
+            directoryId: associatedDirectoryId,
+            surface: "embed",
+          })
+        : null,
+    [map?.id, associatedDirectoryId],
   );
 
   useEffect(() => {

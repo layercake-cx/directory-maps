@@ -297,6 +297,11 @@ export const EXTRA_STYLE = `
   .dir-footer-col { display: flex; flex-direction: column; gap: 6px; }
   .dir-footer-col__title { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; color: var(--ftr-text); }
   .dir-footer-col a { font-size: 13.5px; }
+  .dm-consent { position: fixed; z-index: 40; left: 16px; right: 16px; bottom: 16px; max-width: 520px; margin: 0 auto; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 16px 18px; font-size: 13.5px; line-height: 1.5; }
+  .dm-consent p { margin: 0 0 12px; }
+  .dm-consent__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .dm-consent button { font-family: inherit; font-size: 13px; font-weight: 600; border-radius: 8px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); }
+  .dm-consent button.dm-consent__accept { background: var(--primary); color: #fff; border-color: var(--primary); }
 `;
 
 // Directory browse layout — intent search, filter rail, result bar with
@@ -619,6 +624,27 @@ export function fontLinkTag(theme: DirectoryTheme): string {
   return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${query}&display=swap">`;
 }
 
+export type SiteAnalyticsDestination = {
+  provider: string;
+  enabled?: boolean;
+  measurement_id?: string;
+  container_id?: string;
+};
+
+/** First-party + optional GA4/GTM wiring baked into every public HTML page. */
+export type SiteAnalytics = {
+  directoryId: string;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  destinations: SiteAnalyticsDestination[];
+};
+
+export type PageAnalytics = SiteAnalytics & {
+  pageKind: "landing" | "entry" | "content";
+  listingId?: string | null;
+  listingName?: string | null;
+};
+
 export function directoryPageShell(opts: {
   title: string;
   description: string;
@@ -628,6 +654,7 @@ export function directoryPageShell(opts: {
   imageUrl?: string | null;
   noindex?: boolean;
   theme?: DirectoryTheme;
+  analytics?: PageAnalytics | null;
 }): string {
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
@@ -658,6 +685,7 @@ ${fontLinkTag(opts.theme ?? {})}
 </head>
 <body>
 ${opts.body}
+${opts.analytics ? buildSiteAnalyticsMarkup(opts.analytics) : ""}
 </body>
 </html>`;
 }
@@ -796,7 +824,7 @@ export function linkTiles(links: EntryLink[]): string {
     .map((l) => {
       const rel = [l.open_in_new ? "noopener noreferrer" : null, l.tracking ? "sponsored nofollow" : null].filter(Boolean).join(" ");
       const target = l.open_in_new ? ' target="_blank"' : "";
-      return `<a class="link-tile link-tile--${l.style === "primary" ? "primary" : "secondary"}" href="${escapeAttr(l.url)}"${target}${rel ? ` rel="${escapeAttr(rel)}"` : ""}>${escapeHtml(l.label)}</a>`;
+      return `<a class="link-tile link-tile--${l.style === "primary" ? "primary" : "secondary"}" href="${escapeAttr(l.url)}"${target}${rel ? ` rel="${escapeAttr(rel)}"` : ""} data-dm-event="listing_cta_click" data-dm-cta="${l.style === "primary" ? "primary" : "secondary"}">${escapeHtml(l.label)}</a>`;
     })
     .join("");
   return `<div class="link-tiles">${items}</div>`;
@@ -858,8 +886,9 @@ export function buildEntryPage(opts: {
   /** Up to 4 other entries sharing at least one categorisation term, already ranked by shared-term count — computed once per directory in generateForDirectoryInner (all the data it needs is already in memory there) rather than re-queried per entry. */
   related: Entry[];
   nav?: SiteNav | null;
+  analytics?: SiteAnalytics | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -897,10 +926,10 @@ export function buildEntryPage(opts: {
     .map((t) => (t.catFieldType === "boolean" ? t.catLabel : t.label))
     .slice(0, 4);
   const websiteButton = entry.show_website && entry.website_url
-    ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a>`
+    ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a>`
     : "";
   const showOnMapButton = attachedMapEmbedSrc
-    ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}">Show on map</a>`
+    ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}" data-dm-event="listing_cta_click" data-dm-cta="map">Show on map</a>`
     : "";
 
   const header = `<div class="dir-entry-header">
@@ -916,8 +945,8 @@ export function buildEntryPage(opts: {
   // ---- Body blocks (admin-ordered, DIR-E6 §4.4) ----
   const contactParts = [
     entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
-    entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}">${escapeHtml(entry.email)}</a></p>` : "",
-    entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer">Visit website</a></p>` : "",
+    entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}" data-dm-event="listing_contact_click" data-dm-cta="email">${escapeHtml(entry.email)}</a></p>` : "",
+    entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a></p>` : "",
   ].filter(Boolean);
 
   // logo/heading render "" here — they're in the fixed header above, but
@@ -1087,6 +1116,9 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
     theme,
+    analytics: analytics
+      ? { ...analytics, pageKind: "entry", listingId: entry.id, listingName: entry.name }
+      : null,
   });
 }
 
@@ -1201,8 +1233,9 @@ export function buildContentPage(opts: {
   pagesById: Map<string, ContentPage>;
   theme: DirectoryTheme;
   nav: SiteNav;
+  analytics?: SiteAnalytics | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav } = opts;
+  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav, analytics } = opts;
   const landingUrl = nav.homeUrl;
   const hrefFor = (p: ContentPage) => contentPageHref(clientSlug, directorySlug, contentPagePublicPath(p, pagesById));
   const canonicalUrl = `${SITE_ORIGIN}${hrefFor(page)}`;
@@ -1246,6 +1279,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
     body,
     noindex: !!page.noindex,
     theme,
+    analytics: analytics ? { ...analytics, pageKind: "content" } : null,
   });
 }
 
@@ -1362,6 +1396,199 @@ export type AiSearchOptions = {
   supabaseAnonKey: string;
 };
 
+export function parseDirectoryDestinations(raw: unknown): SiteAnalyticsDestination[] {
+  const dests: SiteAnalyticsDestination[] = [];
+  if (!raw || typeof raw !== "object") return dests;
+  const list = (raw as { destinations?: unknown }).destinations;
+  if (!Array.isArray(list)) return dests;
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const d = item as SiteAnalyticsDestination;
+    if (d.provider === "ga4" && d.enabled && typeof d.measurement_id === "string" && /^G-[A-Z0-9]+$/.test(d.measurement_id)) {
+      dests.push({ provider: "ga4", enabled: true, measurement_id: d.measurement_id });
+    }
+    if (d.provider === "gtm" && d.enabled && typeof d.container_id === "string" && /^GTM-[A-Z0-9]+$/.test(d.container_id)) {
+      dests.push({ provider: "gtm", enabled: true, container_id: d.container_id });
+    }
+  }
+  return dests;
+}
+
+function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
+  const ga4 = analytics.destinations.find((d) => d.provider === "ga4" && d.enabled && d.measurement_id);
+  const gtm = analytics.destinations.find((d) => d.provider === "gtm" && d.enabled && d.container_id);
+  const needsConsentUi = !!(ga4 || gtm);
+  const pageEvent = analytics.pageKind === "entry" ? "listing_view" : "directory_view";
+  const restUrl = `${analytics.supabaseUrl.replace(/\/$/, "")}/rest/v1/map_engagement_events`;
+  const banner = needsConsentUi
+    ? `<div id="dm-consent" class="dm-consent" hidden>
+  <p>We use optional analytics cookies (Google Analytics / Tag Manager) to understand how this directory is used. First-party usage events stay on this platform and do not identify you.</p>
+  <div class="dm-consent__actions">
+    <button type="button" id="dm-consent-reject">Reject analytics</button>
+    <button type="button" class="dm-consent__accept" id="dm-consent-accept">Accept analytics</button>
+  </div>
+</div>`
+    : "";
+
+  return `${banner}
+<script>
+(function () {
+  var CONSENT_KEY = 'dm_directory_analytics_consent';
+  var SESSION_KEY = 'dm_map_engagement_session_id';
+  var REST_URL = ${embedJson(restUrl)};
+  var ANON_KEY = ${embedJson(analytics.supabaseAnonKey)};
+  var DIRECTORY_ID = ${embedJson(analytics.directoryId)};
+  var PAGE_KIND = ${embedJson(analytics.pageKind)};
+  var LISTING_ID = ${embedJson(analytics.listingId ?? null)};
+  var LISTING_NAME = ${embedJson(analytics.listingName ?? null)};
+  var PAGE_EVENT = ${embedJson(pageEvent)};
+  var GA4_ID = ${embedJson(ga4?.measurement_id ?? null)};
+  var GTM_ID = ${embedJson(gtm?.container_id ?? null)};
+  var NEEDS_CONSENT_UI = ${embedJson(needsConsentUi)};
+  var tagsLoaded = false;
+  window.dataLayer = window.dataLayer || [];
+
+  function sessionId() {
+    try {
+      var id = sessionStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('s_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12));
+        sessionStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    } catch (e) { return null; }
+  }
+
+  function consentState() {
+    try { return localStorage.getItem(CONSENT_KEY); } catch (e) { return null; }
+  }
+  function setConsentState(v) {
+    try { localStorage.setItem(CONSENT_KEY, v); } catch (e) {}
+  }
+
+  function gtag() { window.dataLayer.push(arguments); }
+
+  function loadScript(src, attrs) {
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = src;
+    if (attrs) for (var k in attrs) s.setAttribute(k, attrs[k]);
+    document.head.appendChild(s);
+    return s;
+  }
+
+  function loadTags() {
+    if (tagsLoaded) return;
+    tagsLoaded = true;
+    window.gtag = gtag;
+    gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', wait_for_update: 500 });
+    gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' });
+    gtag('js', new Date());
+    if (GA4_ID) {
+      loadScript('https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA4_ID));
+      gtag('config', GA4_ID, { anonymize_ip: true });
+    }
+    if (GTM_ID) {
+      window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+      loadScript('https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(GTM_ID));
+    }
+  }
+
+  function safeProps(meta, listingId) {
+    var props = { directory_id: DIRECTORY_ID, page_kind: PAGE_KIND, path: location.pathname };
+    if (listingId) props.listing_id = listingId;
+    if (LISTING_NAME && listingId === LISTING_ID) props.listing_name = LISTING_NAME;
+    if (meta && typeof meta === 'object') {
+      if (meta.path) props.path = meta.path;
+      if (meta.query) props.search_term = String(meta.query).slice(0, 500);
+      if (meta.filter) props.filter = meta.filter;
+      if (meta.cta_type) props.cta_type = meta.cta_type;
+    }
+    return props;
+  }
+
+  function pushExternal(eventType, props) {
+    if (consentState() !== 'granted') return;
+    try {
+      window.dataLayer.push(Object.assign({ event: eventType }, props));
+      if (typeof window.gtag === 'function' && GA4_ID) {
+        window.gtag('event', eventType, props);
+      }
+    } catch (e) {}
+  }
+
+  function record(eventType, detail) {
+    detail = detail || {};
+    var listingId = detail.listingId || LISTING_ID || null;
+    var meta = detail.meta || null;
+    var row = {
+      directory_id: DIRECTORY_ID,
+      listing_id: listingId,
+      event_type: eventType,
+      surface: 'directory_site',
+      client_session_id: sessionId(),
+      meta: meta
+    };
+    try {
+      fetch(REST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': ANON_KEY,
+          'Authorization': 'Bearer ' + ANON_KEY,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(row)
+      }).catch(function () {});
+    } catch (e) {}
+    pushExternal(eventType, safeProps(meta, listingId));
+  }
+
+  window.dmRecordEngagement = record;
+
+  var banner = document.getElementById('dm-consent');
+  function hideBanner() { if (banner) banner.hidden = true; }
+  function showBanner() { if (banner) banner.hidden = false; }
+
+  if (NEEDS_CONSENT_UI) {
+    var existing = consentState();
+    if (existing === 'granted') loadTags();
+    else if (existing !== 'denied') showBanner();
+    var acceptBtn = document.getElementById('dm-consent-accept');
+    var rejectBtn = document.getElementById('dm-consent-reject');
+    if (acceptBtn) acceptBtn.addEventListener('click', function () {
+      setConsentState('granted');
+      hideBanner();
+      loadTags();
+    });
+    if (rejectBtn) rejectBtn.addEventListener('click', function () {
+      setConsentState('denied');
+      hideBanner();
+    });
+  }
+
+  var viewMeta = { path: location.pathname };
+  if (PAGE_KIND === 'entry' && LISTING_NAME) viewMeta.listing_name = LISTING_NAME;
+  record(PAGE_EVENT, { listingId: LISTING_ID, meta: viewMeta });
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var el = t.closest('[data-dm-event]');
+    if (!el) return;
+    var name = el.getAttribute('data-dm-event');
+    if (!name) return;
+    var cta = el.getAttribute('data-dm-cta');
+    var listingId = el.getAttribute('data-dm-listing') || LISTING_ID;
+    record(name, { listingId: listingId, meta: cta ? { cta_type: cta, path: location.pathname } : { path: location.pathname } });
+    if (name === 'listing_website_click') {
+      record('listing_cta_click', { listingId: listingId, meta: { cta_type: cta || 'website', path: location.pathname } });
+    }
+  }, true);
+})();
+</script>`;
+}
+
 /** Combined client-side intent search + categorisation-facet filtering over
  * the already-rendered result rows. Reads data-search / data-term-ids /
  * data-entry-id attributes baked into each row at generation time. AND
@@ -1431,6 +1658,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
   var active = {}; // catId -> string[] of selected term ids
   var view = 'list';
+  var lastFilterSig = null;
+  var lastSearchLogged = '';
 
   function catById(catId) {
     for (var i = 0; i < CATS.length; i++) if (CATS[i].id === catId) return CATS[i];
@@ -1602,6 +1831,11 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     renderChips();
     syncUrl();
     ${hasMap ? "postToMap();" : ""}
+    var filterSig = JSON.stringify(active);
+    if (lastFilterSig !== null && filterSig !== lastFilterSig && window.dmRecordEngagement) {
+      window.dmRecordEngagement('directory_filter', { meta: { filter: active } });
+    }
+    lastFilterSig = filterSig;
   }
 
   ${hasMap ? `
@@ -1653,16 +1887,26 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   /** Debounced on keystroke; immediate (skips the timer) on submit/page-load restore. */
+  function emitDirectorySearch(q) {
+    q = (q || '').trim().slice(0, 500);
+    if (q.length < 2 || q === lastSearchLogged || !window.dmRecordEngagement) return;
+    lastSearchLogged = q;
+    window.dmRecordEngagement('directory_search', { meta: { query: q } });
+  }
   function scheduleSearch(immediate) {
     var q = input ? input.value.trim() : '';
+    if (immediate) emitDirectorySearch(q);
     if (aiSearchDebounceTimer) { clearTimeout(aiSearchDebounceTimer); aiSearchDebounceTimer = null; }
     if (!AI_SEARCH_ENABLED || q.length < AI_SEARCH_MIN_QUERY_LENGTH) {
       aiEntryIds = null;
       apply();
+      if (!immediate && q.length >= 2) {
+        aiSearchDebounceTimer = setTimeout(function () { emitDirectorySearch(input ? input.value.trim() : ''); }, 400);
+      }
       return;
     }
     if (immediate) runAiSearch(q);
-    else aiSearchDebounceTimer = setTimeout(function () { runAiSearch(q); }, 400);
+    else aiSearchDebounceTimer = setTimeout(function () { emitDirectorySearch(input ? input.value.trim() : ''); runAiSearch(q); }, 400);
   }
 
   function setView(next) {
@@ -1856,8 +2100,9 @@ export function buildDirectoryLandingPage(opts: {
   seoNoindex?: boolean;
   aiSearch?: AiSearchOptions | null;
   nav?: SiteNav | null;
+  analytics?: SiteAnalytics | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, nav } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, nav, analytics } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
@@ -2020,6 +2265,7 @@ ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
     theme,
     imageUrl: seoImageUrl ?? null,
     noindex: !!seoNoindex,
+    analytics: analytics ? { ...analytics, pageKind: "landing" } : null,
   });
 }
 
