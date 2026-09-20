@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { updateDirectory } from "../../lib/directories.js";
-import { DIRECTORY_THEME_PRESETS, NATURAL, FONT_CATALOG, getThemePreset } from "../../lib/directoryThemePresets.js";
+import {
+  DIRECTORY_THEME_PRESETS,
+  NATURAL,
+  FONT_CATALOG,
+  getThemePreset,
+  listOrgPresets,
+  saveThemePreset,
+  renameThemePreset,
+  deleteThemePreset,
+} from "../../lib/directoryThemePresets.js";
 import { uploadDirectoryLogo } from "../../lib/directoryBranding.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
@@ -264,6 +273,20 @@ function PreviewStrip({ theme, directoryName }) {
   );
 }
 
+/** Small header/body/footer colour-swatch preview for a preset row (dev
+ * spec §11: "list with small preview swatches"). */
+function PresetSwatch({ theme }) {
+  const headerBg = backgroundToCss(theme.headerBackground, HEADER_BG_DEFAULT.color);
+  const footerBg = backgroundToCss(theme.footerBackground, FOOTER_BG_DEFAULT.color);
+  return (
+    <div style={{ display: "flex", flex: "none", borderRadius: 6, overflow: "hidden", border: "1px solid var(--lc-border)", width: 56, height: 24 }}>
+      <div style={{ flex: 1, background: headerBg }} />
+      <div style={{ flex: 1, background: theme.backgroundColor }} />
+      <div style={{ flex: 1, background: footerBg }} />
+    </div>
+  );
+}
+
 /**
  * Directory branding (build-scope §5.1 "Theme: token overrides ... logo").
  * A named preset (DIRECTORY_THEME_PRESETS) bulk-fills every field below —
@@ -271,7 +294,7 @@ function PreviewStrip({ theme, directoryName }) {
  * stores the flat resolved field values generate_directory_site reads, so
  * every field stays independently editable after applying a preset.
  */
-export default function DirectoryBrandingPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+export default function DirectoryBrandingPanel({ directory, directoryId, clientId, canManage, recordEvent, onSaved }) {
   const [theme, setTheme] = useState(() => themeFromDirectory(directory));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -280,9 +303,25 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
   const [msg, setMsg] = useState("");
   const fileInputRef = useRef(null);
 
+  const [orgPresets, setOrgPresets] = useState([]);
+  const [newPresetName, setNewPresetName] = useState("");
+  const [presetBusy, setPresetBusy] = useState(false);
+
   useEffect(() => {
     setTheme(themeFromDirectory(directory));
   }, [directory]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (clientId) {
+      listOrgPresets(clientId)
+        .then((rows) => !cancelled && setOrgPresets(rows))
+        .catch((e) => !cancelled && setErr(e?.message ?? String(e)));
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
 
   function set(key, value) {
     setTheme((t) => ({ ...t, [key]: value }));
@@ -294,6 +333,64 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
     if (!values) return;
     setTheme((t) => ({ ...t, ...values }));
     setMsg("");
+  }
+
+  async function handleSavePreset() {
+    setErr("");
+    try {
+      setPresetBusy(true);
+      const saved = await saveThemePreset(clientId, newPresetName, theme);
+      setOrgPresets((rows) => [saved, ...rows]);
+      setNewPresetName("");
+      recordEvent?.("directory_theme_preset_saved", { client_id: clientId, preset_id: saved.id });
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function handleApplyOrgPreset(preset) {
+    setErr("");
+    setMsg("");
+    try {
+      setPresetBusy(true);
+      setTheme((t) => ({ ...t, ...preset.theme_json }));
+      recordEvent?.("directory_theme_preset_applied", { client_id: clientId, preset_id: preset.id, directory_id: directoryId });
+      setMsg(`Applied "${preset.name}" — click Save branding to persist it.`);
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function handleRenamePreset(preset) {
+    const name = window.prompt("Rename preset", preset.name);
+    if (!name || name.trim() === preset.name) return;
+    setErr("");
+    try {
+      setPresetBusy(true);
+      await renameThemePreset(preset.id, name);
+      setOrgPresets((rows) => rows.map((r) => (r.id === preset.id ? { ...r, name: name.trim() } : r)));
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function handleDeletePreset(preset) {
+    if (!window.confirm(`Delete preset "${preset.name}"? This can't be undone.`)) return;
+    setErr("");
+    try {
+      setPresetBusy(true);
+      await deleteThemePreset(preset.id);
+      setOrgPresets((rows) => rows.filter((r) => r.id !== preset.id));
+      recordEvent?.("directory_theme_preset_deleted", { client_id: clientId, preset_id: preset.id });
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
   async function handleLogoFile(e) {
@@ -490,6 +587,64 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
           <ColorField label="Link hover colour" value={theme.footerLinkHover} onChange={(v) => set("footerLinkHover", v)} />
         </div>
       </details>
+
+      {clientId && (
+        <details open>
+          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Presets</summary>
+          <div style={sectionStyle}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={newPresetName}
+                onChange={(e) => setNewPresetName(e.target.value)}
+                placeholder="Name this look…"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ fontSize: 12, padding: "4px 10px", flex: "none" }}
+                onClick={handleSavePreset}
+                disabled={presetBusy || !newPresetName.trim()}
+              >
+                Save current as preset
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: 6 }}>
+              {DIRECTORY_THEME_PRESETS.map((p) => (
+                <div key={p.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
+                  <PresetSwatch theme={p.values} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</div>
+                    <div style={{ fontSize: 11.5, opacity: 0.6 }}>Built-in</div>
+                  </div>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => applyPreset(p.key)}>
+                    Apply
+                  </button>
+                </div>
+              ))}
+              {orgPresets.map((p) => (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderTop: "1px solid var(--lc-border)" }}>
+                  <PresetSwatch theme={p.theme_json} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <div style={{ fontSize: 11.5, opacity: 0.6 }}>Saved by your organisation</div>
+                  </div>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => handleApplyOrgPreset(p)} disabled={presetBusy}>
+                    Apply
+                  </button>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => handleRenamePreset(p)} disabled={presetBusy}>
+                    Rename
+                  </button>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => handleDeletePreset(p)} disabled={presetBusy}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </details>
+      )}
 
       <div>
         <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
