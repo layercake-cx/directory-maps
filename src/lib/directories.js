@@ -38,7 +38,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
 }
 
 const DIRECTORY_COLUMNS =
-  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled";
+  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label";
 
 /**
  * Schema-drift fallback: a DB migration and a frontend deploy are two
@@ -51,7 +51,7 @@ const DIRECTORY_COLUMNS =
 export async function getDirectory(directoryId) {
   if (!directoryId) return null;
   let columns = DIRECTORY_COLUMNS;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const { data, error } = await supabase.from("directories").select(columns).eq("id", directoryId).single();
     if (!error) return data;
     const msg = String(error.message || "");
@@ -68,6 +68,10 @@ export async function getDirectory(directoryId) {
     }
     if (msg.includes("ai_search_") && columns.includes("ai_search_prompt")) {
       columns = columns.replace(", ai_search_prompt, ai_search_web_enabled", "");
+      continue;
+    }
+    if (msg.includes("home_nav_label") && columns.includes("home_nav_label")) {
+      columns = columns.replace(", home_nav_label", "");
       continue;
     }
     throw error;

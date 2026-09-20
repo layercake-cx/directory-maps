@@ -17,7 +17,7 @@ function seoDefaultsFromDirectory(directory) {
 
 /**
  * Directory Settings tab — "General settings" (title) + "SEO settings".
- * `name` and `seo_defaults_json.{meta_title_template,meta_description,default_noindex}`
+ * `name`, `home_nav_label`, and `seo_defaults_json.{meta_title_template,meta_description,default_noindex}`
  * already existed on `directories` (the latter unused until now — see
  * 20260827120000_directory_publish_foundation.sql); `seo_og_image_url` is new
  * (20260914210000). "Let search engines index this directory" is a single
@@ -28,6 +28,7 @@ function seoDefaultsFromDirectory(directory) {
  */
 export default function DirectoryGeneralSettingsPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
   const [name, setName] = useState(directory?.name || "");
+  const [homeNavLabel, setHomeNavLabel] = useState(directory?.home_nav_label || "");
   const [seo, setSeo] = useState(() => seoDefaultsFromDirectory(directory));
   const [ogImageUrl, setOgImageUrl] = useState(directory?.seo_og_image_url || "");
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export default function DirectoryGeneralSettingsPanel({ directory, directoryId, 
 
   useEffect(() => {
     setName(directory?.name || "");
+    setHomeNavLabel(directory?.home_nav_label || "");
     setSeo(seoDefaultsFromDirectory(directory));
     setOgImageUrl(directory?.seo_og_image_url || "");
   }, [directory]);
@@ -80,7 +82,9 @@ export default function DirectoryGeneralSettingsPanel({ directory, directoryId, 
       const prevSeo = seoDefaultsFromDirectory(directory);
       const cleanOgImage = ogImageUrl.trim();
       const changedFields = [];
+      const cleanHomeNav = homeNavLabel.trim();
       if (cleanName !== (directory?.name || "")) changedFields.push("name");
+      if (cleanHomeNav !== (directory?.home_nav_label || "")) changedFields.push("home_nav_label");
       if (seo.meta_title_template !== prevSeo.meta_title_template) changedFields.push("seo_defaults_json.meta_title_template");
       if (seo.meta_description !== prevSeo.meta_description) changedFields.push("seo_defaults_json.meta_description");
       if (seo.default_noindex !== prevSeo.default_noindex) changedFields.push("seo_defaults_json.default_noindex");
@@ -88,6 +92,7 @@ export default function DirectoryGeneralSettingsPanel({ directory, directoryId, 
 
       await updateDirectory(directoryId, {
         name: cleanName,
+        home_nav_label: cleanHomeNav || null,
         seo_defaults_json: {
           ...(directory?.seo_defaults_json && typeof directory.seo_defaults_json === "object" ? directory.seo_defaults_json : {}),
           meta_title_template: seo.meta_title_template.trim() || null,
@@ -116,6 +121,19 @@ export default function DirectoryGeneralSettingsPanel({ directory, directoryId, 
         <p style={sectionTitleStyle}>General settings</p>
         <label style={labelStyle}>Directory title</label>
         <input value={name} onChange={(e) => { setName(e.target.value); setMsg(""); }} disabled={disabled} style={inputStyle} />
+        <div style={{ marginTop: 12 }}>
+          <label style={labelStyle}>Home navigation label</label>
+          <input
+            value={homeNavLabel}
+            onChange={(e) => { setHomeNavLabel(e.target.value); setMsg(""); }}
+            disabled={disabled}
+            placeholder="Home"
+            style={inputStyle}
+          />
+          <p style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.6 }}>
+            Label for the directory landing page in the site header, mobile menu, breadcrumbs, and footer. Leave blank to use “Home”.
+          </p>
+        </div>
       </div>
 
       <div>

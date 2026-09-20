@@ -14,6 +14,7 @@
  * Writes to ./.preview-output/ (gitignored) alongside this file:
  *   index.html                 — the directory landing page
  *   entry-<slug>.html          — one file per fixture entry
+ *   page-*.html                — sample content pages (top-level + nested)
  *
  * Fixture data below is loosely adapted from the Claude Design concept's
  * own sample dataset (design_handoff_association_directory's prototype) —
@@ -23,12 +24,15 @@
 import {
   buildDirectoryLandingPage,
   buildEntryPage,
+  buildContentPage,
+  buildSiteNav,
   relatedEntries,
   type Entry,
   type DirectoryTheme,
   type FilterBarCategorisation,
   type CategorisationTerm,
   type BlockDescriptor,
+  type ContentPage,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -135,6 +139,73 @@ const ENTRY_LAYOUT: BlockDescriptor[] = [
 // preset (MIDNIGHT/COASTAL/HERITAGE/SLATE, src/lib/directoryThemePresets.js).
 const THEME: DirectoryTheme = {};
 
+const PREVIEW_PAGES: ContentPage[] = [
+  {
+    id: "page-about",
+    parent_page_id: null,
+    title: "About this directory",
+    slug: "about",
+    position: 0,
+    nav_label: "About",
+    show_in_navigation: true,
+    is_active: true,
+    body_html: "<p>A preview About page so the header, footer, and breadcrumb can be checked locally.</p>",
+    meta_title: null,
+    meta_description: null,
+    noindex: false,
+  },
+  {
+    id: "page-membership",
+    parent_page_id: null,
+    title: "Membership",
+    slug: "membership",
+    position: 1,
+    nav_label: null,
+    show_in_navigation: true,
+    is_active: true,
+    body_html: "<p>Membership landing page. Child pages appear in the dropdown and in On this topic.</p>",
+    meta_title: null,
+    meta_description: null,
+    noindex: false,
+  },
+  {
+    id: "page-why-join",
+    parent_page_id: "page-membership",
+    title: "Why Join an Association?",
+    slug: "why-join",
+    position: 0,
+    nav_label: "Why Join?",
+    show_in_navigation: true,
+    is_active: true,
+    body_html: "<p>A nested child page — URL is membership/why-join, breadcrumb is Home &gt; Membership &gt; Why Join?</p>",
+    meta_title: null,
+    meta_description: null,
+    noindex: false,
+  },
+  {
+    id: "page-benefits",
+    parent_page_id: "page-membership",
+    title: "Membership Benefits",
+    slug: "benefits",
+    position: 1,
+    nav_label: null,
+    show_in_navigation: true,
+    is_active: true,
+    body_html: "<p>Second child under Membership.</p>",
+    meta_title: null,
+    meta_description: null,
+    noindex: false,
+  },
+];
+
+const PREVIEW_NAV = buildSiteNav({
+  clientSlug: "preview-client",
+  directorySlug: "preview-directory",
+  homeNavLabel: "Home",
+  pages: PREVIEW_PAGES,
+});
+const PREVIEW_PAGES_BY_ID = new Map(PREVIEW_PAGES.map((p) => [p.id, p]));
+
 const outDir = new URL("./.preview-output/", import.meta.url);
 await Deno.mkdir(outDir, { recursive: true });
 
@@ -152,6 +223,7 @@ const landingHtml = buildDirectoryLandingPage({
   attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
   categorisations: CATEGORISATIONS,
   entryTermIds: ENTRY_TERM_IDS,
+  nav: PREVIEW_NAV,
 });
 await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);
 
@@ -178,9 +250,26 @@ for (const entry of ENTRIES) {
     // static thumbnail. Pass a real Google Maps key here to preview that.
     staticMapsApiKey: null,
     related: relatedEntries(entry, ENTRIES, ENTRY_TERM_IDS_BY_ENTRY),
+    nav: PREVIEW_NAV,
   });
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), html);
 }
 
-console.log(`Wrote ${1 + ENTRIES.length} file(s) to ${outDir.pathname}`);
+for (const page of PREVIEW_PAGES) {
+  const html = buildContentPage({
+    clientSlug: "preview-client",
+    directorySlug: "preview-directory",
+    directoryName: "UK Associations (preview)",
+    page,
+    parentPage: page.parent_page_id ? PREVIEW_PAGES_BY_ID.get(page.parent_page_id) ?? null : null,
+    childPages: PREVIEW_PAGES.filter((p) => p.parent_page_id === page.id),
+    pagesById: PREVIEW_PAGES_BY_ID,
+    theme: THEME,
+    nav: PREVIEW_NAV,
+  });
+  const filename = page.parent_page_id ? `page-${page.parent_page_id}-${page.slug}.html` : `page-${page.slug}.html`;
+  await Deno.writeTextFile(new URL(`./${filename}`, outDir), html);
+}
+
+console.log(`Wrote ${1 + ENTRIES.length + PREVIEW_PAGES.length} file(s) to ${outDir.pathname}`);
 console.log(`Open ${outDir.pathname}index.html in a browser to preview the landing page.`);

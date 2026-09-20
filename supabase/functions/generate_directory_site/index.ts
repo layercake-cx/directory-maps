@@ -19,19 +19,22 @@
  *
  *   directories/<client_slug>/<directory_slug>/index.html
  *   directories/<client_slug>/<directory_slug>/<entry_slug>.html
+ *   directories/<client_slug>/<directory_slug>/<page_slug>.html
+ *   directories/<client_slug>/<directory_slug>/<parent_slug>/<child_slug>.html
  *   directories/<client_slug>/<directory_slug>/sitemap.xml
  *   directories/<client_slug>/<directory_slug>/robots.txt
  *
  * middleware.js serves these at /directories/:clientSlug/:directorySlug
- * [/:entrySlug] on the branded domain — a path shape chosen specifically to
- * never collide with the existing /:clientSlug/:mapSlug interactive-map
- * route (which is exactly 2 segments, client-side routed, and must not pay
- * for an extra lookup on every load). The same output also serves a
- * directory's own custom domain root (client_domains.directory_id,
- * DomainSettings.jsx, since 20260827130000) via middleware.js's
- * handleCustomDomain — the one place robots.txt is actually honoured by a
- * real crawler, since crawlers only ever fetch a domain's own root
- * /robots.txt, never a per-path one.
+ * [/:slug] or /directories/:clientSlug/:directorySlug/:parent/:child on the
+ * branded domain — a path shape chosen specifically to never collide with
+ * the existing /:clientSlug/:mapSlug interactive-map route (which is exactly
+ * 2 segments, client-side routed, and must not pay for an extra lookup on
+ * every load). Child content pages add a fifth segment under /directories/.
+ * The same output also serves a directory's own custom domain root
+ * (client_domains.directory_id, DomainSettings.jsx, since 20260827130000)
+ * via middleware.js's handleCustomDomain — the one place robots.txt is
+ * actually honoured by a real crawler, since crawlers only ever fetch a
+ * domain's own root /robots.txt, never a per-path one.
  *
  * Gated on the `directories` feature flag only — this entity has no
  * separate commercial entitlement yet (unlike directory_pages, which is a
@@ -70,6 +73,8 @@ import {
   buildContentPage,
   buildLlmsTxt,
   relatedEntries,
+  buildSiteNav,
+  contentPagePublicPath,
   type Entry,
   type DirectoryTheme,
   type EntryTemplateRow,
@@ -114,7 +119,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -396,6 +401,39 @@ async function generateForDirectoryInner(
       }
     : null;
 
+  const entrySlugSet = new Set(entries.map((e) => e.slug));
+
+  // Content pages — nested URLs for children (`parentSlug/childSlug.html`).
+  // Query every page (including unpublished) so a published child's path can
+  // still resolve its parent's slug; only is_active pages are generated and
+  // only those with show_in_navigation appear in header/footer nav.
+  const { data: pageRows, error: pageErr } = await db
+    .from("directory_content_pages")
+    .select("id, parent_page_id, title, slug, position, nav_label, show_in_navigation, is_active, body_html, meta_title, meta_description, noindex")
+    .eq("directory_id", directoryId)
+    .order("position", { ascending: true })
+    .order("title", { ascending: true });
+  if (pageErr) throw new Error(`Content pages query failed: ${pageErr.message}`);
+  const allPages = (pageRows ?? []) as ContentPage[];
+  const pagesById = new Map(allPages.map((p) => [p.id, p]));
+  const contentPages = allPages.filter((p) => p.is_active !== false);
+  const nav = buildSiteNav({
+    clientSlug: client.slug,
+    directorySlug: directory.slug,
+    homeNavLabel: (directory as { home_nav_label?: string | null }).home_nav_label,
+    pages: allPages,
+  });
+  const childPagesByParent = new Map<string, ContentPage[]>();
+  for (const p of contentPages) {
+    if (!p.parent_page_id) continue;
+    const list = childPagesByParent.get(p.parent_page_id) ?? [];
+    list.push(p);
+    childPagesByParent.set(p.parent_page_id, list);
+  }
+  for (const list of childPagesByParent.values()) {
+    list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.title.localeCompare(b.title));
+  }
+
   // Entry pages upload one at a time until this point — for a 177-entry
   // production directory that measured ~120s end-to-end, essentially all of
   // it this loop (every other step is a handful of batched Promise.all DB
@@ -423,40 +461,19 @@ async function generateForDirectoryInner(
       attachedMapEmbedSrc,
       staticMapsApiKey,
       related: relatedEntries(entry, entries, entryTermIdsByEntry),
+      nav,
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
 
-  // Feature 6 — content pages. Flat published URLs (same basePath as
-  // entries, same as this file's header comment on the migration explains)
-  // — parent_page_id only drives nav (buildContentPage's "On this topic"
-  // list and the landing page's top-level links below), never the URL
-  // itself. A page whose slug collides with a real entry's is skipped
-  // rather than silently overwriting that entry's page — a last-resort
-  // guard behind the application-level uniqueness check in
-  // src/lib/contentPages.js, which is what should normally prevent this.
-  const entrySlugSet = new Set(entries.map((e) => e.slug));
-  const { data: pageRows, error: pageErr } = await db
-    .from("directory_content_pages")
-    .select("id, parent_page_id, title, slug, body_html, meta_title, meta_description, noindex")
-    .eq("directory_id", directoryId)
-    .eq("is_active", true);
-  if (pageErr) throw new Error(`Content pages query failed: ${pageErr.message}`);
-  const contentPages = (pageRows ?? []) as ContentPage[];
-  const pagesById = new Map(contentPages.map((p) => [p.id, p]));
-  const childPagesByParent = new Map<string, ContentPage[]>();
-  for (const p of contentPages) {
-    if (!p.parent_page_id) continue;
-    const list = childPagesByParent.get(p.parent_page_id) ?? [];
-    list.push(p);
-    childPagesByParent.set(p.parent_page_id, list);
-  }
-
+  const publishedPagePaths = new Map<string, string>();
   for (const page of contentPages) {
-    if (entrySlugSet.has(page.slug)) {
+    if (!page.parent_page_id && entrySlugSet.has(page.slug)) {
       console.error(`Content page ${page.id} ("${page.title}") slug "${page.slug}" collides with an existing entry — skipped`);
       continue;
     }
+    const publicPath = contentPagePublicPath(page, pagesById);
+    publishedPagePaths.set(page.id, publicPath);
     const html = buildContentPage({
       clientSlug: client.slug,
       directorySlug: directory.slug,
@@ -464,9 +481,11 @@ async function generateForDirectoryInner(
       page,
       parentPage: page.parent_page_id ? pagesById.get(page.parent_page_id) ?? null : null,
       childPages: childPagesByParent.get(page.id) ?? [],
+      pagesById,
       theme,
+      nav,
     });
-    await uploadToBlob(`${basePath}/${page.slug}.html`, html, "text/html; charset=utf-8");
+    await uploadToBlob(`${basePath}/${publicPath}.html`, html, "text/html; charset=utf-8");
   }
 
   const landingHtml = buildDirectoryLandingPage({
@@ -485,7 +504,7 @@ async function generateForDirectoryInner(
     seoImageUrl: directory.seo_og_image_url || null,
     seoNoindex: directoryNoindex,
     aiSearch,
-    contentPages,
+    nav,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
@@ -493,7 +512,12 @@ async function generateForDirectoryInner(
   const sitemapUrls = [
     ...(directoryNoindex ? [] : [`${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`]),
     ...entries.filter((e) => !e.noindex).map((e) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${e.slug}`),
-    ...contentPages.filter((p) => !p.noindex && !entrySlugSet.has(p.slug)).map((p) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${p.slug}`),
+    ...[...publishedPagePaths.entries()]
+      .filter(([id]) => {
+        const p = pagesById.get(id);
+        return p && !p.noindex;
+      })
+      .map(([, path]) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${path}`),
   ];
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
   await uploadToBlob(`${basePath}/robots.txt`, buildRobotsTxt(!directoryNoindex, sitemapUrl), "text/plain; charset=utf-8");
@@ -516,18 +540,27 @@ async function generateForDirectoryInner(
   // rather than pointed at a page that doesn't exist.
   const { data: redirectRows, error: redirectErr } = await db
     .from("directory_redirects")
-    .select("old_slug, entry_id")
+    .select("old_slug, entry_id, page_id")
     .eq("directory_id", directoryId);
   if (redirectErr) throw new Error(`Redirects query failed: ${redirectErr.message}`);
   const entrySlugById = new Map(entries.map((e) => [e.id, e.slug]));
-  const currentSlugs = new Set(entries.map((e) => e.slug));
+  const livePaths = new Set<string>([...entries.map((e) => e.slug), ...publishedPagePaths.values()]);
   const redirectMap: Record<string, string> = {};
-  for (const r of (redirectRows ?? []) as { old_slug: string; entry_id: string }[]) {
-    const targetSlug = entrySlugById.get(r.entry_id);
-    // A redirect old_slug that collides with a *current* entry's own slug
-    // must not override that entry's real page — drop it rather than shadow
-    // the live entry (can happen if a slug is reused a second time).
-    if (targetSlug && !currentSlugs.has(r.old_slug)) redirectMap[r.old_slug] = targetSlug;
+  for (const r of (redirectRows ?? []) as { old_slug: string; entry_id: string | null; page_id: string | null }[]) {
+    const target = r.entry_id ? entrySlugById.get(r.entry_id) : r.page_id ? publishedPagePaths.get(r.page_id) : undefined;
+    // A redirect old_slug that collides with a live path must not override
+    // that page — drop it rather than shadow the current URL (can happen if
+    // a slug is reused a second time).
+    if (target && target !== r.old_slug && !livePaths.has(r.old_slug)) redirectMap[r.old_slug] = target;
+  }
+  // First nested-URL publish: child pages used to live at /:childSlug.
+  // Emit a 301 unless that one-segment path is already a live entry or
+  // top-level page.
+  for (const page of contentPages) {
+    if (!page.parent_page_id) continue;
+    const newPath = publishedPagePaths.get(page.id);
+    if (!newPath) continue;
+    if (!livePaths.has(page.slug) && !redirectMap[page.slug]) redirectMap[page.slug] = newPath;
   }
   await uploadToBlob(`${basePath}/redirects.json`, JSON.stringify(redirectMap), "application/json; charset=utf-8");
 

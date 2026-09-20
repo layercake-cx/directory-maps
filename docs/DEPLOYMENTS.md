@@ -8,6 +8,77 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Directory page hierarchy and site navigation
+
+**Branch/PR:** `feat/2026-09-20-directory-page-hierarchy-nav` (opened as part of this production deploy).
+**Deployed by:** Cursor Grok, on the user's explicit "continue to deploy to production" go-ahead after staging.
+
+### What changed
+Same as the staging entry below: two-level page hierarchy, drag-and-drop Pages tab, generated header/mobile/footer nav, nested content-page URLs, 301s from old flat child slugs, configurable Home nav label.
+
+### Database migrations applied
+- `20260920060000_directory_page_hierarchy_nav.sql` — staging already applied; production (`gxixwdjfmegxcxfeflro`) in this deploy.
+- Rollback: `_20260920060000_directory_page_hierarchy_nav.rollback.sql`.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`) after the production migration.
+- Vercel production (`maps.layercake-cx.biz`) for `middleware.js` + admin UI, plus GitHub Pages via merge to `main`.
+
+### Rollback plan
+1. Revert the merge on `main` and redeploy both frontends.
+2. Apply `_20260920060000_directory_page_hierarchy_nav.rollback.sql` on production (drops page-target redirect rows).
+3. Redeploy `generate_directory_site` from the previous commit. Republish directories so Blob HTML returns to flat page URLs.
+
+### Verified on staging
+- [x] Staging migration + `generate_directory_site` on `beqejxneehilplrtpntn`.
+- [ ] Production migration `VERIFY PASSED`.
+- [ ] Production Edge Function deployed.
+- [ ] Vercel production + GitHub Pages.
+- [ ] Republish at least one directory with a child page so nested URLs and 301s exist on the live site.
+
+### Issues / notes
+Nested public URLs only work after **both** the new middleware and a directory republish. Directories that have not been republished keep serving the old flat HTML until someone clicks Publish again.
+
+---
+
+## 2026-09-20 — [Staging] Directory page hierarchy and site navigation
+
+**Branch/PR:** `feat/2026-09-20-directory-page-hierarchy-nav` (PR not opened yet).
+**Deployed by:** Cursor Grok
+
+### What changed
+Directory content pages are no longer a flat strip of links above the footer. They are a two-level website: the Pages tab's tree (drag-and-drop order, parent/child, nav label, show-in-nav, published) is the single source of truth for the published header, mobile hamburger, breadcrumbs, nested URLs, footer columns, and sitemap.
+
+Child pages publish at `/directories/:client/:dir/:parent/:child` (custom domain `/:parent/:child`). Changing a slug or parent records a 301 in `directory_redirects`; the first nested-URL publish also redirects each child's previous flat address. The Home item in that navigation is configurable (**Home navigation label** on Directory Settings; blank means "Home"). The logo still links to the directory landing page. Parent pages in a dropdown remain clickable.
+
+Deleting a parent now requires an explicit choice (promote children, move them, or delete them) instead of silently promoting.
+
+### Database migrations applied
+- `20260920060000_directory_page_hierarchy_nav.sql` — applied to staging (`beqejxneehilplrtpntn`). `NOTICE: VERIFY PASSED`. Production is a separate, explicit go-ahead.
+- Rollback: `_20260920060000_directory_page_hierarchy_nav.rollback.sql`.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) deployed. Production (`gxixwdjfmegxcxfeflro`) only after sign-off.
+- Vercel middleware (`middleware.js`) ships with the frontend. Nested URLs 404 until a Vercel preview/production deploy of this branch exists **and** the directory is republished. Deploy those together, then republish directories that have child pages.
+
+### Rollback plan
+1. Revert the branch (or the merge commit) on `main`.
+2. Apply `_20260920060000_directory_page_hierarchy_nav.rollback.sql` on staging, then production if it was applied — this drops page-target redirect rows.
+3. Redeploy `generate_directory_site` and Vercel middleware from the previous commit. Republish directories so Blob HTML returns to flat page URLs.
+
+### Verified on staging
+- [x] Local `preview.ts` HTML fixtures (header dropdown, mobile `<details>` menu, breadcrumbs + BreadcrumbList JSON-LD, footer columns, nested child canonical URLs). Browser MCP was unavailable for a visual pass; fixtures were inspected in the generated HTML.
+- [x] Staging migration dry-run + apply (`VERIFY PASSED`) + `generate_directory_site` deployed to `beqejxneehilplrtpntn`.
+- [ ] Vercel preview middleware; republish a directory that has a child page; confirm 301 from the old flat child URL.
+- [ ] Staging Edge Function + Vercel preview middleware; republish a directory that has a child page; confirm 301 from the old flat child URL.
+- [ ] Keyboard: tab through desktop dropdown (`:focus-within`), hamburger summary, breadcrumb links.
+- [ ] **Production not deployed.**
+
+### Issues / notes
+Monday.com Tasks board was not updated — the monday MCP was not connected in this session.
+
+---
+
 ## 2026-09-20 — [Staging] Move "Powered by Layercake Maps" from header to footer
 
 **Branch/PR:** `chore/2026-09-20-powered-by-footer`, merged via [#208](https://github.com/layercake-cx/directory-maps/pull/208) on the user's "merge and deploy" go-ahead.
