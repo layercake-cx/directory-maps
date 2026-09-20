@@ -136,7 +136,7 @@ A CSV's own `lat`/`lng` columns are used as-is when filled in; rows left blank a
 
 On a directory's **Settings** tab, the top panel covers:
 
-- **General settings** — **Directory title**, editable at any time (this is the same name shown throughout the admin/client UI and, once published, as the page's on-site heading).
+- **General settings** — **Directory title**, editable at any time (this is the same name shown throughout the admin/client UI and, once published, as the page's on-site heading). **Home navigation label** is the word used for the directory landing page in the published site's header, mobile menu, breadcrumbs, and footer; leave blank to use **Home**.
 - **SEO settings** — controls how the directory's published pages appear in search results and when shared on social media:
   - **Let search engines index this directory** — a single switch. Turned off, the directory's `robots.txt` disallows crawling, its homepage is left out of `sitemap.xml`, and its homepage carries a "noindex" tag — all together. Individual entries keep their own separate index/no-index setting (see their **Search & Metadata** tab) regardless of this switch. `robots.txt` also names four AI crawlers explicitly (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) so AI search/citation tools are clearly allowed or disallowed rather than only implied by the general rule — this list isn't yet client-configurable, it follows the same switch.
   - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description. A **Generate with AI** button on this section drafts both from the directory's own entry count and categorisation (in the style of "A directory of 329 UK professional associations, trade bodies and regulators, categorised by industry sector and organisation type"); the draft lands in these two fields for review, nothing is saved until you click **Save settings**.
@@ -151,6 +151,8 @@ Click **Save settings**, then **Publish** (or republish) for changes to reach th
 On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
 
 The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has search instructions set, the same search box instead resolves the query with Claude — see **AI search** below; it falls back to plain keyword matching automatically if that call ever fails.
+
+The header, mobile menu, and footer on every published page are generated from the **Pages** tab (see **Content pages** below): a Home link back to the directory, plus your pages in the order you set. Child pages appear in a dropdown on desktop and an expandable section on a phone.
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
 
@@ -267,14 +269,19 @@ Turning AI search on sends visitors' search text (and, with web search enabled, 
 
 ### Content pages
 
-A directory's **Pages** tab (owners and managers only) is for editor-built pages that sit alongside your entry listings — an "About" page, "How to join", a sector guide — rather than describing a single organisation.
+A directory's **Pages** tab (owners and managers only) is for editor-built pages that sit alongside your entry listings — an "About" page, "How to join", a sector guide — rather than describing a single organisation. Together they form a small website around the directory: the page tree you set here is what visitors see in the header, on a phone menu, in breadcrumbs, and in the footer.
 
 1. Type a title and click **+ Add page** to create one — it's saved immediately so you can start editing it.
-2. Select a page on the left to edit its **Title**, **URL slug**, **Parent page** (choose another page to nest this one under it in the navigation — published URLs stay flat either way, this only affects how pages are grouped for browsing), **Position** (lower numbers appear earlier among sibling pages), and its **Content**, written in the same rich text editor entries use.
-3. **Generate with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**.
-4. **Meta title**, **Meta description**, and **Hide from search engines (noindex)** work the same as an entry's own Search & Metadata fields.
-5. Published pages get their own URL, appear in the directory's sitemap.xml, and show as links on the directory's homepage (top-level pages) and on their own parent page (as an "On this topic" list, for nested pages) — all live only after the next time you publish the directory.
-6. **Delete page** removes it immediately; any of its sub-pages move up to become top-level pages rather than being deleted with it.
+2. The list on the left shows the hierarchy. Drag the ☰ handle to reorder pages, drop a page onto a top-level page to nest it (one level only — a page that already has children has to stay top-level), or drag a nested page back to the top level.
+3. Select a page to edit its **Title**, **URL slug**, **Parent page**, **Navigation label** (optional shorter wording for the header; leave blank to use the title), **Show in site navigation**, **Published**, and its **Content**, written in the same rich text editor entries use.
+4. A published page with **Show in site navigation** turned off stays reachable at its URL and can still appear in breadcrumbs, but it is left out of the header, phone menu, and footer.
+5. An unpublished page is omitted from the live site entirely until you publish it and republish the directory.
+6. Child pages get a nested address, e.g. `/membership/why-join`. Changing a parent or slug changes that address; the previous address redirects after the next time you publish.
+7. **Generate with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**.
+8. **Meta title**, **Meta description**, and **Hide from search engines (noindex)** work the same as an entry's own Search & Metadata fields.
+9. **Delete page** — if the page has children, you must choose to move them to the top level, move them under another page, or delete them too. The live site updates on the next publish.
+
+Every content page also shows a breadcrumb under the header (for example **Home > Membership > Membership Benefits**). The logo/title in the header always links back to the directory.
 
 ---
 
@@ -623,6 +630,8 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
+| Add or reorder directory content pages | Directory → Pages |
+| Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 

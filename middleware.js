@@ -6,7 +6,7 @@
  * Three responsibilities, branched on the request's Host header and path:
  *
  * 1. Branded domain, Directory-entity pages (new, Phase 3b): intercepts
- *    /directories/:clientSlug/:directorySlug[/:entrySlug] and serves
+ *    /directories/:clientSlug/:directorySlug[/:slug][/:childSlug] and serves
  *    generate_directory_site's static output. The literal "directories"
  *    (plural) first segment is deliberate — it's the ONLY way to route a
  *    Directory's own homepage without an ambiguity-resolving DB lookup on
@@ -17,7 +17,8 @@
  *    map page load to disambiguate was rejected as a real regression to a
  *    live feature. Checked first, before anything else, and returns
  *    immediately either way — it can never fall into or be shadowed by the
- *    branches below.
+ *    branches below. A fifth segment is a nested content-page URL
+ *    (/parent/child); anything deeper falls through to the SPA.
  *
  * 2. Branded domain, Map's own directory pages (Epic 3 — unrelated entity,
  *    confusingly similar name; see generate_directory_pages' own header
@@ -34,7 +35,8 @@
  *    publishes via a Supabase REST lookup (resolve_custom_domain, entity-
  *    polymorphic since the same migration), then serves the same
  *    pre-generated content at the decided URL scheme: `/` → landing page,
- *    `/:slug` → entry/listing page, `/sitemap.xml`, and (directory only)
+ *    `/:slug` → entry or top-level content page, `/:parent/:child` → nested
+ *    content page, `/sitemap.xml`, and (directory only)
  *    `/llms.txt`/`/robots.txt` — the one place a per-directory robots.txt is
  *    actually honoured by a real crawler, unlike the branded-host
  *    /directories/:clientSlug/:directorySlug/robots.txt path also served by
@@ -185,6 +187,8 @@ async function handleCustomDomain(host, segments, blobBase) {
     contentType = "text/plain; charset=utf-8";
   } else if (segments.length === 1) {
     pathname = `${basePath}/${segments[0]}.html`;
+  } else if (domain.entityType === "directory" && segments.length === 2) {
+    pathname = `${basePath}/${segments[0]}/${segments[1]}.html`;
   } else {
     return htmlResponse(404, "Not found", "Nothing here.");
   }
@@ -197,7 +201,8 @@ async function handleCustomDomain(host, segments, blobBase) {
     // giving up, same mechanism as the branded-domain directory routes.
     if (
       domain.entityType === "directory" &&
-      segments.length === 1 &&
+      segments.length >= 1 &&
+      segments.length <= 2 &&
       segments[0] !== "sitemap.xml" &&
       segments[0] !== "llms.txt" &&
       segments[0] !== "robots.txt"
@@ -206,8 +211,9 @@ async function handleCustomDomain(host, segments, blobBase) {
       if (redirectsJson != null) {
         try {
           const redirects = JSON.parse(redirectsJson);
-          const newSlug = redirects[segments[0]];
-          if (newSlug) return new Response(null, { status: 301, headers: { location: `/${newSlug}` } });
+          const oldPath = segments.join("/");
+          const newPath = redirects[oldPath];
+          if (newPath) return new Response(null, { status: 301, headers: { location: `/${newPath}` } });
         } catch {
           // malformed manifest — fall through to the "not published" response below
         }
@@ -270,51 +276,53 @@ function rewriteForCustomDomain(text, host, { entityType, clientSlug, entitySlug
 async function handleDirectorySite(segments, blobBase) {
   const clientSlug = segments[1];
   const directorySlug = segments[2];
-  const entrySlug = segments[3];
+  const rest = segments.slice(3);
+  const pagePath = rest.join("/");
 
-  // Malformed (missing slugs) or more than 4 segments (nothing generated
-  // this deep) — not ours, fall through to the SPA rather than 404 outright.
-  if (!clientSlug || !directorySlug || segments.length > 4) return;
+  // Malformed (missing slugs) or more than 5 segments (landing + parent +
+  // child is the deepest generated path) — not ours, fall through to the SPA
+  // rather than 404 outright.
+  if (!clientSlug || !directorySlug || segments.length > 5) return;
   if (!blobBase) return; // misconfigured — fail open to the normal SPA route rather than break the site
 
   const base = `directories/${clientSlug}/${directorySlug}`;
 
   let pathname;
   let contentType;
-  if (!entrySlug) {
+  if (rest.length === 0) {
     pathname = `${base}/index.html`;
     contentType = "text/html; charset=utf-8";
-  } else if (entrySlug === "sitemap.xml") {
+  } else if (rest.length === 1 && rest[0] === "sitemap.xml") {
     pathname = `${base}/sitemap.xml`;
     contentType = "application/xml; charset=utf-8";
-  } else if (entrySlug === "llms.txt") {
+  } else if (rest.length === 1 && rest[0] === "llms.txt") {
     pathname = `${base}/llms.txt`;
     contentType = "text/plain; charset=utf-8";
-  } else if (entrySlug === "robots.txt") {
+  } else if (rest.length === 1 && rest[0] === "robots.txt") {
     pathname = `${base}/robots.txt`;
     contentType = "text/plain; charset=utf-8";
   } else {
-    pathname = `${base}/${entrySlug}.html`;
+    pathname = `${base}/${pagePath}.html`;
     contentType = "text/html; charset=utf-8";
   }
 
   const html = await fetchBlobHtml(blobBase, pathname);
   if (html != null) return new Response(html, { status: 200, headers: { "content-type": contentType } });
 
-  // Only a plain entry-slug lookup can be a stale/renamed URL — the
-  // directory landing page, sitemap.xml, robots.txt and llms.txt are never
-  // redirect targets. Check the pre-generated redirect manifest
-  // (docs/DIRECTORIES.md §5.11) before giving up and falling through to the SPA.
-  if (entrySlug && entrySlug !== "sitemap.xml" && entrySlug !== "llms.txt" && entrySlug !== "robots.txt") {
+  // Stale/renamed entry or content-page URL — check the pre-generated
+  // redirect manifest (docs/DIRECTORIES.md §5.11) before giving up. Landing,
+  // sitemap.xml, robots.txt and llms.txt are never redirect targets.
+  const isHtmlPage = rest.length >= 1 && rest[0] !== "sitemap.xml" && rest[0] !== "llms.txt" && rest[0] !== "robots.txt";
+  if (isHtmlPage) {
     const redirectsJson = await fetchBlobHtml(blobBase, `${base}/redirects.json`);
     if (redirectsJson != null) {
       try {
         const redirects = JSON.parse(redirectsJson);
-        const newSlug = redirects[entrySlug];
-        if (newSlug) {
+        const newPath = redirects[pagePath];
+        if (newPath) {
           return new Response(null, {
             status: 301,
-            headers: { location: `/directories/${clientSlug}/${directorySlug}/${newSlug}` },
+            headers: { location: `/directories/${clientSlug}/${directorySlug}/${newPath}` },
           });
         }
       } catch {

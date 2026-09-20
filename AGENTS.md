@@ -470,6 +470,9 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
   - `meta`: `directory_id`, `page_id`
 - **`directory_content_page_deleted`**
   - `meta`: `directory_id`, `page_id`, `title`
+- **`directory_content_pages_reordered`**
+  - `meta`: `directory_id`, `page_ids` (string[], the tree in display order after drag-and-drop)
+  - Fired when the Pages tab's drag-and-drop persist succeeds (parent relationships and sibling `position` together). Form saves still use `directory_content_page_updated`.
 - **`directory_content_page_ai_draft_requested`** / **`_ai_draft_generated`** / **`_ai_draft_failed`**
   - `meta`: `directory_id`, `page_id`, `error` (on fail)
   - The editor supplies an outline; Claude drafts the page body. Never persisted by the Edge Function itself — lands in the (unsaved) rich text editor for review, same pattern as `directory_ai_content_*`.

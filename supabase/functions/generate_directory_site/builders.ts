@@ -228,6 +228,71 @@ export const EXTRA_STYLE = `
   .contact-card p { margin: 0; font-size: 14.5px; }
   .evidence-list dt { font-weight: 700; margin-top: 12px; font-size: 15.5px; }
   .evidence-list dd { margin: 0 0 4px; font-size: 15px; color: var(--muted); }
+
+  /* Site navigation — CSS-first so every destination is a crawlable <a href>
+     even when the hamburger/dropdown is closed. Desktop dropdowns use
+     :hover/:focus-within; mobile uses <details>/<summary> (no JS). */
+  .dir-site-header { border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
+  .dir-site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px; }
+  .dir-brand { display: flex; align-items: center; gap: 12px; color: inherit; flex: none; }
+  .dir-brand:focus-visible, .dir-nav-desktop a:focus-visible, .dir-nav-mobile a:focus-visible, .dir-nav-mobile summary:focus-visible, .dir-breadcrumb a:focus-visible, .dir-footer-nav a:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 3px;
+  }
+  .dir-nav-desktop { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
+  .dir-nav-desktop a { color: var(--hdr-text); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px; }
+  .dir-nav-desktop a:hover { color: var(--primary); }
+  .dir-nav-item { position: relative; }
+  .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
+  .dir-nav-dropdown {
+    display: none; position: absolute; top: 100%; right: 0; min-width: 220px; z-index: 8;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; margin: 0; list-style: none;
+  }
+  .dir-nav-item--dropdown:hover .dir-nav-dropdown,
+  .dir-nav-item--dropdown:focus-within .dir-nav-dropdown { display: block; }
+  .dir-nav-dropdown a { display: block; padding: 10px 12px; border-radius: 8px; white-space: nowrap; }
+  .dir-nav-dropdown a:hover { background: var(--surface-2); }
+  .dir-nav-mobile { display: none; position: relative; }
+  .dir-nav-mobile > summary {
+    list-style: none; cursor: pointer; min-width: 44px; min-height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    color: var(--hdr-text); font-size: 20px; font-weight: 700;
+  }
+  .dir-nav-mobile > summary::-webkit-details-marker { display: none; }
+  .dir-nav-mobile__panel {
+    position: absolute; right: 0; top: calc(100% + 8px); z-index: 9;
+    width: min(320px, calc(100vw - 40px)); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.16);
+    padding: 8px; display: flex; flex-direction: column;
+  }
+  .dir-nav-mobile__panel a, .dir-nav-mobile__panel summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    min-height: 44px; padding: 10px 12px; border-radius: 8px; color: var(--ink);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .dir-nav-mobile__panel a:hover, .dir-nav-mobile__panel summary:hover { background: var(--surface-2); }
+  .dir-nav-mobile__section { border-radius: 8px; }
+  .dir-nav-mobile__section > summary { list-style: none; }
+  .dir-nav-mobile__section > summary::-webkit-details-marker { display: none; }
+  .dir-nav-mobile__section > summary::after { content: "+"; font-weight: 700; color: var(--muted); }
+  .dir-nav-mobile__section[open] > summary::after { content: "−"; }
+  .dir-nav-mobile__children { display: flex; flex-direction: column; padding: 0 0 6px 12px; }
+  @media (max-width: 800px) {
+    .dir-nav-desktop { display: none; }
+    .dir-nav-mobile { display: block; }
+  }
+  .dir-breadcrumb { margin: 20px 0; }
+  .dir-breadcrumb ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+  .dir-breadcrumb li { display: flex; align-items: center; gap: 6px; }
+  .dir-breadcrumb li:not(:last-child)::after { content: ">"; color: var(--line); font-weight: 500; }
+  .dir-breadcrumb a { color: var(--muted); }
+  .dir-breadcrumb a:hover { color: var(--primary); }
+  .dir-breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 600; }
+  .dir-footer-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 24px 32px; flex: 1; min-width: 220px; }
+  .dir-footer-col { display: flex; flex-direction: column; gap: 6px; }
+  .dir-footer-col__title { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; color: var(--ftr-text); }
+  .dir-footer-col a { font-size: 13.5px; }
 `;
 
 // Directory browse layout — intent search, filter rail, result bar with
@@ -553,7 +618,7 @@ export function directoryPageShell(opts: {
   title: string;
   description: string;
   canonicalUrl: string;
-  jsonLd: Record<string, unknown>;
+  jsonLd: Record<string, unknown> | Record<string, unknown>[];
   body: string;
   imageUrl?: string | null;
   noindex?: boolean;
@@ -562,6 +627,8 @@ export function directoryPageShell(opts: {
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
     : `<meta name="twitter:card" content="summary">`;
+  const graphs = Array.isArray(opts.jsonLd) ? opts.jsonLd : [opts.jsonLd];
+  const jsonLdTags = graphs.map((g) => `<script type="application/ld+json">${JSON.stringify(g)}</script>`).join("\n");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -575,7 +642,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 <meta property="og:description" content="${escapeAttr(opts.description)}">
 <meta property="og:url" content="${escapeAttr(opts.canonicalUrl)}">
 ${ogImage}
-<script type="application/ld+json">${JSON.stringify(opts.jsonLd)}</script>
+${jsonLdTags}
 ${fontLinkTag(opts.theme ?? {})}
 <style>
   ${themeStyleBlock(opts.theme ?? {})}
@@ -590,6 +657,71 @@ ${opts.body}
 </html>`;
 }
 
+export type SiteNavLink = { id: string; label: string; href: string };
+export type SiteNavItem = SiteNavLink & { children: SiteNavLink[] };
+export type SiteNav = {
+  homeUrl: string;
+  homeLabel: string;
+  items: SiteNavItem[];
+};
+
+function renderDesktopNav(nav: SiteNav): string {
+  const home = `<a href="${escapeAttr(nav.homeUrl)}">${escapeHtml(nav.homeLabel)}</a>`;
+  const items = nav.items
+    .map((item) => {
+      if (!item.children.length) {
+        return `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
+      }
+      const childLinks = [
+        `<li><a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a></li>`,
+        ...item.children.map((c) => `<li><a href="${escapeAttr(c.href)}">${escapeHtml(c.label)}</a></li>`),
+      ].join("");
+      return `<div class="dir-nav-item dir-nav-item--dropdown">
+  <a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>
+  <ul class="dir-nav-dropdown">${childLinks}</ul>
+</div>`;
+    })
+    .join("\n");
+  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}</nav>`;
+}
+
+function renderMobileNav(nav: SiteNav): string {
+  const home = `<a href="${escapeAttr(nav.homeUrl)}">${escapeHtml(nav.homeLabel)}</a>`;
+  const items = nav.items
+    .map((item) => {
+      if (!item.children.length) {
+        return `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
+      }
+      const childLinks = [
+        `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`,
+        ...item.children.map((c) => `<a href="${escapeAttr(c.href)}">${escapeHtml(c.label)}</a>`),
+      ].join("");
+      return `<details class="dir-nav-mobile__section">
+  <summary>${escapeHtml(item.label)}</summary>
+  <div class="dir-nav-mobile__children">${childLinks}</div>
+</details>`;
+    })
+    .join("\n");
+  return `<details class="dir-nav-mobile">
+  <summary aria-label="Open menu">☰</summary>
+  <nav class="dir-nav-mobile__panel" aria-label="Primary">${home}${items}</nav>
+</details>`;
+}
+
+function renderFooterNav(nav: SiteNav): string {
+  if (!nav.items.length) return "";
+  const cols = nav.items
+    .map((item) => {
+      const kids = item.children.map((c) => `<a href="${escapeAttr(c.href)}" class="dir-footer-link">${escapeHtml(c.label)}</a>`).join("");
+      return `<div class="dir-footer-col">
+  <a class="dir-footer-col__title dir-footer-link" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>
+  ${kids}
+</div>`;
+    })
+    .join("");
+  return `<nav class="dir-footer-nav" aria-label="Footer">${cols}</nav>`;
+}
+
 /** Full-bleed header — background spans the viewport, content stays inside
  * `.wrap`. Used on every page (landing + entry), matching the canvas's own
  * consistent-header-everywhere pattern. */
@@ -601,6 +733,7 @@ export function siteHeader(opts: {
   headerMode?: "logo" | "logoText" | "text";
   siteTitle?: string | null;
   logoMaxHeight?: number;
+  nav?: SiteNav | null;
 }): string {
   const mode = opts.headerMode === "logo" || opts.headerMode === "text" ? opts.headerMode : "logoText";
   const displayTitle = opts.siteTitle?.trim() || opts.directoryName;
@@ -619,14 +752,17 @@ export function siteHeader(opts: {
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
       </div>`
     : "";
-  return `<div style="border-bottom:1px solid var(--line);background:var(--hdr-bg);backdrop-filter:blur(6px);">
-  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;height:76px;">
-    <a href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}" style="display:flex;align-items:center;gap:12px;color:inherit;">
+  const nav = opts.nav;
+  const navHtml = nav ? `${renderDesktopNav(nav)}${renderMobileNav(nav)}` : "";
+  return `<header class="dir-site-header">
+  <div class="wrap dir-site-header__inner">
+    <a class="dir-brand" href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}">
       ${showLogo ? logo : ""}
       ${brand}
     </a>
+    ${navHtml}
   </div>
-</div>`;
+</header>`;
 }
 
 /** Full-bleed dark footer, identical on every page. Note the disclaimer
@@ -634,16 +770,18 @@ export function siteHeader(opts: {
  * decorative platform copy, not part of the three-region model (dev
  * spec's non-goals §3: no per-component overrides beyond header/body/
  * footer). */
-export function siteFooter(opts: { directoryName: string; homeUrl: string }): string {
-  return `<div style="margin-top:56px;background:var(--ftr-bg);">
-  <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?: SiteNav | null }): string {
+  const footerNav = opts.nav ? renderFooterNav(opts.nav) : "";
+  return `<footer style="margin-top:56px;background:var(--ftr-bg);">
+  <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;">
     <div>
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
     </div>
+    ${footerNav}
     <span style="font-size:12.5px;color:#8FB4AD;">Powered by Layercake&nbsp;Maps · content is editorial, commercial links never affect inclusion.</span>
   </div>
-</div>`;
+</footer>`;
 }
 
 export function linkTiles(links: EntryLink[]): string {
@@ -713,8 +851,9 @@ export function buildEntryPage(opts: {
   staticMapsApiKey: string | null;
   /** Up to 4 other entries sharing at least one categorisation term, already ranked by shared-term count — computed once per directory in generateForDirectoryInner (all the data it needs is already in memory there) rather than re-queried per entry. */
   related: Entry[];
+  nav?: SiteNav | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -920,7 +1059,7 @@ export function buildEntryPage(opts: {
   const breadcrumb = `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; All entries in ${escapeHtml(directoryName)}</a>`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
 <div class="wrap">
 ${breadcrumb}
 ${header}
@@ -930,7 +1069,7 @@ ${jumpBar}
   <div class="dir-entry-main">${sections}</div>
   ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
 </div>
-${siteFooter({ directoryName, homeUrl: landingUrl })}
+${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
 `.trim();
 
   return directoryPageShell({
@@ -952,11 +1091,88 @@ export type ContentPage = {
   parent_page_id: string | null;
   title: string;
   slug: string;
+  position?: number;
+  nav_label?: string | null;
+  show_in_navigation?: boolean;
+  is_active?: boolean;
   body_html: string;
   meta_title: string | null;
   meta_description: string | null;
   noindex: boolean;
 };
+
+export function contentPagePublicPath(page: ContentPage, byId: Map<string, ContentPage>): string {
+  if (!page.parent_page_id) return page.slug;
+  const parent = byId.get(page.parent_page_id);
+  return parent ? `${parent.slug}/${page.slug}` : page.slug;
+}
+
+export function contentPageHref(clientSlug: string, directorySlug: string, path: string): string {
+  return `/directories/${clientSlug}/${directorySlug}/${path}`;
+}
+
+function pageNavLabel(page: ContentPage): string {
+  const label = page.nav_label?.trim();
+  return label || page.title;
+}
+
+function sortContentPages(a: ContentPage, b: ContentPage): number {
+  return (a.position ?? 0) - (b.position ?? 0) || a.title.localeCompare(b.title);
+}
+
+/** Header / mobile / footer tree from published pages that are flagged to appear in navigation. */
+export function buildSiteNav(opts: {
+  clientSlug: string;
+  directorySlug: string;
+  homeNavLabel?: string | null;
+  pages: ContentPage[];
+}): SiteNav {
+  const homeUrl = `/directories/${opts.clientSlug}/${opts.directorySlug}`;
+  const homeLabel = opts.homeNavLabel?.trim() || "Home";
+  const byId = new Map(opts.pages.map((p) => [p.id, p]));
+  const inNav = (p: ContentPage) => p.is_active !== false && p.show_in_navigation !== false;
+  const childrenOf = (parentId: string) => opts.pages.filter((p) => p.parent_page_id === parentId && inNav(p)).sort(sortContentPages);
+  const items = opts.pages
+    .filter((p) => !p.parent_page_id && inNav(p))
+    .sort(sortContentPages)
+    .map((p) => ({
+      id: p.id,
+      label: pageNavLabel(p),
+      href: `${homeUrl}/${contentPagePublicPath(p, byId)}`,
+      children: childrenOf(p.id).map((c) => ({
+        id: c.id,
+        label: pageNavLabel(c),
+        href: `${homeUrl}/${contentPagePublicPath(c, byId)}`,
+      })),
+    }));
+  return { homeUrl, homeLabel, items };
+}
+
+export function breadcrumbListJsonLd(items: { name: string; url: string }[]): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      item: it.url,
+    })),
+  };
+}
+
+function renderBreadcrumbTrail(
+  crumbs: { name: string; href?: string }[],
+): string {
+  const items = crumbs
+    .map((c, i) => {
+      const last = i === crumbs.length - 1;
+      if (last || !c.href) return `<li><span aria-current="page">${escapeHtml(c.name)}</span></li>`;
+      return `<li><a href="${escapeAttr(c.href)}">${escapeHtml(c.name)}</a></li>`;
+    })
+    .join("");
+  return `<nav class="dir-breadcrumb" aria-label="Breadcrumb"><ol>${items}</ol></nav>`;
+}
 
 /** WebPage, not Article — these are editor-maintained reference pages ("About", "How to join"), not dated/authored posts. */
 export function contentPageSchemaOrg(page: ContentPage, directoryName: string, canonicalUrl: string): Record<string, unknown> {
@@ -976,22 +1192,29 @@ export function buildContentPage(opts: {
   page: ContentPage;
   parentPage: ContentPage | null;
   childPages: ContentPage[];
+  pagesById: Map<string, ContentPage>;
   theme: DirectoryTheme;
+  nav: SiteNav;
 }): string {
-  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, theme } = opts;
-  const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
-  const pageUrl = (p: Pick<ContentPage, "slug">) => `/directories/${clientSlug}/${directorySlug}/${p.slug}`;
-  const canonicalUrl = `${SITE_ORIGIN}${pageUrl(page)}`;
+  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav } = opts;
+  const landingUrl = nav.homeUrl;
+  const hrefFor = (p: ContentPage) => contentPageHref(clientSlug, directorySlug, contentPagePublicPath(p, pagesById));
+  const canonicalUrl = `${SITE_ORIGIN}${hrefFor(page)}`;
 
-  const breadcrumb = parentPage
-    ? `<a href="${escapeAttr(pageUrl(parentPage))}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; ${escapeHtml(parentPage.title)}</a>`
-    : `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; ${escapeHtml(directoryName)}</a>`;
+  const crumbItems: { name: string; href?: string }[] = [{ name: nav.homeLabel, href: landingUrl }];
+  const jsonLdCrumbs: { name: string; url: string }[] = [{ name: nav.homeLabel, url: `${SITE_ORIGIN}${landingUrl}` }];
+  if (parentPage) {
+    crumbItems.push({ name: pageNavLabel(parentPage), href: hrefFor(parentPage) });
+    jsonLdCrumbs.push({ name: pageNavLabel(parentPage), url: `${SITE_ORIGIN}${hrefFor(parentPage)}` });
+  }
+  crumbItems.push({ name: pageNavLabel(page) });
+  jsonLdCrumbs.push({ name: pageNavLabel(page), url: canonicalUrl });
 
   const childList = childPages.length
     ? `<div class="dir-aside-block" style="margin-top:32px;">
   <span class="dir-rail__label">On this topic</span>
   <div style="display:grid;gap:6px;margin-top:8px;">
-    ${childPages.map((c) => `<a href="${escapeAttr(pageUrl(c))}" style="font-size:14px;font-weight:600;">${escapeHtml(c.title)}</a>`).join("\n")}
+    ${childPages.map((c) => `<a href="${escapeAttr(hrefFor(c))}" style="font-size:14px;font-weight:600;">${escapeHtml(c.title)}</a>`).join("\n")}
   </div>
 </div>`
     : "";
@@ -999,21 +1222,21 @@ export function buildContentPage(opts: {
   const description = page.meta_description || `${page.title} — ${directoryName}`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav })}
 <div class="wrap" style="max-width:760px;">
-${breadcrumb}
+${renderBreadcrumbTrail(crumbItems)}
 <h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
 ${page.body_html}
 ${childList}
 </div>
-${siteFooter({ directoryName, homeUrl: landingUrl })}
+${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
 `.trim();
 
   return directoryPageShell({
     title: page.meta_title || `${page.title} — ${directoryName}`,
     description,
     canonicalUrl,
-    jsonLd: contentPageSchemaOrg(page, directoryName, canonicalUrl),
+    jsonLd: [contentPageSchemaOrg(page, directoryName, canonicalUrl), breadcrumbListJsonLd(jsonLdCrumbs)],
     body,
     noindex: !!page.noindex,
     theme,
@@ -1626,11 +1849,11 @@ export function buildDirectoryLandingPage(opts: {
   seoImageUrl?: string | null;
   seoNoindex?: boolean;
   aiSearch?: AiSearchOptions | null;
-  /** Top-level entry point into Feature 6's content pages — just enough for discoverability from the homepage; each page's own "On this topic" list (buildContentPage) handles drilling into its children. */
-  contentPages?: ContentPage[];
+  nav?: SiteNav | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, contentPages } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, nav } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
+  const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
 
   const termMeta = buildTermMetaIndex(categorisations);
@@ -1738,7 +1961,7 @@ export function buildDirectoryLandingPage(opts: {
     : "";
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
 <div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
@@ -1778,15 +2001,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
     </div>
   </div>
 </div>
-${(() => {
-  const topLevelPages = (contentPages ?? []).filter((p) => !p.parent_page_id);
-  if (!topLevelPages.length) return "";
-  const links = topLevelPages
-    .map((p) => `<a href="${escapeAttr(`/directories/${clientSlug}/${directorySlug}/${p.slug}`)}" style="font-size:14px;font-weight:600;">${escapeHtml(p.title)}</a>`)
-    .join("\n");
-  return `<div class="wrap" style="padding:8px 0 32px;display:flex;gap:20px;flex-wrap:wrap;">${links}</div>`;
-})()}
-${siteFooter({ directoryName, homeUrl: "." })}
+${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
 ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
 `.trim();
 
