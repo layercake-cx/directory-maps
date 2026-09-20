@@ -11,6 +11,7 @@ import {
   deleteThemePreset,
 } from "../../lib/directoryThemePresets.js";
 import { uploadDirectoryLogo } from "../../lib/directoryBranding.js";
+import { checkContrast } from "../../lib/colorContrast.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 const colorRowStyle = { display: "flex", alignItems: "center", gap: 8 };
@@ -114,10 +115,34 @@ function backgroundToCss(bg, fallbackColor) {
   return `linear-gradient(${angle}deg, ${stopList})`;
 }
 
-function ColorField({ label, value, onChange }) {
+/** Pass/warn indicator (dev spec §12) — warns, never blocks. `contrast` is
+ * checkContrast()'s result, or null/undefined to render nothing (e.g. the
+ * background isn't a plain hex, such as the header's translucent default). */
+function ContrastBadge({ contrast }) {
+  if (!contrast) return null;
+  const { ratio, passesAA } = contrast;
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        color: passesAA ? "#15803d" : "#b45309",
+        whiteSpace: "nowrap",
+      }}
+      title={`Contrast ratio ${ratio.toFixed(2)}:1 against its background — WCAG AA needs 4.5:1 for normal text (3:1 for large text).`}
+    >
+      {passesAA ? "✓" : "⚠"} {ratio.toFixed(1)}:1{!passesAA && " low contrast"}
+    </span>
+  );
+}
+
+function ColorField({ label, value, onChange, contrast }) {
   return (
     <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-      <span>{label}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {label}
+        <ContrastBadge contrast={contrast} />
+      </span>
       <div style={colorRowStyle}>
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
         <input value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
@@ -431,6 +456,20 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can change branding.</p>;
   }
 
+  // Contrast checks (dev spec §12) — text/link against their own region's
+  // background. Gradients are checked against every stop, worst wins.
+  // checkContrast() returns null (renders no badge) when a background
+  // isn't a plain hex, e.g. the header's translucent rgba() default.
+  // headerText/footerText render as bold ~19px/17px (siteHeader()/
+  // siteFooter() in builders.ts) — comfortably at or past WCAG's "large
+  // text" cutoff (14pt/~18.7px bold), so use the 3:1 threshold there;
+  // body text and every link default to the stricter 4.5:1.
+  const headerTextContrast = checkContrast(theme.headerText, theme.headerBackground, { large: true });
+  const bodyTextContrast = checkContrast(theme.inkColor, theme.backgroundColor);
+  const bodyLinkContrast = checkContrast(theme.primaryColor, theme.backgroundColor);
+  const footerTextContrast = checkContrast(theme.footerText, theme.footerBackground, { large: true });
+  const footerLinkContrast = checkContrast(theme.footerLink, theme.footerBackground);
+
   return (
     <form onSubmit={save} style={{ display: "grid", gap: 14 }}>
       {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
@@ -457,7 +496,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
         <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Header</summary>
         <div style={sectionStyle}>
           <BackgroundEditor label="Background" value={theme.headerBackground} onChange={(v) => set("headerBackground", v)} fallbackColor={HEADER_BG_DEFAULT.color} />
-          <ColorField label="Text colour" value={theme.headerText} onChange={(v) => set("headerText", v)} />
+          <ColorField label="Text colour" value={theme.headerText} onChange={(v) => set("headerText", v)} contrast={headerTextContrast} />
 
           <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
             <span>Header shows</span>
@@ -518,7 +557,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
       <details open>
         <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Body</summary>
         <div style={sectionStyle}>
-          <ColorField label="Primary colour (links, buttons)" value={theme.primaryColor} onChange={(v) => set("primaryColor", v)} />
+          <ColorField label="Primary colour (links, buttons)" value={theme.primaryColor} onChange={(v) => set("primaryColor", v)} contrast={bodyLinkContrast} />
           <ColorField label="Accent colour (highlights, AI search icon)" value={theme.accentColor} onChange={(v) => set("accentColor", v)} />
           <ColorField label="Background colour" value={theme.backgroundColor} onChange={(v) => set("backgroundColor", v)} />
 
@@ -536,7 +575,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
               <ColorField label="Primary (dark variant)" value={theme.primaryDarkColor} onChange={(v) => set("primaryDarkColor", v)} />
               <ColorField label="Surface" value={theme.surfaceColor} onChange={(v) => set("surfaceColor", v)} />
               <ColorField label="Surface (alt)" value={theme.surfaceAltColor} onChange={(v) => set("surfaceAltColor", v)} />
-              <ColorField label="Text (ink)" value={theme.inkColor} onChange={(v) => set("inkColor", v)} />
+              <ColorField label="Text (ink)" value={theme.inkColor} onChange={(v) => set("inkColor", v)} contrast={bodyTextContrast} />
               <ColorField label="Muted text" value={theme.mutedColor} onChange={(v) => set("mutedColor", v)} />
               <ColorField label="Border / line" value={theme.lineColor} onChange={(v) => set("lineColor", v)} />
               <ColorField label="Sage (badge background)" value={theme.sageColor} onChange={(v) => set("sageColor", v)} />
@@ -582,8 +621,8 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
         <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Footer</summary>
         <div style={sectionStyle}>
           <BackgroundEditor label="Background" value={theme.footerBackground} onChange={(v) => set("footerBackground", v)} fallbackColor={FOOTER_BG_DEFAULT.color} />
-          <ColorField label="Text colour" value={theme.footerText} onChange={(v) => set("footerText", v)} />
-          <ColorField label="Link colour" value={theme.footerLink} onChange={(v) => set("footerLink", v)} />
+          <ColorField label="Text colour" value={theme.footerText} onChange={(v) => set("footerText", v)} contrast={footerTextContrast} />
+          <ColorField label="Link colour" value={theme.footerLink} onChange={(v) => set("footerLink", v)} contrast={footerLinkContrast} />
           <ColorField label="Link hover colour" value={theme.footerLinkHover} onChange={(v) => set("footerLinkHover", v)} />
         </div>
       </details>
