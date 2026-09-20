@@ -100,6 +100,10 @@ export type DirectoryTheme = {
   // Header branding mode + site title override. logoUrl above is unchanged
   // (still the header logo image); these three just control HOW it's shown.
   headerMode?: "logo" | "logoText" | "text";
+  // Independent of headerMode: false omits the title text even when mode is
+  // logoText/text. Unset means "follow headerMode" (logo → hidden, else shown)
+  // so directories saved before this field keep their published look.
+  showHeaderTitle?: boolean;
   siteTitle?: string;
   logoMaxHeight?: number;
 };
@@ -509,6 +513,7 @@ export const NATURAL_DEFAULTS: Required<
     | "fontSizeH2"
     | "fontSizeH3"
     | "headerMode"
+    | "showHeaderTitle"
     | "siteTitle"
     | "logoMaxHeight"
   >
@@ -731,6 +736,7 @@ export function siteHeader(opts: {
   homeUrl: string;
   logoUrl?: string | null;
   headerMode?: "logo" | "logoText" | "text";
+  showHeaderTitle?: boolean;
   siteTitle?: string | null;
   logoMaxHeight?: number;
   nav?: SiteNav | null;
@@ -745,7 +751,7 @@ export function siteHeader(opts: {
     ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;border-radius:12px;object-fit:contain;">`
     : `<div style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
   const showLogo = mode !== "text";
-  const showText = mode !== "logo";
+  const showText = opts.showHeaderTitle === false ? false : mode !== "logo";
   const brand = showText
     ? `<div style="line-height:1.05;">
         <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(displayTitle)}</div>
@@ -1059,7 +1065,7 @@ export function buildEntryPage(opts: {
   const breadcrumb = `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; All entries in ${escapeHtml(directoryName)}</a>`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
 <div class="wrap">
 ${breadcrumb}
 ${header}
@@ -1222,7 +1228,7 @@ export function buildContentPage(opts: {
   const description = page.meta_description || `${page.title} — ${directoryName}`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav })}
 <div class="wrap" style="max-width:760px;">
 ${renderBreadcrumbTrail(crumbItems)}
 <h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
@@ -1961,7 +1967,7 @@ export function buildDirectoryLandingPage(opts: {
     : "";
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
 <div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
