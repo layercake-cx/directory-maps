@@ -126,17 +126,12 @@ const SLATE_PALETTE = {
 };
 export const SLATE = { ...SLATE_PALETTE, ...regionsFromPalette(SLATE_PALETTE) };
 
-/** Google Fonts CSS2 family+weight query segment per font name — used both
- * by the frontend preview and (duplicated, TS runtime) by
- * generate_directory_site to build the stylesheet <link> for whichever
- * fonts a directory's theme actually uses. */
-export const FONT_CATALOG = {
-  Spectral: "Spectral:wght@400;500;600;700",
-  "Playfair Display": "Playfair+Display:wght@400;500;600;700",
-  Fraunces: "Fraunces:wght@400;500;600;700",
-  Inter: "Inter:wght@400;500;600;700;800",
-  "Hanken Grotesk": "Hanken+Grotesk:wght@400;500;600;700;800",
-};
+// Google Fonts CSS2 family+weight query segment per font name — generated
+// from scripts/directory-font-catalog.json (run
+// scripts/generate-directory-font-catalog.mjs after editing that list) so
+// this and generate_directory_site's copy (fontCatalog.generated.ts) can
+// no longer drift out of sync by hand.
+export { FONT_CATALOG } from "./directoryFontCatalog.generated.js";
 
 export const DIRECTORY_THEME_PRESETS = [
   { key: "natural", label: "Natural", description: "Earthy sage & terracotta — conservation, wildlife, outdoor.", values: NATURAL },

@@ -34,6 +34,10 @@ const HEADER_BG_DEFAULT = { type: "solid", color: "rgba(255,255,255,.6)" };
 const FOOTER_BG_DEFAULT = { type: "solid", color: "#0E3A34" };
 const FOOTER_TEXT_DEFAULT = "#FFFFFF";
 const FOOTER_LINK_DEFAULT = "#CFE3DE";
+const FONT_SIZE_BASE_DEFAULT = "16px";
+const FONT_SIZE_H1_DEFAULT = "2.5rem";
+const FONT_SIZE_H2_DEFAULT = "2rem";
+const FONT_SIZE_H3_DEFAULT = "1.5rem";
 
 function themeFromDirectory(directory) {
   const t = directory?.theme_json && typeof directory.theme_json === "object" ? directory.theme_json : {};
@@ -46,7 +50,41 @@ function themeFromDirectory(directory) {
   next.footerText = t.footerText || FOOTER_TEXT_DEFAULT;
   next.footerLink = t.footerLink || FOOTER_LINK_DEFAULT;
   next.footerLinkHover = t.footerLinkHover || next.footerLink;
+  next.fontSizeBase = t.fontSizeBase || FONT_SIZE_BASE_DEFAULT;
+  next.fontSizeH1 = t.fontSizeH1 || FONT_SIZE_H1_DEFAULT;
+  next.fontSizeH2 = t.fontSizeH2 || FONT_SIZE_H2_DEFAULT;
+  next.fontSizeH3 = t.fontSizeH3 || FONT_SIZE_H3_DEFAULT;
   return next;
+}
+
+// A theme field only ever holds the unit its own field writes (px for
+// base, rem for headings) — if a stored value somehow has a different
+// unit (e.g. hand-edited via the API), fall back to the default amount
+// rather than reinterpreting the number in the wrong unit.
+function lengthAmount(cssLength, unit, fallbackAmount) {
+  const m = /^(-?\d*\.?\d+)(px|rem|em|%)$/.exec(cssLength || "");
+  return m && m[2] === unit ? Number(m[1]) : fallbackAmount;
+}
+
+function FontSizeField({ label, value, onChange, unit, min, max, step, fallbackAmount }) {
+  const amount = lengthAmount(value, unit, fallbackAmount);
+  return (
+    <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+      <span>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={amount}
+          onChange={(e) => onChange(`${Math.min(max, Math.max(min, Number(e.target.value)))}${unit}`)}
+          style={{ ...inputStyle, width: 90 }}
+        />
+        <span style={{ fontSize: 12, opacity: 0.6 }}>{unit}</span>
+      </div>
+    </label>
+  );
 }
 
 // Resolves a region background to a CSS `background` value for the live
@@ -336,29 +374,38 @@ export default function DirectoryBrandingPanel({ directory, directoryId, canMana
               <ColorField label="Sage (badge text)" value={theme.sageInkColor} onChange={(v) => set("sageInkColor", v)} />
               <ColorField label="Gold (ratings, highlights)" value={theme.goldColor} onChange={(v) => set("goldColor", v)} />
               <ColorField label="Teal" value={theme.tealColor} onChange={(v) => set("tealColor", v)} />
-
-              <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-                <span>Heading font</span>
-                <select value={theme.fontHeading} onChange={(e) => set("fontHeading", e.target.value)} style={inputStyle}>
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-                <span>Body font</span>
-                <select value={theme.fontBody} onChange={(e) => set("fontBody", e.target.value)} style={inputStyle}>
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
           )}
+        </div>
+      </details>
+
+      <details open>
+        <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Typography</summary>
+        <div style={sectionStyle}>
+          <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+            <span>Heading font</span>
+            <select value={theme.fontHeading} onChange={(e) => set("fontHeading", e.target.value)} style={inputStyle}>
+              {FONT_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+            <span>Body font</span>
+            <select value={theme.fontBody} onChange={(e) => set("fontBody", e.target.value)} style={inputStyle}>
+              {FONT_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <FontSizeField label="Base text size" value={theme.fontSizeBase} onChange={(v) => set("fontSizeBase", v)} unit="px" min={12} max={22} step={1} fallbackAmount={16} />
+          <FontSizeField label="H1 size" value={theme.fontSizeH1} onChange={(v) => set("fontSizeH1", v)} unit="rem" min={1.5} max={4} step={0.1} fallbackAmount={2.5} />
+          <FontSizeField label="H2 size" value={theme.fontSizeH2} onChange={(v) => set("fontSizeH2", v)} unit="rem" min={1.25} max={3} step={0.1} fallbackAmount={2} />
+          <FontSizeField label="H3 size" value={theme.fontSizeH3} onChange={(v) => set("fontSizeH3", v)} unit="rem" min={1} max={2.5} step={0.1} fallbackAmount={1.5} />
         </div>
       </details>
 

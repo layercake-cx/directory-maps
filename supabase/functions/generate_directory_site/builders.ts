@@ -11,6 +11,7 @@
  */
 
 import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
+import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -88,6 +89,14 @@ export type DirectoryTheme = {
   footerText?: string;
   footerLink?: string;
   footerLinkHover?: string;
+  // Typography sizes — any valid CSS length (e.g. "16px", "2.5rem"). Each
+  // is optional; an unset size reproduces exactly what that element
+  // rendered before these fields existed (see FONT_SIZE_DEFAULTS below and
+  // the calc()-scaled per-context headings this drives).
+  fontSizeBase?: string;
+  fontSizeH1?: string;
+  fontSizeH2?: string;
+  fontSizeH3?: string;
 };
 
 export type BlockDescriptor = { type: string; key?: string; label?: string };
@@ -163,8 +172,11 @@ export type ProductTile = { entry_id: string; title: string; image_url: string |
 // content stays a readable width.
 export const BASE_STYLE = `
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--fs-base); -webkit-font-smoothing: antialiased; }
   h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  h1 { font-size: var(--fs-h1); }
+  h2 { font-size: var(--fs-h2); }
+  h3 { font-size: var(--fs-h3); }
   a { color: var(--primary); text-decoration: none; }
   a:hover { color: var(--primary-2); }
   .dir-footer-link { color: var(--ftr-link); }
@@ -185,7 +197,7 @@ export const BASE_STYLE = `
   .eyebrow { font-size: 12.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .muted { color: var(--muted); }
   .prose p { font-size: 16.5px; line-height: 1.7; margin: 0 0 16px; }
-  .prose h2 { font-size: 24px; margin: 24px 0 14px; }
+  .prose h2 { font-size: calc(var(--fs-h2) * 0.75); margin: 24px 0 14px; }
   @media (max-width: 900px) { .wrap { padding: 0 20px; } }
 `;
 
@@ -266,7 +278,7 @@ const LAYOUT_STYLE = `
   .dir-row__logo { width: 64px; height: 64px; border-radius: 12px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .dir-row__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
   .dir-row__body { flex: 1; min-width: 0; }
-  .dir-row__body h3 { font-size: 18px; margin: 0 0 6px; color: var(--ink); }
+  .dir-row__body h3 { font-size: calc(var(--fs-h3) * 0.75); margin: 0 0 6px; color: var(--ink); }
   .dir-row__desc { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 0 0 8px; max-width: 66ch; }
   .dir-row__tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .dir-row__aside { width: 170px; flex: none; padding-left: 16px; border-left: 1px solid var(--line); font-size: 12.5px; line-height: 1.7; color: var(--muted); }
@@ -413,7 +425,20 @@ function resolveRegionBackground(bg: RegionBackground | undefined, fallback: str
 // generator used before DIR-E3's visual rebuild; unlike every prior phase,
 // this is NOT "zero behaviour change" for existing directories.
 export const NATURAL_DEFAULTS: Required<
-  Omit<DirectoryTheme, "logoUrl" | "headerBackground" | "headerText" | "footerBackground" | "footerText" | "footerLink" | "footerLinkHover">
+  Omit<
+    DirectoryTheme,
+    | "logoUrl"
+    | "headerBackground"
+    | "headerText"
+    | "footerBackground"
+    | "footerText"
+    | "footerLink"
+    | "footerLinkHover"
+    | "fontSizeBase"
+    | "fontSizeH1"
+    | "fontSizeH2"
+    | "fontSizeH3"
+  >
 > = {
   primaryColor: "#2E5A39",
   primaryDarkColor: "#24462D",
@@ -432,15 +457,7 @@ export const NATURAL_DEFAULTS: Required<
   fontBody: "Hanken Grotesk",
 };
 
-// Google Fonts CSS2 family+weight query segment per font name — kept in
-// sync by hand with src/lib/directoryThemePresets.js's FONT_CATALOG.
-export const FONT_CATALOG: Record<string, string> = {
-  Spectral: "Spectral:wght@400;500;600;700",
-  "Playfair Display": "Playfair+Display:wght@400;500;600;700",
-  Fraunces: "Fraunces:wght@400;500;600;700",
-  Inter: "Inter:wght@400;500;600;700;800",
-  "Hanken Grotesk": "Hanken+Grotesk:wght@400;500;600;700;800",
-};
+export { FONT_CATALOG };
 
 // Defaults for the region tokens below reproduce exactly what siteHeader()/
 // siteFooter() hardcoded before these fields existed (translucent glass
@@ -450,6 +467,23 @@ const HEADER_BG_DEFAULT = "rgba(255,255,255,.6)";
 const FOOTER_BG_DEFAULT = "#0E3A34";
 const FOOTER_TEXT_DEFAULT = "#FFFFFF";
 const FOOTER_LINK_DEFAULT = "#CFE3DE";
+
+// Defaults match the dev spec's suggested typography scale exactly (§4).
+// Every per-context heading below is expressed as calc(var(--fs-h*) * ratio)
+// rather than a literal, where ratio = today's hardcoded pixel value ÷ the
+// matching default here — so an unset theme computes back to the exact
+// original pixel value, and a directory that DOES set a size scales every
+// heading context proportionally instead of flattening them to one size.
+const FONT_SIZE_BASE_DEFAULT = "16px";
+const FONT_SIZE_H1_DEFAULT = "2.5rem";
+const FONT_SIZE_H2_DEFAULT = "2rem";
+const FONT_SIZE_H3_DEFAULT = "1.5rem";
+
+// Same interpolate-into-<style> risk as sanitizeHexColor — a CSS length is
+// a unit-suffixed number, nothing else.
+function sanitizeCssLength(value: string | undefined, fallback: string): string {
+  return value && /^-?\d*\.?\d+(px|rem|em|%)$/.test(value) ? value : fallback;
+}
 
 export function resolvedTheme(theme: DirectoryTheme) {
   const inkColor = sanitizeHexColor(theme.inkColor, NATURAL_DEFAULTS.inkColor);
@@ -476,6 +510,10 @@ export function resolvedTheme(theme: DirectoryTheme) {
     footerText: sanitizeHexColor(theme.footerText, FOOTER_TEXT_DEFAULT),
     footerLink,
     footerLinkHover: sanitizeHexColor(theme.footerLinkHover, footerLink),
+    fontSizeBase: sanitizeCssLength(theme.fontSizeBase, FONT_SIZE_BASE_DEFAULT),
+    fontSizeH1: sanitizeCssLength(theme.fontSizeH1, FONT_SIZE_H1_DEFAULT),
+    fontSizeH2: sanitizeCssLength(theme.fontSizeH2, FONT_SIZE_H2_DEFAULT),
+    fontSizeH3: sanitizeCssLength(theme.fontSizeH3, FONT_SIZE_H3_DEFAULT),
   };
 }
 
@@ -490,6 +528,7 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --hdr-bg: ${t.headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
+    --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
   }`;
 }
 
@@ -696,7 +735,7 @@ export function buildEntryPage(opts: {
   const header = `<div class="dir-entry-header">
   ${entry.logo_url ? `<div class="dir-entry-header__logo"><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>` : ""}
   <div class="dir-entry-header__body">
-    <h1 style="font-size:34px;line-height:1.1;">${escapeHtml(entry.name)}</h1>
+    <h1 style="font-size:calc(var(--fs-h1) * 0.85);line-height:1.1;">${escapeHtml(entry.name)}</h1>
     ${entry.meta_description ? `<p class="dir-entry-header__desc">${escapeHtml(entry.meta_description)}</p>` : ""}
     ${headerTagLabels.length ? `<div class="dir-entry-header__tags">${headerTagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
     ${websiteButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${showOnMapButton}</div>` : ""}
@@ -774,7 +813,7 @@ export function buildEntryPage(opts: {
     if (!block.label) return content;
     const id = sectionAnchorId(block.label, i);
     jumpChips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(block.label)}</a>`);
-    return `<div class="dir-entry-section" id="${id}"><h2 style="font-size:22px;margin-bottom:12px;">${escapeHtml(block.label)}</h2>${content}</div>`;
+    return `<div class="dir-entry-section" id="${id}"><h2 style="font-size:calc(var(--fs-h2) * 0.6875);margin-bottom:12px;">${escapeHtml(block.label)}</h2>${content}</div>`;
   }).join("\n");
   const jumpBar = jumpChips.length
     ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${jumpChips.join("")}</nav></div>`
@@ -937,7 +976,7 @@ export function buildContentPage(opts: {
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
 <div class="wrap" style="max-width:760px;">
 ${breadcrumb}
-<h1 style="font-family:var(--font-heading);font-size:clamp(28px,4vw,38px);margin:0 0 24px;">${escapeHtml(page.title)}</h1>
+<h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
 ${page.body_html}
 ${childList}
 </div>
@@ -1677,7 +1716,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUr
 <div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
-    <h1 style="font-size:44px;line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>
+    <h1 style="font-size:calc(var(--fs-h1) * 1.1);line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>
     ${directoryDescription ? `<p class="muted" style="font-size:18px;max-width:600px;margin:0 auto 28px;">${escapeHtml(directoryDescription)}</p>` : ""}
     <form id="dir-search-form" style="max-width:640px;margin:0 auto;display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 18px;box-shadow:0 12px 32px -18px rgba(0,0,0,.35);">
       <input id="dir-search-input" type="text" placeholder="Describe what you are looking for, or search by name" style="flex-grow:1;border:0;outline:0;font-size:16px;font-family:inherit;background:transparent;color:var(--ink);">
