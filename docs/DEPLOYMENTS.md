@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Not deployed] Move "Powered by Layercake Maps" from header to footer
+
+**Branch/commit:** `chore/2026-09-20-powered-by-footer`
+**Deployed by:** Claude Code
+
+### What changed
+The published directory site's header (`siteHeader()` in `supabase/functions/generate_directory_site/builders.ts`) no longer shows the small "Powered by Layercake Maps" chip next to the logo/title. That attribution now lives in the footer instead, merged into the existing disclaimer line so there's still just one line of platform copy: "Powered by Layercake Maps · content is editorial, commercial links never affect inclusion." (previously "Published with Layercake Maps · ...").
+
+### Database migrations applied
+None.
+
+### Rollback plan
+Revert this commit and redeploy `generate_directory_site` from the previous commit.
+
+### Verified on staging
+- [x] Verified locally via the function's own `preview.ts` script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`), opening the generated `.preview-output/index.html` in the browser: header no longer shows the chip, footer shows the new combined "Powered by Layercake Maps · ..." line.
+- [ ] Not yet deployed to staging or production — `generate_directory_site` needs redeploying (staging first, per AGENTS.md) for this to reach any real published directory.
+
+### Issues / notes
+Purely a copy/layout change — no schema, no admin event, no other file references "Powered by Layercake Maps".
+
+---
+
 ## 2026-09-20 — [Production] Directory theming — all 6 phases merged and deployed
 
 **Branch/PR:** `main`, merging #200, #206 (replaces #201 — see note below), #202, #203, #204, #205, on the user's explicit "merge and deploy" go-ahead.
