@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Not deployed] Directory theming Phase 6: accessibility contrast guardrails
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-contrast-warnings`, stacked on Phase 5's `feat/2026-09-19-directory-theme-presets` (in turn stacked on Phases 4/3/2/1) — not yet opened as a PR.
+
+### What changed
+Phase 6 of 6 — the final phase of the Directory Theming plan.
+
+- New `src/lib/colorContrast.js`: WCAG relative-luminance + contrast-ratio calculation, pure functions, no new dependency (a well-known ~20-line formula). `contrastRatio(hexA, hexB)`, `meetsAA(ratio, {large})`, and `checkContrast(foregroundHex, background, opts)` — the last one handles a `RegionBackground` (solid or gradient) directly, checking every gradient stop and reporting the worst (lowest) ratio, per the dev spec §12's "check text against both the lightest and darkest stop."
+- `DirectoryBrandingPanel.jsx`: a small ✓/⚠ badge next to each text/link colour field, showing its ratio against that region's background — header text vs header background, body text (ink) vs body background, body link (primary colour) vs body background, footer text vs footer background, footer link vs footer background. Header uses the "large text" 3:1 threshold (it renders bold ~19px, past WCAG's large-text cutoff); everything else uses the stricter 4.5:1 normal-text threshold. **Warns, never blocks** — the Save button's `disabled` condition only ever depends on the in-flight save state, never on contrast results, matching the spec's explicit "warn, don't hard-block" rule.
+- A background that isn't a plain hex (the header's default translucent `rgba(255,255,255,.6)`) simply skips the check (`checkContrast` returns `null`, no badge renders) rather than guessing — a translucent colour's actual contrast depends on what's rendered behind it, which this tool can't know.
+
+### Verified
+- [x] Contrast math checked against known WCAG reference values (scratch script, not checked in): white/black = 21 (WCAG's documented maximum), white/`#767676` ≈ 4.54 (a commonly-cited "just passes AA normal text" grey), `meetsAA` correctly flips at exactly 4.5 and 3.0, a gradient with a white-on-white stop correctly reports its worst ratio (1:1, fails), an invalid/non-hex background returns `null` rather than a wrong number.
+- [x] `npm run build` clean.
+- [x] **Real browser verification of both UI states** (temporary harness, not committed, mock `theme_json` — no auth needed since this is pure client-side calculation, no Supabase write involved): a deliberately low-contrast pair (pale yellow ink `#F5F0C0` on white) shows "⚠ 1.2:1 low contrast" in orange next to Text (ink); the default primary colour on white shows "✓ 8.0:1" in green. Confirmed the Save button has no dependency on either state (code inspection, not just visual — its `disabled` prop is only ever `saving`).
+- [ ] Not deployed to production. No Edge Function or migration changes in this phase — pure client-side calculation, nothing for `generate_directory_site` to pick up.
+
+### Rollback plan
+Revert this commit (and merge commits above it in the stack). No migration, no Edge Function redeploy — `src/lib/colorContrast.js` and the badges in `DirectoryBrandingPanel.jsx` can simply be deleted; nothing else depends on them.
+
+---
+
 ## 2026-09-19 — [Staging] Directory theming Phase 5: DB-backed, org-scoped presets
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-presets`, stacked on Phase 4's `feat/2026-09-19-directory-theme-branding-logo` (in turn stacked on Phases 3/2/1) — not yet opened as a PR.
