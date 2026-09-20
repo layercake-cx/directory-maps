@@ -625,7 +625,6 @@ export function siteHeader(opts: {
       ${showLogo ? logo : ""}
       ${brand}
     </a>
-    <span class="chip" style="font-size:12px;color:var(--muted);">Powered by Layercake&nbsp;Maps</span>
   </div>
 </div>`;
 }
@@ -642,7 +641,7 @@ export function siteFooter(opts: { directoryName: string; homeUrl: string }): st
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
     </div>
-    <span style="font-size:12.5px;color:#8FB4AD;">Published with Layercake Maps · content is editorial, commercial links never affect inclusion.</span>
+    <span style="font-size:12.5px;color:#8FB4AD;">Powered by Layercake&nbsp;Maps · content is editorial, commercial links never affect inclusion.</span>
   </div>
 </div>`;
 }
