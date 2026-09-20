@@ -160,14 +160,14 @@ On a directory's **Branding** tab (owners and managers only), the panel sets the
 
 - **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
 - **Header**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently:
-  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops) and text colour.
-  - **Body** — **primary colour**, **accent colour**, **background colour**, and **logo URL** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours).
+  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo max height** slider, and an optional **site title** that overrides the directory's name in the header/footer (leave blank to use the directory name).
+  - **Body** — **primary colour**, **accent colour**, and **background colour** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours).
   - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
 - A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
 - **Typography** is its own section: pick a **heading font** and **body font** from a curated list of ~45 Google Fonts, and set the **base text size** plus **H1/H2/H3 sizes**. Every heading on the published site (entry titles, section headings, the homepage title) scales proportionally from these, so the relative sizing between, say, a homepage title and an entry title stays the same — only the overall scale changes.
 - Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically.
 
-Corner radius, favicon, and a real logo upload (it's currently a pasted URL) aren't built yet.
+Corner radius and favicon controls aren't built yet. The logo upload only accepts PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
 
 ### Entry layout
 

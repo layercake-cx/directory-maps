@@ -97,6 +97,11 @@ export type DirectoryTheme = {
   fontSizeH1?: string;
   fontSizeH2?: string;
   fontSizeH3?: string;
+  // Header branding mode + site title override. logoUrl above is unchanged
+  // (still the header logo image); these three just control HOW it's shown.
+  headerMode?: "logo" | "logoText" | "text";
+  siteTitle?: string;
+  logoMaxHeight?: number;
 };
 
 export type BlockDescriptor = { type: string; key?: string; label?: string };
@@ -438,6 +443,9 @@ export const NATURAL_DEFAULTS: Required<
     | "fontSizeH1"
     | "fontSizeH2"
     | "fontSizeH3"
+    | "headerMode"
+    | "siteTitle"
+    | "logoMaxHeight"
   >
 > = {
   primaryColor: "#2E5A39",
@@ -585,18 +593,37 @@ ${opts.body}
 /** Full-bleed header — background spans the viewport, content stays inside
  * `.wrap`. Used on every page (landing + entry), matching the canvas's own
  * consistent-header-everywhere pattern. */
-export function siteHeader(opts: { directoryName: string; tagline: string | null; homeUrl: string; logoUrl?: string | null }): string {
+export function siteHeader(opts: {
+  directoryName: string;
+  tagline: string | null;
+  homeUrl: string;
+  logoUrl?: string | null;
+  headerMode?: "logo" | "logoText" | "text";
+  siteTitle?: string | null;
+  logoMaxHeight?: number;
+}): string {
+  const mode = opts.headerMode === "logo" || opts.headerMode === "text" ? opts.headerMode : "logoText";
+  const displayTitle = opts.siteTitle?.trim() || opts.directoryName;
+  const maxHeight = typeof opts.logoMaxHeight === "number" && opts.logoMaxHeight > 0 ? Math.min(120, opts.logoMaxHeight) : 42;
+  // A real uploaded logo keeps its own aspect ratio (height fixed, width
+  // auto) — only the no-logo placeholder is forced square, since there's
+  // no real image to preserve an aspect ratio from.
   const logo = opts.logoUrl
-    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(opts.directoryName)} logo" style="width:42px;height:42px;border-radius:12px;object-fit:cover;">`
-    : `<div style="width:42px;height:42px;border-radius:12px;background:var(--primary);"></div>`;
+    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;border-radius:12px;object-fit:contain;">`
+    : `<div style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
+  const showLogo = mode !== "text";
+  const showText = mode !== "logo";
+  const brand = showText
+    ? `<div style="line-height:1.05;">
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(displayTitle)}</div>
+        ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
+      </div>`
+    : "";
   return `<div style="border-bottom:1px solid var(--line);background:var(--hdr-bg);backdrop-filter:blur(6px);">
   <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;height:76px;">
-    <a href="${escapeAttr(opts.homeUrl)}" style="display:flex;align-items:center;gap:12px;color:inherit;">
-      ${logo}
-      <div style="line-height:1.05;">
-        <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(opts.directoryName)}</div>
-        ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
-      </div>
+    <a href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}" style="display:flex;align-items:center;gap:12px;color:inherit;">
+      ${showLogo ? logo : ""}
+      ${brand}
     </a>
     <span class="chip" style="font-size:12px;color:var(--muted);">Powered by Layercake&nbsp;Maps</span>
   </div>
@@ -894,7 +921,7 @@ export function buildEntryPage(opts: {
   const breadcrumb = `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; All entries in ${escapeHtml(directoryName)}</a>`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
 <div class="wrap">
 ${breadcrumb}
 ${header}
@@ -973,7 +1000,7 @@ export function buildContentPage(opts: {
   const description = page.meta_description || `${page.title} — ${directoryName}`;
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl })}
+${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
 <div class="wrap" style="max-width:760px;">
 ${breadcrumb}
 <h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
@@ -1712,7 +1739,7 @@ export function buildDirectoryLandingPage(opts: {
     : "";
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUrl })}
+${siteHeader({ directoryName, tagline: null, homeUrl: ".", logoUrl: theme.logoUrl, headerMode: theme.headerMode, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight })}
 <div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
