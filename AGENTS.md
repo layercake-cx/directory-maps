@@ -431,6 +431,15 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_branding_updated`**
   - `meta`: `client_id`, `directory_id`, `has_logo` (boolean)
   - Fired from the Branding tab (`DirectoryBrandingPanel.jsx`) on every save — colours (including the header/body/footer region overrides added in the Directory Theming plan), fonts, and logo URL all persist together as one `theme_json` write, so there's no `changed_fields` breakdown (unlike `directory_settings_updated`).
+- **`directory_theme_preset_saved`**
+  - `meta`: `client_id`, `preset_id`
+  - Fired from the Branding tab's Presets section when the current draft theme is saved as a new org-scoped `directory_theme_presets` row.
+- **`directory_theme_preset_applied`**
+  - `meta`: `client_id`, `preset_id`, `directory_id`
+  - Fired when a saved org preset (or one of the 5 built-in presets — those don't reach this event, only `directory_theme_preset_saved`/`_deleted` involve a real row) is applied. "Applied" merges the preset's values into the unsaved draft only — the admin still has to click **Save branding** to persist, same as the built-in preset dropdown; this event fires at merge time, not at the subsequent save (which fires its own `directory_branding_updated`).
+- **`directory_theme_preset_deleted`**
+  - `meta`: `client_id`, `preset_id`
+  - Fired when an org-saved preset is deleted. Never fires for the 5 built-in presets (not deletable).
 - **`directory_created`**
   - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
   - Fired from both `ClientMapData.jsx`/`AdminMapData.jsx`'s "Build a directory from this map" action.

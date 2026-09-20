@@ -244,6 +244,7 @@ export default function AdminDirectoryEntries() {
                 <DirectoryBrandingPanel
                   directory={directory}
                   directoryId={directoryId}
+                  clientId={clientId}
                   canManage
                   recordEvent={recordEvent}
                   onSaved={reloadDirectory}

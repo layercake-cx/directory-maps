@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 /**
  * DIR-E3 branding — named colour/font presets for DirectoryBrandingPanel.jsx.
  * A preset is a convenience for bulk-filling the form; the persisted value
@@ -143,4 +145,51 @@ export const DIRECTORY_THEME_PRESETS = [
 
 export function getThemePreset(key) {
   return DIRECTORY_THEME_PRESETS.find((p) => p.key === key)?.values ?? null;
+}
+
+/**
+ * Org-scoped saved presets — DIR theming Phase 5 (docs/DEPLOYMENTS.md,
+ * 2026-09-19). Separate from the 5 built-in DIRECTORY_THEME_PRESETS above,
+ * which stay hardcoded starting points, not stored rows. See
+ * 20260919160000_create_directory_theme_presets.sql for the schema.
+ */
+
+/** Presets saved by this client/org, most recently updated first. */
+export async function listOrgPresets(clientId) {
+  if (!clientId) return [];
+  const { data, error } = await supabase
+    .from("directory_theme_presets")
+    .select("id, client_id, name, theme_json, created_at, updated_at")
+    .eq("client_id", clientId)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Saves the given theme as a new named preset for this org. */
+export async function saveThemePreset(clientId, name, theme) {
+  const cleanName = String(name || "").trim();
+  if (!cleanName) throw new Error("Give the preset a name.");
+  const { data, error } = await supabase
+    .from("directory_theme_presets")
+    .insert({ id: crypto.randomUUID(), client_id: clientId, name: cleanName, theme_json: theme })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function renameThemePreset(presetId, name) {
+  const cleanName = String(name || "").trim();
+  if (!cleanName) throw new Error("Give the preset a name.");
+  const { error } = await supabase
+    .from("directory_theme_presets")
+    .update({ name: cleanName, updated_at: new Date().toISOString() })
+    .eq("id", presetId);
+  if (error) throw error;
+}
+
+export async function deleteThemePreset(presetId) {
+  const { error } = await supabase.from("directory_theme_presets").delete().eq("id", presetId);
+  if (error) throw error;
 }

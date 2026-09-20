@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-19 — [Staging] Directory theming Phase 5: DB-backed, org-scoped presets
+
+**Branch/PR:** `feat/2026-09-19-directory-theme-presets`, stacked on Phase 4's `feat/2026-09-19-directory-theme-branding-logo` (in turn stacked on Phases 3/2/1) — not yet opened as a PR.
+
+### What changed
+Phase 5 of 6 in the Directory Theming plan.
+
+- **New table `directory_theme_presets`** (migration `20260919160000_create_directory_theme_presets.sql`): `id` (text, client-generated uuid, matching `directory_entries`/`directory_content_pages` convention), `client_id` (references `clients`, org-scoped — not directory-scoped, since a preset belongs to the organisation), `name`, `theme_json` (same shape as `directories.theme_json`), timestamps. RLS mirrors `directory_content_pages`'s `_admin_all`/`_own_client` pattern exactly, comparing `client_id` directly rather than joining through `directories`.
+- `src/lib/directoryThemePresets.js` gains `listOrgPresets`, `saveThemePreset`, `renameThemePreset`, `deleteThemePreset` — plain Supabase calls, matching `directories.js`'s existing pattern, no new Edge Function.
+- **`DirectoryBrandingPanel.jsx`** gets a new Presets section: save the current draft as a named org preset, a combined list of the 5 built-in presets + this org's saved ones (each with a small header/body/footer colour swatch), Apply/Rename/Delete for saved ones.
+- **Design decision — "Apply" fills the draft, it does not write immediately.** The dev spec's §7 describes an `apply-preset` endpoint that copies values directly into `directories.theme_json`. Built that way, it would behave differently from the existing built-in-preset dropdown (which has always only filled the unsaved draft, requiring an explicit "Save branding" click) — two "Apply" buttons on the same panel behaving differently would be confusing. Chose consistency: applying any preset (built-in or saved) merges its values into the draft only; a saved preset's data doesn't get referenced afterward either way, so this still satisfies the spec's real requirement — "a snapshot copy, never a live link" (editing or deleting a saved preset never affects a directory that already applied it) — just via the draft/save step already in place rather than a separate direct-write code path. (A more literal `applyThemePreset(directoryId, presetId)` direct-write helper was written and then removed once nothing called it — dead code, not shipped.)
+- New admin events added to AGENTS.md's catalogue: `directory_theme_preset_saved`, `directory_theme_preset_applied` (fires at merge-into-draft time, not at the subsequent save), `directory_theme_preset_deleted`.
+- `DirectoryBrandingPanel.jsx` now takes a `clientId` prop, wired through from both `AdminDirectoryEntries.jsx` and `ClientDirectoryEntries.jsx` (both already had a `clientId` in scope for `recordAdminEvent`).
+
+### Verified
+- [x] **Full migration procedure followed**: re-linked the Supabase CLI to staging explicitly (`supabase link --project-ref beqejxneehilplrtpntn`) since it was pointed at production; confirmed via `cat supabase/.temp/project-ref`. Checked `git status` for another session's uncommitted migration files first (none). `supabase db push --dry-run` showed only this one pending migration. Applied for real — `NOTICE: VERIFY PASSED`. RLS-enabled and orphan-count checks are embedded in the migration file itself as `select` statements (the same pattern every other migration in this repo uses); a freshly created, empty table trivially has zero orphans and the same statement that created the table also enabled RLS in one migration transaction, so there's nothing to separately re-query beyond the `NOTICE`.
+- [x] `npm run build` clean.
+- [x] Isolated component check (temporary harness, not committed, `clientId="preview-client"` — a client id that doesn't exist): confirmed `listOrgPresets` returns an empty list with **no error** (RLS's `client_id = current_user_client_id()` comparison against an unauthenticated/no-contact session's `null` simply matches nothing — safe, no crash, no data leak), all 5 built-in presets render with correct swatches, the "Save current as preset" button is disabled until a name is typed, and clicking "Apply" on Midnight actually merges `#1A2032`/`#EDEFF7` (its `regionsFromPalette()` values) into the draft state — confirmed by reading the live DOM input values after the click, not just visually.
+- [ ] **Did not click "Save current as preset" or any real preset action for real** — doing so would attempt a live, unauthenticated Supabase write/read against a nonexistent client id, which is exactly the kind of action this agent should not take without a real session. A human needs to save a preset, apply it to a second directory, and confirm the two directories render identically after publish (per spec §11's acceptance criteria) — and separately confirm editing/deleting the saved preset afterward does not change the directory that already applied it.
+- [ ] Not deployed to production. This phase also has no Edge Function changes — `generate_directory_site` is unaffected, since presets only ever produce a `theme_json` write through the exact same path Phase 1–4 already exercise.
+
+### Rollback plan
+`_20260919160000_create_directory_theme_presets.rollback.sql` (drops the table — surfaces every saved preset's name first, since dropping loses them; any directory that already applied one is unaffected, since the copy already lives in that directory's own `theme_json`). No Edge Function to redeploy for this phase.
+
+---
+
 ## 2026-09-19 — [Staging] Directory theming Phase 4: real logo upload + header display modes
 
 **Branch/PR:** `feat/2026-09-19-directory-theme-branding-logo`, stacked on Phase 3's `feat/2026-09-19-directory-theme-typography` (in turn stacked on Phases 2 and 1) — not yet opened as a PR.
