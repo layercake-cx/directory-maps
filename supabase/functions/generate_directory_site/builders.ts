@@ -42,6 +42,7 @@ export type Entry = {
   structured_data_type: string | null;
   panel_image_url: string | null;
   panel_background_color: string | null;
+  updated_at?: string | null;
 };
 
 // A region's background: either a flat colour, or a gradient built from 2+
@@ -1137,6 +1138,7 @@ export type ContentPage = {
   meta_title: string | null;
   meta_description: string | null;
   noindex: boolean;
+  updated_at?: string | null;
 };
 
 export function contentPagePublicPath(page: ContentPage, byId: Map<string, ContentPage>): string {

@@ -155,7 +155,7 @@ Seed schema requested: `id, name, address, postcode, country, website_url, email
 | `structured_data_type` | `text null check in ('LocalBusiness','Organization','Person')` | Per-entry override of the directory default. |
 | `sitemap_priority` | `numeric(2,1) null check (sitemap_priority between 0 and 1)` | Optional per-entry `sitemap.xml` `<priority>` override. |
 | `ai_content_generated_at` | `timestamptz null` | Set whenever AI last wrote this entry's current `notes_html` (§4.8); cleared on a manual save. Not a history — see `directory_entry_versions` for that. |
-| `created_at`, `updated_at` | `timestamptz` | |
+| `created_at`, `updated_at` | `timestamptz` | `updated_at` is written into `sitemap.xml` as `<lastmod>` for that entry's URL on publish. |
 
 Columns added by later migrations, not shown above: `show_phone`/`show_email`/`show_website`/`show_address` (contact-field visibility toggles, boolean default `true`), `slug` (`not null`, unique per directory, auto-derived from `name` on insert), `og_title`/`og_description`/`og_image_url`/`canonical_url`/`keywords`/`twitter_card_type` (social/SEO), `panel_image_url`/`panel_background_color` (homepage card styling). All of these except `slug`'s auto-derivation, plus everything above from `meta_title` down to `sitemap_priority`, are part of the CSV import/export contract as of DIR-E1-S8 — see that story and AGENTS.md's "Directory entries CSV import/export contract" note for which columns are (and deliberately aren't) included.
 

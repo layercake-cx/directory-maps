@@ -121,7 +121,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, updated_at")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -160,7 +160,7 @@ async function generateForDirectoryInner(
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")
     .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color",
+      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
     )
     .eq("directory_id", directoryId)
     .eq("is_active", true)
@@ -423,7 +423,7 @@ async function generateForDirectoryInner(
   // only those with show_in_navigation appear in header/footer nav.
   const { data: pageRows, error: pageErr } = await db
     .from("directory_content_pages")
-    .select("id, parent_page_id, title, slug, position, nav_label, show_in_navigation, is_active, body_html, meta_title, meta_description, noindex")
+    .select("id, parent_page_id, title, slug, position, nav_label, show_in_navigation, is_active, body_html, meta_title, meta_description, noindex, updated_at")
     .eq("directory_id", directoryId)
     .order("position", { ascending: true })
     .order("title", { ascending: true });
@@ -526,15 +526,17 @@ async function generateForDirectoryInner(
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 
   const sitemapUrl = `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/sitemap.xml`;
+  const siteBase = `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`;
+  const directoryUpdatedAt = (directory as { updated_at?: string | null }).updated_at ?? null;
   const sitemapUrls = [
-    ...(directoryNoindex ? [] : [`${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`]),
-    ...entries.filter((e) => !e.noindex).map((e) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${e.slug}`),
+    ...(directoryNoindex ? [] : [{ loc: siteBase, lastmod: directoryUpdatedAt }]),
+    ...entries.filter((e) => !e.noindex).map((e) => ({ loc: `${siteBase}/${e.slug}`, lastmod: e.updated_at ?? null })),
     ...[...publishedPagePaths.entries()]
       .filter(([id]) => {
         const p = pagesById.get(id);
         return p && !p.noindex;
       })
-      .map(([, path]) => `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/${path}`),
+      .map(([id, path]) => ({ loc: `${siteBase}/${path}`, lastmod: pagesById.get(id)?.updated_at ?? null })),
   ];
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
   await uploadToBlob(`${basePath}/robots.txt`, buildRobotsTxt(!directoryNoindex, sitemapUrl), "text/plain; charset=utf-8");

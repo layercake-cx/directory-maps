@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Staging] Directory sitemap lastmod dates
+
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod`
+**Deployed by:** not yet — Edge Function `generate_directory_site` needs a staging deploy after review.
+
+### What changed
+When a directory is published, `sitemap.xml` now includes a `<lastmod>` date on each URL so crawlers can see when that page's content last changed — not merely that the site was regenerated.
+
+- Homepage: `directories.updated_at`
+- Entry URLs: `directory_entries.updated_at`
+- Content page URLs: `directory_content_pages.updated_at`
+
+Dates are emitted as `YYYY-MM-DD` (W3C date). URLs without a usable timestamp omit `<lastmod>` rather than inventing a date. Shared helper `buildSitemapXml` still accepts a plain list of URL strings, so the older map `generate_directory_pages` sitemap is unchanged until it opts in.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — pending staging (`beqejxneehilplrtpntn`). Production only after sign-off.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` (and `_shared/staticSiteRenderer.ts` as part of that function bundle) to the same project. No schema change.
+
+### Verified on staging
+- [ ] `generate_directory_site` deployed to staging.
+- [ ] Republish a directory; fetch `sitemap.xml` and confirm each indexable URL has `<lastmod>` matching that row's last save date (UTC day).
+- [ ] A `noindex` entry/page is still omitted from the sitemap.
+- [ ] Homepage is omitted when "let search engines index this directory" is off.
+
+### Issues / notes
+CSV import does not currently bump `directory_entries.updated_at`; those rows keep their previous lastmod until someone saves the entry in the editor. Related extras (evidence, media) also do not bump the entry timestamp.
+
+---
+
 ## 2026-09-20 — [Production] Directory analytics (extend map engagement)
 
 **Branch/PR:** `feat/2026-09-20-directory-analytics`
