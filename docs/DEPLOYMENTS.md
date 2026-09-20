@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Staging] Homepage nav dropdown sits above the hero band
+
+**Branch/PR:** `fix/2026-09-20-homepage-nav-dropdown`
+**Deployed by:** not yet
+
+### What changed
+On the published directory homepage, header dropdowns (and the mobile hamburger panel) were painted underneath the opaque hero/search band that sits immediately below the header. Content pages were fine because their body wrap is transparent. The header now has `position: relative; z-index: 30` so menus stack above page body content and still below the cookie consent banner (`z-index: 40`).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None yet — `generate_directory_site` must be deployed to staging, then a directory republished, before the live homepage shows the fix.
+
+### Rollback plan
+Revert the CSS on `.dir-site-header` in `generate_directory_site` and redeploy that function.
+
+### Verified on staging
+- [ ] Local preview: homepage dropdown overlaps the hero and remains clickable; content-page dropdown still works.
+- [ ] Staging function deployed; republish a directory with nested nav pages and confirm the homepage dropdown.
+- [ ] Cookie consent banner still appears above the header.
+
+### Issues / notes
+Static sites are generated at publish time. Deploying the function alone does not change already-published HTML.
+
+---
+
 ## 2026-09-20 — [Production] Directory analytics (extend map engagement)
 
 **Branch/PR:** `feat/2026-09-20-directory-analytics`
