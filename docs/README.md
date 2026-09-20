@@ -21,7 +21,7 @@ Directory Maps is a multi-tenant SaaS for building **Google Maps–based locatio
 | [**DATABASE_MIGRATIONS.md**](./DATABASE_MIGRATIONS.md) | Engineering / Ops | Migration policy, rollback, dry-run, integrity checks |
 | [**DEPLOYMENTS.md**](./DEPLOYMENTS.md) | Everyone | Plain-English record of every deployment — what changed and why |
 | [**GOOGLE_SHEETS_SYNC.md**](./GOOGLE_SHEETS_SYNC.md) | Ops / support | Google OAuth, sheet sync, cron |
-| [**MAP_ENGAGEMENT.md**](./MAP_ENGAGEMENT.md) | Engineering / analytics | Embed event schema, RLS, querying |
+| [**MAP_ENGAGEMENT.md**](./MAP_ENGAGEMENT.md) | Engineering / analytics | Map + directory event schema, RLS, querying |
 | [**RESEND_EMAIL.md**](./RESEND_EMAIL.md) | Ops | Contact form + custom client domains |
 | [**CONTACTS_TABLE.md**](./CONTACTS_TABLE.md) | Ops | Manual `contacts` table setup if needed |
 | [**MARKDOWN/Layercake_Maps_Terms_and_Conditions.md**](./MARKDOWN/Layercake_Maps_Terms_and_Conditions.md) | Legal | Terms source for `/terms` |

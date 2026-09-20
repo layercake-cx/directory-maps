@@ -245,7 +245,7 @@ Not env vars, but protect in backup/DR and access policies:
 |------|----------|-------|
 | Google OAuth **refresh_token** | `map_data_sources.refresh_token` | Grants sheet access until revoked |
 | User emails, listing PII | `contacts`, `listings`, `map_contact_submissions` | Tenant-scoped via RLS |
-| Engagement search queries | `map_engagement_events.meta` | May contain visitor search text |
+| Engagement search queries | `map_engagement_events.meta` | May contain visitor search text (maps and directories) |
 
 ### 7.6 Local development only
 

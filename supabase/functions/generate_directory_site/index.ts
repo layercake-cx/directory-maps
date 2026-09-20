@@ -87,6 +87,8 @@ import {
   type FilterBarCategorisation,
   type AiSearchOptions,
   type ContentPage,
+  type SiteAnalytics,
+  parseDirectoryDestinations,
 } from "./builders.ts";
 
 /**
@@ -119,7 +121,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -401,6 +403,18 @@ async function generateForDirectoryInner(
       }
     : null;
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const siteAnalytics: SiteAnalytics | null =
+    supabaseUrl && supabaseAnonKey
+      ? {
+          directoryId: directory.id,
+          supabaseUrl,
+          supabaseAnonKey,
+          destinations: parseDirectoryDestinations(directory.analytics_json),
+        }
+      : null;
+
   const entrySlugSet = new Set(entries.map((e) => e.slug));
 
   // Content pages — nested URLs for children (`parentSlug/childSlug.html`).
@@ -462,6 +476,7 @@ async function generateForDirectoryInner(
       staticMapsApiKey,
       related: relatedEntries(entry, entries, entryTermIdsByEntry),
       nav,
+      analytics: siteAnalytics,
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
@@ -484,6 +499,7 @@ async function generateForDirectoryInner(
       pagesById,
       theme,
       nav,
+      analytics: siteAnalytics,
     });
     await uploadToBlob(`${basePath}/${publicPath}.html`, html, "text/html; charset=utf-8");
   }
@@ -505,6 +521,7 @@ async function generateForDirectoryInner(
     seoNoindex: directoryNoindex,
     aiSearch,
     nav,
+    analytics: siteAnalytics,
   });
   await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
 

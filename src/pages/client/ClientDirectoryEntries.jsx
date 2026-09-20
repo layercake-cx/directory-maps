@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabase";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
 import DirectoryEntriesPanel from "../../components/directories/DirectoryEntriesPanel.jsx";
 import DirectoryGeneralSettingsPanel from "../../components/directories/DirectoryGeneralSettingsPanel.jsx";
+import DirectoryAnalyticsPanel from "../../components/directories/DirectoryAnalyticsPanel.jsx";
 import CategoryTagPicker from "../../components/directories/CategoryTagPicker.jsx";
 import CategorisationAttachmentPicker from "../../components/directories/CategorisationAttachmentPicker.jsx";
 import AccreditationSchemesPanel from "../../components/directories/AccreditationSchemesPanel.jsx";
@@ -209,6 +210,16 @@ export default function ClientDirectoryEntries() {
         <>
           <div className="admin-card" style={{ marginBottom: 16 }}>
             <DirectoryGeneralSettingsPanel
+              directory={directory}
+              directoryId={directoryId}
+              canManage={canManage}
+              recordEvent={recordEvent}
+              onSaved={reloadDirectory}
+            />
+          </div>
+
+          <div className="admin-card" style={{ marginBottom: 16 }}>
+            <DirectoryAnalyticsPanel
               directory={directory}
               directoryId={directoryId}
               canManage={canManage}

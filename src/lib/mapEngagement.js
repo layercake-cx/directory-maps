@@ -18,22 +18,25 @@ function getOrCreateSessionId() {
 }
 
 /**
- * Fire-and-forget recorder for map_engagement_events (anon embed inserts when map is published).
+ * Fire-and-forget recorder for map_engagement_events (anon inserts when the
+ * map and/or directory is published).
  * @param {object} opts
  * @param {import("@supabase/supabase-js").SupabaseClient} opts.supabase
- * @param {string} opts.mapId
- * @param {"embed"|"client_preview"|"admin_preview"} [opts.surface]
+ * @param {string} [opts.mapId]
+ * @param {string} [opts.directoryId]
+ * @param {"embed"|"client_preview"|"admin_preview"|"directory_site"} [opts.surface]
  * @returns {(eventType: string, detail?: { listingId?: string|null, meta?: object|null }) => void}
  */
-export function createMapEngagementRecorder({ supabase, mapId, surface = "embed" }) {
+export function createEngagementRecorder({ supabase, mapId = null, directoryId = null, surface = "embed" }) {
   const clientSessionId = getOrCreateSessionId();
 
   return function recordEngagement(eventType, detail = {}) {
-    if (!mapId || !supabase) return;
+    if ((!mapId && !directoryId) || !supabase) return;
     const listingId = detail.listingId ?? null;
     const meta = detail.meta ?? null;
     const row = {
-      map_id: mapId,
+      map_id: mapId || null,
+      directory_id: directoryId || null,
       listing_id: listingId,
       event_type: eventType,
       surface,
@@ -42,8 +45,13 @@ export function createMapEngagementRecorder({ supabase, mapId, surface = "embed"
     };
     void supabase.from("map_engagement_events").insert(row).then(({ error }) => {
       if (error && typeof console !== "undefined" && console.warn) {
-        console.warn("map engagement:", error.message ?? error);
+        console.warn("engagement:", error.message ?? error);
       }
     });
   };
+}
+
+/** @deprecated Use createEngagementRecorder — kept so embed call sites stay small. */
+export function createMapEngagementRecorder({ supabase, mapId, directoryId, surface = "embed" }) {
+  return createEngagementRecorder({ supabase, mapId, directoryId, surface });
 }

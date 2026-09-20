@@ -33,6 +33,7 @@ import {
   type CategorisationTerm,
   type BlockDescriptor,
   type ContentPage,
+  type SiteAnalytics,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -206,6 +207,15 @@ const PREVIEW_NAV = buildSiteNav({
 });
 const PREVIEW_PAGES_BY_ID = new Map(PREVIEW_PAGES.map((p) => [p.id, p]));
 
+const PREVIEW_ANALYTICS: SiteAnalytics = {
+  directoryId: "preview-directory-id",
+  supabaseUrl: "https://example.supabase.co",
+  supabaseAnonKey: "preview-anon-key",
+  destinations: [
+    { provider: "ga4", enabled: true, measurement_id: "G-PREVIEW12" },
+  ],
+};
+
 const outDir = new URL("./.preview-output/", import.meta.url);
 await Deno.mkdir(outDir, { recursive: true });
 
@@ -224,6 +234,7 @@ const landingHtml = buildDirectoryLandingPage({
   categorisations: CATEGORISATIONS,
   entryTermIds: ENTRY_TERM_IDS,
   nav: PREVIEW_NAV,
+  analytics: PREVIEW_ANALYTICS,
 });
 await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);
 
@@ -251,6 +262,7 @@ for (const entry of ENTRIES) {
     staticMapsApiKey: null,
     related: relatedEntries(entry, ENTRIES, ENTRY_TERM_IDS_BY_ENTRY),
     nav: PREVIEW_NAV,
+    analytics: PREVIEW_ANALYTICS,
   });
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), html);
 }
@@ -266,6 +278,7 @@ for (const page of PREVIEW_PAGES) {
     pagesById: PREVIEW_PAGES_BY_ID,
     theme: THEME,
     nav: PREVIEW_NAV,
+    analytics: PREVIEW_ANALYTICS,
   });
   const filename = page.parent_page_id ? `page-${page.parent_page_id}-${page.slug}.html` : `page-${page.slug}.html`;
   await Deno.writeTextFile(new URL(`./${filename}`, outDir), html);

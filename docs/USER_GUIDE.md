@@ -99,7 +99,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings, analytics, plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
 
 ### Creating a directory
 
@@ -142,7 +142,9 @@ On a directory's **Settings** tab, the top panel covers:
   - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description. A **Generate with AI** button on this section drafts both from the directory's own entry count and categorisation (in the style of "A directory of 329 UK professional associations, trade bodies and regulators, categorised by industry sector and organisation type"); the draft lands in these two fields for review, nothing is saved until you click **Save settings**.
   - **Social/SEO image URL** — the image shown when the directory's homepage is shared on social media, and the fallback image for any entry that hasn't set its own.
 
-Click **Save settings**, then **Publish** (or republish) for changes to reach the live site.
+- **Analytics & Tracking** — optional Google Analytics 4 Measurement ID (`G-…`) and/or Google Tag Manager Container ID (`GTM-…`) for this directory only. Each can be enabled independently. After you **Save analytics** and **Publish**, every public page (homepage, entries, content pages) includes those tags. Visitors see a cookie banner and must accept analytics before Google tags load. Directory Maps still records anonymous first-party events (page views, searches, filters, listing clicks) even if a visitor rejects Google cookies — those events stay in Directory Maps and are not sent to Google. Invalid IDs are rejected on save.
+
+Click **Save settings** or **Save analytics**, then **Publish** (or republish) for changes to reach the live site.
 
 ### Publishing a directory
 
@@ -633,6 +635,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Add or reorder directory content pages | Directory → Pages |
 | Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
+| Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 

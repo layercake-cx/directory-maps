@@ -269,11 +269,12 @@ Adds the missing UI on top of `seo_defaults_json` (data-layer-only since Phase 3
 
 - **General settings**: directory title (`directories.name`, pre-existing column, previously only settable at creation).
 - **SEO settings**, both on the Directory Settings tab (admin + client portal): a single **"let search engines index this directory"** switch (`seo_defaults_json.default_noindex`, inverted) rather than separate robots.txt/sitemap toggles — one thing for a client to reason about, driving all three together: the landing page's own `noindex` meta tag, whether its URL appears in `sitemap.xml`, and robots.txt `Allow`/`Disallow`. Per-entry `noindex` stays independent. Also **default SEO title/description** (now actually consumed by `generate_directory_site`, previously unused) and a new **`directories.seo_og_image_url`** (`20260914210000_directory_seo_og_image.sql`) feeding the landing page's `og:image`/`twitter:image` and acting as a fallback for entries without their own.
+- **Analytics & Tracking** (same Settings tab): provider-agnostic `directories.analytics_json` destinations. MVP supports GA4 Measurement ID and GTM Container ID with independent enable flags. Takes effect on next Publish. Public pages record first-party events on `map_engagement_events` and, after cookie consent, load GA/GTM and forward the same event names to the data layer.
 - **robots.txt, for real this time**: §4.4a-6 explicitly didn't build one, correctly noting that a per-path file under the shared branded host is never fetched by a real crawler (crawlers only ever request a domain's own root `/robots.txt`). What changed: directory custom domains (§4.4f's `client_domains.directory_id`, shipped since 20260827130000) give a directory an actual domain root — `middleware.js`'s `handleCustomDomain` now serves the generated `robots.txt` at that root, which real crawlers do honour. The branded-host path (`/directories/:clientSlug/:directorySlug/robots.txt`) is also served, for manual inspection and forward-compatibility, but isn't itself crawler-honoured — same limitation as before, now stated rather than left implicit. `buildRobotsTxt()` lives in `_shared/staticSiteRenderer.ts` (entity-agnostic, unused by the map feature so far).
 - New admin event: `directory_settings_updated` (`meta`: `client_id`, `directory_id`, `changed_fields`).
 - Corrected two stale header comments discovered while making this change: `generate_directory_site/index.ts` and `middleware.js` both still said directory custom domains weren't built yet, though the code beneath them (and `DomainSettings.jsx`'s `targetType === "directory"` path) already fully handled them.
 
-Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.sql`). Files: `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; `supabase/functions/generate_directory_site/{index.ts,builders.ts}`, `supabase/functions/_shared/staticSiteRenderer.ts`, `middleware.js` (all extended); `src/lib/directories.js` (`getDirectory` schema-drift fallback generalised), `src/lib/directoryPublications.js`.
+Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.sql`); `directories.analytics_json` (`20260920090000_directory_engagement_analytics.sql`). Files: `DirectoryGeneralSettingsPanel.jsx`, `DirectoryAnalyticsPanel.jsx`, wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; `generate_directory_site/{index.ts,builders.ts}`.
 
 ### 4.4a-8 robots.txt: explicit AI crawler allow rules (new)
 
@@ -453,10 +454,14 @@ Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPa
 |---------|-------|-------------|
 | Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
+| Directory tracking config | Directory → Settings → Analytics & Tracking | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish |
+| Directory first-party events | (no dashboard yet) | Same `map_engagement_events` table, `directory_id` + `surface: directory_site` |
 
-Data source: `map_engagement_events` (recorded on **public embed only**). See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
+Data source: `map_engagement_events` (public embed **and** published directory HTML). See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
 
-Files: `MapStats.jsx`, `ListingStats.jsx`, `src/hooks/useListingEngagement.js`, `src/components/engagement/*`.
+Files: `MapStats.jsx`, `ListingStats.jsx`, `src/hooks/useListingEngagement.js`, `src/components/engagement/*`, `src/lib/mapEngagement.js`, `DirectoryAnalyticsPanel.jsx`, `generate_directory_site/builders.ts`.
+
+Migration: `20260920090000_directory_engagement_analytics.sql` (nullable `map_id`, `directory_id`, relaxed listing subject id, directory event types, `analytics_json`).
 
 ### 4.6 Team & permissions
 
@@ -502,7 +507,7 @@ Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessage.js`, `mapEngagement.js`.
 
-**Engagement:** Anonymous insert-only RLS on `map_engagement_events` for published maps. Failures are non-blocking (`console.warn`).
+**Engagement:** Anonymous insert-only RLS on `map_engagement_events` for published maps and directories. Failures are non-blocking (`console.warn`).
 
 ---
 
@@ -550,7 +555,7 @@ Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
 | `listing_filter_values` | EAV tags linking listings to filter options / text values |
 | `map_data_sources` | Google Sheet binding + sync schedule |
 | `map_publications` | Versioned publish snapshots |
-| `map_engagement_events` | Embed analytics |
+| `map_engagement_events` | Embed + published directory analytics |
 | `map_contact_submissions` | Visitor contact form archive |
 | `invitations` | Pending team invites |
 | `contact_map_permissions` | Member → map access |

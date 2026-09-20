@@ -37,6 +37,8 @@ This document describes every external system that Layercake Maps sends data to,
 | Map contact form submissions | Visitor name, email, phone, message, timestamp | Map visitors |
 | Map engagement events | Event type (pin click, search, message sent), approximate timestamp — **no IP address stored** | Map visitors (pseudonymous) |
 | Map engagement search queries | Search text typed by visitor | Map visitors |
+| Directory engagement events | Event type (page view, search, filter, listing CTA), path, listing id/name, session id — **no IP address stored** | Directory visitors (pseudonymous) |
+| Directory engagement search queries | Search text typed by visitor on a published directory | Directory visitors |
 | Google OAuth tokens | Refresh token for a connected Google Sheet (encrypted at rest by Supabase) | Platform users |
 | Team invitations | Invitee email, invite status, expiry | Platform users |
 | Admin audit events | User action type, metadata — no sensitive payloads | Platform users / admins |
@@ -128,6 +130,22 @@ Google Maps is a global service operated by **Google LLC (US)**. Data is process
 - Google is an **independent data controller** for usage data it collects from API requests.
 - Governed by [Google Maps Platform Terms of Service](https://cloud.google.com/maps-platform/terms).
 - Google is certified under the **EU-US Data Privacy Framework**.
+
+### Google Analytics 4 and Google Tag Manager (directory sites)
+
+**Role:** Optional, client-configured web analytics on **published directory pages only** (not map embeds).
+
+**What it is:** If a directory owner saves a GA4 Measurement ID and/or GTM Container ID on Directory → Settings → Analytics & Tracking and republishes, those Google tags are included in the generated HTML. They load **only after** the visitor accepts analytics cookies (banner + Google Consent Mode defaults denied). Rejecting analytics does not load Google tags.
+
+### Data involved (only after consent)
+
+- Standard GA4/GTM browser collection (IP, user-agent, page URL, client id cookies) — processed by **Google on behalf of the directory owner**, using **that owner's** GA/GTM account, not a Layercake-owned property.
+- Platform event names and non-PII parameters (directory id, listing id, search term, path, CTA type) may be forwarded to the data layer / `gtag` after consent.
+- Layercake does **not** receive GA4 reports. First-party `map_engagement_events` stay in Supabase regardless of consent.
+
+### Processing location
+
+Google Analytics / Tag Manager are global Google services (typically US processing). Each client is responsible for their own GA/GTM DPA and privacy notice covering visitors to their directory.
 
 ---
 
@@ -357,6 +375,7 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 | **Supabase** | All platform user data, listing data, contact form submissions, engagement events | Depends on project region *(confirm)* | Yes |
 | **Resend** | Contact form content (visitor name/email/message), invitee email | **Yes — EU (Ireland, eu-west-1)** | Yes (via request) |
 | **Google Maps JS** | Visitor IP, referrer URL (by browser) | Partial (Google global infra) | Google's standard terms |
+| **Google Analytics / GTM** | Visitor IP, cookies, page URL, event params — **only if the directory owner configured IDs and the visitor consented** | No — Google global, typically US | Client's own Google Analytics / GTM terms |
 | **Google Geocoding** | Listing addresses | No — Google global, US-routed | Via Google Cloud DPA |
 | **Google OAuth/Sheets** | OAuth refresh token, sheet listing content | No — Google global, US-routed | Via Google Cloud DPA |
 | **Stripe** | Billing email, payment card data (Stripe-hosted) | Yes — EU entity for EU transactions | Yes |
@@ -389,6 +408,7 @@ The following data stays within Supabase (Layercake Maps infrastructure) and is 
 | Listing data | Until client deletes or overwrites | Client |
 | Contact form submissions | Indefinite (for client reporting) | Layercake Maps / client agreement |
 | Map engagement events | Indefinite | Layercake Maps |
+| Directory engagement events | Indefinite | Layercake Maps |
 | Google OAuth refresh tokens | Until client disconnects the sheet | Client (via client portal) |
 | Stripe session records | Per Stripe's policy | Stripe |
 | Resend delivery logs | Per Resend's policy (typically 30 days) | Resend |
