@@ -8,6 +8,66 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Header site-title On/Off toggle
+
+**Branch/PR:** `feat/2026-09-20-header-title-toggle` (opened as part of this production deploy).
+**Deployed by:** Cursor Grok, on the user's explicit "deploy to production" go-ahead after staging.
+
+### What changed
+Same as the staging entry below: Branding → Site title has an On/Off toggle. Off omits the title from the published header. On, a blank field still uses the directory name. Stored as `theme_json.showHeaderTitle`. No migration.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`) in this deploy.
+- Vercel production (`maps.layercake-cx.biz`) + GitHub Pages via merge to `main`.
+
+### Rollback plan
+Revert the merge on `main` and redeploy both frontends plus `generate_directory_site` from the previous commit. Directories that saved `showHeaderTitle: false` will show the title again until they re-save branding.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` + `siteHeader()` toggle-off check.
+- [ ] Production Edge Function deployed.
+- [ ] Vercel production + GitHub Pages.
+- [ ] Save branding with title Off, republish, confirm the live header is logo-only.
+
+### Issues / notes
+The toggle only appears on the Branding tab after this frontend deploy. Nested public pages still need a directory republish after Save branding.
+
+---
+
+## 2026-09-20 — [Staging] Header site-title On/Off toggle
+
+**Branch/PR:** `feat/2026-09-20-header-title-toggle`
+**Deployed by:** Cursor Grok
+
+### What changed
+Clearing the Branding tab's site title still fell back to the directory name, so you could not actually hide the header title while keeping a logo. There is now an On/Off toggle next to **Site title**. Off omits the title from the published header (logo only, if uploaded). On, a blank field still uses the directory name.
+
+Stored on `directories.theme_json` as `showHeaderTitle` (boolean). No migration.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) with this change. Production only after sign-off. Frontend still needs a Vercel/GitHub Pages deploy for the Branding tab toggle to appear.
+
+### Rollback plan
+Revert the branch/merge and redeploy `generate_directory_site` plus both frontends. Directories that saved `showHeaderTitle: false` will show the title again until they re-save branding (the generator treats unset as "follow Header shows").
+
+### Verified on staging
+- [x] Staging `generate_directory_site` deployed (`beqejxneehilplrtpntn`).
+- [x] `siteHeader()` omits the title when `showHeaderTitle` is false and still renders the logo.
+- [ ] Branding tab in the running app: toggle Off hides title in live preview; Save branding + Publish omits it on the public header.
+- [ ] Toggle On with a blank title still shows the directory name.
+- [ ] **Production not deployed.**
+
+### Issues / notes
+The footer still shows the directory name — this toggle is header-only.
+
+---
+
 ## 2026-09-20 — [Production] Directory page hierarchy and site navigation
 
 **Branch/PR:** `feat/2026-09-20-directory-page-hierarchy-nav` (opened as part of this production deploy).

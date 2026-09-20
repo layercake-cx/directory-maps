@@ -66,6 +66,7 @@ function themeFromDirectory(directory) {
   next.fontSizeH2 = t.fontSizeH2 || FONT_SIZE_H2_DEFAULT;
   next.fontSizeH3 = t.fontSizeH3 || FONT_SIZE_H3_DEFAULT;
   next.headerMode = t.headerMode === "logo" || t.headerMode === "text" ? t.headerMode : "logoText";
+  next.showHeaderTitle = typeof t.showHeaderTitle === "boolean" ? t.showHeaderTitle : next.headerMode !== "logo";
   next.siteTitle = t.siteTitle || "";
   next.logoMaxHeight = typeof t.logoMaxHeight === "number" && t.logoMaxHeight > 0 ? t.logoMaxHeight : 42;
   return next;
@@ -78,6 +79,45 @@ function themeFromDirectory(directory) {
 function lengthAmount(cssLength, unit, fallbackAmount) {
   const m = /^(-?\d*\.?\d+)(px|rem|em|%)$/.exec(cssLength || "");
   return m && m[2] === unit ? Number(m[1]) : fallbackAmount;
+}
+
+function OnOffSwitch({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={checked ? "On — click to hide" : "Off — click to show"}
+      onClick={() => onChange(!checked)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        cursor: "pointer",
+        width: 36,
+        height: 20,
+        borderRadius: 10,
+        border: "none",
+        padding: "0 2px",
+        background: checked ? "#22c55e" : "#d1d5db",
+        transition: "background 150ms ease",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          display: "block",
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          background: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+          transform: checked ? "translateX(16px)" : "translateX(0)",
+          transition: "transform 150ms ease",
+        }}
+      />
+    </button>
+  );
 }
 
 function FontSizeField({ label, value, onChange, unit, min, max, step, fallbackAmount }) {
@@ -268,7 +308,7 @@ function PreviewStrip({ theme, directoryName }) {
   const footerBg = backgroundToCss(theme.footerBackground, FOOTER_BG_DEFAULT.color);
   const name = theme.siteTitle?.trim() || directoryName || "Your Directory";
   const showLogo = theme.headerMode !== "text";
-  const showHeaderText = theme.headerMode !== "logo";
+  const showHeaderText = theme.showHeaderTitle !== false && theme.headerMode !== "logo";
   return (
     <div style={{ border: "1px solid var(--lc-border)", borderRadius: 10, overflow: "hidden", fontSize: 13 }}>
       <style>{`.dtp-footer-link:hover { color: ${theme.footerLinkHover || theme.footerLink} !important; }`}</style>
@@ -440,7 +480,18 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     setMsg("");
     try {
       setSaving(true);
-      const next = { ...theme, siteTitle: theme.siteTitle.trim() };
+      const next = {
+        ...theme,
+        siteTitle: theme.siteTitle.trim(),
+        showHeaderTitle: theme.showHeaderTitle !== false,
+        headerMode: theme.showHeaderTitle === false
+          ? theme.headerMode === "text"
+            ? "text"
+            : "logo"
+          : theme.headerMode === "logo"
+            ? "logoText"
+            : theme.headerMode,
+      };
       await updateDirectory(directoryId, { theme_json: next });
       recordEvent?.("directory_branding_updated", { directory_id: directoryId, has_logo: !!next.logoUrl });
       setMsg("Branding saved. Republish for it to appear on the live site.");
@@ -500,7 +551,15 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
 
           <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
             <span>Header shows</span>
-            <select value={theme.headerMode} onChange={(e) => set("headerMode", e.target.value)} style={inputStyle}>
+            <select
+              value={theme.headerMode}
+              onChange={(e) => {
+                const headerMode = e.target.value;
+                setTheme((t) => ({ ...t, headerMode, showHeaderTitle: headerMode !== "logo" }));
+                setMsg("");
+              }}
+              style={inputStyle}
+            >
               <option value="logo">Logo only</option>
               <option value="logoText">Logo + text</option>
               <option value="text">Text only</option>
@@ -540,17 +599,38 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
             </div>
           )}
 
-          {theme.headerMode !== "logo" && (
-            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-              <span>Site title {theme.headerMode === "logoText" || theme.headerMode === "text" ? "(optional — defaults to the directory name)" : ""}</span>
-              <input
-                value={theme.siteTitle}
-                onChange={(e) => set("siteTitle", e.target.value)}
-                placeholder={directory?.name || ""}
-                style={inputStyle}
-              />
-            </label>
-          )}
+          <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span>Site title</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 500 }}>
+                <span style={{ fontSize: 12, opacity: 0.65 }}>{theme.showHeaderTitle !== false ? "On" : "Off"}</span>
+                <OnOffSwitch
+                  checked={theme.showHeaderTitle !== false}
+                  label="Show site title in the header"
+                  onChange={(on) => {
+                    setTheme((t) => ({
+                      ...t,
+                      showHeaderTitle: on,
+                      headerMode: on ? (t.headerMode === "logo" ? "logoText" : t.headerMode) : t.headerMode === "text" ? "text" : "logo",
+                    }));
+                    setMsg("");
+                  }}
+                />
+              </span>
+            </div>
+            <input
+              value={theme.siteTitle}
+              onChange={(e) => set("siteTitle", e.target.value)}
+              placeholder={directory?.name || ""}
+              disabled={theme.showHeaderTitle === false}
+              style={{ ...inputStyle, opacity: theme.showHeaderTitle === false ? 0.55 : 1 }}
+            />
+            <span style={{ fontSize: 11.5, opacity: 0.6, fontWeight: 400 }}>
+              {theme.showHeaderTitle === false
+                ? "Off — the published header omits the title (logo only, if you have one)."
+                : "On — leave blank to use the directory name. Turn off to leave the title out of the header."}
+            </span>
+          </div>
         </div>
       </details>
 

@@ -162,7 +162,7 @@ On a directory's **Branding** tab (owners and managers only), the panel sets the
 
 - **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
 - **Header**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently:
-  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo max height** slider, and an optional **site title** that overrides the directory's name in the header/footer (leave blank to use the directory name).
+  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo max height** slider, and a **site title** with an On/Off toggle next to it. Off leaves the title out of the published header (logo only, if you have one). On, leave the field blank to use the directory name. Saving branding then **Publish** (or republish) is what makes that choice live.
   - **Body** — **primary colour**, **accent colour**, and **background colour** are shown up front; click **Advanced colours…** to fine-tune every individual colour (surfaces, text, borders, badge colours).
   - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
 - A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
@@ -631,6 +631,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
+| Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
