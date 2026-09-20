@@ -10,8 +10,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-20 — [Staging] Directory sitemap lastmod dates
 
-**Branch/PR:** `feat/2026-09-20-sitemap-lastmod`
-**Deployed by:** not yet — Edge Function `generate_directory_site` needs a staging deploy after review.
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` (`9577fe3`)
+**Deployed by:** Cursor Grok, staging only (user asked)
 
 ### What changed
 When a directory is published, `sitemap.xml` now includes a `<lastmod>` date on each URL so crawlers can see when that page's content last changed — not merely that the site was regenerated.
@@ -26,19 +26,21 @@ Dates are emitted as `YYYY-MM-DD` (W3C date). URLs without a usable timestamp om
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — pending staging (`beqejxneehilplrtpntn`). Production only after sign-off.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production only after sign-off.
 
 ### Rollback plan
 Redeploy the previous `generate_directory_site` (and `_shared/staticSiteRenderer.ts` as part of that function bundle) to the same project. No schema change.
 
 ### Verified on staging
-- [ ] `generate_directory_site` deployed to staging.
+- [x] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`). Bundle included `_shared/staticSiteRenderer.ts`.
 - [ ] Republish a directory; fetch `sitemap.xml` and confirm each indexable URL has `<lastmod>` matching that row's last save date (UTC day).
 - [ ] A `noindex` entry/page is still omitted from the sitemap.
 - [ ] Homepage is omitted when "let search engines index this directory" is off.
 
 ### Issues / notes
 CSV import does not currently bump `directory_entries.updated_at`; those rows keep their previous lastmod until someone saves the entry in the editor. Related extras (evidence, media) also do not bump the entry timestamp.
+
+Did **not** trigger a live `generate_directory_site` regeneration from staging: that function writes to the shared Vercel Blob store, so republishing a real directory from the staging function would update the production-facing sitemap before this change is signed off for production. Republish from the app against staging once you want to eye-ball a sitemap.
 
 ---
 
