@@ -8,9 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Directory sitemap lastmod dates
+
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` ([#213](https://github.com/layercake-cx/directory-maps/pull/213))
+**Deployed by:** Cursor Grok, on the user's explicit "deploy to production" go-ahead after staging.
+
+### What changed
+Same as the staging entry below: published directory `sitemap.xml` includes `<lastmod>` per URL from that row's `updated_at`.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production. No schema change.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` already deployed earlier this session.
+- [x] Production `generate_directory_site` deployed.
+- [ ] Republish a directory and confirm live `sitemap.xml` has `<lastmod>` on each URL.
+
+### Issues / notes
+Lastmod appears on the live sitemap only after a directory is republished (the generator writes Blob at publish time). Frontend merge is docs-only for this change.
+
+---
+
 ## 2026-09-20 — [Staging] Directory sitemap lastmod dates
 
-**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` (`9577fe3`)
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` ([#213](https://github.com/layercake-cx/directory-maps/pull/213), `9577fe3`)
 **Deployed by:** Cursor Grok, staging only (user asked)
 
 ### What changed
@@ -26,7 +53,7 @@ Dates are emitted as `YYYY-MM-DD` (W3C date). URLs without a usable timestamp om
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production only after sign-off.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
 
 ### Rollback plan
 Redeploy the previous `generate_directory_site` (and `_shared/staticSiteRenderer.ts` as part of that function bundle) to the same project. No schema change.
@@ -40,7 +67,7 @@ Redeploy the previous `generate_directory_site` (and `_shared/staticSiteRenderer
 ### Issues / notes
 CSV import does not currently bump `directory_entries.updated_at`; those rows keep their previous lastmod until someone saves the entry in the editor. Related extras (evidence, media) also do not bump the entry timestamp.
 
-Did **not** trigger a live `generate_directory_site` regeneration from staging: that function writes to the shared Vercel Blob store, so republishing a real directory from the staging function would update the production-facing sitemap before this change is signed off for production. Republish from the app against staging once you want to eye-ball a sitemap.
+Did **not** trigger a live `generate_directory_site` regeneration from staging before production was signed off (shared Vercel Blob). Production function is now deployed; republish a directory to write lastmod into the live sitemap.
 
 ---
 
