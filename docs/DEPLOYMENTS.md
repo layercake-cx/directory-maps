@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-20 — [Not deployed] Move "Powered by Layercake Maps" from header to footer
+## 2026-09-20 — [Staging] Move "Powered by Layercake Maps" from header to footer
 
-**Branch/commit:** `chore/2026-09-20-powered-by-footer`
+**Branch/PR:** `chore/2026-09-20-powered-by-footer`, merged via [#208](https://github.com/layercake-cx/directory-maps/pull/208) on the user's "merge and deploy" go-ahead.
 **Deployed by:** Claude Code
 
 ### What changed
@@ -19,12 +19,16 @@ The published directory site's header (`siteHeader()` in `supabase/functions/gen
 ### Database migrations applied
 None.
 
+### Edge Functions deployed
+- `generate_directory_site` — staging only (`beqejxneehilplrtpntn`), deploy succeeded.
+
 ### Rollback plan
-Revert this commit and redeploy `generate_directory_site` from the previous commit.
+Revert commit `0594384` on `main` and redeploy `generate_directory_site` from the previous commit — staging first, then production, same as any Edge Function change.
 
 ### Verified on staging
 - [x] Verified locally via the function's own `preview.ts` script (`deno run --allow-write supabase/functions/generate_directory_site/preview.ts`), opening the generated `.preview-output/index.html` in the browser: header no longer shows the chip, footer shows the new combined "Powered by Layercake Maps · ..." line.
-- [ ] Not yet deployed to staging or production — `generate_directory_site` needs redeploying (staging first, per AGENTS.md) for this to reach any real published directory.
+- [ ] Not verified against a real staging directory's regenerated output — this agent did not trigger a live regeneration (`generate_directory_site` body `{ directory_id }`) against any directory on staging, since that would republish real/shared test data rather than just redeploying code. The user should trigger a republish (or Publish again) for a staging directory and confirm the live HTML matches.
+- [ ] **Production not deployed** — per `AGENTS.md`, Edge Function production deploys need explicit user sign-off after staging is verified. Awaiting that before deploying `generate_directory_site` to `gxixwdjfmegxcxfeflro`.
 
 ### Issues / notes
 Purely a copy/layout change — no schema, no admin event, no other file references "Powered by Layercake Maps".
