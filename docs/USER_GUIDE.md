@@ -168,7 +168,7 @@ On a directory's **Branding** tab (owners and managers only), the panel sets the
 
 - **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
 - **Header**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently:
-  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo max height** slider, and a **site title** with an On/Off toggle next to it. Off leaves the title out of the published header (logo only, if you have one). On, leave the field blank to use the directory name. Saving branding then **Publish** (or republish) is what makes that choice live.
+  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo max height** slider, a **favicon upload** (square PNG/JPG/WebP, up to 2 MB — shown in the browser tab on the published site), and a **site title** with an On/Off toggle next to it. Off leaves the title out of the published header (logo only, if you have one). On, leave the field blank to use the directory name. Saving branding then **Publish** (or republish) is what makes that choice live. The favicon is independent of the header layout, so it is still available if you choose Text only.
   - **Body** — **primary colour** (links, buttons), **accent colour**, and **background colour** (the page behind the cards) are shown up front; click **Advanced colours…** to set **link hover colour**, **cards and panels**, **logo areas, tags, and hover**, **main text**, **secondary text**, **borders and dividers**, **badge background** (also the homepage search band), and **badge text**.
   - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
 - A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
@@ -177,7 +177,7 @@ On a directory's **Branding** tab (owners and managers only), the panel sets the
 - **Contrast warnings**: next to each text and link colour field, a small ✓ or ⚠ badge shows its contrast ratio against that region's background (e.g. header text vs the header background, a link vs its region's background) — ✓ means it meets WCAG AA, ⚠ means it doesn't. This is a warning only; it never blocks saving, since a client may have their own brand reasons for a colour choice.
 - Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically.
 
-Corner radius and favicon controls aren't built yet. The logo upload only accepts PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
+Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
 
 ### Entry layout
 
@@ -638,6 +638,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
 | Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
+| Set the published directory favicon | Directory → Branding → Favicon |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
 | Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |

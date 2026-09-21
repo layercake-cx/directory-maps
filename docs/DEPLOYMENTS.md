@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Directory branding favicon
+
+**Branch/PR:** `feat/2026-09-21-directory-favicon`
+**Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
+
+### What changed
+The directory **Branding** tab now has a favicon upload under the logo. Saving branding stores `theme_json.faviconUrl` (same blob as the logo). Publishing the directory bakes `<link rel="icon">` and `<link rel="apple-touch-icon">` into every generated page so the browser tab shows the client's mark. Directories with no favicon keep the host default. Same PNG/JPG/WebP storage rules as the logo; SVG is still not accepted.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`)
+
+### Rollback plan
+Revert the PR (or the Branding-tab UI commit) and redeploy the previous `generate_directory_site`. Clearing `theme_json.faviconUrl` and republishing also removes the tags without a code rollback.
+
+### Verified on staging
+- [x] Local `deno` preview + favicon URL sanitiser checks.
+- [ ] Staging function deployed.
+- [ ] Branding tab upload/save in the running app.
+- [ ] Republished directory HTML includes the favicon links.
+
+---
+
 ## 2026-09-21 — [Production] Retry transient Vercel Blob 503s during directory publish
 
 **Branch/PR:** `fix/2026-09-21-blob-upload-retry`

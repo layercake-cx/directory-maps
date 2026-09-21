@@ -80,6 +80,7 @@ export type DirectoryTheme = {
   fontHeading?: string;
   fontBody?: string;
   logoUrl?: string;
+  faviconUrl?: string;
   // Region overrides (header/footer only — "body" is already the flat
   // palette above). Each is optional; an unset region reproduces exactly
   // what generate_directory_site rendered before these fields existed —
@@ -545,6 +546,7 @@ export const NATURAL_DEFAULTS: Required<
   Omit<
     DirectoryTheme,
     | "logoUrl"
+    | "faviconUrl"
     | "headerBackground"
     | "headerText"
     | "footerBackground"
@@ -658,6 +660,24 @@ export function fontLinkTag(theme: DirectoryTheme): string {
   return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${query}&display=swap">`;
 }
 
+/** Browser-tab icon for the published site. Only http(s) URLs are emitted —
+ * theme_json is client-writable jsonb, and this value is interpolated into
+ * <link href>. Empty / invalid / non-http schemes omit the tags so existing
+ * directories keep whatever the host's default favicon already is. */
+export function faviconLinkTags(theme: DirectoryTheme): string {
+  const raw = typeof theme.faviconUrl === "string" ? theme.faviconUrl.trim() : "";
+  if (!raw) return "";
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return "";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  const href = escapeAttr(parsed.href);
+  return `<link rel="icon" href="${href}">\n<link rel="apple-touch-icon" href="${href}">`;
+}
+
 export type SiteAnalyticsDestination = {
   provider: string;
   enabled?: boolean;
@@ -710,6 +730,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 ${ogImage}
 ${jsonLdTags}
 ${fontLinkTag(opts.theme ?? {})}
+${faviconLinkTags(opts.theme ?? {})}
 <style>
   ${themeStyleBlock(opts.theme ?? {})}
   ${BASE_STYLE}

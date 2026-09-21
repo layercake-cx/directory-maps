@@ -34,6 +34,7 @@ import {
   type BlockDescriptor,
   type ContentPage,
   type SiteAnalytics,
+  faviconLinkTags,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -307,3 +308,17 @@ for (const page of PREVIEW_PAGES) {
 
 console.log(`Wrote ${1 + ENTRIES.length + PREVIEW_PAGES.length} file(s) to ${outDir.pathname}`);
 console.log(`Open ${outDir.pathname}index.html in a browser to preview the landing page.`);
+
+const iconTags = faviconLinkTags({ faviconUrl: "https://cdn.example.com/dir/favicon.png?v=1" });
+if (!iconTags.includes('rel="icon"') || !iconTags.includes("https://cdn.example.com/dir/favicon.png?v=1")) {
+  throw new Error("faviconLinkTags should emit icon links for an https URL");
+}
+if (faviconLinkTags({ faviconUrl: "javascript:alert(1)" })) {
+  throw new Error("faviconLinkTags must reject non-http(s) URLs");
+}
+if (faviconLinkTags({}) || faviconLinkTags({ faviconUrl: "" })) {
+  throw new Error("faviconLinkTags should omit tags when unset");
+}
+if (landingHtml.includes('rel="icon"')) {
+  throw new Error("preview THEME has no favicon — landing HTML must not emit a rel=icon tag");
+}
