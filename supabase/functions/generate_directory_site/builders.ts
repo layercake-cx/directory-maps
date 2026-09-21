@@ -81,6 +81,10 @@ export type DirectoryTheme = {
   fontBody?: string;
   logoUrl?: string;
   faviconUrl?: string;
+  // Full-width decorative banner behind the header and top of the page.
+  // Unset = no banner (every existing directory). HTTP(S) URL only.
+  heroBannerUrl?: string;
+  heroBannerHeight?: number;
   // Region overrides (header/footer only — "body" is already the flat
   // palette above). Each is optional; an unset region reproduces exactly
   // what generate_directory_site rendered before these fields existed —
@@ -238,6 +242,26 @@ export const EXTRA_STYLE = `
   /* Site navigation — CSS-first so every destination is a crawlable <a href>
      even when the hamburger/dropdown is closed. Desktop dropdowns use
      :hover/:focus-within; mobile uses <details>/<summary> (no JS). */
+  /* Optional full-width hero banner (theme_json.heroBannerUrl). Sits behind
+     the glass header and the top of the page body, then fades into --bg.
+     body.has-hero-banner is added by directoryPageShell when the URL is valid. */
+  body.has-hero-banner { position: relative; }
+  .dir-page-banner {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 0; pointer-events: none;
+    height: calc(var(--hero-banner-height, 480px) + 100px);
+    background-image: var(--hero-banner-image);
+    background-size: cover; background-position: center top; background-repeat: no-repeat;
+  }
+  .dir-page-banner::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 18%, var(--bg) 92%);
+  }
+  .has-hero-banner .dir-page { position: relative; z-index: 1; }
+  .dir-home-intro {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, var(--sage) 0%, var(--bg) 60%);
+  }
+  .has-hero-banner .dir-home-intro { background: transparent; }
   /* Header must stack above following page content. The homepage hero band is
      a later sibling with an opaque background; without a z-index the dropdown
      (and mobile panel) paint underneath it. Content pages look fine because
@@ -547,6 +571,8 @@ export const NATURAL_DEFAULTS: Required<
     DirectoryTheme,
     | "logoUrl"
     | "faviconUrl"
+    | "heroBannerUrl"
+    | "heroBannerHeight"
     | "headerBackground"
     | "headerText"
     | "footerBackground"
@@ -636,18 +662,46 @@ export function resolvedTheme(theme: DirectoryTheme) {
   };
 }
 
+/** Rewrites hex / rgb(a) / hsl(a) colours in a CSS value to the given alpha
+ * (0–1). Used so a hero banner can show through the header at 40% transparency
+ * (alpha 0.6) without changing stored theme_json. Gradients keep their shape;
+ * only the stop colours pick up the new alpha. Existing alpha is replaced, not
+ * multiplied, so the default glass header `rgba(255,255,255,.6)` is a no-op. */
+export function applyAlphaToCssColors(css: string, alpha: number): string {
+  const a = Math.min(1, Math.max(0, alpha));
+  const hexToRgba = (hex: string): string => {
+    let h = hex.slice(1);
+    if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  };
+  return css
+    .replace(/#[0-9a-fA-F]{3,8}\b/g, hexToRgba)
+    .replace(/\brgba?\(\s*([\d.]+%?)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, r, g, b) => `rgba(${r}, ${g}, ${b}, ${a})`)
+    .replace(/\bhsla?\(\s*([\d.]+)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, h, s, l) => `hsla(${h}, ${s}, ${l}, ${a})`);
+}
+
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
+  const banner = resolvedHeroBanner(theme);
+  const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
+  const bannerVars = banner
+    ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px;`
+    : "";
   return `:root {
     --bg: ${t.backgroundColor}; --surface: ${t.surfaceColor}; --surface-2: ${t.surfaceAltColor};
     --ink: ${t.inkColor}; --muted: ${t.mutedColor}; --line: ${t.lineColor};
     --primary: ${t.primaryColor}; --primary-2: ${t.primaryDarkColor}; --accent: ${t.accentColor};
     --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor};
     --font-heading: "${t.fontHeading}", Georgia, serif; --font-body: "${t.fontBody}", system-ui, sans-serif;
-    --hdr-bg: ${t.headerBackground}; --hdr-text: ${t.headerText};
+    --hdr-bg: ${headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
+    ${bannerVars}
   }`;
 }
 
@@ -660,21 +714,39 @@ export function fontLinkTag(theme: DirectoryTheme): string {
   return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${query}&display=swap">`;
 }
 
+/** Client-writable theme_json URLs interpolated into HTML/CSS. Only http(s). */
+export function sanitizeHttpUrl(value: string | undefined): string | null {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
+const HERO_BANNER_HEIGHT_DEFAULT = 480;
+const HERO_BANNER_HEIGHT_MIN = 160;
+const HERO_BANNER_HEIGHT_MAX = 800;
+
+export function resolvedHeroBanner(theme: DirectoryTheme): { url: string; height: number } | null {
+  const url = sanitizeHttpUrl(theme.heroBannerUrl);
+  if (!url) return null;
+  const rawHeight = typeof theme.heroBannerHeight === "number" ? theme.heroBannerHeight : HERO_BANNER_HEIGHT_DEFAULT;
+  const height = Math.min(HERO_BANNER_HEIGHT_MAX, Math.max(HERO_BANNER_HEIGHT_MIN, rawHeight));
+  return { url, height };
+}
+
 /** Browser-tab icon for the published site. Only http(s) URLs are emitted —
  * theme_json is client-writable jsonb, and this value is interpolated into
  * <link href>. Empty / invalid / non-http schemes omit the tags so existing
  * directories keep whatever the host's default favicon already is. */
 export function faviconLinkTags(theme: DirectoryTheme): string {
-  const raw = typeof theme.faviconUrl === "string" ? theme.faviconUrl.trim() : "";
-  if (!raw) return "";
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return "";
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
-  const href = escapeAttr(parsed.href);
+  const hrefRaw = sanitizeHttpUrl(theme.faviconUrl);
+  if (!hrefRaw) return "";
+  const href = escapeAttr(hrefRaw);
   return `<link rel="icon" href="${href}">\n<link rel="apple-touch-icon" href="${href}">`;
 }
 
@@ -710,6 +782,7 @@ export function directoryPageShell(opts: {
   theme?: DirectoryTheme;
   analytics?: PageAnalytics | null;
 }): string {
+  const hasBanner = !!resolvedHeroBanner(opts.theme ?? {});
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
     : `<meta name="twitter:card" content="summary">`;
@@ -738,8 +811,10 @@ ${faviconLinkTags(opts.theme ?? {})}
   ${LAYOUT_STYLE}
 </style>
 </head>
-<body>
+<body${hasBanner ? ' class="has-hero-banner"' : ""}>
+${hasBanner ? '<div class="dir-page-banner" aria-hidden="true"></div><div class="dir-page">' : ""}
 ${opts.body}
+${hasBanner ? "</div>" : ""}
 ${opts.analytics ? buildSiteAnalyticsMarkup(opts.analytics) : ""}
 </body>
 </html>`;
@@ -2476,7 +2551,7 @@ export function buildDirectoryLandingPage(opts: {
 
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
-<div style="position:relative;overflow:hidden;background:linear-gradient(180deg,var(--sage) 0%,var(--bg) 60%);">
+<div class="dir-home-intro">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
     <h1 style="font-size:calc(var(--fs-h1) * 1.1);line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>

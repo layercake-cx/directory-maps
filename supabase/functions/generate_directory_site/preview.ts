@@ -35,6 +35,10 @@ import {
   type ContentPage,
   type SiteAnalytics,
   faviconLinkTags,
+  resolvedHeroBanner,
+  sanitizeHttpUrl,
+  applyAlphaToCssColors,
+  themeStyleBlock,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -260,6 +264,27 @@ const landingHtml = buildDirectoryLandingPage({
 });
 await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);
 
+const BANNER_THEME: DirectoryTheme = {
+  heroBannerUrl: "https://cdn.example.com/dir/hero-banner.jpg?v=1",
+  heroBannerHeight: 520,
+  backgroundColor: "#FAF6EE",
+};
+const landingWithBanner = buildDirectoryLandingPage({
+  clientSlug: "preview-client",
+  directorySlug: "preview-directory",
+  directoryName: "UK Associations (preview)",
+  directoryDescription: "A local preview directory — not real data.",
+  entries: ENTRIES,
+  directoryLinks: [],
+  theme: BANNER_THEME,
+  attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
+  categorisations: CATEGORISATIONS,
+  entryTermIds: ENTRY_TERM_IDS,
+  nav: PREVIEW_NAV,
+  analytics: PREVIEW_ANALYTICS,
+});
+await Deno.writeTextFile(new URL("./index-hero-banner.html", outDir), landingWithBanner);
+
 for (const entry of ENTRIES) {
   const html = buildEntryPage({
     clientSlug: "preview-client",
@@ -306,7 +331,7 @@ for (const page of PREVIEW_PAGES) {
   await Deno.writeTextFile(new URL(`./${filename}`, outDir), html);
 }
 
-console.log(`Wrote ${1 + ENTRIES.length + PREVIEW_PAGES.length} file(s) to ${outDir.pathname}`);
+console.log(`Wrote ${2 + ENTRIES.length + PREVIEW_PAGES.length} file(s) to ${outDir.pathname}`);
 console.log(`Open ${outDir.pathname}index.html in a browser to preview the landing page.`);
 
 const iconTags = faviconLinkTags({ faviconUrl: "https://cdn.example.com/dir/favicon.png?v=1" });
@@ -321,4 +346,46 @@ if (faviconLinkTags({}) || faviconLinkTags({ faviconUrl: "" })) {
 }
 if (landingHtml.includes('rel="icon"')) {
   throw new Error("preview THEME has no favicon — landing HTML must not emit a rel=icon tag");
+}
+if (landingHtml.includes('class="has-hero-banner"') || landingHtml.includes("class=\"dir-page-banner\"")) {
+  throw new Error("preview THEME has no hero banner — landing HTML must not emit banner markup");
+}
+if (!sanitizeHttpUrl("https://cdn.example.com/a.png") || sanitizeHttpUrl("javascript:alert(1)") || sanitizeHttpUrl("")) {
+  throw new Error("sanitizeHttpUrl should accept http(s) only");
+}
+if (resolvedHeroBanner({}) || resolvedHeroBanner({ heroBannerUrl: "javascript:alert(1)" })) {
+  throw new Error("resolvedHeroBanner must reject missing/non-http URLs");
+}
+const banner = resolvedHeroBanner(BANNER_THEME);
+if (!banner || banner.height !== 520 || !banner.url.includes("hero-banner.jpg")) {
+  throw new Error("resolvedHeroBanner should keep a valid https URL and height");
+}
+if (!landingWithBanner.includes('class="has-hero-banner"') || !landingWithBanner.includes('class="dir-page-banner"')) {
+  throw new Error("landing with a hero banner must emit banner markup");
+}
+if (!landingWithBanner.includes("cdn.example.com/dir/hero-banner.jpg")) {
+  throw new Error("hero banner CSS must include the sanitised image URL");
+}
+if (!landingWithBanner.includes("dir-home-intro")) {
+  throw new Error("homepage intro band should keep dir-home-intro for the transparent-when-banner CSS");
+}
+if (!landingWithBanner.includes("calc(var(--hero-banner-height, 480px) + 100px)")) {
+  throw new Error("hero banner must extend 100px past the configured height");
+}
+if (applyAlphaToCssColors("#112233", 0.6) !== "rgba(17, 34, 51, 0.6)") {
+  throw new Error("applyAlphaToCssColors should turn hex into rgba at the given alpha");
+}
+if (!applyAlphaToCssColors("linear-gradient(135deg, #FFFFFF 0%, #000000 100%)", 0.6).includes("rgba(255, 255, 255, 0.6)")) {
+  throw new Error("applyAlphaToCssColors should rewrite gradient stops");
+}
+const fadedHeaderCss = themeStyleBlock({
+  heroBannerUrl: "https://cdn.example.com/dir/hero-banner.jpg",
+  headerBackground: { type: "solid", color: "#112233" },
+});
+if (!fadedHeaderCss.includes("rgba(17, 34, 51, 0.6)")) {
+  throw new Error("a hero banner must render the header colour at 40% transparency");
+}
+const opaqueHeaderCss = themeStyleBlock({ headerBackground: { type: "solid", color: "#112233" } });
+if (opaqueHeaderCss.includes("rgba(17, 34, 51, 0.6)") || !opaqueHeaderCss.includes("#112233")) {
+  throw new Error("without a hero banner the header colour must stay fully opaque");
 }

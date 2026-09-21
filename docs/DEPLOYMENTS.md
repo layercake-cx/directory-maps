@@ -8,7 +8,109 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Directory hero banner: glass header + extra 100px
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
+
+### What changed
+Same as the staging entry below. Live published HTML updates on the next directory republish.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session.
+- [ ] Operator republish on a directory that already has a hero banner.
+
+---
+
+## 2026-09-21 — [Staging] Directory hero banner: glass header + extra 100px
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
+
+### What changed
+When a directory has a hero banner, the published header background colours (solid or gradient stops) are rendered at 40% transparency so the photograph shows through. The banner image also extends 100px further down the page than the Branding-tab height slider. Directories without a banner are unchanged. Stored `theme_json` is the same — this is a publish-time treatment.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+
+### Rollback plan
+Revert the follow-up commit on PR 223 and redeploy the previous `generate_directory_site`.
+
+### Verified on staging
+- [x] Local `deno` preview checks (alpha rewrite + extra 100px).
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-ly8a0043k-layercake-apps.vercel.app`).
+- [ ] Operator republish on a directory that already has a hero banner.
+
+---
+
+## 2026-09-21 — [Production] Directory branding hero banner
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
+
+### What changed
+Same as the staging entry below. Live published HTML is unchanged until a directory is republished with a hero banner set. The Branding-tab control is live on Vercel production (GitHub Pages follows merge to `main`).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment. Clearing `theme_json.heroBannerUrl` and republishing also removes the banner without a code rollback.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session (`https://uk-associations.com` / `maps.layercake-cx.biz`).
+- [ ] Operator upload + republish on a real directory.
+
+---
+
+## 2026-09-21 — [Staging] Directory branding hero banner
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
+
+### What changed
+The directory **Branding** tab now has a **Hero banner** section. Saving branding stores `theme_json.heroBannerUrl` (and optional `heroBannerHeight`, 160–800px, default 480). Publishing the directory paints a full-width background image behind the header and the top of every page (homepage, entries, content pages). The image fades into the page background colour so cards and body text sit on a solid colour. Directories with no banner keep the current look. Same PNG/JPG/WebP storage rules as the logo (5 MB cap because banners are larger); SVG is still not accepted. HTTP(S) URLs only are interpolated into CSS.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+
+### Rollback plan
+Revert the PR (or the Branding-tab UI commit) and redeploy the previous `generate_directory_site`. Clearing `theme_json.heroBannerUrl` and republishing also removes the banner without a code rollback.
+
+### Verified on staging
+- [x] Local `deno` preview + URL sanitiser checks.
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-t6xwusxhm-layercake-apps.vercel.app`).
+- [ ] Branding tab upload/save in the running app (no authenticated click-through this session).
+- [ ] Republished directory HTML includes the banner behind the header.
+
+---
+
 ## 2026-09-21 — [Production] Directory branding favicon
+
 
 **Branch/PR:** `feat/2026-09-21-directory-favicon` / https://github.com/layercake-cx/directory-maps/pull/222
 **Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
