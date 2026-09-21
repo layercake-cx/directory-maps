@@ -160,7 +160,7 @@ async function generateForDirectoryInner(
   const { data: entryRows, error: entryErr } = await db
     .from("directory_entries")
     .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
+      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
     )
     .eq("directory_id", directoryId)
     .eq("is_active", true)
@@ -388,12 +388,13 @@ async function generateForDirectoryInner(
   // Console for the thumbnail to actually render.
   const staticMapsApiKey = Deno.env.get("GOOGLE_GEOCODING_API_KEY") ?? Deno.env.get("GOOGLE_MAPS_API_KEY") ?? null;
 
-  // AI intent search (DIR-E7-S1) — the anon key is a public, publishable key
+  // AI Help me choose (DIR-E7-S1) — the anon key is a public, publishable key
   // by Supabase's own design (already shipped in the live app's committed JS
   // bundle via VITE_SUPABASE_ANON_KEY), so embedding it in the static page's
   // inline script is consistent with its existing exposure, not a new leak.
-  // aiSearch stays null (AI search path fully omitted from the generated
-  // script) when the directory hasn't configured a prompt.
+  // aiSearch stays null (Help me choose omitted from the generated page)
+  // when the directory hasn't configured a prompt. Keyword search always
+  // runs locally and never calls this function.
   const aiSearch: AiSearchOptions | null = directory.ai_search_prompt?.trim()
     ? {
         directoryId: directory.id,

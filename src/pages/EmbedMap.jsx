@@ -183,6 +183,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
    * filtering directly. { [fieldId]: string[] of selected option ids }
    */
   const [externalActiveFilters, setExternalActiveFilters] = useState(null);
+  /** Directory homepage shown-set (keyword + facets + Help me choose), posted with directory-filter-change. */
+  const [externalVisibleEntryIds, setExternalVisibleEntryIds] = useState(null);
   /** Normalized publication snapshot (map + group styling); listings stay live. */
   const [publicationConfig, setPublicationConfig] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
@@ -480,6 +482,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       const data = event.data;
       if (!data || data.type !== "directory-filter-change") return;
       setExternalActiveFilters(data.activeFilters && typeof data.activeFilters === "object" ? data.activeFilters : null);
+      setExternalVisibleEntryIds(Array.isArray(data.visibleEntryIds) ? data.visibleEntryIds : null);
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -818,6 +821,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           groups={groupsForEmbed}
           filterFields={filterFieldsForEmbed}
           externalActiveFilters={externalActiveFilters}
+          externalVisibleEntryIds={externalVisibleEntryIds}
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}

@@ -8,6 +8,64 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Fast directory keyword search + Help me choose
+
+**Branch/PR:** `feat/2026-09-21-help-me-choose`
+**Deployed by:** Cursor Grok, on the user's explicit "deploy edge functions to staging and production" go-ahead.
+
+### What changed
+Same as the staging entry below. Live published HTML is unchanged until a directory is republished.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `directory_ai_search` — production (`gxixwdjfmegxcxfeflro`)
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `directory_ai_search` and `generate_directory_site` to production.
+
+### Verified on staging
+- [x] Staging functions deployed this session.
+- [x] Production functions deployed this session.
+- [ ] A republished directory shows keyword search + Help me choose.
+
+### Issues / notes
+The frontend (admin Help me choose copy, map `visibleEntryIds` intersect) is still only on this branch until it is merged and the Vite apps are deployed.
+
+---
+
+## 2026-09-21 — [Staging] Fast directory keyword search + Help me choose
+
+**Branch/PR:** `feat/2026-09-21-help-me-choose`
+**Deployed by:** Cursor Grok, staging then production in the same session (user asked)
+
+### What changed
+The published directory search box is fast full-listing keyword matching again (name, slug, body, keywords, website, location, tags) and no longer calls Claude on each keystroke. When a directory has Help me choose instructions set, visitors get a separate **Help me choose** dialogue that reuses `directory_ai_search` (conversation, optional follow-ups, listing ids, optional "why this might suit you"). Those ids become the same list/map/count result set as keyword search and filters. Map pins now follow the shown listing ids, not only facet filters.
+
+Already-published HTML is unchanged until `generate_directory_site` is deployed and a directory is republished.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `directory_ai_search` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above.
+
+### Rollback plan
+Redeploy the previous `directory_ai_search` and `generate_directory_site`. Revert this branch's commits on `main`.
+
+### Verified on staging
+- [x] Local `deno check` / preview HTML (`ciep`/`proofreading` in haystack; Help me choose markup; no `runAiSearch` on the search box).
+- [x] Staging Edge Functions deployed.
+- [ ] Republished staging directory: keyword search with no LLM; Help me choose dialogue; map pins follow results.
+
+### Issues / notes
+Help me choose still requires `directories.ai_search_prompt` (blank = keyword search only). The embed-map pin intersection lives in the SPA (`EmbedMap.jsx` / `PublishedMapView.jsx`) and needs a frontend deploy after merge to take effect on live maps.
+
+---
+
 ## 2026-09-21 — [Production] Directory listing logo cells widened to 208px on desktop
 
 **Branch/PR:** `feat/2026-09-21-listing-logo-panel-wider` ([#219](https://github.com/layercake-cx/directory-maps/pull/219))

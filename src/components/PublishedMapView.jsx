@@ -258,6 +258,12 @@ export default function PublishedMapView({
    * (see EmbedMap.jsx) instead of the viewer using this component's own bar.
    */
   externalActiveFilters = null,
+  /**
+   * When set, only listings whose id is in this list are shown (directory
+   * homepage keyword search / Help me choose). Combined with
+   * externalActiveFilters. null = no extra id restriction.
+   */
+  externalVisibleEntryIds = null,
   /** Hide the custom-filter-fields UI block (groups/continent/search stay visible) — the parent page renders its own controls instead. */
   hideFilterBar = false,
 }) {
@@ -425,10 +431,16 @@ export default function PublishedMapView({
     return merged;
   }, [externalActiveFilters, activeFilters]);
 
+  const visibleEntryIdSet = useMemo(() => {
+    if (!Array.isArray(externalVisibleEntryIds)) return null;
+    return new Set(externalVisibleEntryIds);
+  }, [externalVisibleEntryIds]);
+
   const effectiveListings = useMemo(() => {
     if (!list) return [];
     return list.filter((l) => {
       if (l.is_active === false) return false;
+      if (visibleEntryIdSet && !visibleEntryIdSet.has(l.id)) return false;
       if (activeGroupIds.size > 0 && !(l.group_id != null && activeGroupIds.has(l.group_id))) return false;
       if (activeContinents.size > 0) {
         const c = continentForCountry(l.country);
@@ -451,7 +463,7 @@ export default function PublishedMapView({
       }
       return true;
     });
-  }, [list, activeGroupIds, activeContinents, visibleFilterFields, effectiveActiveFilters, listingFilterIndex]);
+  }, [list, activeGroupIds, activeContinents, visibleFilterFields, effectiveActiveFilters, listingFilterIndex, visibleEntryIdSet]);
 
   const groupNameById = useMemo(() => {
     const m = new Map();
