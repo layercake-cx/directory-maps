@@ -29,10 +29,11 @@ Redeploy the previous `directory_ai_search` and `generate_directory_site` to pro
 ### Verified on staging
 - [x] Staging functions deployed this session.
 - [x] Production functions deployed this session.
+- [x] Vercel production (`npm run deploy:live`).
 - [ ] A republished directory shows keyword search + Help me choose.
 
 ### Issues / notes
-The frontend (admin Help me choose copy, map `visibleEntryIds` intersect) is still only on this branch until it is merged and the Vite apps are deployed.
+Vercel production deployed this session (`maps.layercake-cx.biz` / aliased `https://uk-associations.com`, deployment `dpl_Bxw4bg9qvuALJYq9UBaUfKdqtJrU`). GitHub Pages updates when this PR is merged to `main`. Published directory HTML still needs a directory republish.
 
 ---
 
