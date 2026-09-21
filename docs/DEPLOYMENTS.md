@@ -8,9 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Entry page prose spacing
+
+**Branch/PR:** `feat/2026-09-21-entry-prose-spacing` / https://github.com/layercake-cx/directory-maps/pull/225
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. Live published HTML updates on the next directory republish.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [ ] Operator republish of a directory, then a check of a live entry page.
+
+---
+
 ## 2026-09-21 — [Staging] Entry page prose spacing
 
-**Branch/PR:** `feat/2026-09-21-entry-prose-spacing`
+**Branch/PR:** `feat/2026-09-21-entry-prose-spacing` / https://github.com/layercake-cx/directory-maps/pull/225
 **Deployed by:** Cursor Grok, with explicit staging and production go-ahead in the same request.
 
 ### What changed
@@ -22,14 +46,14 @@ Already-published directories keep the old HTML until the next republish.
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production not deployed yet.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
 
 ### Rollback plan
 Redeploy the previous `generate_directory_site` to staging. No database change to undo.
 
 ### Verified on staging
 - [x] Local preview of an entry page and a content page (lists match paragraphs at 16.5px; 16px under H2, 14px under H3, 12px under H4, 18px under section titles).
-- [ ] Staging function deployed.
+- [x] Staging function deployed.
 - [ ] Operator republish of a directory, then a check of a live entry page.
 
 ---
