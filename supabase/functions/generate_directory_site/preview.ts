@@ -108,7 +108,7 @@ function makeEntry(opts: {
 }
 
 // Wide wordmarks so the landing-row logo cell can be checked against
-// landscape logos (the reason that cell is 128px on desktop).
+// landscape logos (the reason that cell is 208px on desktop).
 const WIDE_LOGO =
   "data:image/svg+xml," +
   encodeURIComponent(
