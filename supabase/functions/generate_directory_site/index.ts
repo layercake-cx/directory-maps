@@ -449,15 +449,12 @@ async function generateForDirectoryInner(
     list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.title.localeCompare(b.title));
   }
 
-  // Entry pages upload one at a time until this point — for a 177-entry
-  // production directory that measured ~120s end-to-end, essentially all of
-  // it this loop (every other step is a handful of batched Promise.all DB
-  // reads). Each iteration's Blob PUT is independent of every other, so
-  // there's no correctness reason for it to be sequential — bounded to 15
-  // concurrent uploads rather than unbounded Promise.all to stay well clear
-  // of any Vercel Blob per-second rate limit, not because 15 is some
-  // measured optimum.
-  await mapWithConcurrency(entries, 15, async (entry) => {
+  // Entry pages used to upload sequentially (~120s for 177 entries, almost
+  // all of it Blob PUTs). Bounded concurrency is still required, but 15
+  // in-flight PUTs regularly 503s Vercel Blob on large directories (UK
+  // Associations-scale) and failed the whole generation. 6 plus per-PUT
+  // retries in uploadToBlob is the compromise.
+  await mapWithConcurrency(entries, 6, async (entry) => {
     const layout = resolveLayout(entry, templates, entryTermIdsByEntry.get(entry.id) ?? new Set(), termSortOrder);
     const html = buildEntryPage({
       clientSlug: client.slug,
