@@ -358,7 +358,7 @@ const LAYOUT_STYLE = `
   .dir-row:last-child { border-bottom: 0; }
   .dir-row:hover { background: var(--surface-2); }
   /* Logo is its own column: bg fills the cell, image is centred. Mobile
-     keeps a compact 64px strip; desktop doubles that so wide marks stay
+     keeps a compact 64px strip; desktop uses 208px so wide marks stay
      readable. Height always stretches to the row. */
   .dir-row__logo { position: relative; width: 64px; min-width: 64px; align-self: stretch; border-radius: 0; background: var(--surface-2); flex: none; overflow: hidden; }
   .dir-row__logo img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 24px); max-height: calc(100% - 24px); width: auto; height: auto; object-fit: contain; }
@@ -390,7 +390,7 @@ const LAYOUT_STYLE = `
     .dir-results { flex: 0 0 calc(66.666% - 14px); }
     .dir-map-pane { flex: 0 0 calc(33.333% - 14px); }
 
-    .dir-row__logo { width: 128px; min-width: 128px; }
+    .dir-row__logo { width: 208px; min-width: 208px; }
   }
 
   .dir-filters-trigger { display: none; }

@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Directory listing logo cells widened to 208px on desktop
+
+**Branch/PR:** `feat/2026-09-21-listing-logo-panel-wider` (not yet opened)
+**Deployed by:** —
+
+### What changed
+Desktop published listing logo cells go from 128px to 208px so wide wordmarks have more room. Mobile stays 64px. A one-off production data update for directory `5645c858-0a9a-4787-8944-d8a5529089a9` (UK Associations): 328 entries whose logo cell was `#f4f6fa` (almost all via a null `panel_background_color` inheriting `theme_json.surfaceAltColor`) now have `panel_background_color` `#FFFFFF`. One entry kept `#1a1a1a`.
+
+Already-published HTML is unchanged until `generate_directory_site` is deployed and a directory is republished.
+
+### Database migrations applied
+None (data patch only, not a schema migration).
+
+### Edge Functions deployed
+None yet.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site`. Revert matching `panel_background_color` values to `#f4f6fa` if the data patch needs undoing.
+
+### Verified on staging
+- [ ] CSS is 208px at ≥901px in generated markup.
+- [ ] `generate_directory_site` deployed to staging.
+- [x] Production `panel_background_color` rows updated (328 → `#FFFFFF`; 1 left at `#1a1a1a`).
+
+### Issues / notes
+Live pages keep the previous cell width until republish.
+
+---
+
 ## 2026-09-21 — [Production] Published directory listing rows give logos a full-height cell
 
 **Branch/PR:** `feat/2026-09-21-directory-listing-logo-layout` ([#217](https://github.com/layercake-cx/directory-maps/pull/217))
