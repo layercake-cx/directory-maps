@@ -26,9 +26,9 @@ None.
 Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment. Clearing `theme_json.heroBannerUrl` and republishing also removes the banner without a code rollback.
 
 ### Verified on staging
-- [ ] Staging function deployed this session.
-- [ ] Production function deployed this session.
-- [ ] Vercel production frontend deployed this session.
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session (`https://uk-associations.com` / `maps.layercake-cx.biz`).
 - [ ] Operator upload + republish on a real directory.
 
 ---
@@ -45,16 +45,16 @@ The directory **Branding** tab now has a **Hero banner** section. Saving brandin
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`).
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
 
 ### Rollback plan
 Revert the PR (or the Branding-tab UI commit) and redeploy the previous `generate_directory_site`. Clearing `theme_json.heroBannerUrl` and republishing also removes the banner without a code rollback.
 
 ### Verified on staging
-- [ ] Local `deno` preview + URL sanitiser checks.
-- [ ] Staging function deployed.
-- [ ] Vercel preview frontend deployed.
-- [ ] Branding tab upload/save in the running app.
+- [x] Local `deno` preview + URL sanitiser checks.
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-t6xwusxhm-layercake-apps.vercel.app`).
+- [ ] Branding tab upload/save in the running app (no authenticated click-through this session).
 - [ ] Republished directory HTML includes the banner behind the header.
 
 ---
