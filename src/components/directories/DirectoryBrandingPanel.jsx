@@ -315,7 +315,7 @@ function PreviewStrip({ theme, directoryName }) {
       <div style={{ background: headerBg, color: theme.headerText, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         {showLogo &&
           (theme.logoUrl ? (
-            <img src={theme.logoUrl} alt="" style={{ height: Math.min(24, theme.logoMaxHeight), width: "auto", borderRadius: 7, objectFit: "contain" }} />
+            <img src={theme.logoUrl} alt="" style={{ height: Math.min(24, theme.logoMaxHeight), width: "auto", objectFit: "contain" }} />
           ) : (
             <div style={{ width: 24, height: 24, borderRadius: 7, background: theme.primaryColor, flex: "none" }} />
           ))}

@@ -781,7 +781,7 @@ export function siteHeader(opts: {
   // auto) — only the no-logo placeholder is forced square, since there's
   // no real image to preserve an aspect ratio from.
   const logo = opts.logoUrl
-    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;border-radius:12px;object-fit:contain;">`
+    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;object-fit:contain;">`
     : `<div style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
   const showLogo = mode !== "text";
   const showText = opts.showHeaderTitle === false ? false : mode !== "logo";

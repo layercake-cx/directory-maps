@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Published directory header logo is not clipped by rounded corners
+
+**Branch/PR:** `fix/2026-09-21-published-logo-radius`
+**Deployed by:** not yet
+
+### What changed
+The published directory site header applied a 12px corner radius to the uploaded logo, which clipped the image (especially square or corner-heavy marks). The header logo now renders with square corners. The Branding tab live preview matches. The coloured no-logo placeholder is unchanged.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None yet. Live published sites pick this up after `generate_directory_site` is deployed and the directory is republished.
+
+### Rollback plan
+Restore `border-radius:12px` on the header logo `<img>` in `generate_directory_site` and redeploy that function. No schema change.
+
+### Verified on staging
+- [ ] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
+- [ ] Republish a directory with a logo and confirm corners are no longer clipped.
+- [ ] Branding tab preview still shows the logo without rounded clipping.
+
+### Issues / notes
+Already-published HTML is unchanged until a directory is republished.
+
+---
+
 ## 2026-09-20 — [Production] Homepage nav dropdown sits above the hero band
 
 **Branch/PR:** `fix/2026-09-20-homepage-nav-dropdown` ([#214](https://github.com/layercake-cx/directory-maps/pull/214))
