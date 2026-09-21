@@ -154,7 +154,7 @@ On a directory's **Publish** tab (visible to everyone with access; only owners a
 
 Each publish also regenerates `sitemap.xml`. Every listed URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
 
-The published homepage has a real keyword search (matches by entry name or location — no account or API key needed) and, when entries have coordinates set, a pins-only map, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has search instructions set, the same search box instead resolves the query with Claude — see **AI search** below; it falls back to plain keyword matching automatically if that call ever fails.
+The published homepage has a fast keyword search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed) and, when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get a **Help me choose** button — see **Help me choose** below. The search box itself never calls Claude.
 
 The header, mobile menu, and footer on every published page are generated from the **Pages** tab (see **Content pages** below): a Home link back to the directory, plus your pages in the order you set. Child pages appear in a dropdown on desktop and an expandable section on a phone.
 
@@ -261,15 +261,15 @@ The next panel on the **AI** tab shows how many active entries are missing any o
 
 This is separate from the single-entry **Generate with AI** button on an entry's own Search & Metadata tab, which works immediately and lets you review before saving; this panel is for catching up a whole directory's backlog at once.
 
-### AI search
+### Help me choose
 
-Below the content panel on the same **AI** tab, a second panel controls the published site's search box:
+Below the content panel on the same **AI** tab, a second panel controls **Help me choose** on the published site (not the main search box):
 
-1. **Set search instructions** — free text describing how the AI should interpret and prioritise queries, e.g. "prioritise entries with a matching accreditation" or "treat a UK town or postcode as a location filter". Leave it blank to turn this off — the search box then stays on plain keyword matching, exactly as it always has.
-2. Once instructions are set, the published homepage's search box sends each typed query to Claude, which reasons over every entry in the directory (name, location, categorisation tags, and a short description) and returns the best matches, filtering the list down to just those — most relevant first. If that call ever fails or times out, the search box falls back to plain keyword matching automatically; visitors never see an error.
-3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation it doesn't recognise. This never adds a result that isn't already an entry in the directory — web results can only inform the AI's reasoning, not introduce new listings.
+1. **Set Help me choose instructions** — free text describing how the AI should interpret a visitor's circumstances and pick relevant entries. Leave it blank to turn this off — the published homepage then has keyword search only, and no Help me choose button.
+2. Once instructions are set, visitors see **Help me choose** next to search. It opens a conversation that asks what they would like an association to help them with. The AI may ask a follow-up, then shows matching listings (and map pins) as the normal directory results, with optional "Why this might suit you" notes. Visitors can **Refine with AI** or **Clear**. If they already typed a keyword search, that text is used as the first message and the AI narrows those results.
+3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation. This never adds a result that isn't already an entry in the directory.
 
-Turning AI search on sends visitors' search text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration.
+Turning Help me choose on sends visitors' conversation text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration. The search box does not.
 
 ### Content pages
 
@@ -638,6 +638,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
+| Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
 

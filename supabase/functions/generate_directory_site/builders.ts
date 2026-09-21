@@ -38,6 +38,8 @@ export type Entry = {
   show_address: boolean;
   meta_title: string | null;
   meta_description: string | null;
+  keywords?: string | null;
+  ai_summary?: string | null;
   noindex: boolean | null;
   structured_data_type: string | null;
   panel_image_url: string | null;
@@ -371,6 +373,34 @@ const LAYOUT_STYLE = `
   .dir-empty { padding: 48px 24px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
+  .dir-search-form { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px 10px 10px 18px; box-shadow: 0 12px 32px -18px rgba(0,0,0,.35); }
+  .dir-search-form input { flex: 1 1 220px; min-width: 0; border: 0; outline: 0; font-size: 16px; font-family: inherit; background: transparent; color: var(--ink); }
+  .dir-hmc-btn { flex: none; }
+  .dir-ai-banner { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 14px; }
+  .dir-ai-banner[hidden] { display: none; }
+  .dir-ai-banner strong { font-family: var(--font-heading); }
+  .dir-ai-banner__based { color: var(--muted); font-size: 13px; }
+  .dir-ai-banner__actions { display: flex; gap: 12px; margin-left: auto; }
+  .dir-ai-banner__actions button { background: transparent; border: 0; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; }
+  .dir-row__why { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 8px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
+  .dir-row__why[hidden] { display: none; }
+  .dir-row__why strong { display: block; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .dir-hmc-backdrop { display: none; position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.4); align-items: flex-end; justify-content: center; padding: 16px; }
+  .dir-hmc-backdrop.dir-hmc-backdrop--open { display: flex; }
+  .dir-hmc-dialog { width: min(560px, 100%); max-height: min(82vh, 720px); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.22); display: flex; flex-direction: column; overflow: hidden; }
+  .dir-hmc-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .dir-hmc-dialog header h2 { margin: 0; font-family: var(--font-heading); font-size: 18px; }
+  .dir-hmc-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .dir-hmc-msg { font-size: 14.5px; line-height: 1.55; padding: 10px 12px; border-radius: 12px; max-width: 92%; white-space: pre-wrap; }
+  .dir-hmc-msg--assistant { background: var(--surface-2); align-self: flex-start; }
+  .dir-hmc-msg--user { background: var(--primary); color: #fff; align-self: flex-end; }
+  .dir-hmc-form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+  .dir-hmc-form textarea { flex: 1; min-height: 44px; max-height: 120px; resize: vertical; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14.5px; }
+  .dir-hmc-error { color: #b91c1c; font-size: 13px; margin: 0 16px 12px; }
+  .dir-hmc-error[hidden] { display: none; }
+  @media (min-width: 641px) {
+    .dir-hmc-backdrop { align-items: center; }
+  }
 
   /* Desktop: results and map render permanently side by side (the List/Map
      segmented control is mobile-only, see below) — .dir-pane-hidden is only
@@ -1385,15 +1415,41 @@ const SEARCH_STOPWORDS = [
   "uk", "member", "members", "membership", "near", "me", "in", "of", "a",
 ];
 
+const SEARCH_HAYSTACK_MAX = 8000;
+
+function stripHtmlForSearch(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Public listing text baked into each row's data-search attribute. */
+function buildSearchHaystack(e: Entry, termLabels: string[]): string {
+  const street = e.show_address ? e.address : null;
+  const parts = [
+    e.name,
+    e.slug,
+    e.website_url,
+    street,
+    e.city,
+    e.postcode,
+    e.country,
+    e.meta_description,
+    e.keywords,
+    e.ai_summary,
+    stripHtmlForSearch(e.notes_html).slice(0, SEARCH_HAYSTACK_MAX),
+    ...termLabels,
+  ];
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim().toLowerCase().slice(0, SEARCH_HAYSTACK_MAX);
+}
+
 /** Embeds a JSON value as a JS literal inside an inline <script> — escapes
  * "</" so a label/slug containing "</script>" can't break out of the tag. */
 function embedJson(value: unknown): string {
   return JSON.stringify(value).replace(/<\//g, "<\\/");
 }
 
-/** AI-search wiring for buildFilterAndSearchScript — omitted (null) entirely
- * disables the AI path, leaving the script's plain keyword matching as the
- * only behaviour (identical output to before this option existed). */
+/** Help me choose wiring for buildFilterAndSearchScript — omitted (null)
+ * hides the Help me choose control; keyword search always runs locally. */
 export type AiSearchOptions = {
   directoryId: string;
   enabled: boolean;
@@ -1594,26 +1650,22 @@ function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
 </script>`;
 }
 
-/** Combined client-side intent search + categorisation-facet filtering over
+/** Combined client-side keyword search + categorisation-facet filtering over
  * the already-rendered result rows. Reads data-search / data-term-ids /
  * data-entry-id attributes baked into each row at generation time. AND
  * across categorisations, OR within one categorisation's selected terms
  * (matches the in-app map filter bar's semantics, PublishedMapView.jsx) —
  * single_select and boolean facets simply never hold more than one selected
  * term, so the same AND/OR logic covers all three field_types with no extra
- * branching. When hasMap is true, also posts the active selection to the
- * attached map's <iframe> so both stay in sync (EmbedMap.jsx's `message`
- * listener), and mirrors state into the URL (?q=&<facetKey>=<slug,slug>&view=)
- * so a filtered view is shareable/bookmarkable (closes
- * docs/DIRECTORIES.md's DIR-E7-S3 gap).
+ * branching. When hasMap is true, also posts the active selection and the
+ * shown entry ids to the attached map's <iframe> so both stay in sync
+ * (EmbedMap.jsx's `message` listener), and mirrors state into the URL
+ * (?q=&<facetKey>=<slug,slug>&view=) so a filtered view is
+ * shareable/bookmarkable (closes docs/DIRECTORIES.md's DIR-E7-S3 gap).
  *
- * Search itself is plain keyword substring matching UNLESS aiSearch.enabled
- * (directories.ai_search_prompt is set) — then a debounced query instead
- * calls directory_ai_search (DIR-E7-S1) and restricts to its returned entry
- * ids, preserving Claude's relevance order. Every failure path (network
- * error, timeout, non-2xx, a disabled response) falls straight through to
- * the same keyword-matching code that runs when AI search is off entirely —
- * visitors never see a broken search box, see runAiSearch below. */
+ * Search is always local keyword matching over the full-listing haystack.
+ * When aiSearch.enabled, Help me choose can additionally restrict the
+ * shown set to directory_ai_search's returned ids (same apply() path). */
 export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null): string {
   const catsMeta = categorisations.map((c) => ({
     id: c.id,
@@ -1635,14 +1687,32 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var AI_SEARCH_DIRECTORY_ID = ${embedJson(aiSearch?.directoryId ?? null)};
   var AI_SEARCH_URL = ${embedJson(aiSearch ? aiSearch.supabaseUrl + "/functions/v1/directory_ai_search" : null)};
   var AI_SEARCH_ANON_KEY = ${embedJson(aiSearch?.supabaseAnonKey ?? null)};
-  var aiEntryIds = null; // null = no AI filter active (use keyword matching); array = restrict to these ids
-  var aiSearchToken = 0; // guards a stale in-flight response from clobbering a newer one
+  var HMC_OPENING = ${embedJson("What would you like an association to help you with?\n\nTell me a little about your work, career or business and what you’d like support with.\n\nFor example: “I’ve recently started working in publishing and I’d like to develop my skills and meet people in the industry.”")};
+  var resultEntryIds = null; // null = keyword+facets; array = Help me choose allow-list
+  var aiReasons = {};
+  var aiBasedOn = [];
+  var aiMessages = [];
+  var aiCandidateIds = null;
+  var aiSearchToken = 0;
+  var hmcStorageKey = AI_SEARCH_DIRECTORY_ID ? ('dm-help-me-choose:' + AI_SEARCH_DIRECTORY_ID) : null;
 
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
   var rows = Array.prototype.slice.call(document.querySelectorAll('[data-search]'));
   var totalCount = rows.length;
   var countEl = document.getElementById('dir-result-count');
+  var toolbarHelpBtn = document.getElementById('dir-toolbar-hmc');
+  var aiBanner = document.getElementById('dir-ai-banner');
+  var aiBannerCount = document.getElementById('dir-ai-banner-count');
+  var aiBannerBased = document.getElementById('dir-ai-banner-based');
+  var hmcBackdrop = document.getElementById('dir-hmc-backdrop');
+  var hmcMessagesEl = document.getElementById('dir-hmc-messages');
+  var hmcForm = document.getElementById('dir-hmc-form');
+  var hmcInput = document.getElementById('dir-hmc-input');
+  var hmcError = document.getElementById('dir-hmc-error');
+  var hmcCloseBtn = document.getElementById('dir-hmc-close');
+  var hmcRefineBtn = document.getElementById('dir-ai-refine');
+  var hmcClearBtn = document.getElementById('dir-ai-clear');
   var chipsEl = document.getElementById('dir-active-chips');
   var clearAllBtn = document.getElementById('dir-clear-all');
   var emptyClearBtn = document.getElementById('dir-empty-clear');
@@ -1682,7 +1752,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function tokens(q) {
-    var m = q.toLowerCase().match(/[a-z]{3,}/g) || [];
+    var m = q.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
     return m.filter(function (t) { return !stopwordSet[t]; });
   }
 
@@ -1756,7 +1826,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         chipsEl.appendChild(chip);
       });
     });
-    if (clearAllBtn) clearAllBtn.hidden = !any && !(input && input.value.trim());
+    if (clearAllBtn) clearAllBtn.hidden = !any && !(input && input.value.trim()) && !resultEntryIds;
   }
 
   function syncUrl() {
@@ -1788,6 +1858,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     var q = input ? input.value.trim() : '';
     var toks = tokens(q);
     var shown = 0;
+    var shownIds = [];
 
     rows.forEach(function (row) {
       var terms = rowTermIds(row);
@@ -1798,10 +1869,9 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       });
       var searchMatch = true;
       var order = 0;
-      if (aiEntryIds) {
-        // AI search result active — restrict to and order by Claude's
-        // relevance ranking instead of keyword scoring.
-        var aiIdx = aiEntryIds.indexOf(row.getAttribute('data-entry-id'));
+      var entryId = row.getAttribute('data-entry-id');
+      if (resultEntryIds) {
+        var aiIdx = resultEntryIds.indexOf(entryId);
         searchMatch = aiIdx !== -1;
         order = aiIdx === -1 ? 0 : aiIdx;
       } else if (toks.length) {
@@ -1814,12 +1884,28 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       var match = searchMatch && categoryMatch;
       row.style.display = match ? '' : 'none';
       row.style.order = match ? String(order) : '';
-      if (match) shown++;
+      var whyEl = row.querySelector('.dir-row__why');
+      if (whyEl) {
+        var reason = match && resultEntryIds && aiReasons[entryId] ? aiReasons[entryId] : '';
+        if (reason) {
+          whyEl.hidden = false;
+          whyEl.innerHTML = '<strong>Why this might suit you</strong>' + escapeWhy(reason);
+        } else {
+          whyEl.hidden = true;
+          whyEl.textContent = '';
+        }
+      }
+      if (match) {
+        shown++;
+        shownIds.push(entryId);
+      }
     });
 
     if (countEl) {
       var line;
-      if (q) {
+      if (resultEntryIds) {
+        line = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
+      } else if (q) {
         line = shown + (shown === 1 ? ' entry matches \\u201c' + q + '\\u201d' : ' entries match \\u201c' + q + '\\u201d');
       } else if (shown === totalCount) {
         line = 'All ' + shown + (shown === 1 ? ' entry' : ' entries');
@@ -1832,10 +1918,27 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (drawerCountEl) drawerCountEl.textContent = String(shown);
     if (rowsWrap) rowsWrap.hidden = shown === 0;
     if (emptyEl) emptyEl.hidden = shown !== 0;
+    if (toolbarHelpBtn) toolbarHelpBtn.hidden = !AI_SEARCH_ENABLED || !!resultEntryIds || shown === 0;
+
+    if (aiBanner) {
+      aiBanner.hidden = !resultEntryIds;
+      if (resultEntryIds && aiBannerCount) {
+        aiBannerCount.textContent = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
+      }
+      if (aiBannerBased) {
+        if (aiBasedOn.length) {
+          aiBannerBased.hidden = false;
+          aiBannerBased.textContent = 'Based on: ' + aiBasedOn.join(' · ');
+        } else {
+          aiBannerBased.hidden = true;
+          aiBannerBased.textContent = '';
+        }
+      }
+    }
 
     renderChips();
     syncUrl();
-    ${hasMap ? "postToMap();" : ""}
+    ${hasMap ? "postToMap(shownIds);" : ""}
     var filterSig = JSON.stringify(active);
     if (lastFilterSig !== null && filterSig !== lastFilterSig && window.dmRecordEngagement) {
       window.dmRecordEngagement('directory_filter', { meta: { filter: active } });
@@ -1843,32 +1946,141 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     lastFilterSig = filterSig;
   }
 
+  function escapeWhy(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function matchingIdsIgnoringAi() {
+    var q = input ? input.value.trim() : '';
+    var toks = tokens(q);
+    var ids = [];
+    rows.forEach(function (row) {
+      var terms = rowTermIds(row);
+      var categoryMatch = Object.keys(active).every(function (catId) {
+        var selected = active[catId];
+        if (!selected || !selected.length) return true;
+        return terms.some(function (t) { return selected.indexOf(t) !== -1; });
+      });
+      var searchMatch = true;
+      if (toks.length) {
+        var hay = (row.getAttribute('data-search') || '');
+        var score = 0;
+        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
+        searchMatch = score > 0;
+      }
+      if (searchMatch && categoryMatch) ids.push(row.getAttribute('data-entry-id'));
+    });
+    return ids;
+  }
+
   ${hasMap ? `
-  function postToMap() {
+  function postToMap(shownIds) {
     if (!mapFrame || !mapFrame.contentWindow) return;
-    mapFrame.contentWindow.postMessage({ type: 'directory-filter-change', activeFilters: active }, '*');
+    mapFrame.contentWindow.postMessage({ type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [] }, '*');
   }
   ` : ""}
 
-  // AI intent search (DIR-E7-S1) — calls directory_ai_search with the typed
-  // query and restricts results to the entry ids it returns, preserving
-  // Claude's relevance order (see apply()'s aiEntryIds branch above). Any
-  // failure at all — network error, timeout, non-2xx, or a disabled/
-  // malformed response — clears aiEntryIds and re-applies, which is exactly
-  // the same code path as AI search being off entirely: the keyword-scoring
-  // branch in apply() takes over with no special-casing needed here.
-  var AI_SEARCH_MIN_QUERY_LENGTH = 2;
-  var aiSearchDebounceTimer = null;
-
-  function runAiSearch(q) {
+  function persistHmc() {
+    if (!hmcStorageKey || !window.sessionStorage) return;
+    try {
+      sessionStorage.setItem(hmcStorageKey, JSON.stringify({
+        messages: aiMessages,
+        resultEntryIds: resultEntryIds,
+        reasons: aiReasons,
+        basedOn: aiBasedOn,
+        candidateIds: aiCandidateIds
+      }));
+    } catch (err) {}
+  }
+  function restoreHmc() {
+    if (!hmcStorageKey || !window.sessionStorage) return;
+    try {
+      var raw = sessionStorage.getItem(hmcStorageKey);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && Array.isArray(data.messages)) aiMessages = data.messages;
+      if (data && Array.isArray(data.resultEntryIds)) resultEntryIds = data.resultEntryIds;
+      if (data && data.reasons && typeof data.reasons === 'object') aiReasons = data.reasons;
+      if (data && Array.isArray(data.basedOn)) aiBasedOn = data.basedOn;
+      if (data && Array.isArray(data.candidateIds)) aiCandidateIds = data.candidateIds;
+    } catch (err) {}
+  }
+  function renderHmcMessages() {
+    if (!hmcMessagesEl) return;
+    hmcMessagesEl.innerHTML = '';
+    function add(role, text) {
+      var el = document.createElement('div');
+      el.className = 'dir-hmc-msg dir-hmc-msg--' + role;
+      el.textContent = text;
+      hmcMessagesEl.appendChild(el);
+    }
+    if (!aiMessages.length) add('assistant', HMC_OPENING);
+    aiMessages.forEach(function (m) { add(m.role, m.content); });
+    hmcMessagesEl.scrollTop = hmcMessagesEl.scrollHeight;
+  }
+  function setHmcError(msg) {
+    if (!hmcError) return;
+    if (!msg) { hmcError.hidden = true; hmcError.textContent = ''; return; }
+    hmcError.hidden = false;
+    hmcError.textContent = msg;
+  }
+  function openHmc() {
+    if (!AI_SEARCH_ENABLED || !hmcBackdrop) return;
+    hmcBackdrop.classList.add('dir-hmc-backdrop--open');
+    document.body.style.overflow = 'hidden';
+    renderHmcMessages();
+    setHmcError('');
+    if (hmcInput) hmcInput.focus();
+  }
+  function closeHmc() {
+    if (!hmcBackdrop) return;
+    hmcBackdrop.classList.remove('dir-hmc-backdrop--open');
+    document.body.style.overflow = '';
+  }
+  function startHelpMeChoose() {
+    if (!AI_SEARCH_ENABLED) return;
+    var q = input ? input.value.trim() : '';
+    if (!aiMessages.length && !resultEntryIds) {
+      var ids = matchingIdsIgnoringAi();
+      aiCandidateIds = ids.length === totalCount ? null : ids;
+      if (q) {
+        aiMessages = [{ role: 'user', content: q.slice(0, 2000) }];
+        openHmc();
+        runHelpMeChooseTurn();
+        return;
+      }
+    }
+    openHmc();
+  }
+  function clearAiState() {
+    resultEntryIds = null;
+    aiReasons = {};
+    aiBasedOn = [];
+    aiMessages = [];
+    aiCandidateIds = null;
+    aiSearchToken++;
+    if (hmcStorageKey && window.sessionStorage) {
+      try { sessionStorage.removeItem(hmcStorageKey); } catch (err) {}
+    }
+    closeHmc();
+    apply();
+  }
+  function runHelpMeChooseTurn() {
+    if (!AI_SEARCH_URL || !aiMessages.length) return;
     var token = ++aiSearchToken;
+    setHmcError('');
     var hasAbort = typeof AbortController !== 'undefined';
     var controller = hasAbort ? new AbortController() : null;
-    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
+    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+    var payload = {
+      directory_id: AI_SEARCH_DIRECTORY_ID,
+      messages: aiMessages
+    };
+    if (aiCandidateIds) payload.candidate_entry_ids = aiCandidateIds;
     fetch(AI_SEARCH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY, 'Authorization': 'Bearer ' + AI_SEARCH_ANON_KEY },
-      body: JSON.stringify({ directory_id: AI_SEARCH_DIRECTORY_ID, query: q }),
+      body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined
     })
       .then(function (res) {
@@ -1877,21 +2089,32 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         return res.json();
       })
       .then(function (body) {
-        // A newer query has already superseded this response — drop it.
         if (token !== aiSearchToken) return;
-        if (!body || !Array.isArray(body.entry_ids)) throw new Error('directory_ai_search disabled or malformed response');
-        aiEntryIds = body.entry_ids;
+        if (!body || body.disabled) throw new Error('Help me choose is not available right now.');
+        if (body.follow_up && body.follow_up.question) {
+          aiMessages.push({ role: 'assistant', content: body.follow_up.question });
+          persistHmc();
+          renderHmcMessages();
+          return;
+        }
+        if (!Array.isArray(body.entry_ids)) throw new Error('Unexpected Help me choose response.');
+        resultEntryIds = body.entry_ids;
+        aiReasons = body.reasons && typeof body.reasons === 'object' ? body.reasons : {};
+        aiBasedOn = Array.isArray(body.based_on) ? body.based_on : [];
+        persistHmc();
+        renderHmcMessages();
         apply();
+        closeHmc();
       })
       .catch(function () {
         if (timeoutId) clearTimeout(timeoutId);
         if (token !== aiSearchToken) return;
-        aiEntryIds = null;
-        apply();
+        setHmcError('Something went wrong. Your current results are unchanged — try again.');
+        renderHmcMessages();
       });
   }
 
-  /** Debounced on keystroke; immediate (skips the timer) on submit/page-load restore. */
+  var searchLogTimer = null;
   function emitDirectorySearch(q) {
     q = (q || '').trim().slice(0, 500);
     if (q.length < 2 || q === lastSearchLogged || !window.dmRecordEngagement) return;
@@ -1900,18 +2123,18 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
   function scheduleSearch(immediate) {
     var q = input ? input.value.trim() : '';
-    if (immediate) emitDirectorySearch(q);
-    if (aiSearchDebounceTimer) { clearTimeout(aiSearchDebounceTimer); aiSearchDebounceTimer = null; }
-    if (!AI_SEARCH_ENABLED || q.length < AI_SEARCH_MIN_QUERY_LENGTH) {
-      aiEntryIds = null;
-      apply();
-      if (!immediate && q.length >= 2) {
-        aiSearchDebounceTimer = setTimeout(function () { emitDirectorySearch(input ? input.value.trim() : ''); }, 400);
-      }
-      return;
+    if (resultEntryIds) {
+      resultEntryIds = null;
+      aiReasons = {};
+      aiBasedOn = [];
+      persistHmc();
     }
-    if (immediate) runAiSearch(q);
-    else aiSearchDebounceTimer = setTimeout(function () { emitDirectorySearch(input ? input.value.trim() : ''); runAiSearch(q); }, 400);
+    if (immediate) emitDirectorySearch(q);
+    apply();
+    if (searchLogTimer) { clearTimeout(searchLogTimer); searchLogTimer = null; }
+    if (!immediate && q.length >= 2) {
+      searchLogTimer = setTimeout(function () { emitDirectorySearch(input ? input.value.trim() : ''); }, 400);
+    }
   }
 
   function setView(next) {
@@ -1944,11 +2167,33 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   if (drawerClearBtn) drawerClearBtn.addEventListener('click', clearAll);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && railEl && railEl.classList.contains('dir-rail--open')) closeDrawer();
+    if (e.key === 'Escape' && hmcBackdrop && hmcBackdrop.classList.contains('dir-hmc-backdrop--open')) closeHmc();
   });
 
   if (form && input) {
     form.addEventListener('submit', function (e) { e.preventDefault(); scheduleSearch(true); });
     input.addEventListener('input', function () { scheduleSearch(false); });
+  }
+  document.querySelectorAll('[data-hmc-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () { startHelpMeChoose(); });
+  });
+  if (hmcCloseBtn) hmcCloseBtn.addEventListener('click', closeHmc);
+  if (hmcBackdrop) hmcBackdrop.addEventListener('click', function (e) {
+    if (e.target === hmcBackdrop) closeHmc();
+  });
+  if (hmcRefineBtn) hmcRefineBtn.addEventListener('click', function () { openHmc(); });
+  if (hmcClearBtn) hmcClearBtn.addEventListener('click', clearAiState);
+  if (hmcForm) {
+    hmcForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var text = hmcInput ? hmcInput.value.trim() : '';
+      if (!text) return;
+      aiMessages.push({ role: 'user', content: text.slice(0, 2000) });
+      if (hmcInput) hmcInput.value = '';
+      persistHmc();
+      renderHmcMessages();
+      runHelpMeChooseTurn();
+    });
   }
 
   document.querySelectorAll('.dir-msel__checkbox[data-cat-id][data-kind="multi_select"]').forEach(function (cb) {
@@ -2025,8 +2270,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function clearAll() {
     active = {};
     if (input) input.value = '';
-    aiEntryIds = null;
-    aiSearchToken++; // drop any in-flight AI search response
+    clearAiState();
     setRowControlState();
     apply();
   }
@@ -2053,14 +2297,9 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (v === 'map' && mapPane) setView('map');
   })();
 
-  // Instant paint first (keyword matching, same as AI search being off —
-  // aiEntryIds is still null here), then upgrade to the AI result once it
-  // resolves, rather than leaving the page blank/unfiltered while it loads.
+  restoreHmc();
   apply();
-  if (AI_SEARCH_ENABLED) {
-    var restoredQuery = input ? input.value.trim() : '';
-    if (restoredQuery.length >= AI_SEARCH_MIN_QUERY_LENGTH) runAiSearch(restoredQuery);
-  }
+  if (mapFrame) mapFrame.addEventListener('load', function () { apply(); });
 })();
 </script>`;
 }
@@ -2131,10 +2370,7 @@ export function buildDirectoryLandingPage(opts: {
         .slice(0, 3);
       const asideTerm = terms.find((t) => t.catFieldType === "single_select");
 
-      const searchHaystack = [e.name, location, e.meta_description, ...terms.map((t) => t.label)]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      const searchHaystack = buildSearchHaystack(e, terms.map((t) => t.label));
       const searchText = escapeAttr(searchHaystack);
       const termIdsAttr = escapeAttr(termIds.join(","));
       const panelImageUrl = e.panel_image_url || e.logo_url;
@@ -2154,6 +2390,7 @@ export function buildDirectoryLandingPage(opts: {
     ${e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
     ${metaHtml}
     ${tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
+    <p class="dir-row__why" hidden></p>
   </div>
 </a>`;
     })
@@ -2223,9 +2460,10 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
     <h1 style="font-size:calc(var(--fs-h1) * 1.1);line-height:1.08;max-width:760px;margin:0 auto 16px;">${escapeHtml(directoryName)}</h1>
     ${directoryDescription ? `<p class="muted" style="font-size:18px;max-width:600px;margin:0 auto 28px;">${escapeHtml(directoryDescription)}</p>` : ""}
-    <form id="dir-search-form" style="max-width:640px;margin:0 auto;display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 18px;box-shadow:0 12px 32px -18px rgba(0,0,0,.35);">
-      <input id="dir-search-input" type="text" placeholder="Describe what you are looking for, or search by name" style="flex-grow:1;border:0;outline:0;font-size:16px;font-family:inherit;background:transparent;color:var(--ink);">
+    <form id="dir-search-form" class="dir-search-form">
+      <input id="dir-search-input" type="text" placeholder="Search by name, acronym, profession, industry, interest or keyword…" autocomplete="off">
       <button type="submit" class="btn btn-primary">Search</button>
+      ${aiSearch?.enabled ? `<button type="button" class="btn btn-ghost dir-hmc-btn" data-hmc-open>Help me choose</button>` : ""}
     </form>
   </div>
 </div>
@@ -2233,12 +2471,21 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
   <div class="dir-toolbar">
     <div class="dir-toolbar__left">
       <h2 class="dir-count" id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</h2>
+      ${aiSearch?.enabled ? `<button type="button" class="dir-clear-all" id="dir-toolbar-hmc" data-hmc-open hidden>Help me choose</button>` : ""}
       <div id="dir-active-chips"></div>
       <button type="button" class="dir-clear-all" id="dir-clear-all" hidden>Clear all</button>
     </div>
     ${filtersTrigger}
     ${viewToggle}
   </div>
+  ${aiSearch?.enabled ? `<div id="dir-ai-banner" class="dir-ai-banner" hidden>
+    <strong id="dir-ai-banner-count"></strong>
+    <span class="dir-ai-banner__based" id="dir-ai-banner-based" hidden></span>
+    <div class="dir-ai-banner__actions">
+      <button type="button" id="dir-ai-refine">Refine with AI</button>
+      <button type="button" id="dir-ai-clear">Clear</button>
+    </div>
+  </div>` : ""}
   ${linkTiles(directoryLinks)}
   <div class="dir-body">
     ${rail}
@@ -2258,6 +2505,20 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
   </div>
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
+${aiSearch?.enabled ? `<div id="dir-hmc-backdrop" class="dir-hmc-backdrop">
+  <div class="dir-hmc-dialog" role="dialog" aria-modal="true" aria-labelledby="dir-hmc-title">
+    <header>
+      <h2 id="dir-hmc-title">Help me choose</h2>
+      <button type="button" class="btn btn-ghost" id="dir-hmc-close">Close</button>
+    </header>
+    <div class="dir-hmc-messages" id="dir-hmc-messages"></div>
+    <p class="dir-hmc-error" id="dir-hmc-error" hidden></p>
+    <form class="dir-hmc-form" id="dir-hmc-form">
+      <textarea id="dir-hmc-input" rows="2" placeholder="Describe what you’d like help with…"></textarea>
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
+</div>` : ""}
 ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
 `.trim();
 

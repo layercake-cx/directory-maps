@@ -100,6 +100,8 @@ function makeEntry(opts: {
     show_address: true,
     meta_title: null,
     meta_description: opts.desc,
+    keywords: null,
+    ai_summary: null,
     noindex: false,
     structured_data_type: null,
     panel_image_url: null,
@@ -116,11 +118,14 @@ const WIDE_LOGO =
   );
 
 const ENTRIES: Entry[] = [
-  makeEntry({ id: "ioic", name: "Institute of Internal Communication", city: "Lichfield", desc: "The professional body for internal communication practitioners.", logoUrl: WIDE_LOGO, panelBackgroundColor: "#0f172a" }),
+  makeEntry({ id: "ioic", name: "Institute of Internal Communication", city: "Lichfield", desc: "The professional body for internal communication practitioners, including CIEP-style proofreading and editing support.", logoUrl: WIDE_LOGO, panelBackgroundColor: "#0f172a" }),
   makeEntry({ id: "bcs", name: "BCS, The Chartered Institute for IT", city: "Swindon", desc: "Chartered body for information technology.", logoUrl: WIDE_LOGO, panelBackgroundColor: "#f8fafc" }),
   makeEntry({ id: "scottish-renewables", name: "Scottish Renewables", city: "Glasgow", desc: "Trade body for Scotland's renewable energy industry.", logoUrl: WIDE_LOGO }),
   makeEntry({ id: "riba", name: "Royal Institute of British Architects", city: "London", desc: "Chartered body for architects." }),
 ];
+
+ENTRIES[0].website_url = "https://www.ciep.uk";
+ENTRIES[0].keywords = "CIEP, proofreading, editing";
 
 const ENTRY_TERM_IDS = new Map<string, string[]>([
   ["ioic", [SECTOR_TERMS.communications.id, REGION_TERMS.midlands.id, CHARTERED_TERMS.yes.id]],
@@ -245,6 +250,12 @@ const landingHtml = buildDirectoryLandingPage({
   entryTermIds: ENTRY_TERM_IDS,
   nav: PREVIEW_NAV,
   analytics: PREVIEW_ANALYTICS,
+  aiSearch: {
+    directoryId: "preview-directory-id",
+    enabled: true,
+    supabaseUrl: "https://example.supabase.co",
+    supabaseAnonKey: "preview-anon-key",
+  },
 });
 await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);
 

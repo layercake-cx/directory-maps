@@ -499,7 +499,7 @@ Successor to the removed map-level "AI search enrichment" feature (`ai_search_*`
 
 #### Directory AI search
 
-Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`), which predates this instrumentation convention. Only config-time (admin/client-portal) actions are logged here — a visitor's actual search query, run through the public `directory_ai_search` Edge Function, is anonymous public traffic, not an authenticated actor performing an admin-style action, so it deliberately isn't logged through this admin-event system (rely on Edge Function invocation/error logs instead).
+Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`), which predates this instrumentation convention. Only config-time (admin/client-portal) actions are logged here — a visitor's Help me choose conversation, run through the public `directory_ai_search` Edge Function, is anonymous public traffic, not an authenticated actor performing an admin-style action, so it deliberately isn't logged through this admin-event system (rely on Edge Function invocation/error logs instead).
 
 - **`directory_ai_search_prompt_updated`**
   - `meta`: `client_id`, `directory_id`, `prompt_set` (boolean)

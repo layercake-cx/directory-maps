@@ -286,7 +286,7 @@ export default function AdminDirectoryEntries() {
                 </div>
 
                 <div className="admin-card">
-                  <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI search</p>
+                  <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Help me choose</p>
                   <DirectoryAiSearchPanel
                     directory={directory}
                     directoryId={directoryId}
