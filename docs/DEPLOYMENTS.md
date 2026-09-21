@@ -62,6 +62,69 @@ Static sites are generated at publish time. Deploying the function alone does no
 
 ---
 
+## 2026-09-20 — [Production] Directory sitemap lastmod dates
+
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` ([#213](https://github.com/layercake-cx/directory-maps/pull/213))
+**Deployed by:** Cursor Grok, on the user's explicit "deploy to production" go-ahead after staging.
+
+### What changed
+Same as the staging entry below: published directory `sitemap.xml` includes `<lastmod>` per URL from that row's `updated_at`.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production. No schema change.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` already deployed earlier this session.
+- [x] Production `generate_directory_site` deployed.
+- [ ] Republish a directory and confirm live `sitemap.xml` has `<lastmod>` on each URL.
+
+### Issues / notes
+Lastmod appears on the live sitemap only after a directory is republished (the generator writes Blob at publish time). Frontend merge is docs-only for this change.
+
+---
+
+## 2026-09-20 — [Staging] Directory sitemap lastmod dates
+
+**Branch/PR:** `feat/2026-09-20-sitemap-lastmod` ([#213](https://github.com/layercake-cx/directory-maps/pull/213), `9577fe3`)
+**Deployed by:** Cursor Grok, staging only (user asked)
+
+### What changed
+When a directory is published, `sitemap.xml` now includes a `<lastmod>` date on each URL so crawlers can see when that page's content last changed — not merely that the site was regenerated.
+
+- Homepage: `directories.updated_at`
+- Entry URLs: `directory_entries.updated_at`
+- Content page URLs: `directory_content_pages.updated_at`
+
+Dates are emitted as `YYYY-MM-DD` (W3C date). URLs without a usable timestamp omit `<lastmod>` rather than inventing a date. Shared helper `buildSitemapXml` still accepts a plain list of URL strings, so the older map `generate_directory_pages` sitemap is unchanged until it opts in.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` (and `_shared/staticSiteRenderer.ts` as part of that function bundle) to the same project. No schema change.
+
+### Verified on staging
+- [x] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`). Bundle included `_shared/staticSiteRenderer.ts`.
+- [ ] Republish a directory; fetch `sitemap.xml` and confirm each indexable URL has `<lastmod>` matching that row's last save date (UTC day).
+- [ ] A `noindex` entry/page is still omitted from the sitemap.
+- [ ] Homepage is omitted when "let search engines index this directory" is off.
+
+### Issues / notes
+CSV import does not currently bump `directory_entries.updated_at`; those rows keep their previous lastmod until someone saves the entry in the editor. Related extras (evidence, media) also do not bump the entry timestamp.
+
+Did **not** trigger a live `generate_directory_site` regeneration from staging before production was signed off (shared Vercel Blob). Production function is now deployed; republish a directory to write lastmod into the live sitemap.
+
+---
+
 ## 2026-09-20 — [Production] Directory analytics (extend map engagement)
 
 **Branch/PR:** `feat/2026-09-20-directory-analytics`

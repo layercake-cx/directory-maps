@@ -124,9 +124,30 @@ ${opts.body}
 </html>`;
 }
 
-/** A minimal sitemap.xml for a flat list of absolute URLs. */
-export function buildSitemapXml(urls: string[]): string {
-  const body = urls.map((u) => `<url><loc>${escapeXml(u)}</loc></url>`).join("\n");
+/** One sitemap URL: a loc string, or loc plus an optional last-modified timestamp. */
+export type SitemapUrl = string | { loc: string; lastmod?: string | Date | null };
+
+/**
+ * Sitemap lastmod as W3C date (YYYY-MM-DD). Crawlers treat this as the
+ * content-change date, not the republish time.
+ */
+export function formatSitemapLastmod(value: string | Date | null | undefined): string | null {
+  if (value == null || value === "") return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+/** A minimal sitemap.xml for a flat list of absolute URLs, with optional lastmod. */
+export function buildSitemapXml(urls: SitemapUrl[]): string {
+  const body = urls
+    .map((item) => {
+      const loc = typeof item === "string" ? item : item.loc;
+      const lastmod = typeof item === "string" ? null : formatSitemapLastmod(item.lastmod);
+      const lastmodXml = lastmod ? `\n    <lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+      return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmodXml}\n  </url>`;
+    })
+    .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`;
 }
 
