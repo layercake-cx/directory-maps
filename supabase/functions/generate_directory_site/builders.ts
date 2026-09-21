@@ -354,17 +354,20 @@ const LAYOUT_STYLE = `
   .dir-switch.active .dir-switch__knob { left: 19px; }
   .dir-results { flex: 1; min-width: 0; }
   .dir-rows { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); }
-  .dir-row { display: flex; gap: 20px; padding: 20px; border-bottom: 1px solid var(--line); align-items: flex-start; text-decoration: none; color: inherit; }
+  .dir-row { display: flex; gap: 0; padding: 0; border-bottom: 1px solid var(--line); align-items: stretch; text-decoration: none; color: inherit; }
   .dir-row:last-child { border-bottom: 0; }
   .dir-row:hover { background: var(--surface-2); }
-  .dir-row__logo { width: 64px; height: 64px; border-radius: 12px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .dir-row__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
-  .dir-row__body { flex: 1; min-width: 0; }
+  /* Logo is its own column: bg fills the cell, image is centred. Mobile
+     keeps a compact 64px strip; desktop doubles that so wide marks stay
+     readable. Height always stretches to the row. */
+  .dir-row__logo { position: relative; width: 64px; min-width: 64px; align-self: stretch; border-radius: 0; background: var(--surface-2); flex: none; overflow: hidden; }
+  .dir-row__logo img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 24px); max-height: calc(100% - 24px); width: auto; height: auto; object-fit: contain; }
+  .dir-row__body { flex: 1; min-width: 0; padding: 20px; }
   .dir-row__body h3 { font-size: calc(var(--fs-h3) * 0.75); margin: 0 0 6px; color: var(--ink); }
   .dir-row__desc { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 0 0 8px; max-width: 66ch; }
+  .dir-row__meta { font-size: 12.5px; line-height: 1.7; color: var(--muted); margin: 0 0 8px; }
+  .dir-row__meta strong { display: block; font-weight: 700; color: var(--primary); margin-top: 2px; }
   .dir-row__tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .dir-row__aside { width: 170px; flex: none; padding-left: 16px; border-left: 1px solid var(--line); font-size: 12.5px; line-height: 1.7; color: var(--muted); }
-  .dir-row__aside strong { display: block; font-weight: 700; color: var(--primary); margin-top: 6px; }
   .dir-empty { padding: 48px 24px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
@@ -386,6 +389,8 @@ const LAYOUT_STYLE = `
     .dir-content-row { flex-direction: row; align-items: flex-start; gap: 28px; }
     .dir-results { flex: 0 0 calc(66.666% - 14px); }
     .dir-map-pane { flex: 0 0 calc(33.333% - 14px); }
+
+    .dir-row__logo { width: 128px; min-width: 128px; }
   }
 
   .dir-filters-trigger { display: none; }
@@ -2138,17 +2143,17 @@ export function buildDirectoryLandingPage(opts: {
         : "";
       const panelBoxStyle = e.panel_background_color ? ` style="background:${escapeAttr(e.panel_background_color)};"` : "";
       const entryUrl = `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
+      const metaHtml = location || asideTerm
+        ? `<div class="dir-row__meta">${location ? `<span>${escapeHtml(location)}</span>` : ""}${asideTerm ? `<strong>${escapeHtml(asideTerm.label)}</strong>` : ""}</div>`
+        : "";
 
       return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}">
   <div class="dir-row__logo"${panelBoxStyle}>${logo}</div>
   <div class="dir-row__body">
     <h3>${escapeHtml(e.name)}</h3>
     ${e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
+    ${metaHtml}
     ${tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
-  </div>
-  <div class="dir-row__aside">
-    ${location ? escapeHtml(location) : ""}
-    ${asideTerm ? `<strong>${escapeHtml(asideTerm.label)}</strong>` : ""}
   </div>
 </a>`;
     })

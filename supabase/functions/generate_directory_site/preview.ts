@@ -70,6 +70,8 @@ function makeEntry(opts: {
   name: string;
   city: string;
   desc: string;
+  logoUrl?: string | null;
+  panelBackgroundColor?: string | null;
 }): Entry {
   return {
     id: opts.id,
@@ -83,7 +85,7 @@ function makeEntry(opts: {
     phone: "020 7946 0000",
     email: "info@example.org",
     website_url: "https://example.org",
-    logo_url: null,
+    logo_url: opts.logoUrl ?? null,
     // Plain text, not pre-wrapped in <p> — allow_html is false below, so
     // buildEntryPage escapes and wraps this itself. A fixture bug here
     // (double-wrapping) is exactly the kind of thing this preview script
@@ -101,14 +103,22 @@ function makeEntry(opts: {
     noindex: false,
     structured_data_type: null,
     panel_image_url: null,
-    panel_background_color: null,
+    panel_background_color: opts.panelBackgroundColor ?? null,
   };
 }
 
+// Wide wordmarks so the landing-row logo cell can be checked against
+// landscape logos (the reason that cell is 128px on desktop).
+const WIDE_LOGO =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="48"><rect width="240" height="48" rx="4" fill="#1d4ed8"/><text x="120" y="31" text-anchor="middle" fill="#fff" font-size="18" font-family="system-ui,sans-serif">WIDE WORDMARK</text></svg>`,
+  );
+
 const ENTRIES: Entry[] = [
-  makeEntry({ id: "ioic", name: "Institute of Internal Communication", city: "Lichfield", desc: "The professional body for internal communication practitioners." }),
-  makeEntry({ id: "bcs", name: "BCS, The Chartered Institute for IT", city: "Swindon", desc: "Chartered body for information technology." }),
-  makeEntry({ id: "scottish-renewables", name: "Scottish Renewables", city: "Glasgow", desc: "Trade body for Scotland's renewable energy industry." }),
+  makeEntry({ id: "ioic", name: "Institute of Internal Communication", city: "Lichfield", desc: "The professional body for internal communication practitioners.", logoUrl: WIDE_LOGO, panelBackgroundColor: "#0f172a" }),
+  makeEntry({ id: "bcs", name: "BCS, The Chartered Institute for IT", city: "Swindon", desc: "Chartered body for information technology.", logoUrl: WIDE_LOGO, panelBackgroundColor: "#f8fafc" }),
+  makeEntry({ id: "scottish-renewables", name: "Scottish Renewables", city: "Glasgow", desc: "Trade body for Scotland's renewable energy industry.", logoUrl: WIDE_LOGO }),
   makeEntry({ id: "riba", name: "Royal Institute of British Architects", city: "London", desc: "Chartered body for architects." }),
 ];
 

@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Published directory listing rows give logos a full-height cell
+
+**Branch/PR:** `feat/2026-09-21-directory-listing-logo-layout` (not yet opened)
+**Deployed by:** —
+
+### What changed
+Wide entry logos on the published directory homepage were cramped in a 64px square beside a third column of address and category. Result rows are now two columns: a logo cell that stretches to the row height (128px wide on desktop, 64px on smaller screens) with the panel background filling that cell and the mark centred, then name, description, address, and category stacked on the right.
+
+Already-published HTML is unchanged until a directory is republished.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None yet — `generate_directory_site` needs a staging deploy after review.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to the same project. Revert the branch. No schema change.
+
+### Verified on staging
+- [x] Local preview of listing rows at desktop width (logo cell 128px, bg fills height, address under description).
+- [x] Local preview at mobile width (64px logo strip, same two-column stack).
+- [ ] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
+- [ ] A republished staging directory shows the new row layout.
+
+### Issues / notes
+Live directories keep the old three-column rows until republish.
+
+---
+
 ## 2026-09-21 — [Production] Directory branding advanced colours use page-location labels
 
 **Branch/PR:** `feat/2026-09-21-branding-colour-labels` ([#216](https://github.com/layercake-cx/directory-maps/pull/216))
