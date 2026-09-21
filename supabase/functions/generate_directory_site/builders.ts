@@ -237,7 +237,11 @@ export const EXTRA_STYLE = `
   /* Site navigation — CSS-first so every destination is a crawlable <a href>
      even when the hamburger/dropdown is closed. Desktop dropdowns use
      :hover/:focus-within; mobile uses <details>/<summary> (no JS). */
-  .dir-site-header { border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
+  /* Header must stack above following page content. The homepage hero band is
+     a later sibling with an opaque background; without a z-index the dropdown
+     (and mobile panel) paint underneath it. Content pages look fine because
+     their wrap is transparent. Stay below .dm-consent (40). */
+  .dir-site-header { position: relative; z-index: 30; border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
   .dir-site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px; }
   .dir-brand { display: flex; align-items: center; gap: 12px; color: inherit; flex: none; }
   .dir-brand:focus-visible, .dir-nav-desktop a:focus-visible, .dir-nav-mobile a:focus-visible, .dir-nav-mobile summary:focus-visible, .dir-breadcrumb a:focus-visible, .dir-footer-nav a:focus-visible {
