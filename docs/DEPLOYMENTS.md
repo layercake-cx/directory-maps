@@ -8,9 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Directory branding favicon
+
+**Branch/PR:** `feat/2026-09-21-directory-favicon` / https://github.com/layercake-cx/directory-maps/pull/222
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
+
+### What changed
+Same as the staging entry below. Live published HTML is unchanged until a directory is republished with a favicon set. The Branding-tab control is live on Vercel production (GitHub Pages follows merge to `main`).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session.
+- [ ] Operator upload + republish on a real directory.
+
+---
+
 ## 2026-09-21 — [Staging] Directory branding favicon
 
-**Branch/PR:** `feat/2026-09-21-directory-favicon`
+**Branch/PR:** `feat/2026-09-21-directory-favicon` / https://github.com/layercake-cx/directory-maps/pull/222
 **Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
 
 ### What changed
@@ -20,14 +45,15 @@ The directory **Branding** tab now has a favicon upload under the logo. Saving b
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`)
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
 
 ### Rollback plan
 Revert the PR (or the Branding-tab UI commit) and redeploy the previous `generate_directory_site`. Clearing `theme_json.faviconUrl` and republishing also removes the tags without a code rollback.
 
 ### Verified on staging
 - [x] Local `deno` preview + favicon URL sanitiser checks.
-- [ ] Staging function deployed.
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-1ba3hao46-layercake-apps.vercel.app`).
 - [ ] Branding tab upload/save in the running app.
 - [ ] Republished directory HTML includes the favicon links.
 
