@@ -8,10 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Directory branding advanced colours use page-location labels
+
+**Branch/PR:** `feat/2026-09-21-branding-colour-labels` ([#216](https://github.com/layercake-cx/directory-maps/pull/216))
+**Deployed by:** Cursor Grok, on the user's explicit "commit, PR, deploy and merge" go-ahead.
+
+### What changed
+Same as the staging entry below: Branding advanced colours use page-location labels; unused gold/teal tokens are removed from the editor, presets, and published CSS.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production. Revert the merge commit on `main` for the frontend. No schema change.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` deployed earlier this session.
+- [x] Production `generate_directory_site` deployed.
+- [ ] Branding tab advanced colours show the new labels and no Gold/Teal fields.
+
+### Issues / notes
+Already-published HTML is unchanged until a directory is republished. Published pages never used `--gold`/`--teal`.
+
+---
+
 ## 2026-09-21 — [Staging] Directory branding advanced colours use page-location labels
 
-**Branch/PR:** `feat/2026-09-21-branding-colour-labels` (PR not opened yet)
-**Deployed by:** not deployed yet
+**Branch/PR:** `feat/2026-09-21-branding-colour-labels` ([#216](https://github.com/layercake-cx/directory-maps/pull/216), `fb7be4f`)
+**Deployed by:** Cursor Grok, staging then production in the same session (user asked)
 
 ### What changed
 The Branding tab's advanced body colours were labelled with design-system names ("Surface", "ink") that did not say where they appear on a published directory page. Those fields now use plain-English labels (cards and panels; logo areas, tags, and hover; link hover; main/secondary text; borders; badge colours). Gold and teal were unused on the live pages, so they are removed from the editor, built-in presets, and the published CSS custom properties. Saving branding drops leftover gold/teal keys from `theme_json`.
@@ -20,17 +47,17 @@ The Branding tab's advanced body colours were labelled with design-system names 
 None.
 
 ### Edge Functions deployed
-None yet. `generate_directory_site` source no longer emits `--gold` / `--teal`; that takes effect on the next function deploy, then on the next directory republish.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
 
 ### Rollback plan
-Revert the branch/commit. Redeploy the previous `generate_directory_site` if that function was already shipped. Existing `theme_json` rows that still contain `goldColor`/`tealColor` are ignored until a save strips them.
+Redeploy the previous `generate_directory_site` to the same project. No schema change.
 
 ### Verified on staging
+- [x] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
 - [ ] Branding tab advanced colours show the new labels and no Gold/Teal fields.
-- [ ] Changing "Cards and panels" still restyles listing cards after save + republish (visual check).
 
 ### Issues / notes
-Already-published HTML is unchanged until `generate_directory_site` is deployed and a directory is republished. Published pages never used `--gold`/`--teal`, so dropping those variables is a no-op visually.
+Already-published HTML is unchanged until a directory is republished. Published pages never used `--gold`/`--teal`, so dropping those variables is a no-op visually.
 
 ---
 
