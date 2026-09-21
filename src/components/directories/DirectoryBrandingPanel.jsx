@@ -19,6 +19,15 @@ const sectionStyle = { display: "grid", gap: 10, padding: 12, background: "#f9fa
 
 const FONT_OPTIONS = Object.keys(FONT_CATALOG);
 
+/** Unused leftover tokens — drop them from drafts, saved presets, and theme_json writes. */
+function withoutRetiredColours(obj) {
+  if (!obj || typeof obj !== "object") return {};
+  const next = { ...obj };
+  delete next.goldColor;
+  delete next.tealColor;
+  return next;
+}
+
 const FIELD_KEYS = [
   "primaryColor",
   "primaryDarkColor",
@@ -31,8 +40,6 @@ const FIELD_KEYS = [
   "lineColor",
   "sageColor",
   "sageInkColor",
-  "goldColor",
-  "tealColor",
   "fontHeading",
   "fontBody",
 ];
@@ -176,7 +183,7 @@ function ContrastBadge({ contrast }) {
   );
 }
 
-function ColorField({ label, value, onChange, contrast }) {
+function ColorField({ label, value, onChange, contrast, hint }) {
   return (
     <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
       <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -187,6 +194,7 @@ function ColorField({ label, value, onChange, contrast }) {
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
         <input value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
       </div>
+      {hint ? <span style={{ fontSize: 11.5, opacity: 0.6, fontWeight: 400 }}>{hint}</span> : null}
     </label>
   );
 }
@@ -396,7 +404,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
   function applyPreset(key) {
     const values = getThemePreset(key);
     if (!values) return;
-    setTheme((t) => ({ ...t, ...values }));
+    setTheme((t) => ({ ...t, ...withoutRetiredColours(values) }));
     setMsg("");
   }
 
@@ -404,7 +412,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     setErr("");
     try {
       setPresetBusy(true);
-      const saved = await saveThemePreset(clientId, newPresetName, theme);
+      const saved = await saveThemePreset(clientId, newPresetName, withoutRetiredColours(theme));
       setOrgPresets((rows) => [saved, ...rows]);
       setNewPresetName("");
       recordEvent?.("directory_theme_preset_saved", { client_id: clientId, preset_id: saved.id });
@@ -420,7 +428,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     setMsg("");
     try {
       setPresetBusy(true);
-      setTheme((t) => ({ ...t, ...preset.theme_json }));
+      setTheme((t) => ({ ...t, ...withoutRetiredColours(preset.theme_json) }));
       recordEvent?.("directory_theme_preset_applied", { client_id: clientId, preset_id: preset.id, directory_id: directoryId });
       setMsg(`Applied "${preset.name}" — click Save branding to persist it.`);
     } finally {
@@ -481,7 +489,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     try {
       setSaving(true);
       const next = {
-        ...theme,
+        ...withoutRetiredColours(theme),
         siteTitle: theme.siteTitle.trim(),
         showHeaderTitle: theme.showHeaderTitle !== false,
         headerMode: theme.showHeaderTitle === false
@@ -652,16 +660,28 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
 
           {advancedOpen && (
             <div style={{ display: "grid", gap: 10, padding: 12, background: "#fff", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-              <ColorField label="Primary (dark variant)" value={theme.primaryDarkColor} onChange={(v) => set("primaryDarkColor", v)} />
-              <ColorField label="Surface" value={theme.surfaceColor} onChange={(v) => set("surfaceColor", v)} />
-              <ColorField label="Surface (alt)" value={theme.surfaceAltColor} onChange={(v) => set("surfaceAltColor", v)} />
-              <ColorField label="Text (ink)" value={theme.inkColor} onChange={(v) => set("inkColor", v)} contrast={bodyTextContrast} />
-              <ColorField label="Muted text" value={theme.mutedColor} onChange={(v) => set("mutedColor", v)} />
-              <ColorField label="Border / line" value={theme.lineColor} onChange={(v) => set("lineColor", v)} />
-              <ColorField label="Sage (badge background)" value={theme.sageColor} onChange={(v) => set("sageColor", v)} />
-              <ColorField label="Sage (badge text)" value={theme.sageInkColor} onChange={(v) => set("sageInkColor", v)} />
-              <ColorField label="Gold (ratings, highlights)" value={theme.goldColor} onChange={(v) => set("goldColor", v)} />
-              <ColorField label="Teal" value={theme.tealColor} onChange={(v) => set("tealColor", v)} />
+              <ColorField label="Link hover colour" value={theme.primaryDarkColor} onChange={(v) => set("primaryDarkColor", v)} />
+              <ColorField
+                label="Cards and panels"
+                value={theme.surfaceColor}
+                onChange={(v) => set("surfaceColor", v)}
+                hint="Listing cards, the filters sidebar, menus, and the search box."
+              />
+              <ColorField
+                label="Logo areas, tags, and hover"
+                value={theme.surfaceAltColor}
+                onChange={(v) => set("surfaceAltColor", v)}
+                hint="Tinted fill behind logos, tags, chips, and when you hover a row. Also the default panel colour if an entry has none of its own."
+              />
+              <ColorField label="Main text" value={theme.inkColor} onChange={(v) => set("inkColor", v)} contrast={bodyTextContrast} />
+              <ColorField label="Secondary text" value={theme.mutedColor} onChange={(v) => set("mutedColor", v)} hint="Descriptions, addresses, breadcrumbs, and empty-state notes." />
+              <ColorField label="Borders and dividers" value={theme.lineColor} onChange={(v) => set("lineColor", v)} />
+              <ColorField
+                label="Badge background (and homepage search band)"
+                value={theme.sageColor}
+                onChange={(v) => set("sageColor", v)}
+              />
+              <ColorField label="Badge text" value={theme.sageInkColor} onChange={(v) => set("sageInkColor", v)} />
             </div>
           )}
         </div>
