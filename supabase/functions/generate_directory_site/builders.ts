@@ -885,6 +885,18 @@ function renderFooterNav(nav: SiteNav): string {
   return `<nav class="dir-footer-nav" aria-label="Footer">${cols}</nav>`;
 }
 
+export const LOGO_HEIGHT_DEFAULT = 84;
+export const LOGO_HEIGHT_MIN = 24;
+export const LOGO_HEIGHT_MAX = 240;
+
+/** Header logo height in px. Width is always auto (aspect ratio preserved).
+ * Unset uses LOGO_HEIGHT_DEFAULT (twice the original 42px default). Absurd
+ * values are clamped so a client-writable theme_json number can't blow the layout. */
+export function clampLogoMaxHeight(value: number | undefined): number {
+  if (typeof value !== "number" || !(value > 0)) return LOGO_HEIGHT_DEFAULT;
+  return Math.min(LOGO_HEIGHT_MAX, Math.max(LOGO_HEIGHT_MIN, value));
+}
+
 /** Full-bleed header — background spans the viewport, content stays inside
  * `.wrap`. Used on every page (landing + entry), matching the canvas's own
  * consistent-header-everywhere pattern. */
@@ -901,7 +913,7 @@ export function siteHeader(opts: {
 }): string {
   const mode = opts.headerMode === "logo" || opts.headerMode === "text" ? opts.headerMode : "logoText";
   const displayTitle = opts.siteTitle?.trim() || opts.directoryName;
-  const maxHeight = typeof opts.logoMaxHeight === "number" && opts.logoMaxHeight > 0 ? Math.min(120, opts.logoMaxHeight) : 42;
+  const maxHeight = clampLogoMaxHeight(opts.logoMaxHeight);
   // A real uploaded logo keeps its own aspect ratio (height fixed, width
   // auto) — only the no-logo placeholder is forced square, since there's
   // no real image to preserve an aspect ratio from.

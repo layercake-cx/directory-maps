@@ -8,6 +8,56 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Directory header logo height range
+
+**Branch/PR:** `feat/2026-09-21-header-logo-height` / https://github.com/layercake-cx/directory-maps/pull/224
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
+
+### What changed
+Same as the staging entry below. Live published HTML updates on the next directory republish. The Branding-tab control is live on Vercel production.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session.
+- [ ] Operator save + republish on a real directory.
+
+---
+
+## 2026-09-21 — [Staging] Directory header logo height range
+
+**Branch/PR:** `feat/2026-09-21-header-logo-height` / https://github.com/layercake-cx/directory-maps/pull/224
+**Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
+
+### What changed
+The Branding tab's header **logo height** is now a slider plus a number field from **24–240px** (was 24–120). Width still scales automatically from that height. The default for a directory that has never set a height is **84px** (twice the previous 42px). Directories that already saved a height keep it. The Branding live preview tracks the control instead of capping the logo at 24px.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+
+### Rollback plan
+Revert the PR and redeploy the previous `generate_directory_site`.
+
+### Verified on staging
+- [x] Local `deno` preview clamp checks.
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-9mr92pjnp-layercake-apps.vercel.app`).
+- [ ] Branding tab slider/number in the running app (operator).
+
+---
+
 ## 2026-09-21 — [Production] Directory hero banner: glass header + extra 100px
 
 **Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
