@@ -1,6 +1,6 @@
 /**
- * Directory branding logo and favicon upload — one replaceable image of
- * each per directory, stored in the existing "directory-media" Storage
+ * Directory branding logo, favicon, and hero-banner upload — one replaceable
+ * image of each per directory, stored in the existing "directory-media" Storage
  * bucket (see 20260826121000_create_directory_media_storage_bucket.sql).
  * Mirrors entryImages.js's uploadEntryImage() convention (fixed path +
  * upsert, PNG/JPEG/WebP only). SVG is deliberately not supported — the
@@ -15,13 +15,15 @@ import { supabase } from "./supabase";
 
 const ALLOWED_EXT = /\.(png|jpe?g|webp)$/i;
 const MAX_BYTES = 2 * 1024 * 1024;
+const HERO_BANNER_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Uploads a brand image for directoryId and returns its cache-busted public URL. Does not write theme_json itself — callers persist that. */
-async function uploadDirectoryBrandAsset(directoryId, file, basename) {
+async function uploadDirectoryBrandAsset(directoryId, file, basename, maxBytes = MAX_BYTES) {
   const name = (file?.name || "").toLowerCase();
   const extMatch = name.match(ALLOWED_EXT);
   if (!extMatch) throw new Error("Use PNG, JPG or WebP.");
-  if (file.size > MAX_BYTES) throw new Error("Image too large (max 2 MB).");
+  const maxMb = Math.round(maxBytes / (1024 * 1024));
+  if (file.size > maxBytes) throw new Error(`Image too large (max ${maxMb} MB).`);
 
   const ext = extMatch[1] === "jpeg" ? "jpg" : extMatch[1];
   const path = `${directoryId}/${basename}.${ext}`;
@@ -37,4 +39,9 @@ export async function uploadDirectoryLogo(directoryId, file) {
 
 export async function uploadDirectoryFavicon(directoryId, file) {
   return uploadDirectoryBrandAsset(directoryId, file, "favicon");
+}
+
+/** Full-width page banner — same bucket/types as logo, 5 MB cap because these images are much larger. */
+export async function uploadDirectoryHeroBanner(directoryId, file) {
+  return uploadDirectoryBrandAsset(directoryId, file, "hero-banner", HERO_BANNER_MAX_BYTES);
 }

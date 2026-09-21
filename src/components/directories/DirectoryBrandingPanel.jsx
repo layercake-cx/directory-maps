@@ -10,7 +10,7 @@ import {
   renameThemePreset,
   deleteThemePreset,
 } from "../../lib/directoryThemePresets.js";
-import { uploadDirectoryLogo, uploadDirectoryFavicon } from "../../lib/directoryBranding.js";
+import { uploadDirectoryLogo, uploadDirectoryFavicon, uploadDirectoryHeroBanner } from "../../lib/directoryBranding.js";
 import { checkContrast } from "../../lib/colorContrast.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
@@ -56,6 +56,7 @@ const FONT_SIZE_BASE_DEFAULT = "16px";
 const FONT_SIZE_H1_DEFAULT = "2.5rem";
 const FONT_SIZE_H2_DEFAULT = "2rem";
 const FONT_SIZE_H3_DEFAULT = "1.5rem";
+const HERO_BANNER_HEIGHT_DEFAULT = 480;
 
 function themeFromDirectory(directory) {
   const t = directory?.theme_json && typeof directory.theme_json === "object" ? directory.theme_json : {};
@@ -63,6 +64,8 @@ function themeFromDirectory(directory) {
   for (const key of FIELD_KEYS) next[key] = t[key] || NATURAL[key];
   next.logoUrl = t.logoUrl || "";
   next.faviconUrl = t.faviconUrl || "";
+  next.heroBannerUrl = t.heroBannerUrl || "";
+  next.heroBannerHeight = typeof t.heroBannerHeight === "number" && t.heroBannerHeight > 0 ? t.heroBannerHeight : HERO_BANNER_HEIGHT_DEFAULT;
   next.headerBackground = t.headerBackground || HEADER_BG_DEFAULT;
   next.headerText = t.headerText || next.inkColor;
   next.footerBackground = t.footerBackground || FOOTER_BG_DEFAULT;
@@ -318,10 +321,15 @@ function PreviewStrip({ theme, directoryName }) {
   const name = theme.siteTitle?.trim() || directoryName || "Your Directory";
   const showLogo = theme.headerMode !== "text";
   const showHeaderText = theme.showHeaderTitle !== false && theme.headerMode !== "logo";
+  const bannerHeight = Math.min(88, Math.max(48, Math.round((theme.heroBannerHeight || HERO_BANNER_HEIGHT_DEFAULT) * 0.18)));
   return (
     <div style={{ border: "1px solid var(--lc-border)", borderRadius: 10, overflow: "hidden", fontSize: 13 }}>
       <style>{`.dtp-footer-link:hover { color: ${theme.footerLinkHover || theme.footerLink} !important; }`}</style>
-      <div style={{ background: headerBg, color: theme.headerText, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ position: "relative", background: theme.backgroundColor }}>
+        {theme.heroBannerUrl ? (
+          <div aria-hidden="true" style={{ position: "absolute", inset: "0 0 auto 0", height: bannerHeight, backgroundImage: `linear-gradient(to bottom, transparent 20%, ${theme.backgroundColor} 92%), url(${JSON.stringify(theme.heroBannerUrl)})`, backgroundSize: "cover", backgroundPosition: "center top", pointerEvents: "none" }} />
+        ) : null}
+        <div style={{ position: "relative", background: headerBg, color: theme.headerText, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         {showLogo &&
           (theme.logoUrl ? (
             <img src={theme.logoUrl} alt="" style={{ height: Math.min(24, theme.logoMaxHeight), width: "auto", objectFit: "contain" }} />
@@ -330,12 +338,13 @@ function PreviewStrip({ theme, directoryName }) {
           ))}
         {showHeaderText && <strong style={{ fontFamily: `"${theme.fontHeading}", serif` }}>{name}</strong>}
       </div>
-      <div style={{ background: theme.backgroundColor, color: theme.inkColor, padding: 16, fontFamily: `"${theme.fontBody}", sans-serif` }}>
+      <div style={{ position: "relative", color: theme.inkColor, padding: 16, fontFamily: `"${theme.fontBody}", sans-serif` }}>
         Sample entry text with a{" "}
         <a href="#" onClick={(e) => e.preventDefault()} style={{ color: theme.primaryColor }}>
           link
         </a>{" "}
         to preview body colours.
+      </div>
       </div>
       <div style={{ background: footerBg, color: theme.footerText, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <span style={{ fontFamily: `"${theme.fontHeading}", serif` }}>{name}</span>
@@ -377,6 +386,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
   const [msg, setMsg] = useState("");
   const fileInputRef = useRef(null);
   const faviconInputRef = useRef(null);
+  const heroBannerInputRef = useRef(null);
 
   const [orgPresets, setOrgPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState("");
@@ -500,6 +510,22 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     }
   }
 
+  async function handleHeroBannerFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErr("");
+    try {
+      setUploading("heroBanner");
+      const url = await uploadDirectoryHeroBanner(directoryId, file);
+      set("heroBannerUrl", url);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setUploading("");
+    }
+  }
+
   async function save(e) {
     e.preventDefault();
     setErr("");
@@ -517,12 +543,15 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
           : theme.headerMode === "logo"
             ? "logoText"
             : theme.headerMode,
+        heroBannerUrl: (theme.heroBannerUrl || "").trim(),
+        heroBannerHeight: Math.min(800, Math.max(160, Number(theme.heroBannerHeight) || HERO_BANNER_HEIGHT_DEFAULT)),
       };
       await updateDirectory(directoryId, { theme_json: next });
       recordEvent?.("directory_branding_updated", {
         directory_id: directoryId,
         has_logo: !!next.logoUrl,
         has_favicon: !!next.faviconUrl,
+        has_hero_banner: !!next.heroBannerUrl,
       });
       setMsg("Branding saved. Republish for it to appear on the live site.");
       onSaved?.();
@@ -682,6 +711,44 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
                 : "On — leave blank to use the directory name. Turn off to leave the title out of the header."}
             </span>
           </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Hero banner</summary>
+        <div style={sectionStyle}>
+          <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7, lineHeight: 1.45 }}>
+            Full-width image behind the header and the top of every published page. It fades into the page background colour so cards and body text sit on a solid colour.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {theme.heroBannerUrl ? (
+              <img src={theme.heroBannerUrl} alt="Current hero banner" style={{ height: 48, width: 96, objectFit: "cover", borderRadius: 6, background: "#fff", border: "1px solid var(--lc-border)" }} />
+            ) : (
+              <div style={{ height: 48, width: 96, borderRadius: 6, background: "linear-gradient(135deg, #e5e7eb, #f9fafb)", flex: "none", border: "1px dashed var(--lc-border)" }} />
+            )}
+            <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => heroBannerInputRef.current?.click()} disabled={!!uploading}>
+              {uploading === "heroBanner" ? "Uploading…" : theme.heroBannerUrl ? "Replace banner" : "Upload banner"}
+            </button>
+            {theme.heroBannerUrl && (
+              <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => set("heroBannerUrl", "")}>
+                Remove
+              </button>
+            )}
+            <input ref={heroBannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleHeroBannerFile} style={{ display: "none" }} />
+          </div>
+          <span style={{ fontSize: 11.5, opacity: 0.6 }}>Wide PNG, JPG or WebP, up to 5 MB. Save branding, then Publish. A translucent header lets the image show through.</span>
+          {theme.heroBannerUrl && (
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span>Banner height ({theme.heroBannerHeight}px)</span>
+              <input
+                type="range"
+                min={160}
+                max={800}
+                value={theme.heroBannerHeight}
+                onChange={(e) => set("heroBannerHeight", Number(e.target.value))}
+              />
+            </label>
+          )}
         </div>
       </details>
 

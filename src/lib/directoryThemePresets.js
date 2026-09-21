@@ -12,7 +12,8 @@ import { supabase } from "./supabase";
  *   primaryColor, primaryDarkColor, accentColor, backgroundColor,
  *   surfaceColor, surfaceAltColor, inkColor, mutedColor, lineColor,
  *   sageColor, sageInkColor, fontHeading, fontBody,
- *   logoUrl, faviconUrl (not part of a preset — always left for the client to set).
+ *   logoUrl, faviconUrl, heroBannerUrl, heroBannerHeight (not part of a preset —
+ *   always left for the client to set).
  *
  * Region overrides (header/footer independent bg/text/link — see
  * generate_directory_site/builders.ts's DirectoryTheme type for the exact
