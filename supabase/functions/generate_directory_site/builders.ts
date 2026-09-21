@@ -75,8 +75,6 @@ export type DirectoryTheme = {
   lineColor?: string;
   sageColor?: string;
   sageInkColor?: string;
-  goldColor?: string;
-  tealColor?: string;
   fontHeading?: string;
   fontBody?: string;
   logoUrl?: string;
@@ -539,8 +537,6 @@ export const NATURAL_DEFAULTS: Required<
   lineColor: "#E6DFCF",
   sageColor: "#E9EEDD",
   sageInkColor: "#3C5733",
-  goldColor: "#D6A23E",
-  tealColor: "#0E6F68",
   fontHeading: "Spectral",
   fontBody: "Hanken Grotesk",
 };
@@ -588,8 +584,6 @@ export function resolvedTheme(theme: DirectoryTheme) {
     lineColor: sanitizeHexColor(theme.lineColor, NATURAL_DEFAULTS.lineColor),
     sageColor: sanitizeHexColor(theme.sageColor, NATURAL_DEFAULTS.sageColor),
     sageInkColor: sanitizeHexColor(theme.sageInkColor, NATURAL_DEFAULTS.sageInkColor),
-    goldColor: sanitizeHexColor(theme.goldColor, NATURAL_DEFAULTS.goldColor),
-    tealColor: sanitizeHexColor(theme.tealColor, NATURAL_DEFAULTS.tealColor),
     fontHeading: FONT_CATALOG[theme.fontHeading ?? ""] ? theme.fontHeading! : NATURAL_DEFAULTS.fontHeading,
     fontBody: FONT_CATALOG[theme.fontBody ?? ""] ? theme.fontBody! : NATURAL_DEFAULTS.fontBody,
     headerBackground: resolveRegionBackground(theme.headerBackground, HEADER_BG_DEFAULT),
@@ -611,7 +605,7 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --bg: ${t.backgroundColor}; --surface: ${t.surfaceColor}; --surface-2: ${t.surfaceAltColor};
     --ink: ${t.inkColor}; --muted: ${t.mutedColor}; --line: ${t.lineColor};
     --primary: ${t.primaryColor}; --primary-2: ${t.primaryDarkColor}; --accent: ${t.accentColor};
-    --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor}; --gold: ${t.goldColor}; --teal: ${t.tealColor};
+    --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor};
     --font-heading: "${t.fontHeading}", Georgia, serif; --font-body: "${t.fontBody}", system-ui, sans-serif;
     --hdr-bg: ${t.headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};

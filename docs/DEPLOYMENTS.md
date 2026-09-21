@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Directory branding advanced colours use page-location labels
+
+**Branch/PR:** `feat/2026-09-21-branding-colour-labels` (PR not opened yet)
+**Deployed by:** not deployed yet
+
+### What changed
+The Branding tab's advanced body colours were labelled with design-system names ("Surface", "ink") that did not say where they appear on a published directory page. Those fields now use plain-English labels (cards and panels; logo areas, tags, and hover; link hover; main/secondary text; borders; badge colours). Gold and teal were unused on the live pages, so they are removed from the editor, built-in presets, and the published CSS custom properties. Saving branding drops leftover gold/teal keys from `theme_json`.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+None yet. `generate_directory_site` source no longer emits `--gold` / `--teal`; that takes effect on the next function deploy, then on the next directory republish.
+
+### Rollback plan
+Revert the branch/commit. Redeploy the previous `generate_directory_site` if that function was already shipped. Existing `theme_json` rows that still contain `goldColor`/`tealColor` are ignored until a save strips them.
+
+### Verified on staging
+- [ ] Branding tab advanced colours show the new labels and no Gold/Teal fields.
+- [ ] Changing "Cards and panels" still restyles listing cards after save + republish (visual check).
+
+### Issues / notes
+Already-published HTML is unchanged until `generate_directory_site` is deployed and a directory is republished. Published pages never used `--gold`/`--teal`, so dropping those variables is a no-op visually.
+
+---
+
 ## 2026-09-21 — [Production] Published directory header logo is not clipped by rounded corners
 
 **Branch/PR:** `fix/2026-09-21-published-logo-radius` ([#215](https://github.com/layercake-cx/directory-maps/pull/215))

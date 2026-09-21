@@ -11,7 +11,7 @@ import { supabase } from "./supabase";
  * falls back to the Natural preset's values when a directory has none set):
  *   primaryColor, primaryDarkColor, accentColor, backgroundColor,
  *   surfaceColor, surfaceAltColor, inkColor, mutedColor, lineColor,
- *   sageColor, sageInkColor, goldColor, tealColor, fontHeading, fontBody,
+ *   sageColor, sageInkColor, fontHeading, fontBody,
  *   logoUrl (not part of a preset — always left for the client to set).
  *
  * Region overrides (header/footer independent bg/text/link — see
@@ -46,8 +46,6 @@ export const NATURAL = {
   lineColor: "#E6DFCF",
   sageColor: "#E9EEDD",
   sageInkColor: "#3C5733",
-  goldColor: "#D6A23E",
-  tealColor: "#0E6F68",
   fontHeading: "Spectral",
   fontBody: "Hanken Grotesk",
 };
@@ -64,8 +62,6 @@ const MIDNIGHT_PALETTE = {
   lineColor: "#2C3450",
   sageColor: "#232B40",
   sageInkColor: "#B7C4F0",
-  goldColor: "#D6A23E",
-  tealColor: "#3FA8A0",
   fontHeading: "Playfair Display",
   fontBody: "Hanken Grotesk",
 };
@@ -83,8 +79,6 @@ const COASTAL_PALETTE = {
   lineColor: "#D6E6E8",
   sageColor: "#E3F1F0",
   sageInkColor: "#1F6E8C",
-  goldColor: "#E3B341",
-  tealColor: "#0E8F82",
   fontHeading: "Inter",
   fontBody: "Inter",
 };
@@ -102,8 +96,6 @@ const HERITAGE_PALETTE = {
   lineColor: "#E4D5BE",
   sageColor: "#F0E4D3",
   sageInkColor: "#7A2E3A",
-  goldColor: "#C6952E",
-  tealColor: "#5A6B5E",
   fontHeading: "Fraunces",
   fontBody: "Hanken Grotesk",
 };
@@ -121,8 +113,6 @@ const SLATE_PALETTE = {
   lineColor: "#E1E4E9",
   sageColor: "#EEF0F3",
   sageInkColor: "#3E4551",
-  goldColor: "#C99A2E",
-  tealColor: "#2F7DE1",
   fontHeading: "Hanken Grotesk",
   fontBody: "Hanken Grotesk",
 };
