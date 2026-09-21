@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-21 — [Production] Directory branding hero banner
 
-**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / (PR URL after open)
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
 **Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
 
 ### What changed
@@ -35,7 +35,7 @@ Redeploy the previous `generate_directory_site` to production and revert the Ver
 
 ## 2026-09-21 — [Staging] Directory branding hero banner
 
-**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / (PR URL after open)
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
 **Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
 
 ### What changed
