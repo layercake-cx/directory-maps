@@ -37,6 +37,8 @@ import {
   faviconLinkTags,
   resolvedHeroBanner,
   sanitizeHttpUrl,
+  applyAlphaToCssColors,
+  themeStyleBlock,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -366,4 +368,24 @@ if (!landingWithBanner.includes("cdn.example.com/dir/hero-banner.jpg")) {
 }
 if (!landingWithBanner.includes("dir-home-intro")) {
   throw new Error("homepage intro band should keep dir-home-intro for the transparent-when-banner CSS");
+}
+if (!landingWithBanner.includes("calc(var(--hero-banner-height, 480px) + 100px)")) {
+  throw new Error("hero banner must extend 100px past the configured height");
+}
+if (applyAlphaToCssColors("#112233", 0.6) !== "rgba(17, 34, 51, 0.6)") {
+  throw new Error("applyAlphaToCssColors should turn hex into rgba at the given alpha");
+}
+if (!applyAlphaToCssColors("linear-gradient(135deg, #FFFFFF 0%, #000000 100%)", 0.6).includes("rgba(255, 255, 255, 0.6)")) {
+  throw new Error("applyAlphaToCssColors should rewrite gradient stops");
+}
+const fadedHeaderCss = themeStyleBlock({
+  heroBannerUrl: "https://cdn.example.com/dir/hero-banner.jpg",
+  headerBackground: { type: "solid", color: "#112233" },
+});
+if (!fadedHeaderCss.includes("rgba(17, 34, 51, 0.6)")) {
+  throw new Error("a hero banner must render the header colour at 40% transparency");
+}
+const opaqueHeaderCss = themeStyleBlock({ headerBackground: { type: "solid", color: "#112233" } });
+if (opaqueHeaderCss.includes("rgba(17, 34, 51, 0.6)") || !opaqueHeaderCss.includes("#112233")) {
+  throw new Error("without a hero banner the header colour must stay fully opaque");
 }

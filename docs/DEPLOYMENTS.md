@@ -8,6 +8,56 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Directory hero banner: glass header + extra 100px
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same session.
+
+### What changed
+Same as the staging entry below. Live published HTML updates on the next directory republish.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment.
+
+### Verified on staging
+- [ ] Staging function deployed this session.
+- [ ] Production function deployed this session.
+- [ ] Vercel production frontend deployed this session.
+- [ ] Operator republish on a directory that already has a hero banner.
+
+---
+
+## 2026-09-21 — [Staging] Directory hero banner: glass header + extra 100px
+
+**Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223
+**Deployed by:** Cursor Grok, with explicit staging + production go-ahead in the same session.
+
+### What changed
+When a directory has a hero banner, the published header background colours (solid or gradient stops) are rendered at 40% transparency so the photograph shows through. The banner image also extends 100px further down the page than the Branding-tab height slider. Directories without a banner are unchanged. Stored `theme_json` is the same — this is a publish-time treatment.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`).
+
+### Rollback plan
+Revert the follow-up commit on PR 223 and redeploy the previous `generate_directory_site`.
+
+### Verified on staging
+- [ ] Local `deno` preview checks (alpha rewrite + extra 100px).
+- [ ] Staging function deployed.
+- [ ] Vercel preview frontend deployed.
+- [ ] Operator republish on a directory that already has a hero banner.
+
+---
+
 ## 2026-09-21 — [Production] Directory branding hero banner
 
 **Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223

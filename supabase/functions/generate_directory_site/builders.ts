@@ -248,7 +248,7 @@ export const EXTRA_STYLE = `
   body.has-hero-banner { position: relative; }
   .dir-page-banner {
     position: absolute; top: 0; left: 0; right: 0; z-index: 0; pointer-events: none;
-    height: var(--hero-banner-height, 480px);
+    height: calc(var(--hero-banner-height, 480px) + 100px);
     background-image: var(--hero-banner-image);
     background-size: cover; background-position: center top; background-repeat: no-repeat;
   }
@@ -662,9 +662,32 @@ export function resolvedTheme(theme: DirectoryTheme) {
   };
 }
 
+/** Rewrites hex / rgb(a) / hsl(a) colours in a CSS value to the given alpha
+ * (0–1). Used so a hero banner can show through the header at 40% transparency
+ * (alpha 0.6) without changing stored theme_json. Gradients keep their shape;
+ * only the stop colours pick up the new alpha. Existing alpha is replaced, not
+ * multiplied, so the default glass header `rgba(255,255,255,.6)` is a no-op. */
+export function applyAlphaToCssColors(css: string, alpha: number): string {
+  const a = Math.min(1, Math.max(0, alpha));
+  const hexToRgba = (hex: string): string => {
+    let h = hex.slice(1);
+    if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  };
+  return css
+    .replace(/#[0-9a-fA-F]{3,8}\b/g, hexToRgba)
+    .replace(/\brgba?\(\s*([\d.]+%?)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, r, g, b) => `rgba(${r}, ${g}, ${b}, ${a})`)
+    .replace(/\bhsla?\(\s*([\d.]+)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, h, s, l) => `hsla(${h}, ${s}, ${l}, ${a})`);
+}
+
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
   const banner = resolvedHeroBanner(theme);
+  const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
   const bannerVars = banner
     ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px;`
     : "";
@@ -674,7 +697,7 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --primary: ${t.primaryColor}; --primary-2: ${t.primaryDarkColor}; --accent: ${t.accentColor};
     --sage: ${t.sageColor}; --sage-ink: ${t.sageInkColor};
     --font-heading: "${t.fontHeading}", Georgia, serif; --font-body: "${t.fontBody}", system-ui, sans-serif;
-    --hdr-bg: ${t.headerBackground}; --hdr-text: ${t.headerText};
+    --hdr-bg: ${headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};

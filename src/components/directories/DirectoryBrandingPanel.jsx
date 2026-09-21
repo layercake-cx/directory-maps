@@ -311,17 +311,34 @@ function BackgroundEditor({ label, value, onChange, fallbackColor }) {
   );
 }
 
+function applyAlphaToCssColors(css, alpha) {
+  const a = Math.min(1, Math.max(0, alpha));
+  return css
+    .replace(/#[0-9a-fA-F]{3,8}\b/g, (hex) => {
+      let h = hex.slice(1);
+      if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+      return `rgba(${r}, ${g}, ${b}, ${a})`;
+    })
+    .replace(/\brgba?\(\s*([\d.]+%?)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, r, g, b) => `rgba(${r}, ${g}, ${b}, ${a})`)
+    .replace(/\bhsla?\(\s*([\d.]+)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, h, s, l) => `hsla(${h}, ${s}, ${l}, ${a})`);
+}
+
 /** Miniature header/body/footer stack driven by the unsaved draft theme —
  * updates on every field change with no reload (dev spec §8 acceptance
  * criteria). Not the real page shell; a simplified stand-in mirroring the
  * same CSS values generate_directory_site would compute. */
 function PreviewStrip({ theme, directoryName }) {
-  const headerBg = backgroundToCss(theme.headerBackground, HEADER_BG_DEFAULT.color);
+  const headerBgRaw = backgroundToCss(theme.headerBackground, HEADER_BG_DEFAULT.color);
+  const headerBg = theme.heroBannerUrl ? applyAlphaToCssColors(headerBgRaw, 0.6) : headerBgRaw;
   const footerBg = backgroundToCss(theme.footerBackground, FOOTER_BG_DEFAULT.color);
   const name = theme.siteTitle?.trim() || directoryName || "Your Directory";
   const showLogo = theme.headerMode !== "text";
   const showHeaderText = theme.showHeaderTitle !== false && theme.headerMode !== "logo";
-  const bannerHeight = Math.min(88, Math.max(48, Math.round((theme.heroBannerHeight || HERO_BANNER_HEIGHT_DEFAULT) * 0.18)));
+  const bannerHeight = Math.min(110, Math.max(48, Math.round(((theme.heroBannerHeight || HERO_BANNER_HEIGHT_DEFAULT) + 100) * 0.18)));
   return (
     <div style={{ border: "1px solid var(--lc-border)", borderRadius: 10, overflow: "hidden", fontSize: 13 }}>
       <style>{`.dtp-footer-link:hover { color: ${theme.footerLinkHover || theme.footerLink} !important; }`}</style>
@@ -736,7 +753,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
             )}
             <input ref={heroBannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleHeroBannerFile} style={{ display: "none" }} />
           </div>
-          <span style={{ fontSize: 11.5, opacity: 0.6 }}>Wide PNG, JPG or WebP, up to 5 MB. Save branding, then Publish. A translucent header lets the image show through.</span>
+          <span style={{ fontSize: 11.5, opacity: 0.6 }}>Wide PNG, JPG or WebP, up to 5 MB. Save branding, then Publish. While a banner is set, header colours go to 40% transparency so the image shows through, and the image runs 100px past this height.</span>
           {theme.heroBannerUrl && (
             <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
               <span>Banner height ({theme.heroBannerHeight}px)</span>
