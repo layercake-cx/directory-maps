@@ -57,6 +57,9 @@ const FONT_SIZE_H1_DEFAULT = "2.5rem";
 const FONT_SIZE_H2_DEFAULT = "2rem";
 const FONT_SIZE_H3_DEFAULT = "1.5rem";
 const HERO_BANNER_HEIGHT_DEFAULT = 480;
+const LOGO_HEIGHT_DEFAULT = 84;
+const LOGO_HEIGHT_MIN = 24;
+const LOGO_HEIGHT_MAX = 240;
 
 function themeFromDirectory(directory) {
   const t = directory?.theme_json && typeof directory.theme_json === "object" ? directory.theme_json : {};
@@ -79,7 +82,7 @@ function themeFromDirectory(directory) {
   next.headerMode = t.headerMode === "logo" || t.headerMode === "text" ? t.headerMode : "logoText";
   next.showHeaderTitle = typeof t.showHeaderTitle === "boolean" ? t.showHeaderTitle : next.headerMode !== "logo";
   next.siteTitle = t.siteTitle || "";
-  next.logoMaxHeight = typeof t.logoMaxHeight === "number" && t.logoMaxHeight > 0 ? t.logoMaxHeight : 42;
+  next.logoMaxHeight = typeof t.logoMaxHeight === "number" && t.logoMaxHeight > 0 ? t.logoMaxHeight : LOGO_HEIGHT_DEFAULT;
   return next;
 }
 
@@ -338,6 +341,7 @@ function PreviewStrip({ theme, directoryName }) {
   const name = theme.siteTitle?.trim() || directoryName || "Your Directory";
   const showLogo = theme.headerMode !== "text";
   const showHeaderText = theme.showHeaderTitle !== false && theme.headerMode !== "logo";
+  const previewLogoH = Math.round(Math.min(56, Math.max(16, (theme.logoMaxHeight || LOGO_HEIGHT_DEFAULT) * 0.4)));
   const bannerHeight = Math.min(110, Math.max(48, Math.round(((theme.heroBannerHeight || HERO_BANNER_HEIGHT_DEFAULT) + 100) * 0.18)));
   return (
     <div style={{ border: "1px solid var(--lc-border)", borderRadius: 10, overflow: "hidden", fontSize: 13 }}>
@@ -349,9 +353,9 @@ function PreviewStrip({ theme, directoryName }) {
         <div style={{ position: "relative", background: headerBg, color: theme.headerText, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         {showLogo &&
           (theme.logoUrl ? (
-            <img src={theme.logoUrl} alt="" style={{ height: Math.min(24, theme.logoMaxHeight), width: "auto", objectFit: "contain" }} />
+            <img src={theme.logoUrl} alt="" style={{ height: previewLogoH, width: "auto", objectFit: "contain" }} />
           ) : (
-            <div style={{ width: 24, height: 24, borderRadius: 7, background: theme.primaryColor, flex: "none" }} />
+            <div style={{ width: previewLogoH, height: previewLogoH, borderRadius: 7, background: theme.primaryColor, flex: "none" }} />
           ))}
         {showHeaderText && <strong style={{ fontFamily: `"${theme.fontHeading}", serif` }}>{name}</strong>}
       </div>
@@ -562,6 +566,7 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
             : theme.headerMode,
         heroBannerUrl: (theme.heroBannerUrl || "").trim(),
         heroBannerHeight: Math.min(800, Math.max(160, Number(theme.heroBannerHeight) || HERO_BANNER_HEIGHT_DEFAULT)),
+        logoMaxHeight: Math.min(LOGO_HEIGHT_MAX, Math.max(LOGO_HEIGHT_MIN, Number(theme.logoMaxHeight) || LOGO_HEIGHT_DEFAULT)),
       };
       await updateDirectory(directoryId, { theme_json: next });
       recordEvent?.("directory_branding_updated", {
@@ -663,14 +668,27 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
               </div>
               <span style={{ fontSize: 11.5, opacity: 0.6 }}>PNG, JPG or WebP, up to 2 MB.</span>
               <label style={{ display: "grid", gap: 4, fontSize: 13, marginTop: 4 }}>
-                <span>Logo max height ({theme.logoMaxHeight}px)</span>
-                <input
-                  type="range"
-                  min={24}
-                  max={120}
-                  value={theme.logoMaxHeight}
-                  onChange={(e) => set("logoMaxHeight", Number(e.target.value))}
-                />
+                <span>Logo height</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="range"
+                    min={LOGO_HEIGHT_MIN}
+                    max={LOGO_HEIGHT_MAX}
+                    value={theme.logoMaxHeight}
+                    onChange={(e) => set("logoMaxHeight", Number(e.target.value))}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    min={LOGO_HEIGHT_MIN}
+                    max={LOGO_HEIGHT_MAX}
+                    value={theme.logoMaxHeight}
+                    onChange={(e) => set("logoMaxHeight", Math.min(LOGO_HEIGHT_MAX, Math.max(LOGO_HEIGHT_MIN, Number(e.target.value) || LOGO_HEIGHT_DEFAULT)))}
+                    style={{ ...inputStyle, width: 72 }}
+                  />
+                  <span style={{ fontSize: 12, opacity: 0.6 }}>px</span>
+                </div>
+                <span style={{ fontSize: 11.5, opacity: 0.6, fontWeight: 400 }}>Width scales automatically from the height. {LOGO_HEIGHT_MIN}–{LOGO_HEIGHT_MAX}px.</span>
               </label>
             </div>
           )}

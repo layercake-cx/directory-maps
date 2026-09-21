@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Directory header logo height range
+
+**Branch/PR:** `feat/2026-09-21-header-logo-height` / (PR URL after open)
+**Deployed by:** Cursor Grok
+
+### What changed
+The Branding tab's header **logo height** is now a slider plus a number field from **24–240px** (was 24–120). Width still scales automatically from that height. The default for a directory that has never set a height is **84px** (twice the previous 42px). Directories that already saved a height keep it. The Branding live preview tracks the control instead of capping the logo at 24px.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — not deployed yet.
+
+### Rollback plan
+Revert the PR and redeploy the previous `generate_directory_site`.
+
+### Verified on staging
+- [ ] Local `deno` preview clamp checks.
+- [ ] Staging function deployed.
+- [ ] Branding tab slider/number in the running app.
+
+---
+
 ## 2026-09-21 — [Production] Directory hero banner: glass header + extra 100px
 
 **Branch/PR:** `feat/2026-09-21-directory-hero-banner` / https://github.com/layercake-cx/directory-maps/pull/223

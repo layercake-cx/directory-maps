@@ -39,6 +39,8 @@ import {
   sanitizeHttpUrl,
   applyAlphaToCssColors,
   themeStyleBlock,
+  siteHeader,
+  clampLogoMaxHeight,
 } from "./builders.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
@@ -388,4 +390,23 @@ if (!fadedHeaderCss.includes("rgba(17, 34, 51, 0.6)")) {
 const opaqueHeaderCss = themeStyleBlock({ headerBackground: { type: "solid", color: "#112233" } });
 if (opaqueHeaderCss.includes("rgba(17, 34, 51, 0.6)") || !opaqueHeaderCss.includes("#112233")) {
   throw new Error("without a hero banner the header colour must stay fully opaque");
+}
+if (clampLogoMaxHeight(undefined) !== 84) {
+  throw new Error("unset logo height should default to 84px (twice the original 42)");
+}
+if (clampLogoMaxHeight(42) !== 42) {
+  throw new Error("an explicitly saved 42px logo height must not be rewritten");
+}
+if (clampLogoMaxHeight(180) !== 180 || clampLogoMaxHeight(9999) !== 240 || clampLogoMaxHeight(10) !== 24) {
+  throw new Error("logo height must clamp to 24–240px");
+}
+const tallLogo = siteHeader({
+  directoryName: "Test",
+  tagline: null,
+  homeUrl: "/",
+  logoUrl: "https://cdn.example.com/logo.png",
+  logoMaxHeight: 168,
+});
+if (!tallLogo.includes("height:168px") || !tallLogo.includes("width:auto")) {
+  throw new Error("header logo must use the configured height with auto width");
 }
