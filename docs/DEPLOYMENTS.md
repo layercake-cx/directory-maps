@@ -8,10 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Published directory header logo is not clipped by rounded corners
+
+**Branch/PR:** `fix/2026-09-21-published-logo-radius` ([#215](https://github.com/layercake-cx/directory-maps/pull/215))
+**Deployed by:** Cursor Grok, on the user's explicit "commit, pr, deploy, merge" go-ahead.
+
+### What changed
+Same as the staging entry below: published directory header logos render with square corners so uploaded marks are not clipped.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production. No schema change.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` deployed earlier this session.
+- [x] Production `generate_directory_site` deployed.
+- [ ] Republish a directory with a logo and confirm corners are no longer clipped.
+
+### Issues / notes
+Already-published HTML is unchanged until a directory is republished.
+
+---
+
 ## 2026-09-21 — [Staging] Published directory header logo is not clipped by rounded corners
 
-**Branch/PR:** `fix/2026-09-21-published-logo-radius`
-**Deployed by:** not yet
+**Branch/PR:** `fix/2026-09-21-published-logo-radius` ([#215](https://github.com/layercake-cx/directory-maps/pull/215), `ed5b0d2`)
+**Deployed by:** Cursor Grok, staging then production in the same session (user asked)
 
 ### What changed
 The published directory site header applied a 12px corner radius to the uploaded logo, which clipped the image (especially square or corner-heavy marks). The header logo now renders with square corners. The Branding tab live preview matches. The coloured no-logo placeholder is unchanged.
@@ -20,13 +47,13 @@ The published directory site header applied a 12px corner radius to the uploaded
 None.
 
 ### Edge Functions deployed
-None yet. Live published sites pick this up after `generate_directory_site` is deployed and the directory is republished.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
 
 ### Rollback plan
-Restore `border-radius:12px` on the header logo `<img>` in `generate_directory_site` and redeploy that function. No schema change.
+Redeploy the previous `generate_directory_site` to the same project. No schema change.
 
 ### Verified on staging
-- [ ] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
+- [x] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
 - [ ] Republish a directory with a logo and confirm corners are no longer clipped.
 - [ ] Branding tab preview still shows the logo without rounded clipping.
 
