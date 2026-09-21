@@ -8,6 +8,60 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-20 — [Production] Homepage nav dropdown sits above the hero band
+
+**Branch/PR:** `fix/2026-09-20-homepage-nav-dropdown` ([#214](https://github.com/layercake-cx/directory-maps/pull/214))
+**Deployed by:** Cursor Grok, on the user's explicit deploy go-ahead (described as no-risk).
+
+### What changed
+Same as the staging entry below: published homepage header menus stack above the opaque hero/search band.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production. No schema change.
+
+### Verified on staging
+- [x] Staging `generate_directory_site` deployed earlier this session.
+- [x] Production `generate_directory_site` deployed.
+- [ ] Republish a directory and confirm the live homepage dropdown sits above the hero.
+
+### Issues / notes
+Already-published HTML is unchanged until a directory is republished.
+
+---
+
+## 2026-09-20 — [Staging] Homepage nav dropdown sits above the hero band
+
+**Branch/PR:** `fix/2026-09-20-homepage-nav-dropdown` ([#214](https://github.com/layercake-cx/directory-maps/pull/214), `9c2e465`)
+**Deployed by:** Cursor Grok, staging then production in the same session (user asked)
+
+### What changed
+On the published directory homepage, header dropdowns (and the mobile hamburger panel) were painted underneath the opaque hero/search band that sits immediately below the header. Content pages were fine because their body wrap is transparent. The header now has `position: relative; z-index: 30` so menus stack above page body content and still below the cookie consent banner (`z-index: 40`).
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see production entry above (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to the same project. No schema change.
+
+### Verified on staging
+- [x] `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`).
+- [ ] Republish a directory with nested nav pages and confirm the homepage dropdown sits above the hero.
+- [ ] Cookie consent banner still appears above the header.
+
+### Issues / notes
+Static sites are generated at publish time. Deploying the function alone does not change already-published HTML.
+
+---
+
 ## 2026-09-20 — [Production] Directory analytics (extend map engagement)
 
 **Branch/PR:** `feat/2026-09-20-directory-analytics`
