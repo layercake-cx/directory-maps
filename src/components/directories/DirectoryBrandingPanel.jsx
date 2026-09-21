@@ -10,7 +10,7 @@ import {
   renameThemePreset,
   deleteThemePreset,
 } from "../../lib/directoryThemePresets.js";
-import { uploadDirectoryLogo } from "../../lib/directoryBranding.js";
+import { uploadDirectoryLogo, uploadDirectoryFavicon } from "../../lib/directoryBranding.js";
 import { checkContrast } from "../../lib/colorContrast.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
@@ -62,6 +62,7 @@ function themeFromDirectory(directory) {
   const next = {};
   for (const key of FIELD_KEYS) next[key] = t[key] || NATURAL[key];
   next.logoUrl = t.logoUrl || "";
+  next.faviconUrl = t.faviconUrl || "";
   next.headerBackground = t.headerBackground || HEADER_BG_DEFAULT;
   next.headerText = t.headerText || next.inkColor;
   next.footerBackground = t.footerBackground || FOOTER_BG_DEFAULT;
@@ -371,10 +372,11 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
   const [theme, setTheme] = useState(() => themeFromDirectory(directory));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState("");
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const fileInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
 
   const [orgPresets, setOrgPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState("");
@@ -472,13 +474,29 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
     if (!file) return;
     setErr("");
     try {
-      setUploading(true);
+      setUploading("logo");
       const url = await uploadDirectoryLogo(directoryId, file);
       set("logoUrl", url);
     } catch (e2) {
       setErr(e2?.message ?? String(e2));
     } finally {
-      setUploading(false);
+      setUploading("");
+    }
+  }
+
+  async function handleFaviconFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErr("");
+    try {
+      setUploading("favicon");
+      const url = await uploadDirectoryFavicon(directoryId, file);
+      set("faviconUrl", url);
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
+    } finally {
+      setUploading("");
     }
   }
 
@@ -501,7 +519,11 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
             : theme.headerMode,
       };
       await updateDirectory(directoryId, { theme_json: next });
-      recordEvent?.("directory_branding_updated", { directory_id: directoryId, has_logo: !!next.logoUrl });
+      recordEvent?.("directory_branding_updated", {
+        directory_id: directoryId,
+        has_logo: !!next.logoUrl,
+        has_favicon: !!next.faviconUrl,
+      });
       setMsg("Branding saved. Republish for it to appear on the live site.");
       onSaved?.();
     } catch (e2) {
@@ -583,8 +605,8 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
                 ) : (
                   <div style={{ height: 36, width: 36, borderRadius: 6, background: theme.primaryColor, flex: "none" }} />
                 )}
-                <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  {uploading ? "Uploading…" : theme.logoUrl ? "Replace logo" : "Upload logo"}
+                <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => fileInputRef.current?.click()} disabled={!!uploading}>
+                  {uploading === "logo" ? "Uploading…" : theme.logoUrl ? "Replace logo" : "Upload logo"}
                 </button>
                 {theme.logoUrl && (
                   <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => set("logoUrl", "")}>
@@ -606,6 +628,27 @@ export default function DirectoryBrandingPanel({ directory, directoryId, clientI
               </label>
             </div>
           )}
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontSize: 13 }}>Favicon</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {theme.faviconUrl ? (
+                <img src={theme.faviconUrl} alt="Current favicon" style={{ height: 32, width: 32, objectFit: "contain", borderRadius: 6, background: "#fff", border: "1px solid var(--lc-border)" }} />
+              ) : (
+                <div style={{ height: 32, width: 32, borderRadius: 6, background: "#e5e7eb", flex: "none" }} />
+              )}
+              <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => faviconInputRef.current?.click()} disabled={!!uploading}>
+                {uploading === "favicon" ? "Uploading…" : theme.faviconUrl ? "Replace favicon" : "Upload favicon"}
+              </button>
+              {theme.faviconUrl && (
+                <button type="button" className="btn" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => set("faviconUrl", "")}>
+                  Remove
+                </button>
+              )}
+              <input ref={faviconInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFaviconFile} style={{ display: "none" }} />
+            </div>
+            <span style={{ fontSize: 11.5, opacity: 0.6 }}>Shown in the browser tab on the published site. Square PNG, JPG or WebP, up to 2 MB. Save branding, then Publish.</span>
+          </div>
 
           <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>

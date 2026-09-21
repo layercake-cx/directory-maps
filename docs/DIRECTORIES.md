@@ -124,7 +124,7 @@ maps (existing)
 | `slug` | `text not null` | Unique per client (mirrors `maps.slug`), used in the public URL `/:clientSlug/:directorySlug`. |
 | `description` | `text null` | Shown on the directory's public index page. |
 | `is_active` | `boolean not null default true` | Soft-archive, same semantics as `listings.is_active` today. |
-| `theme_json` | `jsonb null` | Branding: brand colours, logo, layout preferences — same blob-of-cosmetics precedent as `maps.theme_json`. |
+| `theme_json` | `jsonb null` | Branding: brand colours, logo, favicon, layout preferences — same blob-of-cosmetics precedent as `maps.theme_json`. |
 | `seo_defaults_json` | `jsonb null` | Directory-level SEO defaults: `meta_title_template`, `meta_description`, `default_noindex` (bool), `default_structured_data_type` (`Organization`\|`LocalBusiness`\|`ItemList`), `llms_txt_extra` (free text appended to the generated `llms.txt` block for this directory). Editable via the Settings tab's "SEO settings" panel (`meta_title_template`/`meta_description`/`default_noindex` only — `default_structured_data_type`/`llms_txt_extra` remain data-layer-only, no UI yet). `default_noindex` is the directory's "let search engines index this" switch — see DIR-E2-S4's implementation note below. |
 | `home_nav_label` | `text null` | Label for the directory landing page in generated header/mobile/breadcrumb/footer navigation. Null/blank defaults to `Home`. Added 20260920060000; editable via the Settings tab's General settings. |
 | `current_publication_id` | `uuid null → directory_publications.id` | Mirrors `maps.current_publication_id`. |
@@ -186,7 +186,7 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 
 ### 4.6 Branding & domain — DIR-E3
 
-- `directories.theme_json` (§4.1) covers colour tokens/logo — reuses the `maps.theme_json` + CSS-custom-property-injection pattern (§3.7), no new mechanism.
+- `directories.theme_json` (§4.1) covers colour tokens/logo/favicon — reuses the `maps.theme_json` + CSS-custom-property-injection pattern (§3.7), no new mechanism. Favicon is stored as `theme_json.faviconUrl` and baked into published HTML as `<link rel="icon">` by `generate_directory_site`.
 - `directory_domain_mappings`: `id uuid`, `directory_id → directories.id`, `domain text unique`, `status text check in ('pending','verifying','verified','failed')` (naming precedent: `clients.email_domain_status`), `verification_token text`, `dns_instructions jsonb` (record type/name/value to show the client), `tls_status text check in ('pending','issued','failed')`, `verified_at timestamptz null`, `created_at`, `updated_at`. Per the §9 decision, this mirrors status returned by the **Vercel Domains API** rather than implementing DNS/TLS logic in this codebase — there is no existing domain-hosting mechanism to extend, only the unrelated Resend email-domain-verification naming convention borrowed above (§3.7).
 
 ### 4.7 Directory as a map datasource — DIR-E4
