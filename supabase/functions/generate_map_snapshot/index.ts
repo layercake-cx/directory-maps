@@ -22,6 +22,7 @@
  */
 
 import { createServiceClient } from "../_shared/supabase.ts";
+import { uploadToBlob } from "../_shared/staticSiteRenderer.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -33,40 +34,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
-}
-
-/** Upload JSON to Vercel Blob. Returns the public URL. */
-async function uploadToBlob(pathname: string, data: unknown): Promise<string> {
-  const token = Deno.env.get("BLOB_READ_WRITE_TOKEN");
-  if (!token) throw new Error("Missing BLOB_READ_WRITE_TOKEN");
-
-  const res = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "x-api-version": "7",
-      "Content-Type": "application/json",
-      // Make the file publicly readable (no token needed to GET from CDN)
-      "x-access": "public",
-      // Deterministic path — no random suffix appended by Vercel Blob
-      // (required so the embed can construct the URL from map_id alone)
-      "x-add-random-suffix": "0",
-      // No CDN caching — overwriting the same deterministic path doesn't
-      // purge edge caches, so a long s-maxage causes stale snapshots after
-      // every publish. Browsers also skip cache (max-age=0).
-      "x-cache-control": "max-age=0, s-maxage=0, must-revalidate",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "(no body)");
-    throw new Error(`Blob upload failed ${res.status}: ${text}`);
-  }
-
-  const result = await res.json();
-  // Vercel Blob returns { url, downloadUrl, pathname, ... }
-  return result.url as string;
 }
 
 /** Generate and upload the snapshot for a single map. */
@@ -150,7 +117,7 @@ async function generateForMap(mapId: string): Promise<{ map_id: string; snapshot
 
   // 6. Upload to Vercel Blob at a deterministic path
   const pathname = `maps/${mapId}/snapshot.json`;
-  const snapshotUrl = await uploadToBlob(pathname, snapshot);
+  const snapshotUrl = await uploadToBlob(pathname, JSON.stringify(snapshot), "application/json");
 
   // 7. Write the URL back to maps so dashboards can display it
   const { error: updateErr } = await db

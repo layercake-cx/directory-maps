@@ -8,6 +8,64 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Production] Retry transient Vercel Blob 503s during directory publish
+
+**Branch/PR:** `fix/2026-09-21-blob-upload-retry`
+**Deployed by:** Cursor Grok, after the operator hit a production Blob 503 on republish (succeeded on the third Retry).
+
+### What changed
+Same as the staging entry below.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+- `generate_directory_pages` — production (`gxixwdjfmegxcxfeflro`)
+- `generate_map_snapshot` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous versions of those three functions to production.
+
+### Verified on staging
+- [x] Staging functions deployed this session.
+- [x] Production functions deployed this session.
+- [ ] Next production directory republish completes without a Blob 503 abort.
+
+---
+
+## 2026-09-21 — [Staging] Retry transient Vercel Blob 503s during directory publish
+
+**Branch/PR:** `fix/2026-09-21-blob-upload-retry`
+**Deployed by:** Cursor Grok, staging then production in the same session.
+
+### What changed
+Publishing a large directory often failed page generation with `Blob upload failed 503: service_unavailable` even though `publish_directory` itself succeeded — one failed PUT aborted the whole HTML rewrite, so operators had to Retry two or three times. Each Blob PUT now retries up to six times with backoff on 5xx/429/network errors, and entry-page uploads run 6 at a time instead of 15 so we trip Vercel Blob's rate limit less often. Map snapshot uploads use the same helper.
+
+The directory is already published when this happens; only static page generation needs to succeed.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+- `generate_directory_pages` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+- `generate_map_snapshot` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
+
+### Rollback plan
+Redeploy the previous versions of those three functions.
+
+### Verified on staging
+- [x] `deno check` on the changed functions.
+- [x] Staging deploy.
+- [x] Production deploy.
+- [ ] A production directory republish completes without a Blob 503 abort.
+
+### Issues / notes
+A third Retry already succeeded for the operator before this code shipped — this is to stop that being routine.
+
+---
+
 ## 2026-09-21 — [Production] Fast directory keyword search + Help me choose
 
 **Branch/PR:** `feat/2026-09-21-help-me-choose`

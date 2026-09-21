@@ -160,6 +160,8 @@ The header, mobile menu, and footer on every published page are generated from t
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
 
+If generation fails with a temporary file-host error (for example "Blob service is currently unavailable"), the directory is already published — only the public HTML failed to rewrite. Click **Retry** on the Publish tab; you do not need to publish a new version.
+
 ### Branding
 
 On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design. A **live preview** above the colour sections updates instantly as you make changes, before you save.
