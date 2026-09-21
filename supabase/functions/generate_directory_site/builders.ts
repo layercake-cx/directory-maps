@@ -211,8 +211,32 @@ export const BASE_STYLE = `
   .card-logo-box img { max-width: 70%; max-height: 70%; object-fit: contain; }
   .eyebrow { font-size: 12.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   .muted { color: var(--muted); }
-  .prose p { font-size: 16.5px; line-height: 1.7; margin: 0 0 16px; }
-  .prose h2 { font-size: calc(var(--fs-h2) * 0.75); margin: 24px 0 14px; }
+  /* Entry notes and content-page bodies. Paragraphs and lists share one
+     size — lists used to inherit the smaller body size while paragraphs
+     were locked at 16.5px. Headings (h2–h4; h3/h4 had margin: 0 from the
+     global reset above) keep space underneath so the next block can breathe. */
+  .prose { font-size: 16.5px; line-height: 1.7; }
+  .prose p,
+  .prose ul,
+  .prose ol,
+  .prose li,
+  .prose blockquote { font-size: inherit; line-height: inherit; }
+  .prose p { margin: 0 0 16px; }
+  .prose ul,
+  .prose ol { margin: 0 0 16px; padding-left: 1.4em; }
+  .prose li { margin: 0.35em 0; }
+  .prose li > p { margin: 0 0 8px; }
+  .prose li > p:last-child { margin-bottom: 0; }
+  .prose li > ul,
+  .prose li > ol { margin: 0.35em 0 0; }
+  .prose h2,
+  .prose h3,
+  .prose h4 { line-height: 1.3; }
+  .prose h2 { font-size: calc(var(--fs-h2) * 0.75); margin: 32px 0 16px; }
+  .prose h3 { font-size: calc(var(--fs-h3) * 0.85); margin: 26px 0 14px; }
+  .prose h4 { font-size: 1.125em; margin: 22px 0 12px; }
+  .prose > :first-child { margin-top: 0; }
+  .prose blockquote { margin: 0 0 16px; padding: 0 0 0 16px; border-left: 3px solid var(--line); color: var(--muted); }
   @media (max-width: 900px) { .wrap { padding: 0 20px; } }
 `;
 
@@ -488,6 +512,7 @@ const LAYOUT_STYLE = `
   .dir-jumpchip { flex: none; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink); text-decoration: none; white-space: nowrap; }
   .dir-jumpchip:hover { background: var(--surface); }
   .dir-entry-section { scroll-margin-top: 62px; padding-top: 28px; }
+  .dir-entry-section > h2 { font-size: calc(var(--fs-h2) * 0.6875); line-height: 1.25; margin: 0 0 18px; }
   .dir-entry-body { display: flex; align-items: flex-start; gap: 32px; padding-top: 8px; padding-bottom: 48px; }
   .dir-entry-main { flex: 1; min-width: 0; }
   .dir-aside { width: 300px; flex: none; display: flex; flex-direction: column; gap: 24px; }
@@ -1155,7 +1180,7 @@ export function buildEntryPage(opts: {
     if (!block.label) return content;
     const id = sectionAnchorId(block.label, i);
     jumpChips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(block.label)}</a>`);
-    return `<div class="dir-entry-section" id="${id}"><h2 style="font-size:calc(var(--fs-h2) * 0.6875);margin-bottom:12px;">${escapeHtml(block.label)}</h2>${content}</div>`;
+    return `<div class="dir-entry-section" id="${id}"><h2>${escapeHtml(block.label)}</h2>${content}</div>`;
   }).join("\n");
   const jumpBar = jumpChips.length
     ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${jumpChips.join("")}</nav></div>`
@@ -1408,7 +1433,7 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
 <div class="wrap" style="max-width:760px;">
 ${renderBreadcrumbTrail(crumbItems)}
 <h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
-${page.body_html}
+<div class="prose">${page.body_html}</div>
 ${childList}
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}

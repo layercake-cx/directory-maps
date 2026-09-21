@@ -133,6 +133,19 @@ const ENTRIES: Entry[] = [
 
 ENTRIES[0].website_url = "https://www.ciep.uk";
 ENTRIES[0].keywords = "CIEP, proofreading, editing";
+// Rich notes so the local preview shows list/paragraph sizing and heading
+// spacing (the published .prose rules). allow_html is false on makeEntry().
+ENTRIES[0].allow_html = true;
+ENTRIES[0].notes_html = [
+  "<p>The professional body for internal communication practitioners.</p>",
+  "<h2>Who it is for</h2>",
+  "<p>Members include in-house teams and independent consultants.</p>",
+  "<ul><li><p>In-house communication teams</p></li><li><p>Independent consultants</p></li><li><p>Agencies</p></li></ul>",
+  "<h3>What you get</h3>",
+  "<ol><li><p>Events and training</p></li><li><p>A member directory</p></li></ol>",
+  "<h4>Also included</h4>",
+  "<p>A short note under a smaller heading, so the gap under h4 can be checked.</p>",
+].join("");
 
 const ENTRY_TERM_IDS = new Map<string, string[]>([
   ["ioic", [SECTOR_TERMS.communications.id, REGION_TERMS.midlands.id, CHARTERED_TERMS.yes.id]],
@@ -172,7 +185,7 @@ const PREVIEW_PAGES: ContentPage[] = [
     nav_label: "About",
     show_in_navigation: true,
     is_active: true,
-    body_html: "<p>A preview About page so the header, footer, and breadcrumb can be checked locally.</p>",
+    body_html: "<p>A preview About page so the header, footer, and breadcrumb can be checked locally.</p><h2>How it works</h2><p>Paragraphs and lists should be the same size.</p><ul><li><p>First point</p></li><li><p>Second point</p></li></ul>",
     meta_title: null,
     meta_description: null,
     noindex: false,

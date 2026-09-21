@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-21 — [Staging] Entry page prose spacing
+
+**Branch/PR:** `feat/2026-09-21-entry-prose-spacing`
+**Deployed by:** Cursor Grok, with explicit staging and production go-ahead in the same request.
+
+### What changed
+Published entry notes (and content pages, which use the same rich text) now give paragraphs and lists the same text size and line height. Headings inside that content — including H3 and H4, which previously had no margin at all — have space underneath them before the next paragraph or list. Section titles on an entry page (the optional block labels) also sit a little further above their content.
+
+Already-published directories keep the old HTML until the next republish.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production not deployed yet.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to staging. No database change to undo.
+
+### Verified on staging
+- [x] Local preview of an entry page and a content page (lists match paragraphs at 16.5px; 16px under H2, 14px under H3, 12px under H4, 18px under section titles).
+- [ ] Staging function deployed.
+- [ ] Operator republish of a directory, then a check of a live entry page.
+
+---
+
 ## 2026-09-21 — [Production] Directory header logo height range
 
 **Branch/PR:** `feat/2026-09-21-header-logo-height` / https://github.com/layercake-cx/directory-maps/pull/224
