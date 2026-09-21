@@ -26,9 +26,9 @@ None.
 Redeploy the previous `generate_directory_site` to production and revert the Vercel production frontend to the prior deployment.
 
 ### Verified on staging
-- [ ] Staging function deployed this session.
-- [ ] Production function deployed this session.
-- [ ] Vercel production frontend deployed this session.
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [x] Vercel production frontend deployed this session.
 - [ ] Operator republish on a directory that already has a hero banner.
 
 ---
@@ -45,15 +45,15 @@ When a directory has a hero banner, the published header background colours (sol
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`).
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
 
 ### Rollback plan
 Revert the follow-up commit on PR 223 and redeploy the previous `generate_directory_site`.
 
 ### Verified on staging
-- [ ] Local `deno` preview checks (alpha rewrite + extra 100px).
-- [ ] Staging function deployed.
-- [ ] Vercel preview frontend deployed.
+- [x] Local `deno` preview checks (alpha rewrite + extra 100px).
+- [x] Staging function deployed.
+- [x] Vercel preview frontend deployed (`https://directory-maps-ly8a0043k-layercake-apps.vercel.app`).
 - [ ] Operator republish on a directory that already has a hero banner.
 
 ---
