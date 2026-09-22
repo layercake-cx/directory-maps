@@ -804,6 +804,14 @@ export function themeStylesheetHref(clientSlug: string, directorySlug: string): 
   return `/directories/${clientSlug}/${directorySlug}/theme.css`;
 }
 
+/** Absolute branded URL of this directory's llms.txt, derived from the same
+ * path the stylesheet uses. Custom-domain middleware rewrites the branded
+ * prefix, so the link stays canonical on a custom domain too. */
+export function llmsTxtUrl(themeCssHref: string): string {
+  const path = themeCssHref.replace(/theme\.css$/, "llms.txt");
+  return `${SITE_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 /** <link> for exactly the Google Fonts families this theme actually uses —
  * never a fixed Spectral+Hanken Grotesk pair, since presets vary fonts. */
 export function fontLinkTag(theme: DirectoryTheme): string {
@@ -896,6 +904,7 @@ export function directoryPageShell(opts: {
 <title>${escapeHtml(opts.title)}</title>
 <meta name="description" content="${escapeAttr(opts.description)}">
 <link rel="canonical" href="${escapeAttr(opts.canonicalUrl)}">
+<link rel="describedby" href="${escapeAttr(llmsTxtUrl(opts.themeCssHref))}">
 ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:type" content="website">
 <meta property="og:title" content="${escapeAttr(opts.title)}">
 <meta property="og:description" content="${escapeAttr(opts.description)}">
@@ -3313,21 +3322,104 @@ export function relatedEntries(entry: Entry, allEntries: Entry[], termIdsByEntry
   return scored.slice(0, max).map((s) => s.entry);
 }
 
+export type LlmsTxtPage = {
+  title: string;
+  /** Path relative to the directory root, e.g. `about` or `about/join`. */
+  path: string;
+  description: string | null;
+  inNavigation: boolean;
+};
+
+function oneLine(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function joinLabels(labels: string[]): string {
+  if (labels.length <= 1) return labels[0] ?? "";
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+function mdLink(label: string, url: string, note?: string | null): string {
+  const safeLabel = oneLine(label).replace(/[\[\]]/g, "") || "Page";
+  const safeNote = oneLine(note);
+  const link = `- [${safeLabel}](${url})`;
+  return safeNote ? `${link}: ${safeNote}` : link;
+}
+
+/**
+ * llms.txt v2 (https://llmstxt.org/): H1, a blockquote summary, heading-free
+ * prose, then H2 sections that are Markdown link lists. A concise overview
+ * for agents — the sitemap remains the full URL inventory, and listing pages
+ * stay the canonical content. Inactive and noindex pages are the caller's
+ * job to leave out.
+ */
 export function buildLlmsTxt(opts: {
-  clientSlug: string;
-  directorySlug: string;
   directoryName: string;
   directoryDescription: string | null;
-  entries: Entry[];
+  seoDescription: string | null;
+  categorisationLabels: string[];
+  indexableEntryCount: number;
+  publisherName: string | null;
+  siteBase: string;
+  pages: LlmsTxtPage[];
   extra: string | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, extra } = opts;
-  const lines = [`# ${directoryName}`, ""];
-  if (directoryDescription) lines.push(directoryDescription, "");
-  lines.push(`${entries.length} entr${entries.length === 1 ? "y" : "ies"}:`, "");
-  for (const e of entries.filter((e) => !e.noindex)) {
-    lines.push(`- [${e.name}](${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${e.slug})`);
+  const {
+    directoryName,
+    directoryDescription,
+    seoDescription,
+    categorisationLabels,
+    indexableEntryCount,
+    publisherName,
+    siteBase,
+    pages,
+    extra,
+  } = opts;
+
+  const labels = categorisationLabels.map(oneLine).filter(Boolean);
+  const seo = oneLine(seoDescription);
+  const description = oneLine(directoryDescription);
+  const summary =
+    seo ||
+    description ||
+    `${directoryName} is a directory of ${indexableEntryCount} listing${indexableEntryCount === 1 ? "" : "s"}${
+      labels.length ? `, categorised by ${joinLabels(labels)}` : ""
+    }.`;
+
+  const lines = [`# ${oneLine(directoryName) || directoryName}`, "", `> ${summary}`, ""];
+
+  if (description && description !== summary) lines.push(description, "");
+  if (labels.length) lines.push(`Listings are categorised by ${joinLabels(labels)}.`);
+  lines.push(`Each listing has its own page at ${siteBase}/{entry-slug}.`);
+  const publisher = oneLine(publisherName);
+  if (publisher && publisher.toLowerCase() !== oneLine(directoryName).toLowerCase()) {
+    lines.push(`Published by ${publisher}.`);
   }
-  if (extra) lines.push("", extra);
-  return lines.join("\n");
+  const extraText = oneLine(extra);
+  if (extraText) lines.push("", extraText);
+
+  const navPages = pages.filter((p) => p.inNavigation);
+  const otherPages = pages.filter((p) => !p.inNavigation);
+  const byTitle = (a: LlmsTxtPage, b: LlmsTxtPage) => a.title.localeCompare(b.title) || a.path.localeCompare(b.path);
+
+  lines.push("", "## Directory", "", mdLink(directoryName, siteBase, "Directory homepage"));
+
+  if (navPages.length) {
+    lines.push("", "## Pages", "");
+    for (const page of [...navPages].sort(byTitle)) {
+      lines.push(mdLink(page.title, `${siteBase}/${page.path}`, page.description));
+    }
+  }
+
+  lines.push("", "## Sitemap", "", mdLink("XML sitemap", `${siteBase}/sitemap.xml`, "Canonical inventory of indexable URLs"));
+
+  if (otherPages.length) {
+    lines.push("", "## Optional", "");
+    for (const page of [...otherPages].sort(byTitle)) {
+      lines.push(mdLink(page.title, `${siteBase}/${page.path}`, page.description));
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
 }

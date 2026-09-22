@@ -461,12 +461,15 @@ Then it lists the directory index URL and all 500 entry URLs, honouring each ent
 
 Given the same directory
 When a crawler requests /acme/accredited-suppliers/llms.txt
-Then it returns a plain-text summary of the directory (name, description, entry count) plus a link list of entry pages, incorporating seo_defaults_json.llms_txt_extra if set
+Then it returns an llms.txt v2 Markdown file: the directory name, a short summary from the SEO description (or the directory description), how listings are categorised, the listing URL pattern, links to the homepage, in-navigation content pages, and sitemap.xml, and seo_defaults_json.llms_txt_extra when set
+And it does not list inactive or noindex listings, or unpublished pages
 
 Given the directory root
 When a crawler requests /robots.txt
 Then noindexed directories/entries are disallowed and the sitemap location is referenced
 ```
+
+*Status (2026-09-22):* `llms.txt` follows the llms.txt v2 layout (H1, blockquote, prose, then H2 link lists for the homepage, navigation pages, sitemap, and optional hidden pages). It is a curated overview, not a second copy of the sitemap: individual listings are described by URL pattern (`/{entry-slug}`) and left to `sitemap.xml` and their HTML pages. Inactive and noindex listings and pages are omitted. `seo_defaults_json.llms_txt_extra` is still appended as prose and still has no Settings UI. Generated HTML pages link the file with `rel="describedby"`. Custom-domain requests rewrite branded URLs to that domain. The file updates on the next publish that rebuilds indexes.
 
 *Status (2026-09-14):* Shipped as directory-wide gating only, not per-entry `robots.txt` rules (there's no per-path UI driving one). The Settings tab exposes one combined "let search engines index this directory" switch (`seo_defaults_json.default_noindex`, inverted) that drives all three together: `buildRobotsTxt()` (`_shared/staticSiteRenderer.ts`) is `Allow: /` + a `Sitemap:` line when on, or a blanket `Disallow: /` when off; the directory's own landing-page URL is included in/excluded from `sitemap.xml` accordingly; and the landing page renders `<meta name="robots" content="noindex">` when off. The generated `robots.txt` is served at two places: `/directories/:clientSlug/:directorySlug/robots.txt` on the branded host (reachable for manual inspection, but **not** honoured by a real crawler — crawlers only ever fetch a domain's own root), and, for a directory with an active custom domain (§4.6, `client_domains.directory_id`), that domain's actual root `/robots.txt` — the one place this setting is genuinely crawler-enforced today. Per-entry `noindex` (§4.2) is independent of this switch, unchanged. `meta_title_template`/`meta_description` now also feed the landing page's `<title>`/meta description (falling back to the directory name/description), and the new `seo_og_image_url` (§4.1) feeds its `og:image`/`twitter:image`. `default_structured_data_type` and per-entry inheritance of the directory default (both described in DIR-E2-S2/S3 above) remain unimplemented.
 *Tech guardrails:* Generated at publish time under the chosen rendering approach (§5) — do not generate these at request time against live data, to keep them consistent with the immutable publish snapshot model used everywhere else in this feature.

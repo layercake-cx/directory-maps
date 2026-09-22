@@ -164,12 +164,14 @@ On a directory's **Publish** tab (visible to everyone with access; only owners a
 Publish rewrites only the pages affected by what changed since the last successful generation:
 
 - **Colours, fonts, the logo image, logo height, and the hero banner** update one shared stylesheet. The pages themselves stay as they are.
-- **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and the AI index).
+- **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
 - **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
 
 The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the enquiry button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
 
-Each publish also regenerates `sitemap.xml`. Every listed URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
+Each publish also regenerates `sitemap.xml` and `llms.txt`. Every sitemap URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
+
+`llms.txt` is a short Markdown overview for AI tools (`/llms.txt` on a custom domain, or `/directories/{your-organisation}/{your-directory}/llms.txt` on the Layercake site). It names the directory, repeats the SEO description (or the directory description), says how listings are categorised, explains that each listing lives at its own address, and links the homepage, the pages in your navigation, and the sitemap. Pages you have published but hidden from navigation are listed under Optional. Listings marked noindex, and anything not yet published, are left out. There is nothing to edit by hand: change the directory title, SEO description, categorisations, or pages, then **Publish** again. On a custom domain, the links inside the file use that domain.
 
 The published homepage has a fast keyword search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed) and, when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get a **Help me choose** button — see **Help me choose** below. The search box itself never calls Claude.
 
@@ -666,6 +668,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
 | Turn on location search | Directory → Settings → Search → Location search, then Publish |
+| Read a published directory's AI overview | `llms.txt` on the public site (updates when you Publish) |
 | Filter a published directory by distance | Published homepage → Distance from |
 | Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |
 | Invite team member | `/client/team` → Send invitation email |

@@ -179,7 +179,7 @@ async function handleCustomDomain(host, segments, blobBase) {
     contentType = "text/css; charset=utf-8";
   } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "llms.txt") {
     pathname = `${basePath}/llms.txt`;
-    contentType = "text/plain; charset=utf-8";
+    contentType = "text/markdown; charset=utf-8";
   } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "robots.txt") {
     // The one place a per-directory robots.txt is actually honoured by real
     // crawlers — this custom domain's own root, unlike the branded-host
@@ -198,7 +198,7 @@ async function handleCustomDomain(host, segments, blobBase) {
 
   const html = await fetchBlobHtml(blobBase, pathname);
   if (html == null) {
-    if (contentType.includes("xml") || contentType.includes("text/plain") || contentType.includes("text/css")) return new Response("", { status: 404 });
+    if (contentType.includes("xml") || contentType.includes("text/plain") || contentType.includes("text/markdown") || contentType.includes("text/css")) return new Response("", { status: 404 });
 
     // Directory entries can be renamed — check the redirect manifest before
     // giving up, same mechanism as the branded-domain directory routes.
@@ -305,7 +305,7 @@ async function handleDirectorySite(segments, blobBase) {
     contentType = "application/xml; charset=utf-8";
   } else if (rest.length === 1 && rest[0] === "llms.txt") {
     pathname = `${base}/llms.txt`;
-    contentType = "text/plain; charset=utf-8";
+    contentType = "text/markdown; charset=utf-8";
   } else if (rest.length === 1 && rest[0] === "robots.txt") {
     pathname = `${base}/robots.txt`;
     contentType = "text/plain; charset=utf-8";
