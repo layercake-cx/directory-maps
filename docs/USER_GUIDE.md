@@ -99,7 +99,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings, analytics, plus categorisation tagging), **Email**, **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest, including Email, are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings, analytics, plus categorisation tagging), **Email**, **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, **Prominent Links**, and **Claims**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest, including Email and Claims, are owner/manager-only.
 
 ### Creating a directory
 
@@ -262,6 +262,16 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
 
 - **Accreditation schemes** — define the badges entries can hold (name, issuing body, badge image, description, verification note). Archiving a scheme hides it without losing which entries hold it; deleting it removes it from every entry that holds it.
 - **Prominent links (directory homepage)** — link tiles for the directory as a whole, separate from any single entry's own links.
+
+### Claims
+
+**Claimed Directory Listings** requires the Professional plan or above. On a directory's **Claims** tab (owners and managers only), you'll see this in progress:
+
+- **Overview** — claim activity and commercial analytics, once claiming is in use.
+- **Claims** — a searchable list of every claim against this directory's listings, once any exist.
+- **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
+
+Without the Professional plan, the tab shows an upgrade message instead of these controls. As of this release, claiming is configurable here but there's no public "Claim this listing" button yet — that, along with the rest of the claim flow, ships in later phases of this feature.
 
 ### AI content generation
 
