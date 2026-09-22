@@ -36,6 +36,33 @@ Run `_20260923130000_create_claims_schema.rollback.sql`. Safe today since every 
 
 ---
 
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 1: claims domain schema
+
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-1` (#233)](https://github.com/layercake-cx/directory-maps/pull/233)
+**Deployed by:** Claude Code, after explicit user sign-off separate from the staging push below.
+
+### What changed
+Same as the staging entry directly below — production now also has the 5 new claims tables and the 4 new `directory_entries` columns. Still no UI/RPCs reach any of it, so this is a no-op for real users until Phase 2 ships.
+
+### Database migrations applied
+- `20260923130000_create_claims_schema.sql` — production (`gxixwdjfmegxcxfeflro`). `db push --dry-run` showed only this file pending, matching staging exactly. Notice: `VERIFY PASSED: claims domain schema created`. CLI relinked back to staging immediately after.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+None.
+
+### Rollback plan
+Run `_20260923130000_create_claims_schema.rollback.sql` against production. Safe today since every new table is empty and no `directory_entries` row has been touched by this feature yet.
+
+### Verified on production
+- [x] `supabase db push --dry-run` against production showed only this one file pending
+- [x] Migration applied, `VERIFY PASSED`, no errors
+- [x] CLI relinked back to staging afterwards
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 0 foundations
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-0` (#232)](https://github.com/layercake-cx/directory-maps/pull/232)
