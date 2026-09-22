@@ -22,6 +22,7 @@ import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSear
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
 import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
+import DirectorySearchSettingsPanel from "../../components/directories/DirectorySearchSettingsPanel.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
@@ -199,6 +200,16 @@ export default function AdminDirectoryEntries() {
               <>
                 <div className="admin-card" style={{ marginBottom: 16 }}>
                   <DirectoryGeneralSettingsPanel
+                    directory={directory}
+                    directoryId={directoryId}
+                    canManage
+                    recordEvent={recordEvent}
+                    onSaved={reloadDirectory}
+                  />
+                </div>
+
+                <div className="admin-card" style={{ marginBottom: 16 }}>
+                  <DirectorySearchSettingsPanel
                     directory={directory}
                     directoryId={directoryId}
                     canManage

@@ -81,6 +81,61 @@ Run `_20260922120000_directory_site_generation_scopes.rollback.sql` on staging (
 
 ---
 
+## 2026-09-22 — [Production] Directory location search
+
+**Branch/PR:** `feat/2026-09-22-location-search` / https://github.com/layercake-cx/directory-maps/pull/228
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. Vercel production is deployed from this branch (`dpl_ETjUeSJ8qsBMZEduDAdPMZFt7fNf`), aliased to https://uk-associations.com. GitHub Pages updates when the branch is merged. A live directory still needs the **Location search** switch on and a republish before **Distance from** appears.
+
+### Database migrations applied
+- `20260922103000_directory_location_search.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory location search schema created`. CLI relinked to staging afterwards.
+
+### Edge Functions deployed
+- `resolve_directory_place` — production (`gxixwdjfmegxcxfeflro`), `--no-verify-jwt`
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Run `_20260922103000_directory_location_search.rollback.sql` on production (it refuses if any directory has the switch on, if the cache or rate-limit log has rows, or if a `directory_distance_filter` event exists). Redeploy the previous `generate_directory_site`. Republish any directory that was published with location search on.
+
+### Verified on staging
+- [x] Staging migration and both functions deployed first (see below).
+- [x] Production migration notice passed; both functions deployed.
+- [x] Vercel production deploy ready: https://uk-associations.com (deployment https://directory-maps-cg3puiu4e-layercake-apps.vercel.app).
+- [ ] Operator: turn Location search on, republish, and try a place search on a live directory.
+
+---
+
+## 2026-09-22 — [Staging] Directory location search
+
+**Branch/PR:** `feat/2026-09-22-location-search`
+**Deployed by:** Cursor Grok. Staging only. Production still needs an explicit go-ahead.
+
+### What changed
+Location search is a directory setting, off by default. On the Settings tab (client portal and admin), **Location search** can be turned on. After the directory is published again, the homepage filter rail includes **Distance from**: a town, city, or postcode, a distance of 5, 10, 25, or 50 miles, and **Use my location**. The search box can fill that filter (“ultimate frisbee near Stroud” keeps the keywords and sets the place). Listings with coordinates inside the radius are sorted by distance. The attached map follows those listings and moves the camera to the place. Known UK towns resolve in the page. Other places are resolved by `resolve_directory_place`, which caches Google Geocoding results. “Use my location” never sends the visitor’s coordinates anywhere.
+
+### Database migrations applied
+- `20260922103000_directory_location_search.sql` — staging (`beqejxneehilplrtpntn`). CLI was already linked there. `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory location search schema created`. Adds `directories.location_search_enabled` (default false), `place_geocode_cache`, `directory_place_resolve_requests`, and the `directory_distance_filter` engagement event.
+
+### Edge Functions deployed
+- `resolve_directory_place` — staging (`beqejxneehilplrtpntn`), `--no-verify-jwt`
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Reads the new column and bakes the filter into the landing page. A directory must be republished after the switch is on.
+
+Vercel preview: https://directory-maps-1z9vzjzq6-layercake-apps.vercel.app (deployment `dpl_89vbThUUweP7SWk2165N9J2xg47y`). GitHub Pages and the live domain are unchanged.
+
+### Rollback plan
+Run `_20260922103000_directory_location_search.rollback.sql` (it refuses if any directory has the switch on, if the cache or rate-limit log has rows, or if a `directory_distance_filter` event exists). Redeploy the previous `generate_directory_site`. Republish any directory that was published with location search on.
+
+### Verified on staging
+- [x] Migration dry-run, then apply on staging. Verification notice passed.
+- [x] `resolve_directory_place` and `generate_directory_site` deployed to staging. Vercel preview ready.
+- [ ] An unknown place returns coordinates and a second call is a cache hit.
+- [ ] Settings switch off: republished homepage has no Distance from filter.
+- [ ] Settings switch on: Distance from filters by radius, the search box fills it, the map camera follows, and “near me” does not leave the browser.
+
+---
+
 ## 2026-09-22 — [Production] Directory Make an Enquiry
 
 **Branch/PR:** `feat/2026-09-22-directory-enquiry`
