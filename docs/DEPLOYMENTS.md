@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Directory `llms.txt` v2 overview
+
+**Branch/PR:** `feat/2026-09-22-llms-txt`, merged as https://github.com/layercake-cx/directory-maps/pull/230 (`f3a7146`)
+**Deployed by:** Cursor agent, after an explicit go-ahead.
+
+### What changed
+The production generator now writes the short llms.txt v2 overview on the next publish that rebuilds a directory's indexes. The live site already serves `llms.txt` as `text/markdown`. Files already in storage are still the previous per-listing list until that directory is published again.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Frontend
+- Vercel production: https://directory-maps-2rzea7xlh-layercake-apps.vercel.app (`dpl_DXs7RF55q7sNr3hhmxG1FBRxtczg`), aliased to https://uk-associations.com. https://maps.layercake-cx.biz is serving this deployment too (`text/markdown` on both).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` on production. Redeploy the previous Vercel production deployment (`directory-maps-lzfuce38z-layercake-apps.vercel.app`, `dpl_2zy1AiYiz7ifSPyMf5HvwZFE4ztv`). Republish any directory that has already received the new file. No migration to roll back.
+
+### Verified on production
+- [x] Function deployed
+- [x] Branded `llms.txt` and `https://uk-associations.com/llms.txt` return `text/markdown`
+- [ ] A republish so an existing file shows the v2 overview (current files are still the previous per-listing list)
+
+---
+
 ## 2026-09-22 — [Staging] Directory `llms.txt` v2 overview
 
 **Branch/PR:** `feat/2026-09-22-llms-txt`
