@@ -8,9 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Header logo vertical margin
+
+**Branch/PR:** `feat/2026-09-22-header-logo-margin` / https://github.com/layercake-cx/directory-maps/pull/226
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. Live published HTML updates on the next directory republish.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` to production.
+
+### Verified on staging
+- [x] Staging function deployed this session.
+- [x] Production function deployed this session.
+- [ ] Operator republish, then a check of a live header.
+
+---
+
 ## 2026-09-22 — [Staging] Header logo vertical margin
 
-**Branch/PR:** `feat/2026-09-22-header-logo-margin`
+**Branch/PR:** `feat/2026-09-22-header-logo-margin` / https://github.com/layercake-cx/directory-maps/pull/226
 **Deployed by:** Cursor Grok, with explicit staging then production go-ahead in the same request.
 
 ### What changed
@@ -22,14 +46,14 @@ Already-published directories keep the old HTML until the next republish.
 None.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production not deployed yet.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). **Production deployed** — see above.
 
 ### Rollback plan
 Redeploy the previous `generate_directory_site` to staging. No database change to undo.
 
 ### Verified on staging
 - [x] Local preview: 15px margin above the header logo, 15px below it (the header's 1px bottom border sits outside that).
-- [ ] Staging function deployed.
+- [x] Staging function deployed.
 - [ ] Operator republish, then a check of a live header.
 
 ---
