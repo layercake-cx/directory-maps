@@ -103,6 +103,8 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 
 Reserved (CHECK only; not emitted until those products exist): `listing_claim_start`, `listing_claim_complete`, `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
 
+`listing_claim_start`/`listing_claim_complete` are earmarked for the Claimed Directory Listings epic's self-service "Claim this listing" flow (Phase 7) — `listing_id` set, no personal data in `meta`. See `AGENTS.md`'s admin event catalogue `claim_*` category for the corresponding authenticated-actor lifecycle events once a claim exists.
+
 ### Search events
 
 All `search` rows include `meta.query`. `meta.action` describes how the search was used:
