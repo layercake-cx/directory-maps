@@ -117,6 +117,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       await rollbackDirectoryTo(directory.id, pub.id);
       setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
       triggerDirectorySiteRegeneration(directory.id, {
+        scope: "full",
         onResult: (result) => { handleGenerationResult(`Restored version ${pub.version} and regenerated public pages.`, result); void refreshGenStatus(); },
       });
       recordEvent?.("directory_publish_rolled_back", { directory_id: directory.id, from_publication_id: directory.current_publication_id, to_publication_id: pub.id });

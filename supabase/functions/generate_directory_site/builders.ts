@@ -187,7 +187,7 @@ export type ProductTile = { entry_id: string; title: string; image_url: string |
 // content stays a readable width.
 export const BASE_STYLE = `
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--fs-base); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; position: relative; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--fs-base); -webkit-font-smoothing: antialiased; }
   h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
   h1 { font-size: var(--fs-h1); }
   h2 { font-size: var(--fs-h2); }
@@ -266,26 +266,25 @@ export const EXTRA_STYLE = `
   /* Site navigation — CSS-first so every destination is a crawlable <a href>
      even when the hamburger/dropdown is closed. Desktop dropdowns use
      :hover/:focus-within; mobile uses <details>/<summary> (no JS). */
-  /* Optional full-width hero banner (theme_json.heroBannerUrl). Sits behind
-     the glass header and the top of the page body, then fades into --bg.
-     body.has-hero-banner is added by directoryPageShell when the URL is valid. */
-  body.has-hero-banner { position: relative; }
+  /* Hero banner markup is always in the page. theme.css shows it by setting
+     --hero-banner-display and points --hero-intro-bg at transparent, so a
+     banner change does not rewrite the HTML. */
   .dir-page-banner {
+    display: var(--hero-banner-display, none);
     position: absolute; top: 0; left: 0; right: 0; z-index: 0; pointer-events: none;
     height: calc(var(--hero-banner-height, 480px) + 100px);
-    background-image: var(--hero-banner-image);
+    background-image: var(--hero-banner-image, none);
     background-size: cover; background-position: center top; background-repeat: no-repeat;
   }
   .dir-page-banner::after {
     content: ""; position: absolute; inset: 0;
     background: linear-gradient(to bottom, transparent 18%, var(--bg) 92%);
   }
-  .has-hero-banner .dir-page { position: relative; z-index: 1; }
+  .dir-page { position: relative; z-index: 1; }
   .dir-home-intro {
     position: relative; overflow: hidden;
-    background: linear-gradient(180deg, var(--sage) 0%, var(--bg) 60%);
+    background: var(--hero-intro-bg, linear-gradient(180deg, var(--sage) 0%, var(--bg) 60%));
   }
-  .has-hero-banner .dir-home-intro { background: transparent; }
   /* Header must stack above following page content. The homepage hero band is
      a later sibling with an opaque background; without a z-index the dropdown
      (and mobile panel) paint underneath it. Content pages look fine because
@@ -293,7 +292,23 @@ export const EXTRA_STYLE = `
   .dir-site-header { position: relative; z-index: 30; border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
   .dir-site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px; }
   .dir-brand { display: flex; align-items: center; gap: 12px; color: inherit; flex: none; }
-  .dir-brand__mark { display: block; margin: 15px 0; flex: none; }
+  /* Logo image, height, and whether the mark or title shows come from
+     theme.css (--logo-image, --logo-max-height, --logo-display, --title-display).
+     min-width keeps the no-logo placeholder square; a real logo's intrinsic
+     width (via content: url()) grows past that. */
+  .dir-brand__mark {
+    display: var(--logo-display, block);
+    margin: 15px 0; flex: none;
+    height: var(--logo-max-height, 84px);
+    width: auto;
+    min-width: var(--logo-max-height, 84px);
+    max-height: var(--logo-max-height, 84px);
+    object-fit: contain;
+    border-radius: var(--logo-radius, 12px);
+    background: var(--logo-fallback, var(--primary)) center / cover no-repeat;
+    content: var(--logo-image, none);
+  }
+  .dir-brand__title { display: var(--title-display, block); }
   .dir-brand:focus-visible, .dir-nav-desktop a:focus-visible, .dir-nav-mobile a:focus-visible, .dir-nav-mobile summary:focus-visible, .dir-breadcrumb a:focus-visible, .dir-footer-nav a:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 3px;
   }
@@ -384,6 +399,12 @@ const LAYOUT_STYLE = `
   .dir-rail__group:last-child { border-bottom: 0; }
   .dir-rail__label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
   .dir-select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; }
+  .dir-distance__place { width: 100%; box-sizing: border-box; padding: 9px 10px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; }
+  .dir-distance__row { display: flex; flex-direction: column; gap: 8px; }
+  .dir-distance__hint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  .dir-row__miles { display: block; font-weight: 600; color: var(--primary); }
+  .dir-also { margin-top: 28px; }
+  .dir-also__title { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--muted); }
   .dir-msel { position: relative; }
   .dir-msel__trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left; }
   .dir-msel__trigger:hover { border-color: var(--primary); }
@@ -734,9 +755,16 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
   const banner = resolvedHeroBanner(theme);
   const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
+  const logoUrl = sanitizeHttpUrl(theme.logoUrl);
+  const mode = theme.headerMode === "logo" || theme.headerMode === "text" ? theme.headerMode : "logoText";
+  const showLogo = mode !== "text";
+  const showText = theme.showHeaderTitle === false ? false : theme.showHeaderTitle === true ? true : mode !== "logo";
+  const logoVars = logoUrl
+    ? `--logo-image: url(${JSON.stringify(logoUrl)}); --logo-fallback: transparent; --logo-radius: 0px;`
+    : `--logo-image: none; --logo-fallback: var(--primary); --logo-radius: 12px;`;
   const bannerVars = banner
-    ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px;`
-    : "";
+    ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px; --hero-banner-display: block; --hero-intro-bg: transparent;`
+    : `--hero-banner-display: none;`;
   return `:root {
     --bg: ${t.backgroundColor}; --surface: ${t.surfaceColor}; --surface-2: ${t.surfaceAltColor};
     --ink: ${t.inkColor}; --muted: ${t.mutedColor}; --line: ${t.lineColor};
@@ -747,8 +775,33 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
+    --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
+    --logo-display: ${showLogo ? "block" : "none"};
+    --title-display: ${showText ? "block" : "none"};
+    ${logoVars}
     ${bannerVars}
   }`;
+}
+
+/** Google Fonts @import for the families this theme uses. Must stay the
+ * first rule in theme.css. Empty when neither family is in the catalog. */
+export function fontImportRule(theme: DirectoryTheme): string {
+  const t = resolvedTheme(theme);
+  const families = [...new Set([t.fontHeading, t.fontBody])].map((f) => FONT_CATALOG[f]).filter(Boolean);
+  if (families.length === 0) return "";
+  const query = families.map((f) => `family=${f}`).join("&");
+  return `@import url("https://fonts.googleapis.com/css2?${query}&display=swap");`;
+}
+
+/** Shared stylesheet for one published directory. Overwritten in place so a
+ * colour, type, logo, or banner change does not rewrite every HTML page. */
+export function buildThemeCss(theme: DirectoryTheme): string {
+  const font = fontImportRule(theme);
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n`;
+}
+
+export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
+  return `/directories/${clientSlug}/${directorySlug}/theme.css`;
 }
 
 /** <link> for exactly the Google Fonts families this theme actually uses —
@@ -826,9 +879,10 @@ export function directoryPageShell(opts: {
   imageUrl?: string | null;
   noindex?: boolean;
   theme?: DirectoryTheme;
+  /** Root-relative theme.css. Custom-domain middleware rewrites this to /theme.css. */
+  themeCssHref: string;
   analytics?: PageAnalytics | null;
 }): string {
-  const hasBanner = !!resolvedHeroBanner(opts.theme ?? {});
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
     : `<meta name="twitter:card" content="summary">`;
@@ -848,19 +902,14 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 <meta property="og:url" content="${escapeAttr(opts.canonicalUrl)}">
 ${ogImage}
 ${jsonLdTags}
-${fontLinkTag(opts.theme ?? {})}
+<link rel="stylesheet" href="${escapeAttr(opts.themeCssHref)}">
 ${faviconLinkTags(opts.theme ?? {})}
-<style>
-  ${themeStyleBlock(opts.theme ?? {})}
-  ${BASE_STYLE}
-  ${EXTRA_STYLE}
-  ${LAYOUT_STYLE}
-</style>
 </head>
-<body${hasBanner ? ' class="has-hero-banner"' : ""}>
-${hasBanner ? '<div class="dir-page-banner" aria-hidden="true"></div><div class="dir-page">' : ""}
+<body>
+<div class="dir-page-banner" aria-hidden="true"></div>
+<div class="dir-page">
 ${opts.body}
-${hasBanner ? "</div>" : ""}
+</div>
 ${opts.analytics ? buildSiteAnalyticsMarkup(opts.analytics) : ""}
 </body>
 </html>`;
@@ -957,29 +1006,21 @@ export function siteHeader(opts: {
   logoMaxHeight?: number;
   nav?: SiteNav | null;
 }): string {
-  const mode = opts.headerMode === "logo" || opts.headerMode === "text" ? opts.headerMode : "logoText";
   const displayTitle = opts.siteTitle?.trim() || opts.directoryName;
-  const maxHeight = clampLogoMaxHeight(opts.logoMaxHeight);
-  // A real uploaded logo keeps its own aspect ratio (height fixed, width
-  // auto) — only the no-logo placeholder is forced square, since there's
-  // no real image to preserve an aspect ratio from.
-  const logo = opts.logoUrl
-    ? `<img class="dir-brand__mark" src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;object-fit:contain;">`
-    : `<div class="dir-brand__mark" style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
-  const showLogo = mode !== "text";
-  const showText = opts.showHeaderTitle === false ? false : mode !== "logo";
-  const brand = showText
-    ? `<div style="line-height:1.05;">
+  // Mark and title are always in the HTML. theme.css decides which is
+  // visible and where the logo image comes from, so a branding change can
+  // overwrite theme.css without rewriting this header.
+  const logo = `<img class="dir-brand__mark" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">`;
+  const brand = `<div class="dir-brand__title" style="line-height:1.05;">
         <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(displayTitle)}</div>
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
-      </div>`
-    : "";
+      </div>`;
   const nav = opts.nav;
   const navHtml = nav ? `${renderDesktopNav(nav)}${renderMobileNav(nav)}` : "";
   return `<header class="dir-site-header">
   <div class="wrap dir-site-header__inner">
     <a class="dir-brand" href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}">
-      ${showLogo ? logo : ""}
+      ${logo}
       ${brand}
     </a>
     ${navHtml}
@@ -1446,6 +1487,7 @@ ${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     analytics: analytics
       ? { ...analytics, pageKind: "entry", listingId: entry.id, listingName: entry.name }
       : null,
@@ -1610,6 +1652,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
     body,
     noindex: !!page.noindex,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     analytics: analytics ? { ...analytics, pageKind: "content" } : null,
   });
 }
@@ -1638,8 +1681,24 @@ export type FilterBarCategorisation = {
  * (via data-term-ids baked into each row) and, when a map is attached,
  * posts the same selection into its <iframe> so one filter action drives
  * both (see buildFilterAndSearchScript below). */
-export function filterRail(categorisations: FilterBarCategorisation[]): string {
-  if (categorisations.length === 0) return "";
+export function filterRail(categorisations: FilterBarCategorisation[], locationSearch = false): string {
+  if (categorisations.length === 0 && !locationSearch) return "";
+  const distanceGroup = locationSearch
+    ? `<div class="dir-rail__group" id="dir-distance">
+  <span class="dir-rail__label">Distance from</span>
+  <input type="text" id="dir-distance-place" class="dir-distance__place" placeholder="Town, city, or postcode" autocomplete="off" aria-label="Distance from">
+  <div class="dir-distance__row">
+    <select id="dir-distance-miles" class="dir-select" aria-label="Distance">
+      <option value="5">5 miles</option>
+      <option value="10" selected>10 miles</option>
+      <option value="25">25 miles</option>
+      <option value="50">50 miles</option>
+    </select>
+    <button type="button" class="btn btn-ghost" id="dir-distance-me">Use my location</button>
+  </div>
+  <p class="dir-distance__hint" id="dir-distance-hint" hidden></p>
+</div>`
+    : "";
   const groups = categorisations
     .map((cat) => {
       if (cat.field_type === "boolean") {
@@ -1698,7 +1757,7 @@ export function filterRail(categorisations: FilterBarCategorisation[]): string {
   <button type="button" class="dir-clear-all" id="dir-drawer-clear">Clear</button>
   <button type="button" class="btn btn-primary" id="dir-drawer-show">Show <span id="dir-drawer-count"></span></button>
 </div>`;
-  return `<aside id="dir-filter-rail" class="dir-rail">${drawerHeader}${groups}</aside>`;
+  return `<aside id="dir-filter-rail" class="dir-rail">${drawerHeader}${distanceGroup}${groups}</aside>`;
 }
 
 // Ported from the Claude Design concept's own logic class (design doc:
@@ -1751,6 +1810,15 @@ export type AiSearchOptions = {
   enabled: boolean;
   supabaseUrl: string;
   supabaseAnonKey: string;
+};
+
+/** Baked into the landing page only when directories.location_search_enabled is on. */
+export type LocationSearchOptions = {
+  directoryId: string;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  region: string | null;
+  places: Record<string, { lat: number; lng: number; label: string }>;
 };
 
 export function parseDirectoryDestinations(raw: unknown): SiteAnalyticsDestination[] {
@@ -1962,7 +2030,7 @@ function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
  * Search is always local keyword matching over the full-listing haystack.
  * When aiSearch.enabled, Help me choose can additionally restrict the
  * shown set to directory_ai_search's returned ids (same apply() path). */
-export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null): string {
+export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null, locationSearch: LocationSearchOptions | null = null): string {
   const catsMeta = categorisations.map((c) => ({
     id: c.id,
     key: c.key,
@@ -1978,6 +2046,23 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var STOPWORDS = ${embedJson(SEARCH_STOPWORDS)};
   var stopwordSet = {};
   STOPWORDS.forEach(function (w) { stopwordSet[w] = true; });
+
+  var LOCATION_SEARCH = ${embedJson(!!locationSearch)};
+  var PLACES = ${embedJson(locationSearch?.places ?? {})};
+  var AMBIGUOUS = ${embedJson(["bath", "reading", "deal", "sale", "wellington", "rugby"])};
+  var PLACE_REGION = ${embedJson(locationSearch?.region ?? null)};
+  var RESOLVE_URL = ${embedJson(locationSearch ? locationSearch.supabaseUrl + "/functions/v1/resolve_directory_place" : null)};
+  var RESOLVE_ANON_KEY = ${embedJson(locationSearch?.supabaseAnonKey ?? null)};
+  var RESOLVE_DIRECTORY_ID = ${embedJson(locationSearch?.directoryId ?? null)};
+  var MILE_STEPS = [5, 10, 25, 50];
+  var distanceMiles = 10;
+  var distanceOrigin = null;
+  var distanceLabel = "";
+  var distanceQuery = "";
+  var distanceNearMe = false;
+  var distanceResolveToken = 0;
+  var searchPlaceTimer = null;
+  var lastDistanceLogged = "";
 
   var AI_SEARCH_ENABLED = ${embedJson(!!aiSearch?.enabled)};
   var AI_SEARCH_DIRECTORY_ID = ${embedJson(aiSearch?.directoryId ?? null)};
@@ -2026,6 +2111,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var drawerClearBtn = document.getElementById('dir-drawer-clear');
   var drawerShowBtn = document.getElementById('dir-drawer-show');
   var drawerCountEl = document.getElementById('dir-drawer-count');
+  var placeInput = document.getElementById('dir-distance-place');
+  var milesSelect = document.getElementById('dir-distance-miles');
+  var nearMeBtn = document.getElementById('dir-distance-me');
+  var distanceHint = document.getElementById('dir-distance-hint');
+  var alsoWrap = document.getElementById('dir-also');
+  var alsoRows = document.getElementById('dir-also-rows');
+  var emptyTitle = document.getElementById('dir-empty-title');
 
   var active = {}; // catId -> string[] of selected term ids
   var view = 'list';
@@ -2050,6 +2142,233 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function tokens(q) {
     var m = q.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
     return m.filter(function (t) { return !stopwordSet[t]; });
+  }
+
+  function placeKey(s) {
+    return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\\s+/g, ' ').trim();
+  }
+  function lookupPlace(raw) {
+    var key = placeKey(raw);
+    if (key && PLACES[key]) return PLACES[key];
+    var outward = key.toUpperCase().match(/^(?:GIR|[A-PR-UWYZ][A-HK-Y]?[0-9][0-9A-HJKMNPR-Y]?)/);
+    if (outward && PLACES[outward[0].toLowerCase()]) return PLACES[outward[0].toLowerCase()];
+    return null;
+  }
+  function nearestMiles(n) {
+    var best = 10;
+    var bestD = 1e9;
+    for (var i = 0; i < MILE_STEPS.length; i++) {
+      var d = Math.abs(MILE_STEPS[i] - n);
+      if (d < bestD) { bestD = d; best = MILE_STEPS[i]; }
+    }
+    return best;
+  }
+  function isAmbiguous(phrase) {
+    return AMBIGUOUS.indexOf(phrase) !== -1;
+  }
+  var POSTCODE_RE = /\\b((?:GIR|[A-PR-UWYZ][A-HK-Y]?[0-9][0-9A-HJKMNPR-Y]?))(?:\\s*([0-9][ABD-HJLNP-UW-Z]{2}))?\\b/i;
+  function parseLocationQuery(raw) {
+    raw = String(raw || '').trim();
+    if (!LOCATION_SEARCH || !raw) return null;
+    var lower = raw.toLowerCase();
+    var nearMe = lower.match(/^(.*?)(?:\\b(?:near me|nearby|close to me)\\b)(.*)$/);
+    if (nearMe) {
+      return { kind: 'near_me', rest: (nearMe[1] + ' ' + nearMe[2]).replace(/\\s+/g, ' ').trim(), miles: null };
+    }
+    var within = lower.match(/^(.*?)\\bwithin\\s+(\\d+(?:\\.\\d+)?)\\s*(miles|mile|km|kilometres|kilometers)\\s+of\\s+(.+)$/);
+    if (within) {
+      var n = parseFloat(within[2]);
+      if (within[3].charAt(0) === 'k') n = n * 0.621371;
+      return {
+        kind: 'place',
+        place: raw.slice(raw.length - within[4].length).trim(),
+        rest: raw.slice(0, raw.length - within[4].length).replace(/\\bwithin\\s+\\d+(?:\\.\\d+)?\\s*(?:miles|mile|km|kilometres|kilometers)\\s+of\\s*$/i, '').trim(),
+        miles: nearestMiles(n),
+        allowRemote: true
+      };
+    }
+    var cue = lower.match(/^(.*?)(?:\\b(?:near|around|close to)\\s+)(.+)$/);
+    if (cue && cue[2].trim()) {
+      var cued = raw.slice(raw.length - cue[2].length).trim();
+      var cueRest = raw.slice(0, raw.length - cue[2].length).replace(/\\b(?:near|around|close to)\\s*$/i, '').trim();
+      return { kind: 'place', place: cued, rest: cueRest, miles: null, allowRemote: true };
+    }
+    var pc = raw.match(POSTCODE_RE);
+    if (pc) {
+      return { kind: 'place', place: pc[0].trim(), rest: raw.replace(pc[0], ' ').replace(/\\s+/g, ' ').trim(), miles: null, allowRemote: true };
+    }
+    var inn = lower.match(/^(.*?)(?:\\bin\\s+)(.+)$/);
+    if (inn && inn[2].trim()) {
+      var inPlace = raw.slice(raw.length - inn[2].length).trim();
+      var inHit = lookupPlace(inPlace);
+      if (inHit || inPlace.match(POSTCODE_RE)) {
+        return { kind: 'place', place: inPlace, rest: inn[1].trim(), miles: null, allowRemote: !inHit };
+      }
+    }
+    var words = lower.split(/[^a-z0-9]+/).filter(Boolean);
+    for (var len = Math.min(3, words.length); len >= 1; len--) {
+      for (var i = words.length - len; i >= 0; i--) {
+        var phrase = words.slice(i, i + len).join(' ');
+        if (isAmbiguous(phrase) || !PLACES[phrase]) continue;
+        var restWords = words.slice(0, i).concat(words.slice(i + len));
+        return { kind: 'place', place: phrase, rest: restWords.join(' '), miles: null, allowRemote: false };
+      }
+    }
+    return null;
+  }
+  function keywordQuery() {
+    var q = input ? input.value.trim() : '';
+    if (!LOCATION_SEARCH) return q;
+    var parsed = parseLocationQuery(q);
+    if (parsed && typeof parsed.rest === 'string') return parsed.rest;
+    return q;
+  }
+  function showHint(msg) {
+    if (!distanceHint) return;
+    if (!msg) { distanceHint.hidden = true; distanceHint.textContent = ''; return; }
+    distanceHint.hidden = false;
+    distanceHint.textContent = msg;
+  }
+  function setMilesSelect() {
+    if (milesSelect) milesSelect.value = String(distanceMiles);
+  }
+  function milesBetween(a, b) {
+    var toRad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * toRad;
+    var dLng = (b.lng - a.lng) * toRad;
+    var lat1 = a.lat * toRad;
+    var lat2 = b.lat * toRad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * 3958.8 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function formatMiles(d) {
+    if (d < 0.1) return 'Under 0.1 miles';
+    var n = d < 10 ? Math.round(d * 10) / 10 : Math.round(d);
+    return n + (n === 1 ? ' mile' : ' miles');
+  }
+  function emitDistanceFilter() {
+    if (!window.dmRecordEngagement) return;
+    var payload = distanceLabel
+      ? { place_label: distanceNearMe ? 'near_me' : String(distanceLabel).slice(0, 120), radius_miles: distanceMiles }
+      : { place_label: '', radius_miles: null };
+    var sig = JSON.stringify(payload);
+    if (sig === lastDistanceLogged) return;
+    lastDistanceLogged = sig;
+    window.dmRecordEngagement('directory_distance_filter', { meta: payload });
+  }
+  function setOrigin(origin, label) {
+    distanceOrigin = origin;
+    distanceLabel = label || '';
+    if (label) distanceQuery = placeKey(label);
+    apply();
+  }
+  function clearDistance(log) {
+    distanceOrigin = null;
+    distanceLabel = '';
+    distanceQuery = '';
+    distanceNearMe = false;
+    distanceResolveToken++;
+    if (searchPlaceTimer) { clearTimeout(searchPlaceTimer); searchPlaceTimer = null; }
+    if (placeInput) placeInput.value = '';
+    showHint('');
+    if (log) emitDistanceFilter();
+  }
+  function resolveRemote(place) {
+    if (!RESOLVE_URL || !RESOLVE_ANON_KEY) {
+      showHint('Could not find that place. Try a nearby town or postcode.');
+      apply();
+      return;
+    }
+    var token = ++distanceResolveToken;
+    showHint('Finding ' + place + '\\u2026');
+    fetch(RESOLVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': RESOLVE_ANON_KEY, 'Authorization': 'Bearer ' + RESOLVE_ANON_KEY },
+      body: JSON.stringify({ directory_id: RESOLVE_DIRECTORY_ID, place: place, region: PLACE_REGION })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (body) {
+        if (token !== distanceResolveToken) return;
+        if (!body || !body.ok || typeof body.lat !== 'number' || typeof body.lng !== 'number') {
+          distanceOrigin = null;
+          showHint('Could not find that place. Try a nearby town or postcode.');
+          apply();
+          return;
+        }
+        if (placeInput && !distanceNearMe) placeInput.value = body.label || place;
+        showHint('');
+        setOrigin({ lat: body.lat, lng: body.lng }, body.label || place);
+      })
+      .catch(function () {
+        if (token !== distanceResolveToken) return;
+        distanceOrigin = null;
+        showHint('Could not find that place. Try a nearby town or postcode.');
+        apply();
+      });
+  }
+  function requestNearMe() {
+    distanceNearMe = true;
+    distanceQuery = 'me';
+    distanceLabel = 'Your location';
+    if (placeInput) placeInput.value = 'Your location';
+    distanceResolveToken++;
+    if (!navigator.geolocation) {
+      distanceOrigin = null;
+      showHint('Location is not available in this browser. Type a town instead.');
+      apply();
+      return;
+    }
+    showHint('Finding your location\\u2026');
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      showHint('');
+      setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'Your location');
+    }, function () {
+      distanceOrigin = null;
+      showHint('Allow location to search near you, or type a town.');
+      apply();
+    }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  }
+  function applyParsed(parsed) {
+    if (!parsed) return;
+    if (parsed.miles) {
+      distanceMiles = parsed.miles;
+      setMilesSelect();
+    }
+    if (parsed.kind === 'near_me') {
+      if (!distanceNearMe) requestNearMe();
+      return;
+    }
+    var key = placeKey(parsed.place);
+    if (!distanceNearMe && distanceQuery === key && distanceOrigin) {
+      if (parsed.miles) apply();
+      return;
+    }
+    distanceNearMe = false;
+    distanceQuery = key;
+    var local = lookupPlace(parsed.place);
+    var label = local ? local.label : parsed.place;
+    if (placeInput) placeInput.value = label;
+    if (local) {
+      if (searchPlaceTimer) { clearTimeout(searchPlaceTimer); searchPlaceTimer = null; }
+      showHint('');
+      setOrigin(local, local.label);
+    } else if (parsed.allowRemote && key.length >= 3) {
+      if (placeInput) placeInput.value = label;
+      if (searchPlaceTimer) clearTimeout(searchPlaceTimer);
+      searchPlaceTimer = setTimeout(function () {
+        searchPlaceTimer = null;
+        var again = parseLocationQuery(input ? input.value : '');
+        if (!again || again.kind === 'near_me' || placeKey(again.place) !== key) return;
+        distanceOrigin = null;
+        distanceLabel = label;
+        resolveRemote(again.place);
+      }, 400);
+    } else {
+      distanceOrigin = null;
+      distanceLabel = '';
+      if (placeInput) placeInput.value = '';
+      showHint('');
+    }
   }
 
   function rowTermIds(row) {
@@ -2092,6 +2411,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
   function renderChips() {
     var activeFacetCount = Object.keys(active).filter(function (catId) { return (active[catId] || []).length > 0; }).length;
+    if (distanceLabel) activeFacetCount++;
     if (filtersBadgeEl) filtersBadgeEl.textContent = activeFacetCount ? '(' + activeFacetCount + ')' : '';
     if (!chipsEl) return;
     chipsEl.innerHTML = '';
@@ -2122,6 +2442,25 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         chipsEl.appendChild(chip);
       });
     });
+    if (distanceLabel && distanceOrigin) {
+      any = true;
+      var distLabel = 'Within ' + distanceMiles + ' miles of ' + distanceLabel;
+      var distChip = document.createElement('span');
+      distChip.className = 'dir-active-chip';
+      var distText = document.createElement('span');
+      distText.textContent = distLabel;
+      var distRemove = document.createElement('button');
+      distRemove.type = 'button';
+      distRemove.setAttribute('aria-label', 'Remove ' + distLabel);
+      distRemove.textContent = '\\u00d7';
+      distRemove.addEventListener('click', function () {
+        clearDistance(true);
+        apply();
+      });
+      distChip.appendChild(distText);
+      distChip.appendChild(distRemove);
+      chipsEl.appendChild(distChip);
+    }
     if (clearAllBtn) clearAllBtn.hidden = !any && !(input && input.value.trim()) && !resultEntryIds;
   }
 
@@ -2142,6 +2481,10 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         var slugs = ids.map(function (id) { var t = termById(cat, id); return t ? t.slug : null; }).filter(Boolean);
         if (slugs.length) params.set(cat.key, slugs.join(','));
       });
+      if (LOCATION_SEARCH && distanceLabel) {
+        params.set('near', distanceNearMe ? 'me' : distanceLabel);
+        params.set('miles', String(distanceMiles));
+      }
       if (view !== 'list') params.set('view', view);
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
@@ -2152,9 +2495,11 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
   function apply() {
     var q = input ? input.value.trim() : '';
-    var toks = tokens(q);
+    var toks = tokens(keywordQuery());
     var shown = 0;
+    var alsoCount = 0;
     var shownIds = [];
+    var distanceOn = !!(LOCATION_SEARCH && distanceOrigin && distanceLabel);
 
     rows.forEach(function (row) {
       var terms = rowTermIds(row);
@@ -2177,9 +2522,40 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         searchMatch = score > 0;
         order = -score;
       }
-      var match = searchMatch && categoryMatch;
-      row.style.display = match ? '' : 'none';
-      row.style.order = match ? String(order) : '';
+      var textMatch = searchMatch && categoryMatch;
+      var lat = parseFloat(row.getAttribute('data-lat'));
+      var lng = parseFloat(row.getAttribute('data-lng'));
+      var hasCoords = isFinite(lat) && isFinite(lng);
+      var dist = distanceOn && hasCoords ? milesBetween(distanceOrigin, { lat: lat, lng: lng }) : null;
+      var inRadius = !distanceOn || (dist != null && dist <= distanceMiles);
+      var also = distanceOn && textMatch && !hasCoords;
+      var match = textMatch && inRadius && !also;
+      var milesEl = row.querySelector('.dir-row__miles');
+      if (milesEl) {
+        if (match && dist != null) {
+          milesEl.hidden = false;
+          milesEl.textContent = formatMiles(dist) + ' away';
+        } else {
+          milesEl.hidden = true;
+          milesEl.textContent = '';
+        }
+      }
+      if (match) {
+        if (rowsWrap && row.parentElement !== rowsWrap) rowsWrap.appendChild(row);
+        row.style.display = '';
+        row.style.order = String(distanceOn && dist != null ? Math.round(dist * 10) : order);
+        shown++;
+        shownIds.push(entryId);
+      } else if (also && alsoRows) {
+        if (row.parentElement !== alsoRows) alsoRows.appendChild(row);
+        row.style.display = '';
+        row.style.order = '';
+        alsoCount++;
+      } else {
+        if (rowsWrap && row.parentElement !== rowsWrap) rowsWrap.appendChild(row);
+        row.style.display = 'none';
+        row.style.order = '';
+      }
       var whyEl = row.querySelector('.dir-row__why');
       if (whyEl) {
         var reason = match && resultEntryIds && aiReasons[entryId] ? aiReasons[entryId] : '';
@@ -2191,15 +2567,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
           whyEl.textContent = '';
         }
       }
-      if (match) {
-        shown++;
-        shownIds.push(entryId);
-      }
     });
 
     if (countEl) {
       var line;
-      if (resultEntryIds) {
+      if (distanceOn) {
+        line = shown + (shown === 1 ? ' entry' : ' entries') + ' within ' + distanceMiles + ' miles of ' + distanceLabel;
+      } else if (resultEntryIds) {
         line = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
       } else if (q) {
         line = shown + (shown === 1 ? ' entry matches \\u201c' + q + '\\u201d' : ' entries match \\u201c' + q + '\\u201d');
@@ -2213,7 +2587,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (mapCountEl) mapCountEl.textContent = shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
     if (drawerCountEl) drawerCountEl.textContent = String(shown);
     if (rowsWrap) rowsWrap.hidden = shown === 0;
-    if (emptyEl) emptyEl.hidden = shown !== 0;
+    if (alsoWrap) alsoWrap.hidden = alsoCount === 0;
+    if (emptyTitle) {
+      emptyTitle.textContent = distanceOn && shown === 0
+        ? 'Nothing within ' + distanceMiles + ' miles. Try a larger distance.'
+        : 'Nothing matches these filters';
+    }
+    if (emptyEl) emptyEl.hidden = shown !== 0 || alsoCount !== 0;
     if (toolbarHelpBtn) toolbarHelpBtn.hidden = !AI_SEARCH_ENABLED || !!resultEntryIds || shown === 0;
 
     if (aiBanner) {
@@ -2247,8 +2627,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function matchingIdsIgnoringAi() {
-    var q = input ? input.value.trim() : '';
-    var toks = tokens(q);
+    var toks = tokens(keywordQuery());
     var ids = [];
     rows.forEach(function (row) {
       var terms = rowTermIds(row);
@@ -2264,7 +2643,14 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
         searchMatch = score > 0;
       }
-      if (searchMatch && categoryMatch) ids.push(row.getAttribute('data-entry-id'));
+      var textMatch = searchMatch && categoryMatch;
+      var lat = parseFloat(row.getAttribute('data-lat'));
+      var lng = parseFloat(row.getAttribute('data-lng'));
+      var hasCoords = isFinite(lat) && isFinite(lng);
+      var distanceOn = !!(LOCATION_SEARCH && distanceOrigin && distanceLabel);
+      var dist = distanceOn && hasCoords ? milesBetween(distanceOrigin, { lat: lat, lng: lng }) : null;
+      var inRadius = !distanceOn || (dist != null && dist <= distanceMiles);
+      if (textMatch && inRadius && !(distanceOn && !hasCoords)) ids.push(row.getAttribute('data-entry-id'));
     });
     return ids;
   }
@@ -2272,7 +2658,11 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   ${hasMap ? `
   function postToMap(shownIds) {
     if (!mapFrame || !mapFrame.contentWindow) return;
-    mapFrame.contentWindow.postMessage({ type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [] }, '*');
+    var msg = { type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [] };
+    if (LOCATION_SEARCH && distanceOrigin) {
+      msg.focus = { lat: distanceOrigin.lat, lng: distanceOrigin.lng, radiusMiles: distanceMiles };
+    }
+    mapFrame.contentWindow.postMessage(msg, '*');
   }
   ` : ""}
 
@@ -2419,6 +2809,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
   function scheduleSearch(immediate) {
     var q = input ? input.value.trim() : '';
+    if (LOCATION_SEARCH) applyParsed(parseLocationQuery(q));
     if (resultEntryIds) {
       resultEntryIds = null;
       aiReasons = {};
@@ -2469,6 +2860,48 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   if (form && input) {
     form.addEventListener('submit', function (e) { e.preventDefault(); scheduleSearch(true); });
     input.addEventListener('input', function () { scheduleSearch(false); });
+  }
+  if (milesSelect) {
+    milesSelect.addEventListener('change', function () {
+      var n = parseInt(milesSelect.value, 10);
+      if (MILE_STEPS.indexOf(n) !== -1) distanceMiles = n;
+      if (distanceLabel) emitDistanceFilter();
+      apply();
+    });
+  }
+  if (nearMeBtn) {
+    nearMeBtn.addEventListener('click', function () {
+      requestNearMe();
+      emitDistanceFilter();
+    });
+  }
+  var placeTimer = null;
+  if (placeInput) {
+    placeInput.addEventListener('input', function () {
+      distanceNearMe = false;
+      if (placeTimer) clearTimeout(placeTimer);
+      placeTimer = setTimeout(function () {
+        var text = placeInput.value.trim();
+        distanceResolveToken++;
+        if (!text) {
+          clearDistance(true);
+          apply();
+          return;
+        }
+        distanceQuery = placeKey(text);
+        var local = lookupPlace(text);
+        if (local) {
+          showHint('');
+          setOrigin(local, local.label);
+          emitDistanceFilter();
+          return;
+        }
+        distanceOrigin = null;
+        distanceLabel = text;
+        resolveRemote(text);
+        emitDistanceFilter();
+      }, 400);
+    });
   }
   document.querySelectorAll('[data-hmc-open]').forEach(function (btn) {
     btn.addEventListener('click', function () { startHelpMeChoose(); });
@@ -2566,6 +2999,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function clearAll() {
     active = {};
     if (input) input.value = '';
+    if (LOCATION_SEARCH) clearDistance(true);
     clearAiState();
     setRowControlState();
     apply();
@@ -2589,6 +3023,22 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       if (ids.length) active[cat.id] = ids;
     });
     setRowControlState();
+    if (LOCATION_SEARCH) {
+      var milesParam = parseInt(params.get('miles'), 10);
+      if (MILE_STEPS.indexOf(milesParam) !== -1) {
+        distanceMiles = milesParam;
+        setMilesSelect();
+      }
+      var near = params.get('near');
+      if (near === 'me') requestNearMe();
+      else if (near) {
+        if (placeInput) placeInput.value = near;
+        distanceQuery = placeKey(near);
+        var restored = lookupPlace(near);
+        if (restored) setOrigin(restored, restored.label);
+        else resolveRemote(near);
+      }
+    }
     var v = params.get('view');
     if (v === 'map' && mapPane) setView('map');
   })();
@@ -2639,10 +3089,11 @@ export function buildDirectoryLandingPage(opts: {
   seoImageUrl?: string | null;
   seoNoindex?: boolean;
   aiSearch?: AiSearchOptions | null;
+  locationSearch?: LocationSearchOptions | null;
   nav?: SiteNav | null;
   analytics?: SiteAnalytics | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, nav, analytics } = opts;
+  const { clientSlug, directorySlug, directoryName, directoryDescription, entries, directoryLinks, theme, attachedMapEmbedSrc, categorisations, entryTermIds, seoTitle, seoDescription, seoImageUrl, seoNoindex, aiSearch, locationSearch, nav, analytics } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
@@ -2669,6 +3120,10 @@ export function buildDirectoryLandingPage(opts: {
       const searchHaystack = buildSearchHaystack(e, terms.map((t) => t.label));
       const searchText = escapeAttr(searchHaystack);
       const termIdsAttr = escapeAttr(termIds.join(","));
+      const coordAttr = locationSearch && typeof e.lat === "number" && typeof e.lng === "number" && Number.isFinite(e.lat) && Number.isFinite(e.lng)
+        ? ` data-lat="${e.lat}" data-lng="${e.lng}"`
+        : "";
+      const milesHtml = locationSearch ? `<span class="dir-row__miles" hidden></span>` : "";
       const panelImageUrl = e.panel_image_url || e.logo_url;
       const logo = panelImageUrl
         ? `<img src="${escapeAttr(panelImageUrl)}" alt="${escapeAttr(e.name)} logo" loading="lazy">`
@@ -2679,11 +3134,12 @@ export function buildDirectoryLandingPage(opts: {
         ? `<div class="dir-row__meta">${location ? `<span>${escapeHtml(location)}</span>` : ""}${asideTerm ? `<strong>${escapeHtml(asideTerm.label)}</strong>` : ""}</div>`
         : "";
 
-      return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}">
+      return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}"${coordAttr}>
   <div class="dir-row__logo"${panelBoxStyle}>${logo}</div>
   <div class="dir-row__body">
     <h3>${escapeHtml(e.name)}</h3>
     ${e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
+    ${milesHtml}
     ${metaHtml}
     ${tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
     <p class="dir-row__why" hidden></p>
@@ -2724,7 +3180,7 @@ export function buildDirectoryLandingPage(opts: {
     ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1&hideListPanel=1`
     : null;
   const hasMap = !!mapEmbedSrcWithFlag;
-  const rail = filterRail(categorisations);
+  const rail = filterRail(categorisations, !!locationSearch);
 
   const viewToggle = hasMap
     ? `<div class="dir-seg" id="dir-view-toggle">
@@ -2791,8 +3247,12 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
         <div class="dir-rows" id="dir-rows">
           ${rows}
         </div>
+        ${locationSearch ? `<div class="dir-also" id="dir-also" hidden>
+          <p class="dir-also__title">Also matching your words</p>
+          <div class="dir-rows" id="dir-also-rows"></div>
+        </div>` : ""}
         <div class="dir-empty" id="dir-empty" hidden>
-          <p style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
+          <p id="dir-empty-title" style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
           <button type="button" class="btn btn-ghost" id="dir-empty-clear">Clear all filters</button>
         </div>
       </div>
@@ -2815,7 +3275,8 @@ ${aiSearch?.enabled ? `<div id="dir-hmc-backdrop" class="dir-hmc-backdrop">
     </form>
   </div>
 </div>` : ""}
-${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
+${locationSearch ? "<!-- Place names: GeoNames (https://www.geonames.org/), CC-BY 4.0 -->" : ""}
+${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, locationSearch ?? null)}
 `.trim();
 
   return directoryPageShell({
@@ -2825,6 +3286,7 @@ ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null)}
     jsonLd,
     body,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     imageUrl: seoImageUrl ?? null,
     noindex: !!seoNoindex,
     analytics: analytics ? { ...analytics, pageKind: "landing" } : null,

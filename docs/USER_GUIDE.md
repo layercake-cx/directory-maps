@@ -159,7 +159,15 @@ Sent enquiries are listed at the bottom of the tab (the latest 20).
 
 > **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
 
-On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to make the directory and its entries live — this snapshots the directory's own settings and your categorisation taxonomy, but always shows the entries as they currently stand, so editing an entry after publishing goes live immediately without needing to publish again. Publishing history is kept as a list of versions; **Restore** on an earlier version publishes a new version with that version's settings back — it never deletes anything.
+On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to snapshot the directory's settings and categorisation taxonomy and to update the public pages. Editing an entry, a content page, branding, or search settings does not change the live site until you publish again.
+
+Publish rewrites only the pages affected by what changed since the last successful generation:
+
+- **Colours, fonts, the logo image, logo height, and the hero banner** update one shared stylesheet. The pages themselves stay as they are.
+- **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and the AI index).
+- **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
+
+The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the enquiry button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
 
 Each publish also regenerates `sitemap.xml`. Every listed URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
 
@@ -185,7 +193,7 @@ On a directory's **Branding** tab (owners and managers only), the panel sets the
 - **Typography** is its own section: pick a **heading font** and **body font** from a curated list of ~45 Google Fonts, and set the **base text size** plus **H1/H2/H3 sizes**. Every heading on the published site (entry titles, section headings, the homepage title) scales proportionally from these, so the relative sizing between, say, a homepage title and an entry title stays the same — only the overall scale changes.
 - **Presets** — a fourth section, below Typography: type a name and click **Save current as preset** to save the current unsaved draft as a reusable, organisation-wide preset (visible from any of your directories, not just this one). Every saved preset appears in a list alongside the 5 built-in ones, each with a small colour-swatch preview; click **Apply** on any of them (built-in or saved) to fill the draft above with its values — like the Theme preset dropdown, this only updates the draft, so click **Save branding** afterward to persist it. Saved presets can also be **Renamed** or **Deleted**; built-in presets can't. Applying a preset is a one-time copy, not a link — editing or deleting a saved preset later never changes a directory that already applied it.
 - **Contrast warnings**: next to each text and link colour field, a small ✓ or ⚠ badge shows its contrast ratio against that region's background (e.g. header text vs the header background, a link vs its region's background) — ✓ means it meets WCAG AA, ⚠ means it doesn't. This is a warning only; it never blocks saving, since a client may have their own brand reasons for a colour choice.
-- Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically.
+- Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically. A colour, font, logo, or banner change updates the shared stylesheet. Changing the **site title** wording or the **favicon** rewrites the public pages.
 
 Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
 

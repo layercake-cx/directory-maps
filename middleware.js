@@ -174,6 +174,9 @@ async function handleCustomDomain(host, segments, blobBase) {
   } else if (segments.length === 1 && segments[0] === "sitemap.xml") {
     pathname = `${basePath}/sitemap.xml`;
     contentType = "application/xml; charset=utf-8";
+  } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "theme.css") {
+    pathname = `${basePath}/theme.css`;
+    contentType = "text/css; charset=utf-8";
   } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "llms.txt") {
     pathname = `${basePath}/llms.txt`;
     contentType = "text/plain; charset=utf-8";
@@ -195,7 +198,7 @@ async function handleCustomDomain(host, segments, blobBase) {
 
   const html = await fetchBlobHtml(blobBase, pathname);
   if (html == null) {
-    if (contentType.includes("xml") || contentType.includes("text/plain")) return new Response("", { status: 404 });
+    if (contentType.includes("xml") || contentType.includes("text/plain") || contentType.includes("text/css")) return new Response("", { status: 404 });
 
     // Directory entries can be renamed — check the redirect manifest before
     // giving up, same mechanism as the branded-domain directory routes.
@@ -205,7 +208,8 @@ async function handleCustomDomain(host, segments, blobBase) {
       segments.length <= 2 &&
       segments[0] !== "sitemap.xml" &&
       segments[0] !== "llms.txt" &&
-      segments[0] !== "robots.txt"
+      segments[0] !== "robots.txt" &&
+      segments[0] !== "theme.css"
     ) {
       const redirectsJson = await fetchBlobHtml(blobBase, `${basePath}/redirects.json`);
       if (redirectsJson != null) {
@@ -222,7 +226,8 @@ async function handleCustomDomain(host, segments, blobBase) {
 
     return htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
   }
-  return new Response(rewriteForCustomDomain(html, host, domain), {
+  const body = contentType.startsWith("text/css") ? html : rewriteForCustomDomain(html, host, domain);
+  return new Response(body, {
     status: 200,
     headers: { "content-type": contentType },
   });
@@ -292,6 +297,9 @@ async function handleDirectorySite(segments, blobBase) {
   if (rest.length === 0) {
     pathname = `${base}/index.html`;
     contentType = "text/html; charset=utf-8";
+  } else if (rest.length === 1 && rest[0] === "theme.css") {
+    pathname = `${base}/theme.css`;
+    contentType = "text/css; charset=utf-8";
   } else if (rest.length === 1 && rest[0] === "sitemap.xml") {
     pathname = `${base}/sitemap.xml`;
     contentType = "application/xml; charset=utf-8";
@@ -312,7 +320,7 @@ async function handleDirectorySite(segments, blobBase) {
   // Stale/renamed entry or content-page URL — check the pre-generated
   // redirect manifest (docs/DIRECTORIES.md §5.11) before giving up. Landing,
   // sitemap.xml, robots.txt and llms.txt are never redirect targets.
-  const isHtmlPage = rest.length >= 1 && rest[0] !== "sitemap.xml" && rest[0] !== "llms.txt" && rest[0] !== "robots.txt";
+  const isHtmlPage = rest.length >= 1 && rest[0] !== "sitemap.xml" && rest[0] !== "llms.txt" && rest[0] !== "robots.txt" && rest[0] !== "theme.css";
   if (isHtmlPage) {
     const redirectsJson = await fetchBlobHtml(blobBase, `${base}/redirects.json`);
     if (redirectsJson != null) {

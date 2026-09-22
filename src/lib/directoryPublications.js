@@ -55,8 +55,11 @@ export function buildDirectoryPublicationConfig({ directory, categorisations }) 
  * specifically so callers can surface that distinction instead of silently
  * reporting success.
  */
-export function triggerDirectorySiteRegeneration(directoryId, { onResult } = {}) {
-  const attempt = () => invokeFunction("generate_directory_site", { body: { directory_id: directoryId } });
+export function triggerDirectorySiteRegeneration(directoryId, { onResult, scope, entryIds } = {}) {
+  const body = { directory_id: directoryId };
+  if (scope) body.scope = scope;
+  if (entryIds?.length) body.entry_ids = entryIds;
+  const attempt = () => invokeFunction("generate_directory_site", { body });
   const report = (res) => {
     if (res?.error) throw res.error;
     onResult?.(res?.data ?? null);
