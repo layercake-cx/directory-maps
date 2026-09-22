@@ -8,6 +8,79 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Scoped directory publishing
+
+**Branch/PR:** `fix/2026-09-22-directory-site-scopes` (frontend deploy also kept the location-search UI that was already live)
+**Deployed by:** Cursor agent, after an explicit go-ahead.
+
+### What changed
+The scoped publisher is now the production generator. A large directory is no longer loaded as one URL of every entry id. Publish rewrites only what changed: `theme.css` for colours, type, logo, and banner; the homepage and indexes for search and filters; one entry page plus the homepage and indexes for an entry edit. The first publish, Restore, and changes to the site title, favicon, navigation, enquiry button, or analytics still rewrite the pages those strings are copied into.
+
+Location search stays. It was already on the production database and the live app, and the plan treats it as a homepage feature, so the generator still bakes it into the homepage when that directory has it on. The production frontend deploy was built from that location-search commit plus the `theme.css` middleware and the Restore-does-a-full-rebuild change, so the distance-search controls were not removed.
+
+### Database migrations applied
+- `20260922120000_directory_site_generation_scopes.sql` — production (`gxixwdjfmegxcxfeflro`). CLI linked to production, `db push --dry-run` listed this file only (production already had `20260922103000` from location search; that file was present only for the push, then removed). Notice: `VERIFY PASSED: site generation manifest column and entry touch triggers created`. CLI relinked to staging afterwards. Rollback: `_20260922120000_directory_site_generation_scopes.rollback.sql`.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`), including `places.ts` so a directory with location search still gets it on the next publish.
+
+### Frontend
+- Vercel production: https://directory-maps-lzfuce38z-layercake-apps.vercel.app (`dpl_2zy1AiYiz7ifSPyMf5HvwZFE4ztv`), aliased to https://maps.layercake-cx.biz and https://uk-associations.com.
+- `theme.css` on the branded host returns `text/css` (verified on `l-cakez/uk-association-directory`).
+
+### Rollback plan
+Run `_20260922120000_directory_site_generation_scopes.rollback.sql` on production (it refuses while any manifest is set — clear that column first). Redeploy the previous `generate_directory_site` and the previous Vercel production deployment (`directory-maps-1axlg8h4k`). Pages that already link `theme.css` need one more full publish after a rollback so they inline their CSS again.
+
+### Verified on production
+- [x] Dry-run listed only this migration; apply notice passed
+- [x] Function deployed
+- [x] Branded domain serves `theme.css` as CSS
+- [ ] The directory whose publish failed at 09:30 (488 entries) still needs one full publish so its pages catch up and link `theme.css`
+
+---
+
+## 2026-09-22 — [Staging] Scoped directory publishing
+
+**Branch/PR:** `fix/2026-09-22-directory-site-scopes`
+**Deployed by:** Cursor agent. Staging first. Production followed the same day after an explicit go-ahead (see the entry above).
+
+### What changed
+Publishing a directory no longer rebuilds every public page on every click, and a large directory no longer fails because every entry id was sent in one request URL.
+
+The public site is still a folder of static files. Publish now rewrites only what changed since the last successful generation:
+
+- Colours, fonts, the logo image, and the hero banner overwrite one `theme.css`. Pages link that file instead of inlining the stylesheet.
+- Search, filters, Help me choose, the map embed, and directory SEO rewrite the homepage and the site indexes.
+- An edited entry or content page rewrites that page, the homepage, and the indexes. Related cards on other entry pages stay as they were until a full rebuild.
+- The first publish, Restore, and a change to the site title, favicon, navigation, enquiry button, or analytics tags still rewrite the pages those strings are copied into.
+
+Evidence, media, tags, and the other extras bump the entry's last-saved time, so an evidence-only edit is picked up. Those extras are loaded in pages of 1,000 for the directory, not as one URL listing every entry id. The directory that failed in production on 22 September (the 09:30 pages) still needs one full publish after this reaches production, so its pages catch up and start linking `theme.css`.
+
+### Database migrations applied
+- `20260922120000_directory_site_generation_scopes.sql` — staging (`beqejxneehilplrtpntn`). CLI was already linked there. `db push --dry-run` listed this file only (the already-applied location-search migration `20260922103000` is on staging from another branch; its file was present only for the duration of the push, then removed, so this branch does not contain it). Then `db push`. Notice: `VERIFY PASSED: site generation manifest column and entry touch triggers created`. Rollback: `_20260922120000_directory_site_generation_scopes.rollback.sql` (refuses if a manifest has already been written; clear the column, then re-run).
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`).
+
+### Frontend
+- Vercel preview: https://directory-maps-i6gcniedg-layercake-apps.vercel.app (`dpl_AdD4C21s7kDku1Yk3MVP3CMukmBR`). Production Vercel is not updated. The branded domain still uses the previous middleware, which does not serve `theme.css`.
+
+### Rollback plan
+Run `_20260922120000_directory_site_generation_scopes.rollback.sql` on staging (it refuses while any `site_generation_manifest` is set — clear that column first if a publish has already succeeded). Redeploy the previous `generate_directory_site`. Redeploy the previous frontend so `theme.css` requests are not required. Existing HTML that still inlines its CSS keeps working until the next full publish. The staging publish below wrote the shared Blob for `l-cakez/uk-association-directory`. The production frontend now serves that `theme.css`.
+
+### Verified on staging
+- [x] Dry-run, then `db push`, verification notice passed
+- [x] `generate_directory_site` deployed to staging
+- [x] Vercel preview serves `theme.css` as `text/css` (no `.html` suffix). The homepage links that file and no longer inlines a `<style>` block.
+- [x] First publish of `l-cakez/uk-association-directory` (no manifest) returned `scopes: ["full"]`, 14 pages.
+- [x] A second publish with nothing changed returned `scopes: []`.
+- [x] An explicit style publish returned `scopes: ["style"]`, count 0 (stylesheet only).
+- [x] An explicit features publish returned `scopes: ["features"]`, count 0 (homepage and indexes, no entry pages).
+- [x] An explicit publish of one entry (`TH-ELE-002`) returned `scopes: ["features","entries"]`, count 1.
+- [ ] A colour, search-setting, or entry edit made in the database and then published with automatic scope. Row updates from this session were blocked by RLS, so that path was not exercised. The unchanged republish above is the same comparison.
+
+---
+
 ## 2026-09-22 — [Production] Directory location search
 
 **Branch/PR:** `feat/2026-09-22-location-search` / https://github.com/layercake-cx/directory-maps/pull/228

@@ -39,6 +39,7 @@ import {
   sanitizeHttpUrl,
   applyAlphaToCssColors,
   themeStyleBlock,
+  buildThemeCss,
   siteHeader,
   clampLogoMaxHeight,
 } from "./builders.ts";
@@ -263,6 +264,10 @@ const PREVIEW_ANALYTICS: SiteAnalytics = {
 
 const outDir = new URL("./.preview-output/", import.meta.url);
 await Deno.mkdir(outDir, { recursive: true });
+const previewCssHref = "/directories/preview-client/preview-directory/theme.css";
+function useLocalCss(html: string, file: string): string {
+  return html.replaceAll(`href="${previewCssHref}"`, `href="${file}"`);
+}
 
 const landingHtml = buildDirectoryLandingPage({
   clientSlug: "preview-client",
@@ -294,7 +299,8 @@ const landingHtml = buildDirectoryLandingPage({
     places: { ...PLACES_GB, ...directoryPlaceCentroids(ENTRIES) },
   },
 });
-await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);
+await Deno.writeTextFile(new URL("./theme.css", outDir), buildThemeCss(THEME));
+await Deno.writeTextFile(new URL("./index.html", outDir), useLocalCss(landingHtml, "theme.css"));
 
 const BANNER_THEME: DirectoryTheme = {
   heroBannerUrl: "https://cdn.example.com/dir/hero-banner.jpg?v=1",
@@ -315,7 +321,8 @@ const landingWithBanner = buildDirectoryLandingPage({
   nav: PREVIEW_NAV,
   analytics: PREVIEW_ANALYTICS,
 });
-await Deno.writeTextFile(new URL("./index-hero-banner.html", outDir), landingWithBanner);
+await Deno.writeTextFile(new URL("./theme-banner.css", outDir), buildThemeCss(BANNER_THEME));
+await Deno.writeTextFile(new URL("./index-hero-banner.html", outDir), useLocalCss(landingWithBanner, "theme-banner.css"));
 
 for (const entry of ENTRIES) {
   const html = buildEntryPage({
@@ -353,7 +360,7 @@ for (const entry of ENTRIES) {
   if (!html.includes("Make an Enquiry") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
     throw new Error("entry page should include the Make an Enquiry drawer");
   }
-  await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), html);
+  await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), useLocalCss(html, "theme.css"));
 }
 
 for (const page of PREVIEW_PAGES) {
@@ -370,7 +377,7 @@ for (const page of PREVIEW_PAGES) {
     analytics: PREVIEW_ANALYTICS,
   });
   const filename = page.parent_page_id ? `page-${page.parent_page_id}-${page.slug}.html` : `page-${page.slug}.html`;
-  await Deno.writeTextFile(new URL(`./${filename}`, outDir), html);
+  await Deno.writeTextFile(new URL(`./${filename}`, outDir), useLocalCss(html, "theme.css"));
 }
 
 console.log(`Wrote ${2 + ENTRIES.length + PREVIEW_PAGES.length} file(s) to ${outDir.pathname}`);
@@ -389,8 +396,14 @@ if (faviconLinkTags({}) || faviconLinkTags({ faviconUrl: "" })) {
 if (landingHtml.includes('rel="icon"')) {
   throw new Error("preview THEME has no favicon — landing HTML must not emit a rel=icon tag");
 }
-if (landingHtml.includes('class="has-hero-banner"') || landingHtml.includes("class=\"dir-page-banner\"")) {
-  throw new Error("preview THEME has no hero banner — landing HTML must not emit banner markup");
+if (!landingHtml.includes(`href="${previewCssHref}"`)) {
+  throw new Error("landing HTML must link the shared theme.css");
+}
+if (!landingHtml.includes('class="dir-page-banner"')) {
+  throw new Error("landing HTML always includes the banner wrapper; theme.css shows or hides it");
+}
+if (landingHtml.includes("cdn.example.com/dir/hero-banner.jpg")) {
+  throw new Error("hero banner URL belongs in theme.css, not the page HTML");
 }
 if (!sanitizeHttpUrl("https://cdn.example.com/a.png") || sanitizeHttpUrl("javascript:alert(1)") || sanitizeHttpUrl("")) {
   throw new Error("sanitizeHttpUrl should accept http(s) only");
@@ -402,16 +415,20 @@ const banner = resolvedHeroBanner(BANNER_THEME);
 if (!banner || banner.height !== 520 || !banner.url.includes("hero-banner.jpg")) {
   throw new Error("resolvedHeroBanner should keep a valid https URL and height");
 }
-if (!landingWithBanner.includes('class="has-hero-banner"') || !landingWithBanner.includes('class="dir-page-banner"')) {
+if (!landingWithBanner.includes('class="dir-page-banner"')) {
   throw new Error("landing with a hero banner must emit banner markup");
 }
-if (!landingWithBanner.includes("cdn.example.com/dir/hero-banner.jpg")) {
+const bannerCss = buildThemeCss(BANNER_THEME);
+if (!bannerCss.includes("cdn.example.com/dir/hero-banner.jpg")) {
   throw new Error("hero banner CSS must include the sanitised image URL");
+}
+if (!bannerCss.includes("--hero-banner-display: block")) {
+  throw new Error("a hero banner must turn the shared banner wrapper on");
 }
 if (!landingWithBanner.includes("dir-home-intro")) {
   throw new Error("homepage intro band should keep dir-home-intro for the transparent-when-banner CSS");
 }
-if (!landingWithBanner.includes("calc(var(--hero-banner-height, 480px) + 100px)")) {
+if (!bannerCss.includes("calc(var(--hero-banner-height, 480px) + 100px)")) {
   throw new Error("hero banner must extend 100px past the configured height");
 }
 if (applyAlphaToCssColors("#112233", 0.6) !== "rgba(17, 34, 51, 0.6)") {
@@ -440,6 +457,10 @@ if (clampLogoMaxHeight(42) !== 42) {
 if (clampLogoMaxHeight(180) !== 180 || clampLogoMaxHeight(9999) !== 240 || clampLogoMaxHeight(10) !== 24) {
   throw new Error("logo height must clamp to 24–240px");
 }
+const tallLogoCss = themeStyleBlock({ logoUrl: "https://cdn.example.com/logo.png", logoMaxHeight: 168 });
+if (!tallLogoCss.includes("--logo-max-height: 168px") || !tallLogoCss.includes("cdn.example.com/logo.png")) {
+  throw new Error("logo height and image URL belong in theme.css");
+}
 const tallLogo = siteHeader({
   directoryName: "Test",
   tagline: null,
@@ -447,6 +468,6 @@ const tallLogo = siteHeader({
   logoUrl: "https://cdn.example.com/logo.png",
   logoMaxHeight: 168,
 });
-if (!tallLogo.includes("height:168px") || !tallLogo.includes("width:auto")) {
-  throw new Error("header logo must use the configured height with auto width");
+if (!tallLogo.includes("dir-brand__mark") || tallLogo.includes("cdn.example.com/logo.png") || tallLogo.includes("height:168px")) {
+  throw new Error("header markup must not inline the logo URL or height");
 }

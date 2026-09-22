@@ -187,7 +187,7 @@ export type ProductTile = { entry_id: string; title: string; image_url: string |
 // content stays a readable width.
 export const BASE_STYLE = `
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--fs-base); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; position: relative; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--fs-base); -webkit-font-smoothing: antialiased; }
   h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
   h1 { font-size: var(--fs-h1); }
   h2 { font-size: var(--fs-h2); }
@@ -266,26 +266,25 @@ export const EXTRA_STYLE = `
   /* Site navigation — CSS-first so every destination is a crawlable <a href>
      even when the hamburger/dropdown is closed. Desktop dropdowns use
      :hover/:focus-within; mobile uses <details>/<summary> (no JS). */
-  /* Optional full-width hero banner (theme_json.heroBannerUrl). Sits behind
-     the glass header and the top of the page body, then fades into --bg.
-     body.has-hero-banner is added by directoryPageShell when the URL is valid. */
-  body.has-hero-banner { position: relative; }
+  /* Hero banner markup is always in the page. theme.css shows it by setting
+     --hero-banner-display and points --hero-intro-bg at transparent, so a
+     banner change does not rewrite the HTML. */
   .dir-page-banner {
+    display: var(--hero-banner-display, none);
     position: absolute; top: 0; left: 0; right: 0; z-index: 0; pointer-events: none;
     height: calc(var(--hero-banner-height, 480px) + 100px);
-    background-image: var(--hero-banner-image);
+    background-image: var(--hero-banner-image, none);
     background-size: cover; background-position: center top; background-repeat: no-repeat;
   }
   .dir-page-banner::after {
     content: ""; position: absolute; inset: 0;
     background: linear-gradient(to bottom, transparent 18%, var(--bg) 92%);
   }
-  .has-hero-banner .dir-page { position: relative; z-index: 1; }
+  .dir-page { position: relative; z-index: 1; }
   .dir-home-intro {
     position: relative; overflow: hidden;
-    background: linear-gradient(180deg, var(--sage) 0%, var(--bg) 60%);
+    background: var(--hero-intro-bg, linear-gradient(180deg, var(--sage) 0%, var(--bg) 60%));
   }
-  .has-hero-banner .dir-home-intro { background: transparent; }
   /* Header must stack above following page content. The homepage hero band is
      a later sibling with an opaque background; without a z-index the dropdown
      (and mobile panel) paint underneath it. Content pages look fine because
@@ -293,7 +292,23 @@ export const EXTRA_STYLE = `
   .dir-site-header { position: relative; z-index: 30; border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
   .dir-site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px; }
   .dir-brand { display: flex; align-items: center; gap: 12px; color: inherit; flex: none; }
-  .dir-brand__mark { display: block; margin: 15px 0; flex: none; }
+  /* Logo image, height, and whether the mark or title shows come from
+     theme.css (--logo-image, --logo-max-height, --logo-display, --title-display).
+     min-width keeps the no-logo placeholder square; a real logo's intrinsic
+     width (via content: url()) grows past that. */
+  .dir-brand__mark {
+    display: var(--logo-display, block);
+    margin: 15px 0; flex: none;
+    height: var(--logo-max-height, 84px);
+    width: auto;
+    min-width: var(--logo-max-height, 84px);
+    max-height: var(--logo-max-height, 84px);
+    object-fit: contain;
+    border-radius: var(--logo-radius, 12px);
+    background: var(--logo-fallback, var(--primary)) center / cover no-repeat;
+    content: var(--logo-image, none);
+  }
+  .dir-brand__title { display: var(--title-display, block); }
   .dir-brand:focus-visible, .dir-nav-desktop a:focus-visible, .dir-nav-mobile a:focus-visible, .dir-nav-mobile summary:focus-visible, .dir-breadcrumb a:focus-visible, .dir-footer-nav a:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 3px;
   }
@@ -740,9 +755,16 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
   const banner = resolvedHeroBanner(theme);
   const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
+  const logoUrl = sanitizeHttpUrl(theme.logoUrl);
+  const mode = theme.headerMode === "logo" || theme.headerMode === "text" ? theme.headerMode : "logoText";
+  const showLogo = mode !== "text";
+  const showText = theme.showHeaderTitle === false ? false : theme.showHeaderTitle === true ? true : mode !== "logo";
+  const logoVars = logoUrl
+    ? `--logo-image: url(${JSON.stringify(logoUrl)}); --logo-fallback: transparent; --logo-radius: 0px;`
+    : `--logo-image: none; --logo-fallback: var(--primary); --logo-radius: 12px;`;
   const bannerVars = banner
-    ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px;`
-    : "";
+    ? `--hero-banner-image: url(${JSON.stringify(banner.url)}); --hero-banner-height: ${banner.height}px; --hero-banner-display: block; --hero-intro-bg: transparent;`
+    : `--hero-banner-display: none;`;
   return `:root {
     --bg: ${t.backgroundColor}; --surface: ${t.surfaceColor}; --surface-2: ${t.surfaceAltColor};
     --ink: ${t.inkColor}; --muted: ${t.mutedColor}; --line: ${t.lineColor};
@@ -753,8 +775,33 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
+    --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
+    --logo-display: ${showLogo ? "block" : "none"};
+    --title-display: ${showText ? "block" : "none"};
+    ${logoVars}
     ${bannerVars}
   }`;
+}
+
+/** Google Fonts @import for the families this theme uses. Must stay the
+ * first rule in theme.css. Empty when neither family is in the catalog. */
+export function fontImportRule(theme: DirectoryTheme): string {
+  const t = resolvedTheme(theme);
+  const families = [...new Set([t.fontHeading, t.fontBody])].map((f) => FONT_CATALOG[f]).filter(Boolean);
+  if (families.length === 0) return "";
+  const query = families.map((f) => `family=${f}`).join("&");
+  return `@import url("https://fonts.googleapis.com/css2?${query}&display=swap");`;
+}
+
+/** Shared stylesheet for one published directory. Overwritten in place so a
+ * colour, type, logo, or banner change does not rewrite every HTML page. */
+export function buildThemeCss(theme: DirectoryTheme): string {
+  const font = fontImportRule(theme);
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n`;
+}
+
+export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
+  return `/directories/${clientSlug}/${directorySlug}/theme.css`;
 }
 
 /** <link> for exactly the Google Fonts families this theme actually uses —
@@ -832,9 +879,10 @@ export function directoryPageShell(opts: {
   imageUrl?: string | null;
   noindex?: boolean;
   theme?: DirectoryTheme;
+  /** Root-relative theme.css. Custom-domain middleware rewrites this to /theme.css. */
+  themeCssHref: string;
   analytics?: PageAnalytics | null;
 }): string {
-  const hasBanner = !!resolvedHeroBanner(opts.theme ?? {});
   const ogImage = opts.imageUrl
     ? `<meta property="og:image" content="${escapeAttr(opts.imageUrl)}">\n<meta name="twitter:card" content="summary_large_image">`
     : `<meta name="twitter:card" content="summary">`;
@@ -854,19 +902,14 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property=
 <meta property="og:url" content="${escapeAttr(opts.canonicalUrl)}">
 ${ogImage}
 ${jsonLdTags}
-${fontLinkTag(opts.theme ?? {})}
+<link rel="stylesheet" href="${escapeAttr(opts.themeCssHref)}">
 ${faviconLinkTags(opts.theme ?? {})}
-<style>
-  ${themeStyleBlock(opts.theme ?? {})}
-  ${BASE_STYLE}
-  ${EXTRA_STYLE}
-  ${LAYOUT_STYLE}
-</style>
 </head>
-<body${hasBanner ? ' class="has-hero-banner"' : ""}>
-${hasBanner ? '<div class="dir-page-banner" aria-hidden="true"></div><div class="dir-page">' : ""}
+<body>
+<div class="dir-page-banner" aria-hidden="true"></div>
+<div class="dir-page">
 ${opts.body}
-${hasBanner ? "</div>" : ""}
+</div>
 ${opts.analytics ? buildSiteAnalyticsMarkup(opts.analytics) : ""}
 </body>
 </html>`;
@@ -963,29 +1006,21 @@ export function siteHeader(opts: {
   logoMaxHeight?: number;
   nav?: SiteNav | null;
 }): string {
-  const mode = opts.headerMode === "logo" || opts.headerMode === "text" ? opts.headerMode : "logoText";
   const displayTitle = opts.siteTitle?.trim() || opts.directoryName;
-  const maxHeight = clampLogoMaxHeight(opts.logoMaxHeight);
-  // A real uploaded logo keeps its own aspect ratio (height fixed, width
-  // auto) — only the no-logo placeholder is forced square, since there's
-  // no real image to preserve an aspect ratio from.
-  const logo = opts.logoUrl
-    ? `<img class="dir-brand__mark" src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;object-fit:contain;">`
-    : `<div class="dir-brand__mark" style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
-  const showLogo = mode !== "text";
-  const showText = opts.showHeaderTitle === false ? false : mode !== "logo";
-  const brand = showText
-    ? `<div style="line-height:1.05;">
+  // Mark and title are always in the HTML. theme.css decides which is
+  // visible and where the logo image comes from, so a branding change can
+  // overwrite theme.css without rewriting this header.
+  const logo = `<img class="dir-brand__mark" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">`;
+  const brand = `<div class="dir-brand__title" style="line-height:1.05;">
         <div style="font-family:var(--font-heading);font-size:19px;font-weight:600;color:var(--hdr-text);">${escapeHtml(displayTitle)}</div>
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
-      </div>`
-    : "";
+      </div>`;
   const nav = opts.nav;
   const navHtml = nav ? `${renderDesktopNav(nav)}${renderMobileNav(nav)}` : "";
   return `<header class="dir-site-header">
   <div class="wrap dir-site-header__inner">
     <a class="dir-brand" href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}">
-      ${showLogo ? logo : ""}
+      ${logo}
       ${brand}
     </a>
     ${navHtml}
@@ -1452,6 +1487,7 @@ ${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     analytics: analytics
       ? { ...analytics, pageKind: "entry", listingId: entry.id, listingName: entry.name }
       : null,
@@ -1616,6 +1652,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
     body,
     noindex: !!page.noindex,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     analytics: analytics ? { ...analytics, pageKind: "content" } : null,
   });
 }
@@ -3249,6 +3286,7 @@ ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, location
     jsonLd,
     body,
     theme,
+    themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
     imageUrl: seoImageUrl ?? null,
     noindex: !!seoNoindex,
     analytics: analytics ? { ...analytics, pageKind: "landing" } : null,

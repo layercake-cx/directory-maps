@@ -49,7 +49,12 @@
  * 20260827120000_directory_publish_foundation.sql's header comment for why
  * this mirrors map_publications/EmbedMap.jsx's existing split).
  *
- * Body (JSON): { directory_id: string } or { all: true }
+ * Body (JSON): { directory_id: string, scope?: "auto" | "full" | "style" | "features" | "entries", entry_ids?: string[] }
+ * or { all: true, scope?: "full" | "style" }. Omitted scope is "auto": rewrite only
+ * what changed since site_generation_manifest. No manifest, "full", Restore,
+ * or a chrome change (nav, enquiry, analytics, favicon, site title) rebuilds
+ * every page. "all" defaults to a full rebuild; pass scope "style" to refresh
+ * theme.css only.
  * Auth: service-role only (called server-side).
  */
 
@@ -72,9 +77,12 @@ import {
   buildDirectoryLandingPage,
   buildContentPage,
   buildLlmsTxt,
+  buildThemeCss,
   relatedEntries,
   buildSiteNav,
   contentPagePublicPath,
+  sanitizeHttpUrl,
+  clampLogoMaxHeight,
   type Entry,
   type DirectoryTheme,
   type EntryTemplateRow,
@@ -93,16 +101,139 @@ import {
 } from "./builders.ts";
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
+type Db = ReturnType<typeof createServiceClient>;
+type GenerationScope = "auto" | "full" | "style" | "features" | "entries";
+type GenerationRequest = { scope: GenerationScope; entryIds?: string[] };
+type GenerationResult = { directory_id: string; skipped?: string; count?: number; scopes?: string[] };
+
+/** PostgREST caps a response at 1,000 rows. Page under that. */
+const PAGE_SIZE = 1000;
+/** UUIDs in one `.in()` stay well under the HTTP/2 header limit (~16KB). */
+const IN_CHUNK = 80;
+
+type SiteManifest = {
+  style_hash: string;
+  chrome_hash: string;
+  features_hash: string;
+  templates_hash: string;
+  entries: Record<string, string>;
+  pages: Record<string, string>;
+};
+
+type Work = {
+  style: boolean;
+  homepage: boolean;
+  indexes: boolean;
+  /** null = every active entry. */
+  entryIds: string[] | null;
+  /** null = every active content page. */
+  pageIds: string[] | null;
+};
+
+const FULL_WORK: Work = { style: true, homepage: true, indexes: true, entryIds: null, pageIds: null };
+const IDLE_WORK: Work = { style: false, homepage: false, indexes: false, entryIds: [], pageIds: [] };
+
+async function digest(value: unknown): Promise<string> {
+  const data = new TextEncoder().encode(JSON.stringify(value));
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function parseManifest(raw: unknown): SiteManifest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Partial<SiteManifest>;
+  if (typeof m.style_hash !== "string" || typeof m.chrome_hash !== "string" || typeof m.features_hash !== "string" || typeof m.templates_hash !== "string") return null;
+  if (!m.entries || typeof m.entries !== "object" || !m.pages || typeof m.pages !== "object") return null;
+  return m as SiteManifest;
+}
+
+function stylePayload(theme: DirectoryTheme) {
+  const mode = theme.headerMode === "logo" || theme.headerMode === "text" ? theme.headerMode : "logoText";
+  return {
+    primaryColor: theme.primaryColor ?? null,
+    primaryDarkColor: theme.primaryDarkColor ?? null,
+    accentColor: theme.accentColor ?? null,
+    backgroundColor: theme.backgroundColor ?? null,
+    surfaceColor: theme.surfaceColor ?? null,
+    surfaceAltColor: theme.surfaceAltColor ?? null,
+    inkColor: theme.inkColor ?? null,
+    mutedColor: theme.mutedColor ?? null,
+    lineColor: theme.lineColor ?? null,
+    sageColor: theme.sageColor ?? null,
+    sageInkColor: theme.sageInkColor ?? null,
+    fontHeading: theme.fontHeading ?? null,
+    fontBody: theme.fontBody ?? null,
+    fontSizeBase: theme.fontSizeBase ?? null,
+    fontSizeH1: theme.fontSizeH1 ?? null,
+    fontSizeH2: theme.fontSizeH2 ?? null,
+    fontSizeH3: theme.fontSizeH3 ?? null,
+    headerBackground: theme.headerBackground ?? null,
+    headerText: theme.headerText ?? null,
+    footerBackground: theme.footerBackground ?? null,
+    footerText: theme.footerText ?? null,
+    footerLink: theme.footerLink ?? null,
+    footerLinkHover: theme.footerLinkHover ?? null,
+    logoUrl: sanitizeHttpUrl(theme.logoUrl),
+    logoMaxHeight: clampLogoMaxHeight(theme.logoMaxHeight),
+    headerMode: mode,
+    showHeaderTitle: theme.showHeaderTitle ?? null,
+    heroBannerUrl: sanitizeHttpUrl(theme.heroBannerUrl),
+    heroBannerHeight: theme.heroBannerHeight ?? null,
+  };
+}
+
+async function fetchPages<T>(
+  label: string,
+  run: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await run(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${label} query failed: ${error.message}`);
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+/** null = every active entry in the directory. A list is fetched in small `.in()` chunks. */
+function idChunks(entryIds: string[] | null): Array<string[] | null> {
+  if (!entryIds) return [null];
+  if (entryIds.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < entryIds.length; i += IN_CHUNK) chunks.push(entryIds.slice(i, i + IN_CHUNK));
+  return chunks;
+}
+
+type LoosePage = PromiseLike<{ data: unknown; error: { message: string } | null }>;
+
+async function loadByEntry<T>(
+  label: string,
+  entryIds: string[] | null,
+  run: (chunk: string[] | null, from: number, to: number) => LoosePage,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (const chunk of idChunks(entryIds)) {
+    const page = await fetchPages<T>(label, async (from, to) => {
+      const res = await run(chunk, from, to);
+      return { data: (res.data ?? null) as T[] | null, error: res.error };
+    });
+    rows.push(...page);
+  }
+  return rows;
+}
+
 /**
  * Records generate_directory_site's outcome on directories.site_generation_*
  * so the Publish panel can show live status regardless of whether the
  * browser tab that triggered it is still open (see
  * 20260828120000_directory_site_generation_status.sql).
  */
-async function generateForDirectory(directoryId: string): Promise<{ directory_id: string; skipped?: string; count?: number }> {
+async function generateForDirectory(directoryId: string, request: GenerationRequest): Promise<GenerationResult> {
   const db = createServiceClient();
   try {
-    const result = await generateForDirectoryInner(db, directoryId);
+    const result = await generateForDirectoryInner(db, directoryId, request);
     if (!result.skipped) {
       await db
         .from("directories")
@@ -118,12 +249,13 @@ async function generateForDirectory(directoryId: string): Promise<{ directory_id
 }
 
 async function generateForDirectoryInner(
-  db: ReturnType<typeof createServiceClient>,
+  db: Db,
   directoryId: string,
-): Promise<{ directory_id: string; skipped?: string; count?: number }> {
+  request: GenerationRequest,
+): Promise<GenerationResult> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, location_search_enabled, updated_at")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, location_search_enabled, updated_at, site_generation_manifest")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -159,16 +291,32 @@ async function generateForDirectoryInner(
     .update({ site_generation_status: "running", site_generation_started_at: new Date().toISOString() })
     .eq("id", directoryId);
 
-  const { data: entryRows, error: entryErr } = await db
-    .from("directory_entries")
-    .select(
-      "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
-    )
-    .eq("directory_id", directoryId)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-  if (entryErr) throw new Error(`Entries query failed: ${entryErr.message}`);
-  const entries = (entryRows ?? []) as Entry[];
+  const basePath = `directories/${client.slug}/${directory.slug}`;
+  const manifest = parseManifest((directory as { site_generation_manifest?: unknown }).site_generation_manifest);
+
+  // An explicit style publish only overwrites theme.css. The first publish
+  // (no manifest yet) falls through and rebuilds every page so they link it.
+  if (request.scope === "style" && manifest) {
+    await uploadToBlob(`${basePath}/theme.css`, buildThemeCss(theme), "text/css; charset=utf-8");
+    await db
+      .from("directories")
+      .update({ site_generation_manifest: { ...manifest, style_hash: await digest(stylePayload(theme)) } })
+      .eq("id", directoryId);
+    return { directory_id: directoryId, count: 0, scopes: ["style"] };
+  }
+
+  const entryRows = await fetchPages<Entry>("Entries", (from, to) =>
+    db
+      .from("directory_entries")
+      .select(
+        "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
+      )
+      .eq("directory_id", directoryId)
+      .eq("is_active", true)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  const entries = entryRows.sort((a, b) => a.name.localeCompare(b.name));
   const entryIds = entries.map((e) => e.id);
 
   let evidenceByEntry = new Map<string, EvidenceItem[]>();
@@ -177,53 +325,6 @@ async function generateForDirectoryInner(
   let linksByEntry = new Map<string, EntryLink[]>();
   let tilesByEntry = new Map<string, ProductTile[]>();
   let directoryLinks: EntryLink[] = [];
-
-  if (entryIds.length > 0) {
-    const [evidenceRes, mediaRes, accRes, entryLinksRes, tilesRes] = await Promise.all([
-      db.from("entry_evidence_items").select("entry_id, claim, value, source_url, confidence").in("entry_id", entryIds).order("sort_order", { ascending: true }),
-      db.from("entry_media_assets").select("entry_id, url, alt_text, caption, is_hero").in("entry_id", entryIds).order("sort_order", { ascending: true }),
-      db
-        .from("entry_accreditations")
-        .select("entry_id, directory_accreditation_schemes(name, issuing_body, badge_image_url)")
-        .in("entry_id", entryIds),
-      db.from("prominent_links").select("entry_id, directory_id, label, url, style, open_in_new, tracking").in("entry_id", entryIds).order("sort_order", { ascending: true }),
-      db.from("product_tiles").select("entry_id, title, image_url, price, currency, rating, provider, destination_url").in("entry_id", entryIds).order("sort_order", { ascending: true }),
-    ]);
-    if (evidenceRes.error) throw new Error(`Evidence query failed: ${evidenceRes.error.message}`);
-    if (mediaRes.error) throw new Error(`Media query failed: ${mediaRes.error.message}`);
-    if (accRes.error) throw new Error(`Accreditations query failed: ${accRes.error.message}`);
-    if (entryLinksRes.error) throw new Error(`Prominent links query failed: ${entryLinksRes.error.message}`);
-    if (tilesRes.error) throw new Error(`Product tiles query failed: ${tilesRes.error.message}`);
-
-    for (const row of (evidenceRes.data ?? []) as EvidenceItem[]) {
-      const list = evidenceByEntry.get(row.entry_id) ?? [];
-      list.push(row);
-      evidenceByEntry.set(row.entry_id, list);
-    }
-    for (const row of (mediaRes.data ?? []) as MediaAsset[]) {
-      const list = mediaByEntry.get(row.entry_id) ?? [];
-      list.push(row);
-      mediaByEntry.set(row.entry_id, list);
-    }
-    for (const row of (accRes.data ?? []) as { entry_id: string; directory_accreditation_schemes: AccreditationHeld | AccreditationHeld[] | null }[]) {
-      const scheme = Array.isArray(row.directory_accreditation_schemes) ? row.directory_accreditation_schemes[0] : row.directory_accreditation_schemes;
-      if (!scheme) continue;
-      const list = accreditationsByEntry.get(row.entry_id) ?? [];
-      list.push({ entry_id: row.entry_id, name: scheme.name, issuing_body: scheme.issuing_body, badge_image_url: scheme.badge_image_url });
-      accreditationsByEntry.set(row.entry_id, list);
-    }
-    for (const row of (entryLinksRes.data ?? []) as EntryLink[]) {
-      if (!row.entry_id) continue;
-      const list = linksByEntry.get(row.entry_id) ?? [];
-      list.push(row);
-      linksByEntry.set(row.entry_id, list);
-    }
-    for (const row of (tilesRes.data ?? []) as ProductTile[]) {
-      const list = tilesByEntry.get(row.entry_id) ?? [];
-      list.push(row);
-      tilesByEntry.set(row.entry_id, list);
-    }
-  }
 
   {
     const { data: dirLinkRows, error: dirLinkErr } = await db
@@ -288,14 +389,20 @@ async function generateForDirectoryInner(
   const attachmentSortOrder = new Map<string, number>((attachmentRows ?? []).map((r) => [r.categorisation_id, r.sort_order ?? 0]));
 
   if (entryIds.length > 0 && attachedCategorisationIds.size > 0) {
-    const { data: ectRows, error: ectErr } = await db
-      .from("entry_category_terms")
-      .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label, field_type))")
-      .in("entry_id", entryIds);
-    if (ectErr) throw new Error(`Entry category terms query failed: ${ectErr.message}`);
+    const ectRows = await loadByEntry<{ entry_id: string; category_terms: unknown }>("Entry category terms", null, (chunk, from, to) => {
+      let q = db
+        .from("entry_category_terms")
+        .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label, field_type)), directory_entries!inner(id)")
+        .eq("directory_entries.directory_id", directoryId)
+        .eq("directory_entries.is_active", true)
+        .order("entry_id", { ascending: true })
+        .order("term_id", { ascending: true });
+      if (chunk) q = q.in("entry_id", chunk);
+      return q.range(from, to);
+    });
 
     type TermEmbed = CategorisationTerm & { categorisations: { key: string; label: string; field_type: string } | { key: string; label: string; field_type: string }[] | null };
-    for (const row of (ectRows ?? []) as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
+    for (const row of ectRows as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
       const term = Array.isArray(row.category_terms) ? row.category_terms[0] : row.category_terms;
       if (!term) continue;
       const cat = Array.isArray(term.categorisations) ? term.categorisations[0] : term.categorisations;
@@ -356,8 +463,6 @@ async function generateForDirectoryInner(
     seoDefaults,
   );
   if (directorySeoBackfill) seoDefaults = directorySeoBackfill;
-
-  const basePath = `directories/${client.slug}/${directory.slug}`;
 
   // Decision (2026-08-28): a directory's homepage map is exclusively the
   // Map product attached to it via DIR-E4 — Maps and Directories are two
@@ -472,12 +577,192 @@ async function generateForDirectoryInner(
     list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.title.localeCompare(b.title));
   }
 
+  const styleHash = await digest(stylePayload(theme));
+  const chromeHash = await digest({
+    name: directory.name,
+    slug: directory.slug,
+    clientSlug: client.slug,
+    siteTitle: theme.siteTitle ?? null,
+    favicon: sanitizeHttpUrl(theme.faviconUrl),
+    homeNavLabel: (directory as { home_nav_label?: string | null }).home_nav_label ?? null,
+    pages: allPages.map((p) => ({
+      id: p.id,
+      parent: p.parent_page_id,
+      slug: p.slug,
+      title: p.title,
+      nav: p.nav_label ?? null,
+      show: p.show_in_navigation !== false,
+      position: p.position ?? 0,
+      active: p.is_active !== false,
+    })),
+    enquiry: entryEnquiry ? { on: true, prompt: entryEnquiry.prompt, test: entryEnquiry.testMode } : { on: false },
+    analytics: siteAnalytics?.destinations ?? null,
+  });
+  const featuresHash = await digest({
+    description: directory.description,
+    seo: seoDefaults,
+    og: directory.seo_og_image_url ?? null,
+    aiPrompt: directory.ai_search_prompt ?? null,
+    locationSearch: !!directory.location_search_enabled,
+    map: attachedMapEmbedSrc,
+    links: directoryLinks.map((l) => ({ label: l.label, url: l.url, style: l.style })),
+    cats: filterBarCategorisations.map((c) => ({
+      id: c.id,
+      key: c.key,
+      label: c.label,
+      field_type: c.field_type,
+      terms: c.terms.map((t) => ({ id: t.id, label: t.label, slug: t.slug, sort_order: t.sort_order })),
+    })),
+  });
+  const templatesHash = await digest(
+    templates.map((t) => ({
+      id: t.id,
+      is_default: t.is_default,
+      group: t.applies_to_group_id,
+      term: t.applies_to_term_id,
+      layout: t.layout_json,
+    })),
+  );
+
+  const activeEntryIds = new Set(entries.map((e) => e.id));
+  let work: Work;
+  if (!manifest || request.scope === "full") {
+    work = FULL_WORK;
+  } else if (request.scope === "features") {
+    work = { style: false, homepage: true, indexes: true, entryIds: [], pageIds: [] };
+  } else if (request.scope === "entries") {
+    const wanted = new Set(request.entryIds ?? []);
+    const ids = entries.filter((e) => wanted.has(e.id)).map((e) => e.id);
+    if (ids.length === 0) throw new Error("No active entries matched entry_ids");
+    work = { style: false, homepage: true, indexes: true, entryIds: ids, pageIds: [] };
+  } else if (chromeHash !== manifest.chrome_hash) {
+    work = FULL_WORK;
+  } else {
+    const dirtyEntries = entries.filter((e) => manifest.entries[e.id] !== (e.updated_at ?? "")).map((e) => e.id);
+    const removedEntries = Object.keys(manifest.entries).some((id) => !activeEntryIds.has(id));
+    const templatesDirty = templatesHash !== manifest.templates_hash;
+    const dirtyPages = contentPages.filter((p) => manifest.pages[p.id] !== (p.updated_at ?? "")).map((p) => p.id);
+    const removedPages = Object.keys(manifest.pages).some((id) => !contentPages.some((p) => p.id === id));
+    const featuresDirty = featuresHash !== manifest.features_hash;
+    const homepage = featuresDirty || removedEntries || dirtyEntries.length > 0;
+    const entryIds = templatesDirty ? null : dirtyEntries;
+    const buildingEntries = entryIds === null || entryIds.length > 0;
+    work = {
+      style: styleHash !== manifest.style_hash,
+      homepage,
+      indexes: homepage || dirtyPages.length > 0 || removedPages,
+      entryIds: buildingEntries ? entryIds : [],
+      pageIds: dirtyPages,
+    };
+    if (!work.style && !work.homepage && !work.indexes && !buildingEntries && dirtyPages.length === 0) work = IDLE_WORK;
+  }
+
+  if (work === IDLE_WORK || (!work.style && !work.homepage && !work.indexes && work.entryIds?.length === 0 && work.pageIds?.length === 0)) {
+    return { directory_id: directoryId, count: 0, scopes: [] };
+  }
+
+  const buildingEntryPages = work.entryIds === null || work.entryIds.length > 0;
+  if (buildingEntryPages) {
+    const ids = work.entryIds;
+    const [evidence, media, accRows, linkRows, tileRows] = await Promise.all([
+      loadByEntry<EvidenceItem>("Evidence", ids, (chunk, from, to) => {
+        let q = db
+          .from("entry_evidence_items")
+          .select("entry_id, claim, value, source_url, confidence, directory_entries!inner(id)")
+          .eq("directory_entries.directory_id", directoryId)
+          .eq("directory_entries.is_active", true)
+          .order("entry_id", { ascending: true })
+          .order("sort_order", { ascending: true })
+          .order("id", { ascending: true });
+        if (chunk) q = q.in("entry_id", chunk);
+        return q.range(from, to);
+      }),
+      loadByEntry<MediaAsset>("Media", ids, (chunk, from, to) => {
+        let q = db
+          .from("entry_media_assets")
+          .select("entry_id, url, alt_text, caption, is_hero, directory_entries!inner(id)")
+          .eq("directory_entries.directory_id", directoryId)
+          .eq("directory_entries.is_active", true)
+          .order("entry_id", { ascending: true })
+          .order("sort_order", { ascending: true })
+          .order("id", { ascending: true });
+        if (chunk) q = q.in("entry_id", chunk);
+        return q.range(from, to);
+      }),
+      loadByEntry<{ entry_id: string; directory_accreditation_schemes: AccreditationHeld | AccreditationHeld[] | null }>("Accreditations", ids, (chunk, from, to) => {
+        let q = db
+          .from("entry_accreditations")
+          .select("entry_id, directory_accreditation_schemes(name, issuing_body, badge_image_url), directory_entries!inner(id)")
+          .eq("directory_entries.directory_id", directoryId)
+          .eq("directory_entries.is_active", true)
+          .order("entry_id", { ascending: true })
+          .order("scheme_id", { ascending: true });
+        if (chunk) q = q.in("entry_id", chunk);
+        return q.range(from, to);
+      }),
+      loadByEntry<EntryLink>("Prominent links", ids, (chunk, from, to) => {
+        let q = db
+          .from("prominent_links")
+          .select("entry_id, directory_id, label, url, style, open_in_new, tracking, directory_entries!inner(id)")
+          .eq("directory_entries.directory_id", directoryId)
+          .eq("directory_entries.is_active", true)
+          .order("entry_id", { ascending: true })
+          .order("sort_order", { ascending: true })
+          .order("id", { ascending: true });
+        if (chunk) q = q.in("entry_id", chunk);
+        return q.range(from, to);
+      }),
+      loadByEntry<ProductTile>("Product tiles", ids, (chunk, from, to) => {
+        let q = db
+          .from("product_tiles")
+          .select("entry_id, title, image_url, price, currency, rating, provider, destination_url, directory_entries!inner(id)")
+          .eq("directory_entries.directory_id", directoryId)
+          .eq("directory_entries.is_active", true)
+          .order("entry_id", { ascending: true })
+          .order("sort_order", { ascending: true })
+          .order("id", { ascending: true });
+        if (chunk) q = q.in("entry_id", chunk);
+        return q.range(from, to);
+      }),
+    ]);
+    for (const row of evidence) {
+      const list = evidenceByEntry.get(row.entry_id) ?? [];
+      list.push(row);
+      evidenceByEntry.set(row.entry_id, list);
+    }
+    for (const row of media) {
+      const list = mediaByEntry.get(row.entry_id) ?? [];
+      list.push(row);
+      mediaByEntry.set(row.entry_id, list);
+    }
+    for (const row of accRows) {
+      const scheme = Array.isArray(row.directory_accreditation_schemes) ? row.directory_accreditation_schemes[0] : row.directory_accreditation_schemes;
+      if (!scheme) continue;
+      const list = accreditationsByEntry.get(row.entry_id) ?? [];
+      list.push({ entry_id: row.entry_id, name: scheme.name, issuing_body: scheme.issuing_body, badge_image_url: scheme.badge_image_url });
+      accreditationsByEntry.set(row.entry_id, list);
+    }
+    for (const row of linkRows) {
+      if (!row.entry_id) continue;
+      const list = linksByEntry.get(row.entry_id) ?? [];
+      list.push(row);
+      linksByEntry.set(row.entry_id, list);
+    }
+    for (const row of tileRows) {
+      const list = tilesByEntry.get(row.entry_id) ?? [];
+      list.push(row);
+      tilesByEntry.set(row.entry_id, list);
+    }
+  }
+
+  const entriesToBuild = work.entryIds === null ? entries : entries.filter((e) => work.entryIds!.includes(e.id));
+
   // Entry pages used to upload sequentially (~120s for 177 entries, almost
   // all of it Blob PUTs). Bounded concurrency is still required, but 15
   // in-flight PUTs regularly 503s Vercel Blob on large directories (UK
   // Associations-scale) and failed the whole generation. 6 plus per-PUT
   // retries in uploadToBlob is the compromise.
-  await mapWithConcurrency(entries, 6, async (entry) => {
+  await mapWithConcurrency(entriesToBuild, 6, async (entry) => {
     const layout = resolveLayout(entry, templates, entryTermIdsByEntry.get(entry.id) ?? new Set(), termSortOrder);
     const html = buildEntryPage({
       clientSlug: client.slug,
@@ -509,8 +794,12 @@ async function generateForDirectoryInner(
       console.error(`Content page ${page.id} ("${page.title}") slug "${page.slug}" collides with an existing entry — skipped`);
       continue;
     }
-    const publicPath = contentPagePublicPath(page, pagesById);
-    publishedPagePaths.set(page.id, publicPath);
+    publishedPagePaths.set(page.id, contentPagePublicPath(page, pagesById));
+  }
+  const pagesToUpload = work.pageIds === null ? contentPages : contentPages.filter((p) => work.pageIds!.includes(p.id));
+  for (const page of pagesToUpload) {
+    const publicPath = publishedPagePaths.get(page.id);
+    if (!publicPath) continue;
     const html = buildContentPage({
       clientSlug: client.slug,
       directorySlug: directory.slug,
@@ -526,36 +815,39 @@ async function generateForDirectoryInner(
     await uploadToBlob(`${basePath}/${publicPath}.html`, html, "text/html; charset=utf-8");
   }
 
-  const landingHtml = buildDirectoryLandingPage({
-    clientSlug: client.slug,
-    directorySlug: directory.slug,
-    directoryName: directory.name,
-    directoryDescription: directory.description,
-    entries,
-    directoryLinks,
-    theme,
-    attachedMapEmbedSrc,
-    categorisations: filterBarCategorisations,
-    entryTermIds: entryTermIdsFlat,
-    seoTitle: seoDefaults.meta_title_template || null,
-    seoDescription: seoDefaults.meta_description || null,
-    seoImageUrl: directory.seo_og_image_url || null,
-    seoNoindex: directoryNoindex,
-    aiSearch,
-    locationSearch: directory.location_search_enabled
-      ? {
-          directoryId: directory.id,
-          supabaseUrl,
-          supabaseAnonKey,
-          region: dominantGeocodeRegion(entries),
-          places: { ...PLACES_GB, ...directoryPlaceCentroids(entries) },
-        }
-      : null,
-    nav,
-    analytics: siteAnalytics,
-  });
-  await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
+  if (work.homepage) {
+    const landingHtml = buildDirectoryLandingPage({
+      clientSlug: client.slug,
+      directorySlug: directory.slug,
+      directoryName: directory.name,
+      directoryDescription: directory.description,
+      entries,
+      directoryLinks,
+      theme,
+      attachedMapEmbedSrc,
+      categorisations: filterBarCategorisations,
+      entryTermIds: entryTermIdsFlat,
+      seoTitle: seoDefaults.meta_title_template || null,
+      seoDescription: seoDefaults.meta_description || null,
+      seoImageUrl: directory.seo_og_image_url || null,
+      seoNoindex: directoryNoindex,
+      aiSearch,
+      locationSearch: directory.location_search_enabled
+        ? {
+            directoryId: directory.id,
+            supabaseUrl,
+            supabaseAnonKey,
+            region: dominantGeocodeRegion(entries),
+            places: { ...PLACES_GB, ...directoryPlaceCentroids(entries) },
+          }
+        : null,
+      nav,
+      analytics: siteAnalytics,
+    });
+    await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
+  }
 
+  if (work.indexes) {
   const sitemapUrl = `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}/sitemap.xml`;
   const siteBase = `${SITE_ORIGIN}/directories/${client.slug}/${directory.slug}`;
   const directoryUpdatedAt = (directory as { updated_at?: string | null }).updated_at ?? null;
@@ -613,8 +905,33 @@ async function generateForDirectoryInner(
     if (!livePaths.has(page.slug) && !redirectMap[page.slug]) redirectMap[page.slug] = newPath;
   }
   await uploadToBlob(`${basePath}/redirects.json`, JSON.stringify(redirectMap), "application/json; charset=utf-8");
+  }
 
-  return { directory_id: directoryId, count: entries.length };
+  if (work.style) {
+    await uploadToBlob(`${basePath}/theme.css`, buildThemeCss(theme), "text/css; charset=utf-8");
+  }
+
+  const nextManifest: SiteManifest = {
+    style_hash: styleHash,
+    chrome_hash: chromeHash,
+    features_hash: featuresHash,
+    templates_hash: templatesHash,
+    entries: Object.fromEntries(entries.map((e) => [e.id, e.updated_at ?? ""])),
+    pages: Object.fromEntries(contentPages.map((p) => [p.id, p.updated_at ?? ""])),
+  };
+  await db.from("directories").update({ site_generation_manifest: nextManifest }).eq("id", directoryId);
+
+  const isFull = work.entryIds === null && work.pageIds === null && work.homepage && work.style && work.indexes;
+  const scopes = isFull
+    ? ["full"]
+    : [
+        work.style ? "style" : null,
+        work.homepage ? "features" : null,
+        work.entryIds === null || work.entryIds.length > 0 ? "entries" : null,
+        work.pageIds === null || work.pageIds.length > 0 ? "pages" : null,
+      ].filter((s): s is string => !!s);
+
+  return { directory_id: directoryId, count: entriesToBuild.length, scopes };
 }
 
 Deno.serve(async (req) => {
@@ -622,14 +939,24 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { directory_id, all } = body as { directory_id?: string; all?: boolean };
+    const { directory_id, all, scope, entry_ids } = body as {
+      directory_id?: string;
+      all?: boolean;
+      scope?: GenerationScope;
+      entry_ids?: string[];
+    };
+    const request: GenerationRequest = {
+      scope: scope === "full" || scope === "style" || scope === "features" || scope === "entries" ? scope : "auto",
+      entryIds: Array.isArray(entry_ids) ? entry_ids.filter((id) => typeof id === "string") : undefined,
+    };
 
     if (all) {
       const db = createServiceClient();
       const { data: directories, error } = await db.from("directories").select("id").not("current_publication_id", "is", null);
       if (error) throw new Error(`Directories query failed: ${error.message}`);
+      const each: GenerationRequest = { scope: request.scope === "style" ? "style" : "full" };
 
-      const results = await Promise.allSettled((directories ?? []).map((d) => generateForDirectory(d.id)));
+      const results = await Promise.allSettled((directories ?? []).map((d) => generateForDirectory(d.id, each)));
       const succeeded = results.filter((r) => r.status === "fulfilled").length;
       const failed = results
         .filter((r) => r.status === "rejected")
@@ -640,7 +967,7 @@ Deno.serve(async (req) => {
 
     if (!directory_id) return json({ error: "Provide directory_id or all: true" }, 400);
 
-    const result = await generateForDirectory(directory_id);
+    const result = await generateForDirectory(directory_id, request);
     return json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
