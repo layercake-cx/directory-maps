@@ -8,6 +8,61 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 1: claims domain schema
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-1`
+**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+
+### What changed
+Schema only, no UI, no RPCs — nothing here is reachable by any code path yet. Adds the claims domain: `directory_claim_settings` (per-directory claim configuration), `claims` (one row per historical claim attempt, with a partial unique index blocking more than one non-revoked claim per item), `claim_payments` (1:1 current payment/subscription state, provider-neutral), `claim_users` (owner/editor per claim, exactly one non-removed owner enforced by a partial unique index), and `directory_entry_team_members` (net new — no per-entry team-member concept existed anywhere before this). Also adds four columns to `directory_entries`: `current_claim_id` (null = open to a new claim — kept deliberately separate from a claim's own permanent history, per the epic's non-negotiable rule that a revoked claim stays revoked forever while the item becomes reclaimable) and three content-provenance columns so a future AI enrichment job can tell claimant-managed content apart from platform content. RLS on all five new tables follows the exact `_admin_all`/`_own_client` pattern already used by `entry_evidence_items`/`directory_accreditation_schemes` — it covers platform admins and the organisation's own contacts, not yet claim users themselves, since the claim-user auth model doesn't exist until a later phase.
+
+### Database migrations applied
+- `20260923130000_create_claims_schema.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claims domain schema created`. Rollback: `_20260923130000_create_claims_schema.rollback.sql` (refuses if any of the new tables have data, or if any `directory_entries` row has `current_claim_id` set or `content_managed_by <> 'platform'`).
+
+### Edge Functions deployed
+None.
+
+### Frontend
+None — no UI reads or writes any of these tables yet (starts with Phase 2).
+
+### Rollback plan
+Run `_20260923130000_create_claims_schema.rollback.sql`. Safe today since every new table is empty and no `directory_entries` row has been touched by this feature yet.
+
+### Verified on staging
+- [x] `supabase db push --dry-run` showed only this one file pending
+- [x] Applied to staging — `VERIFY PASSED`, no errors
+- [x] Migration's own checks confirm RLS is enabled on all 5 new tables and both partial unique indexes (`claims_one_active_per_item`, `claim_users_one_owner`) exist
+- [ ] Production — awaiting separate explicit sign-off
+
+---
+
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 1: claims domain schema
+
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-1` (#233)](https://github.com/layercake-cx/directory-maps/pull/233)
+**Deployed by:** Claude Code, after explicit user sign-off separate from the staging push below.
+
+### What changed
+Same as the staging entry directly below — production now also has the 5 new claims tables and the 4 new `directory_entries` columns. Still no UI/RPCs reach any of it, so this is a no-op for real users until Phase 2 ships.
+
+### Database migrations applied
+- `20260923130000_create_claims_schema.sql` — production (`gxixwdjfmegxcxfeflro`). `db push --dry-run` showed only this file pending, matching staging exactly. Notice: `VERIFY PASSED: claims domain schema created`. CLI relinked back to staging immediately after.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+None.
+
+### Rollback plan
+Run `_20260923130000_create_claims_schema.rollback.sql` against production. Safe today since every new table is empty and no `directory_entries` row has been touched by this feature yet.
+
+### Verified on production
+- [x] `supabase db push --dry-run` against production showed only this one file pending
+- [x] Migration applied, `VERIFY PASSED`, no errors
+- [x] CLI relinked back to staging afterwards
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 0 foundations
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-0` (#232)](https://github.com/layercake-cx/directory-maps/pull/232)
