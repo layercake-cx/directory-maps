@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Directory Make an Enquiry
+
+**Branch/PR:** `feat/2026-09-22-directory-enquiry`
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. The Email tab reaches the branded site when this branch is deployed to Vercel; GitHub Pages updates when the branch is merged. A live directory still needs a republish before **Make an Enquiry** appears on its entry pages.
+
+### Database migrations applied
+- `20260922093000_directory_enquiry.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory enquiry email and engagement events`. CLI relinked to staging afterwards.
+
+### Edge Functions deployed
+- `send_contact_message` — production (`gxixwdjfmegxcxfeflro`), `--no-verify-jwt`
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Run `_20260922093000_directory_enquiry.rollback.sql` on production (it refuses if a contact email or enquiry events already exist). Redeploy the previous `send_contact_message` and `generate_directory_site`. Republish any directory that already received the button.
+
+### Verified on staging
+- [x] Staging migration and both functions deployed first (see below).
+- [x] Production migration notice passed; both functions deployed.
+- [ ] Operator: save a contact email, publish, and send a test enquiry on a live directory.
+
+---
+
 ## 2026-09-22 — [Staging] Directory Make an Enquiry
 
 **Branch/PR:** `feat/2026-09-22-directory-enquiry`
@@ -19,19 +44,20 @@ A published directory entry can offer **Make an Enquiry** beside **Visit website
 The button is written into the public HTML at publish time, so a live directory needs a republish after the contact email is saved.
 
 ### Database migrations applied
-- `20260922093000_directory_enquiry.sql` — pending staging apply in this session. Adds nullable `directories.enquiry_email` and the two engagement event types. Rollback: `_20260922093000_directory_enquiry.rollback.sql`.
+- `20260922093000_directory_enquiry.sql` — staging (`beqejxneehilplrtpntn`). CLI was already linked there. `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory enquiry email and engagement events`. Rollback: `_20260922093000_directory_enquiry.rollback.sql`.
 
 ### Edge Functions deployed
-- `send_contact_message` — pending. Accepts a directory enquiry and writes `directory_contact_submissions`.
-- `generate_directory_site` — pending. Bakes the button and drawer into entry pages.
+- `send_contact_message` — staging (`beqejxneehilplrtpntn`), `--no-verify-jwt`
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`)
 
 ### Rollback plan
 Run `_20260922093000_directory_enquiry.rollback.sql` (refuses if a contact email or enquiry events already exist). Redeploy the previous `send_contact_message` and `generate_directory_site`. Republish any directory that already received the button.
 
 ### Verified on staging
-- [ ] Dry-run, then `db push`, verification notice passed, directory row count unchanged
-- [ ] Edge functions deployed to staging
-- [ ] Email tab saves a contact email; published entry page shows Make an Enquiry and the drawer sends
+- [x] Dry-run, then `db push`, verification notice passed
+- [x] Both edge functions deployed to staging
+- [x] Generated entry HTML places Make an Enquiry beside Visit website; the drawer opens and shows name, email, phone, and message (local preview, headless Chrome)
+- [ ] A real send against staging Resend, after the Email tab is on a deployed frontend and a directory is republished
 
 ---
 
