@@ -99,7 +99,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
-A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings, analytics, plus categorisation tagging), **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest are owner/manager-only.
+A directory's page is organised into tabs: **Entries** (open by default), **Settings** (general/SEO settings, analytics, plus categorisation tagging), **Email**, **Publish**, **Branding**, **AI**, **Entry Layout**, **Pages**, **Accreditations**, and **Prominent Links**. Members without manage permission only see the Entries, Settings, and Publish tabs (with the Settings tab's fields read-only for them) — the rest, including Email, are owner/manager-only.
 
 ### Creating a directory
 
@@ -145,6 +145,15 @@ On a directory's **Settings** tab, the top panel covers:
 - **Analytics & Tracking** — optional Google Analytics 4 Measurement ID (`G-…`) and/or Google Tag Manager Container ID (`GTM-…`) for this directory only. Each can be enabled independently. After you **Save analytics** and **Publish**, every public page (homepage, entries, content pages) includes those tags. Visitors see a cookie banner and must accept analytics before Google tags load. Directory Maps still records anonymous first-party events (page views, searches, filters, listing clicks) even if a visitor rejects Google cookies — those events stay in Directory Maps and are not sent to Google. Invalid IDs are rejected on save.
 
 Click **Save settings** or **Save analytics**, then **Publish** (or republish) for changes to reach the live site.
+
+### Directory email
+
+On a directory's **Email** tab (owners and managers only):
+
+- **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** next to **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
+- **Enable messaging**, **Test mode**, **From address**, and **Domain & DNS** are the same organisation settings as [Messaging](#messaging) (`/client/email`). Changing them here changes them for your maps as well. Test mode sends enquiries to the test recipient instead of the contact email. The prompt, subject, and opening line use `{listing}` for the entry name, the same way map contact emails do.
+
+Sent enquiries are listed at the bottom of the tab (the latest 20).
 
 ### Publishing a directory
 
@@ -533,7 +542,7 @@ Messaging requires the **Professional plan or above**. On the Basic plan, the to
 At the top of the tab there is an **Enable messaging** toggle.
 
 - **Off (default):** the "Send message" button is hidden on all your published maps, regardless of what email addresses your listings contain.
-- **On:** the button appears on listings that have an email address.
+- **On:** the button appears on listings that have an email address. The same switch also shows **Make an Enquiry** on a directory's published entry pages when that directory has a contact email (see [Directory email](#directory-email)).
 
 When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
 
@@ -633,6 +642,8 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Enable messaging | `/client/email` → Settings → Enable messaging toggle |
 | Customise contact email subject and opening line | `/client/email` → Settings → From address → Email subject / Email opening message → Save |
 | Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
+| Set a directory enquiry inbox | Directory → Email → Contact email → Save contact email, then Publish |
+| Show Make an Enquiry on entry pages | Directory → Email → contact email set, messaging on, then Publish |
 | Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |

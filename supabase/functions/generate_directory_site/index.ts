@@ -88,6 +88,7 @@ import {
   type AiSearchOptions,
   type ContentPage,
   type SiteAnalytics,
+  type DirectoryEnquiry,
   parseDirectoryDestinations,
 } from "./builders.ts";
 
@@ -121,7 +122,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, updated_at")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, updated_at")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -416,6 +417,27 @@ async function generateForDirectoryInner(
         }
       : null;
 
+  const enquiryEmail = typeof (directory as { enquiry_email?: string | null }).enquiry_email === "string"
+    ? (directory as { enquiry_email: string }).enquiry_email.trim()
+    : "";
+  let entryEnquiry: DirectoryEnquiry | null = null;
+  if (enquiryEmail && supabaseUrl && supabaseAnonKey) {
+    const { data: messaging } = await db
+      .from("client_messaging_settings")
+      .select("messaging_enabled, messaging_prompt, email_test_mode")
+      .eq("client_id", client.id)
+      .maybeSingle();
+    if (messaging?.messaging_enabled === true) {
+      entryEnquiry = {
+        prompt: typeof messaging.messaging_prompt === "string" ? messaging.messaging_prompt : null,
+        testMode: messaging.email_test_mode !== false,
+        directoryId: directory.id,
+        supabaseUrl,
+        supabaseAnonKey,
+      };
+    }
+  }
+
   const entrySlugSet = new Set(entries.map((e) => e.slug));
 
   // Content pages — nested URLs for children (`parentSlug/childSlug.html`).
@@ -475,6 +497,7 @@ async function generateForDirectoryInner(
       related: relatedEntries(entry, entries, entryTermIdsByEntry),
       nav,
       analytics: siteAnalytics,
+      enquiry: entryEnquiry,
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });

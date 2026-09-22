@@ -197,12 +197,15 @@ function SetupInstructionsOverlay({ open, onClose, text }) {
 
 /**
  * Shared messaging / email domain settings for client portal and admin customer detail.
- * @param {{ clientId: string, clientName?: string, eventSource?: string }} props
+ * @param {{ clientId: string, clientName?: string, eventSource?: string, product?: "maps" | "directory" }} props
+ * `product="directory"` is the directory Email tab. The records are still the
+ * organisation's — the same ones maps use — with copy that mentions enquiries.
  */
 export default function MessagingSettings({
   clientId,
   clientName = "",
   eventSource = "client_portal",
+  product = "maps",
 }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -514,8 +517,19 @@ export default function MessagingSettings({
           <section className={`${styles.panelBox} ${messagingEnabled ? styles.panelBoxActive : styles.panelBoxOff}`}>
             <h2 className={styles.sectionTitle}>Enable messaging</h2>
             <p className={styles.hint}>
-              When on, a &ldquo;Send message&rdquo; button appears on listings that have an email address.
-              Turn this off to hide the button across all published maps.
+              {product === "directory" ? (
+                <>
+                  When on, <strong>Make an Enquiry</strong> appears beside Visit website on this
+                  directory&apos;s published entry pages, once a contact email is saved above and you
+                  publish again. This is the same switch as map messaging, so it also shows Send message
+                  on map listings that have an email address.
+                </>
+              ) : (
+                <>
+                  When on, a &ldquo;Send message&rdquo; button appears on listings that have an email address.
+                  Turn this off to hide the button across all published maps.
+                </>
+              )}
             </p>
 
             <label className={styles.toggleRow}>
@@ -570,8 +584,18 @@ export default function MessagingSettings({
           <section className={`${styles.panelBox} ${emailTestMode ? styles.panelBoxActive : ""}`}>
             <h2 className={styles.sectionTitle}>Test mode</h2>
             <p className={styles.hint}>
-              When test mode is on, contact form messages are redirected to the test recipient below
-              instead of the listing&apos;s email address. Turn off when ready to go live.
+              {product === "directory" ? (
+                <>
+                  When test mode is on, enquiry messages go to the test recipient below instead of this
+                  directory&apos;s contact email. The same setting redirects map messages away from listing
+                  addresses. Turn it off when you are ready to go live.
+                </>
+              ) : (
+                <>
+                  When test mode is on, contact form messages are redirected to the test recipient below
+                  instead of the listing&apos;s email address. Turn off when ready to go live.
+                </>
+              )}
             </p>
 
             <label className={styles.toggleRow}>
@@ -586,7 +610,11 @@ export default function MessagingSettings({
                 <div className={styles.toggleThumb} />
               </div>
               <span className={styles.toggleLabel}>
-                {emailTestMode ? "Test mode is on" : "Test mode is off — emails go to listing addresses"}
+                {emailTestMode
+                  ? "Test mode is on"
+                  : product === "directory"
+                    ? "Test mode is off — emails go to the directory contact address and to listing addresses"
+                    : "Test mode is off — emails go to listing addresses"}
               </span>
             </label>
 

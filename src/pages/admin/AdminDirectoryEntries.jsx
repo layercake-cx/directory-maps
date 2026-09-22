@@ -21,6 +21,7 @@ import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryA
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
+import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
 
 export default function AdminDirectoryEntries() {
   const { clientId, directoryId } = useParams();
@@ -171,6 +172,7 @@ export default function AdminDirectoryEntries() {
               tabs={[
                 { id: "entries", label: "Entries" },
                 { id: "settings", label: "Settings" },
+                { id: "email", label: "Email" },
                 { id: "publish", label: "Publish" },
                 { id: "branding", label: "Branding" },
                 { id: "ai_content", label: "AI" },
@@ -235,6 +237,19 @@ export default function AdminDirectoryEntries() {
                   />
                 </div>
               </>
+            )}
+
+            {activeTab === "email" && (
+              <DirectoryEnquiryPanel
+                directory={directory}
+                directoryId={directoryId}
+                clientId={clientId}
+                clientName={client?.name}
+                canManage
+                recordEvent={recordEvent}
+                eventSource="admin_dashboard"
+                onSaved={reloadDirectory}
+              />
             )}
 
             {activeTab === "publish" && (

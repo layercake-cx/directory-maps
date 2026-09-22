@@ -508,6 +508,26 @@ const LAYOUT_STYLE = `
   .dir-entry-header__desc { font-size: 16px; color: var(--muted); line-height: 1.6; margin: 10px 0 14px; max-width: 64ch; }
   .dir-entry-header__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
   .dir-entry-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dir-enquiry { position: fixed; inset: 0; z-index: 40; }
+  .dir-enquiry[hidden], .dir-enquiry__body[hidden], #dir-enquiry-success[hidden], .dir-enquiry__error[hidden] { display: none !important; }
+  .dir-enquiry__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); border: 0; padding: 0; }
+  .dir-enquiry__panel {
+    position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 100%);
+    background: var(--surface); color: var(--ink); box-shadow: -12px 0 40px rgba(0,0,0,.18);
+    display: flex; flex-direction: column; overflow: auto;
+  }
+  .dir-enquiry__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+  .dir-enquiry__header h2 { font-size: 18px; }
+  .dir-enquiry__close { border: 0; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; color: var(--ink); padding: 4px 8px; }
+  .dir-enquiry__body { padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px; }
+  .dir-enquiry__to, .dir-enquiry__prompt { margin: 0; font-size: 14px; color: var(--muted); }
+  .dir-enquiry__test { margin: 0; font-size: 13px; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: 8px; }
+  .dir-enquiry__label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+  .dir-enquiry__label input, .dir-enquiry__label textarea {
+    font: inherit; font-weight: 400; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .dir-enquiry__error { margin: 0; color: #b91c1c; font-size: 13px; }
+  .dir-enquiry__success { margin: 0; font-size: 15px; }
   .dir-jumpbar-outer { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
   .dir-jumpbar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0; }
   .dir-jumpchip { flex: none; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink); text-decoration: none; white-space: nowrap; }
@@ -1031,6 +1051,143 @@ function sectionAnchorId(label: string, index: number): string {
   return `s${index}-${slug || "section"}`;
 }
 
+/** Baked into an entry page when the directory has a contact email and messaging is on. The inbox address stays on the server. */
+export type DirectoryEnquiry = {
+  prompt: string | null;
+  testMode: boolean;
+  directoryId: string;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+};
+
+function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
+  const prompt = enquiry.prompt?.trim()
+    ? `<p class="dir-enquiry__prompt">${escapeHtml(enquiry.prompt.trim())}</p>`
+    : "";
+  const testBanner = enquiry.testMode
+    ? `<p class="dir-enquiry__test"><strong>Test mode:</strong> This message goes to the organisation&apos;s test recipient, not the public contact address.</p>`
+    : "";
+  const cfg = embedJson({
+    directoryId: enquiry.directoryId,
+    entryId: entry.id,
+    supabaseUrl: enquiry.supabaseUrl.replace(/\/$/, ""),
+    anonKey: enquiry.supabaseAnonKey,
+  });
+  return `<div id="dir-enquiry" class="dir-enquiry" hidden>
+  <button type="button" class="dir-enquiry__backdrop" data-dm-enquiry-close aria-label="Close"></button>
+  <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-enquiry-title">
+    <div class="dir-enquiry__header">
+      <h2 id="dir-enquiry-title">Make an Enquiry</h2>
+      <button type="button" class="dir-enquiry__close" data-dm-enquiry-close aria-label="Close">&times;</button>
+    </div>
+    <div class="dir-enquiry__body">
+      <p class="dir-enquiry__to">About: ${escapeHtml(entry.name)}</p>
+      ${prompt}
+      ${testBanner}
+      <form id="dir-enquiry-form" class="dir-enquiry__body" style="padding:0;">
+        <label class="dir-enquiry__label">Name<input type="text" name="name" autocomplete="name" maxlength="200"></label>
+        <label class="dir-enquiry__label">Email<input type="email" name="email" autocomplete="email" required></label>
+        <label class="dir-enquiry__label">Phone<input type="tel" name="phone" autocomplete="tel" maxlength="40"></label>
+        <label class="dir-enquiry__label">Message<textarea name="message" rows="5" required maxlength="8000"></textarea></label>
+        <p class="dir-enquiry__error" id="dir-enquiry-error" hidden></p>
+        <button type="submit" class="btn btn-primary" id="dir-enquiry-submit">Send message</button>
+      </form>
+      <div id="dir-enquiry-success" hidden>
+        <p class="dir-enquiry__success">Your message has been sent. You have been CC&apos;d on the email.</p>
+        <button type="button" class="btn btn-primary" data-dm-enquiry-close>Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var cfg = ${cfg};
+  var root = document.getElementById('dir-enquiry');
+  var form = document.getElementById('dir-enquiry-form');
+  var errEl = document.getElementById('dir-enquiry-error');
+  var successEl = document.getElementById('dir-enquiry-success');
+  var submitBtn = document.getElementById('dir-enquiry-submit');
+  if (!root || !form) return;
+
+  function setOpen(open) {
+    if (open) root.hidden = false;
+    else root.hidden = true;
+    if (open) {
+      var first = form.querySelector('input, textarea');
+      if (first) first.focus();
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[data-dm-enquiry-open]')) {
+      setOpen(true);
+      return;
+    }
+    if (t.closest('[data-dm-enquiry-close]')) setOpen(false);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !root.hidden) setOpen(false);
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = new FormData(form);
+    var senderEmail = String(data.get('email') || '').trim();
+    var message = String(data.get('message') || '').trim();
+    errEl.hidden = true;
+    errEl.textContent = '';
+    if (!senderEmail || !message) {
+      errEl.hidden = false;
+      errEl.textContent = 'Email and message are required.';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    fetch(cfg.supabaseUrl + '/functions/v1/send_contact_message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.anonKey,
+        'Authorization': 'Bearer ' + cfg.anonKey
+      },
+      body: JSON.stringify({
+        directoryId: cfg.directoryId,
+        entryId: cfg.entryId,
+        senderName: String(data.get('name') || '').trim(),
+        senderEmail: senderEmail,
+        senderPhone: String(data.get('phone') || '').trim(),
+        message: message,
+        surface: 'published'
+      })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) throw new Error((body && body.error) || 'Failed to send message.');
+        form.hidden = true;
+        successEl.hidden = false;
+        if (window.dmRecordEngagement) {
+          window.dmRecordEngagement('listing_enquiry_sent', {
+            listingId: cfg.entryId,
+            meta: { path: location.pathname, cta_type: 'enquiry' }
+          });
+        }
+      });
+    }).catch(function (err) {
+      errEl.hidden = false;
+      var raw = (err && err.message) || '';
+      errEl.textContent = (!raw || raw === 'Failed to fetch')
+        ? 'The message could not be sent. Please try again.'
+        : raw;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send message';
+    });
+  });
+})();
+</script>`;
+}
+
 export function buildEntryPage(opts: {
   clientSlug: string;
   directorySlug: string;
@@ -1055,8 +1212,9 @@ export function buildEntryPage(opts: {
   related: Entry[];
   nav?: SiteNav | null;
   analytics?: SiteAnalytics | null;
+  enquiry?: DirectoryEnquiry | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -1096,6 +1254,9 @@ export function buildEntryPage(opts: {
   const websiteButton = entry.show_website && entry.website_url
     ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a>`
     : "";
+  const enquiryButton = enquiry
+    ? `<button type="button" class="btn ${websiteButton ? "btn-ghost" : "btn-primary"}" data-dm-event="listing_enquiry_open" data-dm-cta="enquiry" data-dm-enquiry-open>Make an Enquiry</button>`
+    : "";
   const showOnMapButton = attachedMapEmbedSrc
     ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}" data-dm-event="listing_cta_click" data-dm-cta="map">Show on map</a>`
     : "";
@@ -1106,7 +1267,7 @@ export function buildEntryPage(opts: {
     <h1 style="font-size:calc(var(--fs-h1) * 0.85);line-height:1.1;">${escapeHtml(entry.name)}</h1>
     ${entry.meta_description ? `<p class="dir-entry-header__desc">${escapeHtml(entry.meta_description)}</p>` : ""}
     ${headerTagLabels.length ? `<div class="dir-entry-header__tags">${headerTagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
-    ${websiteButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${showOnMapButton}</div>` : ""}
+    ${websiteButton || enquiryButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${enquiryButton}${showOnMapButton}</div>` : ""}
   </div>
 </div>`;
 
@@ -1273,6 +1434,7 @@ ${jumpBar}
   ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
+${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
 `.trim();
 
   return directoryPageShell({

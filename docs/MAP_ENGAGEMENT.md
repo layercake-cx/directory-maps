@@ -97,6 +97,8 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 | `listing_website_click` | Entry “Visit website” | set | `cta_type` |
 | `listing_contact_click` | Entry `mailto:` | set | `cta_type` |
 | `listing_cta_click` | Primary website, prominent-link tile, or “Show on map” | set | `cta_type` |
+| `listing_enquiry_open` | **Make an Enquiry** clicked (drawer opens) | set | `cta_type`: `enquiry`, `path` |
+| `listing_enquiry_sent` | Enquiry submitted and the email send succeeded | set | `cta_type`: `enquiry`, `path` |
 
 Reserved (CHECK only; not emitted until those products exist): `listing_claim_start`, `listing_claim_complete`, `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
 

@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Staging] Directory Make an Enquiry
+
+**Branch/PR:** `feat/2026-09-22-directory-enquiry`
+**Deployed by:** Cursor Grok. Staging first, then production, with explicit go-ahead in the same request.
+
+### What changed
+A published directory entry can offer **Make an Enquiry** beside **Visit website** when the directory has a contact email and organisation messaging is on. The visitor writes in a side drawer; the message is emailed through the existing contact-email path (test mode, from address, subject, and opening line included). The directory **Email** tab holds that contact inbox plus the same messaging settings maps already use. Opening the drawer and a successful send are recorded as `listing_enquiry_open` and `listing_enquiry_sent`.
+
+The button is written into the public HTML at publish time, so a live directory needs a republish after the contact email is saved.
+
+### Database migrations applied
+- `20260922093000_directory_enquiry.sql` — pending staging apply in this session. Adds nullable `directories.enquiry_email` and the two engagement event types. Rollback: `_20260922093000_directory_enquiry.rollback.sql`.
+
+### Edge Functions deployed
+- `send_contact_message` — pending. Accepts a directory enquiry and writes `directory_contact_submissions`.
+- `generate_directory_site` — pending. Bakes the button and drawer into entry pages.
+
+### Rollback plan
+Run `_20260922093000_directory_enquiry.rollback.sql` (refuses if a contact email or enquiry events already exist). Redeploy the previous `send_contact_message` and `generate_directory_site`. Republish any directory that already received the button.
+
+### Verified on staging
+- [ ] Dry-run, then `db push`, verification notice passed, directory row count unchanged
+- [ ] Edge functions deployed to staging
+- [ ] Email tab saves a contact email; published entry page shows Make an Enquiry and the drawer sends
+
+---
+
 ## 2026-09-22 — [Production] Header logo vertical margin
 
 **Branch/PR:** `feat/2026-09-22-header-logo-margin` / https://github.com/layercake-cx/directory-maps/pull/226

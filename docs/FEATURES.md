@@ -219,7 +219,7 @@ Phase 3a of the Directories build-out — the data model DIR-E2 (publish/SEO) ne
 - **SEO overrides** — `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority` per entry; `seo_defaults_json` per directory.
 - **`directory_publications`** + `publish_directory`/`rollback_directory_to`/`list_directory_publications` — exact mirror of `map_publications`' final, tenant-checked shape. The publish snapshot (`config jsonb`) covers directory settings + the categorisation taxonomy structure; entries and their live tag assignments are read live at generation time, not snapshotted (mirrors how `EmbedMap.jsx` reads `public_listings` live regardless of a map's publication version).
 - **`directory_redirects`** — records an entry's old slug whenever it changes (`AFTER UPDATE` trigger), so a renamed entry's old public URL keeps working. This was deferred out of Phase 2 because it needed `directory_entries.slug` to exist first.
-- **`directory_contact_submissions`** — table + RLS only (mirrors `map_contact_submissions`); no enquiry form UI or email-sending function yet.
+- **`directory_contact_submissions`** — visitor enquiry log (mirrors `map_contact_submissions`). The form and send path landed later: directory **Email** tab, **Make an Enquiry** on published entry pages, and `send_contact_message` (`20260922093000_directory_enquiry.sql`).
 
 **Not built yet (at the time):** the actual static generator, `middleware.js` routing for directory URLs, anon-read RLS/a `public_directory_entries`-style view, and any Publish UI. A pre-existing gap was noticed but not fixed here: `maps.slug` has no uniqueness constraint at all (not even per-client), so a directory slug could in principle collide with a map slug for the same client — resolved for routing purposes in Phase 3b below without needing that constraint (see the URL shape decision there).
 
@@ -448,6 +448,17 @@ Tables: `directory_content_pages` (`20260919150000`, columns extended `202609200
 
 Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPagesPanel.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx`; `supabase/functions/generate_directory_site/builders.ts` + `index.ts`; `middleware.js`.
 
+### 4.4l Directory enquiries (2026-09-22)
+
+Make an Enquiry on a published directory, using the same organisation messaging settings as maps.
+
+- **Contact email** (`directories.enquiry_email`) on the directory **Email** tab. Blank hides the button. The address is not written into the public HTML — `send_contact_message` looks it up when the visitor submits.
+- **Shared messaging settings** — enable, prompt, test mode, from address, subject, opening line, and domain DNS stay on the organisation (`clients`), edited from the directory Email tab or from `/client/email`. Turning messaging on or off, or changing test mode, affects maps as well.
+- **Published entry page** — when the contact email is set and messaging is enabled, **Make an Enquiry** sits beside **Visit website**. It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the organisation test recipient. Takes effect on the next Publish.
+- **Log** — `directory_contact_submissions`, shown as Recent enquiries on the Email tab. Admin event `directory_enquiry_settings_updated` on contact-email save (no raw address). Public events `listing_enquiry_open` (button) and `listing_enquiry_sent` (successful send).
+
+Files: `src/components/directories/DirectoryEnquiryPanel.jsx`, `MessagingSettings.jsx`; `supabase/functions/send_contact_message/index.ts`; `generate_directory_site/builders.ts` + `index.ts`. Migration: `20260922093000_directory_enquiry.sql`.
+
 ### 4.5 Analytics (engagement)
 
 | Feature | Route | Description |
@@ -455,7 +466,8 @@ Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPa
 | Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
 | Directory tracking config | Directory → Settings → Analytics & Tracking | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish |
-| Directory first-party events | (no dashboard yet) | Same `map_engagement_events` table, `directory_id` + `surface: directory_site` |
+| Directory first-party events | (no dashboard yet) | Same `map_engagement_events` table, `directory_id` + `surface: directory_site`. Includes `listing_enquiry_open` and `listing_enquiry_sent`. |
+| Directory enquiries | Directory → Email | Contact inbox plus the shared messaging settings. **Make an Enquiry** on published entry pages after Publish. |
 
 Data source: `map_engagement_events` (public embed **and** published directory HTML). See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
 
