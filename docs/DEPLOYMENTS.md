@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Not yet deployed] Claimed Directory Listings — Phase 0 foundations
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-0` (not yet opened as a PR)
+**Deployed by:** Claude Code, not yet applied to any environment.
+
+### What changed
+Foundations only — no user-visible behaviour yet, and nothing here is reachable by any UI. Registers a `claims` beta feature flag (off for customers, on for admins/@layercake-cx.biz, mirroring `custom_domain`/`directory_pages`) and a `maps.claims` commercial entitlement (boolean, `standard` → false, `premium`/`unlimited`/`founder` → true) plus its `resolve_claims_entitlement(client_id)` resolver, following the exact precedent of `resolve_custom_domain_entitlement`/`resolve_ai_search_entitlement`. Also documents the full `claim_*` admin event category in `AGENTS.md` and the two already-reserved public `listing_claim_start`/`listing_claim_complete` engagement events in `docs/MAP_ENGAGEMENT.md`, ahead of the tables/UI (later phases of this epic) that will actually emit them. See the "Claimed Directory Listings (Epic)" Monday ticket for the full 10-phase plan.
+
+### Database migrations applied
+- `20260923120000_seed_claims_feature_flag.sql` — not yet applied anywhere. Rollback: `_20260923120000_seed_claims_feature_flag.rollback.sql`.
+- `20260923121000_gate_claims_entitlement.sql` — not yet applied anywhere. Rollback: `_20260923121000_gate_claims_entitlement.rollback.sql`.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+None.
+
+### Rollback plan
+Run the two rollback files above, in reverse order (entitlement rollback first, then feature-flag rollback), on whichever environment they were applied to. Neither has been applied anywhere yet, so there is nothing to roll back until staging verification happens.
+
+### Verified on staging
+- [ ] Dry-run (`BEGIN; … ROLLBACK;`) passes for both migrations
+- [ ] Applied to staging (`beqejxneehilplrtpntn`)
+- [ ] `resolve_claims_entitlement('__nonexistent_client__')` returns `false`
+- [ ] `get_my_entitlements()`/`get_client_entitlements()` include `claims` for a `premium`/`unlimited` test client and exclude it for a `standard` one
+
+---
+
 ## 2026-09-22 — [Staging] Directory `llms.txt` v2 overview
 
 **Branch/PR:** `feat/2026-09-22-llms-txt`

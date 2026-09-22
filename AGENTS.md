@@ -511,6 +511,41 @@ Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`)
   - `meta`: `client_id`, `directory_id`, `enabled` (boolean)
   - Fired only when the web-search opt-in's value actually changes on save, not on every unrelated prompt save.
 
+#### Claims
+
+Claimed Directory Listings epic (Monday: "Claimed Directory Listings (Epic)"). Lets an organisation
+represented in a directory claim, verify, and manage its own `directory_entries` row without becoming
+a directory administrator — a claim grants rights to one directory item, never the directory. Gated by
+the `claims` feature flag + the `maps.claims` commercial entitlement (`resolve_claims_entitlement()`).
+These events are added to the catalogue in Phase 0 ahead of the tables/UI that emit them (later phases
+of the same epic) — implementers should reuse these exact names rather than inventing new ones.
+
+- **`claim_started`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `created_by` (`self_service`/`admin`), `source`
+- **`claim_email_verification_sent`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
+- **`claim_email_verified`** / **`claim_verification_overridden`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `verification_method` (`domain_email`/`admin_override`)
+- **`claim_payment_started`** / **`claim_payment_completed`** / **`claim_payment_failed`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `payment_type`, `error` (on fail)
+  - Only emitted once the Claim Payments (Stripe) follow-up epic lands; the main epic's self-service flow activates without payment (see `claim_activated`'s `activation_reason`).
+- **`claim_activated`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `activation_reason` (`no_payment_required` / `payment_confirmed` / `admin_manual`)
+- **`claim_user_invited`** / **`claim_user_activated`** / **`claim_user_removed`**
+  - `meta`: `client_id`, `directory_id`, `claim_id`, `claim_user_id`, `role` (`owner`/`editor`)
+- **`claim_ownership_transfer_started`** / **`claim_ownership_transferred`**
+  - `meta`: `client_id`, `directory_id`, `claim_id`, `from_claim_user_id`, `to_claim_user_id`
+- **`claimed_listing_updated`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `changed_fields` (string[])
+- **`claimed_listing_published`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
+  - Fired by `publish_directory_item()` (see §5's item-only publishing isolation requirement) — never the general `map_published`/directory publish events, since a claim publish must never touch unrelated directory content.
+- **`claim_suspended`** / **`claim_reactivated`** / **`claim_revoked`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `reason` (optional, `claim_revoked` only)
+- **`directory_claim_settings_updated`**
+  - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
+  - Fired from the directory admin's Claims → Settings sub-tab.
+
 ### 4) Rule for future features
 
 When introducing a new admin capability:
