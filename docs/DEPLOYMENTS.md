@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Directory location search
+
+**Branch/PR:** `feat/2026-09-22-location-search` / https://github.com/layercake-cx/directory-maps/pull/228
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. Vercel production is deployed from this branch (`dpl_ETjUeSJ8qsBMZEduDAdPMZFt7fNf`), aliased to https://uk-associations.com. GitHub Pages updates when the branch is merged. A live directory still needs the **Location search** switch on and a republish before **Distance from** appears.
+
+### Database migrations applied
+- `20260922103000_directory_location_search.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory location search schema created`. CLI relinked to staging afterwards.
+
+### Edge Functions deployed
+- `resolve_directory_place` — production (`gxixwdjfmegxcxfeflro`), `--no-verify-jwt`
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Run `_20260922103000_directory_location_search.rollback.sql` on production (it refuses if any directory has the switch on, if the cache or rate-limit log has rows, or if a `directory_distance_filter` event exists). Redeploy the previous `generate_directory_site`. Republish any directory that was published with location search on.
+
+### Verified on staging
+- [x] Staging migration and both functions deployed first (see below).
+- [x] Production migration notice passed; both functions deployed.
+- [x] Vercel production deploy ready: https://uk-associations.com (deployment https://directory-maps-cg3puiu4e-layercake-apps.vercel.app).
+- [ ] Operator: turn Location search on, republish, and try a place search on a live directory.
+
+---
+
 ## 2026-09-22 — [Staging] Directory location search
 
 **Branch/PR:** `feat/2026-09-22-location-search`
