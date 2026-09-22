@@ -8,32 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-23 — [Not yet deployed] Claimed Directory Listings — Phase 0 foundations
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 0 foundations
 
-**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-0` (not yet opened as a PR)
-**Deployed by:** Claude Code, not yet applied to any environment.
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-0`
+**Deployed by:** Claude Code, after explicit go-ahead. CLI was already linked to staging (`beqejxneehilplrtpntn`). CLI is 2.75.0, which has no `db execute`/raw-SQL subcommand (documented gap in `docs/DATABASE_MIGRATIONS.md`), so a real `BEGIN;…ROLLBACK;` dry run wasn't possible — used `supabase db push --dry-run` (confirmed exactly these two files were pending, nothing stray from another session) followed by `supabase db push` for real, relying on each migration's own pre/post `do $$ … end $$` checks.
 
 ### What changed
 Foundations only — no user-visible behaviour yet, and nothing here is reachable by any UI. Registers a `claims` beta feature flag (off for customers, on for admins/@layercake-cx.biz, mirroring `custom_domain`/`directory_pages`) and a `maps.claims` commercial entitlement (boolean, `standard` → false, `premium`/`unlimited`/`founder` → true) plus its `resolve_claims_entitlement(client_id)` resolver, following the exact precedent of `resolve_custom_domain_entitlement`/`resolve_ai_search_entitlement`. Also documents the full `claim_*` admin event category in `AGENTS.md` and the two already-reserved public `listing_claim_start`/`listing_claim_complete` engagement events in `docs/MAP_ENGAGEMENT.md`, ahead of the tables/UI (later phases of this epic) that will actually emit them. See the "Claimed Directory Listings (Epic)" Monday ticket for the full 10-phase plan.
 
 ### Database migrations applied
-- `20260923120000_seed_claims_feature_flag.sql` — not yet applied anywhere. Rollback: `_20260923120000_seed_claims_feature_flag.rollback.sql`.
-- `20260923121000_gate_claims_entitlement.sql` — not yet applied anywhere. Rollback: `_20260923121000_gate_claims_entitlement.rollback.sql`.
+- `20260923120000_seed_claims_feature_flag.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claims feature flag registered`. Rollback: `_20260923120000_seed_claims_feature_flag.rollback.sql`.
+- `20260923121000_gate_claims_entitlement.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claims entitlement + resolver created` (this notice only fires after the in-migration check that `resolve_claims_entitlement('__nonexistent_client__')` returns `false`, so that fail-safe behaviour is already confirmed). Rollback: `_20260923121000_gate_claims_entitlement.rollback.sql`.
 
 ### Edge Functions deployed
 None.
 
 ### Frontend
-None.
+None — no UI reads either the flag or the entitlement yet (that starts with Phase 2, the admin Claims settings tab).
 
 ### Rollback plan
-Run the two rollback files above, in reverse order (entitlement rollback first, then feature-flag rollback), on whichever environment they were applied to. Neither has been applied anywhere yet, so there is nothing to roll back until staging verification happens.
+Run `_20260923121000_gate_claims_entitlement.rollback.sql` then `_20260923120000_seed_claims_feature_flag.rollback.sql`, in that order, against staging (or production, once/if this reaches there). Both refuse safely if something unexpected depends on them by then.
 
 ### Verified on staging
-- [ ] Dry-run (`BEGIN; … ROLLBACK;`) passes for both migrations
-- [ ] Applied to staging (`beqejxneehilplrtpntn`)
-- [ ] `resolve_claims_entitlement('__nonexistent_client__')` returns `false`
-- [ ] `get_my_entitlements()`/`get_client_entitlements()` include `claims` for a `premium`/`unlimited` test client and exclude it for a `standard` one
+- [x] `supabase db push --dry-run` showed only these two files pending (nothing stray from another session's uncommitted work)
+- [x] Applied to staging (`beqejxneehilplrtpntn`) — both `VERIFY PASSED` notices fired, no errors
+- [x] `resolve_claims_entitlement('__nonexistent_client__')` returns `false` (asserted inside the migration's own post-verification block)
+- [ ] `get_my_entitlements()`/`get_client_entitlements()` include `claims` for a `premium`/`unlimited` test client and exclude it for a `standard` one — no admin UI surfaces this yet to check by hand; will be exercised naturally once Phase 2 ships
+- Production: not deployed, awaiting explicit sign-off (separate from this staging push)
 
 ---
 
