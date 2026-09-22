@@ -1,2 +1,5 @@
 [functions.google_oauth_callback]
 verify_jwt = false
+
+[functions.resolve_directory_place]
+verify_jwt = false

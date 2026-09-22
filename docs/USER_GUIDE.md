@@ -165,6 +165,8 @@ Each publish also regenerates `sitemap.xml`. Every listed URL includes a last-mo
 
 The published homepage has a fast keyword search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed) and, when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get a **Help me choose** button — see **Help me choose** below. The search box itself never calls Claude.
 
+**Location search** is optional. On the directory **Settings** tab, turn on **Location search** and **Publish** again. Visitors then get a **Distance from** filter (a town, city, or postcode, plus 5, 10, 25, or 50 miles, and **Use my location**). A search such as “ultimate frisbee near Stroud” fills that filter and keeps “ultimate frisbee” as the keywords, so a club in a nearby town can appear even when its listing does not contain the word Stroud. Listings need coordinates. With location search off, the homepage stays keyword search only.
+
 The header, mobile menu, and footer on every published page are generated from the **Pages** tab (see **Content pages** below): a Home link back to the directory, plus your pages in the order you set. Child pages appear in a dropdown on desktop and an expandable section on a phone.
 
 **If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
@@ -655,6 +657,8 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Set a full-width hero banner | Directory → Branding → Hero banner |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
+| Turn on location search | Directory → Settings → Search → Location search, then Publish |
+| Filter a published directory by distance | Published homepage → Distance from |
 | Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |

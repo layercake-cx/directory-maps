@@ -42,6 +42,7 @@ import {
   siteHeader,
   clampLogoMaxHeight,
 } from "./builders.ts";
+import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 function term(id: string, categorisation_id: string, label: string, slug: string, sort_order: number): CategorisationTerm {
   return { id, categorisation_id, label, slug, sort_order };
@@ -133,6 +134,15 @@ const ENTRIES: Entry[] = [
 
 ENTRIES[0].website_url = "https://www.ciep.uk";
 ENTRIES[0].keywords = "CIEP, proofreading, editing";
+// Distance-from fixture: one ultimate-frisbee club near Stroud (text does not
+// say Stroud) and one in London, so a "near Stroud" search can be checked locally.
+ENTRIES[1].lat = 51.6938;
+ENTRIES[1].lng = -2.2199;
+ENTRIES[1].city = "Nailsworth";
+ENTRIES[1].keywords = "ultimate frisbee";
+ENTRIES[3].keywords = "ultimate frisbee";
+ENTRIES[3].lat = 51.5074;
+ENTRIES[3].lng = -0.1278;
 // Rich notes so the local preview shows list/paragraph sizing and heading
 // spacing (the published .prose rules). allow_html is false on makeEntry().
 ENTRIES[0].allow_html = true;
@@ -275,6 +285,13 @@ const landingHtml = buildDirectoryLandingPage({
     enabled: true,
     supabaseUrl: "https://example.supabase.co",
     supabaseAnonKey: "preview-anon-key",
+  },
+  locationSearch: {
+    directoryId: "preview-directory-id",
+    supabaseUrl: "https://example.supabase.co",
+    supabaseAnonKey: "preview-anon-key",
+    region: dominantGeocodeRegion(ENTRIES),
+    places: { ...PLACES_GB, ...directoryPlaceCentroids(ENTRIES) },
   },
 });
 await Deno.writeTextFile(new URL("./index.html", outDir), landingHtml);

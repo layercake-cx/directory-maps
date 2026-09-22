@@ -91,6 +91,7 @@ import {
   type DirectoryEnquiry,
   parseDirectoryDestinations,
 } from "./builders.ts";
+import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 /**
  * Records generate_directory_site's outcome on directories.site_generation_*
@@ -122,7 +123,7 @@ async function generateForDirectoryInner(
 ): Promise<{ directory_id: string; skipped?: string; count?: number }> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, updated_at")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, location_search_enabled, updated_at")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -541,6 +542,15 @@ async function generateForDirectoryInner(
     seoImageUrl: directory.seo_og_image_url || null,
     seoNoindex: directoryNoindex,
     aiSearch,
+    locationSearch: directory.location_search_enabled
+      ? {
+          directoryId: directory.id,
+          supabaseUrl,
+          supabaseAnonKey,
+          region: dominantGeocodeRegion(entries),
+          places: { ...PLACES_GB, ...directoryPlaceCentroids(entries) },
+        }
+      : null,
     nav,
     analytics: siteAnalytics,
   });

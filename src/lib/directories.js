@@ -38,7 +38,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
 }
 
 const DIRECTORY_COLUMNS =
-  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label, analytics_json, enquiry_email";
+  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label, analytics_json, enquiry_email, location_search_enabled";
 
 /**
  * Schema-drift fallback: a DB migration and a frontend deploy are two
@@ -80,6 +80,10 @@ export async function getDirectory(directoryId) {
     }
     if (msg.includes("enquiry_email") && columns.includes("enquiry_email")) {
       columns = columns.replace(", enquiry_email", "");
+      continue;
+    }
+    if (msg.includes("location_search_enabled") && columns.includes("location_search_enabled")) {
+      columns = columns.replace(", location_search_enabled", "");
       continue;
     }
     throw error;

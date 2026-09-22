@@ -264,6 +264,11 @@ export default function PublishedMapView({
    * externalActiveFilters. null = no extra id restriction.
    */
   externalVisibleEntryIds = null,
+  /**
+   * Directory homepage Distance from target. When set, pans the camera to
+   * that point. null leaves the camera where it is.
+   */
+  externalFocus = null,
   /** Hide the custom-filter-fields UI block (groups/continent/search stay visible) — the parent page renders its own controls instead. */
   hideFilterBar = false,
 }) {
@@ -535,6 +540,18 @@ export default function PublishedMapView({
     const q = searchQuery.trim();
     if (q.length < 2) lastSearchQueryLoggedRef.current = "";
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!externalFocus || typeof externalFocus.lat !== "number" || typeof externalFocus.lng !== "number") return;
+    cameraSeqRef.current += 1;
+    const miles = Number(externalFocus.radiusMiles) || 10;
+    const zoom = miles <= 5 ? 12 : miles <= 10 ? 11 : miles <= 25 ? 10 : 9;
+    setCameraRequest({
+      id: cameraSeqRef.current,
+      center: { lat: externalFocus.lat, lng: externalFocus.lng },
+      zoom,
+    });
+  }, [externalFocus]);
 
   useEffect(() => {
     const q = searchQuery.trim();
