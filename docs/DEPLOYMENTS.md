@@ -14,7 +14,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 **Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
 
 ### What changed
-Same as the staging entry below. The Email tab reaches the branded site when this branch is deployed to Vercel; GitHub Pages updates when the branch is merged. A live directory still needs a republish before **Make an Enquiry** appears on its entry pages.
+Same as the staging entry below. Vercel production is deployed from this branch (`dpl_ETPoEZ27Udqf26tJ8XxocskohMUT`), aliased to https://uk-associations.com. GitHub Pages updates when the branch is merged. A live directory still needs a republish before **Make an Enquiry** appears on its entry pages.
 
 ### Database migrations applied
 - `20260922093000_directory_enquiry.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory enquiry email and engagement events`. CLI relinked to staging afterwards.
@@ -29,6 +29,7 @@ Run `_20260922093000_directory_enquiry.rollback.sql` on production (it refuses i
 ### Verified on staging
 - [x] Staging migration and both functions deployed first (see below).
 - [x] Production migration notice passed; both functions deployed.
+- [x] Vercel production deploy ready: https://uk-associations.com (deployment https://directory-maps-d0wy3kir6-layercake-apps.vercel.app).
 - [ ] Operator: save a contact email, publish, and send a test enquiry on a live directory.
 
 ---
