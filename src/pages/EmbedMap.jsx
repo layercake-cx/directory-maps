@@ -185,6 +185,8 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [externalActiveFilters, setExternalActiveFilters] = useState(null);
   /** Directory homepage shown-set (keyword + facets + Help me choose), posted with directory-filter-change. */
   const [externalVisibleEntryIds, setExternalVisibleEntryIds] = useState(null);
+  /** Distance-from camera target from the directory homepage, or null. */
+  const [externalFocus, setExternalFocus] = useState(null);
   /** Normalized publication snapshot (map + group styling); listings stay live. */
   const [publicationConfig, setPublicationConfig] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
@@ -483,6 +485,15 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
       if (!data || data.type !== "directory-filter-change") return;
       setExternalActiveFilters(data.activeFilters && typeof data.activeFilters === "object" ? data.activeFilters : null);
       setExternalVisibleEntryIds(Array.isArray(data.visibleEntryIds) ? data.visibleEntryIds : null);
+      const focus = data.focus;
+      if (!focus || typeof focus.lat !== "number" || typeof focus.lng !== "number") {
+        setExternalFocus((prev) => (prev == null ? prev : null));
+        return;
+      }
+      setExternalFocus((prev) => {
+        if (prev && prev.lat === focus.lat && prev.lng === focus.lng && prev.radiusMiles === focus.radiusMiles) return prev;
+        return { lat: focus.lat, lng: focus.lng, radiusMiles: focus.radiusMiles };
+      });
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -822,6 +833,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           filterFields={filterFieldsForEmbed}
           externalActiveFilters={externalActiveFilters}
           externalVisibleEntryIds={externalVisibleEntryIds}
+          externalFocus={externalFocus}
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}

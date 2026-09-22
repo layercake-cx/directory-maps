@@ -21,6 +21,7 @@ import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryA
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
 import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
+import DirectorySearchSettingsPanel from "../../components/directories/DirectorySearchSettingsPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
 export default function ClientDirectoryEntries() {
@@ -212,6 +213,16 @@ export default function ClientDirectoryEntries() {
         <>
           <div className="admin-card" style={{ marginBottom: 16 }}>
             <DirectoryGeneralSettingsPanel
+              directory={directory}
+              directoryId={directoryId}
+              canManage={canManage}
+              recordEvent={recordEvent}
+              onSaved={reloadDirectory}
+            />
+          </div>
+
+          <div className="admin-card" style={{ marginBottom: 16 }}>
+            <DirectorySearchSettingsPanel
               directory={directory}
               directoryId={directoryId}
               canManage={canManage}

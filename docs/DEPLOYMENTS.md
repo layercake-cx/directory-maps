@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Staging] Directory location search
+
+**Branch/PR:** `feat/2026-09-22-location-search`
+**Deployed by:** not deployed yet
+
+### What changed
+Location search is a directory setting, off by default. On the Settings tab (client portal and admin), **Location search** can be turned on. After the directory is published again, the homepage filter rail includes **Distance from**: a town, city, or postcode, a distance of 5, 10, 25, or 50 miles, and **Use my location**. The search box can fill that filter (“ultimate frisbee near Stroud” keeps the keywords and sets the place). Listings with coordinates inside the radius are sorted by distance. The attached map follows those listings and moves the camera to the place. Known UK towns resolve in the page. Other places are resolved by `resolve_directory_place`, which caches Google Geocoding results. “Use my location” never sends the visitor’s coordinates anywhere.
+
+### Database migrations applied
+- `20260922103000_directory_location_search.sql` — not applied yet. Adds `directories.location_search_enabled` (default false), `place_geocode_cache`, `directory_place_resolve_requests`, and the `directory_distance_filter` engagement event.
+
+### Edge Functions deployed
+- `resolve_directory_place` — not deployed. Public, `verify_jwt = false`. Deploy to staging first.
+- `generate_directory_site` — not deployed. Reads the new column and bakes the filter into the landing page. A directory must be republished after the switch is on.
+
+### Rollback plan
+Run `_20260922103000_directory_location_search.rollback.sql` (it refuses if any directory has the switch on, if the cache or rate-limit log has rows, or if a `directory_distance_filter` event exists). Redeploy the previous `generate_directory_site`. Republish any directory that was published with location search on.
+
+### Verified on staging
+- [ ] Migration dry-run, then apply on staging. Row counts unchanged. Verification notice passed.
+- [ ] `resolve_directory_place` deployed to staging. A known town does not need it. An unknown place returns coordinates and a second call is a cache hit.
+- [ ] Settings switch off: republished homepage has no Distance from filter.
+- [ ] Settings switch on: Distance from filters by radius, the search box fills it, the map camera follows, and “near me” does not leave the browser.
+
+---
+
 ## 2026-09-22 — [Production] Directory Make an Enquiry
 
 **Branch/PR:** `feat/2026-09-22-directory-enquiry`

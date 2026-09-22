@@ -168,6 +168,8 @@ If listing addresses belong to identifiable individuals (residential addresses),
 
 Google Geocoding API is operated by **Google LLC (US)**. Requests are made server-side from Supabase Edge Functions (not from visitor browsers).
 
+When a directory has **Location search** on, a place a visitor types into **Distance from** (or that the search box recognises, such as “near Stroud”) is resolved in the page from a built-in list of UK towns when possible. Place names in that list come from GeoNames (CC-BY 4.0). If the place is not in the list, `resolve_directory_place` sends that place string to Google Geocoding and caches the coordinates. A successful result is reused for later visitors, so the same town is not sent to Google again. **Use my location** uses the browser’s location permission only. Those coordinates stay in the page to measure distance. They are not stored and not sent to Google.
+
 ### Legal basis & agreements
 
 - Google is a **data processor** for geocoding requests under the [Google Maps Platform Terms](https://cloud.google.com/maps-platform/terms) and Google's DPA (available via Google Cloud Console).
