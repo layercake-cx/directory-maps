@@ -73,7 +73,7 @@ Supabase projects are hosted on **AWS**. The region is chosen at project creatio
 
 | Email type | Trigger | Personal data in the email |
 |------------|---------|---------------------------|
-| **Contact form message** | A map visitor submits the contact form on a listing | Visitor name, visitor email, visitor phone (optional), message body; sent to listing's email address |
+| **Contact form message** | A map visitor submits Send message on a listing, or a directory visitor submits Make an Enquiry on an entry page | Visitor name, visitor email, visitor phone (optional), message body. Map messages go to the listing's email address. Directory enquiries go to the directory's contact email (or the organisation's test recipient while test mode is on). The visitor is CC'd. Directory submissions are also stored in `directory_contact_submissions`. |
 | **Team invitation** | A client owner or manager invites a colleague | Invitee email address; invite link |
 | **Custom domain verification** (internal) | Client sets up a custom sending domain | No personal data — only domain name and DNS record metadata |
 

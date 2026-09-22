@@ -8,6 +8,60 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Production] Directory Make an Enquiry
+
+**Branch/PR:** `feat/2026-09-22-directory-enquiry`
+**Deployed by:** Cursor Grok, after staging, with explicit production go-ahead in the same request.
+
+### What changed
+Same as the staging entry below. Vercel production is deployed from this branch (`dpl_ETPoEZ27Udqf26tJ8XxocskohMUT`), aliased to https://uk-associations.com. GitHub Pages updates when the branch is merged. A live directory still needs a republish before **Make an Enquiry** appears on its entry pages.
+
+### Database migrations applied
+- `20260922093000_directory_enquiry.sql` — production (`gxixwdjfmegxcxfeflro`). Linked, `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory enquiry email and engagement events`. CLI relinked to staging afterwards.
+
+### Edge Functions deployed
+- `send_contact_message` — production (`gxixwdjfmegxcxfeflro`), `--no-verify-jwt`
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`)
+
+### Rollback plan
+Run `_20260922093000_directory_enquiry.rollback.sql` on production (it refuses if a contact email or enquiry events already exist). Redeploy the previous `send_contact_message` and `generate_directory_site`. Republish any directory that already received the button.
+
+### Verified on staging
+- [x] Staging migration and both functions deployed first (see below).
+- [x] Production migration notice passed; both functions deployed.
+- [x] Vercel production deploy ready: https://uk-associations.com (deployment https://directory-maps-d0wy3kir6-layercake-apps.vercel.app).
+- [ ] Operator: save a contact email, publish, and send a test enquiry on a live directory.
+
+---
+
+## 2026-09-22 — [Staging] Directory Make an Enquiry
+
+**Branch/PR:** `feat/2026-09-22-directory-enquiry`
+**Deployed by:** Cursor Grok. Staging first, then production, with explicit go-ahead in the same request.
+
+### What changed
+A published directory entry can offer **Make an Enquiry** beside **Visit website** when the directory has a contact email and organisation messaging is on. The visitor writes in a side drawer; the message is emailed through the existing contact-email path (test mode, from address, subject, and opening line included). The directory **Email** tab holds that contact inbox plus the same messaging settings maps already use. Opening the drawer and a successful send are recorded as `listing_enquiry_open` and `listing_enquiry_sent`.
+
+The button is written into the public HTML at publish time, so a live directory needs a republish after the contact email is saved.
+
+### Database migrations applied
+- `20260922093000_directory_enquiry.sql` — staging (`beqejxneehilplrtpntn`). CLI was already linked there. `db push --dry-run` showed this file only, then `db push`. Notice: `VERIFY PASSED: directory enquiry email and engagement events`. Rollback: `_20260922093000_directory_enquiry.rollback.sql`.
+
+### Edge Functions deployed
+- `send_contact_message` — staging (`beqejxneehilplrtpntn`), `--no-verify-jwt`
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`)
+
+### Rollback plan
+Run `_20260922093000_directory_enquiry.rollback.sql` (refuses if a contact email or enquiry events already exist). Redeploy the previous `send_contact_message` and `generate_directory_site`. Republish any directory that already received the button.
+
+### Verified on staging
+- [x] Dry-run, then `db push`, verification notice passed
+- [x] Both edge functions deployed to staging
+- [x] Generated entry HTML places Make an Enquiry beside Visit website; the drawer opens and shows name, email, phone, and message (local preview, headless Chrome)
+- [ ] A real send against staging Resend, after the Email tab is on a deployed frontend and a directory is republished
+
+---
+
 ## 2026-09-22 — [Production] Header logo vertical margin
 
 **Branch/PR:** `feat/2026-09-22-header-logo-margin` / https://github.com/layercake-cx/directory-maps/pull/226

@@ -325,7 +325,17 @@ for (const entry of ENTRIES) {
     related: relatedEntries(entry, ENTRIES, ENTRY_TERM_IDS_BY_ENTRY),
     nav: PREVIEW_NAV,
     analytics: PREVIEW_ANALYTICS,
+    enquiry: {
+      prompt: "Complete the form below and we'll pass your message on.",
+      testMode: true,
+      directoryId: "preview-directory-id",
+      supabaseUrl: "https://example.supabase.co",
+      supabaseAnonKey: "preview-anon-key",
+    },
   });
+  if (!html.includes("Make an Enquiry") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
+    throw new Error("entry page should include the Make an Enquiry drawer");
+  }
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), html);
 }
 

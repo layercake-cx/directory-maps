@@ -20,6 +20,7 @@ import DirectoryAiContentPanel from "../../components/directories/DirectoryAiCon
 import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryAiSeoMetadataPanel.jsx";
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
+import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
 export default function ClientDirectoryEntries() {
@@ -180,6 +181,7 @@ export default function ClientDirectoryEntries() {
         tabs={[
           { id: "entries", label: "Entries" },
           { id: "settings", label: "Settings" },
+          ...(canManage ? [{ id: "email", label: "Email" }] : []),
           { id: "publish", label: "Publish" },
           ...(canManage
             ? [
@@ -249,6 +251,19 @@ export default function ClientDirectoryEntries() {
             />
           </div>
         </>
+      )}
+
+      {activeTab === "email" && canManage && (
+        <DirectoryEnquiryPanel
+          directory={directory}
+          directoryId={directoryId}
+          clientId={client?.id}
+          clientName={client?.name}
+          canManage
+          recordEvent={recordEvent}
+          eventSource="client_portal"
+          onSaved={reloadDirectory}
+        />
       )}
 
       {activeTab === "publish" && (
