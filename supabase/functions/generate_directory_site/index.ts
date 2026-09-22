@@ -77,6 +77,7 @@ import {
   buildDirectoryLandingPage,
   buildContentPage,
   buildLlmsTxt,
+  type LlmsTxtPage,
   buildThemeCss,
   relatedEntries,
   buildSiteNav,
@@ -280,7 +281,7 @@ async function generateForDirectoryInner(
 
   const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-  const { data: client, error: clientErr } = await db.from("clients").select("id, slug").eq("id", directory.client_id).single();
+  const { data: client, error: clientErr } = await db.from("clients").select("id, slug, name").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
 
   const flagEnabled = await resolveFeatureFlag(db, client.id, "directories");
@@ -598,9 +599,12 @@ async function generateForDirectoryInner(
     enquiry: entryEnquiry ? { on: true, prompt: entryEnquiry.prompt, test: entryEnquiry.testMode } : { on: false },
     analytics: siteAnalytics?.destinations ?? null,
   });
+  const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
   const featuresHash = await digest({
     description: directory.description,
     seo: seoDefaults,
+    llmsExtra,
+    publisher: client.name ?? null,
     og: directory.seo_og_image_url ?? null,
     aiPrompt: directory.ai_search_prompt ?? null,
     locationSearch: !!directory.location_search_enabled,
@@ -864,16 +868,27 @@ async function generateForDirectoryInner(
   await uploadToBlob(`${basePath}/sitemap.xml`, buildSitemapXml(sitemapUrls), "application/xml; charset=utf-8");
   await uploadToBlob(`${basePath}/robots.txt`, buildRobotsTxt(!directoryNoindex, sitemapUrl), "text/plain; charset=utf-8");
 
-  const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
+  const llmsPages: LlmsTxtPage[] = contentPages
+    .filter((p) => !p.noindex)
+    .map((p) => ({
+      title: p.nav_label?.trim() || p.title,
+      path: publishedPagePaths.get(p.id) ?? "",
+      description: p.meta_description,
+      inNavigation: p.show_in_navigation !== false,
+    }))
+    .filter((p) => p.path);
   const llmsTxt = buildLlmsTxt({
-    clientSlug: client.slug,
-    directorySlug: directory.slug,
     directoryName: directory.name,
     directoryDescription: directory.description,
-    entries,
+    seoDescription: seoDefaults.meta_description || null,
+    categorisationLabels: filterBarCategorisations.map((c) => c.label),
+    indexableEntryCount: entries.filter((e) => !e.noindex).length,
+    publisherName: client.name ?? null,
+    siteBase,
+    pages: llmsPages,
     extra: llmsExtra,
   });
-  await uploadToBlob(`${basePath}/llms.txt`, llmsTxt, "text/plain; charset=utf-8");
+  await uploadToBlob(`${basePath}/llms.txt`, llmsTxt, "text/markdown; charset=utf-8");
 
   // Redirects (docs/DIRECTORIES.md §5.11): old slug -> current slug of
   // whichever entry now holds it, so a renamed entry's previous public URL

@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-22 — [Staging] Directory `llms.txt` v2 overview
+
+**Branch/PR:** `feat/2026-09-22-llms-txt`
+**Deployed by:** Cursor agent. Edge Function deployed to staging. The live Blob was not republished: staging and production share that store, so a republish would change the file the branded site already serves.
+
+### What changed
+A published directory's `llms.txt` is now a short Markdown overview for AI tools, following the llms.txt v2 layout, instead of a title plus one link per listing. It uses the directory title, the SEO description (or the directory description), the categorisation names, the listing URL pattern, the organisation name when that differs from the title, and links to the homepage, navigation pages, and the sitemap. Listings and pages marked noindex, and anything unpublished, are left out. Each published HTML page points at the file with `rel="describedby"`. Custom domains still rewrite the branded URLs inside the file to that domain. Nothing new to fill in: the next publish that rebuilds the site indexes writes the new file. Directories that are not republished keep the previous file.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`). Production stays until a separate go-ahead.
+
+### Frontend
+The content-type change (`text/markdown`) is in `middleware.js` and needs a Vercel deploy before a custom domain or the branded host serves that type. Until then, an already-uploaded file is still returned as `text/plain`.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` on staging, and the previous Vercel deployment if the middleware change has shipped. Republish any directory that already received the new file so Blob is rewritten to the previous contents. No migration to roll back.
+
+### Verified on staging
+- [x] `generate_directory_site` deployed to staging
+- [ ] One directory republished, and `/llms.txt` shows the v2 overview with no noindex or inactive listings (left unchecked — a republish writes the shared Blob the live site serves)
+- [ ] Custom-domain `/llms.txt`, if that directory has one, uses that domain in its links
+- [ ] Vercel preview serves `llms.txt` as `text/markdown`
+
+---
+
 ## 2026-09-22 — [Production] Scoped directory publishing
 
 **Branch/PR:** `fix/2026-09-22-directory-site-scopes` (frontend deploy also kept the location-search UI that was already live)

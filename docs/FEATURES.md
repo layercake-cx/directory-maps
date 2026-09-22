@@ -256,7 +256,7 @@ Closes two gaps flagged, not fixed, in Phase 3b:
 
 - **Redirects, actually served.** `generate_directory_site` uploads `directories/<client>/<dir>/redirects.json` (old entry slug → current slug) alongside each generation; `middleware.js`, when an entry slug's `.html` isn't found, fetches this manifest and issues a real HTTP 301 if a match exists, else falls through as before. Only consulted on an already-missing-page path — no cost to the common case.
 - **Open Graph + Twitter Card tags** on entry and landing pages, via a new local `directoryPageShell()` in `generate_directory_site/index.ts` — deliberately not a change to the shared `pageShell()`, which stays byte-stable for the map feature.
-- **`llms.txt`** per `docs/DIRECTORIES.md` §4/DIR-E2-S4 — name/description/entry count/link list, honouring `seo_defaults_json.llms_txt_extra`.
+- **`llms.txt`** per `docs/DIRECTORIES.md` §4/DIR-E2-S4 — originally a name, description, entry count, and a link per entry. The current file is the llms.txt v2 overview in §4.4a-9.
 - Two small bugs fixed in passing: CSS classes (`.hero`/`.gallery`/`.badges`/`.link-tiles`/`.product-tiles`) referenced by the entry page markup since Phase 3b were never actually styled; a `noindex` meta tag was being string-prepended before `<!doctype html>` (invalid) instead of placed in `<head>`.
 - Verified against the user's own real, already-published directory (`l-cakez/uk-association-directory`) via a Vercel preview deploy — live Open Graph tags, live `llms.txt` with real entries, clean fallthrough for an unknown entry slug.
 - **Not built (at the time):** robots.txt (a domain-root file by web standard — a per-directory one wouldn't be honoured by real crawlers, same documented gap as the map feature), category/location index pages. Superseded by §4.4a-7 below once directory custom domains (§4.4f) gave a directory a real domain root to serve one from.
@@ -281,6 +281,14 @@ Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.s
 Phase 1 of the Directory Searchability & AI Metadata plan (2026-09-18). `buildRobotsTxt()` (`_shared/staticSiteRenderer.ts`) previously emitted only a blanket `User-agent: *` rule; it now also emits a matching block for four named AI crawlers — GPTBot, ClaudeBot, PerplexityBot, Google-Extended — mirroring whichever policy the directory's "let search engines index this directory" switch already sets, so AI search/citation tools are explicitly signalled rather than left to silent inclusion under the wildcard. Not yet client-configurable — same switch, same list for every directory. Also fixed in passing: the entry page's "Related entries" row logo (`builders.ts`) rendered with an empty `alt=""` instead of the `"{name} logo"` fallback used everywhere else.
 
 Files: `supabase/functions/_shared/staticSiteRenderer.ts`, `supabase/functions/generate_directory_site/builders.ts` (both extended).
+
+### 4.4a-9 AI / LLM Discoverability — `llms.txt` Generation (new, 2026-09-22)
+
+Part of the SEO / GEO discoverability work, alongside crawlable HTML, Schema.org JSON-LD, `sitemap.xml`, and `robots.txt`. `buildLlmsTxt()` (`generate_directory_site/builders.ts`) now writes an [llms.txt v2](https://llmstxt.org/) file at publish time: the directory name, a blockquote from the SEO description (otherwise the directory description, otherwise a one-line summary from the name, indexable listing count, and categorisation labels), prose for categorisations and the `/{entry-slug}` listing URL pattern, the organisation name when it differs from the directory title, then Markdown link lists for the homepage, in-navigation content pages, the sitemap, and (under Optional) published indexable pages hidden from navigation. `seo_defaults_json.llms_txt_extra` is still appended as prose when set; there is still no editor for it.
+
+It does not list every listing, and it does not emit category index URLs (those pages do not exist). Inactive entries and noindex entries or pages are omitted. Canonical links are the branded directory URLs; custom-domain middleware rewrites them to that domain, the same way it rewrites the sitemap. Each generated HTML page includes `<link rel="describedby">` pointing at `llms.txt`. The file is served as `text/markdown`. Already-published directories keep the previous file until the next publish that rebuilds indexes. No per-page `.md` twins.
+
+Files: `supabase/functions/generate_directory_site/builders.ts`, `supabase/functions/generate_directory_site/index.ts`, `middleware.js`.
 
 ### 4.4b Categorisations (new, DIR-E5)
 
