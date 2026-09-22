@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 0 foundations
+
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-0` (#232)](https://github.com/layercake-cx/directory-maps/pull/232)
+**Deployed by:** Claude Code, after explicit user sign-off separate from the staging push below.
+
+### What changed
+Same as the staging entry directly below — production now also has the `claims` beta feature flag and the `maps.claims` commercial entitlement + resolver. Still no UI reads either of them yet, so this is a no-op for real users until Phase 2 ships.
+
+### Database migrations applied
+- `20260923120000_seed_claims_feature_flag.sql` — production (`gxixwdjfmegxcxfeflro`). `db push --dry-run` showed only this file plus the entitlement migration pending, matching staging exactly. Notice: `VERIFY PASSED: claims feature flag registered`.
+- `20260923121000_gate_claims_entitlement.sql` — production (`gxixwdjfmegxcxfeflro`). Notice: `VERIFY PASSED: claims entitlement + resolver created`. CLI relinked back to staging (the repo default) immediately after.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+None.
+
+### Rollback plan
+Run `_20260923121000_gate_claims_entitlement.rollback.sql` then `_20260923120000_seed_claims_feature_flag.rollback.sql` against production, in that order.
+
+### Verified on production
+- [x] `supabase db push --dry-run` against production showed only these two files pending
+- [x] Both migrations applied, `VERIFY PASSED` notices fired, no errors
+- [x] CLI relinked back to staging afterwards
+
+---
+
 ## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 0 foundations
 
 **Branch/PR:** `feat/2026-09-23-claimed-listings-phase-0`
