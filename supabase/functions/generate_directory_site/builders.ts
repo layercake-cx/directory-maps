@@ -293,6 +293,7 @@ export const EXTRA_STYLE = `
   .dir-site-header { position: relative; z-index: 30; border-bottom: 1px solid var(--line); background: var(--hdr-bg); backdrop-filter: blur(6px); }
   .dir-site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px; }
   .dir-brand { display: flex; align-items: center; gap: 12px; color: inherit; flex: none; }
+  .dir-brand__mark { display: block; margin: 15px 0; flex: none; }
   .dir-brand:focus-visible, .dir-nav-desktop a:focus-visible, .dir-nav-mobile a:focus-visible, .dir-nav-mobile summary:focus-visible, .dir-breadcrumb a:focus-visible, .dir-footer-nav a:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 3px;
   }
@@ -943,8 +944,8 @@ export function siteHeader(opts: {
   // auto) — only the no-logo placeholder is forced square, since there's
   // no real image to preserve an aspect ratio from.
   const logo = opts.logoUrl
-    ? `<img src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;object-fit:contain;">`
-    : `<div style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
+    ? `<img class="dir-brand__mark" src="${escapeAttr(opts.logoUrl)}" alt="${escapeAttr(displayTitle)} logo" style="height:${maxHeight}px;width:auto;object-fit:contain;">`
+    : `<div class="dir-brand__mark" style="width:${maxHeight}px;height:${maxHeight}px;border-radius:12px;background:var(--primary);"></div>`;
   const showLogo = mode !== "text";
   const showText = opts.showHeaderTitle === false ? false : mode !== "logo";
   const brand = showText
