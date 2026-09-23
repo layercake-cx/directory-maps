@@ -463,6 +463,9 @@ that one file rather than split across two prefixes; retrofitted here as documen
   - `meta`: `directory_id`, `entry_id`, `name`
 - **`directory_entry_bulk_archived`**
   - `meta`: `directory_id`, `entry_count`, `is_active` (the target state applied to the selection)
+- **`directory_entry_team_member_added`** / **`directory_entry_team_member_removed`**
+  - `meta`: `directory_id`, `entry_id`, `team_member_id`
+  - Fired from `TeamMembersEditor.jsx` (Claimed Directory Listings epic §10/§11, admin/client-portal side — the claim-user side fires `claimed_listing_updated` instead, per the `claim_*` category below).
 
 #### Directory content pages
 

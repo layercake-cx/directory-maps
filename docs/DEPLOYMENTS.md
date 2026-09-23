@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 5: editable content + team members
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-5`
+**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+
+### What changed
+Listing/SEO/Contact details in the claim-user Listing Manager go from read-only to genuinely editable, and Team is now a real CRUD, both for claim users and — for client/admin parity — for ordinary directory admins.
+
+**New RPCs** (`20260923160000_claimed_listing_editing_rpcs.sql`), all built on a shared `require_active_claim_editor(claim_id)` precondition (must be linked via `can_access_claim()` from Phase 4, AND the claim's status must be `active` — a merely-verified or payment-pending claim can view via Phase 4's reads but not edit):
+
+- `update_claimed_listing_contact` / `update_claimed_listing_seo` / `update_claimed_listing_body` — each stamps `directory_entries.content_managed_by='claimed_org'`, `content_last_edited_by_claim_user_id`, `content_last_edited_at` on every write, so a future AI enrichment job can tell claimant-managed content apart from platform content (the epic's non-negotiable provenance rule). `update_claimed_listing_body` trusts already-sanitised HTML from the caller (`sanitizeNotesHtml`, same convention every other `notes_html` writer in this codebase already follows) — there's no server-side HTML sanitiser in this project to call from SQL.
+- `add_claim_team_member` / `update_claim_team_member` / `remove_claim_team_member` — owner **or** editor (unlike the Users tab, which stays owner-only), since managing who's shown publicly is listing content, not claim administration.
+
+**Client/admin parity**: `directory_entry_team_members` (created in Phase 1) already had `_admin_all`/`_own_client` RLS with no matching UI — added `TeamMembersEditor.jsx` (new `src/lib/directoryEntryTeamMembers.js`, direct table access, no RPC needed since RLS already covers it) into the existing entry-edit Content tab, right alongside Evidence/Media, shared by both `ClientDirectoryEntryEdit.jsx` and `AdminDirectoryEntryEdit.jsx` via `DirectoryEntryEditor.jsx`/`EntryContentTab.jsx`. New admin events `directory_entry_team_member_added`/`_removed`.
+
+**Frontend (claim-user side)**: `ClaimManager.jsx`'s Listing/SEO/Contact/Team tabs are now stateful forms (Listing reuses the same `RichTextEditor` the admin content tab uses) that call the new RPCs, show a "Editing opens once your claim is active" notice when the claim isn't active yet, and fire `claimed_listing_updated` on save. New `src/lib/claimManager.js` functions wrap the RPCs.
+
+### Database migrations applied
+- `20260923160000_claimed_listing_editing_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claimed listing editing RPCs created`. Rollback: `_20260923160000_claimed_listing_editing_rpcs.rollback.sql` (refuses if any `directory_entries` row is already `content_managed_by='claimed_org'`).
+
+### Edge Functions deployed
+None.
+
+### Frontend
+Not deployed yet.
+
+### Verified on staging
+- [x] `supabase db push --dry-run` showed only this one file pending
+- [x] Applied to staging — `VERIFY PASSED`
+- [x] `npm run build` — compiles cleanly
+- [ ] Interactive click-through — **not done this session**, no test login credentials for either the claim-user edit flow or the admin Team editor. Will smoke-test the unauthenticated-redirect guard again once deployed, same as prior phases.
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 4: Listing Manager shell
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-4` (#236)](https://github.com/layercake-cx/directory-maps/pull/236), merged to `main`, plus one direct follow-up commit to `main` (`dc8f426`) fixing a bug the deploy smoke test caught — **this commit was pushed straight to `main` without a PR, which breaks this repo's own git workflow rule. Flagging it rather than glossing over it: should have branched, opened a PR, and merged it, even for a one-line fix.**

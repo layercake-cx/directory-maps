@@ -8,6 +8,7 @@ import {
 import RichTextEditor from "./RichTextEditor.jsx";
 import EvidenceItemsEditor from "../EvidenceItemsEditor.jsx";
 import MediaAssetsEditor from "../MediaAssetsEditor.jsx";
+import TeamMembersEditor from "../TeamMembersEditor.jsx";
 import AccreditationsEditor from "../AccreditationsEditor.jsx";
 import ProminentLinksEditor from "../ProminentLinksEditor.jsx";
 import ProductTilesEditor from "../ProductTilesEditor.jsx";
@@ -137,6 +138,7 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
 
       <EvidenceItemsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
       <MediaAssetsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
+      <TeamMembersEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
       {clientId && <AccreditationsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />}
       <ProminentLinksEditor entryId={entryId} recordEvent={recordEvent} title="Prominent links (this entry)" />
       <ProductTilesEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
