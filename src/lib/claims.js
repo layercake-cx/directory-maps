@@ -26,7 +26,7 @@ export async function listClaimsForDirectory(directoryId) {
     .select(`
       id, directory_id, directory_item_id, status, claimant_email, claimant_domain, listing_domain,
       verification_method, created_by, started_at, verified_at, activated_at, suspended_at, revoked_at, revoked_reason,
-      directory_entries ( name ),
+      directory_entries!directory_item_id ( name ),
       claim_users ( id, name, email, role, user_id, removed_at ),
       claim_payments ( payment_status, payment_type, payment_provider, amount_cents, currency )
     `)
