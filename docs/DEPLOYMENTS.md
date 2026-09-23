@@ -8,6 +8,46 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 3: manual claim lifecycle + magic-link auth
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-3`
+**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+
+### What changed
+The Claims sub-tab is now real, admin-created claims only (self-service is a later phase). New RPCs (all `security definer`, all explicitly check the caller is a platform admin or a contact of the claim's client via a new shared `can_manage_client()` helper — the exact permission pattern `publish_directory()` already uses, since `security definer` bypasses RLS and this check *is* the enforcement):
+
+- `create_manual_claim(...)` — select an unclaimed listing, enter the owner's name/email, verify (domain-email auto-check against a new `derive_domain_from_url()`/`is_generic_email_domain()` pair, or admin override with a required note) — one atomic transaction that also sets `directory_entries.current_claim_id`.
+- `admin_activate_claim` / `admin_suspend_claim` / `admin_reactivate_claim` / `admin_revoke_claim` — validated state transitions; revoke clears `current_claim_id` in the same statement so the item becomes claimable again while the historical `claims` row stays `revoked` forever.
+- `admin_set_claim_payment_status` — records a manual/offline arrangement (`payment_provider='manual'`) and moves a verified claim to `payment_pending`. No Stripe involvement — that's the separate follow-up epic.
+- `link_claim_user_by_email()` / `get_my_claim_context()` — the claim-user-facing pair. The first is deliberately callable by *any* authenticated user (a brand-new magic-link session has no `profiles`/`contacts` row for ordinary RLS to key off) and links `claim_users.user_id` to `auth.uid()` by matching the JWT's email on first login. The second returns the caller's own linked claims.
+
+Also added `claim_users.name` (Phase 1's schema only had email/role — the admin claims list needs an owner display name).
+
+**New claim-user auth surface**: `/claim/login` (`src/pages/claim/ClaimLogin.jsx`) — enter email, get a `supabase.auth.signInWithOtp` magic link, no password. This is genuinely separate from the existing password-based admin/client-portal auth; nothing about the existing flow changed. On sign-in, the page calls `link_claim_user_by_email()` then `get_my_claim_context()` and shows a plain list of linked claims — the restricted Listing Manager UI that replaces that placeholder is Phase 4.
+
+**Admin UI**: `DirectoryClaimsPanel.jsx`'s Claims sub-tab gained a real table (search/filter against actual claim data), a **Create claim** form, and an expandable per-row detail panel with Send/Resend invitation, Activate/Suspend/Reactivate/Revoke buttons, and a payment-status mini-form. New `src/lib/claims.js` wraps every RPC plus the two read queries (`listUnclaimedEntries`, `listClaimsForDirectory`).
+
+Events fired (all already documented in `AGENTS.md`'s `claim_*` catalogue, added in Phase 0): `claim_started`, `claim_email_verified`/`claim_verification_overridden` (on create), `claim_activated` (`activation_reason: "admin_manual"`), `claim_suspended`, `claim_reactivated`, `claim_revoked`, `claim_user_invited`.
+
+### Database migrations applied
+- `20260923140000_claims_lifecycle_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claims lifecycle RPCs created` (this also exercises `derive_domain_from_url()`/`is_generic_email_domain()` inline as part of the check). Rollback: `_20260923140000_claims_lifecycle_rpcs.rollback.sql` (refuses if any admin-created claim already exists).
+
+### Edge Functions deployed
+None.
+
+### Frontend
+Not deployed yet.
+
+### Verified on staging
+- [x] `supabase db push --dry-run` showed only this one file pending
+- [x] Applied to staging — `VERIFY PASSED`, including the domain-normalisation and generic-email-denylist assertions
+- [x] `npm run build` — compiles cleanly
+- [ ] Interactive click-through — **not done this session**, no test login credentials available (same gap as Phase 2). The full loop (create a claim, verify it, send an invitation, sign in at `/claim/login`, activate/suspend/revoke) has not been exercised by a human yet. Recommend the user run through it end-to-end before relying on it for a real customer.
+
+**Known simplification vs. the original spec**: the Claims list (§14 of the source spec) shows only actual `claims` rows, not every directory listing with "—" placeholders for unclaimed ones. Building that composite view is a reasonable polish item for a later pass, not blocking for admin-driven claim management.
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 2: admin Claims settings tab
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-2` (#234)](https://github.com/layercake-cx/directory-maps/pull/234), merged to `main`.

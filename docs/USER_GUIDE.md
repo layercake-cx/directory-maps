@@ -265,13 +265,19 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
 
 ### Claims
 
-**Claimed Directory Listings** requires the Professional plan or above. On a directory's **Claims** tab (owners and managers only), you'll see this in progress:
+**Claimed Directory Listings** requires the Professional plan or above. On a directory's **Claims** tab (owners and managers only):
 
-- **Overview** — claim activity and commercial analytics, once claiming is in use.
-- **Claims** — a searchable list of every claim against this directory's listings, once any exist.
+- **Overview** — claim activity and commercial analytics, once claiming is in wider use.
+- **Claims** — a searchable, filterable list of every claim against this directory's listings, with a **Create claim** button:
+  1. Pick one of this directory's unclaimed listings.
+  2. Enter the owner's name and email.
+  3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
+  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim.
 - **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
-Without the Professional plan, the tab shows an upgrade message instead of these controls. As of this release, claiming is configurable here but there's no public "Claim this listing" button yet — that, along with the rest of the claim flow, ships in later phases of this feature.
+Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims are currently created by an administrator only — there's no public "Claim this listing" button yet, and no online payment (an admin records payment status manually). Both ship in later phases of this feature.
+
+**Signing in as a claimed listing's owner:** after an admin sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. Signing in shows which listings they're linked to. The full listing-management screen (editing contact details, SEO, content, and team members) is not built yet — this release only proves sign-in works end to end.
 
 ### AI content generation
 

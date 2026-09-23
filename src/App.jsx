@@ -18,6 +18,7 @@ import Privacy from "./pages/Privacy.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
 import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
+import ClaimLogin from "./pages/claim/ClaimLogin.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
@@ -76,6 +77,7 @@ export default function App() {
       <Route path="/embed" element={<EmbedMap />} />
       <Route path="/map" element={<CustomDomainMap />} />
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
+      <Route path="/claim/login" element={<ClaimLogin />} />
 
       {/* Client portal */}
       <Route
