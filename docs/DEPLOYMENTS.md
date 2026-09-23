@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Not yet deployed] Fix: Claims list embed ambiguity (PostgREST)
+
+**Branch/PR:** `fix/2026-09-23-claims-list-embed-ambiguity` (not yet opened as a PR)
+**Deployed by:** Claude Code, reported by the user testing the Claims tab in production.
+
+### What changed
+The user hit `Could not embed because more than one relationship was found for 'claims' and 'directory_entries'` on the Claims tab, and reported "Create claim" appeared not to work. Root cause: `listClaimsForDirectory()` (`src/lib/claims.js`) embedded `directory_entries` from `claims` without disambiguating — Phase 1's schema created **two** foreign keys between those tables (`claims.directory_item_id → directory_entries.id`, and `directory_entries.current_claim_id → claims.id`, added in the same migration for the "current claimability" design), and PostgREST refuses to guess which one to embed through. Fixed by hinting the specific column: `directory_entries!directory_item_id (name)`.
+
+**Likely explanation for "Create claim wouldn't let me":** `create_manual_claim` almost certainly succeeded — `CreateClaimForm`'s success path closes the form and reloads the list, and that reload is exactly the query that was broken. The claim was probably created (and the listing marked claimed via `current_claim_id`), but the subsequent list reload threw this error instead of showing it, making the whole action look like it failed. Asked the user to check whether retrying on the same listing now says "already has a claim in progress" (which would confirm the first attempt worked) once this fix is live.
+
+Checked the rest of the codebase for the same class of bug (any other embed between `claims` and `directory_entries`) — found none; this was the only spot.
+
+### Database migrations applied
+None — frontend-only fix.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+Not yet deployed.
+
+### Verified on staging
+- [x] `npm run build` — compiles cleanly
+- [ ] Not yet click-tested against a real claim — will verify the Claims list loads without error once deployed.
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 5: editable content + team members
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-5` (#238)](https://github.com/layercake-cx/directory-maps/pull/238), merged to `main`.
