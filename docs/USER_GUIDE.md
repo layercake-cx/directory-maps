@@ -277,7 +277,15 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
 
 Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims are currently created by an administrator only — there's no public "Claim this listing" button yet, and no online payment (an admin records payment status manually). Both ship in later phases of this feature.
 
-**Signing in as a claimed listing's owner:** after an admin sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. Signing in shows which listings they're linked to. The full listing-management screen (editing contact details, SEO, content, and team members) is not built yet — this release only proves sign-in works end to end.
+**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
+
+The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs:
+
+- **Listing**, **SEO**, **Contact details** — read-only for now, showing exactly what's published today. Editing arrives in a later update.
+- **Team** — read-only list of the people shown publicly on the listing. Adding/editing them arrives with the same update as the tabs above.
+- **Users** — real today. Anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here — that needs an ownership transfer, a later feature.
+
+Preview and Publish buttons are visible but disabled — publishing a claimed listing in isolation, without touching the rest of the directory, is a later phase.
 
 ### AI content generation
 

@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 4: Listing Manager shell
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-4`
+**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+
+### What changed
+The claim-user-facing "Listing Manager" a claimant lands in after signing in. New RPCs (`20260923150000_claim_manager_shell_rpcs.sql`), all `security definer` with an explicit item-scoped permission check — `can_access_claim()` (any linked, non-removed owner/editor) and `is_claim_owner()` (owner only), mirroring Phase 3's `can_manage_client()`:
+
+- `get_claimed_listing(claim_id)` / `get_claim_team_members(claim_id)` — read-only, used by the Listing/SEO/Contact details/Team tabs. Phase 5 adds the matching write RPCs and reuses these same reads rather than duplicating them.
+- `get_claim_users(claim_id)` / `claim_invite_user(claim_id, email, name)` / `claim_remove_user(claim_id, claim_user_id)` — the Users tab, genuinely functional today. `claim_invite_user` only ever creates an `editor` role (rejects anything else) — becoming an owner is a separate, later ownership-transfer flow, not something this invite path can grant. The owner can't be removed via `claim_remove_user` for the same reason.
+
+**Frontend**: `ClaimLogin.jsx` now navigates straight into the Listing Manager when someone has exactly one linked (non-revoked) claim, or shows a picker for more than one. New `ClaimManager.jsx` (route `/claim/manage/:claimId`) renders the restricted shell — header (listing name, role, status), Preview/Publish buttons (visible, disabled — Phase 6 builds isolated publishing), and the five tabs. New `src/lib/claimManager.js` wraps the new RPCs.
+
+### Database migrations applied
+- `20260923150000_claim_manager_shell_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claim manager shell RPCs created`, including a fail-safe check that `can_access_claim()` returns `false` (not an error) for an unknown claim id. Rollback: `_20260923150000_claim_manager_shell_rpcs.rollback.sql` (refuses if any editor-role `claim_users` row already exists).
+
+### Edge Functions deployed
+None.
+
+### Frontend
+Not deployed yet.
+
+### Verified on staging
+- [x] `supabase db push --dry-run` showed only this one file pending
+- [x] Applied to staging — `VERIFY PASSED`
+- [x] `npm run build` — compiles cleanly
+- [ ] Interactive click-through of the authenticated Listing Manager — **not done this session**, no test login credentials available. Once deployed, will smoke-test `/claim/login`'s unauthenticated behaviour and the `/claim/manage/:id` redirect-when-signed-out guard (both reachable without a real login), same as Phase 3's `/claim/login` check.
+
+---
+
 ## 2026-09-23 — [Production] Claimed Directory Listings — Phase 3: manual claim lifecycle + magic-link auth
 
 **Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-3` (#235)](https://github.com/layercake-cx/directory-maps/pull/235), merged to `main`.
