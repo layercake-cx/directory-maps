@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-23 — [Not yet deployed] Claimed Directory Listings — Phase 2: admin Claims settings tab
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 2: admin Claims settings tab
 
-**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-2` (not yet opened as a PR)
-**Deployed by:** Claude Code. Frontend-only — no database migration in this phase (uses the `directory_claim_settings` table from Phase 1).
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-2` (#234)](https://github.com/layercake-cx/directory-maps/pull/234), merged to `main`.
+**Deployed by:** Claude Code, after explicit user sign-off for both staging and production. Frontend-only — no database migration in this phase (uses the `directory_claim_settings` table from Phase 1).
 
 ### What changed
 Adds a **Claims** tab to a directory's page, in both the client portal (`ClientDirectoryEntries.jsx`) and admin (`AdminDirectoryEntries.jsx`), owner/manager-only, following the exact tab-array + panel-component pattern every other directory tab uses. The tab has Overview / Claims / Settings sub-tabs (own `MapDataTabs` strip, nested):
@@ -28,14 +28,17 @@ None — this phase is UI only, against tables Phase 1 already created.
 None.
 
 ### Frontend
-Not deployed yet (GitHub Pages deploys automatically on merge to `main`; Vercel needs an explicit `deploy:test`/`deploy:live` afterwards).
+- GitHub Pages: deployed automatically on merge to `main` (`gh run list` confirms the "Deploy to GitHub Pages" workflow succeeded).
+- Vercel preview: https://directory-maps-a8lkmvfsu-layercake-apps.vercel.app (`dpl_56T5EbiVZXTeSjPNgf6kxctSsUZc`) — smoke-tested (see below).
+- Vercel production: https://directory-maps-72t1i2ctu-layercake-apps.vercel.app (`dpl_9CAgMN3PCkWb8DGWGLe9JJ8Xedhy`), aliased to https://maps.layercake-cx.biz and https://uk-associations.com.
 
 ### Rollback plan
-Revert the branch/PR. No migration to roll back.
+Redeploy the previous Vercel production deployment, and revert this PR's commit on `main` (GitHub Pages redeploys automatically on that push). No migration to roll back.
 
 ### Verified on staging
 - [x] `npm run build` — compiles cleanly, no import/syntax errors
-- [ ] Interactive click-through — **not done this session**: a dev server from another session already owned port 5173 (per the repo convention, a second `npm run dev` wasn't started), so the new Claims tab, entitlement gate, and settings save haven't been exercised in a real browser yet. Recommend the user open a directory's Claims tab (as an owner/manager on a Professional-plan-or-above client) and confirm: the tab appears, the entitlement gate shows/hides correctly, and saving settings persists and fires the event.
+- [x] Vercel preview deploy loads with no console errors (marketing homepage smoke-tested via the browser tool)
+- [ ] Interactive click-through of the Claims tab itself — **still not done**: no test login credentials available this session (client portal or admin), so the entitlement gate and the settings save have not been exercised end-to-end in a real browser, only confirmed to compile and deploy without errors. Recommend the user open a directory's Claims tab (as an owner/manager on a Professional-plan-or-above client) and confirm: the tab appears, the entitlement gate shows/hides correctly, and saving settings persists and fires the event.
 
 ---
 
