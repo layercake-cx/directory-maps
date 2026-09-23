@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-23 — [Not yet deployed] Fix: Claims list embed ambiguity (PostgREST)
+## 2026-09-23 — [Production] Fix: Claims list embed ambiguity (PostgREST)
 
-**Branch/PR:** `fix/2026-09-23-claims-list-embed-ambiguity` (not yet opened as a PR)
-**Deployed by:** Claude Code, reported by the user testing the Claims tab in production.
+**Branch/PR:** [`fix/2026-09-23-claims-list-embed-ambiguity` (#240)](https://github.com/layercake-cx/directory-maps/pull/240), merged to `main`.
+**Deployed by:** Claude Code, after explicit user sign-off. Reported by the user testing the Claims tab in production.
 
 ### What changed
 The user hit `Could not embed because more than one relationship was found for 'claims' and 'directory_entries'` on the Claims tab, and reported "Create claim" appeared not to work. Root cause: `listClaimsForDirectory()` (`src/lib/claims.js`) embedded `directory_entries` from `claims` without disambiguating — Phase 1's schema created **two** foreign keys between those tables (`claims.directory_item_id → directory_entries.id`, and `directory_entries.current_claim_id → claims.id`, added in the same migration for the "current claimability" design), and PostgREST refuses to guess which one to embed through. Fixed by hinting the specific column: `directory_entries!directory_item_id (name)`.
@@ -27,11 +27,17 @@ None — frontend-only fix.
 None.
 
 ### Frontend
-Not yet deployed.
+- GitHub Pages: deployed automatically on merge, confirmed via `gh run list`.
+- Vercel preview: https://directory-maps-ng9rvmblb-layercake-apps.vercel.app — smoke-tested (the `/claim/manage/:id` redirect guard, no console errors; the actual embed fix needs a real logged-in admin session against real data to verify, which this session still can't do).
+- Vercel production: https://directory-maps-rivgoh09m-layercake-apps.vercel.app, aliased to https://maps.layercake-cx.biz and https://uk-associations.com.
 
-### Verified on staging
+### Rollback plan
+Revert this PR's merge commit on `main` and redeploy the previous Vercel production build. No migration involved.
+
+### Verified on staging + production
 - [x] `npm run build` — compiles cleanly
-- [ ] Not yet click-tested against a real claim — will verify the Claims list loads without error once deployed.
+- [x] Deployed to GitHub Pages, Vercel preview, and Vercel production
+- [ ] Not yet re-verified against a real claim by the user who reported it — please retry the Claims tab and "Create claim" and let me know if the error is gone and whether a duplicate-looking claim shows up from the first attempt.
 
 ---
 
