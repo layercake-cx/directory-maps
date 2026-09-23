@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Not yet deployed] Claimed Directory Listings — Phase 2: admin Claims settings tab
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-2` (not yet opened as a PR)
+**Deployed by:** Claude Code. Frontend-only — no database migration in this phase (uses the `directory_claim_settings` table from Phase 1).
+
+### What changed
+Adds a **Claims** tab to a directory's page, in both the client portal (`ClientDirectoryEntries.jsx`) and admin (`AdminDirectoryEntries.jsx`), owner/manager-only, following the exact tab-array + panel-component pattern every other directory tab uses. The tab has Overview / Claims / Settings sub-tabs (own `MapDataTabs` strip, nested):
+- **Overview** — placeholder text; real content is a later phase.
+- **Claims** — a searchable/filterable list shell (listing/domain/owner search, status filter) — always shows "No claims yet" for now, since nothing creates a claim until Phase 3.
+- **Settings** — the real, functional piece: enable/disable claiming, price (stored as `price_cents`), currency, payment type (one-off/annual recurring), payment provider (fixed display, Stripe), and an intro HTML editor reusing the existing `RichTextEditor`/`sanitizeNotesHtml` (the same editor/sanitizer entry content already uses — no new editor built). Saves via a new `getDirectoryClaimSettings`/`saveDirectoryClaimSettings` pair in `src/lib/directoryClaimSettings.js` (upsert against `directory_claim_settings`), firing the already-documented `directory_claim_settings_updated` admin event.
+
+The whole tab is wrapped in `EntitlementGate` against the `claims` entitlement added in Phase 0, resolved the same dual-context way `DomainSettings.jsx` resolves `custom_domain` — `useEntitlement("claims")` in the client portal (resolves the logged-in user's own client), `fetchClientEntitlements(clientId)` in admin (an admin views an arbitrary client's directory, so `get_my_entitlements()` doesn't apply). Without the entitlement, the tab shows the upgrade message from `entitlementMessages.js` instead of the settings form — the tab itself stays visible (matching the epic spec's "may display that Claimed Listings requires Pro, providing a future upgrade route").
+
+### Database migrations applied
+None — this phase is UI only, against tables Phase 1 already created.
+
+### Edge Functions deployed
+None.
+
+### Frontend
+Not deployed yet (GitHub Pages deploys automatically on merge to `main`; Vercel needs an explicit `deploy:test`/`deploy:live` afterwards).
+
+### Rollback plan
+Revert the branch/PR. No migration to roll back.
+
+### Verified on staging
+- [x] `npm run build` — compiles cleanly, no import/syntax errors
+- [ ] Interactive click-through — **not done this session**: a dev server from another session already owned port 5173 (per the repo convention, a second `npm run dev` wasn't started), so the new Claims tab, entitlement gate, and settings save haven't been exercised in a real browser yet. Recommend the user open a directory's Claims tab (as an owner/manager on a Professional-plan-or-above client) and confirm: the tab appears, the entitlement gate shows/hides correctly, and saving settings persists and fires the event.
+
+---
+
 ## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 1: claims domain schema
 
 **Branch/PR:** `feat/2026-09-23-claimed-listings-phase-1`

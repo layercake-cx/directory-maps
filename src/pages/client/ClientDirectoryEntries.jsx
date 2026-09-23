@@ -21,6 +21,7 @@ import DirectoryAiSeoMetadataPanel from "../../components/directories/DirectoryA
 import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSearchPanel.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
 import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
+import DirectoryClaimsPanel from "../../components/directories/DirectoryClaimsPanel.jsx";
 import DirectorySearchSettingsPanel from "../../components/directories/DirectorySearchSettingsPanel.jsx";
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 
@@ -192,6 +193,7 @@ export default function ClientDirectoryEntries() {
                 { id: "content_pages", label: "Pages" },
                 { id: "accreditations", label: "Accreditations" },
                 { id: "links", label: "Prominent Links" },
+                { id: "claims", label: "Claims" },
               ]
             : []),
         ]}
@@ -359,6 +361,16 @@ export default function ClientDirectoryEntries() {
         <div className="admin-card">
           <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
         </div>
+      )}
+
+      {canManage && activeTab === "claims" && (
+        <DirectoryClaimsPanel
+          directoryId={directoryId}
+          clientId={client?.id}
+          canManage={canManage}
+          recordEvent={recordEvent}
+          eventSource="client_portal"
+        />
       )}
 
       {deleteOpen && (

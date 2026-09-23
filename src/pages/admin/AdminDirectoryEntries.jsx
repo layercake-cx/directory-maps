@@ -22,6 +22,7 @@ import DirectoryAiSearchPanel from "../../components/directories/DirectoryAiSear
 import EntryLayoutDesigner from "../../components/directories/EntryLayoutDesigner.jsx";
 import DirectoryContentPagesPanel from "../../components/directories/DirectoryContentPagesPanel.jsx";
 import DirectoryEnquiryPanel from "../../components/directories/DirectoryEnquiryPanel.jsx";
+import DirectoryClaimsPanel from "../../components/directories/DirectoryClaimsPanel.jsx";
 import DirectorySearchSettingsPanel from "../../components/directories/DirectorySearchSettingsPanel.jsx";
 
 export default function AdminDirectoryEntries() {
@@ -181,6 +182,7 @@ export default function AdminDirectoryEntries() {
                 { id: "content_pages", label: "Pages" },
                 { id: "accreditations", label: "Accreditations" },
                 { id: "links", label: "Prominent Links" },
+                { id: "claims", label: "Claims" },
               ]}
               activeTab={activeTab}
               onChange={setActiveTab}
@@ -345,6 +347,16 @@ export default function AdminDirectoryEntries() {
               <div className="admin-card">
                 <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
               </div>
+            )}
+
+            {activeTab === "claims" && (
+              <DirectoryClaimsPanel
+                directoryId={directoryId}
+                clientId={clientId}
+                canManage
+                recordEvent={recordEvent}
+                eventSource="admin_dashboard"
+              />
             )}
           </>
         )}
