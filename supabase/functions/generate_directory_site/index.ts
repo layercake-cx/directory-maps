@@ -55,10 +55,25 @@
  * or a chrome change (nav, enquiry, analytics, favicon, site title) rebuilds
  * every page. "all" defaults to a full rebuild; pass scope "style" to refresh
  * theme.css only.
- * Auth: service-role only (called server-side).
+ *
+ * Auth: for every scope EXCEPT "claim_item", this function trusts whatever
+ * directory_id it's given with no caller-identity check at all (a pre-
+ * existing gap, not introduced here -- see requireDirectoryItemPublishAccess
+ * below, which is deliberately scoped to "claim_item" only rather than
+ * retrofitted onto the other scopes, to avoid changing already-relied-upon
+ * behaviour this session can't click-test). scope "claim_item" is the one
+ * entry point meant for a claim user's own "Publish" button (Claimed
+ * Directory Listings epic, Phase 6): it takes exactly one entry_ids value,
+ * derives directory_id itself from that entry (client-supplied directory_id
+ * is ignored for this scope), and requires the caller to be a platform
+ * admin/directory contact OR the active claim's owner/editor for that
+ * specific entry (requireDirectoryItemPublishAccess). It never sets
+ * work.homepage/work.indexes -- only that one entry's own page blob is
+ * written, never the homepage, sitemap/robots/llms/redirects, or any other
+ * entry, per the epic's non-negotiable publishing-isolation rule.
  */
 
-import { createServiceClient } from "../_shared/supabase.ts";
+import { createServiceClient, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import { backfillDirectorySeoMetadata } from "../_shared/seoMetadataBackfill.ts";
 import {
@@ -103,7 +118,7 @@ import {
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 type Db = ReturnType<typeof createServiceClient>;
-type GenerationScope = "auto" | "full" | "style" | "features" | "entries";
+type GenerationScope = "auto" | "full" | "style" | "features" | "entries" | "claim_item";
 type GenerationRequest = { scope: GenerationScope; entryIds?: string[] };
 type GenerationResult = { directory_id: string; skipped?: string; count?: number; scopes?: string[] };
 
@@ -630,7 +645,17 @@ async function generateForDirectoryInner(
 
   const activeEntryIds = new Set(entries.map((e) => e.id));
   let work: Work;
-  if (!manifest || request.scope === "full") {
+  if (request.scope === "claim_item") {
+    // Isolated single-entry publish (Claimed Directory Listings epic).
+    // Deliberately never touches homepage/indexes, regardless of whether a
+    // manifest exists yet -- a claim user must never be able to trigger a
+    // directory-wide (re)build, even implicitly via the "no manifest yet"
+    // fallback every other scope gets.
+    const wanted = new Set(request.entryIds ?? []);
+    const ids = entries.filter((e) => wanted.has(e.id)).map((e) => e.id);
+    if (ids.length !== 1) throw new Error("claim_item scope requires exactly one matching, active entry_id");
+    work = { style: false, homepage: false, indexes: false, entryIds: ids, pageIds: [] };
+  } else if (!manifest || request.scope === "full") {
     work = FULL_WORK;
   } else if (request.scope === "features") {
     work = { style: false, homepage: true, indexes: true, entryIds: [], pageIds: [] };
@@ -926,13 +951,52 @@ async function generateForDirectoryInner(
     await uploadToBlob(`${basePath}/theme.css`, buildThemeCss(theme), "text/css; charset=utf-8");
   }
 
+  // Merge, don't overwrite: a narrow-scope run (claim_item, entries,
+  // features -- anything where work.entryIds/pageIds isn't null) must only
+  // update the manifest bookkeeping for what it actually rebuilt. The old
+  // unconditional "recompute the whole manifest from current DB state every
+  // run" approach silently marked OTHER entries/pages as "clean" whenever
+  // their updated_at had already changed in the DB but their pages hadn't
+  // actually been rebuilt yet (e.g. an admin's in-progress, unpublished
+  // edit to entry B) -- exactly the "other unpublished ... changes" leak
+  // the Claimed Directory Listings epic's isolation rule forbids, just via
+  // manifest bookkeeping rather than a blob write. Removed entries/pages
+  // are still pruned unconditionally (safe: nothing depends on a manifest
+  // key for something that no longer exists, regardless of scope).
+  const mergedEntries: Record<string, string> = {};
+  for (const [id, ts] of Object.entries(manifest?.entries ?? {})) {
+    if (activeEntryIds.has(id)) mergedEntries[id] = ts;
+  }
+  if (work.entryIds === null) {
+    for (const e of entries) mergedEntries[e.id] = e.updated_at ?? "";
+  } else {
+    for (const id of work.entryIds) {
+      const e = entries.find((x) => x.id === id);
+      if (e) mergedEntries[id] = e.updated_at ?? "";
+    }
+  }
+
+  const activePageIds = new Set(contentPages.map((p) => p.id));
+  const mergedPages: Record<string, string> = {};
+  for (const [id, ts] of Object.entries(manifest?.pages ?? {})) {
+    if (activePageIds.has(id)) mergedPages[id] = ts;
+  }
+  if (work.pageIds === null) {
+    for (const p of contentPages) mergedPages[p.id] = p.updated_at ?? "";
+  } else {
+    for (const id of work.pageIds) {
+      const p = contentPages.find((x) => x.id === id);
+      if (p) mergedPages[id] = p.updated_at ?? "";
+    }
+  }
+
   const nextManifest: SiteManifest = {
-    style_hash: styleHash,
-    chrome_hash: chromeHash,
-    features_hash: featuresHash,
-    templates_hash: templatesHash,
-    entries: Object.fromEntries(entries.map((e) => [e.id, e.updated_at ?? ""])),
-    pages: Object.fromEntries(contentPages.map((p) => [p.id, p.updated_at ?? ""])),
+    style_hash: work.style ? styleHash : (manifest?.style_hash ?? styleHash),
+    chrome_hash: work.homepage ? chromeHash : (manifest?.chrome_hash ?? chromeHash),
+    features_hash: work.homepage ? featuresHash : (manifest?.features_hash ?? featuresHash),
+    templates_hash: work.entryIds === null ? templatesHash : (manifest?.templates_hash ?? templatesHash),
+    entries: mergedEntries,
+    pages: mergedPages,
   };
   await db.from("directories").update({ site_generation_manifest: nextManifest }).eq("id", directoryId);
 
@@ -961,9 +1025,27 @@ Deno.serve(async (req) => {
       entry_ids?: string[];
     };
     const request: GenerationRequest = {
-      scope: scope === "full" || scope === "style" || scope === "features" || scope === "entries" ? scope : "auto",
+      scope:
+        scope === "full" || scope === "style" || scope === "features" || scope === "entries" || scope === "claim_item"
+          ? scope
+          : "auto",
       entryIds: Array.isArray(entry_ids) ? entry_ids.filter((id) => typeof id === "string") : undefined,
     };
+
+    // "claim_item" is the one scope with a real caller-identity check (see
+    // requireDirectoryItemPublishAccess) -- it also derives directory_id
+    // itself from the entry rather than trusting whatever the client sent,
+    // since a claim user should never be able to point this at a directory
+    // other than the one their own claimed entry actually belongs to.
+    if (request.scope === "claim_item") {
+      const targetEntryId = request.entryIds?.[0];
+      if (!targetEntryId || request.entryIds?.length !== 1) {
+        return json({ error: "claim_item scope requires exactly one entry_ids value" }, 400);
+      }
+      const access = await requireDirectoryItemPublishAccess(req, targetEntryId);
+      const result = await generateForDirectory(access.directoryId, request);
+      return json({ ok: true, ...result });
+    }
 
     if (all) {
       const db = createServiceClient();

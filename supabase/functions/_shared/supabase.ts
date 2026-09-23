@@ -113,3 +113,51 @@ export async function requireDirectoryAccess(req: Request, directoryId: string) 
   return user;
 }
 
+/**
+ * Allows admins/directory contacts (via requireDirectoryAccess) OR the
+ * active claim's owner/editor for this specific directory_entries row
+ * (Claimed Directory Listings epic). This is the entry-grained check that
+ * generate_directory_site's "claim_item" scope depends on -- a claim user
+ * has no profiles/contacts row, so requireDirectoryAccess alone would
+ * always reject them; this adds the narrower, item-scoped fallback rather
+ * than widening directory-level trust.
+ */
+export async function requireDirectoryItemPublishAccess(req: Request, directoryItemId: string) {
+  const user = await requireUser(req);
+  const service = createServiceClient();
+
+  const { data: entry } = await service
+    .from("directory_entries")
+    .select("directory_id, current_claim_id")
+    .eq("id", directoryItemId)
+    .maybeSingle();
+  if (!entry) throw new Error("Directory item not found");
+
+  try {
+    await requireDirectoryAccess(req, entry.directory_id);
+    return { user, directoryId: entry.directory_id as string, viaClaim: false };
+  } catch {
+    // Not an admin/contact -- fall through to the claim-user path.
+  }
+
+  if (!entry.current_claim_id) throw new Error("Access denied");
+
+  const { data: claim } = await service
+    .from("claims")
+    .select("id, status")
+    .eq("id", entry.current_claim_id)
+    .maybeSingle();
+  if (!claim || claim.status !== "active") throw new Error("Access denied");
+
+  const { data: claimUser } = await service
+    .from("claim_users")
+    .select("id")
+    .eq("claim_id", claim.id)
+    .eq("user_id", user.id)
+    .is("removed_at", null)
+    .maybeSingle();
+  if (!claimUser) throw new Error("Access denied");
+
+  return { user, directoryId: entry.directory_id as string, viaClaim: true, claimId: claim.id as string };
+}
+

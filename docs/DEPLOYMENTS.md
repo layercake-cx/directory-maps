@@ -8,6 +8,42 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 6: item-only publishing isolation
+
+**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-6` (not yet opened as a PR)
+**Deployed by:** Claude Code. This is the epic's own explicitly-flagged highest-risk phase — read this entry in full before deciding on production.
+
+### What changed
+
+**New `generate_directory_site` scope: `claim_item`.** Publishes exactly one directory entry's own page — `work.homepage` and `work.indexes` are hard-set `false` for this scope, unconditionally, regardless of manifest state (even a directory with no manifest yet, which every other scope would treat as "first publish, rebuild everything," does not fall through to a full rebuild for this scope). Only that one entry's HTML blob is written; the homepage, sitemap.xml/robots.txt/llms.txt/redirects.json, theme.css, and every other entry are never touched. `directory_id` is derived server-side from the entry itself — a caller can only ever influence which entry gets published, never which directory.
+
+**New authorization: `requireDirectoryItemPublishAccess()`** (`supabase/functions/_shared/supabase.ts`). Allows a platform admin or directory contact (delegates to the existing `requireDirectoryAccess`), OR the entry's `current_claim_id`'s active claim's owner/editor (`claim_users.user_id = auth.uid()`, `removed_at is null`, `claims.status = 'active'`). This is the one and only caller-identity check anywhere in `generate_directory_site` — see the flagged gap below.
+
+**Real bug found and fixed, affecting every existing scope, not just this new one**: `site_generation_manifest` was being overwritten unconditionally from the *entire* current `entries`/`contentPages` state at the end of every run, regardless of what `work` actually rebuilt. Concretely: if an admin edited entry B (bumping its `updated_at`) without yet publishing, and then *any* narrow-scope publish ran for a different entry A (the pre-existing `entries` or `features` scopes, or this new `claim_item` scope), the manifest would still record B's *current* `updated_at` as if B had just been rebuilt — even though B's actual page blob was never touched. A later "auto" publish would then see `manifest.entries[B] === entry.updated_at` and conclude B was already up to date, silently never publishing B's pending edit. Fixed: the manifest write now merges — only entries/pages actually in `work.entryIds`/`work.pageIds` (or all of them, when a scope legitimately rebuilds everything) get their tracked timestamp updated; everything else keeps its prior value. Removed/deleted entries or pages are still pruned from the manifest unconditionally, since that's always safe regardless of scope. Verified this reduces to byte-identical behaviour for `full`/`style` (both already touch everything) and is strictly more correct for `features`/`entries`/`auto` (previously-existing scopes) as well as the new `claim_item`.
+
+**Known, disclosed gap found in passing — deliberately NOT fixed in this phase**: `generate_directory_site`'s pre-existing scopes (`full`, `style`, `features`, `entries`, `auto`, and the `all: true` bulk path) have **no caller-authorization check at all** — the function trusts whatever `directory_id` it's given, unlike five sibling functions (`generate_media_alt_text`, `geocode_directory_entries`, `generate_content_page_draft`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`) which already call `requireDirectoryAccess`. Any signed-in user — not just an admin or that directory's own contact — can currently force a full publish of any directory by calling this function directly. This is **pre-existing, not introduced by this epic**, and left alone here rather than bundled into this change, because fixing it touches the *already-working* admin Publish button with no way for this session to click-test that fix. Flagged as its own follow-up task (spawned in this session) rather than silently left undocumented.
+
+**Frontend**: the Listing Manager's **Publish** button is now live (enabled once the claim is `active`), calling a new `publishDirectoryItem()` (`src/lib/claimManager.js`) which invokes `generate_directory_site` with `scope: "claim_item"`. Fires `claimed_listing_published` on success (already documented in `AGENTS.md`'s `claim_*` catalogue since Phase 0). **Preview** stays disabled — not part of this phase.
+
+### Database migrations applied
+None — this phase is Edge Function + shared-helper + frontend only.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) only. **Not yet deployed to production** — recommending the user hold this one for more scrutiny than usual given the risk, even though every other phase this session has gone straight to production same-day.
+
+### Frontend
+Not yet deployed (code committed, not yet built/shipped to Vercel/GitHub Pages pending the PR).
+
+### Verified on staging
+- [x] `deno check` on both `supabase/functions/generate_directory_site/index.ts` and `supabase/functions/_shared/supabase.ts` — compiles cleanly, no type errors
+- [x] `npm run build` — frontend compiles cleanly
+- [x] Deployed to the staging Edge Function successfully
+- [x] Live smoke test: calling the deployed staging function with `scope: "claim_item"` and only the project's public anon key (no signed-in user) was rejected before reaching any application code — confirms anonymous callers cannot reach this scope at all
+- [ ] **No live acceptance test of the actual isolation guarantee** — the spec's own non-negotiable rule requires "explicit acceptance tests" proving a claim publish never touches other content. This session had no way to obtain a real signed-in user session (claim user or admin) or the service-role key to run one against real staging data (same credential gap that's limited every phase's verification this session, more consequential here given the stakes). **This is the one thing I'd most want done before this reaches a real customer**: create a test claim on a staging directory with ≥2 entries, activate it, publish it, and confirm (a) the entry's own page changed, (b) the homepage blob, every other entry's page, and sitemap.xml/robots.txt/llms.txt are byte-identical to before.
+- [ ] The manifest-merge fix's effect on the pre-existing `auto`/`entries`/`features` scopes hasn't been exercised against a real directory either — worth a normal admin Publish/Regenerate click-through on staging to confirm no regression before this goes to production.
+
+---
+
 ## 2026-09-23 — [Production] Fix: Claims list embed ambiguity (PostgREST)
 
 **Branch/PR:** [`fix/2026-09-23-claims-list-embed-ambiguity` (#240)](https://github.com/layercake-cx/directory-maps/pull/240), merged to `main`.
