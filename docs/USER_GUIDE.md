@@ -245,12 +245,13 @@ Only categorisations attached to that specific directory (or map) are offered �
 
 A published directory's site has a search box and a filter bar built from your attached categorisations. On the published site, a **Tags** categorisation renders as a compact multi-pick dropdown (its terms live behind a "Any"/"N selected" button, with a search box inside the panel once there are more than 8 terms) rather than a wall of buttons — this keeps the bar readable as you attach more categorisations to a directory. **Single choice** still renders as a native dropdown, and **Yes/No** as a switch. See `docs/DIRECTORIES.md` for the roadmap of what's still ahead (portal-side faceted filtering). On desktop, the filter bar spans the full width above the results, which take two-thirds of the width with the map (if one is attached — see **Directories** under a map's Data tab, above) alongside at one-third. Each result is two columns: a logo cell on the left (full height of the row, background colour filling the cell, logo centred) and the name, description, address, and category on the right. On smaller screens the page layout stacks instead: filters sit above the list, and a **List / Map** toggle switches between the two rather than showing them side by side; on phone-sized screens the filters also collapse into a **Filters** drawer you open on demand. Filtering or searching the directory narrows the map's pins the same way it narrows the list; the map embed itself only shows its own controls (zoom, clustering) here, not a second copy of the search box or results.
 
-### Entry details: evidence, media, accreditations, links and product tiles
+### Entry details: evidence, media, team, accreditations, links and product tiles
 
 Open an existing entry (**Edit**) to see these below the main form — they're not available until the entry has been saved once, since they attach to the entry's own record:
 
 - **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
 - **Media** — pick a gallery photo (PNG/JPG/WebP, max 5MB) to see a preview, then either type alt text or click **Generate with AI** to have Claude describe the actual image (not just guess from the entry's name) — alt text is required before you can upload. Mark one image as the **hero** image.
+- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed) — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
 - **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
 - **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
 - **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
@@ -279,11 +280,15 @@ Without the Professional plan, the tab shows an upgrade message instead of these
 
 **Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
 
-The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs:
+The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
 
-- **Listing**, **SEO**, **Contact details** — read-only for now, showing exactly what's published today. Editing arrives in a later update.
-- **Team** — read-only list of the people shown publicly on the listing. Adding/editing them arrives with the same update as the tabs above.
-- **Users** — real today. Anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here — that needs an ownership transfer, a later feature.
+- **Listing** — the same rich-text editor used elsewhere in the app, for the listing's body content.
+- **SEO** — page title and meta description.
+- **Contact details** — website, email, phone, and address, each with its own "Show publicly" checkbox.
+- **Team** — add, hide/show, or delete the people shown publicly on the listing. Either the owner or an editor can do this.
+- **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here — that needs an ownership transfer, a later feature.
+
+Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
 
 Preview and Publish buttons are visible but disabled — publishing a claimed listing in isolation, without touching the rest of the directory, is a later phase.
 
