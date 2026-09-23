@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
 
@@ -23,6 +24,7 @@ const STATUS_LABELS = {
  */
 export default function ClaimLogin() {
   const { user, initializing } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -42,7 +44,14 @@ export default function ClaimLogin() {
       try {
         await linkClaimUserByEmail();
         const rows = await getMyClaimContext();
-        if (!cancelled) setClaims(rows);
+        if (cancelled) return;
+        // Exactly one linked, non-revoked claim -- skip the picker.
+        const usable = rows.filter((r) => r.claim_status !== "revoked");
+        if (usable.length === 1) {
+          navigate(`/claim/manage/${usable[0].claim_id}`, { replace: true });
+          return;
+        }
+        setClaims(rows);
       } catch (e) {
         if (!cancelled) setErr(e?.message ?? String(e));
       } finally {
@@ -52,7 +61,7 @@ export default function ClaimLogin() {
     return () => {
       cancelled = true;
     };
-  }, [initializing, user]);
+  }, [initializing, user, navigate]);
 
   async function handleRequestLink(e) {
     e.preventDefault();
@@ -121,15 +130,19 @@ export default function ClaimLogin() {
             No claimed listings are linked to this email yet. If you were expecting one, ask the directory to send (or resend) your invitation.
           </p>
         ) : (
-          <ul style={{ paddingLeft: 18, fontSize: 13 }}>
-            {claims.map((c) => (
-              <li key={c.claim_id}>
-                <strong>{c.entry_name}</strong> — {c.role} ({STATUS_LABELS[c.claim_status] ?? c.claim_status})
-              </li>
-            ))}
-          </ul>
+          <>
+            <p style={{ fontSize: 13, margin: "0 0 8px" }}>Choose a listing to manage:</p>
+            <ul style={{ paddingLeft: 0, listStyle: "none", fontSize: 13, display: "grid", gap: 8 }}>
+              {claims.map((c) => (
+                <li key={c.claim_id}>
+                  <Link to={`/claim/manage/${c.claim_id}`} className="btn" style={{ display: "block", textAlign: "left" }}>
+                    <strong>{c.entry_name}</strong> — {c.role} ({STATUS_LABELS[c.claim_status] ?? c.claim_status})
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-        <p style={{ opacity: 0.7, fontSize: 13, margin: 0 }}>The full listing manager is coming soon.</p>
         {err ? <p className="auth-form__msg" style={{ color: "#b91c1c" }}>{err}</p> : null}
       </div>
     </div>
