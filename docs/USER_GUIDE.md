@@ -290,7 +290,7 @@ The Listing Manager shows the listing name, the signed-in person's role and the 
 
 Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
 
-Preview and Publish buttons are visible but disabled — publishing a claimed listing in isolation, without touching the rest of the directory, is a later phase.
+**Publish** is live once the claim is Active: it republishes only that one listing's own page — never the directory homepage, its own search-result row, any other listing, or any directory-wide setting. Because of that isolation, publishing an edit today updates the listing's dedicated page immediately, but its homepage summary card and its entry in sitemap.xml won't reflect the change until the directory's next ordinary (admin-triggered) publish. **Preview** is still visible but disabled — that's a later update.
 
 ### AI content generation
 

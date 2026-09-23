@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, invokeFunction } from "./supabase";
 import { sanitizeNotesHtml } from "./sanitizeHtml.js";
 
 /**
@@ -105,4 +105,22 @@ export async function updateClaimTeamMember(claimId, teamMemberId, member) {
 export async function removeClaimTeamMember(claimId, teamMemberId) {
   const { error } = await supabase.rpc("remove_claim_team_member", { p_claim_id: claimId, p_team_member_id: teamMemberId });
   if (error) throw error;
+}
+
+/**
+ * Publishes only this one directory item -- never the homepage, other
+ * entries, sitemap/robots/llms/redirects, or any directory-level config
+ * (Phase 6's isolation guarantee). Calls generate_directory_site directly
+ * with scope: "claim_item", which derives directory_id itself from the
+ * entry and re-checks server-side that the caller is linked to its active
+ * claim -- never the general publish_directory/generate_directory_site
+ * entry points a directory admin uses.
+ */
+export async function publishDirectoryItem(directoryItemId) {
+  const { data, error } = await invokeFunction("generate_directory_site", {
+    body: { scope: "claim_item", entry_ids: [directoryItemId] },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }

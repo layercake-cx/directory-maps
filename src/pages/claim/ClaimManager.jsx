@@ -8,6 +8,7 @@ import {
   getClaimTeamMembers,
   getClaimUsers,
   inviteClaimEditor,
+  publishDirectoryItem,
   removeClaimTeamMember,
   removeClaimUser,
   updateClaimedListingBody,
@@ -87,6 +88,24 @@ export default function ClaimManager() {
 
   const canEdit = context?.claim_status === "active";
 
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState("");
+
+  async function handlePublish() {
+    setPublishMsg("");
+    setErr("");
+    try {
+      setPublishing(true);
+      await publishDirectoryItem(context.directory_item_id);
+      recordEvent("claimed_listing_published", { directory_id: context.directory_id, directory_item_id: context.directory_item_id, claim_id: claimId });
+      setPublishMsg("Published.");
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   if (initializing || loading) {
     return (
       <div className="page-main auth-page">
@@ -124,10 +143,19 @@ export default function ClaimManager() {
           <p style={{ margin: "2px 0 0", fontSize: 13, opacity: 0.7 }}>
             Signed in as {user.email} · {context.role} · {STATUS_LABELS[context.claim_status] ?? context.claim_status}
           </p>
+          {publishMsg ? <p style={{ margin: "4px 0 0", fontSize: 13, color: "#15803d" }}>{publishMsg}</p> : null}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" type="button" disabled title="Coming soon">Preview</button>
-          <button className="btn btn-primary" type="button" disabled title="Coming soon">Publish</button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            disabled={!canEdit || publishing}
+            title={canEdit ? undefined : "Editing opens once your claim is active"}
+            onClick={handlePublish}
+          >
+            {publishing ? "Publishing…" : "Publish"}
+          </button>
         </div>
       </div>
 
