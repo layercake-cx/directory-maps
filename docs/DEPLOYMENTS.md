@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 5: editable content + team members
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 5: editable content + team members
 
-**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-5`
-**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-5` (#238)](https://github.com/layercake-cx/directory-maps/pull/238), merged to `main`.
+**Deployed by:** Claude Code, after explicit user sign-off ("Merge" then "and deploy").
 
 ### What changed
 Listing/SEO/Contact details in the claim-user Listing Manager go from read-only to genuinely editable, and Team is now a real CRUD, both for claim users and — for client/admin parity — for ordinary directory admins.
@@ -26,19 +26,25 @@ Listing/SEO/Contact details in the claim-user Listing Manager go from read-only 
 **Frontend (claim-user side)**: `ClaimManager.jsx`'s Listing/SEO/Contact/Team tabs are now stateful forms (Listing reuses the same `RichTextEditor` the admin content tab uses) that call the new RPCs, show a "Editing opens once your claim is active" notice when the claim isn't active yet, and fire `claimed_listing_updated` on save. New `src/lib/claimManager.js` functions wrap the RPCs.
 
 ### Database migrations applied
-- `20260923160000_claimed_listing_editing_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claimed listing editing RPCs created`. Rollback: `_20260923160000_claimed_listing_editing_rpcs.rollback.sql` (refuses if any `directory_entries` row is already `content_managed_by='claimed_org'`).
+- `20260923160000_claimed_listing_editing_rpcs.sql` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`), both `VERIFY PASSED: claimed listing editing RPCs created`. CLI relinked back to staging. Rollback: `_20260923160000_claimed_listing_editing_rpcs.rollback.sql` (refuses if any `directory_entries` row is already `content_managed_by='claimed_org'`).
 
 ### Edge Functions deployed
 None.
 
 ### Frontend
-Not deployed yet.
+- GitHub Pages: deployed automatically on merge, confirmed via `gh run list`.
+- Vercel preview: https://directory-maps-lgp1ahe27-layercake-apps.vercel.app — smoke-tested: `/claim/manage/:id` still correctly redirects a signed-out visitor to `/claim/login`, no console errors, despite this page now pulling in the same rich-text editor bundle the admin content tab uses.
+- Vercel production: https://directory-maps-1j3j5z4wy-layercake-apps.vercel.app, aliased to https://maps.layercake-cx.biz and https://uk-associations.com.
 
-### Verified on staging
-- [x] `supabase db push --dry-run` showed only this one file pending
-- [x] Applied to staging — `VERIFY PASSED`
+### Rollback plan
+Run `_20260923160000_claimed_listing_editing_rpcs.rollback.sql` against production then staging. Redeploy the previous Vercel production deployment and revert this PR's merge commit on `main` if the frontend needs to go back too.
+
+### Verified on staging + production
+- [x] `supabase db push --dry-run` showed only this one file pending on both environments
+- [x] Applied to both — `VERIFY PASSED`
 - [x] `npm run build` — compiles cleanly
-- [ ] Interactive click-through — **not done this session**, no test login credentials for either the claim-user edit flow or the admin Team editor. Will smoke-test the unauthenticated-redirect guard again once deployed, same as prior phases.
+- [x] `/claim/manage/:id` (signed out) redirect guard re-verified live on the new Vercel preview after this phase's changes
+- [ ] The authenticated edit flow (claim-user editing Listing/SEO/Contact/Team, and the new admin Team editor) has **not** been click-tested — no test login credentials. Deployed on the same accepted-risk basis as prior phases: no real directory is live yet.
 
 ---
 
