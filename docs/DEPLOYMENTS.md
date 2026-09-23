@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 3: manual claim lifecycle + magic-link auth
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 3: manual claim lifecycle + magic-link auth
 
-**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-3`
-**Deployed by:** Claude Code, after explicit go-ahead. CLI already linked to staging.
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-3` (#235)](https://github.com/layercake-cx/directory-maps/pull/235), merged to `main`.
+**Deployed by:** Claude Code, after explicit user sign-off for production ("no truly live directory yet" — accepted risk given no interactive click-through was possible this session).
 
 ### What changed
 The Claims sub-tab is now real, admin-created claims only (self-service is a later phase). New RPCs (all `security definer`, all explicitly check the caller is a platform admin or a contact of the claim's client via a new shared `can_manage_client()` helper — the exact permission pattern `publish_directory()` already uses, since `security definer` bypasses RLS and this check *is* the enforcement):
@@ -30,19 +30,25 @@ Also added `claim_users.name` (Phase 1's schema only had email/role — the admi
 Events fired (all already documented in `AGENTS.md`'s `claim_*` catalogue, added in Phase 0): `claim_started`, `claim_email_verified`/`claim_verification_overridden` (on create), `claim_activated` (`activation_reason: "admin_manual"`), `claim_suspended`, `claim_reactivated`, `claim_revoked`, `claim_user_invited`.
 
 ### Database migrations applied
-- `20260923140000_claims_lifecycle_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: claims lifecycle RPCs created` (this also exercises `derive_domain_from_url()`/`is_generic_email_domain()` inline as part of the check). Rollback: `_20260923140000_claims_lifecycle_rpcs.rollback.sql` (refuses if any admin-created claim already exists).
+- `20260923140000_claims_lifecycle_rpcs.sql` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`), both `VERIFY PASSED: claims lifecycle RPCs created` (this also exercises `derive_domain_from_url()`/`is_generic_email_domain()` inline as part of the check). CLI relinked back to staging after the production push. Rollback: `_20260923140000_claims_lifecycle_rpcs.rollback.sql` (refuses if any admin-created claim already exists).
 
 ### Edge Functions deployed
 None.
 
 ### Frontend
-Not deployed yet.
+- GitHub Pages: deployed automatically on merge to `main`, confirmed via `gh run list`.
+- Vercel preview: https://directory-maps-3p838pww7-layercake-apps.vercel.app — smoke-tested via the browser tool: `/claim/login` renders the sign-in form correctly with no console errors (the first time this epic's UI could be checked without login credentials, since this route needs none).
+- Vercel production: https://directory-maps-g9ku00988-layercake-apps.vercel.app, aliased to https://maps.layercake-cx.biz and https://uk-associations.com.
 
-### Verified on staging
-- [x] `supabase db push --dry-run` showed only this one file pending
-- [x] Applied to staging — `VERIFY PASSED`, including the domain-normalisation and generic-email-denylist assertions
+### Rollback plan
+Run `_20260923140000_claims_lifecycle_rpcs.rollback.sql` against production then staging (refuses safely if an admin-created claim already exists by then). Redeploy the previous Vercel production deployment and revert the commit on `main` if the frontend needs to go back too.
+
+### Verified on staging + production
+- [x] `supabase db push --dry-run` showed only this one file pending on both environments
+- [x] Applied to both — `VERIFY PASSED`, including the domain-normalisation and generic-email-denylist assertions
 - [x] `npm run build` — compiles cleanly
-- [ ] Interactive click-through — **not done this session**, no test login credentials available (same gap as Phase 2). The full loop (create a claim, verify it, send an invitation, sign in at `/claim/login`, activate/suspend/revoke) has not been exercised by a human yet. Recommend the user run through it end-to-end before relying on it for a real customer.
+- [x] `/claim/login` smoke-tested live on the Vercel preview (renders correctly, no console errors) — the only part of this phase that could be checked without a login
+- [ ] The authenticated admin flow (create a claim, verify it, send an invitation, sign in at `/claim/login` with that email, activate/suspend/revoke) has **not** been exercised end-to-end by a human. Deployed to production on the basis that no real directory is live yet, so the blast radius of an undiscovered bug is limited to test data. Recommend running through the full loop soon.
 
 **Known simplification vs. the original spec**: the Claims list (§14 of the source spec) shows only actual `claims` rows, not every directory listing with "—" placeholders for unclaimed ones. Building that composite view is a reasonable polish item for a later pass, not blocking for admin-driven claim management.
 
