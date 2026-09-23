@@ -35,7 +35,11 @@ export default function ClaimManager() {
   const [activeTab, setActiveTab] = useState("listing");
 
   useEffect(() => {
-    if (initializing || !user) return;
+    if (initializing) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
