@@ -520,12 +520,17 @@ Deno.serve(async (req) => {
         startedAt,
       });
 
-      // Regenerate the public snapshot so the embed reflects the updated data
+      // Regenerate the public snapshot so the embed reflects the updated data.
+      // SB_SECRET_KEY (2026-09-26 key migration) is an opaque string, not a
+      // JWT, so it goes on `apikey` (Supabase's own convention for
+      // publishable/secret keys), never `Authorization: Bearer` -- see
+      // generate_map_snapshot's verify_jwt = false in supabase/config.toml,
+      // required for exactly this reason.
       const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const secretKey = Deno.env.get("SB_SECRET_KEY") ?? "";
       fetch(`${supabaseUrl}/functions/v1/generate_map_snapshot`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        headers: { "Content-Type": "application/json", apikey: secretKey },
         body: JSON.stringify({ map_id: src.map_id }),
       }).catch(() => {}); // fire-and-forget; don't fail the sync if snapshot errors
 

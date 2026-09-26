@@ -8,6 +8,45 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-26 — [Staging] Migrate off legacy Supabase anon/service_role keys
+
+**Branch/PR:** `chore/2026-09-26-migrate-off-legacy-supabase-keys` (not yet opened as a PR)
+**Deployed by:** Claude Code, after explicit user go-ahead. Prompted by a real incident: this session's agent ran `supabase projects api-keys` while investigating something unrelated, which printed both staging's and production's legacy `service_role` key in full to its own output — treated as compromised the moment that happened, regardless of the private nature of the session. The dashboard's "Legacy JWT Secret" page confirmed there is no in-place rotation for that key anymore (this project migrated to the new JWT Signing Keys system 6 months ago) — the only real fix is retiring the legacy `anon`/`service_role` keys entirely in favour of the newer `sb_publishable_...`/`sb_secret_...` pair, which is what this change does.
+
+### What changed
+- New Edge Function secrets `SB_PUBLISHABLE_KEY`/`SB_SECRET_KEY` (not `SUPABASE_...` — that prefix is platform-reserved and the CLI rejects it outright). `SB_SECRET_KEY`'s value was never typed into any tool output — entered directly into the user's own terminal via a silent `read -s` prompt, after an earlier zsh-syntax mistake (`read -p` is bash syntax; zsh's own `read -s "VAR?prompt"` form works) caused one earlier attempt to echo a secret key value into the terminal and back into this session — that key was immediately deleted and regenerated in the dashboard before being used for anything.
+- `supabase/functions/_shared/supabase.ts` — `createAnonClient()`/`createServiceClient()` now read `SB_PUBLISHABLE_KEY`/`SB_SECRET_KEY` instead of the platform-auto-injected `SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`.
+- `generate_directory_site/index.ts` — its own two direct `SUPABASE_ANON_KEY` reads (for the public/anon key embedded into published pages for "Help me choose" and analytics) switched to `SB_PUBLISHABLE_KEY`.
+- **Real, distinct problem found along the way**: the new key format is an opaque string, not a JWT, so it can't satisfy an Edge Function's `verify_jwt` gateway check (which only validates JWTs) the way the legacy service_role/anon JWTs always did, and it belongs on the `apikey` header, never `Authorization: Bearer` (confirmed against Supabase's own current docs). This affected two more things:
+  - `sync_sheet_listings/index.ts`'s fire-and-forget call to `generate_map_snapshot` (server-to-server, no user session) — switched from `Authorization: Bearer <service key>` to `apikey: <secret key>`, and added `verify_jwt = false` for `generate_map_snapshot` in `supabase/config.toml` (that function does no auth check of its own either way, so this doesn't change who could reach it).
+  - Four places in `generate_directory_site/builders.ts` — JS templated into **every published directory/entry page** (the contact form, engagement-event logging, location search, and "Help me choose" AI search) — all sent the anon key on both `apikey` and `Authorization: Bearer`. Removed the `Authorization` half from all four (kept `apikey`), and added `verify_jwt = false` for `send_contact_message` and `directory_ai_search` in `config.toml` (`resolve_directory_place`, the fourth target, already had it). Neither function does its own caller-identity check — both are intentionally open to anonymous visitors already, confirmed by reading their code before touching anything.
+- `.env.local` already held the new staging publishable key (unclear why/when — not something this change touched) — left as-is, confirmed correct.
+- Vercel **Preview** environment's `VITE_SUPABASE_ANON_KEY` replaced with the new staging publishable key (same variable name — `src/lib/supabase.js` treats it as an opaque string either way, no frontend code change needed).
+
+**One edit (`builders.ts`'s first `Authorization` header removal) was initially blocked by the auto-mode security classifier as a "security weaken" pattern** — a reasonable default suspicion for removing an auth header, but wrong in this specific case (confirmed via Supabase's own docs and by reading the target functions' code first). Paused and got explicit user sign-off before proceeding with that edit and the three identical ones after it, rather than working around the block.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site`, `sync_sheet_listings`, `generate_map_snapshot`, `send_contact_message`, `directory_ai_search` — staging (`beqejxneehilplrtpntn`) only.
+
+### Frontend
+- Vercel preview (staging): redeployed with the new Preview env var, smoke-tested live — submitted the `/claim/login` form with a fake email; got "Error sending confirmation email" (an SMTP-delivery-stage error, only reachable *after* the publishable key is accepted) rather than any API-key/auth error. Confirms the new key works end-to-end for real Supabase Auth calls.
+- Not yet deployed to GitHub Pages or Vercel production — that's the production half of this migration, not started yet.
+
+### Verified on staging
+- [x] `deno check` clean on all four modified Edge Function files (two pre-existing, unrelated type errors in `sync_sheet_listings/index.ts` confirmed via `git diff` to predate this change)
+- [x] All five affected functions deployed to staging without error
+- [x] Live smoke test of `/claim/login`'s `signInWithOtp` call against the new publishable key — reached the SMTP stage, not an auth failure
+- [ ] **Not yet tested**: a real published directory/entry page's embedded JS (the four `builders.ts` call sites) — contact form, location search, "Help me choose", engagement logging. These only get exercised on an actual published staging directory; recommend the user try one of them for real before this is considered fully verified.
+- [ ] Staging's legacy `anon`/`service_role` keys have **not** yet been disabled in the dashboard — holding off until the above is confirmed, and until production is migrated too (disabling legacy keys per-project, staging first once proven).
+
+### Rollback plan
+Revert this commit; the old `SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` platform-injected variables are untouched and still work as long as legacy keys remain enabled (they have not been disabled yet). Redeploy the five functions and the previous Vercel Preview env var value if needed.
+
+---
+
 ## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 6: item-only publishing isolation
 
 **Branch/PR:** `feat/2026-09-23-claimed-listings-phase-6` (not yet opened as a PR)

@@ -1200,8 +1200,7 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': cfg.anonKey,
-        'Authorization': 'Bearer ' + cfg.anonKey
+        'apikey': cfg.anonKey
       },
       body: JSON.stringify({
         directoryId: cfg.directoryId,
@@ -1969,7 +1968,6 @@ function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
         headers: {
           'Content-Type': 'application/json',
           'apikey': ANON_KEY,
-          'Authorization': 'Bearer ' + ANON_KEY,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(row)
@@ -2292,7 +2290,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     showHint('Finding ' + place + '\\u2026');
     fetch(RESOLVE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': RESOLVE_ANON_KEY, 'Authorization': 'Bearer ' + RESOLVE_ANON_KEY },
+      headers: { 'Content-Type': 'application/json', 'apikey': RESOLVE_ANON_KEY },
       body: JSON.stringify({ directory_id: RESOLVE_DIRECTORY_ID, place: place, region: PLACE_REGION })
     })
       .then(function (res) { return res.json(); })
@@ -2774,7 +2772,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (aiCandidateIds) payload.candidate_entry_ids = aiCandidateIds;
     fetch(AI_SEARCH_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY, 'Authorization': 'Bearer ' + AI_SEARCH_ANON_KEY },
+      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY },
       body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined
     })
