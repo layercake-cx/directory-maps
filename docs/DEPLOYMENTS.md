@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-09-26 — [Staging] Migrate off legacy Supabase anon/service_role keys
 
-**Branch/PR:** `chore/2026-09-26-migrate-off-legacy-supabase-keys` (not yet opened as a PR)
+**Branch/PR:** [`chore/2026-09-26-migrate-off-legacy-supabase-keys` (#243)](https://github.com/layercake-cx/directory-maps/pull/243), merged to `main`.
 **Deployed by:** Claude Code, after explicit user go-ahead. Prompted by a real incident: this session's agent ran `supabase projects api-keys` while investigating something unrelated, which printed both staging's and production's legacy `service_role` key in full to its own output — treated as compromised the moment that happened, regardless of the private nature of the session. The dashboard's "Legacy JWT Secret" page confirmed there is no in-place rotation for that key anymore (this project migrated to the new JWT Signing Keys system 6 months ago) — the only real fix is retiring the legacy `anon`/`service_role` keys entirely in favour of the newer `sb_publishable_...`/`sb_secret_...` pair, which is what this change does.
 
 ### What changed
@@ -44,6 +44,37 @@ None.
 
 ### Rollback plan
 Revert this commit; the old `SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` platform-injected variables are untouched and still work as long as legacy keys remain enabled (they have not been disabled yet). Redeploy the five functions and the previous Vercel Preview env var value if needed.
+
+---
+
+## 2026-09-26 — [Production] Migrate off legacy Supabase anon/service_role keys
+
+**Branch/PR:** same code as the staging entry above (#243, already merged) — production is a config/secrets/deploy-only follow-up, no new code.
+**Deployed by:** Claude Code, after explicit user go-ahead ("yes proceed").
+
+### What changed
+Identical migration applied to the production Supabase project (`gxixwdjfmegxcxfeflro`): `SB_SECRET_KEY` (entered directly into the user's own terminal, never touching any tool output, same silent zsh `read -s` method proven on staging) and `SB_PUBLISHABLE_KEY` (non-secret, set directly) as function secrets; all five affected functions redeployed; Vercel **Production** `VITE_SUPABASE_ANON_KEY` replaced with the new production publishable key; the GitHub Pages build secret `VITE_SUPABASE_ANON_KEY` (repo secret) updated to the same value and a rebuild triggered manually via `gh workflow run` (`workflow_dispatch`) rather than waiting for the next code push, since this secret needed to take effect on its own.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site`, `sync_sheet_listings`, `generate_map_snapshot`, `send_contact_message`, `directory_ai_search` — production (`gxixwdjfmegxcxfeflro`).
+
+### Frontend
+- GitHub Pages: manually re-triggered (`workflow_dispatch`) after updating the repo secret, confirmed successful via `gh run list`.
+- Vercel production: redeployed, live at https://maps.layercake-cx.biz and https://uk-associations.com.
+- Note: unlike staging, there is no safe way to pre-validate a Vercel *Production*-scoped env var before deploying — Preview and Production env vars are separate, so `deploy:test` can't exercise the production value. Deployed directly, then verified live immediately after (see below), same-turn.
+
+### Verified on production
+- [x] All five functions deployed without error
+- [x] Live smoke test against the real branded production domain (`https://maps.layercake-cx.biz/claim/login`, `signInWithOtp` with a fake, non-deliverable email) — reached the same "Error sending confirmation email" (SMTP-stage) result as staging, confirming the new key authenticates correctly against production Supabase
+- [x] GitHub Pages rebuild confirmed successful post-secret-update
+- [ ] A real published directory/entry page's embedded JS (contact form, location search, "Help me choose", engagement logging) — same gap as staging, not yet tested for real on either environment
+- [ ] Legacy `anon`/`service_role` keys **not yet disabled** on either project — this is the actual point of the whole exercise and still needs to happen. Once the above gaps are checked (or accepted as low-risk), disable legacy keys for staging first, then production, via each project's dashboard (Settings → API Keys → "Disable JWT-based API keys") — no CLI/API path found for this step, it's dashboard-only.
+
+### Rollback plan
+Revert the Vercel/GitHub secret values back to the legacy anon key (still valid until legacy keys are disabled) and redeploy the five functions from the pre-migration commit if something breaks. No migration to roll back.
 
 ---
 
