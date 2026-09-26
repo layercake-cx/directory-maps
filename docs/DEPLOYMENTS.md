@@ -71,17 +71,19 @@ None.
 - [x] Live smoke test against the real branded production domain (`https://maps.layercake-cx.biz/claim/login`, `signInWithOtp` with a fake, non-deliverable email) — reached the same "Error sending confirmation email" (SMTP-stage) result as staging, confirming the new key authenticates correctly against production Supabase
 - [x] GitHub Pages rebuild confirmed successful post-secret-update
 - [ ] A real published directory/entry page's embedded JS (contact form, location search, "Help me choose", engagement logging) — same gap as staging, not yet tested for real on either environment
-- [ ] Legacy `anon`/`service_role` keys **not yet disabled** on either project — this is the actual point of the whole exercise and still needs to happen. Once the above gaps are checked (or accepted as low-risk), disable legacy keys for staging first, then production, via each project's dashboard (Settings → API Keys → "Disable JWT-based API keys") — no CLI/API path found for this step, it's dashboard-only.
+- [x] Legacy `anon`/`service_role` keys **disabled by the user on both projects** (confirmed 2026-09-26) — the actual point of the whole exercise, and the incident is now fully closed.
 
 ### Rollback plan
 Revert the Vercel/GitHub secret values back to the legacy anon key (still valid until legacy keys are disabled) and redeploy the five functions from the pre-migration commit if something breaks. No migration to roll back.
 
 ---
 
-## 2026-09-23 — [Staging] Claimed Directory Listings — Phase 6: item-only publishing isolation
+## 2026-09-23 — [Production] Claimed Directory Listings — Phase 6: item-only publishing isolation
 
-**Branch/PR:** `feat/2026-09-23-claimed-listings-phase-6` (not yet opened as a PR)
-**Deployed by:** Claude Code. This is the epic's own explicitly-flagged highest-risk phase — read this entry in full before deciding on production.
+**Branch/PR:** [`feat/2026-09-23-claimed-listings-phase-6` (#242)](https://github.com/layercake-cx/directory-maps/pull/242), merged to `main`.
+**Deployed by:** Claude Code, after explicit user sign-off ("Continue to production"). This is the epic's own explicitly-flagged highest-risk phase — read this entry in full.
+
+**Note on how this entry ended up split across two dates**: this deploy started 2026-09-23, but full write-up and the frontend confirmation happened 2026-09-26, because the acceptance-test attempt right after the production Edge Function deploy led directly into the credential-exposure incident and Supabase key migration recorded elsewhere in this log (2026-09-26 entries) — this phase's own follow-up got interrupted mid-verification, not abandoned.
 
 ### What changed
 
@@ -99,18 +101,22 @@ Revert the Vercel/GitHub secret values back to the legacy anon key (still valid 
 None — this phase is Edge Function + shared-helper + frontend only.
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) only. **Not yet deployed to production** — recommending the user hold this one for more scrutiny than usual given the risk, even though every other phase this session has gone straight to production same-day.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`), both after their own explicit sign-off. The production copy was subsequently redeployed again as part of the 2026-09-26 key migration (same isolation logic, updated to the new secret names) — see that entry.
 
 ### Frontend
-Not yet deployed (code committed, not yet built/shipped to Vercel/GitHub Pages pending the PR).
+Deployed to production, but as a side effect of the 2026-09-26 key-migration deploys rather than its own dedicated deploy: Phase 6's frontend (`ClaimManager.jsx`'s enabled Publish button) was already merged to `main` by the time those Vercel/GitHub Pages rebuilds ran, so it shipped along with them. Confirmed present in production as of the 2026-09-26 production deploy.
 
-### Verified on staging
+### Verified on staging + production
 - [x] `deno check` on both `supabase/functions/generate_directory_site/index.ts` and `supabase/functions/_shared/supabase.ts` — compiles cleanly, no type errors
 - [x] `npm run build` — frontend compiles cleanly
-- [x] Deployed to the staging Edge Function successfully
-- [x] Live smoke test: calling the deployed staging function with `scope: "claim_item"` and only the project's public anon key (no signed-in user) was rejected before reaching any application code — confirms anonymous callers cannot reach this scope at all
-- [ ] **No live acceptance test of the actual isolation guarantee** — the spec's own non-negotiable rule requires "explicit acceptance tests" proving a claim publish never touches other content. This session had no way to obtain a real signed-in user session (claim user or admin) or the service-role key to run one against real staging data (same credential gap that's limited every phase's verification this session, more consequential here given the stakes). **This is the one thing I'd most want done before this reaches a real customer**: create a test claim on a staging directory with ≥2 entries, activate it, publish it, and confirm (a) the entry's own page changed, (b) the homepage blob, every other entry's page, and sitemap.xml/robots.txt/llms.txt are byte-identical to before.
-- [ ] The manifest-merge fix's effect on the pre-existing `auto`/`entries`/`features` scopes hasn't been exercised against a real directory either — worth a normal admin Publish/Regenerate click-through on staging to confirm no regression before this goes to production.
+- [x] Deployed to both staging and production Edge Functions successfully
+- [x] Live smoke test: calling the deployed staging function with `scope: "claim_item"` and only the project's public anon/publishable key (no signed-in user) was rejected before reaching any application code — confirms anonymous callers cannot reach this scope at all
+- [x] Frontend confirmed live in production (Publish button), via the 2026-09-26 key-migration deploys
+- [ ] **Still no live acceptance test of the actual isolation guarantee** — the spec's own non-negotiable rule requires "explicit acceptance tests" proving a claim publish never touches other content. This remains the single biggest open item in the whole Claimed Directory Listings epic: create a test claim on a directory with ≥2 entries, activate it, publish it, and confirm (a) the entry's own page changed, (b) the homepage blob, every other entry's page, and sitemap.xml/robots.txt/llms.txt are byte-identical to before. Recommend doing this before any real customer relies on the Publish button.
+- [ ] The manifest-merge fix's effect on the pre-existing `auto`/`entries`/`features` scopes hasn't been exercised against a real directory either — worth a normal admin Publish/Regenerate click-through to confirm no regression.
+
+### Security note (resolved 2026-09-26)
+The credential exposure and Supabase legacy-key migration recorded elsewhere in this log happened while attempting to build the acceptance test above. Both projects' legacy `anon`/`service_role` keys have since been disabled by the user in the dashboard — that incident is fully closed. The acceptance-test gap itself is unrelated and still open.
 
 ---
 
