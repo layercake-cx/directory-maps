@@ -276,7 +276,19 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
   4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim.
 - **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
-Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims are currently created by an administrator only — there's no public "Claim this listing" button yet, and no online payment (an admin records payment status manually). Both ship in later phases of this feature.
+Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
+
+### Claiming a listing yourself (self-service)
+
+When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a **Claim this listing** button (next to Visit website / Make an Enquiry). Clicking it shows the directory's own introduction and price, then asks for a work email:
+
+1. **Enter your work email.** It must use the same domain as the listing's own website (e.g. `you@ioic.org.uk` for a listing whose website is `ioic.org.uk`) — personal email providers (Gmail, Outlook, etc.) aren't accepted as proof of organisational control.
+2. If the domain matches, a sign-in link is emailed immediately — no payment, no waiting for an admin.
+3. Clicking that link signs you in at `/claim/login` and activates the claim straight away, taking you into the **Listing Manager** (see above).
+
+If your email domain doesn't match the listing's website (a common, legitimate situation — e.g. a rebrand, or a listing whose website belongs to a parent organisation), self-service can't verify you — ask the directory's admin to create the claim manually with an override instead.
+
+Once a claim has started on a listing (self-service or admin-created), the **Claim this listing** button disappears from that listing's public page until the claim is revoked.
 
 **Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
 

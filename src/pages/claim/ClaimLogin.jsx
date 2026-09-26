@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
+import { activateSelfServiceClaim, getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
+import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { supabase } from "../../lib/supabase";
 
 const STATUS_LABELS = {
   claim_started: "Claim started",
@@ -43,7 +45,22 @@ export default function ClaimLogin() {
     (async () => {
       try {
         await linkClaimUserByEmail();
-        const rows = await getMyClaimContext();
+        let rows = await getMyClaimContext();
+        // Best-effort: advance any self-service claim from verified straight
+        // to active (no payment step in this epic). No-ops harmlessly for
+        // anything else -- an already-active claim, an admin-created one
+        // still awaiting payment, etc. -- so it's safe to try for all of them.
+        const activated = await Promise.all(rows.map((r) => activateSelfServiceClaim(r.claim_id).catch(() => false)));
+        rows.forEach((r, i) => {
+          if (activated[i]) {
+            recordAdminEvent(supabase, {
+              eventType: "claim_activated",
+              source: "claim_manager",
+              meta: { directory_id: r.directory_id, directory_item_id: r.directory_item_id, claim_id: r.claim_id, activation_reason: "no_payment_required" },
+            });
+          }
+        });
+        rows = await getMyClaimContext();
         if (cancelled) return;
         // Exactly one linked, non-revoked claim -- skip the picker.
         const usable = rows.filter((r) => r.claim_status !== "revoked");

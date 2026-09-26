@@ -8,6 +8,43 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-26 — [Staging] Claimed Directory Listings — Phase 7: self-service claim flow
+
+**Branch/PR:** `feat/2026-09-26-claimed-listings-phase-7` (not yet opened as a PR)
+**Deployed by:** Claude Code, after explicit go-ahead ("continue to phase 7"). CLI already linked to staging.
+
+### What changed
+
+**Public "Claim this listing" button**, live on the individual entry page only — `generate_directory_site` now loads `directory_claim_settings` and checks `resolve_claims_entitlement()` per directory, and computes per-entry whether to include the widget (`current_claim_id is null` on that specific entry). Clicking it opens a modal (`buildClaimWidget()` in `builders.ts`, a close structural clone of the existing enquiry drawer) showing the directory's intro HTML + price, then a work-email form.
+
+**New RPC `start_self_service_claim(directory_item_id, email)`** — the one deliberate public entry point into the whole claims system, granted to `anon`. Re-checks everything server-side that the published page's own JS already gated on client-side (claiming enabled, entitlement, item unclaimed), then runs the *exact same* domain-verification rules `create_manual_claim()` (Phase 3) already uses — reject generic email providers, require the claimant's email domain to match the listing's own website domain — and creates the claim already `verified`, setting `current_claim_id` immediately (this is what removes the button from the next publish, not any client-side state). Does not send the magic link or record any event itself — the published page's JS does both after this call succeeds (calls Supabase Auth's `/auth/v1/otp` endpoint directly, no new Edge Function needed, then fires `listing_claim_start`).
+
+**New RPC `activate_self_service_claim(claim_id)`** — `authenticated`-only, called once from `ClaimLogin.jsx` right after a self-service claimant's first magic-link login (alongside the existing `link_claim_user_by_email()`). Advances a `verified` self-service claim straight to `active` — **no payment step in this epic**; that stays exclusive to manually-recorded admin claims until the separate "Claim Payments (Stripe)" follow-up epic. Fires `listing_claim_complete` **server-side, inside the RPC** rather than client-side — the caller is authenticated by this point, and `map_engagement_events`' insert policy is `anon`-only, so a client-side insert would be silently rejected by RLS. `ClaimLogin.jsx` separately fires the existing `claim_activated` admin event client-side (`activation_reason: "no_payment_required"`) for parity with the admin-manual activation path.
+
+Both new event types (`listing_claim_start`/`listing_claim_complete`) were already reserved in `map_engagement_events`' CHECK constraint since before this epic started — no schema change needed for them, just documented as now-live in `docs/MAP_ENGAGEMENT.md`.
+
+### Database migrations applied
+- `20260926120000_self_service_claim_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: self-service claim RPCs created`, including a fail-safe check that `activate_self_service_claim()` returns `false` (not an error) for an unknown claim id. Rollback: `_20260926120000_self_service_claim_rpcs.rollback.sql` (refuses if any `created_by='self_service'` claim already exists).
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) only (the claim-widget rendering logic).
+
+### Frontend
+Not yet deployed.
+
+### Verified on staging
+- [x] `deno check` on `builders.ts` and `index.ts` — compiles cleanly
+- [x] `npm run build` — frontend compiles cleanly
+- [x] Migration applied, `VERIFY PASSED`
+- [x] `generate_directory_site` redeployed with the claim-widget changes
+- [x] **Live verification of both new RPCs, using only the public anon/publishable key (no session, no service-role key needed for this one)** — meaningfully stronger than what was possible for Phase 6:
+  - `start_self_service_claim` with a bogus entry id → clean `"Listing not found"` (400), not a crash — confirms `anon` grant works and validation runs
+  - `activate_self_service_claim` with a bogus claim id → `"permission denied for function activate_self_service_claim"` (401) — confirms it correctly rejects `anon` (its grant is `authenticated`-only)
+- [ ] The actual happy path — a real listing with a matching-domain email, a real magic-link click, landing in the Listing Manager active — has **not** been exercised against real data. No test credentials this session, same disclosed gap as every other phase.
+- [ ] The claim widget's rendering (does the button actually appear/disappear correctly on a real published entry page, does the modal work, does the email send) hasn't been visually checked either — recommend the user publish a claim-enabled test directory and try the whole flow for real.
+
+---
+
 ## 2026-09-26 — [Staging] Migrate off legacy Supabase anon/service_role keys
 
 **Branch/PR:** [`chore/2026-09-26-migrate-off-legacy-supabase-keys` (#243)](https://github.com/layercake-cx/directory-maps/pull/243), merged to `main`.

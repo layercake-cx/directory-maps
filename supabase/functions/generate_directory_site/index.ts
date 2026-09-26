@@ -113,6 +113,7 @@ import {
   type ContentPage,
   type SiteAnalytics,
   type DirectoryEnquiry,
+  type ClaimWidgetOptions,
   parseDirectoryDestinations,
 } from "./builders.ts";
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
@@ -325,7 +326,7 @@ async function generateForDirectoryInner(
     db
       .from("directory_entries")
       .select(
-        "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
+        "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at, current_claim_id",
       )
       .eq("directory_id", directoryId)
       .eq("is_active", true)
@@ -558,6 +559,34 @@ async function generateForDirectoryInner(
         supabaseAnonKey,
       };
     }
+  }
+
+  // Claimed Directory Listings epic, Phase 7: the "Claim this listing"
+  // widget is directory-wide config (price/currency/intro) but gated
+  // per-entry (only entries with no current_claim_id get it) -- both the
+  // directory's own enabled flag AND the client's maps.claims commercial
+  // entitlement must resolve true, since claiming is Pro-gated (the epic's
+  // non-negotiable rule #1). Reads live at generation time, same as every
+  // other directory-wide setting here.
+  let claimWidgetBase: Omit<ClaimWidgetOptions, "priceCents" | "currency" | "paymentType" | "introHtml"> | null = null;
+  let claimSettings: { price_cents: number | null; currency: string | null; payment_type: string | null; intro_html: string | null } | null = null;
+  if (supabaseUrl && supabaseAnonKey) {
+    const { data: dcs } = await db
+      .from("directory_claim_settings")
+      .select("enabled, price_cents, currency, payment_type, intro_html")
+      .eq("directory_id", directoryId)
+      .maybeSingle();
+    if (dcs?.enabled) {
+      const { data: claimsEntitled } = await db.rpc("resolve_claims_entitlement", { p_client_id: client.id });
+      if (claimsEntitled === true) {
+        claimWidgetBase = { supabaseUrl, supabaseAnonKey };
+        claimSettings = { price_cents: dcs.price_cents ?? null, currency: dcs.currency ?? null, payment_type: dcs.payment_type ?? null, intro_html: dcs.intro_html ?? null };
+      }
+    }
+  }
+  function claimWidgetFor(e: Entry): ClaimWidgetOptions | null {
+    if (!claimWidgetBase || !claimSettings || e.current_claim_id) return null;
+    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html };
   }
 
   const entrySlugSet = new Set(entries.map((e) => e.slug));
@@ -813,6 +842,7 @@ async function generateForDirectoryInner(
       nav,
       analytics: siteAnalytics,
       enquiry: entryEnquiry,
+      claim: claimWidgetFor(entry),
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
