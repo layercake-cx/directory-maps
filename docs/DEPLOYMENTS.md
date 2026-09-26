@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-26 — [Staging] Claimed Directory Listings — Phase 7: self-service claim flow
+## 2026-09-26 — [Production] Claimed Directory Listings — Phase 7: self-service claim flow
 
-**Branch/PR:** `feat/2026-09-26-claimed-listings-phase-7` (not yet opened as a PR)
-**Deployed by:** Claude Code, after explicit go-ahead ("continue to phase 7"). CLI already linked to staging.
+**Branch/PR:** [`feat/2026-09-26-claimed-listings-phase-7` (#246)](https://github.com/layercake-cx/directory-maps/pull/246), merged to `main`.
+**Deployed by:** Claude Code, after explicit go-ahead ("continue to phase 7", then "pr, deploy, merge").
 
 ### What changed
 
@@ -24,22 +24,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 Both new event types (`listing_claim_start`/`listing_claim_complete`) were already reserved in `map_engagement_events`' CHECK constraint since before this epic started — no schema change needed for them, just documented as now-live in `docs/MAP_ENGAGEMENT.md`.
 
 ### Database migrations applied
-- `20260926120000_self_service_claim_rpcs.sql` — staging (`beqejxneehilplrtpntn`). Notice: `VERIFY PASSED: self-service claim RPCs created`, including a fail-safe check that `activate_self_service_claim()` returns `false` (not an error) for an unknown claim id. Rollback: `_20260926120000_self_service_claim_rpcs.rollback.sql` (refuses if any `created_by='self_service'` claim already exists).
+- `20260926120000_self_service_claim_rpcs.sql` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`), both `VERIFY PASSED: self-service claim RPCs created`, including a fail-safe check that `activate_self_service_claim()` returns `false` (not an error) for an unknown claim id. CLI relinked back to staging. Rollback: `_20260926120000_self_service_claim_rpcs.rollback.sql` (refuses if any `created_by='self_service'` claim already exists).
 
 ### Edge Functions deployed
-- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) only (the claim-widget rendering logic).
+- `generate_directory_site` — staging then production (the claim-widget rendering logic).
 
 ### Frontend
-Not yet deployed.
+- GitHub Pages: deployed automatically on merge, confirmed via `gh run list`.
+- Vercel preview: smoke-tested (`/claim/login`, no console errors) before promoting.
+- Vercel production: live at https://maps.layercake-cx.biz and https://uk-associations.com.
 
-### Verified on staging
+### Rollback plan
+Run `_20260926120000_self_service_claim_rpcs.rollback.sql` against production then staging. Redeploy the previous `generate_directory_site` and previous Vercel production build, and revert this PR's merge commit on `main` if the frontend needs to go back too.
+
+### Verified on staging + production
 - [x] `deno check` on `builders.ts` and `index.ts` — compiles cleanly
 - [x] `npm run build` — frontend compiles cleanly
-- [x] Migration applied, `VERIFY PASSED`
-- [x] `generate_directory_site` redeployed with the claim-widget changes
-- [x] **Live verification of both new RPCs, using only the public anon/publishable key (no session, no service-role key needed for this one)** — meaningfully stronger than what was possible for Phase 6:
-  - `start_self_service_claim` with a bogus entry id → clean `"Listing not found"` (400), not a crash — confirms `anon` grant works and validation runs
-  - `activate_self_service_claim` with a bogus claim id → `"permission denied for function activate_self_service_claim"` (401) — confirms it correctly rejects `anon` (its grant is `authenticated`-only)
+- [x] Migration applied to both environments, `VERIFY PASSED` both times
+- [x] `generate_directory_site` redeployed to both with the claim-widget changes
+- [x] **Live verification of both new RPCs on both environments, using only the public anon/publishable key (no session, no service-role key needed for this one)** — meaningfully stronger than what was possible for Phase 6:
+  - `start_self_service_claim` with a bogus entry id → clean `"Listing not found"` (400) on staging and production, not a crash — confirms `anon` grant works and validation runs
+  - `activate_self_service_claim` with a bogus claim id → `"permission denied for function activate_self_service_claim"` (401) on both — confirms it correctly rejects `anon` (its grant is `authenticated`-only)
 - [ ] The actual happy path — a real listing with a matching-domain email, a real magic-link click, landing in the Listing Manager active — has **not** been exercised against real data. No test credentials this session, same disclosed gap as every other phase.
 - [ ] The claim widget's rendering (does the button actually appear/disappear correctly on a real published entry page, does the modal work, does the email send) hasn't been visually checked either — recommend the user publish a claim-enabled test directory and try the whole flow for real.
 
