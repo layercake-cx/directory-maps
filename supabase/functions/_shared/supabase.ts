@@ -8,7 +8,13 @@ function getEnv(name: string) {
 
 export function createAnonClient(req: Request) {
   const url = getEnv("SUPABASE_URL");
-  const anon = getEnv("SUPABASE_ANON_KEY");
+  // SB_PUBLISHABLE_KEY (not SUPABASE_ANON_KEY, which the platform reserves for
+  // the legacy anon key) -- the new publishable key, set as a function secret
+  // since Supabase does not auto-inject it. See docs/DEPLOYMENTS.md 2026-09-26
+  // for why: the legacy anon/service_role pair got exposed in an agent session
+  // and can only be invalidated by fully disabling legacy JWT-based API keys,
+  // so every caller of this function had to move off them first.
+  const anon = getEnv("SB_PUBLISHABLE_KEY");
   const authHeader = req.headers.get("Authorization") ?? "";
 
   return createClient(url, anon, {
@@ -20,7 +26,9 @@ export function createAnonClient(req: Request) {
 
 export function createServiceClient() {
   const url = getEnv("SUPABASE_URL");
-  const service = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  // SB_SECRET_KEY (not SUPABASE_SERVICE_ROLE_KEY) -- see createAnonClient's
+  // comment above for why.
+  const service = getEnv("SB_SECRET_KEY");
   return createClient(url, service, {
     auth: {
       // Disable session persistence and auto-refresh — not needed for server-side

@@ -523,12 +523,12 @@ async function generateForDirectoryInner(
         directoryId: directory.id,
         enabled: true,
         supabaseUrl: Deno.env.get("SUPABASE_URL") ?? "",
-        supabaseAnonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        supabaseAnonKey: Deno.env.get("SB_PUBLISHABLE_KEY") ?? "",
       }
     : null;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const supabaseAnonKey = Deno.env.get("SB_PUBLISHABLE_KEY") ?? "";
   const siteAnalytics: SiteAnalytics | null =
     supabaseUrl && supabaseAnonKey
       ? {
