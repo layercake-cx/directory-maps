@@ -100,10 +100,10 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 | `listing_cta_click` | Primary website, prominent-link tile, or “Show on map” | set | `cta_type` |
 | `listing_enquiry_open` | **Make an Enquiry** clicked (drawer opens) | set | `cta_type`: `enquiry`, `path` |
 | `listing_enquiry_sent` | Enquiry submitted and the email send succeeded | set | `cta_type`: `enquiry`, `path` |
+| `listing_claim_start` | Self-service claim work-email form submitted, domain verified, and the magic-link email send succeeded — fired client-side by the published page's own JS (Claimed Directory Listings epic, Phase 7) | set | `cta_type`: `claim`, `path` |
+| `listing_claim_complete` | Self-service claim activated (right after the claimant's first magic-link login) — fired server-side, inside `activate_self_service_claim()`, not client-side, since the caller is authenticated by that point and this table's anon-only insert policy doesn't cover `authenticated` callers | set | `{}` (empty; no `client_session_id` either, since it's inserted by an RPC, not the visitor's own browser session) |
 
-Reserved (CHECK only; not emitted until those products exist): `listing_claim_start`, `listing_claim_complete`, `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
-
-`listing_claim_start`/`listing_claim_complete` are earmarked for the Claimed Directory Listings epic's self-service "Claim this listing" flow (Phase 7) — `listing_id` set, no personal data in `meta`. See `AGENTS.md`'s admin event catalogue `claim_*` category for the corresponding authenticated-actor lifecycle events once a claim exists.
+Reserved (CHECK only; not emitted until those products exist): `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
 
 ### Search events
 

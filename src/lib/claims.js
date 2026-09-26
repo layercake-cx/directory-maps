@@ -101,6 +101,13 @@ export async function linkClaimUserByEmail() {
   return data ?? 0;
 }
 
+/** Advances a self-service claim from verified straight to active. Returns false (not an error) for anything not eligible. */
+export async function activateSelfServiceClaim(claimId) {
+  const { data, error } = await supabase.rpc("activate_self_service_claim", { p_claim_id: claimId });
+  if (error) throw error;
+  return data === true;
+}
+
 /** The calling (claim) user's own linked claims. */
 export async function getMyClaimContext() {
   const { data, error } = await supabase.rpc("get_my_claim_context");

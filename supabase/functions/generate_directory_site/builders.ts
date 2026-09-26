@@ -45,6 +45,8 @@ export type Entry = {
   panel_image_url: string | null;
   panel_background_color: string | null;
   updated_at?: string | null;
+  /** Claimed Directory Listings epic: null = open to a new claim. Gates whether "Claim this listing" renders. */
+  current_claim_id?: string | null;
 };
 
 // A region's background: either a flat colour, or a gradient built from 2+
@@ -1237,6 +1239,144 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
 </script>`;
 }
 
+/**
+ * "Claim this listing" (Claimed Directory Listings epic, Phase 7). Baked
+ * into an entry page only when directory_claim_settings.enabled AND the
+ * client's maps.claims entitlement both resolve true AND the entry has no
+ * current_claim_id (index.ts checks all three before ever passing this
+ * non-null) -- never on the homepage, search results, cards, or map
+ * results, per the epic's non-negotiable rule. Once a claim is started for
+ * this item, index.ts stops passing this at all on the next publish (the
+ * item's own current_claim_id gets set immediately by
+ * start_self_service_claim), which is what actually removes the CTA --
+ * this file only renders what it's told.
+ */
+export type ClaimWidgetOptions = {
+  priceCents: number | null;
+  currency: string | null;
+  paymentType: string | null;
+  introHtml: string | null;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+};
+
+function formatClaimPrice(priceCents: number, currency: string): string {
+  const amount = (priceCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const symbol = currency === "GBP" ? "£" : currency === "USD" ? "$" : currency === "EUR" ? "€" : `${currency} `;
+  return `${symbol}${amount}`;
+}
+
+function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
+  const priceLine = claim.priceCents != null && claim.currency
+    ? `<p class="dir-claim__price">${escapeHtml(formatClaimPrice(claim.priceCents, claim.currency))}${claim.paymentType === "annual_recurring" ? " / year" : ""}</p>`
+    : "";
+  const intro = claim.introHtml?.trim()
+    ? claim.introHtml
+    : "<p>Are you part of this organisation? Claim this listing to verify your organisation and manage its details.</p>";
+  const cfg = embedJson({
+    entryId: entry.id,
+    supabaseUrl: claim.supabaseUrl.replace(/\/$/, ""),
+    anonKey: claim.supabaseAnonKey,
+    loginUrl: `${SITE_ORIGIN}/claim/login`,
+  });
+  return `<div id="dir-claim" class="dir-enquiry" hidden>
+  <button type="button" class="dir-enquiry__backdrop" data-dm-claim-close aria-label="Close"></button>
+  <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-claim-title">
+    <div class="dir-enquiry__header">
+      <h2 id="dir-claim-title">Claim this listing</h2>
+      <button type="button" class="dir-enquiry__close" data-dm-claim-close aria-label="Close">&times;</button>
+    </div>
+    <div class="dir-enquiry__body">
+      <p class="dir-enquiry__to">${escapeHtml(entry.name)}</p>
+      ${intro}
+      ${priceLine}
+      <form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+        <label class="dir-enquiry__label">Work email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
+        <p style="font-size:13px;opacity:0.7;margin:0 0 8px;">Use your organisation email address -- it must match this listing's website domain. We'll send you a sign-in link, no password needed.</p>
+        <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
+        <button type="submit" class="btn btn-primary" id="dir-claim-submit">Send sign-in link</button>
+      </form>
+      <div id="dir-claim-success" hidden>
+        <p class="dir-enquiry__success">Check your email for a sign-in link to finish claiming this listing.</p>
+        <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var cfg = ${cfg};
+  var root = document.getElementById('dir-claim');
+  var form = document.getElementById('dir-claim-form');
+  var errEl = document.getElementById('dir-claim-error');
+  var successEl = document.getElementById('dir-claim-success');
+  var submitBtn = document.getElementById('dir-claim-submit');
+  if (!root || !form) return;
+
+  function setOpen(open) {
+    root.hidden = !open;
+    if (open) {
+      var first = form.querySelector('input');
+      if (first) first.focus();
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[data-dm-claim-open]')) { setOpen(true); return; }
+    if (t.closest('[data-dm-claim-close]')) setOpen(false);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !root.hidden) setOpen(false);
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = new FormData(form);
+    var email = String(data.get('email') || '').trim();
+    errEl.hidden = true;
+    errEl.textContent = '';
+    if (!email) {
+      errEl.hidden = false;
+      errEl.textContent = 'Email is required.';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    fetch(cfg.supabaseUrl + '/rest/v1/rpc/start_self_service_claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+      body: JSON.stringify({ p_directory_item_id: cfg.entryId, p_email: email })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) throw new Error((body && body.message) || (body && body.error) || 'Could not start claim.');
+        return fetch(cfg.supabaseUrl + '/auth/v1/otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+          body: JSON.stringify({ email: email, create_user: true, options: { email_redirect_to: cfg.loginUrl } })
+        });
+      });
+    }).then(function (res) {
+      if (!res.ok) throw new Error('Could not send the sign-in link. Please try again.');
+      form.hidden = true;
+      successEl.hidden = false;
+      if (window.dmRecordEngagement) {
+        window.dmRecordEngagement('listing_claim_start', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
+      }
+    }).catch(function (err) {
+      errEl.hidden = false;
+      var raw = (err && err.message) || '';
+      errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send sign-in link';
+    });
+  });
+})();
+</script>`;
+}
+
 export function buildEntryPage(opts: {
   clientSlug: string;
   directorySlug: string;
@@ -1262,8 +1402,9 @@ export function buildEntryPage(opts: {
   nav?: SiteNav | null;
   analytics?: SiteAnalytics | null;
   enquiry?: DirectoryEnquiry | null;
+  claim?: ClaimWidgetOptions | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -1309,6 +1450,9 @@ export function buildEntryPage(opts: {
   const showOnMapButton = attachedMapEmbedSrc
     ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}" data-dm-event="listing_cta_click" data-dm-cta="map">Show on map</a>`
     : "";
+  const claimButton = claim
+    ? `<button type="button" class="btn btn-ghost" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>Claim this listing</button>`
+    : "";
 
   const header = `<div class="dir-entry-header">
   ${entry.logo_url ? `<div class="dir-entry-header__logo"><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>` : ""}
@@ -1316,7 +1460,7 @@ export function buildEntryPage(opts: {
     <h1 style="font-size:calc(var(--fs-h1) * 0.85);line-height:1.1;">${escapeHtml(entry.name)}</h1>
     ${entry.meta_description ? `<p class="dir-entry-header__desc">${escapeHtml(entry.meta_description)}</p>` : ""}
     ${headerTagLabels.length ? `<div class="dir-entry-header__tags">${headerTagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
-    ${websiteButton || enquiryButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${enquiryButton}${showOnMapButton}</div>` : ""}
+    ${websiteButton || enquiryButton || showOnMapButton || claimButton ? `<div class="dir-entry-header__actions">${websiteButton}${enquiryButton}${showOnMapButton}${claimButton}</div>` : ""}
   </div>
 </div>`;
 
@@ -1484,6 +1628,7 @@ ${jumpBar}
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
 ${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
+${claim ? buildClaimWidget(claim, entry) : ""}
 `.trim();
 
   return directoryPageShell({
