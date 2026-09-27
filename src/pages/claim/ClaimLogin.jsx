@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
-import { activateSelfServiceClaim, getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
+import { activateSelfServiceClaim, completePendingOwnershipTransfer, getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 
@@ -57,6 +57,18 @@ export default function ClaimLogin() {
               eventType: "claim_activated",
               source: "claim_manager",
               meta: { directory_id: r.directory_id, directory_item_id: r.directory_item_id, claim_id: r.claim_id, activation_reason: "no_payment_required" },
+            });
+          }
+        });
+        // Best-effort: complete any pending ownership transfer this login
+        // was waiting on (Phase 8). Same speculative, safe-to-no-op pattern.
+        const transferred = await Promise.all(rows.map((r) => completePendingOwnershipTransfer(r.claim_id).catch(() => false)));
+        rows.forEach((r, i) => {
+          if (transferred[i]) {
+            recordAdminEvent(supabase, {
+              eventType: "claim_ownership_transferred",
+              source: "claim_manager",
+              meta: { directory_id: r.directory_id, directory_item_id: r.directory_item_id, claim_id: r.claim_id },
             });
           }
         });

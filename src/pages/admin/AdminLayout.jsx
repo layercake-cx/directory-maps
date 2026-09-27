@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import BrandLogo from "../../components/BrandLogo.jsx";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
+import adminLogo from "../../assets/layercake-maps-white.png";
 import "./admin.css";
 
 const ADMIN_NAV = [
@@ -84,7 +84,9 @@ export default function AdminLayout({
     <div className="admin-shell">
       <header className="admin-header">
         <div className="admin-header__inner">
-          <BrandLogo to="/admin" className="admin-brand" />
+          <Link to="/admin" className="admin-brand">
+            <img src={adminLogo} alt="Layercake Maps" className="admin-brand__logo" />
+          </Link>
 
           <div className="admin-actions">
             {rightActions}
