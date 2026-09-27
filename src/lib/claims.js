@@ -108,6 +108,30 @@ export async function activateSelfServiceClaim(claimId) {
   return data === true;
 }
 
+/**
+ * Owner- or admin-initiated ownership transfer. Returns { status, claimUserId }
+ * -- status "completed" (an already-logged-in editor, no further action needed)
+ * or "pending" (send them a magic link -- the caller does that separately,
+ * same as inviting a new editor).
+ */
+export async function transferClaimOwnership(claimId, { email, name }) {
+  const { data, error } = await supabase.rpc("transfer_claim_ownership", {
+    p_claim_id: claimId,
+    p_new_owner_email: email,
+    p_new_owner_name: name || null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return { status: row?.status ?? null, claimUserId: row?.claim_user_id ?? null };
+}
+
+/** Called once after a pending ownership-transfer target's first magic-link login. Returns false (not an error) for anything not eligible. */
+export async function completePendingOwnershipTransfer(claimId) {
+  const { data, error } = await supabase.rpc("complete_pending_ownership_transfer", { p_claim_id: claimId });
+  if (error) throw error;
+  return data === true;
+}
+
 /** The calling (claim) user's own linked claims. */
 export async function getMyClaimContext() {
   const { data, error } = await supabase.rpc("get_my_claim_context");

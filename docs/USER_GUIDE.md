@@ -273,7 +273,7 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
   1. Pick one of this directory's unclaimed listings.
   2. Enter the owner's name and email.
   3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
-  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim.
+  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim.
 - **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
 Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
@@ -298,9 +298,14 @@ The Listing Manager shows the listing name, the signed-in person's role and the 
 - **SEO** — page title and meta description.
 - **Contact details** — website, email, phone, and address, each with its own "Show publicly" checkbox.
 - **Team** — add, hide/show, or delete the people shown publicly on the listing. Either the owner or an editor can do this.
-- **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here — that needs an ownership transfer, a later feature.
+- **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here directly — use **Transfer ownership** below instead.
 
 Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
+
+**Transferring ownership:** on the Users tab, the current owner can hand ownership to anyone else by entering their email under "Transfer ownership to a new person" (an admin can do the same thing from the directory's Claims tab). What happens next depends on who that email belongs to:
+
+- If it's someone already listed as an editor **who has signed in before**, ownership moves immediately — no further steps needed. The old owner becomes an editor; the new owner can now do everything an owner can, including transferring ownership again later.
+- Otherwise (a brand-new email, or an editor who was invited but never actually signed in), that person gets a magic-link invitation. Ownership only actually moves once they click it and sign in at `/claim/login` — until then, the current owner stays the owner.
 
 **Publish** is live once the claim is Active: it republishes only that one listing's own page — never the directory homepage, its own search-result row, any other listing, or any directory-wide setting. Because of that isolation, publishing an edit today updates the listing's dedicated page immediately, but its homepage summary card and its entry in sitemap.xml won't reflect the change until the directory's next ordinary (admin-triggered) publish. **Preview** is still visible but disabled — that's a later update.
 

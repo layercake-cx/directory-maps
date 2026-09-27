@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getMyClaimContext, sendClaimUserMagicLink } from "../../lib/claims.js";
+import { getMyClaimContext, sendClaimUserMagicLink, transferClaimOwnership } from "../../lib/claims.js";
 import {
   addClaimTeamMember,
   getClaimedListing,
@@ -184,7 +184,16 @@ export default function ClaimManager() {
       )}
 
       {activeTab === "team" && <TeamTab claimId={claimId} canEdit={canEdit} recordEvent={recordEvent} />}
-      {activeTab === "users" && <UsersTab claimId={claimId} isOwner={context.role === "owner"} />}
+      {activeTab === "users" && (
+        <UsersTab
+          claimId={claimId}
+          isOwner={context.role === "owner"}
+          directoryId={context.directory_id}
+          directoryItemId={context.directory_item_id}
+          recordEvent={recordEvent}
+          onOwnershipChanged={refreshListing}
+        />
+      )}
     </div>
   );
 }
@@ -511,7 +520,7 @@ function TeamTab({ claimId, canEdit, recordEvent }) {
   );
 }
 
-function UsersTab({ claimId, isOwner }) {
+function UsersTab({ claimId, isOwner, directoryId, directoryItemId, recordEvent, onOwnershipChanged }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -519,6 +528,9 @@ function UsersTab({ claimId, isOwner }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [transferEmail, setTransferEmail] = useState("");
+  const [transferName, setTransferName] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -568,6 +580,31 @@ function UsersTab({ claimId, isOwner }) {
     }
   }
 
+  async function handleTransfer(targetEmail, targetName) {
+    setErr("");
+    setMsg("");
+    try {
+      setBusy(true);
+      const { status, claimUserId } = await transferClaimOwnership(claimId, { email: targetEmail, name: targetName });
+      recordEvent?.("claim_ownership_transfer_started", { directory_id: directoryId, directory_item_id: directoryItemId, claim_id: claimId, to_claim_user_id: claimUserId });
+      if (status === "completed") {
+        recordEvent?.("claim_ownership_transferred", { directory_id: directoryId, directory_item_id: directoryItemId, claim_id: claimId, to_claim_user_id: claimUserId });
+        setMsg(`${targetEmail} is now the owner.`);
+        await onOwnershipChanged?.();
+      } else {
+        await sendClaimUserMagicLink(targetEmail);
+        setMsg(`Invitation sent to ${targetEmail}. Ownership transfers once they sign in.`);
+      }
+      setTransferEmail("");
+      setTransferName("");
+      await load();
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="admin-card">
       <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Users</p>
@@ -593,11 +630,16 @@ function UsersTab({ claimId, isOwner }) {
                 <td style={{ padding: "8px" }}>{u.email}</td>
                 <td style={{ padding: "8px" }}>{u.role}</td>
                 {isOwner && (
-                  <td style={{ padding: "8px 0 8px 8px", textAlign: "right" }}>
+                  <td style={{ padding: "8px 0 8px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
                     {u.role === "editor" && (
-                      <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c" }} disabled={busy} onClick={() => handleRemove(u.id)}>
-                        Remove
-                      </button>
+                      <>
+                        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", marginRight: 6 }} disabled={busy} onClick={() => handleTransfer(u.email, u.name)}>
+                          Make owner
+                        </button>
+                        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c" }} disabled={busy} onClick={() => handleRemove(u.id)}>
+                          Remove
+                        </button>
+                      </>
                     )}
                   </td>
                 )}
@@ -618,6 +660,24 @@ function UsersTab({ claimId, isOwner }) {
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--lc-border)", fontSize: 12 }} />
           </div>
           <button type="submit" className="btn btn-primary" disabled={busy} style={{ fontSize: 12 }}>Invite editor</button>
+        </form>
+      )}
+
+      {isOwner && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleTransfer(transferEmail, transferName); }}
+          style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", borderTop: "1px solid var(--lc-border)", paddingTop: 12, marginTop: 12 }}
+        >
+          <div style={{ flexBasis: "100%", fontSize: 12, fontWeight: 600 }}>Transfer ownership to a new person</div>
+          <div>
+            <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Name</label>
+            <input type="text" value={transferName} onChange={(e) => setTransferName(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--lc-border)", fontSize: 12 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Email</label>
+            <input type="email" required value={transferEmail} onChange={(e) => setTransferEmail(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--lc-border)", fontSize: 12 }} />
+          </div>
+          <button type="submit" className="btn" disabled={busy} style={{ fontSize: 12 }}>Transfer ownership</button>
         </form>
       )}
     </div>

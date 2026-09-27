@@ -8,6 +8,43 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-27 — [Staging] Claimed Directory Listings — Phase 8: ownership transfer
+
+**Branch/PR:** `feat/2026-09-27-claimed-listings-phase-8` (not yet opened).
+**Deployed by:** Claude Code, after explicit go-ahead ("move to phase 8").
+
+### What changed
+
+**Ownership transfer**, on both the claim-user-facing Listing Manager (Users tab) and the admin-facing Claims tab, sharing one RPC. New `transfer_claim_ownership(claim_id, new_owner_email, new_owner_name?)` — callable by the claim's own owner or a platform admin/directory contact (`can_manage_client()`), the same "admin uses the identical underlying model" rule every other admin-vs-self-service claim action already follows. Looks up the target email against that claim's `claim_users` rows:
+- an existing editor who has already logged in at least once (`user_id` set) → transfer **completes immediately**, no further verification needed;
+- anyone else (brand-new email, or an invited editor who never actually accepted) → transfer goes **pending**, and the caller separately sends a magic-link invitation (`sendClaimUserMagicLink`) — ownership only actually moves once that person accepts it.
+
+New RPC `complete_pending_ownership_transfer(claim_id)` — `authenticated`-only, called once from `ClaimLogin.jsx` right after every login (alongside the existing Phase 7 `activate_self_service_claim` check, same speculative safe-to-no-op pattern). No-ops (`false`) for anything other than the caller's own pending-transfer row.
+
+The previous owner is always demoted to editor, never removed, matching the epic's non-negotiable rule. New `claim_users.owner_transfer_pending` column marks at most one row per claim as the pending target — starting a new transfer always clears any earlier stale pending flag first.
+
+Fires `claim_ownership_transfer_started` always, and `claim_ownership_transferred` when the transfer actually lands (immediately for an already-logged-in editor, or later on the accepting login for a pending one). Both event types were already reserved in the `claim_*` event catalogue since Phase 0 — no `AGENTS.md` change needed.
+
+### Database migrations applied
+- `20260927120000_claim_ownership_transfer_rpcs.sql` — staging (`beqejxneehilplrtpntn`) only so far, `VERIFY PASSED: claim ownership transfer RPCs created`, including a fail-safe check that `complete_pending_ownership_transfer()` returns `false` (not an error) for an unknown claim id. Rollback: `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` (refuses if any `owner_transfer_pending` row already exists, since rolling back would leave that invited person permanently unable to accept).
+
+### Edge Functions deployed
+- None — this phase is pure RPC + frontend, no `generate_directory_site` changes.
+
+### Frontend
+- `npm run build` — compiles cleanly.
+- Not yet deployed to Vercel preview/production or merged to `main`.
+
+### Rollback plan
+Run `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` against staging (then production once deployed there). No Edge Function or Vercel rollback needed unless the frontend has already shipped.
+
+### Verified on staging
+- [x] Migration applied, `VERIFY PASSED`, including the fail-safe unknown-claim-id check
+- [x] `npm run build` — frontend compiles cleanly with both UI surfaces (Listing Manager Users tab, admin Claims tab) wired in
+- [ ] Not yet exercised against real data — no test login credentials this session. Recommend the user run both paths before relying on this for a real customer: transfer to an already-logged-in editor (should complete instantly) and transfer to a brand-new email (should stay pending until accepted).
+
+---
+
 ## 2026-09-26 — [Production] Claimed Directory Listings — Phase 7: self-service claim flow
 
 **Branch/PR:** [`feat/2026-09-26-claimed-listings-phase-7` (#246)](https://github.com/layercake-cx/directory-maps/pull/246), merged to `main`.

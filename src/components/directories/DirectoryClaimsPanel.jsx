@@ -13,6 +13,7 @@ import {
   sendClaimUserMagicLink,
   setClaimPaymentStatus,
   suspendClaim,
+  transferClaimOwnership,
 } from "../../lib/claims.js";
 import { supabase } from "../../lib/supabase";
 import EntitlementGate from "../EntitlementGate.jsx";
@@ -435,6 +436,31 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
     await run(() => setClaimPaymentStatus(claim.id, { paymentStatus, paymentType }));
   }
 
+  async function handleTransferOwnership() {
+    // eslint-disable-next-line no-alert
+    const email = window.prompt("New owner's email address:", "");
+    if (email === null || !email.trim()) return;
+    setErr("");
+    setMsg("");
+    try {
+      setBusy(true);
+      const { status, claimUserId } = await transferClaimOwnership(claim.id, { email: email.trim() });
+      recordEvent?.("claim_ownership_transfer_started", { ...meta, from_claim_user_id: claim.owner?.id, to_claim_user_id: claimUserId });
+      if (status === "completed") {
+        recordEvent?.("claim_ownership_transferred", { ...meta, from_claim_user_id: claim.owner?.id, to_claim_user_id: claimUserId });
+        setMsg(`Ownership transferred to ${email.trim()}.`);
+      } else {
+        await sendClaimUserMagicLink(email.trim());
+        setMsg(`Invitation sent to ${email.trim()}. Ownership transfers once they sign in.`);
+      }
+      onChanged?.();
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="admin-card" style={{ margin: "0 8px", background: "#f9fafb" }}>
       {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
@@ -470,6 +496,11 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
           {claim.status === "suspended" && (
             <button type="button" className="btn" disabled={busy} onClick={() => run(() => reactivateClaim(claim.id), "claim_reactivated")}>
               Reactivate
+            </button>
+          )}
+          {claim.status === "active" && (
+            <button type="button" className="btn" disabled={busy} onClick={handleTransferOwnership}>
+              Transfer ownership
             </button>
           )}
           {claim.status !== "revoked" && (
