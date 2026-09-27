@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-27 — [Staging] Claimed Directory Listings — Phase 8: ownership transfer
+## 2026-09-27 — [Production] Claimed Directory Listings — Phase 8: ownership transfer + admin logo swap
 
-**Branch/PR:** `feat/2026-09-27-claimed-listings-phase-8` (not yet opened).
-**Deployed by:** Claude Code, after explicit go-ahead ("move to phase 8").
+**Branch/PR:** [`feat/2026-09-27-claimed-listings-phase-8` (#248)](https://github.com/layercake-cx/directory-maps/pull/248), merged to `main`.
+**Deployed by:** Claude Code, after explicit go-ahead ("move to phase 8", then "merge and deploy").
 
 ### What changed
 
@@ -25,23 +25,28 @@ The previous owner is always demoted to editor, never removed, matching the epic
 
 Fires `claim_ownership_transfer_started` always, and `claim_ownership_transferred` when the transfer actually lands (immediately for an already-logged-in editor, or later on the accepting login for a pending one). Both event types were already reserved in the `claim_*` event catalogue since Phase 0 — no `AGENTS.md` change needed.
 
+**Also bundled in this PR** (unrelated, cosmetic): the admin header logo (`AdminLayout.jsx`) now renders the supplied white Layercake Maps wordmark image (`src/assets/layercake-maps-white.png`) instead of the shared `BrandLogo` SVG+text component — admin-only, since the admin header's background is black and this asset was provided specifically for that. `BrandLogo` itself is untouched and still used as before on the marketing site header, Sign Up, and Pricing pages.
+
 ### Database migrations applied
-- `20260927120000_claim_ownership_transfer_rpcs.sql` — staging (`beqejxneehilplrtpntn`) only so far, `VERIFY PASSED: claim ownership transfer RPCs created`, including a fail-safe check that `complete_pending_ownership_transfer()` returns `false` (not an error) for an unknown claim id. Rollback: `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` (refuses if any `owner_transfer_pending` row already exists, since rolling back would leave that invited person permanently unable to accept).
+- `20260927120000_claim_ownership_transfer_rpcs.sql` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`), both `VERIFY PASSED: claim ownership transfer RPCs created`, including a fail-safe check that `complete_pending_ownership_transfer()` returns `false` (not an error) for an unknown claim id. CLI relinked back to staging. Rollback: `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` (refuses if any `owner_transfer_pending` row already exists, since rolling back would leave that invited person permanently unable to accept).
 
 ### Edge Functions deployed
 - None — this phase is pure RPC + frontend, no `generate_directory_site` changes.
 
 ### Frontend
 - `npm run build` — compiles cleanly.
-- Not yet deployed to Vercel preview/production or merged to `main`.
+- GitHub Pages: deployed automatically on merge, confirmed via `gh run list`.
+- Vercel production: the automatic GitHub-integration deploy did not trigger within several minutes of merging (no new "Production – directory-maps" entry via `gh api .../deployments`, and `vercel ls --prod` showed nothing newer than 13h) — triggered manually instead via `vercel deploy --prod --yes`. Live at https://maps.layercake-cx.biz and https://uk-associations.com (confirmed via `vercel inspect`, all production aliases point to the new deployment `dpl_CahXYmG1KUWhmV6ihSHMQQ6THKyW`); confirmed the deployed CSS bundle hash matches the local post-logo-swap build. **Flagged for the user:** worth checking the Vercel↔GitHub integration/webhook for this project, since automatic production deploys have worked reliably for every prior phase this session.
 
 ### Rollback plan
-Run `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` against staging (then production once deployed there). No Edge Function or Vercel rollback needed unless the frontend has already shipped.
+Run `_20260927120000_claim_ownership_transfer_rpcs.rollback.sql` against production then staging. Redeploy the previous `generate_directory_site` (n/a this phase) and the previous Vercel production build (`https://directory-maps-b416bssi4-layercake-apps.vercel.app`, promote via `vercel alias`), and revert this PR's merge commit on `main` if the frontend needs to go back too.
 
-### Verified on staging
-- [x] Migration applied, `VERIFY PASSED`, including the fail-safe unknown-claim-id check
+### Verified on staging + production
+- [x] Migration applied to both environments, `VERIFY PASSED` both times, including the fail-safe unknown-claim-id check
 - [x] `npm run build` — frontend compiles cleanly with both UI surfaces (Listing Manager Users tab, admin Claims tab) wired in
-- [ ] Not yet exercised against real data — no test login credentials this session. Recommend the user run both paths before relying on this for a real customer: transfer to an already-logged-in editor (should complete instantly) and transfer to a brand-new email (should stay pending until accepted).
+- [x] Admin logo verified visually (rendered against a black background, matching the admin header) and confirmed live in the deployed production bundle
+- [x] CI checks passed on the PR before merge
+- [ ] Ownership transfer not yet exercised against real data — no test login credentials this session. Recommend the user run both paths before relying on this for a real customer: transfer to an already-logged-in editor (should complete instantly) and transfer to a brand-new email (should stay pending until accepted).
 
 ---
 
