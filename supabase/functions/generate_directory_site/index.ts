@@ -642,6 +642,16 @@ async function generateForDirectoryInner(
     })),
     enquiry: entryEnquiry ? { on: true, prompt: entryEnquiry.prompt, test: entryEnquiry.testMode } : { on: false },
     analytics: siteAnalytics?.destinations ?? null,
+    // Claimed Directory Listings epic: directory-wide claim availability
+    // (settings enabled + client entitlement) affects every entry page's
+    // "Claim this listing" button, exactly like enquiry/analytics above --
+    // include it here so enabling claims (or changing price/currency/intro)
+    // on an already-published directory forces the full rebuild that
+    // actually puts the button on every unclaimed entry, rather than
+    // silently no-op'ing because neither hash tracked it before.
+    claims: claimWidgetBase
+      ? { on: true, priceCents: claimSettings?.price_cents ?? null, currency: claimSettings?.currency ?? null, paymentType: claimSettings?.payment_type ?? null, introHtml: claimSettings?.intro_html ?? null }
+      : { on: false },
   });
   const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
   const featuresHash = await digest({
