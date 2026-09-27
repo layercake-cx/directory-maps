@@ -307,7 +307,7 @@ Every edit marks the listing's content as organisation-managed (shown under the 
 - If it's someone already listed as an editor **who has signed in before**, ownership moves immediately — no further steps needed. The old owner becomes an editor; the new owner can now do everything an owner can, including transferring ownership again later.
 - Otherwise (a brand-new email, or an editor who was invited but never actually signed in), that person gets a magic-link invitation. Ownership only actually moves once they click it and sign in at `/claim/login` — until then, the current owner stays the owner.
 
-**Publish** is live once the claim is Active: it republishes only that one listing's own page — never the directory homepage, its own search-result row, any other listing, or any directory-wide setting. Because of that isolation, publishing an edit today updates the listing's dedicated page immediately, but its homepage summary card and its entry in sitemap.xml won't reflect the change until the directory's next ordinary (admin-triggered) publish. **Preview** is still visible but disabled — that's a later update.
+**Publish** is live once the claim is Active: it republishes only that one listing's own page — never the directory homepage, its own search-result row, any other listing, or any directory-wide setting. Because of that isolation, publishing an edit today updates the listing's dedicated page immediately, but its homepage summary card and its entry in sitemap.xml won't reflect the change until the directory's next ordinary (admin-triggered) publish. **Preview** is visible but disabled — not part of this epic's scope.
 
 ### AI content generation
 

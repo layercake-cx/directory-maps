@@ -553,8 +553,9 @@ function UsersTab({ claimId, isOwner, directoryId, directoryItemId, recordEvent,
     setMsg("");
     try {
       setBusy(true);
-      await inviteClaimEditor(claimId, { email, name });
+      const newClaimUserId = await inviteClaimEditor(claimId, { email, name });
       await sendClaimUserMagicLink(email.trim());
+      recordEvent?.("claim_user_invited", { directory_id: directoryId, directory_item_id: directoryItemId, claim_id: claimId, claim_user_id: newClaimUserId, role: "editor" });
       setMsg(`Invitation sent to ${email}.`);
       setName("");
       setEmail("");
@@ -572,6 +573,7 @@ function UsersTab({ claimId, isOwner, directoryId, directoryItemId, recordEvent,
     try {
       setBusy(true);
       await removeClaimUser(claimId, claimUserId);
+      recordEvent?.("claim_user_removed", { directory_id: directoryId, directory_item_id: directoryItemId, claim_id: claimId, claim_user_id: claimUserId, role: "editor" });
       await load();
     } catch (e) {
       setErr(e?.message ?? String(e));

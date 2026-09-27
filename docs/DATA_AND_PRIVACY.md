@@ -17,6 +17,7 @@ This document describes every external system that Layercake Maps sends data to,
 | **Map visitor** | A member of the public viewing an embedded directory map | Browses the map; may submit a contact form |
 | **Listing subject** | A business or individual whose details appear in a directory listing | Does not interact with the platform directly |
 | **Platform admin** | Layercake Maps internal staff | Accesses the admin area |
+| **Claim applicant / claim user** | An individual representing a listing subject's organisation, claiming and managing that one listing (Claimed Directory Listings epic) | Submits a work email to verify control of a listing, then authenticates via magic link at `/claim/login` — a separate auth surface from platform-user accounts, scoped to one directory item, never the wider platform |
 
 ---
 
@@ -42,6 +43,7 @@ This document describes every external system that Layercake Maps sends data to,
 | Google OAuth tokens | Refresh token for a connected Google Sheet (encrypted at rest by Supabase) | Platform users |
 | Team invitations | Invitee email, invite status, expiry | Platform users |
 | Admin audit events | User action type, metadata — no sensitive payloads | Platform users / admins |
+| Claim verification & ownership data | Claimant email and (optional) name, derived listing domain, verification method (domain match or admin override + note), claim status history, claim user roles (owner/editor) and ownership-transfer history — no payment data (payment is deferred to a separate follow-up epic; today only a payment *status* string is recorded, no card/billing data) | Claim applicants / claimed-listing users |
 
 ### Processing location
 
@@ -431,4 +433,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-09-21 (Anthropic/Claude `directory_ai_search` is Help me choose conversation traffic, not the published search box). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-09-27 (Claimed Directory Listings epic: new claim applicant/user data flow, stored in Supabase only — no new third party). Maintained by the Layercake Maps engineering and privacy team.*

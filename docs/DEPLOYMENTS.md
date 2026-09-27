@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-27 — [Staging] Claimed Directory Listings — Phase 9: docs & acceptance pass (epic complete)
+
+**Branch/PR:** not yet opened.
+**Deployed by:** Claude Code, after explicit go-ahead ("move onto phase 9").
+
+### What changed
+
+Final phase of the epic — no new schema or RPCs. Two small event-instrumentation fixes found while reviewing the `claim_*` catalogue against what actually fires in code:
+
+- The claim-user's own Listing Manager Users tab (`ClaimManager.jsx`) invited and removed editors without firing `claim_user_invited`/`claim_user_removed` — the admin-side equivalent (`DirectoryClaimsPanel.jsx`) already fired `claim_user_invited` for its own invite action, so this was a real gap on the path most owners will actually use day to day. Fixed to match the existing pattern (same event names, same meta shape already reserved in `AGENTS.md`).
+- `claim_email_verification_sent` and `claim_user_activated` remain reserved but intentionally unemitted — the shipped flow collapsed domain verification and magic-link sign-in into one step, so there's no separate moment for either. Documented in `AGENTS.md` rather than forced in.
+
+Documentation:
+- `docs/FEATURES.md` §4.4m — full acceptance pass against the original spec's "Key Acceptance Statement" and "Non-Negotiable Architectural Rules" checklists, statement by statement; maturity matrix row and section header updated to reflect all 10 phases complete.
+- `docs/DATA_AND_PRIVACY.md` — new "Claim applicant / claim user" row in the People table, and a new Supabase "Data stored" row for claim verification & ownership data (email, derived domain, verification method, status/role history — no payment data, since payment collection itself is deferred to the Stripe follow-up epic).
+- `docs/MAP_ENGAGEMENT.md` — reviewed; the two visitor-facing claim events (`listing_claim_start`/`listing_claim_complete`) were already documented as live since Phase 7, no change needed.
+- `AGENTS.md` — updated the `claim_*` catalogue's intro note from "added in Phase 0 ahead of the tables/UI that emit them" to reflect that the whole epic is now built, and documented the two intentionally-unemitted reserved events above.
+- `docs/USER_GUIDE.md` — minor wording fix: **Preview** being disabled was described as "a later update" (implying a promised future phase); corrected to "not part of this epic's scope" now that the epic is complete.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None.
+
+### Frontend
+- `npm run build` — compiles cleanly.
+- Not yet deployed to Vercel preview/production or merged to `main`.
+
+### Rollback plan
+Revert the merge commit on `main` if needed — this phase is docs plus two additive `recordEvent` calls, nothing that changes existing behaviour.
+
+### Verified on staging
+- [x] `npm run build` — frontend compiles cleanly
+- [ ] Not yet exercised against real data — the two newly-instrumented events (`claim_user_invited`/`claim_user_removed` from the claim-user's own Users tab) haven't been triggered by a real invite/remove action this session.
+
+---
+
 ## 2026-09-27 — [Production] Claimed Directory Listings — Phase 8: ownership transfer + admin logo swap
 
 **Branch/PR:** [`feat/2026-09-27-claimed-listings-phase-8` (#248)](https://github.com/layercake-cx/directory-maps/pull/248), merged to `main`.

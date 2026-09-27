@@ -520,8 +520,13 @@ Claimed Directory Listings epic (Monday: "Claimed Directory Listings (Epic)"). L
 represented in a directory claim, verify, and manage its own `directory_entries` row without becoming
 a directory administrator — a claim grants rights to one directory item, never the directory. Gated by
 the `claims` feature flag + the `maps.claims` commercial entitlement (`resolve_claims_entitlement()`).
-These events are added to the catalogue in Phase 0 ahead of the tables/UI that emit them (later phases
-of the same epic) — implementers should reuse these exact names rather than inventing new ones.
+These events were added to the catalogue in Phase 0, ahead of the tables/UI that emit them — Phases
+1–8 have since built and wired up the whole epic (bar the Stripe follow-up). `claim_email_verification_sent`
+and `claim_user_activated` are reserved but never emitted: the shipped flow collapsed domain verification
+and magic-link sign-in into a single step, so there's no separate "verification email sent" moment, and
+no distinct "first login" event beyond the already-emitted `claim_user_invited`/`claim_activated`. Fire
+them if a future change reintroduces a distinct verification-email step or a "first login" moment worth
+its own event — don't invent new names for either.
 
 - **`claim_started`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `created_by` (`self_service`/`admin`), `source`
