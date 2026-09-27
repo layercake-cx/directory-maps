@@ -3,6 +3,7 @@ import { useEntitlement } from "../../hooks/useEntitlements.js";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getBlockedMessage } from "../../lib/entitlementMessages.js";
 import { getDirectoryClaimSettings, saveDirectoryClaimSettings } from "../../lib/directoryClaimSettings.js";
+import { publishDirectoryItem } from "../../lib/claimManager.js";
 import {
   activateClaim,
   createManualClaim,
@@ -436,6 +437,22 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
     await run(() => setClaimPaymentStatus(claim.id, { paymentStatus, paymentType }));
   }
 
+  async function handleActivate() {
+    await run(async () => {
+      await activateClaim(claim.id);
+      // Best-effort: republish this one entry immediately so the public
+      // page reflects the claim right away, rather than sitting stale
+      // until someone separately clicks Publish. Never blocks activation
+      // itself if the publish fails.
+      try {
+        await publishDirectoryItem(claim.directory_item_id);
+        recordEvent?.("claimed_listing_published", { ...meta, trigger: "auto_on_activation" });
+      } catch {
+        // swallow -- activation already succeeded, publish can be retried later
+      }
+    }, "claim_activated", { activation_reason: "admin_manual" });
+  }
+
   async function handleTransferOwnership() {
     // eslint-disable-next-line no-alert
     const email = window.prompt("New owner's email address:", "");
@@ -484,7 +501,7 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
             </button>
           )}
           {(claim.status === "verified" || claim.status === "payment_pending") && (
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => run(() => activateClaim(claim.id), "claim_activated", { activation_reason: "admin_manual" })}>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={handleActivate}>
               Activate
             </button>
           )}

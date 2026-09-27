@@ -273,7 +273,7 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
   1. Pick one of this directory's unclaimed listings.
   2. Enter the owner's name and email.
   3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
-  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim.
+  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim. **Activating republishes that one listing automatically** — the public page updates within moments, without needing a separate Publish click (revoking doesn't do this yet — republish the directory manually afterwards if you need the claim button back immediately).
 - **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
 Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
@@ -284,7 +284,7 @@ When a directory has claiming enabled (Settings tab above) and the listing has n
 
 1. **Enter your work email.** It must use the same domain as the listing's own website (e.g. `you@ioic.org.uk` for a listing whose website is `ioic.org.uk`) — personal email providers (Gmail, Outlook, etc.) aren't accepted as proof of organisational control.
 2. If the domain matches, a sign-in link is emailed immediately — no payment, no waiting for an admin.
-3. Clicking that link signs you in at `/claim/login` and activates the claim straight away, taking you into the **Listing Manager** (see above).
+3. Clicking that link signs you in at `/claim/login` and activates the claim straight away — the listing's public page updates automatically at the same time (no button, correct provenance) — taking you into the **Listing Manager** (see above).
 
 If your email domain doesn't match the listing's website (a common, legitimate situation — e.g. a rebrand, or a listing whose website belongs to a parent organisation), self-service can't verify you — ask the directory's admin to create the claim manually with an override instead.
 

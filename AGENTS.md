@@ -546,8 +546,9 @@ its own event — don't invent new names for either.
 - **`claimed_listing_updated`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `changed_fields` (string[])
 - **`claimed_listing_published`**
-  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `trigger` (optional: `auto_on_activation` when fired automatically right after a claim goes active — self-service or admin-manual — rather than by someone clicking Publish themselves; absent for a manual click)
   - Fired by `publish_directory_item()` (see §5's item-only publishing isolation requirement) — never the general `map_published`/directory publish events, since a claim publish must never touch unrelated directory content.
+  - Also fired automatically, best-effort, right after a claim reaches `active` (`ClaimLogin.jsx` for self-service, `DirectoryClaimsPanel.jsx`'s Activate button for admin) — so the public page (claim button gone, provenance switched) reflects reality immediately rather than waiting on a separate manual Publish. A failed auto-publish never blocks activation itself. **Revoke does not get the same treatment** (a revoked claim's entry stays looking claimed, and the claim button stays absent, until someone manually republishes) — a known, deliberately-not-yet-fixed asymmetry, flagged rather than silently left inconsistent.
 - **`claim_suspended`** / **`claim_reactivated`** / **`claim_revoked`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `reason` (optional, `claim_revoked` only)
 - **`directory_claim_settings_updated`**

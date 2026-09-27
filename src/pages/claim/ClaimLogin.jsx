@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { activateSelfServiceClaim, completePendingOwnershipTransfer, getMyClaimContext, linkClaimUserByEmail, sendClaimUserMagicLink } from "../../lib/claims.js";
+import { publishDirectoryItem } from "../../lib/claimManager.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 
@@ -60,6 +61,22 @@ export default function ClaimLogin() {
             });
           }
         });
+        // Best-effort: republish the entry the moment it goes active, so the
+        // public page (no more "Claim this listing" button, provenance
+        // switched to the organisation) reflects reality immediately rather
+        // than waiting on someone to separately click Publish later. Never
+        // blocks activation itself -- a failed publish here just means the
+        // claimant's own Publish button in the Listing Manager still works.
+        await Promise.all(
+          rows.map((r, i) => (activated[i] ? publishDirectoryItem(r.directory_item_id).then(
+            () => recordAdminEvent(supabase, {
+              eventType: "claimed_listing_published",
+              source: "claim_manager",
+              meta: { directory_id: r.directory_id, directory_item_id: r.directory_item_id, claim_id: r.claim_id, trigger: "auto_on_activation" },
+            }),
+            () => {},
+          ) : null)),
+        );
         // Best-effort: complete any pending ownership transfer this login
         // was waiting on (Phase 8). Same speculative, safe-to-no-op pattern.
         const transferred = await Promise.all(rows.map((r) => completePendingOwnershipTransfer(r.claim_id).catch(() => false)));
