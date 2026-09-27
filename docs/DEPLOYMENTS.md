@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-27 — [Staging] Auto-publish a claimed listing on activation
+## 2026-09-27 — [Production] Auto-publish a claimed listing on activation
 
-**Branch/PR:** not yet opened.
-**Deployed by:** Claude Code, after explicit go-ahead ("yes, wire it up!"), following a live investigation into why claim activation wasn't reflected on the public page.
+**Branch/PR:** [`feat/2026-09-27-claim-auto-publish-on-activation` (#253)](https://github.com/layercake-cx/directory-maps/pull/253), merged to `main`.
+**Deployed by:** Claude Code, after explicit go-ahead ("yes, wire it up!", then "merge and deploy"), following a live investigation into why claim activation wasn't reflected on the public page.
 
 ### What changed
 
@@ -33,14 +33,47 @@ Both are best-effort: a failed publish is swallowed and never blocks activation 
 
 ### Frontend
 - `npm run build` — compiles cleanly.
-- Not yet deployed to Vercel preview/production or merged to `main`.
+- GitHub Pages and Vercel production: deployed automatically on merge.
 
 ### Rollback plan
 Revert the merge commit on `main` — purely additive best-effort calls around existing, already-shipped activation code paths; nothing schema-level to roll back.
 
-### Verified on staging
+### Verified
 - [x] `npm run build` — frontend compiles cleanly
+- [x] CI checks passed on the PR before merge
 - [ ] Not yet exercised against real data — no test login credentials this session for either activation path.
+
+---
+
+## 2026-09-27 — [Production] Fix: claim settings weren't tracked by any publish hash
+
+**Branch/PR:** [`fix/2026-09-27-claim-settings-not-in-chrome-hash`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-27-claim-settings-not-in-chrome-hash) (PR pending).
+**Deployed by:** Claude Code, after explicit go-ahead ("yes"), found while investigating a live report that the "Claim this listing" button wasn't appearing on a Founding Partner client's already-published directory (`uk-associations.com`, directory `5645c858-0a9a-4787-8944-d8a5529089a9`) despite claims being enabled and the client fully entitled.
+
+### What changed
+
+**Root cause:** `generate_directory_site`'s incremental "auto" publish path (used by the ordinary Publish button once a directory has already been published at least once) decides what to rebuild by comparing two content hashes against the last publish — `chromeHash` (sitewide widgets like enquiry/analytics; a mismatch forces a **full** rebuild, every entry page included) and `featuresHash` (homepage-only). `directory_claim_settings` (enabled flag, price, currency, payment type, intro HTML) was never included in **either** hash. So enabling claims, or changing its settings, on an already-published directory registered as no change at all — the next ordinary Publish silently rebuilt nothing, and the claim widget never reached any entry page. This affects every existing directory that turns claims on after its first publish, not just this one client.
+
+**Fix:** added the claim-config fields to `chromeHash`, in the same object as the existing `enquiry`/`analytics` entries — same category (a widget needing to appear on every entry page), same already-working mechanism. [`generate_directory_site/index.ts:643-653`](supabase/functions/generate_directory_site/index.ts). No changes to `featuresHash` or the `entryIds` computation were needed — `chromeHash` mismatches already force `FULL_WORK` (style + homepage + indexes + every entry).
+
+Because the fix changes what `chromeHash` computes, the very first Publish click on any affected directory **after this deploy** will detect a hash mismatch against its stored manifest and force a full rebuild automatically — no manual "force full" step needed, and no separate backfill required for other affected directories.
+
+### Database migrations applied
+- None — pure Edge Function logic change.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) then production (`gxixwdjfmegxcxfeflro`). CLI relinked back to staging.
+
+### Frontend
+- None — no frontend changes in this fix.
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` version (`git checkout` the previous commit and `supabase functions deploy generate_directory_site` against each environment). Purely additive to a hash computation — safe to roll forward or back without any data migration.
+
+### Verified
+- [x] `deno check` — compiles cleanly
+- [x] Smoke-tested the deployed staging function with an anonymous call (bogus directory id) — returns a normal controlled error, confirming no top-level crash from the change
+- [ ] Not yet confirmed against the actual reported directory — waiting on the client republishing `uk-associations.com` to confirm the button now appears on unclaimed entries
 
 ---
 
