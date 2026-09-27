@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-27 — [Staging] Claimed Directory Listings — Phase 9: docs & acceptance pass (epic complete)
+## 2026-09-27 — [Production] Claimed Directory Listings — Phase 9: docs & acceptance pass (epic complete)
 
-**Branch/PR:** not yet opened.
-**Deployed by:** Claude Code, after explicit go-ahead ("move onto phase 9").
+**Branch/PR:** [`chore/2026-09-27-claimed-listings-phase-9` (#250)](https://github.com/layercake-cx/directory-maps/pull/250), merged to `main`.
+**Deployed by:** Claude Code, after explicit go-ahead ("move onto phase 9", then "merge and deploy").
 
 ### What changed
 
@@ -35,13 +35,16 @@ Documentation:
 
 ### Frontend
 - `npm run build` — compiles cleanly.
-- Not yet deployed to Vercel preview/production or merged to `main`.
+- GitHub Pages: deployed automatically on merge.
+- Vercel production: deployed automatically on merge this time (the automatic GitHub-integration deploy that failed to trigger for Phase 8 fired correctly here) — live at https://maps.layercake-cx.biz and https://uk-associations.com, confirmed via `vercel inspect`.
 
 ### Rollback plan
 Revert the merge commit on `main` if needed — this phase is docs plus two additive `recordEvent` calls, nothing that changes existing behaviour.
 
-### Verified on staging
+### Verified on production
 - [x] `npm run build` — frontend compiles cleanly
+- [x] CI checks passed on the PR before merge
+- [x] GitHub Pages and Vercel production both deployed automatically on merge
 - [ ] Not yet exercised against real data — the two newly-instrumented events (`claim_user_invited`/`claim_user_removed` from the claim-user's own Users tab) haven't been triggered by a real invite/remove action this session.
 
 ---
