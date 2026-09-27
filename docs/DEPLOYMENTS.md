@@ -8,6 +8,43 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-27 — [Production] Auto-publish a claimed listing on activation
+
+**Branch/PR:** [`feat/2026-09-27-claim-auto-publish-on-activation` (#253)](https://github.com/layercake-cx/directory-maps/pull/253), merged to `main`.
+**Deployed by:** Claude Code, after explicit go-ahead ("yes, wire it up!", then "merge and deploy"), following a live investigation into why claim activation wasn't reflected on the public page.
+
+### What changed
+
+None of the claim lifecycle RPCs (start/activate/transfer/suspend/revoke) ever triggered a publish — they only update the database. A newly-activated (even fully-paid, admin-confirmed) claim kept showing its old public page and the "Claim this listing" button until someone separately remembered to click Publish.
+
+Fixed by republishing that one entry automatically, best-effort, the moment a claim reaches `active`:
+- **Self-service** (`ClaimLogin.jsx`): right after `activateSelfServiceClaim()` succeeds on the claimant's first magic-link login, calls `publishDirectoryItem(directory_item_id)` (the same isolated `claim_item` scope the claim owner's own Publish button already uses) and fires `claimed_listing_published` with `trigger: "auto_on_activation"`.
+- **Admin-manual** (`DirectoryClaimsPanel.jsx`'s Activate button): same pattern, wrapped in the existing `run()` helper. Works because `requireDirectoryItemPublishAccess()` already grants admin/directory-contact callers access regardless of the claim's own status — no server-side change needed.
+
+Both are best-effort: a failed publish is swallowed and never blocks activation itself (the claim owner's own Publish button, or an admin's regular directory Publish, remain the fallback).
+
+**Deliberately not done here:** revoke doesn't get the same treatment — a revoked claim's entry keeps looking claimed publicly until someone manually republishes. Flagged in `docs/FEATURES.md` §4.4m and `AGENTS.md`'s event catalogue rather than silently left inconsistent; a distinct, less time-sensitive follow-up if wanted.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — both call sites use the existing `publishDirectoryItem()`/`generate_directory_site` (`claim_item` scope) already shipped in Phase 6.
+
+### Frontend
+- `npm run build` — compiles cleanly.
+- GitHub Pages and Vercel production: deployed automatically on merge.
+
+### Rollback plan
+Revert the merge commit on `main` — purely additive best-effort calls around existing, already-shipped activation code paths; nothing schema-level to roll back.
+
+### Verified
+- [x] `npm run build` — frontend compiles cleanly
+- [x] CI checks passed on the PR before merge
+- [ ] Not yet exercised against real data — no test login credentials this session for either activation path.
+
+---
+
 ## 2026-09-27 — [Production] Fix: claim settings weren't tracked by any publish hash
 
 **Branch/PR:** [`fix/2026-09-27-claim-settings-not-in-chrome-hash`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-27-claim-settings-not-in-chrome-hash) (PR pending).
