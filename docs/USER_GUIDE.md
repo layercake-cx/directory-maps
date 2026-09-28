@@ -150,7 +150,7 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 
 On a directory's **Email** tab (owners and managers only):
 
-- **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** next to **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
+- **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** in the sidebar's Contact & address panel, below **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
 - **Enable messaging**, **Test mode**, **From address**, and **Domain & DNS** are the same organisation settings as [Messaging](#messaging) (`/client/email`). Changing them here changes them for your maps as well. Test mode sends enquiries to the test recipient instead of the contact email. The prompt, subject, and opening line use `{listing}` for the entry name, the same way map contact emails do.
 
 Sent enquiries are listed at the bottom of the tab (the latest 20).
@@ -203,14 +203,14 @@ Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP
 
 ### Entry layout
 
-On a directory's **Entry Layout** tab (owners and managers only), the panel controls the order of the sections (blocks) in the *main column* of every entry's published page: address, contact details, hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips). (Logo and name are no longer configurable here — they're always shown together at the top of the page, above these blocks.)
+Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each categorisation the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Make an Enquiry button when the directory's Email tab has a contact address set, the website's domain, and the address), a **map card** (the interactive directory map focused on this entry's pin, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), a quiet **Claim this listing** link when claims are open on this entry, then **Directory attributes** (every single/boolean categorisation, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select categorisation. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, claim, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
 
-The right-hand side of the entry page — **Location** (with a small map thumbnail when configured), **Directory attributes**, a chip list per categorisation the entry is tagged with, and up to 4 **Related entries** sharing a tag — is generated automatically from the entry's categorisation tags and isn't configured on this tab.
+On a directory's **Entry Layout** tab (owners and managers only), the panel still controls the order of the sections (blocks) in the *main column*: hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips). **Logo, Name, Address and Contact details are no longer configurable here** — those moved into the fixed hero and sidebar described above, so adding one of those four blocks back on this tab has no visible effect on the published page (they're kept only so an existing saved layout doesn't error).
 
 - **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
 - **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
 - **Section label** (optional, per block) — when set, the published entry page wraps that block in its own anchored section with a heading, and adds a chip for it to the sticky "On this page" bar at the top. Leave it blank for a block that should just render inline with no heading or chip (the previous behaviour). Note: the **Evidence** block no longer shows its own heading automatically — give it a label (e.g. "Evidence") to get one back.
-- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes.
+- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes — it approximates only these main-column blocks, not the fixed hero/sidebar, which don't change based on anything set on this tab.
 - Click **Save layout**, then **Publish** again for it to reach the live site.
 - **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
 
@@ -280,7 +280,7 @@ Without the Professional plan, the tab shows an upgrade message instead of these
 
 ### Claiming a listing yourself (self-service)
 
-When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a **Claim this listing** button (next to Visit website / Make an Enquiry). Clicking it shows the directory's own introduction and price, then asks for a work email:
+When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a quiet **Claim this listing** link under the sidebar map card ("Represent this organisation?"). Clicking it shows the directory's own introduction and price, then asks for a work email:
 
 1. **Enter your work email.** It must use the same domain as the listing's own website (e.g. `you@ioic.org.uk` for a listing whose website is `ioic.org.uk`) — personal email providers (Gmail, Outlook, etc.) aren't accepted as proof of organisational control.
 2. If the domain matches, a sign-in link is emailed immediately — no payment, no waiting for an admin.
@@ -288,7 +288,7 @@ When a directory has claiming enabled (Settings tab above) and the listing has n
 
 If your email domain doesn't match the listing's website (a common, legitimate situation — e.g. a rebrand, or a listing whose website belongs to a parent organisation), self-service can't verify you — ask the directory's admin to create the claim manually with an override instead.
 
-Once a claim has started on a listing (self-service or admin-created), the **Claim this listing** button disappears from that listing's public page until the claim is revoked.
+Once a claim has started on a listing (self-service or admin-created), the **Claim this listing** link disappears from that listing's public page until the claim is revoked.
 
 **Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
 

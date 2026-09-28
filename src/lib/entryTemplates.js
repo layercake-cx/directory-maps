@@ -16,6 +16,16 @@ const COLUMNS = "id, directory_id, name, is_default, applies_to_group_id, applie
  * distinct from `hero`/`gallery` (entry_media_assets), which is a
  * different, pre-existing concept.
  *
+ * 2026-09 entry page redesign: `logo`, `heading`, `address_map` and
+ * `contact_details` all render as no-ops on the generated page now — the
+ * logo, name, address and every contact detail moved into the page's fixed
+ * hero band and sidebar Contact & address panel, which every entry gets
+ * regardless of layout_json. All four stay in this palette (and in
+ * IMPLICIT_DEFAULT_LAYOUT below) only so an existing directory's saved
+ * layout_json doesn't error — an admin who adds one of these four blocks in
+ * the designer will see it do nothing, same as `logo`/`heading` already did
+ * before this redesign.
+ *
  * A block descriptor is `{ type, key?, label? }` — `label` is optional and
  * new (directory browse/entry redesign, 2026-09): when an admin sets one,
  * generate_directory_site wraps that block in an anchored `<section>` and

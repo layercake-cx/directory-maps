@@ -95,10 +95,10 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 | `directory_search` | Search used (debounced / submit, query ≥2 chars) | — | `query` (max 500) |
 | `directory_filter` | Facet selection changes after first apply | — | `filter` |
 | `directory_distance_filter` | Visitor sets, changes, or clears **Distance from** (not when the search box fills it) | — | `place_label` (`near_me`, a place name, or empty when cleared), `radius_miles` (null when cleared). No coordinates |
-| `listing_website_click` | Entry “Visit website” | set | `cta_type` |
-| `listing_contact_click` | Entry `mailto:` | set | `cta_type` |
-| `listing_cta_click` | Primary website, prominent-link tile, or “Show on map” | set | `cta_type` |
-| `listing_enquiry_open` | **Make an Enquiry** clicked (drawer opens) | set | `cta_type`: `enquiry`, `path` |
+| `listing_website_click` | Entry “Visit website” (sidebar Contact & address panel) | set | `cta_type` |
+| `listing_contact_click` | Entry `mailto:` (sidebar Contact & address panel) | set | `cta_type` |
+| `listing_cta_click` | Primary website, prominent-link tile, the sidebar map card's "Open in directory map" link (`cta_type: map`), or the quiet "Claim this listing" link under it (`cta_type: claim`) | set | `cta_type` |
+| `listing_enquiry_open` | **Make an Enquiry** clicked (sidebar Contact & address panel; opens the drawer) | set | `cta_type`: `enquiry`, `path` |
 | `listing_enquiry_sent` | Enquiry submitted and the email send succeeded | set | `cta_type`: `enquiry`, `path` |
 | `listing_claim_start` | Self-service claim work-email form submitted, domain verified, and the magic-link email send succeeded — fired client-side by the published page's own JS (Claimed Directory Listings epic, Phase 7) | set | `cta_type`: `claim`, `path` |
 | `listing_claim_complete` | Self-service claim activated (right after the claimant's first magic-link login) — fired server-side, inside `activate_self_service_claim()`, not client-side, since the caller is authenticated by that point and this table's anon-only insert policy doesn't cover `authenticated` callers | set | `{}` (empty; no `client_session_id` either, since it's inserted by an RPC, not the visitor's own browser session) |

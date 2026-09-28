@@ -8,6 +8,45 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-28 — [Staging] Directory entry page redesign
+
+**Branch/PR:** [`feat/2026-09-28-directory-entry-redesign`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-28-directory-entry-redesign) (PR not yet opened).
+**Deployed by:** Claude Code, from a design pack (`BUILD_BRIEF.md`, `tokens.css`, `sample-entry.json`, `reference/entry.html`) the user attached, fixing four named problems with the published entry/listing page: a too-narrow logo tile, a cramped H1, contact details buried below the map, and several actions (Visit website, Directory map, Claim this listing) each appearing more than once.
+
+### What changed
+
+Rewrote `buildEntryPage()` in `supabase/functions/generate_directory_site/builders.ts` (this page is server-generated static HTML, not a React route — see `docs/DIRECTORIES.md` §4.7's map-datasource note for the adjacent architecture):
+- Landscape logo tile (360×160 desktop, full-width 140px mobile; initials fallback when no logo), full-size serif H1, a one-line summary (meta description, or the first sentence of the entry's notes), and a new hero chip rail (one chip per single-select/true-boolean categorisation the entry holds) — additive to, not replacing, the existing "Directory attributes" sidebar table.
+- Breadcrumb upgraded from a plain back-link to Directory → category → name, with matching `BreadcrumbList` JSON-LD alongside the existing `entrySchemaOrg()` output.
+- Every header action button (Visit website, Make an Enquiry, Show on map, Claim this listing) moved into a new sidebar **Contact & address panel** (website button + domain text + phone + email + address) above the map card, so each action appears exactly once. Claim this listing is now a quiet text link under the map. Related entries moved from a compact sidebar list to a full-width 4-up card section below the two-column layout. On mobile, the whole sidebar renders before the body text.
+- `logo`, `heading`, `address_map`, `contact_details` are now all no-op block types in the Entry Layout designer (previously only `logo`/`heading` were) — their content now lives in the fixed hero/sidebar on every entry regardless of `layout_json`.
+- **Map card**: when the directory has an attached map, embeds it via a new `focus=<directory_entries.id>` query param on `src/pages/EmbedMap.jsx`, which reuses the map's own existing internal `centerOnListingId` pan/zoom/select mechanism (previously only reachable from the map's own list-panel clicks) — pans to `selectZoom` (15 desktop) and auto-opens that pin's detail card, with zero changes to `DirectoryMap.jsx`/`PublishedMapView.jsx`. `gestureHandling="cooperative"` (no one-finger/mousewheel zoom) was already the embed's default. Falls back to the pre-existing static Google Maps thumbnail when the directory has no attached map.
+- **Caught in review, fixed before this entry:** the map card's surviving "Open in directory map" link had dropped the `listing_cta_click`/`cta_type: map` tracking the old "Show on map" button carried (the two links were merged and the untracked one was kept) — added back. Also, no-op'ing `contact_details` had silently dropped phone/email from the page entirely (including the `listing_contact_click` mailto event) — added a Phone/Email row to the new Contact & address panel.
+- **Rollout mechanism:** this is a code-only template change — none of `generate_directory_site`'s incremental-publish hashes (`chromeHash`/`featuresHash`/`templatesHash`) hash the generator's own code, only directory *data*, so a directory publishing without any data change would otherwise keep serving the old template forever after this deploys. Added `ENTRY_TEMPLATE_VERSION` (`builders.ts`) into `chromeHash`'s payload (`index.ts`) so this ships to every already-published directory on its next ordinary Publish, same fix shape as the 2026-09-27 "claim settings weren't tracked by any publish hash" entry below.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None yet — `generate_directory_site` not yet deployed to either project. Next step: staging (`beqejxneehilplrtpntn`), then production only after the user verifies staging and explicitly asks.
+
+### Frontend
+- `npm run build` — compiles cleanly.
+- `deno check` clean on `builders.ts`, `index.ts`, `preview.ts`.
+- Not yet pushed/deployed — GitHub Pages and Vercel production deploy automatically/via script once this merges to `main`.
+
+### Rollback plan
+Revert the merge commit on `main` (or, pre-merge, just don't merge the branch) — no migrations, no destructive data changes. If this has already reached production and needs to come back off: redeploy `generate_directory_site` from the previous commit's `builders.ts`/`index.ts`, which reverts `ENTRY_TEMPLATE_VERSION` and lets the next Publish rebuild back to the old template.
+
+### Verified
+- [x] `npm run build` — frontend compiles cleanly
+- [x] `deno check` — all three Edge Function files typecheck
+- [x] Verified via the local preview script (`supabase/functions/generate_directory_site/preview.ts`) at desktop and mobile (360px) widths — hero/logo/chips/contact panel/map card/attributes/related all render as designed; JSON-LD (`Organization`/`LocalBusiness` + `BreadcrumbList`) inspected directly in the browser
+- [ ] Not yet deployed to staging — no real directory with an attached map exercised yet, so the `focus=` param's pan/zoom/select behaviour is unverified against live data
+- [ ] Entry editor's "Preview & Publish" tab not re-checked in a running app this session (no code change expected there — it only previews reorderable body blocks, none of which changed type — but worth a visual pass before shipping)
+
+---
+
 ## 2026-09-27 — [Production] Auto-publish a claimed listing on activation
 
 **Branch/PR:** [`feat/2026-09-27-claim-auto-publish-on-activation` (#253)](https://github.com/layercake-cx/directory-maps/pull/253), merged to `main`.

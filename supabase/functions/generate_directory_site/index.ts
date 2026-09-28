@@ -87,6 +87,7 @@ import {
 
 import {
   SITE_ORIGIN,
+  ENTRY_TEMPLATE_VERSION,
   resolveLayout,
   buildEntryPage,
   buildDirectoryLandingPage,
@@ -503,6 +504,17 @@ async function generateForDirectoryInner(
       ? `${SITE_ORIGIN}/${client.slug}/${attachedMap.slug}`
       : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
   }
+  // Entry-page-only variant of the link above: an iframe embed focused on
+  // this one entry's pin (EmbedMap.jsx's `focus` param, wired to the
+  // existing centerOnListingId pan/zoom/select mechanism — see
+  // src/pages/EmbedMap.jsx) rather than a plain link to the unfocused map.
+  // hideFilterBar/hideListPanel match the landing page's own iframe (Phase
+  // 4 above) since this is a small sidebar card, not a full map view.
+  const focusedMapEmbedSrc = (entryId: string): string | null => {
+    if (!attachedMapEmbedSrc) return null;
+    const sep = attachedMapEmbedSrc.includes("?") ? "&" : "?";
+    return `${attachedMapEmbedSrc}${sep}focus=${encodeURIComponent(entryId)}&hideFilterBar=1&hideListPanel=1`;
+  };
 
   // Static Maps API key for each entry page's Location thumbnail (Phase 3)
   // — additive and optional: falls back to no image (never blocks
@@ -652,6 +664,12 @@ async function generateForDirectoryInner(
     claims: claimWidgetBase
       ? { on: true, priceCents: claimSettings?.price_cents ?? null, currency: claimSettings?.currency ?? null, paymentType: claimSettings?.payment_type ?? null, introHtml: claimSettings?.intro_html ?? null }
       : { on: false },
+    // Code-only template changes (builders.ts markup/CSS) aren't data, so
+    // nothing above changes when one ships — without this, an already-
+    // published directory that publishes without any data change would
+    // silently keep serving the old entry-page template forever. See
+    // ENTRY_TEMPLATE_VERSION's doc comment in builders.ts.
+    templateVersion: ENTRY_TEMPLATE_VERSION,
   });
   const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
   const featuresHash = await digest({
@@ -847,6 +865,7 @@ async function generateForDirectoryInner(
       categorisations: filterBarCategorisations,
       entryTermIds: [...(entryTermIdsByEntry.get(entry.id) ?? [])],
       attachedMapEmbedSrc,
+      attachedMapFocusedEmbedSrc: focusedMapEmbedSrc(entry.id),
       staticMapsApiKey,
       related: relatedEntries(entry, entries, entryTermIdsByEntry),
       nav,
