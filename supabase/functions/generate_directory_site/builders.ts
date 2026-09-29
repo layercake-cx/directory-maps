@@ -1519,8 +1519,17 @@ export function buildEntryPage(opts: {
   // website, Make an Enquiry, Show on map, Claim this listing) has moved
   // into the sidebar below so each appears exactly once on the page. ----
   const initials = entry.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+  // Same panel_background_color the landing page's card grid already applies
+  // behind this entry's logo (`panelBoxStyle` below) — without it, a "light"
+  // logo variant (white/pale marks meant to sit on a dark backing, which is
+  // exactly what panel_background_color exists for) is invisible against
+  // this tile's plain white surface. The landing page and this tile should
+  // never disagree about what background a given logo needs. Only applied
+  // when there's a real logo image — it's configured for a specific image's
+  // contrast, not for the initials fallback's own (already-themed) look.
+  const logoBoxStyle = entry.logo_url && entry.panel_background_color ? ` style="background:${escapeAttr(entry.panel_background_color)};"` : "";
   const logoTile = entry.logo_url
-    ? `<div class="dir-entry-logo"><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>`
+    ? `<div class="dir-entry-logo"${logoBoxStyle}><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>`
     : `<div class="dir-entry-logo dir-entry-logo--fallback"><span aria-hidden="true">${escapeHtml(initials)}</span></div>`;
 
   const summaryText = entry.meta_description || deriveSummary(entry.notes_html || "");
@@ -1753,8 +1762,9 @@ export function buildEntryPage(opts: {
     ${related
       .map((r) => {
         const rLogo = r.panel_image_url || r.logo_url;
+        const rLogoBoxStyle = rLogo && r.panel_background_color ? ` style="background:${escapeAttr(r.panel_background_color)};"` : "";
         return `<a class="card dir-related-card" href="${escapeAttr(entryUrl(r))}">
-      <div class="dir-related-card__logo">${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="${escapeAttr(r.name)} logo">` : ""}</div>
+      <div class="dir-related-card__logo"${rLogoBoxStyle}>${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="${escapeAttr(r.name)} logo">` : ""}</div>
       <div class="dir-related-card__body"><strong>${escapeHtml(r.name)}</strong>${r.city ? `<span>${escapeHtml(r.city)}</span>` : ""}</div>
     </a>`;
       })

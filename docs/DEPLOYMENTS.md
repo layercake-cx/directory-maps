@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Fix: entry page logo tile ignores panel_background_color
+
+**Branch/PR:** [`fix/2026-09-29-entry-logo-panel-background`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-entry-logo-panel-background) (PR pending).
+**Deployed by:** Claude Code, after explicit go-ahead, found via a live bug report against `https://uk-associations.com/alliance-of-independent-agencies` — the entry's "light" logo variant (a white/pale mark meant to sit on a dark backing) was invisible on the entry detail page's white logo tile, even though the same entry's card on the directory landing page correctly showed it against a dark background.
+
+### What changed
+
+**Root cause:** `panel_background_color` (`directory_entries` column, added by the 2026-08-29 panel-styling migration) has always been applied to the landing page's card-grid logo cell (`panelBoxStyle`, `builders.ts`'s `buildDirectoryLandingPage()`) but was never read by the entry detail page's own logo tile — true both before and after the 2026-09-28 entry-page redesign (PR #254), which carried the gap forward into the new `.dir-entry-logo` hero tile without noticing, since the old design's plain `background: var(--surface-2)` box had the exact same gap.
+
+**Fix:** `buildEntryPage()`'s hero `logoTile` and the "Related entries" mini logo tiles now apply `entry.panel_background_color` (`r.panel_background_color` for related cards) as an inline `background` style, mirroring the landing page's `panelBoxStyle` exactly — same field, same mechanism, two places. Deliberately **not** applied to the initials fallback (no logo image) — that colour is configured for a specific image's contrast, not for the fallback's own already-themed look, so applying it there risked a low-contrast "dark initials on the same dark background" combination instead.
+
+### Database migrations applied
+- None — reuses the existing `panel_background_color` column.
+
+### Edge Functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) only so far.
+
+### Frontend
+- No frontend change.
+
+### Rollback plan
+Revert the merge commit on `main`, redeploy `generate_directory_site` from the reverted code. Purely additive (a new inline style attribute), no data or schema impact either direction.
+
+### Verified
+- [x] `deno check` clean
+- [x] Verified via the local preview script — the `ioic` (dark panel) and `bcs` (light panel) sample entries both carry their configured background through onto `.dir-entry-logo`; `riba` (no panel colour, no logo) still renders the plain themed fallback
+- [ ] Not yet re-checked against the real `alliance-of-independent-agencies` entry that reported the bug (staging deploy only so far)
+
+---
+
 ## 2026-09-28 — [Production] Directory entry page redesign
 
 **Branch/PR:** [`feat/2026-09-28-directory-entry-redesign`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-28-directory-entry-redesign) (PR not yet opened).
