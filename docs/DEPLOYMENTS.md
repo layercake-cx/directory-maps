@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Production] Fix crash on Directories dashboard (client + admin)
+
+**Branch/PR:** `fix/2026-09-29-directories-dashboard-plankey-crash` (this branch).
+**Deployed by:** Claude Code, at Damian's report that `/client/directories` was showing the root
+error boundary ("Something went wrong … planKey is not defined").
+
+### What changed
+
+`DirectoriesDashboard.jsx` (shared by `ClientDirectories.jsx` and `AdminClientDetail.jsx`'s
+Directories tab, added in the Phase 4 admin shell redesign) had a stray `planKey` in its data-load
+`useEffect`'s dependency array — no such variable exists in the component (the resolved plan key
+is a local `const` inside the effect, `resolvedPlanKey`). Referencing it threw a `ReferenceError`
+on every render, crashing the whole app via the root `ErrorBoundary`, which pointed at a
+misleadingly generic "set `VITE_SUPABASE_URL`" message unrelated to the real cause.
+
+Fix: dropped `planKey` from the dependency array — the effect only ever needed to re-run on
+`clientId` change, which it still does. No behaviour change beyond no longer crashing.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — one-line fix in `src/components/directories/DirectoriesDashboard.jsx`. `npm run build`
+  passes clean.
+
+### Rollback plan
+Revert the merge commit — no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [ ] Manual browser smoke-test — skipped (dev server requires login credentials not available
+  in this session); shipped per Damian's explicit "just ship the fix".
+
+---
+
 ## 2026-09-29 — [Production] Admin shell redesign — Phase 4: new pages from built data
 
 **Branch/PR:** [#263](https://github.com/layercake-cx/directory-maps/pull/263), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).
