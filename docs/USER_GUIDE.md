@@ -109,6 +109,8 @@ A directory has its own side panel, grouped as **Overview**, **Content** (Entrie
 
 **Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
+**Insights › Analytics** shows real visitor activity on your published directory: views over time (with a date range picker), a breakdown of activity by type, a visitor journey funnel (directory view → entry view → enquiry opened → enquiry sent), top search terms, and your most-viewed entries.
+
 ### Creating a directory
 
 1. From **Directories**, click **New directory** (owners and managers only).

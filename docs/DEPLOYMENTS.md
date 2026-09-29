@@ -8,6 +8,52 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Directory Insights › Analytics dashboard
+
+**Branch/PR:** [`feat/2026-09-29-directory-insights-analytics`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-directory-insights-analytics) (PR pending).
+**Deployed by:** Claude Code, picked from `BACKLOG.md` as the first follow-up after the 4-phase admin shell redesign.
+
+### What changed
+
+Replaces the `/client/directories/:id/analytics` (and admin equivalent) stub with a real
+visitor-engagement dashboard, reusing the map-side dashboard's existing generic building blocks
+(`src/lib/engagementAnalytics.js`'s day-bucketing/funnel helpers, `EngagementCharts.jsx`/
+`EngagementShared.jsx`'s presentational components) rather than inventing new ones — only
+`deriveDirectoryMetrics()`/`deriveTopDirectoryEntries()` and `useDirectoryEngagement.js`/
+`DirectoryAnalyticsRoute.jsx` are new. No new migration: `map_engagement_events`'s RLS already lets
+a real client contact query their own directory's rows directly (verified before building — unlike
+`admin_events`, checked in an earlier phase and found admin-only).
+
+Shows: views over time, activity-by-type breakdown, a directory→entry→enquiry funnel, top search
+terms, and top entries by views/clicks/enquiries. One correctness detail handled: a "Visit website"
+click inserts two event rows (`listing_website_click` and a duplicate `listing_cta_click`) — not
+documented anywhere before this — the dashboard counts only the latter to avoid double-counting.
+
+Not to be confused with `DirectoryAnalyticsPanel.jsx` (GA4/GTM tracking-code config, Settings ›
+Integrations) — a mix-up already made and corrected twice earlier in this project; not repeated.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — see "What changed". `npm run build` passes clean.
+
+### Rollback plan
+Revert the merge commit — no data/schema impact either direction; the underlying events table and
+its data are untouched, this only adds a UI that reads them.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated `/client/directories/:id/analytics` and the admin equivalent render with no
+      console errors
+- [ ] Authenticated view with real event data — not done by the agent (same test-credentials
+      constraint as the admin shell redesign phases); Damian to verify
+
+---
+
 ## 2026-09-29 — [Production] Fix crash on Directories dashboard (client + admin)
 
 **Branch/PR:** `fix/2026-09-29-directories-dashboard-plankey-crash` (this branch).

@@ -37,14 +37,6 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Size guess:** decision, not build
 - **Status:** To do
 
-### [ADMIN-SHELL] Insights › Analytics for a directory
-- **Where in the design:** `INFORMATION_ARCHITECTURE.md` §6 (Insights group)
-- **What's missing:** a real visitor-engagement analytics dashboard for a directory (entries viewed, enquiries, search terms, etc.). **Correction from an earlier version of this entry:** `DirectoryAnalyticsPanel.jsx` is *not* this — that component is GA4/GTM tracking-code configuration ("Analytics & Tracking" settings) and is correctly placed at Settings › Integrations (see `nav.config.json`'s own `integrations.current` note), not related to this item at all. No UI for actual visitor-engagement analytics exists anywhere in the codebase today.
-- **Existing pieces:** raw events already recorded in `map_engagement_events` (`surface: directory_site`) and `listing_enquiry_*` — a dashboard would query/aggregate these, nothing else exists yet
-- **Shown meanwhile:** an empty state pointing at this entry
-- **Size guess:** L
-- **Status:** To do
-
 ### [ADMIN-SHELL] Global search in the top bar
 - **Where in the design:** TopBar search field, all reference pages
 - **What's missing:** any backing query across customers/maps/directories/entries
