@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase.js";
+import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
 import { ChevronDownIcon, SearchIcon, ShieldIcon, CheckIcon } from "../icons/shellIcons.jsx";
 
 /**
  * Staff-only accessible switcher menu (search, Platform admin item, customer list, "All N
  * customers"). Client users get plain org-name text instead — see brief's IA §3.
  *
- * Phase 1: "shows but may link to existing pages" — the search below is a trivial client-side
- * substring filter over the already-fetched list, no debounce/backend, no recently-viewed
- * (BACKLOG.md).
+ * Phase 3: adds a "Recently viewed" section (Phase 1 backlogged this — see recentCustomers.js).
+ * Search stays a trivial client-side substring filter over the already-fetched list.
  */
 export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, context }) {
   const [open, setOpen] = useState(false);
@@ -19,7 +19,9 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
   const menuRef = useRef(null);
 
   useEffect(() => {
-    if (!isStaff || !open || clients.length > 0) return;
+    // Fetch eagerly (not just on open) when a specific client is being viewed, so the button's
+    // own label can resolve that client's name without requiring the menu to be opened first.
+    if (!isStaff || clients.length > 0 || (!open && !activeClientId)) return;
     let cancelled = false;
     supabase
       .from("clients")
@@ -31,7 +33,7 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
     return () => {
       cancelled = true;
     };
-  }, [isStaff, open, clients.length]);
+  }, [isStaff, open, activeClientId, clients.length]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -56,6 +58,9 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
     };
   }, [open, close]);
 
+  const activeClient = clients.find((c) => c.id === activeClientId);
+  const displayName = orgName || activeClient?.name;
+
   if (!isStaff) {
     return (
       <span className="switcher-org-text">
@@ -72,6 +77,12 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
       )
     : clients;
 
+  const recent = !query.trim()
+    ? getRecentCustomerIds()
+        .map((id) => clients.find((c) => c.id === id))
+        .filter(Boolean)
+    : [];
+
   return (
     <div className="switcher-wrap">
       <button
@@ -83,7 +94,7 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
         onClick={() => setOpen((o) => !o)}
       >
         <span className="switcher-kicker">{context === "platform" ? "" : "Organisation"}</span>
-        {context === "platform" ? "Platform admin" : orgName || "…"}
+        {context === "platform" ? "Platform admin" : displayName || "…"}
         <ChevronDownIcon size={14} />
       </button>
       {open && (
@@ -104,6 +115,25 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
             <ShieldIcon size={18} />
             Platform admin
           </Link>
+          {recent.length > 0 && (
+            <>
+              <p className="nav-group-label" style={{ margin: "8px 4px 2px" }}>Recently viewed</p>
+              <div className="switcher-list" style={{ marginBottom: 8 }}>
+                {recent.map((c) => (
+                  <Link
+                    key={`recent-${c.id}`}
+                    to={`/admin/clients/${c.id}`}
+                    className="switcher-item"
+                    aria-current={c.id === activeClientId ? "true" : undefined}
+                    onClick={close}
+                  >
+                    <span>{c.name}</span>
+                    {c.id === activeClientId && <CheckIcon size={16} />}
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
           <div className="switcher-list">
             {filtered.map((c) => (
               <Link

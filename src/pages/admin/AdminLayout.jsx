@@ -1,12 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import AppShell from "../../components/shell/AppShell.jsx";
+import CustomerAccountFeaturePanel from "../../components/shell/CustomerAccountFeaturePanel.jsx";
+import { recordCustomerVisit } from "../../lib/recentCustomers.js";
 import "./admin.css";
 
 /** Admin routes editing a specific client's map (Design / Data / Listings). */
 function isAdminClientMapRoute(pathname) {
   return /^\/admin\/clients\/[^/]+\/maps\/[^/]+/.test(pathname || "");
+}
+
+/** /admin/clients/:clientId(/...) — staff viewing one customer's workspace, per IA §4. */
+function clientWorkspaceIdFromPath(pathname) {
+  const match = (pathname || "").match(/^\/admin\/clients\/([^/]+)/);
+  return match && match[1] !== "new" ? match[1] : null;
+}
+
+function isCustomerAccountRoute(pathname) {
+  return /^\/admin\/clients\/[^/]+\/(details|entitlements)$/.test(pathname || "");
 }
 
 /**
@@ -42,9 +54,24 @@ export default function AdminLayout({
   const location = useLocation();
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
+  const clientWorkspaceId = clientWorkspaceIdFromPath(pathname);
+  const context = clientWorkspaceId ? "client" : "platform";
+
+  useEffect(() => {
+    if (clientWorkspaceId) recordCustomerVisit(clientWorkspaceId);
+  }, [clientWorkspaceId]);
+
+  const effectivePanel =
+    panel ?? (clientWorkspaceId && isCustomerAccountRoute(pathname) ? <CustomerAccountFeaturePanel clientId={clientWorkspaceId} /> : undefined);
 
   return (
-    <AppShell context="platform" isStaff homeHref="/admin/clients" panel={panel}>
+    <AppShell
+      context={context}
+      isStaff
+      homeHref={clientWorkspaceId ? `/admin/clients/${encodeURIComponent(clientWorkspaceId)}` : "/admin/clients"}
+      activeClientId={clientWorkspaceId}
+      panel={effectivePanel}
+    >
       <div className={`admin-main ${mainClassName}`.trim()}>
         {rightActions && <div className="admin-actions">{rightActions}</div>}
 

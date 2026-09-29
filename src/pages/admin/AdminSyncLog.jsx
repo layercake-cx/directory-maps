@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 import { Alert, Badge, Button, Group, Loader, Select, Text } from "@mantine/core";
 
 const PAGE_SIZE = 100;
@@ -75,6 +76,7 @@ export default function AdminSyncLog() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Sync log" }]}
       rightActions={<button onClick={signOut} type="button">Sign out</button>}
     >

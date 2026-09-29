@@ -14,7 +14,7 @@ export default function AppShell({ context, isStaff, homeHref, orgName, activeCl
     <div className="shell" data-context={context} data-staff={isStaff ? "true" : "false"}>
       <TopBar context={context} isStaff={isStaff} homeHref={homeHref} orgName={orgName} activeClientId={activeClientId} />
       <div className="shell-body">
-        <Rail context={context} isStaff={isStaff} contact={contact} />
+        <Rail context={context} isStaff={isStaff} contact={contact} clientId={activeClientId} />
         {panel}
         <main className={panel ? "main" : "main main--wide"}>{children}</main>
       </div>

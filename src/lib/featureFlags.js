@@ -74,6 +74,16 @@ export async function setClientFeatureOverride(clientId, flagKey, enabled) {
   if (error) throw error;
 }
 
+/** Admin: distinct client ids with at least one enabled per-organisation override ("beta access"). */
+export async function listClientIdsWithBetaAccess() {
+  const { data, error } = await supabase.from("feature_flag_overrides").select("client_id").eq("enabled", true);
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+  return Array.from(new Set((data ?? []).map((row) => row.client_id).filter(Boolean)));
+}
+
 /** Admin: remove a client's override so the flag falls back to its default. */
 export async function clearClientFeatureOverride(clientId, flagKey) {
   const { error } = await supabase

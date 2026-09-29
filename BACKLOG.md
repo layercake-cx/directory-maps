@@ -117,12 +117,12 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Size guess:** M
 - **Status:** To do
 
-### [ADMIN-SHELL] Staff client workspace inside the client shell
-- **Where in the design:** `INFORMATION_ARCHITECTURE.md` §4, §7 (`customerAccount` panel)
-- **What's missing:** rendering `/admin/clients/:clientId/...` pages inside the teal client-context shell with the staff chip and a working Customer account rail item, as the brief's Phase 3 specifies. Phase 1 renders every `/admin/*` route (including these) in the platform (ink) shell — the client-shell-for-staff treatment is real design + routing work, explicitly deferred to Phase 3, not a Phase 1 oversight.
-- **Existing pieces:** `AdminClientDetail.jsx` + its `clientNavItems` tab strip (Customer details / Entitlements / Feature access) already exist; note there is no separate "Feature access" tab today — it's folded into Entitlements
-- **Shown meanwhile:** these routes render in the platform shell like every other admin page
-- **Size guess:** L
+### [ADMIN-SHELL] Feature access (beta) as its own route
+- **Where in the design:** `nav.config.json` `panels.customerAccount` (lists Customer details / Entitlements / Feature access as three peer items)
+- **What's missing:** "Feature access (beta)" (the three `feature_flag_overrides` toggles — Directories & Categorisations, Directory pages, Custom domains) is a *subsection inside* the "Customer details" tab today, not its own tab — **corrects an earlier version of this entry which wrongly said it was "folded into Entitlements"; it's actually inside Customer details.** Phase 3 built real routes for Customer details (`/admin/clients/:clientId/details`) and Entitlements (`/admin/clients/:clientId/entitlements`), but left Feature access where it is rather than extracting it (the three toggles already save independently of the surrounding form, so the extraction is low-risk, just deferred).
+- **Existing pieces:** the three toggles + their handlers already exist in `AdminClientDetail.jsx`'s "details" tab
+- **Shown meanwhile:** reachable via Customer details, not its own nav item
+- **Size guess:** S
 - **Status:** To do
 
 ### [ADMIN-SHELL] Admin/client token unification
