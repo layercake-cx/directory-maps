@@ -6,13 +6,11 @@ import DirectoriesDashboard from "../../components/directories/DirectoriesDashbo
 export default function ClientDirectories() {
   const { client, contact } = useClient();
   return (
-    <div className="page-main">
-      <DirectoriesDashboard
-        clientId={client?.id}
-        canManage={canManageOrg(contact)}
-        basePath="/client/directories"
-        newHref="/client/directories/new"
-      />
-    </div>
+    <DirectoriesDashboard
+      clientId={client?.id}
+      canManage={canManageOrg(contact)}
+      basePath="/client/directories"
+      newHref="/client/directories/new"
+    />
   );
 }

@@ -14,7 +14,7 @@ export default function DirectoryCategoriesRoute() {
 
   return (
     <>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
         <CategorisationAttachmentPicker
           clientId={clientId}
           targetType="directory"
@@ -24,8 +24,8 @@ export default function DirectoryCategoriesRoute() {
         />
       </div>
 
-      <div className="admin-card">
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
+      <div className="card card-pad">
+        <p className="card-title">
           Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
         </p>
         <CategoryTagPicker

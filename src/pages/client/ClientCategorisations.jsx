@@ -12,15 +12,17 @@ export default function ClientCategorisations() {
   }, [client?.id]);
 
   return (
-    <div className="page-main">
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Categorisations</h2>
-        <p style={{ margin: "4px 0 0", opacity: 0.75, fontSize: 13 }}>
-          Reusable taxonomies applied across all of your directories.
-        </p>
+    <div>
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1 className="page-title">Categorisations</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+            Reusable taxonomies applied across all of your directories.
+          </p>
+        </div>
       </div>
 
-      <div className="admin-card">
+      <div className="card card-pad">
         <CategorisationsPanel clientId={client?.id} recordEvent={recordEvent} />
       </div>
     </div>

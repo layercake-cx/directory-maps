@@ -90,14 +90,14 @@ export default function AdminMaps() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div className="admin-controls">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by map name or customer name…"
           />
-          <button className="btn" onClick={load} type="button">
+          <button className="shell-btn" onClick={load} type="button">
             Refresh
           </button>
         </div>
@@ -153,7 +153,7 @@ export default function AdminMaps() {
                   <td>{listingCount}</td>
                   <td>
                     {adminMapUrl ? (
-                      <Link className="btn" to={adminMapUrl}>
+                      <Link className="shell-btn shell-btn--sm" to={adminMapUrl}>
                         Open
                       </Link>
                     ) : (
@@ -162,7 +162,7 @@ export default function AdminMaps() {
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <a
-                      className="btn"
+                      className="shell-btn shell-btn--sm"
                       href={launchUrl}
                       target="_blank"
                       rel="noopener noreferrer"

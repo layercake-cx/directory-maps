@@ -208,10 +208,10 @@ export default function AdminUserActivity() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>User activity</h2>
-          <button type="button" className="btn" onClick={load} disabled={loading}>
+          <p className="card-title" style={{ margin: 0 }}>User activity</p>
+          <button type="button" className="shell-btn" onClick={load} disabled={loading}>
             {loading ? "Loading…" : "Refresh"}
           </button>
         </div>
@@ -274,7 +274,7 @@ export default function AdminUserActivity() {
           </label>
 
           {hasFilters ? (
-            <button type="button" className="btn" onClick={clearFilters} style={{ alignSelf: "flex-end" }}>
+            <button type="button" className="shell-btn" onClick={clearFilters} style={{ alignSelf: "flex-end" }}>
               Clear filters
             </button>
           ) : null}
@@ -350,8 +350,7 @@ export default function AdminUserActivity() {
                         <td>
                           <button
                             type="button"
-                            className="btn"
-                            style={{ padding: "4px 8px", fontSize: 12 }}
+                            className="shell-btn shell-btn--sm"
                             onClick={() => toggle(r.id)}
                           >
                             {expanded[r.id] ? "Hide" : "Meta"}

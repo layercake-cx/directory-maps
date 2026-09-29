@@ -118,7 +118,7 @@ export default function AdminContactDetail() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
@@ -128,7 +128,7 @@ export default function AdminContactDetail() {
 
         {contact && client && !loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <h2 style={{ margin: "0 0 8px 0" }}>Edit contact</h2>
+            <p className="card-title" style={{ margin: 0 }}>Edit contact</p>
             <div style={{ fontSize: 13, marginBottom: 8 }}>
               <strong>Customer:</strong>{" "}
               <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
@@ -171,7 +171,7 @@ export default function AdminContactDetail() {
                   Manage users
                 </label>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button type="submit" className="shell-btn shell-btn--primary" disabled={saving}>
                 {saving ? "Saving…" : "Save changes"}
               </button>
             </form>

@@ -39,63 +39,66 @@ export default function ClientDirectoryNew() {
   }
 
   return (
-    <div className="page-main">
-      <div style={{ marginBottom: 12 }}>
-        <Link to="/client/directories">← Back to directories</Link>
+    <>
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <Link to="/client/directories" style={{ fontSize: 13 }}>← Back to directories</Link>
+          <h1 className="page-title" style={{ marginTop: 4 }}>Create directory</h1>
+        </div>
       </div>
 
-      <h2 style={{ marginTop: 0 }}>Create directory</h2>
+      <div className="card card-pad" style={{ maxWidth: 640 }}>
+        <form onSubmit={handleCreate}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div className="field-grid">
+              <Field label="Directory name">
+                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
+              </Field>
+              <Field label="Web address (short name)">
+                <input
+                  className="input"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder={suggestedSlug || "e.g. accredited-suppliers"}
+                />
+                <div className="field-hint">
+                  This becomes part of the directory's public URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
+                </div>
+              </Field>
+            </div>
 
-      <form onSubmit={handleCreate}>
-        <div style={{ display: "grid", gap: 14, maxWidth: 640 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr", gap: 16 }}>
-            <Field label="Directory name">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
-            </Field>
-            <Field label="Web address (short name)">
-              <input
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder={suggestedSlug || "e.g. accredited-suppliers"}
+            <Field label="Description (optional)">
+              <textarea
+                className="textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Shown on the directory's public index page once published."
               />
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                This becomes part of the directory's public URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
-              </div>
             </Field>
+
+            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
+                {saving ? "Creating…" : "Create directory"}
+              </button>
+              <Link className="shell-btn" to="/client/directories">
+                Cancel
+              </Link>
+            </div>
           </div>
-
-          <Field label="Description (optional)">
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="Shown on the directory's public index page once published."
-            />
-          </Field>
-
-          {err ? <p style={{ margin: 0, color: "#b91c1c" }}>{err}</p> : null}
-
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              {saving ? "Creating…" : "Create directory"}
-            </button>
-            <Link className="btn" to="/client/directories">
-              Cancel
-            </Link>
-          </div>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </>
   );
 }
 
 function Field({ label, children }) {
   return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>
-        {children}
-      </div>
+    <div className="field">
+      <label>{label}</label>
+      {children}
     </div>
   );
 }

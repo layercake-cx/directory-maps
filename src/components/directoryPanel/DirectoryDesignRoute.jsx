@@ -10,8 +10,8 @@ export default function DirectoryDesignRoute() {
 
   return (
     <RequireManage>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Branding</p>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <p className="card-title">Branding</p>
         <DirectoryBrandingPanel
           directory={directory}
           directoryId={directoryId}
@@ -22,8 +22,8 @@ export default function DirectoryDesignRoute() {
         />
       </div>
 
-      <div className="admin-card">
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Entry layout</p>
+      <div className="card card-pad">
+        <p className="card-title">Entry layout</p>
         <EntryLayoutDesigner directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
       </div>
     </RequireManage>

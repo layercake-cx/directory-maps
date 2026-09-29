@@ -8,6 +8,87 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Restyle every page wrapper onto the new design system
+
+**Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269).
+**Preview URL:** https://directory-maps-82i7v7g18-layercake-apps.vercel.app (Vercel deployment protection is on — sign in with the `layercake-apps` Vercel team to view).
+**Deployed by:** Claude Code, at Damian's report (from using the live app) that page bodies looked visually inconsistent with the new shell chrome around them, then his direct screenshot feedback (HubSpot spacing reference; "three different styles on three pages"; "messaging has a white box around it, I'd be removing that"); then his "keep going page by page, almost every page needs this treatment" — extended to cover the whole admin console too.
+
+### What changed
+
+Phases 1–4 only ever applied the new design system (fonts, tokens, class vocabulary) to the shell
+chrome itself — no page body ever adopted it, including the 4 pages built fresh in Phase 4. Logged
+as its own `BACKLOG.md` entry, then fixed incrementally across this session:
+
+- `src/styles/admin-shell.css` gained the missing page-body component vocabulary — Buttons, Pills,
+  Surfaces (Card/Stat), Tabs, Forms, Toolbar+table — ported from
+  `docs/design/admin-shell/admin-shell.css`, translated to this repo's `--shell-*` token names. One
+  deliberate naming change: buttons are `.shell-btn`/`.shell-btn--*`, not the pack's bare `.btn` —
+  `admin.css` already defines a global `.btn` used on every existing page, and since every page now
+  renders inside `.shell`, a same-named `.shell .btn` rule would have won on specificity and
+  silently restyled every button app-wide. Every other new class (`.card`, `.pill`, `.tag`, `.stat`,
+  `.table`, `.field`) has no such collision and keeps the pack's own names.
+- The 4 Phase 4 pages (`ClientHome`/`DirectoriesDashboard`/`DirectoryOverviewRoute`/
+  `DirectoryAnalyticsRoute`) rewritten onto this vocabulary. `DirectoryAnalyticsRoute.jsx`
+  deliberately keeps `EngagementShared.jsx`'s own already-cohesive stats-page styling rather than
+  forcing it into the new vocabulary.
+- Shared spacing tokens (`--main-pad-x`/`--main-pad-top` in `admin-shell-tokens.css`, plus
+  `.admin-main`/`.page-main`'s own padding in `admin.css`/`style.css`) tightened to a more
+  economical top/left margin, matching a HubSpot reference Damian pointed to.
+- `MapsView.jsx`/`.module.css` ("My Maps") and `ClientCategorisations.jsx` given targeted
+  font/color token swaps onto the new vocabulary (kept their existing bespoke layouts).
+- `ClientEmail.jsx` (Messaging): removed its outer `.admin-card`/`.page-main` white-box wrapper
+  entirely (not just restyled — Damian's explicit instruction), and `MessagingPanel.jsx`'s own
+  page-title heading switched to the shared `.page-head`/`.page-title` pattern.
+- All 9 `directoryPanel/*.jsx` route-wrapper files, `ClientDomains.jsx`, `ClientDirectoryNew.jsx`,
+  `ClientTeam.jsx`, `ClientMapListings.jsx`, `ClientMapNew.jsx` moved onto `.card card-pad`/
+  `.page-head`/`.field`/`.shell-btn` — wrapper- and form-level only, not any deep pre-existing
+  panel they render (`DirectoryEntriesPanel`, `CategorisationsPanel`, `MessagingSettings`, etc. —
+  still old-styled, logged as the remaining scope in `BACKLOG.md`).
+- Extended into the **admin console** at Damian's "keep going page by page, almost every page
+  needs this treatment": every `src/pages/admin/Admin*.jsx` page wrapper except `AdminMapData.jsx`
+  (genuinely deep, 1742 lines) moved onto the same vocabulary — `AdminUsers`, `AdminClientNew`,
+  `AdminDirectoryNew`, `AdminListings`, `AdminDirectories`, `AdminLeads`, `AdminErrorLogs`,
+  `AdminDeployments`, `AdminUserDetail`, `AdminContactDetail`, `AdminMaps`, `AdminMapNew`,
+  `AdminClients`, `AdminUserActivity`, `AdminMapListings`, and `AdminClientDetail.jsx` (the large
+  customer-detail tabs hub — its own `.admin-card` shell and per-tab section headers/primary
+  buttons only; its Directories tab already reuses the shared `DirectoriesDashboard` component so
+  was already correct).
+
+Broadly-shared old classes still used by not-yet-migrated deep panels (`.admin-table`,
+`.admin-controls`, `.admin-map-tabs`, `.admin-modal`) were deliberately left alone, same reasoning
+as `.btn` — restyling those now would be a separate, much larger, riskier piece of work than
+migrating one page's own wrapper. Delete/create confirmation modals throughout were left on their
+own existing modal styling for the same reason.
+
+`BACKLOG.md`'s "Page body content still uses the old design system" entry updated: every page
+wrapper in both the client portal and admin console is now done; what's left is exclusively deep
+pre-existing feature panels and `ClientMapData`/`ClientMapDashboard`/`AdminMapData` (1700–3300
+lines each) — real UI rewrites, not wrapper swaps.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — CSS additions plus page rewrites (JSX class names/structure only, no data/logic changes).
+  `npm run build` passes clean after every change in this session.
+
+### Rollback plan
+Revert the merge commit — purely visual, no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated routes (e.g. `/client/email` → redirects to `/login` as expected) render with
+      no console errors
+- [x] Deployed to Vercel preview (staging): https://directory-maps-82i7v7g18-layercake-apps.vercel.app
+- [ ] Authenticated visual check — not done by the agent (no test credentials for the staging
+      Supabase project); Damian to verify the actual look on the preview URL above
+
+---
+
 ## 2026-09-29 — [Production] Directory Insights › Analytics dashboard
 
 **Branch/PR:** [#266](https://github.com/layercake-cx/directory-maps/pull/266), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).

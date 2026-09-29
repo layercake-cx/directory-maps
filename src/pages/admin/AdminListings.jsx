@@ -71,7 +71,7 @@ export default function AdminListings() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div className="admin-controls">
           <input
             value={q}
@@ -93,11 +93,11 @@ export default function AdminListings() {
             Active only
           </label>
 
-          <button className="btn" onClick={load} type="button">
+          <button className="shell-btn" onClick={load} type="button">
             Refresh
           </button>
 
-          <Link className="btn btn-primary" to="/admin/listings/new">
+          <Link className="shell-btn shell-btn--primary" to="/admin/listings/new">
             New listing
           </Link>
         </div>

@@ -74,11 +74,11 @@ export default function AdminUserDetail() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>
           <Link to="/admin/users">← Back to admin users</Link>
         </div>
-        <h2 style={{ marginTop: 0 }}>{displayName}</h2>
+        <p className="card-title">{displayName}</p>
         <div className="admin-map-tabs" style={{ marginBottom: 16 }}>
           <button
             type="button"

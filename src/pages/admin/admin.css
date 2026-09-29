@@ -338,7 +338,9 @@ a.btn-primary:hover {
 .admin-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 18px 16px 40px;
+  padding: 8px 4px 32px; /* tightened 2026-09-29 — this sits inside the shell's own .main/.main--wide
+                            padding now (see admin-shell.css), so it no longer needs to add its own
+                            full top/left margin on top of that; was 18px 16px 40px */
 }
 
 :where(.admin-main) h1,

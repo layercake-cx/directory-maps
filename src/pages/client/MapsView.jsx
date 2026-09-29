@@ -25,8 +25,8 @@ const FilterIcon = () => (
 
 const MapPlusIcon = () => (
   <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-    <rect x="3" y="3" width="20" height="20" rx="4" fill="#B5D4F4" stroke="#378ADD" strokeWidth="0.8" />
-    <path d="M13 8v10M8 13h10" stroke="#185FA5" strokeWidth="1.8" strokeLinecap="round" />
+    <rect x="3" y="3" width="20" height="20" rx="4" fill="var(--shell-accent-tint, #e6f0ef)" stroke="var(--shell-accent, #0f5e63)" strokeWidth="0.8" />
+    <path d="M13 8v10M8 13h10" stroke="var(--shell-accent, #0f5e63)" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 

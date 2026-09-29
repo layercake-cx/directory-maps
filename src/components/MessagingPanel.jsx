@@ -17,13 +17,15 @@ export default function MessagingPanel({
   return (
     <>
       {showPageTitle ? (
-        <>
-          <h1 className={styles.title}>Messaging</h1>
-          <p className={styles.lead}>
-            Control whether visitors can send messages to directory listings, configure sending
-            options, and review messages sent through your maps.
-          </p>
-        </>
+        <div className="page-head" style={{ marginBottom: 16 }}>
+          <div>
+            <h1 className="page-title">Messaging</h1>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+              Control whether visitors can send messages to directory listings, configure sending
+              options, and review messages sent through your maps.
+            </p>
+          </div>
+        </div>
       ) : (
         <div style={{ marginBottom: 16 }}>
           <h2 style={{ margin: "0 0 4px 0", fontSize: 18 }}>Messaging</h2>

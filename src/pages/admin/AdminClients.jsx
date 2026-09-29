@@ -185,7 +185,7 @@ export default function AdminClients() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div className="admin-controls">
           <input
             value={q}
@@ -193,11 +193,11 @@ export default function AdminClients() {
             placeholder="Search customer name, slug, id…"
           />
 
-          <button className="btn" onClick={load} type="button">
+          <button className="shell-btn" onClick={load} type="button">
             Refresh
           </button>
 
-          <Link className="btn btn-primary" to="/admin/clients/new">
+          <Link className="shell-btn shell-btn--primary" to="/admin/clients/new">
             New customer
           </Link>
         </div>

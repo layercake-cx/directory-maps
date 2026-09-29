@@ -1,7 +1,6 @@
 import React from "react";
 import { useClient } from "../../hooks/useClient.js";
 import DomainSettings from "../../components/DomainSettings.jsx";
-import styles from "./ClientEmail.module.css";
 
 export default function ClientDomains() {
   const { client, contact } = useClient();
@@ -9,23 +8,23 @@ export default function ClientDomains() {
 
   if (!canManage) {
     return (
-      <div className="page-main">
-        <div className="admin-card" style={{ marginTop: 16 }}>
-          <p>
-            You don&apos;t have permission to configure domains. Ask your account owner or someone with
-            &quot;Manage maps&quot; access.
-          </p>
-        </div>
+      <div className="card card-pad" style={{ marginTop: 16 }}>
+        <p style={{ margin: 0 }}>
+          You don&apos;t have permission to configure domains. Ask your account owner or someone with
+          &quot;Manage maps&quot; access.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="page-main">
-      <div className={`admin-card ${styles.card}`}>
-        <h1 style={{ marginTop: 0 }}>Domains</h1>
-        <DomainSettings clientId={client.id} clientName={client?.name} eventSource="client_portal" />
+    <>
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1 className="page-title">Domains</h1>
+        </div>
       </div>
-    </div>
+      <DomainSettings clientId={client.id} clientName={client?.name} eventSource="client_portal" />
+    </>
   );
 }

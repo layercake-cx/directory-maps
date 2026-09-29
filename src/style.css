@@ -234,7 +234,8 @@ a:hover {
 .page-main {
   width: 100%;
   max-width: 1230px;
-  margin: 16px auto 40px;
+  margin: 8px auto 32px; /* tightened 2026-09-29 — sits inside the new shell's own .main/.main--wide
+                            padding now (see admin-shell.css), was 16px auto 40px */
   padding: 0 16px;
   box-sizing: border-box;
 }
