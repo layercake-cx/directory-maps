@@ -93,6 +93,15 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Size guess:** S
 - **Status:** To do
 
+### [ADMIN-SHELL] Page body content still uses the old design system
+- **Where in the design:** every reference page — cards, stat tiles, pills, tables, buttons, form fields all use the new class vocabulary (`admin-shell.css`'s `.card`/`.stat`/`.pill`/`.tag`/`.table`/`.btn--primary`/`.field`/etc.) throughout the *whole page*, not just the chrome.
+- **What's missing:** Phases 1–4 only ever applied the new design system (Source Serif 4 + Public Sans, the `--lc-*`/`--shell-*` tokens, the `.card`/`.stat`/`.pill`/`.table` class vocabulary) to the shell chrome itself (`TopBar`/`Rail`/`WorkspaceSwitcher`/`FeaturePanel`). Every page's actual content — both pre-existing panels (`DirectoryEntriesPanel`, `DirectoryClaimsPanel`, `DirectoryBrandingPanel`, etc., untouched per "move, don't rewrite") and the pages built fresh in Phase 4 (`ClientHome`, `DirectoriesDashboard`, `DirectoryOverviewRoute`, `DirectoryAnalyticsRoute`) — still renders with the old look: Poppins/DM Sans instead of the new fonts, `admin.css`'s `--lc-brand`/`.admin-card`/`.btn`/`.admin-table` classes (or Mantine components, or one-off inline styles) instead of the new component vocabulary. The result is a visible seam: new nav around old-styled content. This is distinct from — and a larger, more visible problem than — the "Admin/client token unification" entry below, which is only about CSS custom property *names* coexisting, not about page bodies never adopting the new visual language at all.
+- **Compounding issue:** `ClientLayout.jsx` still wraps most page content in the old `.page-main` (max-width 1230px, its own padding, centred) *inside* the new shell's own `.main`/`.main--wide` (which also pads) — doubling up padding and narrowing content more than the reference design intends.
+- **Existing pieces:** the class vocabulary and tokens already exist and are proven in the shell itself (`src/styles/admin-shell.css`, `admin-shell-tokens.css`) — this is a rollout/migration job across existing pages, not new design work. `BUILD_BRIEF.md`'s "Shared parts used across pages" (`StatTile`, `ActionList`, `Pill`, `Tag`, `Card`, `DataTable`, `Tabs`) were never actually built as reusable components; only ad hoc `.admin-card`/inline-style equivalents exist per page today.
+- **Shown meanwhile:** every page works, just visually inconsistent with its own surrounding shell.
+- **Size guess:** L (touches most page files in `src/pages/{client,admin}/` and `src/components/directories/`; best done incrementally, page-by-page or panel-by-panel, not as one sweep)
+- **Status:** To do
+
 ### [ADMIN-SHELL] Admin/client token unification
 - **Where in the design:** `tokens.css` header comment ("port into the global stylesheet or theme")
 - **What's missing:** a single token system. Today `src/style.css` (`--brand-*`), `src/pages/admin/admin.css` (its own separate `--lc-brand`/`--lc-border`), and the new `src/styles/admin-shell-tokens.css` (`--lc-teal`/`--shell-*`) all coexist with overlapping but different names.
