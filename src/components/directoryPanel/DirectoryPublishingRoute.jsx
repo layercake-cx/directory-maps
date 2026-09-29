@@ -13,7 +13,7 @@ export default function DirectoryPublishingRoute() {
   const { directory, client, canPublish, recordEvent, refetch, domainsHref, isAdminView } = useDirectory();
   return (
     <>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
         <DirectoryPublishPanel
           directory={directory}
           clientSlug={client?.slug}
@@ -22,7 +22,7 @@ export default function DirectoryPublishingRoute() {
           onPublished={refetch}
         />
       </div>
-      <div className="admin-card">
+      <div className="card card-pad">
         <p style={{ margin: 0, fontSize: 13 }}>
           <Link to={domainsHref}>
             {isAdminView ? "Manage this customer's domains →" : "Manage custom domains →"}

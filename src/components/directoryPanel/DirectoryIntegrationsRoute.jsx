@@ -6,7 +6,7 @@ import DirectoryAnalyticsPanel from "../directories/DirectoryAnalyticsPanel.jsx"
 export default function DirectoryIntegrationsRoute() {
   const { directory, directoryId, canManage, recordEvent, refetch } = useDirectory();
   return (
-    <div className="admin-card">
+    <div className="card card-pad">
       <DirectoryAnalyticsPanel
         directory={directory}
         directoryId={directoryId}

@@ -16,8 +16,8 @@ export default function DirectoryEntriesRoute() {
   return (
     <>
       {canManage && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>AI content generation</p>
+        <div className="card card-pad" style={{ marginBottom: 16 }}>
+          <p className="card-title">AI content generation</p>
           <DirectoryAiContentPanel
             directory={directory}
             directoryId={directoryId}

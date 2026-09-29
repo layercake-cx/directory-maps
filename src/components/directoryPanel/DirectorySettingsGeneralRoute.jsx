@@ -30,7 +30,7 @@ export default function DirectorySettingsGeneralRoute() {
 
   return (
     <>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", position: "relative" }}>
           {canManage && (
             <div>
@@ -78,7 +78,7 @@ export default function DirectorySettingsGeneralRoute() {
       </div>
 
       {canManage && (
-        <div className="admin-card">
+        <div className="card card-pad">
           <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
         </div>
       )}

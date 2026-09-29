@@ -14,7 +14,7 @@ export default function DirectorySearchRoute() {
 
   return (
     <>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
         <DirectorySearchSettingsPanel
           directory={directory}
           directoryId={directoryId}
@@ -25,8 +25,8 @@ export default function DirectorySearchRoute() {
       </div>
 
       {canManage && (
-        <div className="admin-card">
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Help me choose</p>
+        <div className="card card-pad">
+          <p className="card-title">Help me choose</p>
           <DirectoryAiSearchPanel
             directory={directory}
             directoryId={directoryId}

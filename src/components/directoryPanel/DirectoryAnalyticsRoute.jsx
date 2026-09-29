@@ -21,6 +21,13 @@ import {
  * src/components/engagement/*) — only the directory-specific event aggregation
  * (deriveDirectoryMetrics) and this page are new. Not to be confused with
  * DirectoryAnalyticsPanel.jsx (GA4/GTM tracking-code config, Settings › Integrations).
+ *
+ * Deliberately keeps `EngagementShared.jsx`'s own `Panel`/`MetricCards`/`DataTable` look (its own
+ * CSS module, shared with the working `MapStats.jsx`/`ListingStats.jsx`) rather than reaching for
+ * the new shell's `.card`/`.stat-grid` vocabulary — that's a third, already-cohesive design
+ * system for exactly this kind of stats page, not the old `.admin-card` pattern the rest of
+ * BACKLOG.md's "page body styling" entry is about. Only this file's own wrapper markup (the
+ * empty-state card) uses the new classes.
  */
 export default function DirectoryAnalyticsRoute() {
   const { directoryId } = useDirectory();
@@ -59,7 +66,7 @@ export default function DirectoryAnalyticsRoute() {
   const topEntries = useMemo(() => deriveTopDirectoryEntries(metrics.entryCounts, entryNameById), [metrics.entryCounts, entryNameById]);
 
   if (loading) return <LoadingState />;
-  if (error) return <p style={{ color: "#b91c1c" }}>{error}</p>;
+  if (error) return <p style={{ color: "var(--shell-danger)" }}>{error}</p>;
 
   const summaryCards = [
     { label: "Directory views", value: metrics.summary.directoryViews.toLocaleString() },
@@ -90,7 +97,7 @@ export default function DirectoryAnalyticsRoute() {
       <MetricCards items={summaryCards} />
 
       {!metrics.hasData ? (
-        <div className="admin-card">
+        <div className="card card-pad">
           <p style={{ margin: 0 }}>No visitor activity recorded for this directory in this period.</p>
         </div>
       ) : (

@@ -7,7 +7,7 @@ export default function DirectoryAccreditationsRoute() {
   const { directoryId, recordEvent } = useDirectory();
   return (
     <RequireManage>
-      <div className="admin-card">
+      <div className="card card-pad">
         <AccreditationSchemesPanel directoryId={directoryId} recordEvent={recordEvent} />
       </div>
     </RequireManage>

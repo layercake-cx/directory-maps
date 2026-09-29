@@ -10,10 +10,10 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 function Tile({ label, value, sub }) {
   return (
-    <div className="admin-card" style={{ padding: 16 }}>
-      <p style={{ margin: 0, fontSize: 12, opacity: 0.65, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</p>
-      <p style={{ margin: "6px 0 0", fontSize: 28, fontWeight: 600 }}>{value}</p>
-      {sub && <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.65 }}>{sub}</p>}
+    <div className="stat">
+      <p className="stat-label">{label}</p>
+      <p className="stat-value">{value}</p>
+      {sub && <p className="stat-sub">{sub}</p>}
     </div>
   );
 }
@@ -23,6 +23,10 @@ function Tile({ label, value, sub }) {
  * and RPCs (see the Phase 4 plan doc's research: this needed no new schema, contrary to how
  * large BACKLOG.md's original "size L" guess assumed). Anything that genuinely needs a migration
  * (a client-facing activity feed, a directories volume entitlement) is NOT here — see BACKLOG.md.
+ *
+ * Uses the shell's own page-body component vocabulary (.stat-grid/.stat/.card — see
+ * admin-shell.css) rather than the old admin.css/.admin-card patterns Phase 4 originally shipped
+ * with — see BACKLOG.md "Page body content still uses the old design system".
  */
 export default function DirectoryOverviewRoute() {
   const { directory, client, basePath } = useDirectory();
@@ -97,10 +101,10 @@ export default function DirectoryOverviewRoute() {
 
   return (
     <div>
-      {directory.description && <p style={{ margin: "0 0 16px", opacity: 0.75 }}>{directory.description}</p>}
-      {err && <p style={{ color: "#b91c1c" }}>{err}</p>}
+      {directory.description && <p style={{ margin: "0 0 16px", color: "var(--shell-text-soft)" }}>{directory.description}</p>}
+      {err && <p style={{ color: "var(--shell-danger)" }}>{err}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16, marginBottom: 20 }}>
+      <div className="stat-grid" style={{ marginBottom: 20 }}>
         <Tile label="Entries changed since publish" value={lastPublication ? (changedSincePublish ?? "…") : "—"} sub={!lastPublication ? "Not yet published" : undefined} />
         <Tile label="Missing SEO metadata" value={missingSeo ?? "…"} />
         <Tile label="Missing page content" value={missingContent ?? "…"} />
@@ -109,17 +113,17 @@ export default function DirectoryOverviewRoute() {
         <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} />
       </div>
 
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Publishing</p>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <p className="card-title">Publishing</p>
         {lastPublication ? (
-          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+          <p style={{ margin: 0, fontSize: 13 }}>
             Last published {new Date(lastPublication.published_at).toLocaleString()} — version {lastPublication.version}
           </p>
         ) : (
-          <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.7 }}>Not yet published.</p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--shell-text-muted)" }}>Not yet published.</p>
         )}
         {publicUrl && (
-          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+          <p style={{ margin: 0, fontSize: 13 }}>
             <a href={publicUrl} target="_blank" rel="noreferrer">View live site ↗</a>
             {" · "}
             <a href={`${publicUrl}/sitemap.xml`} target="_blank" rel="noreferrer">sitemap.xml</a>
@@ -129,28 +133,28 @@ export default function DirectoryOverviewRoute() {
             <a href={`${publicUrl}/llms.txt`} target="_blank" rel="noreferrer">llms.txt</a>
           </p>
         )}
-        <p style={{ margin: "10px 0 0", fontSize: 13 }}>
+        <p style={{ margin: 0, fontSize: 13 }}>
           <Link to={`${basePath}/publishing`}>Manage publishing →</Link>
         </p>
       </div>
 
-      <div className="admin-card" style={{ marginBottom: 16 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Claims</p>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <p className="card-title">Claims</p>
         {claimsByStatus ? (
-          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+          <p style={{ margin: 0, fontSize: 13 }}>
             {claimsByStatus.total} total — {claimsByStatus.active} active, {claimsByStatus.awaiting} awaiting verification
           </p>
         ) : (
-          <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.7 }}>…</p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--shell-text-muted)" }}>…</p>
         )}
-        <p style={{ margin: "10px 0 0", fontSize: 13 }}>
+        <p style={{ margin: 0, fontSize: 13 }}>
           <Link to={`${basePath}/claims`}>View claims →</Link>
         </p>
       </div>
 
-      <div className="admin-card">
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Visitor features</p>
-        <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+      <div className="card card-pad">
+        <p className="card-title">Visitor features</p>
+        <p style={{ margin: 0, fontSize: 13 }}>
           Location search: {directory.location_search_enabled ? "On" : "Off"} · Help me choose (AI web search): {directory.ai_search_web_enabled ? "On" : "Off"}
         </p>
       </div>

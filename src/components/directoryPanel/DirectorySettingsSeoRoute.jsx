@@ -13,7 +13,7 @@ export default function DirectorySettingsSeoRoute() {
   const { directory, directoryId, canManage, recordEvent, refetch } = useDirectory();
   return (
     <>
-      <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div className="card card-pad" style={{ marginBottom: 16 }}>
         <DirectorySeoSettingsPanel
           directory={directory}
           directoryId={directoryId}
@@ -24,8 +24,8 @@ export default function DirectorySettingsSeoRoute() {
       </div>
 
       {canManage && (
-        <div className="admin-card">
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>SEO metadata backfill</p>
+        <div className="card card-pad">
+          <p className="card-title">SEO metadata backfill</p>
           <DirectoryAiSeoMetadataPanel directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
         </div>
       )}

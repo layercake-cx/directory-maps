@@ -226,20 +226,20 @@ export default function ClientMapListings() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            <h2 style={{ margin: "0 0 6px 0" }}>Listings</h2>
+            <p className="card-title">Listings</p>
             <div style={{ fontSize: 13, opacity: 0.8 }}>
               Showing <strong>{filtered.length}</strong> of <strong>{rows.length}</strong>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="btn" type="button" onClick={load}>
+            <button className="shell-btn" type="button" onClick={load}>
               Refresh
             </button>
             <button
-              className="btn"
+              className="shell-btn"
               type="button"
               onClick={geocodeMissingCoords}
               disabled={loading || geocodingMissing}

@@ -53,8 +53,8 @@
   --header-h: 52px;
   --rail-w: 64px;
   --panel-w: 272px;
-  --main-pad-x: 40px;
-  --main-pad-top: 28px;
+  --main-pad-x: 32px;   /* tightened 2026-09-29 — was 40px, too generous vs. reference apps like HubSpot */
+  --main-pad-top: 20px; /* was 28px */
   --gap-section: 24px;
 
   /* Shape */

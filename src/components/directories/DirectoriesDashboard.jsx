@@ -10,12 +10,28 @@ const VIEWS = [
   { key: "archived", label: "Archived" },
 ];
 
+function statusPillClass(directory) {
+  if (!directory.is_active) return "pill pill--neutral";
+  if (directory.published_at) return "pill pill--ok";
+  return "pill pill--warn";
+}
+
+function statusLabel(directory) {
+  if (!directory.is_active) return "Archived";
+  if (directory.published_at) return "Published";
+  return "Not yet published";
+}
+
 /**
  * Directories dashboard (Phase 4, admin shell redesign) — shared by ClientDirectories.jsx and
  * AdminClientDetail.jsx's "directories" tab, per the "one component, two contexts" pattern
  * (Phases 1-2). Views/plan box are real data (see BUILD_BRIEF.md's "no fake numbers" rule) —
  * "directories used of allowance" is omitted, not faked: no max_directories entitlement exists
  * today (unlike the real seeded max_maps one) — see BACKLOG.md.
+ *
+ * Uses the shell's own page-body component vocabulary (.card/.pill/.stat-grid/.shell-btn — see
+ * admin-shell.css) rather than the old admin.css/.admin-card patterns Phase 4 originally shipped
+ * with — see BACKLOG.md "Page body content still uses the old design system".
  */
 export default function DirectoriesDashboard({ clientId, canManage, basePath, newHref }) {
   const [directories, setDirectories] = useState([]);
@@ -80,25 +96,26 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
+      <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <h2 style={{ margin: 0 }}>Directories</h2>
-          <p style={{ margin: "4px 0 0", opacity: 0.75, fontSize: 13 }}>Browsable, publishable lists of entries — separate from your maps.</p>
+          <h1 className="page-title">Directories</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+            Browsable, publishable lists of entries — separate from your maps.
+          </p>
         </div>
         {canManage && (
-          <Link className="btn btn-primary" to={newHref}>
+          <Link className="shell-btn shell-btn--primary" to={newHref}>
             New directory
           </Link>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap" }}>
         {VIEWS.map((v) => (
           <button
             key={v.key}
             type="button"
-            className="btn"
-            style={view === v.key ? { background: "var(--lc-brand, #0f5e63)", color: "#fff", borderColor: "transparent" } : undefined}
+            className={`shell-btn shell-btn--sm${view === v.key ? " shell-btn--primary" : ""}`}
             onClick={() => setView(v.key)}
           >
             {v.label} ({counts[v.key]})
@@ -106,15 +123,15 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
         ))}
       </div>
 
-      {err && <p style={{ color: "#b91c1c" }}>{err}</p>}
+      {err && <p style={{ color: "var(--shell-danger)" }}>{err}</p>}
 
       {loading ? (
         <p>Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="admin-card">
+        <div className="card card-pad">
           <p style={{ margin: 0 }}>{directories.length === 0 ? "No directories yet." : "No directories in this view."}</p>
           {canManage && directories.length === 0 && (
-            <Link className="btn btn-primary" to={newHref} style={{ marginTop: 12, display: "inline-block" }}>
+            <Link className="shell-btn shell-btn--primary" to={newHref} style={{ alignSelf: "flex-start" }}>
               Create your first directory
             </Link>
           )}
@@ -124,33 +141,23 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
           {filtered.map((d) => {
             const linkedMaps = linkedMapsByDirectory[d.id] ?? [];
             return (
-              <Link key={d.id} to={`${basePath}/${encodeURIComponent(d.id)}`} className="admin-card" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+              <Link key={d.id} to={`${basePath}/${encodeURIComponent(d.id)}`} className="card card-pad" style={{ textDecoration: "none", color: "inherit", display: "block", gap: 0 }}>
                 {d.seo_og_image_url && (
                   <img
                     src={d.seo_og_image_url}
                     alt=""
-                    style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, marginBottom: 12 }}
+                    style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: "var(--radius-item)", marginBottom: 12 }}
                   />
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <strong>{d.name}</strong>
-                  <span
-                    className="pill"
-                    style={{
-                      fontSize: 11,
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      background: !d.is_active ? "#efece6" : d.published_at ? "#e6f0ef" : "#fbefd9",
-                      color: !d.is_active ? "#454d52" : d.published_at ? "#0b4a4e" : "#7a4a06",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {!d.is_active ? "Archived" : d.published_at ? "Published" : "Not yet published"}
+                  <span className={statusPillClass(d)} style={{ whiteSpace: "nowrap" }}>
+                    {statusLabel(d)}
                   </span>
                 </div>
-                <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.75 }}>{d.directory_entries?.[0]?.count ?? 0} entries</p>
+                <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--shell-text-soft)" }}>{d.directory_entries?.[0]?.count ?? 0} entries</p>
                 {linkedMaps.length > 0 && (
-                  <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.65 }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--shell-text-muted)" }}>
                     Linked to {linkedMaps.map((m) => m.name).join(", ")}
                   </p>
                 )}
@@ -161,10 +168,10 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
       )}
 
       {(planName || lockedFeatureNames.length > 0) && (
-        <div className="admin-card" style={{ marginTop: 20, maxWidth: 420 }}>
+        <div className="card card-pad" style={{ marginTop: 20, maxWidth: 420 }}>
           {planName && <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Plan: {planName}</p>}
           {lockedFeatureNames.length > 0 && (
-            <p style={{ margin: "8px 0 0", fontSize: 12, opacity: 0.75 }}>
+            <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--shell-text-soft)" }}>
               Needs a higher plan: {lockedFeatureNames.join(", ")}
             </p>
           )}
