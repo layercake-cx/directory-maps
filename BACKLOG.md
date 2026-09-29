@@ -5,44 +5,36 @@ the design shows that aren't built yet. One entry per missing capability, per
 `docs/design/admin-shell/BUILD_BRIEF.md`'s process: check the codebase and `docs/FEATURES.md`
 first; if a piece already exists, wire it up instead of adding a new entry for it.
 
-### [ADMIN-SHELL] Organisation home dashboard
+### [ADMIN-SHELL] Organisation home: recent activity feed
 - **Where in the design:** `00-organisation-home.html`
-- **What's missing:** aggregate counts (maps, directories, published, enquiries in 30 days, team size), Needs attention feed, Recent activity feed (from `admin_events`)
-- **Existing pieces:** `admin_events` table for the activity feed; maps/directories/contacts counts are simple queries
-- **Shown meanwhile:** the Home rail item links to `/client` (today's maps grid) until this page is built
-- **Size guess:** L
+- **What's missing:** a real recent-activity feed. **Resolved in Phase 4 except this one piece:** stat tiles (maps/directories/published/team size/enquiries in 30 days) and a "Needs attention" list now ship for real in `ClientHome.jsx`. The activity feed specifically is NOT buildable without a migration: `admin_events`'s only SELECT policy checks `profiles.role = 'admin'` — there is no client-scoped policy, so a real client contact querying it (even filtered by their own `client_id`) gets zero rows today.
+- **Existing pieces:** `admin_events` table (data exists, RLS doesn't allow client contacts to read it yet)
+- **Shown meanwhile:** no activity feed on Organisation home
+- **Size guess:** M (one migration: a client-scoped `admin_events` SELECT policy, mirroring `directory_contact_submissions_authenticated_select`)
 - **Status:** To do
 
-### [ADMIN-SHELL] "My maps" as distinct from Home
-- **Where in the design:** `nav.config.json` `contexts.client.rail` (maps item)
-- **What's missing:** `/client` currently *is* the maps grid; the design's `/client/maps` route doesn't exist yet
-- **Existing pieces:** `ClientDashboard.jsx` (existing maps grid)
-- **Shown meanwhile:** Home and My maps both point at `/client`
-- **Size guess:** S
+### [ADMIN-SHELL] Directories dashboard: "directories used of allowance"
+- **Where in the design:** `01-directories.html` (plan box)
+- **What's missing:** a volume entitlement for directories. **Resolved in Phase 4 except this one piece:** Published/Not yet published/Archived views, plan name, "features needing a higher plan", card preview image (see below), and linked-map-per-card now ship for real in the new shared `DirectoriesDashboard.jsx`. Unlike `max_maps` (a real seeded volume entitlement with `plan_features` rows), there is no equivalent `max_directories` feature/entitlement anywhere — showing "N of M directories used" isn't possible without adding one.
+- **Existing pieces:** `src/lib/entitlements.js`; `20260820120000_seed_max_maps_entitlement.sql` as the pattern to mirror for a new `max_directories` migration
+- **Shown meanwhile:** plan box shows plan name + locked features, no allowance/usage line
+- **Size guess:** S (one migration: seed a `max_directories` feature + `plan_features` rows)
 - **Status:** To do
 
-### [ADMIN-SHELL] Directories dashboard views, plan box, card preview
-- **Where in the design:** `01-directories.html`
-- **What's missing:** Published / Not yet published / Archived filtered views; entitlements-derived plan box (plan name, directories used of allowance, features needing a higher plan); directory card preview image; linked map shown on the card
-- **Existing pieces:** `ClientDirectories.jsx` (list), `src/lib/entitlements.js` (plan lookups), `is_active`/archive field already exists
-- **Shown meanwhile:** today's unfiltered `ClientDirectories.jsx` list carries over unchanged
-- **Size guess:** M
+### [ADMIN-SHELL] Directories dashboard: dedicated card thumbnail field
+- **Where in the design:** `01-directories.html` (card preview image)
+- **What's missing:** nothing is missing functionally — `DirectoriesDashboard.jsx` shows a real image today — but it repurposes `seo_og_image_url` (meant for social-share meta) as the card thumbnail rather than a field purpose-built for this. Flagging so a future "real" thumbnail field isn't designed on the false assumption that one already exists for this purpose.
+- **Existing pieces:** `directories.seo_og_image_url`
+- **Shown meanwhile:** works, just a repurposed field
+- **Size guess:** S (a dedicated `card_image_url` column, if the repurposing ever becomes a problem)
 - **Status:** To do
 
-### [ADMIN-SHELL] Directory overview page
-- **Where in the design:** `02-directory-overview.html`
-- **What's missing:** entries changed since last publish; counts of entries missing SEO metadata/page content/logo/coordinates; last published date/user/version; claimed listings and awaiting verification; enquiries in 30 days; visitor feature on/off summary; generated file links
-- **Existing pieces:** `DirectoryPublishPanel` (last-published data), `DirectoryClaimsPanel`, `DirectoryEnquiryPanel`, `generate_directory_site` outputs (`sitemap.xml`, `robots.txt`, `llms.txt`)
-- **Shown meanwhile:** hidden until Phase 2/4 build the Overview route
-- **Size guess:** L
-- **Status:** To do
-
-### [ADMIN-SHELL] Entries table "Gaps" column + sector filter
-- **Where in the design:** `03-directory-entries.html`
-- **What's missing:** a derived "no logo / no page content / no SEO / not geocoded" column and filter; a sector filter sourced from categorisations
-- **Existing pieces:** `DirectoryEntriesPanel.jsx`; the underlying fields (logo, content, SEO, coordinates) already exist per entry
-- **Shown meanwhile:** today's entries table is unchanged
-- **Size guess:** M
+### [ADMIN-SHELL] Entries table: dedicated "sector" field
+- **Where in the design:** `03-directory-entries.html` (labelled "Industry sector" / "All sectors")
+- **What's missing:** a decision from Damian, not a build. **Resolved in Phase 4 except this framing:** the Gaps filter (no logo/content/SEO/not geocoded) and a categorisation filter both ship for real in `DirectoryEntriesPanel.jsx`. But categorisations are a fully generic, client-defined taxonomy — there's no dedicated "sector" concept, so the shipped filter is "filter by any one attached categorisation," not a hardcoded "Industry sector" dropdown. Decide: is a generic categorisation filter enough, or does "sector" need to become a first-class, always-present field?
+- **Existing pieces:** `categorisations`/`category_terms`/`entry_category_terms` (generic taxonomy, already used by the shipped filter)
+- **Shown meanwhile:** generic categorisation filter, labelled by whichever categorisations the client has actually created
+- **Size guess:** decision, not build
 - **Status:** To do
 
 ### [ADMIN-SHELL] Insights › Analytics for a directory
@@ -51,22 +43,6 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Existing pieces:** raw events already recorded in `map_engagement_events` (`surface: directory_site`) and `listing_enquiry_*` — a dashboard would query/aggregate these, nothing else exists yet
 - **Shown meanwhile:** an empty state pointing at this entry
 - **Size guess:** L
-- **Status:** To do
-
-### [ADMIN-SHELL] Workspace switcher: real search + recently viewed
-- **Where in the design:** `staff-workspace-switcher.html`
-- **What's missing:** anything beyond a trivial client-side substring filter (shipped in Phase 1); per-admin "recently viewed customers" (no storage for this exists today)
-- **Existing pieces:** the `clients` table list query (as used by `AdminClients.jsx`) is reused as-is for the full list
-- **Shown meanwhile:** plain alphabetical list, no recency, filter is client-side only
-- **Size guess:** M
-- **Status:** To do
-
-### [ADMIN-SHELL] Customers page: plan filters with counts, "With beta access" view
-- **Where in the design:** `platform-customers.html`; `nav.config.json` `panels.customers`
-- **What's missing:** filtered views and counts by plan; a "beta access" flag/query
-- **Existing pieces:** `AdminClients.jsx` (list), `src/lib/entitlements.js` (plan lookups), feature flag overrides table (candidate source for "beta access")
-- **Shown meanwhile:** existing unfiltered `AdminClients.jsx` table
-- **Size guess:** M
 - **Status:** To do
 
 ### [ADMIN-SHELL] Global search in the top bar

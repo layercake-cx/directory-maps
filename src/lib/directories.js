@@ -27,7 +27,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
   if (!clientId) return [];
   let query = supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, published_at, created_at, updated_at, directory_entries(count)")
+    .select("id, client_id, name, slug, description, is_active, published_at, seo_og_image_url, created_at, updated_at, directory_entries(count)")
     .eq("client_id", clientId)
     .order("updated_at", { ascending: false });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -168,7 +168,15 @@ export async function createDirectoryGroup(directoryId, name) {
  * Server-side paginated + searched entry list.
  * @returns {{ rows: object[], count: number }}
  */
-export async function listDirectoryEntries(directoryId, { search = "", page = 0, pageSize = ENTRIES_PAGE_SIZE } = {}) {
+/**
+ * `gap`: an optional "Gaps" filter (Phase 4, admin shell redesign) — 'no_logo' | 'no_content' |
+ * 'no_seo' | 'not_geocoded'. Filters on the underlying columns without selecting them (keeps this
+ * query's payload narrow, per this function's own existing convention — see ENTRY_EXPORT_COLUMNS
+ * above for why a wider select lives in a separate function instead of here).
+ * `categoryTermId`: an optional categorisation-term filter, generic (any attached categorisation,
+ * not a hardcoded "sector" field — see BACKLOG.md).
+ */
+export async function listDirectoryEntries(directoryId, { search = "", page = 0, pageSize = ENTRIES_PAGE_SIZE, gap = null, categoryTermId = null } = {}) {
   if (!directoryId) return { rows: [], count: 0 };
 
   let query = supabase
@@ -184,6 +192,21 @@ export async function listDirectoryEntries(directoryId, { search = "", page = 0,
   if (term) {
     const escaped = term.replace(/[%,]/g, "");
     query = query.or(`name.ilike.%${escaped}%,address.ilike.%${escaped}%`);
+  }
+
+  if (gap === "no_logo") query = query.is("logo_url", null);
+  else if (gap === "no_content") query = query.is("notes_html", null);
+  else if (gap === "not_geocoded") query = query.is("lat", null);
+  else if (gap === "no_seo") {
+    query = query.or("meta_title.is.null,meta_description.is.null,keywords.is.null,og_title.is.null,og_description.is.null,ai_summary.is.null");
+  }
+
+  if (categoryTermId) {
+    const { data: tagged, error: tagErr } = await supabase.from("entry_category_terms").select("entry_id").eq("term_id", categoryTermId);
+    if (tagErr) throw tagErr;
+    const ids = (tagged ?? []).map((r) => r.entry_id);
+    if (ids.length === 0) return { rows: [], count: 0 };
+    query = query.in("id", ids);
   }
 
   const from = page * pageSize;
@@ -513,6 +536,31 @@ export async function getMapsLinkedToDirectory(directoryId) {
     .in("id", assocs.map((a) => a.map_id));
   if (mapsErr) throw mapsErr;
   return maps ?? [];
+}
+
+/** Bulk variant of getMapsLinkedToDirectory, for a list page — one query instead of N. Returns { [directoryId]: map[] }. */
+export async function getMapsLinkedToDirectories(directoryIds) {
+  const ids = (directoryIds ?? []).filter(Boolean);
+  if (!ids.length) return {};
+  const { data: assocs, error } = await supabase
+    .from("directory_map_associations")
+    .select("directory_id, map_id")
+    .in("directory_id", ids);
+  if (error) throw error;
+  if (!assocs?.length) return {};
+  const { data: maps, error: mapsErr } = await supabase
+    .from("maps")
+    .select("id, name, slug, current_publication_id")
+    .in("id", assocs.map((a) => a.map_id));
+  if (mapsErr) throw mapsErr;
+  const mapsById = Object.fromEntries((maps ?? []).map((m) => [m.id, m]));
+  const byDirectory = {};
+  for (const a of assocs) {
+    const map = mapsById[a.map_id];
+    if (!map) continue;
+    (byDirectory[a.directory_id] ??= []).push(map);
+  }
+  return byDirectory;
 }
 
 /** The map's directory datasource association, or null if the map is self-authored. */

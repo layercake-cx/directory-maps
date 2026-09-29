@@ -102,7 +102,8 @@ dashboard pages).
 
 | Feature | Route | Description |
 |---------|-------|-------------|
-| My Maps | `/client` | Dashboard grid of maps, data-source badges, links to stats |
+| Home | `/client` | Organisation dashboard (Phase 4) — see §4.2 |
+| My Maps | `/client/maps` | Dashboard grid of maps, data-source badges, links to stats |
 | Team | `/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
 | Messaging | `/client/email` | Settings tab: enable/disable messaging, custom sending domain via Resend, contact-form prompt, email subject/opening line. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
 | Map sub-nav | `/client/maps/:id/*` | Design · Data · Stats |
@@ -118,10 +119,11 @@ route restructuring was needed to introduce it (see the Phase 1 plan for why).
 
 | Feature | Description |
 |---------|-------------|
+| Organisation home (`/client`, Phase 4 admin shell redesign) | Real stat tiles (maps/directories/team/enquiries-30d, each a real query, no fabricated numbers) + a "Needs attention" list (failed data syncs, directories with entries missing SEO metadata). No activity feed — `admin_events` has no client-scoped RLS policy yet, see `BACKLOG.md` |
 | New map | Name, slug, default center/zoom, list panel, clustering |
-| Map list | All maps for the organisation; open design, data, or stats |
+| Map list (now `/client/maps`, was `/client`) | All maps for the organisation; open design, data, or stats |
 
-Files: `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`.
+Files: `ClientHome.jsx` (new), `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`.
 
 ### 4.3 Map design & publish
 
@@ -202,6 +204,7 @@ A directory is the peer of a map — a browsable, structured list of entries not
 - **CSV export** (DIR-E1-S8) is also built: an **Export CSV** button downloads every entry (including inactive ones), fetched live, in exactly the same column order the import/template expect — including `id`, so the file round-trips back through Import CSV to update those entries rather than duplicate them. The column set was extended in the same change (`show_phone`/`show_email`/`show_website`/`show_address`, `slug`, SEO/social fields, panel-style fields) — see `docs/DIRECTORIES.md` (DIR-E1-S8) and `AGENTS.md`'s "Directory entries CSV import/export contract" note.
 - **Member-level access** is enforced via `contact_directory_permissions` (Owner/Manager always have full access; a Member needs an explicit grant, managed from the client Team page's "Directory access" column, mirroring "Map access"). This is UI-level enforcement — RLS on `directories`/`directory_entries` does not check this table, matching how `contact_map_permissions` works for maps today.
 - A top-level, cross-client admin list exists at `/admin/directories` (`AdminDirectories.jsx`), alongside the existing per-customer tab.
+- **Directories dashboard, Overview, and Gaps/category filters (Phase 4, admin shell redesign, 2026-09-29):** the directories list (`/client/directories` and admin's "Directories" tab) is now a shared `DirectoriesDashboard.jsx` component with Published/Not yet published/Archived views, a plan box (plan name + features needing a higher plan — real entitlements data; "directories used of allowance" omitted, no `max_directories` entitlement exists, see `BACKLOG.md`), and a card preview image (repurposes `seo_og_image_url`). The directory's **Overview** route is now real (entries changed since publish, gap counts, last-published info, claims by status, enquiries in 30 days, visitor-feature summary, generated file links — see `DirectoryOverviewRoute.jsx`). The Entries table has a real Gaps filter (no logo/content/SEO/not geocoded) and a generic categorisation filter (`listDirectoryEntries()`'s `gap`/`categoryTermId` options).
 
 Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
 
@@ -817,7 +820,8 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/privacy` | `Privacy` |
 | `/embed` | `EmbedMap` |
 | `/map` | `CustomDomainMap` (resolves the map by request hostname; only meaningful on a verified custom domain) |
-| `/client` | `ClientDashboard` |
+| `/client` | `ClientHome` |
+| `/client/maps` | `ClientDashboard` |
 | `/client/team` | `ClientTeam` |
 | `/client/email` | `ClientEmail` |
 | `/client/domains` | `ClientDomains` (flagged: `custom_domain`) |

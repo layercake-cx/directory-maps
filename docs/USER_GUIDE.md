@@ -58,7 +58,8 @@ rail down the left for the sections you can access:
 
 | Section | Path | Who can access |
 |---------|------|----------------|
-| **My Maps** | `/client` | All team members |
+| **Home** | `/client` | All team members — organisation dashboard: maps/directories/team counts, enquiries in the last 30 days, and a "Needs attention" list (failed data syncs, directory entries missing SEO metadata) |
+| **My Maps** | `/client/maps` | All team members |
 | **Directories** | `/client/directories` | All team members *(beta — only if enabled for your organisation)* |
 | **Categorisations** | `/client/categorisations` | Owners and managers *(beta — only if enabled for your organisation)* |
 | **Team** | `/client/team` | Owners and managers |
@@ -72,7 +73,7 @@ initial, top right) when finished.
 
 ## Your maps
 
-**My Maps** lists every map for your organisation.
+**My Maps** (`/client/maps`) lists every map for your organisation.
 
 - **New map** — Create a new directory map.
 - Click a **map name** to open the **map designer** (live preview).
@@ -102,7 +103,11 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 **Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
 
+The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
+
 A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims, Enquiries), **Insights** (Analytics), and **Settings** (General, SEO, Domain & Publishing, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Domain & Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, and Enquiries are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+
+**Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
 ### Creating a directory
 
@@ -119,6 +124,8 @@ Open a directory and go to **Content › Entries** to see its entries table:
 
 - **+ Add entry** / **Edit** — opens a full-page entry editor (no longer a modal), with tabs: **Basic Info** (name, address, postcode, country, group, website, email, phone, logo, active flag, and which contact fields show publicly once published), **Categories**, **Content** (notes plus evidence/media/accreditations/prominent links/product tiles), **Search & Metadata** (meta title/description/keywords/canonical URL/structured data type/sitemap priority/noindex, plus a **Social & AI** section for the social share title/description/image, Twitter card type, and an AI-facing summary — a **Generate with AI** button on this tab drafts the meta title/description/keywords/social title/social description/AI summary from the entry's own data in one go; the draft lands in these fields for review, nothing is saved until you click **Save metadata**. Left blank instead, any of these fields get auto-filled by AI shortly after the entry is created, or via the AI tab's **Backfill missing metadata** action (see **AI** tab below) — a banner on this tab says so once that's happened, since it's worth a quick check even though nothing you've written is ever overwritten this way), **Panel Style** (an optional image and background colour override for this entry's card on the directory homepage — e.g. a white logo that needs a dark background — with a live preview; leave blank to keep using the logo and the directory's own theme), and **Preview & Publish** (an approximate live preview of this entry's homepage card and its own page, plus the directory's Publish button — publishing always goes live for the whole directory, not just this entry; a single-entry "publish just this one" action was considered and deliberately not built once a full republish came down to a few seconds). Coordinates (latitude/longitude) aren't shown or editable — they're calculated automatically from the address.
 - **Search** — filters entries by name or address (server-side, so it works across directories of any size).
+- **Gaps filter** — narrow the table to entries missing a logo, page content, SEO metadata, or coordinates.
+- **Category filter** — narrow the table to entries tagged with one specific categorisation term (only shown once your organisation has attached at least one categorisation to the directory).
 - **Delete** — requires typing **DELETE** to confirm, since it can't be undone.
 - **Group** — a simple, single-value category per directory (add new groups inline from the Basic Info tab). This is distinct from the richer, reusable categorisation model planned for a later phase.
 - **Logo** — paste a hosted image URL, or (once the entry has been saved once) upload a PNG/JPG/WebP file directly (max 2 MB); uploading replaces any previous file-based logo.

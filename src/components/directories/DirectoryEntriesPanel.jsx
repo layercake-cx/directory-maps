@@ -106,6 +106,8 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [gap, setGap] = useState("");
+  const [categoryTermId, setCategoryTermId] = useState("");
 
   const [groups, setGroups] = useState([]);
 
@@ -138,7 +140,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     if (!directoryId) return;
     setLoading(true);
     try {
-      const { rows: r, count: c } = await listDirectoryEntries(directoryId, { search, page });
+      const { rows: r, count: c } = await listDirectoryEntries(directoryId, { search, page, gap: gap || null, categoryTermId: categoryTermId || null });
       setRows(r);
       setCount(c);
       setErr("");
@@ -147,7 +149,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     } finally {
       setLoading(false);
     }
-  }, [directoryId, search, page]);
+  }, [directoryId, search, page, gap, categoryTermId]);
 
   useEffect(() => {
     void refresh();
@@ -169,7 +171,12 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   // clear it whenever the underlying result set changes so stale ids can't linger.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [directoryId, search, page]);
+  }, [directoryId, search, page, gap, categoryTermId]);
+
+  // Gaps/categorisation filters (Phase 4, admin shell redesign) reset to page 0 like search does.
+  useEffect(() => {
+    setPage(0);
+  }, [gap, categoryTermId]);
 
   // Debounce search input so it doesn't fire a query per keystroke.
   const [searchInput, setSearchInput] = useState("");
@@ -577,13 +584,34 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
       {geocodeMsg && <Alert color="green" variant="light">{geocodeMsg}</Alert>}
 
-      <input
-        type="text"
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        placeholder="Search by name or address…"
-        style={{ maxWidth: 380, ...inputStyle }}
-      />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name or address…"
+          style={{ maxWidth: 380, ...inputStyle }}
+        />
+        <select value={gap} onChange={(e) => setGap(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
+          <option value="">All entries</option>
+          <option value="no_logo">Gap: no logo</option>
+          <option value="no_content">Gap: no page content</option>
+          <option value="no_seo">Gap: no SEO metadata</option>
+          <option value="not_geocoded">Gap: not geocoded</option>
+        </select>
+        {categorisations.length > 0 && (
+          <select value={categoryTermId} onChange={(e) => setCategoryTermId(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
+            <option value="">All categories</option>
+            {categorisations.map((cat) => (
+              <optgroup key={cat.id} label={cat.label}>
+                {(cat.terms ?? []).map((term) => (
+                  <option key={term.id} value={term.id}>{term.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
+      </div>
 
       {canEdit && importOpen && (
         <div className="admin-card" style={{ padding: 16 }}>

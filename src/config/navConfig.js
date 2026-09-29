@@ -12,15 +12,13 @@ import { canManageOrg } from "../lib/clientAuth.js";
  *
  * `staffRoute(clientId)` (Phase 3): when staff are viewing a specific customer's workspace
  * (`/admin/clients/:clientId/...`, rendered in this same client-context shell — see
- * AdminLayout.jsx), these resolve to that customer's equivalent admin route instead of the real
- * client portal's `/client/...` routes. Several collapse to the same href (Team/Messaging/
- * Domains/Categorisations/Directories/Maps all live as tabs on one AdminClientDetail page) —
- * that's real, not a placeholder: there's no separate list route for any of these today (see
- * BACKLOG.md), same as Home/My maps already collapsing to one href in the real client rail.
+ * AdminLayout.jsx), these resolve to that customer's equivalent admin route (each of
+ * `AdminClientDetail`'s route-driven tabs, per Phase 3) instead of the real client portal's
+ * `/client/...` routes.
  */
 export const CLIENT_RAIL = [
   { id: "home", label: "Home", icon: "home", route: "/client", staffRoute: (clientId) => `/admin/clients/${clientId}` },
-  { id: "maps", label: "My maps", icon: "map", route: "/client", staffRoute: (clientId) => `/admin/clients/${clientId}` },
+  { id: "maps", label: "My maps", icon: "map", route: "/client/maps", staffRoute: (clientId) => `/admin/clients/${clientId}/maps` },
   {
     id: "directories",
     label: "Directories",

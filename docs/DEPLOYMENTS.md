@@ -8,6 +8,64 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Admin shell redesign — Phase 4: new pages from built data
+
+**Branch/PR:** [`feat/2026-09-29-admin-shell-phase-4-new-pages`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-4-new-pages) (PR pending).
+**Deployed by:** Claude Code, completing the admin shell redesign per Damian's design pack — Phase 4 of 4, the final phase ("New pages from built data").
+
+### What changed
+
+Research found most of this phase genuinely buildable from existing tables/RPCs, contrary to what
+`BACKLOG.md`'s Phase 1 size guesses assumed — only two real gaps needed a migration (deliberately
+not attempted this session, see below).
+
+- **Organisation home** — new `ClientHome.jsx` at `/client` (real stat tiles: maps/directories
+  counts + published counts, team size, enquiries in 30 days across both maps and directories;
+  a "Needs attention" list from failed syncs + directories with entries missing SEO metadata). The
+  old maps grid (`ClientDashboard.jsx`) moves unchanged to `/client/maps` — resolves the standing
+  "My maps distinct from Home" gap.
+- **Directories dashboard** — new shared `DirectoriesDashboard.jsx` (Published/Not yet
+  published/Archived views, a plan box, a card preview image, linked-map-per-card), used by both
+  `ClientDirectories.jsx` and `AdminClientDetail.jsx`'s "Directories" tab (previously a separate,
+  simpler inline reimplementation) — one component, two contexts, matching the parity rule from
+  earlier phases.
+- **Directory overview** — `DirectoryOverviewRoute.jsx` replaces its Phase 2 stub with real tiles:
+  entries changed since publish, gap counts, last-published info, claims by status, enquiries in
+  30 days, visitor-feature summary, generated file links (sitemap.xml/robots.txt/llms.txt).
+- **Entries table** — a real Gaps filter (no logo/content/SEO/not geocoded) and a generic
+  categorisation filter, both server-side (`listDirectoryEntries()`'s new `gap`/`categoryTermId`
+  options — filters added without widening the query's existing narrow column set, per that
+  function's own documented reasoning for keeping it narrow).
+
+Two things explicitly NOT built, logged in `BACKLOG.md` instead: a client-facing recent-activity
+feed (`admin_events` has no client-scoped RLS policy — admin-only today) and "directories used of
+allowance" in the plan box (no `max_directories` entitlement exists, unlike the real seeded
+`max_maps` one). Both need a migration, out of scope for this session's ordinary work.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — see "What changed". `npm run build` passes clean. The bare `/client` URL's content
+  changes meaning (Home dashboard instead of the maps grid) — intentional, per the IA; the maps
+  grid itself is unchanged, just moved to `/client/maps`.
+
+### Rollback plan
+Revert the merge commit — no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated `/client`, `/client/maps`, `/client/directories`, a directory route, and the
+      admin equivalents all render with no console errors
+- [ ] Authenticated click-through of the new Home tiles, Directories dashboard views, Directory
+      overview tiles, and Entries Gaps/category filters — not done by the agent (same
+      test-credentials constraint as prior phases); Damian to verify
+
+---
+
 ## 2026-09-29 — [Production] Admin shell redesign — Phase 3: staff and platform
 
 **Branch/PR:** [#261](https://github.com/layercake-cx/directory-maps/pull/261), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).

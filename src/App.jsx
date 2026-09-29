@@ -48,6 +48,7 @@ import AdminDirectoryEntryEdit from "./pages/admin/AdminDirectoryEntryEdit.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
+import ClientHome from "./pages/client/ClientHome.jsx";
 import ClientTeam from "./pages/client/ClientTeam.jsx";
 import ClientEmail from "./pages/client/ClientEmail.jsx";
 import ClientDomains from "./pages/client/ClientDomains.jsx";
@@ -105,7 +106,8 @@ export default function App() {
           </ClientGate>
         }
       >
-        <Route index element={<ClientDashboard />} />
+        <Route index element={<ClientHome />} />
+        <Route path="maps" element={<ClientDashboard />} />
         <Route path="team" element={<ClientTeam />} />
         <Route path="email" element={<ClientEmail />} />
         <Route path="domains" element={<FeatureGate flag={CUSTOM_DOMAIN_FLAG}><ClientDomains /></FeatureGate>} />
