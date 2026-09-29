@@ -8,6 +8,57 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Admin shell redesign — Phase 1: tokens + shell
+
+**Branch/PR:** [`feat/2026-09-29-admin-shell-redesign`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-redesign) (PR pending).
+**Deployed by:** Claude Code, from a design pack (`docs/design/admin-shell/`) Damian supplied for a full navigation-shell redesign of the client portal and admin console, split into 4 phases with a review stop after each. This is Phase 1 only.
+
+### What changed
+
+Both the client portal and the admin console now share one 3-layer nav shell — a top bar (logo,
+workspace switcher, search placeholder, support link, account menu), a dark icon rail for the
+current context's sections, and an as-yet-unused `FeaturePanel` (feature-level nav, wired up in
+Phase 2) — replacing the old `client-nav` text bar and the admin-only `ADMIN_NAV` header bar.
+
+New: `src/components/shell/{AppShell,TopBar,Rail,WorkspaceSwitcher,FeaturePanel,AvatarMenu}.jsx`,
+`src/components/icons/shellIcons.jsx`, `src/config/navConfig.js`,
+`src/styles/admin-shell-tokens.css`, `src/styles/admin-shell.css`, `BACKLOG.md`,
+`docs/design/admin-shell/` (the design pack itself, committed for future phases).
+
+Changed: `src/pages/client/ClientLayout.jsx` and `src/pages/admin/AdminLayout.jsx` now render
+`AppShell` instead of their own bespoke header/nav — every admin page keeps importing
+`AdminLayout` exactly as before (same prop contract), so **no admin route restructuring was
+needed** despite that being the original plan; `index.html` gained a second Google Fonts link
+(Source Serif 4 + Public Sans) scoped to the new shell only, existing DM Sans/Poppins untouched.
+
+Deliberately deferred to later phases (see `BACKLOG.md`): directory tab/panel restructuring,
+rendering staff-in-client-workspace (`/admin/clients/:clientId/...`) inside the client-context
+shell (all `/admin/*` routes render in the platform shell in Phase 1), real workspace-switcher
+search/recently-viewed, global search, responsive collapse below 1024/640px, and token
+unification across the app's now-three coexisting token systems.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — see "What changed" above. `npm run build` passes clean. No route paths changed.
+
+### Rollback plan
+Revert the merge commit — purely additive/structural component and CSS changes, no data or schema impact.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated pages (`/login`, `/admin` sign-in) load with no console errors
+- [ ] Authenticated click-through of the new shell on both a client and an admin page — not done
+      by the agent this session (no test credentials for the `beqejxneehilplrtpntn` project;
+      Damian opted to verify this himself rather than have a disposable test account created)
+- [ ] Keyboard-only Tab-through of Rail/Switcher/avatar menu — pending the above
+
+---
+
 ## 2026-09-29 — [Production] Fix: previous fix never actually reached a published page
 
 **Branch/PR:** [`fix/2026-09-29-entry-template-version-bump`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-entry-template-version-bump) (PR pending).

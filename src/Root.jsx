@@ -12,10 +12,14 @@ import { isEmbedPath } from "./lib/embedRoutes.js";
 function Layout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
+  const isClient = location.pathname.startsWith("/client");
   const isEmbed = isEmbedPath(location.pathname);
   const isSignUpSplit = location.pathname === "/signup";
   const isLandingPage = location.pathname === "/";
-  const showSiteHeader = !isAdmin && !isSignUpSplit && !isEmbed;
+  // /client and /admin both render their own AppShell (logo, workspace switcher, account
+  // menu) since the admin shell redesign — the marketing SiteHeader would otherwise stack
+  // on top of it, duplicating branding and the account menu.
+  const showSiteHeader = !isAdmin && !isClient && !isSignUpSplit && !isEmbed;
   const showFooter = !isEmbed && !isSignUpSplit;
 
   useEffect(() => {

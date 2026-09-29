@@ -53,7 +53,8 @@ Forgot your password? Use **Forgot password** on the login page.
 
 ## Client portal navigation
 
-After sign-in you’ll see:
+After sign-in you'll see a top bar (logo, search, support, your account menu) and a dark icon
+rail down the left for the sections you can access:
 
 | Section | Path | Who can access |
 |---------|------|----------------|
@@ -61,9 +62,11 @@ After sign-in you’ll see:
 | **Directories** | `/client/directories` | All team members *(beta — only if enabled for your organisation)* |
 | **Categorisations** | `/client/categorisations` | Owners and managers *(beta — only if enabled for your organisation)* |
 | **Team** | `/client/team` | Owners and managers |
-| **Email** | `/client/email` | Users who can manage maps |
+| **Messaging** | `/client/email` | Users who can manage maps |
+| **Domains** | `/client/domains` | Users who can manage maps *(beta — only if enabled for your organisation)* |
 
-Sign out from the header when finished.
+Hover or focus a rail icon to see its label as a tooltip. Sign out from the account menu (your
+initial, top right) when finished.
 
 ---
 

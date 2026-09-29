@@ -89,6 +89,17 @@ flowchart LR
 
 ### 4.1 Navigation & layout
 
+Since the admin shell redesign (2026-09-29, Phase 1), both the client portal and the admin
+console share one nav shell: a top bar (logo, workspace switcher, search, support, account menu)
+and a dark icon rail for the current context's sections — replacing the old `client-nav` text bar
+and the admin-only `ADMIN_NAV` header bar respectively. Shared components:
+`src/components/shell/{AppShell,TopBar,Rail,WorkspaceSwitcher,FeaturePanel,AvatarMenu}.jsx`,
+config in `src/config/navConfig.js`, tokens/classes in `src/styles/admin-shell-tokens.css` and
+`src/styles/admin-shell.css`. `FeaturePanel` (the third nav layer, feature-level navigation) exists
+but isn't wired into any page yet — see `BACKLOG.md` and `docs/design/admin-shell/BUILD_BRIEF.md`
+for the remaining phases (directory tab restructuring, staff/platform workspace switching, new
+dashboard pages).
+
 | Feature | Route | Description |
 |---------|-------|-------------|
 | My Maps | `/client` | Dashboard grid of maps, data-source badges, links to stats |
@@ -96,7 +107,12 @@ flowchart LR
 | Messaging | `/client/email` | Settings tab: enable/disable messaging, custom sending domain via Resend, contact-form prompt, email subject/opening line. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
 | Map sub-nav | `/client/maps/:id/*` | Design · Data · Stats |
 
-Layout: `src/pages/client/ClientLayout.jsx` · Context: `ClientContext`, `getClientAndContact.js`.
+Layout: `src/pages/client/ClientLayout.jsx` (renders `AppShell context="client"`) ·
+Context: `ClientContext`, `getClientAndContact.js`.
+
+Admin console shares the same shell (`AppShell context="platform"`) via
+`src/pages/admin/AdminLayout.jsx`, which every admin page still wraps its content in — no admin
+route restructuring was needed to introduce it (see the Phase 1 plan for why).
 
 ### 4.2 Maps — create & list
 

@@ -1,0 +1,67 @@
+/* Layercake Maps admin: design tokens.
+   Two layers:
+   1. Brand/chrome tokens (--lc-*): Layercake's own colours. Fixed for every customer.
+   2. Content tokens: the same names as the directory entry page pack (--accent, --ground, --line...).
+      In the admin these are the admin's working accent. Keep them as variables so a later
+      decision to theme the admin per directory is a one-line change. */
+:root {
+  /* Layercake brand (chrome only: header, rail, workspace switcher) */
+  --lc-teal: #1A9EAD;          /* header band, active rail item, switcher focus. White text on it fails AA below 24px: put white controls with ink text on it instead */
+  --lc-teal-dark: #0F6A73;
+  --lc-teal-tint: #E8F4F5;
+  --lc-ink: #14191c;           /* rail, platform header */
+  --lc-ink-raised: #232a2e;    /* inputs on ink */
+  --lc-ink-line: #3a4348;      /* borders on ink */
+  --lc-on-ink: #ffffff;
+  --lc-on-ink-soft: #c9cfd2;   /* inactive rail icons */
+
+  /* Working accent + surfaces (same names as the entry page pack) */
+  --accent: #0f5e63;           /* primary buttons, links, focus rings, selected tab underline */
+  --accent-hover: #0a4346;
+  --accent-tint: #e6f0ef;      /* selected nav item, selected row, positive pill */
+  --accent-tint-text: #0b4a4e;
+  --ground: #f4f2ee;           /* page background */
+  --surface: #ffffff;          /* panels, cards, side panel */
+  --line: #e3dfd8;             /* 1px borders */
+  --line-soft: #efece6;        /* table row dividers */
+  --chip-neutral: #efece6;     /* neutral pill / count badge */
+  --ink: #14191c;              /* headings */
+  --text: #2c3338;
+  --text-soft: #454d52;
+  --text-muted: #5c6469;       /* meets 4.5:1 on white and on --ground */
+
+  /* Status */
+  --warn-bg: #fbefd9;          /* "Unpublished changes", "Not geocoded" */
+  --warn-text: #7a4a06;
+  --danger: #a3281c;           /* destructive icon buttons, Delete */
+
+  /* Type */
+  --font-display: 'Source Serif 4', Georgia, serif;   /* H1, H2, panel names, big numbers */
+  --font-body: 'Public Sans', system-ui, sans-serif;  /* everything else */
+  --fs-h1: 40px;               /* page title (org home 44px) */
+  --fs-h2: 22px;               /* card/section title */
+  --fs-panel-title: 24px;      /* side panel heading */
+  --fs-stat: 34px;             /* stat tile number */
+  --fs-body: 15px;
+  --fs-ui: 14px;               /* nav items, buttons, table cells */
+  --fs-small: 13px;
+  --fs-label: 12px;            /* uppercase group labels, pills, table headers */
+  --tracking-label: 0.08em;
+
+  /* Layout */
+  --header-h: 52px;
+  --rail-w: 64px;
+  --panel-w: 272px;            /* feature side panel */
+  --main-pad-x: 40px;
+  --main-pad-top: 28px;
+  --gap-section: 24px;
+
+  /* Shape */
+  --radius-panel: 16px;
+  --radius-card: 14px;
+  --radius-control: 10px;      /* buttons, inputs */
+  --radius-item: 8px;          /* nav items, small buttons */
+  --control-h: 44px;           /* minimum touch target */
+  --nav-item-h: 36px;
+  --icon-stroke: 1.8;
+}
