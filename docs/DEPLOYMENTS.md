@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Production] Admin shell redesign — Phases 1 & 2 merged and deployed
+
+**Branch/PR:** [#258](https://github.com/layercake-cx/directory-maps/pull/258) (Phase 1, tokens + shell) and [#259](https://github.com/layercake-cx/directory-maps/pull/259) (Phase 2, directory navigation), both merged to `main` back-to-back.
+**Deployed by:** Claude Code, at Damian's explicit request to deploy both to production.
+
+### What changed
+
+See the two entries below for the full detail of each phase. Both merged cleanly (CI green on
+both PRs beforehand), GitHub Pages auto-deployed on push to `main`
+(`layercake-cx.github.io/directory-maps/`), and `npm run deploy:live` was run to push the same
+build to the Vercel production project (aliases including `uk-associations.com`, and this
+project's other configured production domains).
+
+### Database migrations applied
+- None (both phases were frontend-only).
+
+### Edge Functions deployed
+- None.
+
+### Frontend
+- Yes — both phases' full diff, now live on both GitHub Pages and Vercel production.
+
+### Rollback plan
+Revert PR #259's merge commit, then #258's, on `main`; redeploy (`npm run deploy:live` +
+GitHub Pages auto-deploys on the revert push). No data/schema impact either direction.
+
+### Verified
+- [x] CI green on both PRs before merge
+- [x] `npm run build` clean (verified pre-merge on each branch)
+- [x] Vercel production deploy completed successfully (`readyState: READY`, aliased to
+      `uk-associations.com`)
+- [ ] **Full authenticated click-through has not been done** — this went straight from
+      unauthenticated smoke-testing to a requested production deploy, skipping the usual
+      staging-verify-then-sign-off sequence, at Damian's explicit instruction. Watch for reports
+      of anything visually off in the new shell/directory nav.
+
+---
+
 ## 2026-09-29 — [Staging] Admin shell redesign — Phase 2: directory navigation
 
 **Branch/PR:** [`feat/2026-09-29-admin-shell-phase-2-directory-nav`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-2-directory-nav) (stacked on Phase 1's branch, PR pending).
