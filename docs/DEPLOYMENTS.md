@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-28 — [Staging] Directory entry page redesign
+## 2026-09-28 — [Production] Directory entry page redesign
 
 **Branch/PR:** [`feat/2026-09-28-directory-entry-redesign`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-28-directory-entry-redesign) (PR not yet opened).
 **Deployed by:** Claude Code, from a design pack (`BUILD_BRIEF.md`, `tokens.css`, `sample-entry.json`, `reference/entry.html`) the user attached, fixing four named problems with the published entry/listing page: a too-narrow logo tile, a cramped H1, contact details buried below the map, and several actions (Visit website, Directory map, Claim this listing) each appearing more than once.
@@ -28,22 +28,25 @@ Rewrote `buildEntryPage()` in `supabase/functions/generate_directory_site/builde
 - None.
 
 ### Edge Functions deployed
-- None yet — `generate_directory_site` not yet deployed to either project. Next step: staging (`beqejxneehilplrtpntn`), then production only after the user verifies staging and explicitly asks.
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`), then production (`gxixwdjfmegxcxfeflro`), both on explicit user request. No test login credentials this session for a full authenticated click-through against either environment (a recurring, documented gap in this log); relied on `deno check` + the local preview script instead, same limitation several other entries above have flagged rather than silently skipped.
+- **Rollout note (confirmed live):** an already-published directory does **not** pick up this template automatically just because the function redeployed — checked `https://maps.layercake-cx.biz/directories/l-cakez/uk-association-directory/boon-lott-s-elephant-sanctuary` post-deploy and it still serves the old `dir-entry-header` markup, exactly as expected (nothing re-publishes on its own). It'll rebuild with the new template — every entry, full rebuild — the next time that directory is published, because `ENTRY_TEMPLATE_VERSION` now mismatches `chromeHash`. Did not trigger a publish on this real directory to avoid pushing a content change to whichever client owns it without them asking.
 
 ### Frontend
 - `npm run build` — compiles cleanly.
 - `deno check` clean on `builders.ts`, `index.ts`, `preview.ts`.
-- Not yet pushed/deployed — GitHub Pages and Vercel production deploy automatically/via script once this merges to `main`.
+- GitHub Pages: deployed automatically on merge (`gh run list` confirms success).
+- Vercel production: `npm run deploy:live`, on explicit user request — aliased to `uk-associations.com` and the project's other production aliases (`maps.layercake-cx.biz` returns 200 post-deploy).
 
 ### Rollback plan
-Revert the merge commit on `main` (or, pre-merge, just don't merge the branch) — no migrations, no destructive data changes. If this has already reached production and needs to come back off: redeploy `generate_directory_site` from the previous commit's `builders.ts`/`index.ts`, which reverts `ENTRY_TEMPLATE_VERSION` and lets the next Publish rebuild back to the old template.
+Revert the merge commit on `main`, then redeploy `generate_directory_site` to both projects from the reverted `builders.ts`/`index.ts` — this reverts `ENTRY_TEMPLATE_VERSION` too, so the next Publish on any directory rebuilds back to the old template. No migrations, no destructive data changes either direction. Re-run `npm run deploy:live` for the frontend if the React-side change (`EmbedMap.jsx`'s `focus` param) also needs pulling back, though that change is purely additive and inert without the `focus=` query param, so leaving it in place is lower-risk than reverting it separately.
 
 ### Verified
 - [x] `npm run build` — frontend compiles cleanly
 - [x] `deno check` — all three Edge Function files typecheck
 - [x] Verified via the local preview script (`supabase/functions/generate_directory_site/preview.ts`) at desktop and mobile (360px) widths — hero/logo/chips/contact panel/map card/attributes/related all render as designed; JSON-LD (`Organization`/`LocalBusiness` + `BreadcrumbList`) inspected directly in the browser
-- [ ] Not yet deployed to staging — no real directory with an attached map exercised yet, so the `focus=` param's pan/zoom/select behaviour is unverified against live data
-- [ ] Entry editor's "Preview & Publish" tab not re-checked in a running app this session (no code change expected there — it only previews reorderable body blocks, none of which changed type — but worth a visual pass before shipping)
+- [x] `generate_directory_site` deployed to staging then production; `gh run list` confirms the GitHub Pages deploy succeeded; `npm run deploy:live` succeeded and `https://maps.layercake-cx.biz` returns 200 post-deploy
+- [ ] No real directory republished yet to confirm the new template renders end-to-end against live data — checked an already-published test entry instead and confirmed it correctly still shows the *old* markup (nothing silently changed), which is the expected, intended behaviour until that directory's owner next clicks Publish
+- [ ] No test login credentials this session for an authenticated click-through of the `focus=` param's live pan/zoom/select behaviour against a real attached map, or of the entry editor's "Preview & Publish" tab (no code change expected there, since it only previews reorderable body blocks, none of which changed type)
 
 ---
 
