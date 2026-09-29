@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Staging] Admin shell redesign — Phase 3: staff and platform
+## 2026-09-29 — [Production] Admin shell redesign — Phase 3: staff and platform
 
-**Branch/PR:** [`feat/2026-09-29-admin-shell-phase-3-staff-platform`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-3-staff-platform) (PR pending).
-**Deployed by:** Claude Code, continuing the admin shell redesign per Damian's design pack, Phase 3 of 4 ("Staff and platform").
+**Branch/PR:** [#261](https://github.com/layercake-cx/directory-maps/pull/261), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).
+**Deployed by:** Claude Code, continuing the admin shell redesign per Damian's design pack, Phase 3 of 4 ("Staff and platform"), at Damian's explicit request — "deploy, we can fix forwards."
 
 ### What changed
 
@@ -53,6 +53,12 @@ Revert the merge commit — no data/schema impact either direction.
 - [x] `npm run build` clean
 - [x] Unauthenticated admin routes (including the new `:tab` route, `/admin/clients/new`, a map
       detail route) render their sign-in gate with no console errors
+- [x] CI green on PR #261 before merge; `gh run list` confirms both GitHub Pages and Vercel
+      production deploys completed (`readyState: READY`, aliased to `uk-associations.com`)
+- [ ] **Authenticated click-through not done before this deploy** — shipped on Damian's explicit
+      "deploy, we can fix forwards" instruction, skipping the usual staging-verify step. Watch
+      for reports of anything off in the staff/client-shell flip or the 8 `AdminClientDetail`
+      tabs.
 - [ ] Authenticated click-through of the staff/client-shell flip, all 8 `AdminClientDetail` tabs,
       and "Recently viewed" populating — not done by the agent (same test-credentials constraint
       as prior phases); Damian to verify
