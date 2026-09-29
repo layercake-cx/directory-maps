@@ -27,8 +27,17 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * already forces a full rebuild (see docs/DEPLOYMENTS.md's 2026-09-27
  * "claim settings weren't tracked by any publish hash" entry for the same
  * category of bug this pre-empts).
+ *
+ * v2 -> v3 (2026-09-29) is the cautionary tale: a bug-fix deploy to this
+ * file (panel_background_color on the entry logo tile) shipped WITHOUT
+ * bumping this constant. The next ordinary Publish on an affected directory
+ * did an incremental rebuild (nothing else about it had changed), so the fix
+ * silently didn't reach any already-published entry — exactly the failure
+ * this constant exists to prevent, caused by forgetting to bump it. Bump it
+ * for every deploy that changes this file's HTML/CSS output, not just ones
+ * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 2;
+export const ENTRY_TEMPLATE_VERSION = 3;
 
 export type Entry = {
   id: string;
