@@ -8,10 +8,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Staging] Restyle every page wrapper onto the new design system
+## 2026-09-29 — [Production] Restyle every page wrapper onto the new design system
 
-**Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269).
-**Preview URL:** https://directory-maps-82i7v7g18-layercake-apps.vercel.app (Vercel deployment protection is on — sign in with the `layercake-apps` Vercel team to view).
+**Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269) — merged to `main` at Damian's "merge" instruction.
+**Preview URL (pre-merge):** https://directory-maps-82i7v7g18-layercake-apps.vercel.app (Vercel deployment protection is on — sign in with the `layercake-apps` Vercel team to view).
+**Production status:** GitHub Pages (`layercake-cx.github.io/directory-maps/`) auto-deploys on every push to `main` — no manual step needed, already live there. The Vercel production deploy (the real branded domains, e.g. `uk-associations.com`) is separate and requires an explicit `npm run deploy:live` with user sign-off per `AGENTS.md` — **not yet run**; the real branded domain is still on the pre-merge build until that's done.
 **Deployed by:** Claude Code, at Damian's report (from using the live app) that page bodies looked visually inconsistent with the new shell chrome around them, then his direct screenshot feedback (HubSpot spacing reference; "three different styles on three pages"; "messaging has a white box around it, I'd be removing that"); then his "keep going page by page, almost every page needs this treatment" — extended to cover the whole admin console too.
 
 ### What changed
