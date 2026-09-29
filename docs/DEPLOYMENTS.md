@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Staging] Directory Insights › Analytics dashboard
+## 2026-09-29 — [Production] Directory Insights › Analytics dashboard
 
-**Branch/PR:** [`feat/2026-09-29-directory-insights-analytics`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-directory-insights-analytics) (PR pending).
-**Deployed by:** Claude Code, picked from `BACKLOG.md` as the first follow-up after the 4-phase admin shell redesign.
+**Branch/PR:** [#266](https://github.com/layercake-cx/directory-maps/pull/266), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).
+**Deployed by:** Claude Code, picked from `BACKLOG.md` as the first follow-up after the 4-phase admin shell redesign, at Damian's explicit request.
 
 ### What changed
 
@@ -49,6 +49,8 @@ its data are untouched, this only adds a UI that reads them.
 - [x] `npm run build` clean
 - [x] Unauthenticated `/client/directories/:id/analytics` and the admin equivalent render with no
       console errors
+- [x] CI green on PR #266 before merge; both GitHub Pages and Vercel production deploys completed
+      (`readyState: READY`, aliased to `uk-associations.com`)
 - [ ] Authenticated view with real event data — not done by the agent (same test-credentials
       constraint as the admin shell redesign phases); Damian to verify
 
