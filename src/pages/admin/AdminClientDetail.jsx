@@ -425,7 +425,7 @@ export default function AdminClientDetail() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         {loading ? (
           <p>Loading…</p>
         ) : (
@@ -437,10 +437,10 @@ export default function AdminClientDetail() {
             {activeTab === "maps" && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Maps</h3>
+                  <p className="card-title" style={{ margin: 0 }}>Maps</p>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="shell-btn shell-btn--primary"
                     onClick={() => {
                       const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
                       if (atMapLimit) {
@@ -506,14 +506,14 @@ export default function AdminClientDetail() {
 
             {activeTab === "categorisations" && (
               <div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Categorisations</h3>
+                <p className="card-title" style={{ marginBottom: 16 }}>Categorisations</p>
                 <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 
             {activeTab === "entitlements" && (
               <div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Entitlements</h3>
+                <p className="card-title" style={{ marginBottom: 16 }}>Entitlements</p>
                 <EntitlementsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
@@ -521,7 +521,7 @@ export default function AdminClientDetail() {
             {activeTab === "details" && (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  <h2 style={{ margin: "0 0 8px 0" }}>Customer details</h2>
+                  <p className="card-title" style={{ marginBottom: 8 }}>Customer details</p>
                   <div style={{ fontSize: 12, opacity: 0.7 }}>ID: {client?.id ?? "—"}</div>
                 </div>
 
@@ -647,7 +647,7 @@ export default function AdminClientDetail() {
                   </Field>
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <button className="btn btn-primary" type="submit" disabled={saving}>
+                    <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
                       {saving ? "Saving…" : "Save changes"}
                     </button>
                   </div>
@@ -658,7 +658,7 @@ export default function AdminClientDetail() {
             {activeTab === "users" && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Users</h3>
+                  <p className="card-title" style={{ margin: 0 }}>Users</p>
                   <form onSubmit={handleAddUser} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     <input
                       type="email"
@@ -690,7 +690,7 @@ export default function AdminClientDetail() {
                       />
                       Manage users
                     </label>
-                    <button type="submit" className="btn btn-primary" disabled={adding}>
+                    <button type="submit" className="shell-btn shell-btn--primary" disabled={adding}>
                       {adding ? "Adding…" : "Add user"}
                     </button>
                   </form>
