@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import CustomersFeaturePanel from "../../components/shell/CustomersFeaturePanel.jsx";
 import { Link } from "react-router-dom";
@@ -179,11 +178,6 @@ export default function AdminClients() {
         />
       }
       breadcrumbs={[{ label: "Customers" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div className="admin-controls">

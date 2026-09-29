@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 
 /** Geocode via Supabase Edge Function. No auth header: deploy with --no-verify-jwt (see scripts/test-geocode.md). */
@@ -216,11 +215,6 @@ export default function AdminMapListings() {
         { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
         { label: "Listings" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -68,11 +67,6 @@ export default function AdminUserDetail() {
         { label: "Admin Users", path: "/admin/users" },
         { label: displayName || "User" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>

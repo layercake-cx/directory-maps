@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -106,11 +105,6 @@ export default function AdminDeployments() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Deployments" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <p className="card-title">Deployments</p>

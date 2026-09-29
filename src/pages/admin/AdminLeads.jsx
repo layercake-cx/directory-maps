@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { signOut } from "../../lib/auth";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
@@ -72,11 +71,6 @@ export default function AdminLeads() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Leads" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>

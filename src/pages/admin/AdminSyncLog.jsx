@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
@@ -78,7 +77,6 @@ export default function AdminSyncLog() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Sync log" }]}
-      rightActions={<button onClick={signOut} type="button">Sign out</button>}
     >
       <div style={{ maxWidth: 1100 }}>
         <div style={{ marginBottom: 20 }}>

@@ -2,7 +2,6 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
@@ -1987,14 +1986,9 @@ export default function AdminMapDashboard() {
       ]}
       mainClassName="admin-main--map-page"
       rightActions={
-        <>
-          <button className="btn btn-primary" type="button" onClick={saveMap} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button onClick={signOut} type="button">
-            Sign out
-          </button>
-        </>
+        <button className="shell-btn shell-btn--primary" type="button" onClick={saveMap} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
       }
     >
       <div className="admin-map-page">
