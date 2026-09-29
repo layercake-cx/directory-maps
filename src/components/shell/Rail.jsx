@@ -4,20 +4,22 @@ import { NAV_CONFIG } from "../../config/navConfig.js";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags.js";
 import { RAIL_ICONS } from "../icons/shellIcons.jsx";
 
+// "/client" is a literal prefix of every other client route, so Home needs an explicit exclusion
+// list (every sibling rail item's own href) or it would show active everywhere. "My maps" got its
+// own distinct route in Phase 4 (previously collapsed with Home — see BACKLOG.md, now resolved),
+// so it's included here too.
 const CLIENT_HOME_EXCLUDED_PREFIXES = [
+  "/client/maps",
   "/client/team",
   "/client/email",
   "/client/domains",
-  "/client/maps/",
   "/client/directories",
   "/client/categorisations",
 ];
 
-// Same "Home"/"My maps" collapse-to-one-href pattern as the real client rail (see plan doc),
-// now that staff-in-customer-workspace routes exist too (Phase 3) — these are the OTHER
-// staffRoute suffixes (relative to /admin/clients/:clientId) plus the map-detail pattern, whose
-// own sub-nav (MapEditSubNav) should take over instead of Home/My maps showing active.
-const STAFF_HOME_EXCLUDED_SUFFIXES = ["/details", "/entitlements", "/categorisations", "/users", "/messaging", "/domains", "/directories", "/maps/"];
+// Same idea for staff-in-customer-workspace routes (Phase 3): Home's href
+// (/admin/clients/:clientId) is a prefix of every other rail item's staffRoute.
+const STAFF_HOME_EXCLUDED_SUFFIXES = ["/details", "/entitlements", "/categorisations", "/users", "/messaging", "/domains", "/directories", "/maps"];
 
 function isRailItemActive(route, pathname, isCollapsedHome) {
   if (isCollapsedHome) {
@@ -57,7 +59,7 @@ export default function Rail({ context, isStaff, contact, clientId }) {
   function renderItem(item) {
     const IconComponent = RAIL_ICONS[item.icon];
     const href = isStaff && clientId && item.staffRoute ? item.staffRoute(clientId) : item.route;
-    const isCollapsedHome = item.id === "home" || item.id === "maps";
+    const isCollapsedHome = item.id === "home";
     const active = isRailItemActive(href, pathname, isCollapsedHome);
     return (
       <Link

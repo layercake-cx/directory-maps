@@ -7,6 +7,7 @@ import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminCli
 import MessagingPanel from "../../components/MessagingPanel.jsx";
 import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
+import DirectoriesDashboard from "../../components/directories/DirectoriesDashboard.jsx";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
 import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
@@ -495,42 +496,12 @@ export default function AdminClientDetail() {
             )}
 
             {activeTab === "directories" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Directories</h3>
-                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}>
-                    New directory
-                  </Link>
-                </div>
-
-                {directories.length === 0 ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>No directories yet for this customer.</p>
-                ) : (
-                  <table className="admin-table" style={{ marginTop: 0 }}>
-                    <thead>
-                      <tr>
-                        {["Directory", "Slug", "Entries"].map((h) => (
-                          <th key={h}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {directories.map((d) => (
-                        <tr key={d.id}>
-                          <td>
-                            <Link to={`/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(d.id)}`}>
-                              {d.name}
-                            </Link>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{d.id}</div>
-                          </td>
-                          <td>{d.slug}</td>
-                          <td>{d.directory_entries?.[0]?.count ?? 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              <DirectoriesDashboard
+                clientId={clientId}
+                canManage
+                basePath={`/admin/clients/${encodeURIComponent(clientId)}/directories`}
+                newHref={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}
+              />
             )}
 
             {activeTab === "categorisations" && (
