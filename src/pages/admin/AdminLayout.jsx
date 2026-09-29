@@ -26,6 +26,7 @@ function isAdminClientMapRoute(pathname) {
  *   clientNavItems?: {label: string, value: string}[],
  *   activeClientTab?: string,
  *   onClientTabChange?: (value: string) => void,
+ *   panel?: React.ReactNode,
  * }} props
  */
 export default function AdminLayout({
@@ -36,13 +37,14 @@ export default function AdminLayout({
   clientNavItems,
   activeClientTab,
   onClientTabChange,
+  panel,
 }) {
   const location = useLocation();
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
 
   return (
-    <AppShell context="platform" isStaff homeHref="/admin/clients">
+    <AppShell context="platform" isStaff homeHref="/admin/clients" panel={panel}>
       <div className={`admin-main ${mainClassName}`.trim()}>
         {rightActions && <div className="admin-actions">{rightActions}</div>}
 

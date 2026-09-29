@@ -253,7 +253,7 @@ export default function ClientTeam() {
           return next;
         });
       } else {
-        // Explicit grants imply edit access (see ClientDirectoryEntries.jsx) — there's
+        // Explicit grants imply edit access (see DirectoryContext.jsx's canEditEntries) — there's
         // no separate view-only tier yet, matching how Map access works today.
         await supabase
           .from("contact_directory_permissions")

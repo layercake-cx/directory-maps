@@ -3,7 +3,9 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import AppShell from "../../components/shell/AppShell.jsx";
+import DirectoryFeaturePanel from "../../components/shell/DirectoryFeaturePanel.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
+import { DirectoryProvider } from "../../context/DirectoryContext.jsx";
 import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -24,6 +26,8 @@ export default function ClientLayout() {
   const navigate = useNavigate();
   const pathname = location.pathname || "/";
   const mapIdFromPath = pathname.match(/^\/client\/maps\/([^/]+)/)?.[1] ?? null;
+  const directoryIdMatch = pathname.match(/^\/client\/directories\/([^/]+)/);
+  const directoryIdFromPath = directoryIdMatch && directoryIdMatch[1] !== "new" ? directoryIdMatch[1] : null;
 
   const [hasDraft, setHasDraft] = useState(false);
   const [publishPanelOpen, setPublishPanelOpenState] = useState(false);
@@ -231,29 +235,51 @@ export default function ClientLayout() {
       );
     }
   } else {
+    const verifiedBanner = showVerifiedBanner && (
+      <div
+        style={{
+          background: "#ecfdf5",
+          color: "#065f46",
+          padding: "12px 20px",
+          fontSize: 14,
+          fontWeight: 500,
+          textAlign: "center",
+          borderBottom: "1px solid #a7f3d0",
+        }}
+      >
+        Email verified successfully — your account is ready to go.
+      </div>
+    );
+
+    const shellBody = directoryIdFromPath ? (
+      <AppShell
+        context="client"
+        isStaff={isAdmin}
+        homeHref="/client"
+        orgName={client?.name}
+        contact={contact}
+        panel={<DirectoryFeaturePanel />}
+      >
+        {verifiedBanner}
+        <Outlet />
+      </AppShell>
+    ) : (
+      <AppShell context="client" isStaff={isAdmin} homeHref="/client" orgName={client?.name} contact={contact}>
+        {verifiedBanner}
+        {isMapDetailRoute && <MapEditSubNav standalone />}
+        {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
+      </AppShell>
+    );
+
     inner = (
       <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
-        <AppShell context="client" isStaff={isAdmin} homeHref="/client" orgName={client?.name} contact={contact}>
-          {showVerifiedBanner && (
-            <div
-              style={{
-                background: "#ecfdf5",
-                color: "#065f46",
-                padding: "12px 20px",
-                fontSize: 14,
-                fontWeight: 500,
-                textAlign: "center",
-                borderBottom: "1px solid #a7f3d0",
-              }}
-            >
-              Email verified successfully — your account is ready to go.
-            </div>
-          )}
-
-          {isMapDetailRoute && <MapEditSubNav standalone />}
-
-          {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
-        </AppShell>
+        {directoryIdFromPath ? (
+          <DirectoryProvider directoryId={directoryIdFromPath} client={client} contact={contact}>
+            {shellBody}
+          </DirectoryProvider>
+        ) : (
+          shellBody
+        )}
       </ClientProvider>
     );
   }
