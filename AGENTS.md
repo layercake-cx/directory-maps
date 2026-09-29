@@ -199,6 +199,8 @@ supabase functions deploy <function_name> --project-ref beqejxneehilplrtpntn
 supabase functions deploy <function_name> --project-ref gxixwdjfmegxcxfeflro
 ```
 
+**`generate_directory_site` specifically:** if your change touches `builders.ts`'s markup or CSS (`BASE_STYLE`/`EXTRA_STYLE`/`LAYOUT_STYLE`/`buildEntryPage`/`buildDirectoryLandingPage`/etc.) — even a small bug fix, not just a redesign — **bump `ENTRY_TEMPLATE_VERSION`** (top of `builders.ts`) in the same deploy. This repo's incremental "auto" publish path only rebuilds an entry when its *data* changed; it has no way to know this file's own code changed. Forgetting the bump means a directory's next ordinary Publish does an incremental rebuild and your change silently never reaches any already-published page — this happened for real on 2026-09-29 (a panel_background_color fix shipped without the bump, published, and visibly didn't take effect). If you deploy this function and don't remember bumping this constant, go back and check before telling the user it's live.
+
 ---
 
 ## Database migrations (required reading before touching the schema)
