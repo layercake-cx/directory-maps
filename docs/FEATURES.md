@@ -616,26 +616,36 @@ Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessa
 
 **Base route:** `/admin` · **Gate:** `profiles.role = 'admin'`.
 
+Since the admin shell redesign's Phase 3 (2026-09-29), `/admin/clients/:clientId/...` pages render
+inside the same client-context (teal) shell as the real client portal, with a "Staff view" chip
+and a staff-only "Customer account" rail item — see `docs/design/admin-shell/INFORMATION_ARCHITECTURE.md`
+§4. `AdminClientDetail.jsx`'s 8 tabs (Maps, Directories, Categorisations, Entitlements, Customer
+details, Users, Messaging, Domains) are now route-driven (`/admin/clients/:clientId/:tab`) instead
+of local component state, so each is directly linkable/bookmarkable; the bare `/admin/clients/:id`
+URL is still the "Maps" default. All other `/admin/*` routes (Customers, All maps, Logs, etc.)
+render in the platform (ink) context, unchanged.
+
 | Feature | Route | Description |
 |---------|-------|-------------|
-| Customers | `/admin/clients` | Search, create, delete clients |
-| Customer detail | `/admin/clients/:id` | Edit org, contacts, maps; `subscription_active_override`; secondary client nav (Maps · Customer details · Users · Messaging); **Messaging tab** matches client portal (Settings + Sent messages) |
+| Customers | `/admin/clients` | Search, create, delete clients; `FeaturePanel` with Views (All/plan/"with beta access") and Recently viewed |
+| Customer detail | `/admin/clients/:id[/:tab]` | Edit org, contacts, maps; `subscription_active_override`; tabs: `maps` (default) · `directories` · `categorisations` · `entitlements` · `details` · `users` · `messaging` · `domains` — each its own URL |
+| Customer account panel | `/admin/clients/:id/details`, `/admin/clients/:id/entitlements` | Staff-only `FeaturePanel` (Customer details, Entitlements) shown automatically on those two routes |
 | New customer | `/admin/clients/new` | Create organisation (name + slug) |
-| Add customer user | `/admin/clients/:id` (Users tab) | Send invite to create account/set password; contact links after invite acceptance |
+| Add customer user | `/admin/clients/:id/users` | Send invite to create account/set password; contact links after invite acceptance |
 | Contact detail | `/admin/clients/:id/contacts/:contactId` | Per-contact admin view |
 | All maps | `/admin/maps` | Cross-tenant map search |
 | Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, stats, listings) |
 | Legacy listings | `/admin/listings` | Global listing browser (limit 1000) |
 | Admin users | `/admin/users` | List admin users; open profile with Details and Activities tabs |
 | Leads | `/admin/leads` | **Deprecated (2026-07-07):** the public landing page form now submits to HubSpot, so this page only shows historical enquiries captured in `beta_signups` before the switch — no new rows arrive. Name, email, organisation, submission date; admin-editable status (To be actioned / In progress / Successful / Lost) |
-| Logs ▾ User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map) |
+| Logs ▾ User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map); `FeaturePanel` links the three Logs pages together |
 | Logs ▾ Error log | `/admin/error-log` | Client-reported errors in `error_logs` |
 | Logs ▾ Sync log | `/admin/sync-log` | Google Sheets/Drive sync run history |
 | Deployments | `/admin/deployments` | Trigger Vercel deploy hooks or copy shell commands |
 
-Admins manage each customer through the admin pages (`/admin/clients/:id`), which mirror the client portal views (maps, directories, categorisations, users, messaging). Client impersonation was removed on 2026-08-05.
+Admins manage each customer through the admin pages (`/admin/clients/:id`), which mirror the client portal views (maps, directories, categorisations, users, messaging). Client impersonation was removed on 2026-08-05 and the workspace switcher (top bar) is the only route between platform and a customer's workspace — see `src/components/shell/WorkspaceSwitcher.jsx` (now with a "Recently viewed" section, `src/lib/recentCustomers.js`).
 
-Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`.
+Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`, `src/components/shell/{CustomerAccountFeaturePanel,CustomersFeaturePanel,LogsFeaturePanel}.jsx`.
 
 ---
 

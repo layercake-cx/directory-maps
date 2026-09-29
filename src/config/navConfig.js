@@ -7,12 +7,28 @@ import { canManageOrg } from "../lib/clientAuth.js";
  * pack's own JSON — e.g. "My maps" points at /client, not the pack's aspirational /client/maps).
  *
  * `permissionCheck(contact)` is a Phase-1 addition not in the pack's schema: it bridges the
- * existing canManageOrg/canManageMaps checks that ClientLayout already enforced today.
+ * existing canManageOrg/canManageMaps checks that ClientLayout already enforced today. Staff
+ * always bypass it (see Rail.jsx) — an admin isn't subject to a customer's own permission model.
+ *
+ * `staffRoute(clientId)` (Phase 3): when staff are viewing a specific customer's workspace
+ * (`/admin/clients/:clientId/...`, rendered in this same client-context shell — see
+ * AdminLayout.jsx), these resolve to that customer's equivalent admin route instead of the real
+ * client portal's `/client/...` routes. Several collapse to the same href (Team/Messaging/
+ * Domains/Categorisations/Directories/Maps all live as tabs on one AdminClientDetail page) —
+ * that's real, not a placeholder: there's no separate list route for any of these today (see
+ * BACKLOG.md), same as Home/My maps already collapsing to one href in the real client rail.
  */
 export const CLIENT_RAIL = [
-  { id: "home", label: "Home", icon: "home", route: "/client" },
-  { id: "maps", label: "My maps", icon: "map", route: "/client" },
-  { id: "directories", label: "Directories", icon: "book", route: "/client/directories", flag: DIRECTORIES_FLAG },
+  { id: "home", label: "Home", icon: "home", route: "/client", staffRoute: (clientId) => `/admin/clients/${clientId}` },
+  { id: "maps", label: "My maps", icon: "map", route: "/client", staffRoute: (clientId) => `/admin/clients/${clientId}` },
+  {
+    id: "directories",
+    label: "Directories",
+    icon: "book",
+    route: "/client/directories",
+    flag: DIRECTORIES_FLAG,
+    staffRoute: (clientId) => `/admin/clients/${clientId}/directories`,
+  },
   {
     id: "categorisations",
     label: "Categorisations",
@@ -20,14 +36,23 @@ export const CLIENT_RAIL = [
     route: "/client/categorisations",
     flag: DIRECTORIES_FLAG,
     permissionCheck: (contact) => canManageOrg(contact),
+    staffRoute: (clientId) => `/admin/clients/${clientId}/categorisations`,
   },
-  { id: "team", label: "Team", icon: "users", route: "/client/team", permissionCheck: (contact) => canManageOrg(contact) },
+  {
+    id: "team",
+    label: "Team",
+    icon: "users",
+    route: "/client/team",
+    permissionCheck: (contact) => canManageOrg(contact),
+    staffRoute: (clientId) => `/admin/clients/${clientId}/users`,
+  },
   {
     id: "messaging",
     label: "Messaging",
     icon: "mail",
     route: "/client/email",
     permissionCheck: (contact) => contact?.is_primary || contact?.can_manage_maps,
+    staffRoute: (clientId) => `/admin/clients/${clientId}/messaging`,
   },
   {
     id: "domains",
@@ -36,6 +61,7 @@ export const CLIENT_RAIL = [
     route: "/client/domains",
     flag: CUSTOM_DOMAIN_FLAG,
     permissionCheck: (contact) => contact?.is_primary || contact?.can_manage_maps,
+    staffRoute: (clientId) => `/admin/clients/${clientId}/domains`,
   },
   {
     id: "customer-account",
@@ -43,9 +69,8 @@ export const CLIENT_RAIL = [
     icon: "id-card",
     position: "bottom",
     staffOnly: true,
-    // Phase 3 wires this to the client currently being viewed; Phase 1 has no such
-    // concept yet in the client-portal shell (see plan's BACKLOG entry).
     route: "/admin/clients",
+    staffRoute: (clientId) => `/admin/clients/${clientId}/details`,
   },
 ];
 

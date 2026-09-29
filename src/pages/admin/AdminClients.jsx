@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import CustomersFeaturePanel from "../../components/shell/CustomersFeaturePanel.jsx";
 import { Link } from "react-router-dom";
 import { listPlans } from "../../lib/entitlements.js";
+import { listClientIdsWithBetaAccess } from "../../lib/featureFlags.js";
+import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
 
 const TRASH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -39,6 +42,8 @@ export default function AdminClients() {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [view, setView] = useState("all");
+  const [betaClientIds, setBetaClientIds] = useState([]);
 
   async function load() {
     try {
@@ -124,23 +129,55 @@ export default function AdminClients() {
 
   useEffect(() => {
     load();
+    listClientIdsWithBetaAccess().then(setBetaClientIds).catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    if (!query) return rows;
-
-    return rows.filter((r) => {
+    let list = rows;
+    if (view === "beta") {
+      list = list.filter((r) => betaClientIds.includes(r.id));
+    } else if (view !== "all") {
+      list = list.filter((r) => r.plan_key === view);
+    }
+    if (!query) return list;
+    return list.filter((r) => {
       return (
         (r.name ?? "").toLowerCase().includes(query) ||
         (r.slug ?? "").toLowerCase().includes(query) ||
         (r.id ?? "").toLowerCase().includes(query)
       );
     });
-  }, [rows, q]);
+  }, [rows, q, view, betaClientIds]);
+
+  const planCounts = useMemo(() => {
+    const counts = {};
+    for (const r of rows) {
+      const key = r.plan_key || "—";
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => (planNameByKey[a[0]] ?? a[0]).localeCompare(planNameByKey[b[0]] ?? b[0]))
+      .map(([key, count]) => ({ key, label: planNameByKey[key] ?? key, count }));
+  }, [rows, planNameByKey]);
+
+  const recentClients = useMemo(
+    () => getRecentCustomerIds().map((id) => rows.find((r) => r.id === id)).filter(Boolean),
+    [rows],
+  );
 
   return (
     <AdminLayout
+      panel={
+        <CustomersFeaturePanel
+          activeView={view}
+          onSelectView={setView}
+          allCount={rows.length}
+          planCounts={planCounts}
+          betaCount={betaClientIds.length}
+          recentClients={recentClients}
+        />
+      }
       breadcrumbs={[{ label: "Customers" }]}
       rightActions={
         <button onClick={signOut} type="button">

@@ -8,6 +8,57 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Admin shell redesign — Phase 3: staff and platform
+
+**Branch/PR:** [`feat/2026-09-29-admin-shell-phase-3-staff-platform`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-3-staff-platform) (PR pending).
+**Deployed by:** Claude Code, continuing the admin shell redesign per Damian's design pack, Phase 3 of 4 ("Staff and platform").
+
+### What changed
+
+`AdminLayout.jsx` (used by every `/admin/*` page) now computes its shell context from the URL
+instead of hardcoding `"platform"`: any `/admin/clients/:clientId/...` route renders in the same
+teal client-context shell as the real client portal, with a staff chip and a working "Customer
+account" rail item — as the brief's Phase 3 specifies, with zero changes needed to the ~10
+individual admin page files that render under that prefix.
+
+The enabling change: `AdminClientDetail.jsx`'s 8 tabs (Maps, Directories, Categorisations,
+Entitlements, Customer details, Users, Messaging, Domains) were `useState`-driven and never in
+the URL (same pattern Phase 2 fixed for directories) — now route-driven
+(`/admin/clients/:clientId/:tab`), so every tab is directly linkable, and the client rail's items
+(Team, Messaging, Domains, etc.) have real, distinct destinations when staff are viewing a
+customer, instead of a placeholder.
+
+Also: `WorkspaceSwitcher` and a new Customers page `FeaturePanel` both gained a "Recently viewed"
+section (`src/lib/recentCustomers.js`, `localStorage`, resolving a Phase 1 BACKLOG item); the
+Customers page also gained real Views (by plan, and "with beta access" via a new
+`listClientIdsWithBetaAccess()` query against `feature_flag_overrides` — no new schema); and the
+three Logs pages gained a shared `FeaturePanel` linking them together. Corrects another Phase 1
+BACKLOG.md mistake along the way ("Feature access (beta)" is a subsection of "Customer details",
+not folded into "Entitlements").
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — see "What changed". `npm run build` passes clean. No existing admin URL changed meaning;
+  the new `/admin/clients/:clientId/:tab` route only adds URLs that didn't exist before.
+
+### Rollback plan
+Revert the merge commit — no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated admin routes (including the new `:tab` route, `/admin/clients/new`, a map
+      detail route) render their sign-in gate with no console errors
+- [ ] Authenticated click-through of the staff/client-shell flip, all 8 `AdminClientDetail` tabs,
+      and "Recently viewed" populating — not done by the agent (same test-credentials constraint
+      as prior phases); Damian to verify
+
+---
+
 ## 2026-09-29 — [Production] Admin shell redesign — Phases 1 & 2 merged and deployed
 
 **Branch/PR:** [#258](https://github.com/layercake-cx/directory-maps/pull/258) (Phase 1, tokens + shell) and [#259](https://github.com/layercake-cx/directory-maps/pull/259) (Phase 2, directory navigation), both merged to `main` back-to-back.

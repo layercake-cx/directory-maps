@@ -41,7 +41,7 @@ const TRASH_ICON = (
 );
 
 export default function AdminClientDetail() {
-  const { clientId } = useParams();
+  const { clientId, tab } = useParams();
   const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
@@ -70,7 +70,9 @@ export default function AdminClientDetail() {
   const [addCanManageUsers, setAddCanManageUsers] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("maps");
+  // Route-driven (Phase 3): the URL is the source of truth, not local state — see App.jsx's
+  // /admin/clients/:clientId/:tab route. The bare clientId URL is the "maps" default.
+  const activeTab = tab || "maps";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -413,7 +415,9 @@ export default function AdminClientDetail() {
       ]}
       clientNavItems={CLIENT_NAV_ITEMS}
       activeClientTab={activeTab}
-      onClientTabChange={setActiveTab}
+      onClientTabChange={(value) =>
+        navigate(value === "maps" ? `/admin/clients/${encodeURIComponent(clientId)}` : `/admin/clients/${encodeURIComponent(clientId)}/${value}`)
+      }
       rightActions={
         <button onClick={signOut} type="button">
           Sign out

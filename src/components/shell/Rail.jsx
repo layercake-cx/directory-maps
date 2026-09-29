@@ -13,13 +13,19 @@ const CLIENT_HOME_EXCLUDED_PREFIXES = [
   "/client/categorisations",
 ];
 
-function isRailItemActive(route, pathname) {
-  if (route === "/client") {
+// Same "Home"/"My maps" collapse-to-one-href pattern as the real client rail (see plan doc),
+// now that staff-in-customer-workspace routes exist too (Phase 3) — these are the OTHER
+// staffRoute suffixes (relative to /admin/clients/:clientId) plus the map-detail pattern, whose
+// own sub-nav (MapEditSubNav) should take over instead of Home/My maps showing active.
+const STAFF_HOME_EXCLUDED_SUFFIXES = ["/details", "/entitlements", "/categorisations", "/users", "/messaging", "/domains", "/directories", "/maps/"];
+
+function isRailItemActive(route, pathname, isCollapsedHome) {
+  if (isCollapsedHome) {
+    const excluded = route.startsWith("/client") ? CLIENT_HOME_EXCLUDED_PREFIXES : STAFF_HOME_EXCLUDED_SUFFIXES.map((s) => route + s);
     return (
-      pathname === "/client" ||
-      pathname === "/client/" ||
-      (pathname.startsWith("/client/") &&
-        !CLIENT_HOME_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix)))
+      pathname === route ||
+      pathname === route + "/" ||
+      (pathname.startsWith(route + "/") && !excluded.some((prefix) => pathname.startsWith(prefix)))
     );
   }
   return pathname === route || pathname.startsWith(route + "/");
@@ -27,9 +33,10 @@ function isRailItemActive(route, pathname) {
 
 /**
  * Global icon rail for the current context (client|platform), driven by navConfig.js.
- * `contact` is only used by client-context items' `permissionCheck`.
+ * `contact` is only used by client-context items' `permissionCheck` — real client users only;
+ * staff always pass (an admin isn't subject to a customer's owner/manager permission model).
  */
-export default function Rail({ context, isStaff, contact }) {
+export default function Rail({ context, isStaff, contact, clientId }) {
   const location = useLocation();
   const pathname = location.pathname || "/";
   const { flags, loading: flagsLoading } = useFeatureFlags();
@@ -40,7 +47,7 @@ export default function Rail({ context, isStaff, contact }) {
       if (flagsLoading) return false;
       if (!flags?.[item.flag]) return false;
     }
-    if (item.permissionCheck && !item.permissionCheck(contact)) return false;
+    if (item.permissionCheck && !isStaff && !item.permissionCheck(contact)) return false;
     return true;
   });
 
@@ -49,11 +56,13 @@ export default function Rail({ context, isStaff, contact }) {
 
   function renderItem(item) {
     const IconComponent = RAIL_ICONS[item.icon];
-    const active = isRailItemActive(item.route, pathname);
+    const href = isStaff && clientId && item.staffRoute ? item.staffRoute(clientId) : item.route;
+    const isCollapsedHome = item.id === "home" || item.id === "maps";
+    const active = isRailItemActive(href, pathname, isCollapsedHome);
     return (
       <Link
         key={item.id}
-        to={item.route}
+        to={href}
         aria-label={item.label}
         title={item.label}
         aria-current={active ? "page" : undefined}

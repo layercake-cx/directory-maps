@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 
 const PAGE_SIZE = 100;
 
@@ -59,6 +60,7 @@ export default function AdminErrorLogs() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Error log" }]}
       rightActions={
         <button onClick={signOut} type="button">

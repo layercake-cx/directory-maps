@@ -7,6 +7,7 @@ import {
 } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 
 const PAGE_SIZE = 200;
 
@@ -199,6 +200,7 @@ export default function AdminUserActivity() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "User activity" }]}
       rightActions={
         <button onClick={signOut} type="button">

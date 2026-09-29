@@ -206,6 +206,14 @@ export default function App() {
         }
       />
       <Route
+        path="/admin/clients/:clientId/:tab"
+        element={
+          <AdminGate>
+            <AdminClientDetail />
+          </AdminGate>
+        }
+      />
+      <Route
         path="/admin/clients/:clientId/contacts/:contactId"
         element={
           <AdminGate>
