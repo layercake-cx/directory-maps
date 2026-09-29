@@ -342,6 +342,7 @@ for (const entry of ENTRIES) {
     categorisations: CATEGORISATIONS,
     entryTermIds: [...(ENTRY_TERM_IDS.get(entry.id) ?? [])],
     attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
+    attachedMapFocusedEmbedSrc: `https://example.com/preview-client/preview-map?focus=${encodeURIComponent(entry.id)}&hideFilterBar=1&hideListPanel=1`,
     // No key configured in this local script — the Location block still
     // renders (address text + "Open in directory map"), just without the
     // static thumbnail. Pass a real Google Maps key here to preview that.

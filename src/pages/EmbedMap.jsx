@@ -157,6 +157,15 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
    * show_list_panel setting, so the directory doesn't get a duplicate list.
    */
   const hideListPanel = params.get("hideListPanel") === "1";
+  /**
+   * Set by a directory entry detail page (generate_directory_site) embedding
+   * this map focused on one pin — a `directory_entries.id` (verbatim the
+   * same id `public_directory_entries` exposes as `id`, see
+   * supabase/migrations/20260827150000_directory_map_datasource.sql).
+   * Applied below via the existing centerOnListingId mechanism once
+   * listings have loaded — no new pan/zoom/select logic needed.
+   */
+  const focusListingId = params.get("focus");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -213,6 +222,18 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
+  const focusApplied = useRef(false);
+
+  // Directory entry detail page embed (?focus=<directory_entries.id>): apply
+  // once listings are in, via the same centerOnListingId pan/zoom/select path
+  // list-panel clicks already use — DirectoryMap.jsx pans to selectZoom
+  // (15 desktop) and opens the pin's detail card. Guarded to run once so a
+  // later listings refetch doesn't re-trigger the pan animation.
+  useEffect(() => {
+    if (!focusListingId || focusApplied.current || listings.length === 0) return;
+    focusApplied.current = true;
+    setCenterOnListingId(focusListingId);
+  }, [focusListingId, listings]);
 
   useEffect(() => {
     let cancelled = false;
