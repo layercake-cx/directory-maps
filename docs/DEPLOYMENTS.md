@@ -8,6 +8,52 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Staging] Admin shell redesign — Phase 2: directory navigation
+
+**Branch/PR:** [`feat/2026-09-29-admin-shell-phase-2-directory-nav`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-2-directory-nav) (stacked on Phase 1's branch, PR pending).
+**Deployed by:** Claude Code, continuing the admin shell redesign per Damian's design pack, Phase 2 of 4 ("Directory navigation").
+
+### What changed
+
+Today's 11 `useState`-driven directory tabs (never in the URL) become real routes under the
+directory's `FeaturePanel` (Overview, Content › Entries/Pages/Categories/Accreditations,
+Experience › Design/Search & Discovery, Engagement › Claims/Enquiries, Insights › Analytics,
+Settings › General/SEO/Domain & Publishing/Integrations), for both client and admin. Nearly every
+panel component moves unchanged, just fed by a new shared `DirectoryContext`
+(`src/context/DirectoryContext.jsx`) instead of each duplicating its own directory/permission
+fetch. One deliberate small refactor: `DirectoryGeneralSettingsPanel.jsx` (previously one form
+covering both General and SEO fields) split into that plus a new `DirectorySeoSettingsPanel.jsx`,
+since the new IA wants them as two separate nav items. Permission visibility was preserved exactly
+(verified against `ClientDirectoryEntries.jsx`'s original tab-gating logic before deleting it) —
+see the Phase 2 plan doc's permission matrix. Two BACKLOG.md corrections: a Phase 1 entry had
+conflated `DirectoryAnalyticsPanel` (GA4/GTM config) with the still-unbuilt Insights › Analytics
+dashboard; and a new entry for `DomainSettings.jsx` having no per-directory mode.
+
+`ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (the old monolithic tab components) are
+deleted — nothing references them any more.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — see "What changed". `npm run build` passes clean. The bare `directories/:directoryId`
+  URL now renders a new Overview stub instead of the old Entries tab (intentional, per the IA).
+
+### Rollback plan
+Revert the merge commit — no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated directory routes (client and admin) render their sign-in gates with no console errors
+- [ ] Authenticated click-through of every new directory route, and the permission matrix for a
+      Member-role contact — not done by the agent this session (same test-credentials constraint
+      as Phase 1); Damian to verify
+
+---
+
 ## 2026-09-29 — [Staging] Admin shell redesign — Phase 1: tokens + shell
 
 **Branch/PR:** [`feat/2026-09-29-admin-shell-redesign`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-redesign) (PR pending).

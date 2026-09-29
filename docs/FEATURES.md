@@ -819,7 +819,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/client/maps/:mapId/stats/listings/:listingId` | `ListingStats` |
 | `/client/directories` | `ClientDirectories` |
 | `/client/directories/new` | `ClientDirectoryNew` |
-| `/client/directories/:directoryId` | `ClientDirectoryEntries` |
+| `/client/directories/:directoryId` (+ nested `entries`, `pages`, `categories`, `accreditations`, `design`, `search`, `claims`, `enquiries`, `analytics`, `settings`, `seo`, `publishing`, `integrations`) | see `src/components/directoryPanel/*Route.jsx` (admin shell redesign, Phase 2) |
 | `/client/categorisations` | `ClientCategorisations` |
 | `/admin/clients` | `AdminClients` |
 | `/admin/maps` | `AdminMaps` |
@@ -827,7 +827,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` |
 | `/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` |
 | `/admin/clients/:clientId/directories/new` | `AdminDirectoryNew` |
-| `/admin/clients/:clientId/directories/:directoryId` | `AdminDirectoryEntries` |
+| `/admin/clients/:clientId/directories/:directoryId` (same nested children as above) | `AdminDirectoryPanelLayout` + the same shared `directoryPanel/*Route.jsx` components |
 | `/admin/user-activity` | `AdminUserActivity` |
 | `/admin/error-log` | `AdminErrorLogs` |
 | `/admin/deployments` | `AdminDeployments` |

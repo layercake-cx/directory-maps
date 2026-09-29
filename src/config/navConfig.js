@@ -63,3 +63,54 @@ export const NAV_CONFIG = {
   client: { rail: CLIENT_RAIL },
   platform: { rail: PLATFORM_RAIL },
 };
+
+/**
+ * Directory feature panel groups (Phase 2), per docs/design/admin-shell/INFORMATION_ARCHITECTURE.md §6.
+ * A function, not a static array — `basePath` is per-directory and per-context (client vs admin
+ * prefix), unlike the two rails above which are fixed.
+ *
+ * Gating here reproduces the *exact* permission matrix ClientDirectoryEntries.jsx enforced before
+ * this phase (see the Phase 2 plan doc's permission table) — most items are `canManage`-only
+ * because their whole outer tab was hidden from non-managers today; Entries/Categories/General/
+ * SEO/Search/Integrations/Publishing stay visible to any user with access, same as today's
+ * Settings tab was (each panel keeps its own internal `disabled={!canManage}` for read-only vs.
+ * editable — this config only controls whether the *route* is reachable at all).
+ */
+export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
+  return [
+    { label: null, items: [{ id: "overview", label: "Overview", route: basePath }] },
+    {
+      label: "Content",
+      items: [
+        { id: "entries", label: "Entries", route: `${basePath}/entries`, count: entriesCount },
+        ...(canManage ? [{ id: "pages", label: "Pages", route: `${basePath}/pages` }] : []),
+        { id: "categories", label: "Categories", route: `${basePath}/categories` },
+        ...(canManage ? [{ id: "accreditations", label: "Accreditations", route: `${basePath}/accreditations` }] : []),
+      ],
+    },
+    {
+      label: "Experience",
+      items: [
+        ...(canManage ? [{ id: "design", label: "Design", route: `${basePath}/design` }] : []),
+        { id: "search", label: "Search & Discovery", route: `${basePath}/search` },
+      ],
+    },
+    {
+      label: "Engagement",
+      items: [
+        ...(canManage ? [{ id: "claims", label: "Claims", route: `${basePath}/claims` }] : []),
+        ...(canManage ? [{ id: "enquiries", label: "Enquiries", route: `${basePath}/enquiries` }] : []),
+      ],
+    },
+    { label: "Insights", items: [{ id: "analytics", label: "Analytics", route: `${basePath}/analytics` }] },
+    {
+      label: "Settings",
+      items: [
+        { id: "general", label: "General", route: `${basePath}/settings` },
+        { id: "seo", label: "SEO", route: `${basePath}/seo` },
+        { id: "domain-publishing", label: "Domain & Publishing", route: `${basePath}/publishing` },
+        { id: "integrations", label: "Integrations", route: `${basePath}/integrations` },
+      ],
+    },
+  ];
+}

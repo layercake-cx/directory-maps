@@ -85,6 +85,14 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Size guess:** decision, not build
 - **Status:** To do
 
+### [ADMIN-SHELL] Per-directory Domain & Publishing view
+- **Where in the design:** `nav.config.json` `panels.directory.groups[Settings].domain-publishing` (Phase 2)
+- **What's missing:** `DomainSettings.jsx` has no per-directory mode — it takes only `{clientId, clientName, eventSource}` and is rendered exclusively at the client level (`ClientDomains.jsx`, `AdminClientDetail.jsx`), not from any directory route. A directory *can* have a custom domain assigned (via that client-wide screen's target dropdown), but there's no directory-scoped view of it.
+- **Existing pieces:** `DomainSettings.jsx`'s existing target-dropdown (`map`/`directory`) already supports assigning a domain to a directory; just no scoped view from inside the directory itself
+- **Shown meanwhile:** Settings › Domain & Publishing shows `DirectoryPublishPanel` (publish/unpublish) plus a link out to the client-level Domains page
+- **Size guess:** M
+- **Status:** To do
+
 ### [ADMIN-SHELL] Prominent Links: new treatment
 - **Where in the design:** `nav.config.json` `panels.directory.notPlaced`
 - **What's missing:** decision from Damian on how Prominent Links should be presented in the new IA
