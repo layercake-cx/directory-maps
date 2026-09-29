@@ -8,10 +8,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Staging] Restyle the client portal onto the new design system
+## 2026-09-29 — [Staging] Restyle every page wrapper onto the new design system
 
-**Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system) (PR pending).
-**Deployed by:** Claude Code, at Damian's report (from using the live app) that page bodies looked visually inconsistent with the new shell chrome around them, then his direct screenshot feedback (HubSpot spacing reference; "three different styles on three pages"; "messaging has a white box around it, I'd be removing that").
+**Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269).
+**Preview URL:** https://directory-maps-82i7v7g18-layercake-apps.vercel.app (Vercel deployment protection is on — sign in with the `layercake-apps` Vercel team to view).
+**Deployed by:** Claude Code, at Damian's report (from using the live app) that page bodies looked visually inconsistent with the new shell chrome around them, then his direct screenshot feedback (HubSpot spacing reference; "three different styles on three pages"; "messaging has a white box around it, I'd be removing that"); then his "keep going page by page, almost every page needs this treatment" — extended to cover the whole admin console too.
 
 ### What changed
 
@@ -44,15 +45,26 @@ as its own `BACKLOG.md` entry, then fixed incrementally across this session:
   `.page-head`/`.field`/`.shell-btn` — wrapper- and form-level only, not any deep pre-existing
   panel they render (`DirectoryEntriesPanel`, `CategorisationsPanel`, `MessagingSettings`, etc. —
   still old-styled, logged as the remaining scope in `BACKLOG.md`).
+- Extended into the **admin console** at Damian's "keep going page by page, almost every page
+  needs this treatment": every `src/pages/admin/Admin*.jsx` page wrapper except `AdminMapData.jsx`
+  (genuinely deep, 1742 lines) moved onto the same vocabulary — `AdminUsers`, `AdminClientNew`,
+  `AdminDirectoryNew`, `AdminListings`, `AdminDirectories`, `AdminLeads`, `AdminErrorLogs`,
+  `AdminDeployments`, `AdminUserDetail`, `AdminContactDetail`, `AdminMaps`, `AdminMapNew`,
+  `AdminClients`, `AdminUserActivity`, `AdminMapListings`, and `AdminClientDetail.jsx` (the large
+  customer-detail tabs hub — its own `.admin-card` shell and per-tab section headers/primary
+  buttons only; its Directories tab already reuses the shared `DirectoriesDashboard` component so
+  was already correct).
 
-Broadly-shared old classes still used on many not-yet-migrated pages (`.admin-table`,
-`.admin-controls`, `.admin-map-tabs`) were deliberately left alone, same reasoning as `.btn` —
-restyling those now would be a separate, much larger, riskier piece of work than migrating one
-page's own wrapper.
+Broadly-shared old classes still used by not-yet-migrated deep panels (`.admin-table`,
+`.admin-controls`, `.admin-map-tabs`, `.admin-modal`) were deliberately left alone, same reasoning
+as `.btn` — restyling those now would be a separate, much larger, riskier piece of work than
+migrating one page's own wrapper. Delete/create confirmation modals throughout were left on their
+own existing modal styling for the same reason.
 
-`BACKLOG.md`'s "Page body content still uses the old design system" entry updated to list what's
-done vs. still open (the entire admin console, `ClientMapData`/`ClientMapDashboard`, and every deep
-pre-existing panel).
+`BACKLOG.md`'s "Page body content still uses the old design system" entry updated: every page
+wrapper in both the client portal and admin console is now done; what's left is exclusively deep
+pre-existing feature panels and `ClientMapData`/`ClientMapDashboard`/`AdminMapData` (1700–3300
+lines each) — real UI rewrites, not wrapper swaps.
 
 ### Database migrations applied
 - None.
@@ -71,8 +83,9 @@ Revert the merge commit — purely visual, no data/schema impact either directio
 - [x] `npm run build` clean
 - [x] Unauthenticated routes (e.g. `/client/email` → redirects to `/login` as expected) render with
       no console errors
+- [x] Deployed to Vercel preview (staging): https://directory-maps-82i7v7g18-layercake-apps.vercel.app
 - [ ] Authenticated visual check — not done by the agent (no test credentials for the staging
-      Supabase project); Damian to verify the actual look
+      Supabase project); Damian to verify the actual look on the preview URL above
 
 ---
 
