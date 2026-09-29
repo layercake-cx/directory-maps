@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Staging] Admin shell redesign — Phase 4: new pages from built data
+## 2026-09-29 — [Production] Admin shell redesign — Phase 4: new pages from built data
 
-**Branch/PR:** [`feat/2026-09-29-admin-shell-phase-4-new-pages`](https://github.com/layercake-cx/directory-maps/tree/feat/2026-09-29-admin-shell-phase-4-new-pages) (PR pending).
-**Deployed by:** Claude Code, completing the admin shell redesign per Damian's design pack — Phase 4 of 4, the final phase ("New pages from built data").
+**Branch/PR:** [#263](https://github.com/layercake-cx/directory-maps/pull/263), merged to `main` and deployed (GitHub Pages + `npm run deploy:live`).
+**Deployed by:** Claude Code, completing the admin shell redesign per Damian's design pack — Phase 4 of 4, the final phase ("New pages from built data") — at Damian's explicit request ("deploy and continue").
 
 ### What changed
 
@@ -60,6 +60,8 @@ Revert the merge commit — no data/schema impact either direction.
 - [x] `npm run build` clean
 - [x] Unauthenticated `/client`, `/client/maps`, `/client/directories`, a directory route, and the
       admin equivalents all render with no console errors
+- [x] CI green on PR #263 before merge; both GitHub Pages and Vercel production deploys completed
+      (`readyState: READY`, aliased to `uk-associations.com`)
 - [ ] Authenticated click-through of the new Home tiles, Directories dashboard views, Directory
       overview tiles, and Entries Gaps/category filters — not done by the agent (same
       test-credentials constraint as prior phases); Damian to verify
