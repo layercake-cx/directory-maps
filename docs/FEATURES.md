@@ -557,13 +557,13 @@ Files: `src/components/directories/DirectoryClaimsPanel.jsx`, `src/lib/directory
 |---------|-------|-------------|
 | Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
-| Directory tracking config | Directory → Settings → Analytics & Tracking | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish |
-| Directory first-party events | (no dashboard yet) | Same `map_engagement_events` table, `directory_id` + `surface: directory_site`. Includes `listing_enquiry_open` and `listing_enquiry_sent`. |
-| Directory enquiries | Directory → Email | Contact inbox plus the shared messaging settings. **Make an Enquiry** on published entry pages after Publish. |
+| Directory tracking config | Directory → Settings → Integrations | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish. `DirectoryAnalyticsPanel.jsx` — not to be confused with the dashboard below. |
+| Directory Insights › Analytics (new, 2026-09-29) | Directory → Insights → Analytics | Real visitor-engagement dashboard: views over time, activity-by-type donut, a directory→entry→enquiry-opened→enquiry-sent funnel, top search terms, top entries. Reuses the map-side dashboard's generic aggregation helpers and chart/table components — only `deriveDirectoryMetrics()`/`deriveTopDirectoryEntries()` (`engagementAnalytics.js`) and `useDirectoryEngagement.js`/`DirectoryAnalyticsRoute.jsx` are new. One gotcha handled: a "Visit website" click inserts both `listing_website_click` and a duplicate `listing_cta_click` row — the dashboard counts only the latter to avoid double-counting. |
+| Directory enquiries | Directory → Engagement → Enquiries | Contact inbox plus the shared messaging settings. **Make an Enquiry** on published entry pages after Publish. |
 
-Data source: `map_engagement_events` (public embed **and** published directory HTML). See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
+Data source: `map_engagement_events` (public embed **and** published directory HTML) — RLS already lets a directory owner/manager (or a contact with a `contact_directory_permissions` grant) query their own directory's rows directly, same as the map side. See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
 
-Files: `MapStats.jsx`, `ListingStats.jsx`, `src/hooks/useListingEngagement.js`, `src/components/engagement/*`, `src/lib/mapEngagement.js`, `DirectoryAnalyticsPanel.jsx`, `generate_directory_site/builders.ts`.
+Files: `MapStats.jsx`, `ListingStats.jsx`, `DirectoryAnalyticsRoute.jsx` (new), `src/hooks/useListingEngagement.js`, `src/hooks/useDirectoryEngagement.js` (new), `src/components/engagement/*`, `src/lib/engagementAnalytics.js`, `src/lib/mapEngagement.js`, `DirectoryAnalyticsPanel.jsx`, `generate_directory_site/builders.ts`.
 
 Migration: `20260920090000_directory_engagement_analytics.sql` (nullable `map_id`, `directory_id`, relaxed listing subject id, directory event types, `analytics_json`).
 
