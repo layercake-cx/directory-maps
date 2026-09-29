@@ -1,0 +1,127 @@
+{
+  "_readme": "Single source of truth for admin navigation. status: built = exists today, move it; partial = exists but the design adds something; new = not built, log in BACKLOG.md. 'current' is today's route or component; 'route' is the proposed route. Verify every 'current' against src/App.jsx before relying on it. For staff in a client workspace, prefix client routes with /admin/clients/:clientId (see INFORMATION_ARCHITECTURE.md §4).",
+
+  "contexts": {
+    "client": {
+      "header": "teal",
+      "switcher": "staff only; client users see their organisation name as plain text",
+      "rail": [
+        { "id": "home", "label": "Home", "icon": "home", "route": "/client", "status": "new", "note": "Organisation dashboard. Today /client is the My Maps grid." },
+        { "id": "maps", "label": "My maps", "icon": "map", "route": "/client/maps", "current": "/client (ClientDashboard)", "status": "built", "note": "Move the maps grid here; redirect nothing that already links to /client/maps/:mapId." },
+        { "id": "directories", "label": "Directories", "icon": "book", "route": "/client/directories", "current": "/client/directories (ClientDirectories)", "status": "partial", "flag": "directories" },
+        { "id": "categorisations", "label": "Categorisations", "icon": "tag", "route": "/client/categorisations", "status": "built", "flag": "directories" },
+        { "id": "team", "label": "Team", "icon": "users", "route": "/client/team", "status": "built" },
+        { "id": "messaging", "label": "Messaging", "icon": "mail", "route": "/client/email", "status": "built" },
+        { "id": "domains", "label": "Domains", "icon": "globe", "route": "/client/domains", "status": "built", "flag": "custom_domain" },
+        { "id": "customer-account", "label": "Customer account", "icon": "id-card", "position": "bottom", "staffOnly": true, "status": "partial", "note": "Houses the admin-only per-customer tabs. See panels.customerAccount." }
+      ]
+    },
+    "platform": {
+      "header": "ink with teal underline",
+      "switcher": "reads 'Platform admin'",
+      "rail": [
+        { "id": "customers", "label": "Customers", "icon": "building", "route": "/admin/clients", "status": "partial" },
+        { "id": "all-maps", "label": "All maps", "icon": "map", "route": "/admin/maps", "status": "built" },
+        { "id": "all-directories", "label": "All directories", "icon": "book", "route": "/admin/directories", "status": "built" },
+        { "id": "admin-users", "label": "Admin users", "icon": "user-cog", "route": "/admin/users", "status": "built" },
+        { "id": "leads", "label": "Leads", "icon": "inbox", "route": "/admin/leads", "status": "built", "note": "Deprecated 2026-07-07 (historical only). Candidate to move under Logs or remove: ask Damian, log in BACKLOG.md." },
+        { "id": "logs", "label": "Logs", "icon": "file", "route": "/admin/user-activity", "status": "built", "panel": "logs" },
+        { "id": "deployments", "label": "Deployments", "icon": "upload", "route": "/admin/deployments", "status": "built" }
+      ]
+    }
+  },
+
+  "panels": {
+    "directories": {
+      "title": "Directories",
+      "primaryAction": "New directory",
+      "groups": [
+        { "label": "Views", "items": [
+          { "label": "All directories", "status": "built" },
+          { "label": "Published", "status": "new" },
+          { "label": "Not yet published", "status": "new" },
+          { "label": "Archived", "status": "partial", "note": "Archive exists; a filtered view may not." }
+        ]},
+        { "label": "Your directories", "items": "one row per directory: name + '{n} entries · {status}'" }
+      ],
+      "footer": "plan-box (new): plan name, directories used of allowance, which features need a higher plan"
+    },
+
+    "directory": {
+      "title": "{directory.name}",
+      "back": "All directories",
+      "subtitle": "live domain link",
+      "groups": [
+        { "label": null, "items": [
+          { "id": "overview", "label": "Overview", "route": "/client/directories/:directoryId", "status": "new", "note": "Today this route opens the Entries tab. Overview becomes the default." }
+        ]},
+        { "label": "Content", "items": [
+          { "id": "entries", "label": "Entries", "count": "entries", "route": "/client/directories/:directoryId/entries", "current": "Entries tab (DirectoryEntriesPanel)", "status": "partial", "absorbs": ["AI tab: AI content generation prompt + 'Generate all entry content' (as an 'AI content' action/drawer on this page)"] },
+          { "id": "pages", "label": "Pages", "route": "/client/directories/:directoryId/pages", "current": "Pages tab (DirectoryContentPagesPanel)", "status": "built" },
+          { "id": "categories", "label": "Categories", "route": "/client/directories/:directoryId/categories", "current": "Directory tagging picker above the entries table (CategoryTagPicker)", "status": "partial", "note": "Directory-level tagging + which client-wide categorisations apply, with a link to /client/categorisations." },
+          { "id": "accreditations", "label": "Accreditations", "route": "/client/directories/:directoryId/accreditations", "current": "Accreditations tab (AccreditationSchemesPanel)", "status": "built" }
+        ]},
+        { "label": "Experience", "items": [
+          { "id": "design", "label": "Design", "route": "/client/directories/:directoryId/design", "current": "Branding tab + Entry Layout tab", "status": "built", "note": "Two in-page sections or tabs: Branding, Entry layout." },
+          { "id": "search", "label": "Search & Discovery", "route": "/client/directories/:directoryId/search", "current": "AI tab (Help me choose: DirectoryAiSearchPanel) + Settings tab (location search) + facets", "status": "built" }
+        ]},
+        { "label": "Engagement", "items": [
+          { "id": "claims", "label": "Claims", "route": "/client/directories/:directoryId/claims", "current": "Claims tab (DirectoryClaimsPanel: Overview / Claims / Settings)", "status": "built", "flag": "claims", "entitlement": "features.maps.claims", "note": "Keep its three sub-tabs as in-page tabs." },
+          { "id": "enquiries", "label": "Enquiries", "route": "/client/directories/:directoryId/enquiries", "current": "Email tab (DirectoryEnquiryPanel + Recent enquiries)", "status": "built" }
+        ]},
+        { "label": "Insights", "items": [
+          { "id": "analytics", "label": "Analytics", "route": "/client/directories/:directoryId/analytics", "status": "new", "note": "Engagement events are recorded (map_engagement_events, listing_enquiry_*). Check whether any directory analytics UI exists; if not, backlog." }
+        ]},
+        { "label": "Settings", "items": [
+          { "id": "general", "label": "General", "route": "/client/directories/:directoryId/settings", "current": "Settings tab: title, home nav label; header Archive/Delete", "status": "built" },
+          { "id": "seo", "label": "SEO", "route": "/client/directories/:directoryId/seo", "current": "Settings tab SEO section + AI tab 'Backfill missing metadata'", "status": "built", "note": "Also list generated files: sitemap.xml, robots.txt, llms.txt." },
+          { "id": "domain-publishing", "label": "Domain & Publishing", "route": "/client/directories/:directoryId/publishing", "current": "Publish tab (DirectoryPublishPanel) + directory custom domain (DomainSettings targetType=directory)", "status": "built" },
+          { "id": "integrations", "label": "Integrations", "route": "/client/directories/:directoryId/integrations", "current": "Settings tab: Analytics & Tracking (DirectoryAnalyticsPanel: GA4, GTM)", "status": "built" }
+        ]}
+      ],
+      "notPlaced": [
+        { "label": "Prominent links", "current": "Prominent Links tab (ProminentLinksEditor)", "decision": "Damian: to be handled differently. Do not put in the nav. Keep the existing editor reachable (e.g. from Settings › General) until the new treatment is decided; log in BACKLOG.md." }
+      ]
+    },
+
+    "entryEditor": {
+      "note": "Level 4. Keep the directory panel (Entries highlighted). Record navigation is in-page tabs, one route per tab (existing convention).",
+      "tabs": ["Basic info", "Categories", "Content", "Search & metadata", "Panel style", "Preview & publish"],
+      "route": "/client/directories/:directoryId/entries/:entryId[/categories|/content|/seo|/panel|/preview]",
+      "status": "built"
+    },
+
+    "map": {
+      "note": "Not designed yet. Apply the same pattern: panel titled with the map name, items Design · Data · Listings · Stats (existing map sub-nav).",
+      "status": "built"
+    },
+
+    "customerAccount": {
+      "staffOnly": true,
+      "title": "Customer account",
+      "items": [
+        { "label": "Customer details", "current": "/admin/clients/:clientId (Customer details tab)", "status": "built" },
+        { "label": "Entitlements", "current": "Entitlements tab", "status": "built" },
+        { "label": "Feature access (beta)", "current": "Customer detail › Feature access (beta)", "status": "built" }
+      ]
+    },
+
+    "customers": {
+      "title": "Customers",
+      "primaryAction": "New",
+      "groups": [
+        { "label": "Views", "items": ["All customers", "Founding Partner", "Basic", "With beta access"], "status": "partial", "note": "Plan filters may be new." },
+        { "label": "Recently viewed", "items": "last 3 to 5 customer workspaces opened by this admin", "status": "new" }
+      ]
+    },
+
+    "logs": {
+      "title": "Logs",
+      "items": [
+        { "label": "User activity", "route": "/admin/user-activity", "status": "built" },
+        { "label": "Error log", "route": "/admin/error-log", "status": "built" },
+        { "label": "Sync log", "route": "/admin/sync-log", "status": "built" }
+      ]
+    }
+  }
+}
