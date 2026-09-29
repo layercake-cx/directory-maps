@@ -53,7 +53,7 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
         setLoading(false);
       }
     })();
-  }, [clientId, planKey]);
+  }, [clientId]);
 
   const counts = useMemo(
     () => ({
