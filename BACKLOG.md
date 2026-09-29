@@ -47,10 +47,10 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 
 ### [ADMIN-SHELL] Insights › Analytics for a directory
 - **Where in the design:** `INFORMATION_ARCHITECTURE.md` §6 (Insights group)
-- **What's missing:** a dedicated route/UI for directory analytics
-- **Existing pieces:** `DirectoryAnalyticsPanel.jsx` **already exists and is wired up today** — it's just nested inside the Settings tab, not its own Insights route. This is a promotion of existing UI in Phase 2, not a new build.
-- **Shown meanwhile:** stays under Settings for now
-- **Size guess:** S
+- **What's missing:** a real visitor-engagement analytics dashboard for a directory (entries viewed, enquiries, search terms, etc.). **Correction from an earlier version of this entry:** `DirectoryAnalyticsPanel.jsx` is *not* this — that component is GA4/GTM tracking-code configuration ("Analytics & Tracking" settings) and is correctly placed at Settings › Integrations (see `nav.config.json`'s own `integrations.current` note), not related to this item at all. No UI for actual visitor-engagement analytics exists anywhere in the codebase today.
+- **Existing pieces:** raw events already recorded in `map_engagement_events` (`surface: directory_site`) and `listing_enquiry_*` — a dashboard would query/aggregate these, nothing else exists yet
+- **Shown meanwhile:** an empty state pointing at this entry
+- **Size guess:** L
 - **Status:** To do
 
 ### [ADMIN-SHELL] Workspace switcher: real search + recently viewed
