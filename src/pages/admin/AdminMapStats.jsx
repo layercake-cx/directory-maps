@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import MapStats from "../client/MapStats.jsx";
 
@@ -37,11 +36,6 @@ export default function AdminMapStats() {
         { label: map?.name ?? "Map", path: mapPath },
         { label: "Stats" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <MapStats />
     </AdminLayout>

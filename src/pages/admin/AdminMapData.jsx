@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Select, Stack, Text, Group } from "@mantine/core";
 import { Download, FilePlus, FolderOpen, Globe, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
@@ -985,7 +984,6 @@ export default function AdminMapData() {
         { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
         { label: "Data" },
       ]}
-      rightActions={<button onClick={signOut} type="button">Sign out</button>}
     >
       <div style={{ maxWidth: 960 }}>
 

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase.js";
-import { signOut } from "../../lib/auth.js";
 import AdminLayout from "./AdminLayout.jsx";
 
 function slugify(input) {
@@ -57,11 +56,6 @@ export default function AdminClientNew() {
         { label: "Customers", path: "/admin/clients" },
         { label: "New customer" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad" style={{ maxWidth: 720 }}>
         <div style={{ marginBottom: 12 }}>

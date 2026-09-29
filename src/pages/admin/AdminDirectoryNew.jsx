@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { createDirectory, slugify } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
@@ -58,11 +57,6 @@ export default function AdminDirectoryNew() {
         { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
         { label: "New directory" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad" style={{ maxWidth: 760 }}>
         <div style={{ marginBottom: 12 }}>

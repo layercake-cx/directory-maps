@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import {
   ADMIN_EVENT_CATEGORY_LABELS,
   ADMIN_EVENT_SUBTYPES_BY_CATEGORY,
@@ -202,11 +201,6 @@ export default function AdminUserActivity() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "User activity" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>

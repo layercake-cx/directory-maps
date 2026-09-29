@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
@@ -62,11 +61,6 @@ export default function AdminErrorLogs() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Error log" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>

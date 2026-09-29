@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Production] Restyle the shared admin chrome (AdminLayout)
+
+**Branch/PR:** `fix/2026-09-29-admin-layout-chrome-restyle` (PR pending).
+**Deployed by:** Claude Code, at Damian's screenshot feedback from `/admin/maps`: a stray floating "Sign out" button and a weirdly-styled gray page title bar, both leftover pre-shell chrome inside `AdminLayout.jsx` — the wrapper every admin page renders inside — that the earlier page-body restyle (PR #269) didn't touch since it's shared layout, not page content.
+
+### What changed
+
+- `AdminLayout.jsx`'s breadcrumb bar (previously a small `.admin-breadcrumbs` gray strip standing in for the page title) now renders as a proper `.page-head`/`.page-title`, with any earlier breadcrumb levels shown as a small muted trail above it.
+- The per-page "Sign out" button (`.admin-actions`, styled for the old dark header bar, now floating oddly on the light shell background) removed from all ~20 admin pages that passed it via `rightActions`. It was redundant: the TopBar's `AvatarMenu` already provides sign-out account-wide ("replacing the ~20 ad hoc per-page buttons" per its own doc comment) — it just was never actually deleted from the individual pages when the shell was built. `AdminMapDashboard.jsx` kept its real "Save" action button (also restyled to `.shell-btn--primary`), just dropped the sign-out it was bundled with.
+- `AdminClientDetail`'s tab bar (`admin-client-nav`) moved from its own bespoke CSS onto the shell's own `.tabs`/`.tab` classes (ported in Phase 1, never previously used anywhere).
+- Now-orphaned CSS (`.admin-actions`, `.admin-breadcrumbs*`, `.admin-client-nav*`) left in `admin.css` — confirmed via grep these class names are no longer referenced anywhere; harmless dead rules, not cleaned up in this pass.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — JSX/CSS only, no data/logic changes. `npm run build` passes clean.
+
+### Rollback plan
+Revert the merge commit — purely visual, no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated `/admin/maps` redirects to sign-in with no console errors
+- [ ] Authenticated visual check — not done by the agent (no test credentials); Damian to verify
+
+---
+
 ## 2026-09-29 — [Production] Restyle every page wrapper onto the new design system
 
 **Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269) — merged to `main` at Damian's "merge" instruction.

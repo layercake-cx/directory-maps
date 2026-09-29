@@ -73,39 +73,44 @@ export default function AdminLayout({
       panel={effectivePanel}
     >
       <div className={`admin-main ${mainClassName}`.trim()}>
-        {rightActions && <div className="admin-actions">{rightActions}</div>}
-
-        {breadcrumbs.length > 0 && (
-          <div className="admin-breadcrumbs">
-            <div className="admin-breadcrumbs__inner">
-              {breadcrumbs.map((item, i) => (
-                <span key={i} className="admin-breadcrumbs__item">
-                  {i > 0 && <span className="admin-breadcrumbs__sep" aria-hidden> / </span>}
-                  {item.path ? (
-                    <Link to={item.path} className="admin-breadcrumbs__link">{item.label}</Link>
-                  ) : (
-                    <span className="admin-breadcrumbs__current">{item.label}</span>
-                  )}
-                </span>
-              ))}
+        {(breadcrumbs.length > 0 || rightActions) && (
+          <div className="page-head" style={{ marginBottom: 16 }}>
+            <div>
+              {breadcrumbs.length > 1 && (
+                <div style={{ fontSize: 13, color: "var(--shell-text-muted)", marginBottom: 4 }}>
+                  {breadcrumbs.slice(0, -1).map((item, i) => (
+                    <span key={i}>
+                      {i > 0 && <span aria-hidden style={{ margin: "0 6px" }}>/</span>}
+                      {item.path ? (
+                        <Link to={item.path} style={{ color: "inherit" }}>{item.label}</Link>
+                      ) : (
+                        item.label
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {breadcrumbs.length > 0 && (
+                <h1 className="page-title">{breadcrumbs[breadcrumbs.length - 1].label}</h1>
+              )}
             </div>
+            {rightActions && <div style={{ display: "flex", gap: 10, alignItems: "center" }}>{rightActions}</div>}
           </div>
         )}
 
         {clientNavItems && clientNavItems.length > 0 && (
-          <nav className="admin-client-nav" aria-label="Client sections">
-            <div className="admin-client-nav__inner">
-              {clientNavItems.map(({ label, value }) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`admin-client-nav__tab${activeClientTab === value ? " admin-client-nav__tab--active" : ""}`}
-                  onClick={() => onClientTabChange?.(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <nav className="tabs" aria-label="Client sections" style={{ marginBottom: 20 }}>
+            {clientNavItems.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                className="tab"
+                aria-current={activeClientTab === value ? "page" : undefined}
+                onClick={() => onClientTabChange?.(value)}
+              >
+                {label}
+              </button>
+            ))}
           </nav>
         )}
 

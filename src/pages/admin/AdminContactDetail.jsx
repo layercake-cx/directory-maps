@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 
 export default function AdminContactDetail() {
@@ -112,11 +111,6 @@ export default function AdminContactDetail() {
         { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
         { label: "Contact" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>

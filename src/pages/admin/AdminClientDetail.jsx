@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
@@ -418,11 +417,6 @@ export default function AdminClientDetail() {
       activeClientTab={activeTab}
       onClientTabChange={(value) =>
         navigate(value === "maps" ? `/admin/clients/${encodeURIComponent(clientId)}` : `/admin/clients/${encodeURIComponent(clientId)}/${value}`)
-      }
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
       }
     >
       <div className="card card-pad">
