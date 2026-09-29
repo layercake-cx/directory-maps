@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import AppShell from "../../components/shell/AppShell.jsx";
-import CustomerAccountFeaturePanel from "../../components/shell/CustomerAccountFeaturePanel.jsx";
 import { recordCustomerVisit } from "../../lib/recentCustomers.js";
 import "./admin.css";
 
@@ -17,27 +16,21 @@ function clientWorkspaceIdFromPath(pathname) {
   return match && match[1] !== "new" ? match[1] : null;
 }
 
-function isCustomerAccountRoute(pathname) {
-  return /^\/admin\/clients\/[^/]+\/(details|entitlements)$/.test(pathname || "");
-}
-
 /**
  * Every admin page still imports and wraps its content in this component (there is no
  * route-level admin layout yet — see BUILD plan §3 for why that restructuring was skipped
  * in Phase 1). What changed: the old bespoke header + ADMIN_NAV bar is now the shared
  * AppShell/TopBar/Rail (platform context — the brief's "staff client workspace renders
  * inside the client shell" treatment for /admin/clients/:clientId/... is explicitly Phase 3
- * work, not attempted here). breadcrumbs/clientNavItems/rightActions keep their exact old
- * markup and classes, just relocated inside the new shell's <main>.
+ * work, not attempted here). A page under a client workspace that wants its own left-column
+ * sub-nav (matching the client portal's own pattern) passes `panel` — see
+ * CustomerWorkspaceFeaturePanel/DirectoryFeaturePanel — rather than a horizontal tab bar.
  *
  * @param {{
  *   rightActions?: React.ReactNode,
  *   children: React.ReactNode,
  *   mainClassName?: string,
  *   breadcrumbs?: {label: string, path?: string}[],
- *   clientNavItems?: {label: string, value: string}[],
- *   activeClientTab?: string,
- *   onClientTabChange?: (value: string) => void,
  *   panel?: React.ReactNode,
  * }} props
  */
@@ -46,9 +39,6 @@ export default function AdminLayout({
   children,
   mainClassName = "",
   breadcrumbs = [],
-  clientNavItems,
-  activeClientTab,
-  onClientTabChange,
   panel,
 }) {
   const location = useLocation();
@@ -61,16 +51,13 @@ export default function AdminLayout({
     if (clientWorkspaceId) recordCustomerVisit(clientWorkspaceId);
   }, [clientWorkspaceId]);
 
-  const effectivePanel =
-    panel ?? (clientWorkspaceId && isCustomerAccountRoute(pathname) ? <CustomerAccountFeaturePanel clientId={clientWorkspaceId} /> : undefined);
-
   return (
     <AppShell
       context={context}
       isStaff
       homeHref={clientWorkspaceId ? `/admin/clients/${encodeURIComponent(clientWorkspaceId)}` : "/admin/clients"}
       activeClientId={clientWorkspaceId}
-      panel={effectivePanel}
+      panel={panel}
     >
       <div className={`admin-main ${mainClassName}`.trim()}>
         {(breadcrumbs.length > 0 || rightActions) && (
@@ -96,22 +83,6 @@ export default function AdminLayout({
             </div>
             {rightActions && <div style={{ display: "flex", gap: 10, alignItems: "center" }}>{rightActions}</div>}
           </div>
-        )}
-
-        {clientNavItems && clientNavItems.length > 0 && (
-          <nav className="tabs" aria-label="Client sections" style={{ marginBottom: 20 }}>
-            {clientNavItems.map(({ label, value }) => (
-              <button
-                key={value}
-                type="button"
-                className="tab"
-                aria-current={activeClientTab === value ? "page" : undefined}
-                onClick={() => onClientTabChange?.(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
         )}
 
         {showMapSubNav && <MapEditSubNav standalone />}

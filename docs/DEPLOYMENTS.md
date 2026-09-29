@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-09-29 — [Production] Admin customer workspace: left-column nav instead of tabs
+
+**Branch/PR:** `fix/2026-09-29-admin-workspace-feature-panel-nav` (PR pending).
+**Deployed by:** Claude Code, at Damian's direct feedback comparing an admin customer-workspace screenshot against a client-portal one: "these pages look very different... the page navigation should be put into the left hand column on white bg next to the primary nav like in other screenshot."
+
+### What changed
+
+- New `src/components/shell/CustomerWorkspaceFeaturePanel.jsx`: renders the customer workspace's 8 sections (Maps, Directories, Categorisations, Entitlements, Customer details, Users, Messaging, Domains) as a left-column panel, mirroring `DirectoryFeaturePanel`'s existing pattern — same shell `panel` slot, same white column next to the black icon rail that the client portal itself uses.
+- `AdminClientDetail.jsx` now passes this panel via `AdminLayout`'s `panel` prop instead of the horizontal `clientNavItems`/tab-bar props (added only last deploy, in #271) — those props and their rendering were removed from `AdminLayout.jsx` entirely.
+- Deleted `CustomerAccountFeaturePanel.jsx` (a narrower 2-item panel for just Customer details/Entitlements) — fully superseded by the new 8-item panel.
+- Fixed a real bug in the shared `FeaturePanel.jsx` found while building this: a group's base item (e.g. "Overview" in the directory panel, "Maps" here) was marked active *at the same time* as whatever deeper sub-route was actually open, because the base route is a path-prefix of every sibling route. Now prefers the most specific (longest) matching route — fixes this for the existing `DirectoryFeaturePanel` too, not just the new one.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None — frontend only.
+
+### Frontend
+- Yes — JSX only, no data/logic changes. `npm run build` passes clean.
+
+### Rollback plan
+Revert the merge commit — purely structural/visual, no data/schema impact either direction.
+
+### Verified
+- [x] `npm run build` clean
+- [x] Unauthenticated `/admin/clients` renders with no console errors
+- [ ] Authenticated visual check — not done by the agent (no test credentials); Damian to verify
+
+---
+
 ## 2026-09-29 — [Production] Restyle the shared admin chrome (AdminLayout)
 
 **Branch/PR:** `fix/2026-09-29-admin-layout-chrome-restyle` (PR pending).

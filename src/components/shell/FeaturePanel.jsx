@@ -15,6 +15,18 @@ export default function FeaturePanel({ title, backHref, backLabel, subtitle, pri
 
   if (!groups || groups.length === 0) return null;
 
+  const allRoutes = groups.flatMap((g) => g.items.map((item) => item.route));
+  function isItemActive(route) {
+    if (pathname === route) return true;
+    if (!pathname.startsWith(route + "/")) return false;
+    // A shorter route (e.g. a group's base "Overview"/"Maps" item) is a path prefix of every
+    // route nested under it — only treat it as active by prefix when no more specific sibling
+    // route also matches, so the base item and the real active sub-item don't both light up.
+    return !allRoutes.some(
+      (other) => other !== route && other.length > route.length && (pathname === other || pathname.startsWith(other + "/"))
+    );
+  }
+
   return (
     <nav className="panel" aria-label={title ? `${title} navigation` : "Feature navigation"}>
       {backHref && (
@@ -33,7 +45,7 @@ export default function FeaturePanel({ title, backHref, backLabel, subtitle, pri
         <div className="nav-group" key={group.label ?? i}>
           {group.label && <p className="nav-group-label">{group.label}</p>}
           {group.items.map((item) => {
-            const active = pathname === item.route || pathname.startsWith(item.route + "/");
+            const active = isItemActive(item.route);
             return (
               <Link key={item.route} to={item.route} className="nav-item" aria-current={active ? "page" : undefined}>
                 <span>{item.label}</span>

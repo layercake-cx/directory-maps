@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import CustomerWorkspaceFeaturePanel from "../../components/shell/CustomerWorkspaceFeaturePanel.jsx";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
 import DomainSettings from "../../components/DomainSettings.jsx";
@@ -396,29 +397,8 @@ export default function AdminClientDetail() {
     }
   }
 
-  const CLIENT_NAV_ITEMS = [
-    { label: "Maps", value: "maps" },
-    { label: "Directories", value: "directories" },
-    { label: "Categorisations", value: "categorisations" },
-    { label: "Entitlements", value: "entitlements" },
-    { label: "Customer details", value: "details" },
-    { label: "Users", value: "users" },
-    { label: "Messaging", value: "messaging" },
-    { label: "Domains", value: "domains" },
-  ];
-
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-      ]}
-      clientNavItems={CLIENT_NAV_ITEMS}
-      activeClientTab={activeTab}
-      onClientTabChange={(value) =>
-        navigate(value === "maps" ? `/admin/clients/${encodeURIComponent(clientId)}` : `/admin/clients/${encodeURIComponent(clientId)}/${value}`)
-      }
-    >
+    <AdminLayout panel={<CustomerWorkspaceFeaturePanel clientId={clientId} clientName={client?.name} />}>
       <div className="card card-pad">
         {loading ? (
           <p>Loading…</p>
