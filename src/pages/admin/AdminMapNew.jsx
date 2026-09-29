@@ -190,48 +190,50 @@ export default function AdminMapNew() {
         </button>
       }
     >
-      <div className="admin-card" style={{ maxWidth: 760 }}>
+      <div className="card card-pad" style={{ maxWidth: 760 }}>
         <div style={{ marginBottom: 12 }}>
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
-        <h2 style={{ marginTop: 0 }}>
-          Create map {client?.name ? <span style={{ opacity: 0.7 }}>for {client.name}</span> : null}
-        </h2>
+        <p className="card-title">
+          Create map {client?.name ? <span style={{ opacity: 0.7, fontWeight: 400 }}>for {client.name}</span> : null}
+        </p>
 
         <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
 
         <form onSubmit={createMap}>
           <div style={{ display: "grid", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr", gap: 16 }}>
+            <div className="field-grid">
               <Field label="Map name">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
+                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
               </Field>
               <Field label="Web address (short name)">
                 <input
+                  className="input"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder={suggestedSlug || "e.g. uk-directory"}
                 />
-                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+                <div className="field-hint">
                   This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
                 </div>
               </Field>
             </div>
 
             <div style={{ marginTop: 8 }}>
-              <h3 style={{ margin: "0 0 6px 0", fontSize: 15 }}>Where do you want to centre your map?</h3>
+              <p className="card-title" style={{ fontSize: 15 }}>Where do you want to centre your map?</p>
               <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.8 }}>
                 Search for a city or country and we’ll set the map centre and an appropriate zoom level.
               </p>
               <Field label="Search for a place">
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input
+                    className="input"
                     value={locationQuery}
                     onChange={(e) => setLocationQuery(e.target.value)}
                     placeholder="e.g. London, UK or Canada"
                   />
-                  <button className="btn" type="button" onClick={lookupLocation} disabled={geocoding}>
+                  <button className="shell-btn" type="button" onClick={lookupLocation} disabled={geocoding}>
                     {geocoding ? "Searching…" : "Search"}
                   </button>
                 </div>
@@ -241,14 +243,14 @@ export default function AdminMapNew() {
                 <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Fine-tune the start view (optional)</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                   <Field label="Latitude">
-                    <input value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
+                    <input className="input" value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
                   </Field>
                   <Field label="Longitude">
-                    <input value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
+                    <input className="input" value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
                   </Field>
                   <Field label="Zoom">
-                    <input value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
-                    <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
+                    <input className="input" value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
+                    <div className="field-hint">
                       4–6: continent / global, 7–10: country / region, 11+ closer in.
                     </div>
                   </Field>
@@ -276,14 +278,14 @@ export default function AdminMapNew() {
               </label>
             </div>
 
-            {err ? <p style={{ margin: 0 }}>{err}</p> : null}
+            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="btn btn-primary" type="submit" disabled={saving || atMapLimit}>
+              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving || atMapLimit}>
                 {saving ? "Creating…" : "Create map"}
               </button>
 
-              <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
+              <Link className="shell-btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
                 Cancel
               </Link>
             </div>
@@ -296,11 +298,9 @@ export default function AdminMapNew() {
 
 function Field({ label, children }) {
   return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>
-        {children}
-      </div>
+    <div className="field">
+      <label>{label}</label>
+      {children}
     </div>
   );
 }

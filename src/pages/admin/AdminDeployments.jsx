@@ -112,8 +112,8 @@ export default function AdminDeployments() {
         </button>
       }
     >
-      <div className="admin-card">
-        <h2 style={{ marginTop: 0 }}>Deployments</h2>
+      <div className="card card-pad">
+        <p className="card-title">Deployments</p>
         <p style={{ color: "var(--lc-muted)", marginBottom: 24 }}>
           Deploy to test (preview) or production. If deploy hooks are configured, clicking will trigger a deploy; otherwise the command is copied so you can run it locally.
         </p>
@@ -121,7 +121,7 @@ export default function AdminDeployments() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320 }}>
           <button
             type="button"
-            className="btn btn-primary"
+            className="shell-btn shell-btn--primary"
             onClick={deployToTest}
             disabled={loading.test}
           >
@@ -129,7 +129,7 @@ export default function AdminDeployments() {
           </button>
           <button
             type="button"
-            className="btn"
+            className="shell-btn"
             onClick={deployLive}
             disabled={loading.live}
           >

@@ -78,10 +78,10 @@ export default function AdminLeads() {
         </button>
       }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Leads</h2>
-          <button type="button" className="btn" onClick={load} disabled={loading}>
+          <p className="card-title" style={{ margin: 0 }}>Leads</p>
+          <button type="button" className="shell-btn" onClick={load} disabled={loading}>
             {loading ? "Loading…" : "Refresh"}
           </button>
         </div>

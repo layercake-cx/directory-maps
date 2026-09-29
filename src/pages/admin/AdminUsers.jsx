@@ -68,8 +68,8 @@ export default function AdminUsers() {
         </button>
       }
     >
-      <div className="admin-card">
-        <h2 style={{ marginTop: 0 }}>Admin Users</h2>
+      <div className="card card-pad">
+        <p className="card-title">Admin Users</p>
         <p style={{ color: "var(--lc-muted)" }}>View admin user details and activity.</p>
         {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
         {loading ? (
