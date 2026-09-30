@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-09-29 — [Production] Admin customer workspace: left-column nav instead of tabs
+## 2026-09-30 — [Production] Admin customer workspace: left-column nav instead of tabs
 
-**Branch/PR:** `fix/2026-09-29-admin-workspace-feature-panel-nav` (PR pending).
+**Branch/PR:** [`fix/2026-09-29-admin-workspace-feature-panel-nav`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-admin-workspace-feature-panel-nav), [PR #272](https://github.com/layercake-cx/directory-maps/pull/272) — merged to `main` and deployed live (`uk-associations.com`) at Damian's "go ahead to production please".
 **Deployed by:** Claude Code, at Damian's direct feedback comparing an admin customer-workspace screenshot against a client-portal one: "these pages look very different... the page navigation should be put into the left hand column on white bg next to the primary nav like in other screenshot."
 
 ### What changed
@@ -35,13 +35,14 @@ Revert the merge commit — purely structural/visual, no data/schema impact eith
 ### Verified
 - [x] `npm run build` clean
 - [x] Unauthenticated `/admin/clients` renders with no console errors
+- [x] Deployed to Vercel production, `uk-associations.com` returns HTTP 200
 - [ ] Authenticated visual check — not done by the agent (no test credentials); Damian to verify
 
 ---
 
 ## 2026-09-29 — [Production] Restyle the shared admin chrome (AdminLayout)
 
-**Branch/PR:** `fix/2026-09-29-admin-layout-chrome-restyle` (PR pending).
+**Branch/PR:** [`fix/2026-09-29-admin-layout-chrome-restyle`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-admin-layout-chrome-restyle), [PR #271](https://github.com/layercake-cx/directory-maps/pull/271) — merged to `main` and deployed live.
 **Deployed by:** Claude Code, at Damian's screenshot feedback from `/admin/maps`: a stray floating "Sign out" button and a weirdly-styled gray page title bar, both leftover pre-shell chrome inside `AdminLayout.jsx` — the wrapper every admin page renders inside — that the earlier page-body restyle (PR #269) didn't touch since it's shared layout, not page content.
 
 ### What changed
@@ -66,6 +67,7 @@ Revert the merge commit — purely visual, no data/schema impact either directio
 ### Verified
 - [x] `npm run build` clean
 - [x] Unauthenticated `/admin/maps` redirects to sign-in with no console errors
+- [x] Deployed to Vercel production, `uk-associations.com` returns HTTP 200
 - [ ] Authenticated visual check — not done by the agent (no test credentials); Damian to verify
 
 ---
@@ -74,7 +76,7 @@ Revert the merge commit — purely visual, no data/schema impact either directio
 
 **Branch/PR:** [`fix/2026-09-29-phase4-pages-use-new-design-system`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-phase4-pages-use-new-design-system), [PR #269](https://github.com/layercake-cx/directory-maps/pull/269) — merged to `main` at Damian's "merge" instruction.
 **Preview URL (pre-merge):** https://directory-maps-82i7v7g18-layercake-apps.vercel.app (Vercel deployment protection is on — sign in with the `layercake-apps` Vercel team to view).
-**Production status:** GitHub Pages (`layercake-cx.github.io/directory-maps/`) auto-deploys on every push to `main` — no manual step needed, already live there. The Vercel production deploy (the real branded domains, e.g. `uk-associations.com`) is separate and requires an explicit `npm run deploy:live` with user sign-off per `AGENTS.md` — **not yet run**; the real branded domain is still on the pre-merge build until that's done.
+**Production status:** GitHub Pages (`layercake-cx.github.io/directory-maps/`) auto-deploys on every push to `main` — no manual step needed. The Vercel production deploy (the real branded domains, e.g. `uk-associations.com`) ran as part of the 2026-09-30 `deploy:live` (see the entry above) once Damian gave the go-ahead.
 **Deployed by:** Claude Code, at Damian's report (from using the live app) that page bodies looked visually inconsistent with the new shell chrome around them, then his direct screenshot feedback (HubSpot spacing reference; "three different styles on three pages"; "messaging has a white box around it, I'd be removing that"); then his "keep going page by page, almost every page needs this treatment" — extended to cover the whole admin console too.
 
 ### What changed
@@ -147,8 +149,9 @@ Revert the merge commit — purely visual, no data/schema impact either directio
 - [x] Unauthenticated routes (e.g. `/client/email` → redirects to `/login` as expected) render with
       no console errors
 - [x] Deployed to Vercel preview (staging): https://directory-maps-82i7v7g18-layercake-apps.vercel.app
+- [x] Deployed to Vercel production, `uk-associations.com` returns HTTP 200 (2026-09-30)
 - [ ] Authenticated visual check — not done by the agent (no test credentials for the staging
-      Supabase project); Damian to verify the actual look on the preview URL above
+      Supabase project); Damian to verify the actual look
 
 ---
 
