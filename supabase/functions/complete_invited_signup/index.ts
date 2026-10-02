@@ -1,4 +1,6 @@
 import { createServiceClient } from "../_shared/supabase.ts";
+import { errorMessage } from "../_shared/errors.ts";
+import { checkSeatAvailability } from "../_shared/seats.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +72,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "This user already belongs to another organisation." }, 409);
     }
 
+    // Seats may have filled since the invite was sent. Fail clearly before creating an auth user.
+    const seats = await checkSeatAvailability(service, invitation.client_id, { countPending: false });
+    if (!seats.ok) {
+      return jsonResponse(
+        {
+          error:
+            "This organisation has no free team seats, so your account can't be created yet. " +
+            "Ask the person who invited you to upgrade the plan or free up a seat, then use this link again.",
+        },
+        409
+      );
+    }
+
     const fullName = `${firstName} ${lastName}`.trim();
     const { data: createdUser, error: createUserErr } = await service.auth.admin.createUser({
       email,
@@ -122,7 +137,8 @@ Deno.serve(async (req) => {
     if (createdUserId) {
       await service.auth.admin.deleteUser(createdUserId);
     }
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
+    console.error("complete_invited_signup failed:", msg);
     return jsonResponse({ error: msg }, 500);
   }
 });

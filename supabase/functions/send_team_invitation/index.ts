@@ -1,6 +1,8 @@
 // Create team invitation + send Resend email (password signup link).
 // Enforces one account per organisation via create_team_invitation RPC.
 import { createAnonClient, createServiceClient, requireUser } from "../_shared/supabase.ts";
+import { errorMessage } from "../_shared/errors.ts";
+import { checkSeatAvailability } from "../_shared/seats.ts";
 import { buildFromHeader, getPlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 
 const CORS_HEADERS = {
@@ -106,6 +108,9 @@ Deno.serve(async (req) => {
 
     const { user, contact: inviterContact } = await requireOrgManager(req, clientId);
 
+    const seats = await checkSeatAvailability(createServiceClient(), clientId);
+    if (!seats.ok) return jsonResponse({ error: seats.message }, 409);
+
     const anon = createAnonClient(req);
     const { data: invitation, error: invErr } = await anon.rpc("create_team_invitation", {
       p_client_id: clientId,
@@ -178,7 +183,7 @@ Deno.serve(async (req) => {
       emailSent: true,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     const status = msg.includes("Access denied") || msg.includes("Not authenticated") ? 403 : 500;
     return jsonResponse({ error: msg }, status);
   }
