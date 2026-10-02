@@ -30,6 +30,7 @@
  * Auth: service-role only (called server-side / from cron).
  */
 
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 import {
   CORS,
@@ -348,7 +349,7 @@ Deno.serve(async (req) => {
     const result = await generateForMap(map_id);
     return json({ ok: true, ...result });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     console.error("generate_directory_pages error:", msg);
     return json({ error: msg }, 500);
   }

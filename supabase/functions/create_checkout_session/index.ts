@@ -11,6 +11,7 @@
 // Response:
 // { url: "https://checkout.stripe.com/..." } or { error: "..." }
 
+import { errorMessage } from "../_shared/errors.ts";
 import Stripe from "https://esm.sh/stripe@12?target=deno";
 import { createAnonClient, createServiceClient, requireUser } from "../_shared/supabase.ts";
 
@@ -172,7 +173,7 @@ Deno.serve(async (req) => {
     console.error("create_checkout_session error", e);
     return jsonResponse(
       {
-        error: e instanceof Error ? e.message : "Unexpected error creating checkout session.",
+        error: errorMessage(e, "Unexpected error creating checkout session."),
       },
       500,
     );

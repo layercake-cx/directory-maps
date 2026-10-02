@@ -1,3 +1,4 @@
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
 import {
   extractEmailDomain,
@@ -298,7 +299,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Unknown action." }, 400);
   } catch (e) {
     console.error(e);
-    const message = e instanceof Error ? e.message : "Request failed.";
+    const message = errorMessage(e, "Request failed.");
     const status = message === "Not authenticated" ? 401 : message.includes("Access denied") ? 403 : 500;
     return jsonResponse({ error: message }, status);
   }
