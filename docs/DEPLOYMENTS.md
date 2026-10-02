@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-02 — [Staging] Invited sign-up: show the real error, refuse invites when no seats are left
+
+**Branch/PR:** `fix/2026-10-02-invite-signup-seat-errors`
+**Deployed by:** Claude Code, in response to a blocker: a customer on a 1-seat plan (already 1 contact) was invited, received the email, and sign-up hung then showed `[object Object]` under the submit button.
+
+### What changed
+
+- **Root cause:** the `trg_enforce_seats_limit` trigger on `contacts` (seats entitlement, 2026-08-20) rejects the invitee's contact insert when the customer is at its seat limit. Nothing checked seats when the invitation was created, so the email went out with a link that could never work. `complete_invited_signup` then reported the failure as `[object Object]` because its catch block did `String(e)` on a supabase-js error, which is a plain object, not an `Error`.
+- New `_shared/errors.ts` (`errorMessage`): turns any thrown value (including `PostgrestError`/`AuthError` objects) into a readable string. Used in `complete_invited_signup`, `admin_create_client_user`, `send_team_invitation`.
+- New `_shared/seats.ts` (`checkSeatAvailability`): mirrors the trigger's limit precedence (kill switch, override, founder, plan row, default) and counts contacts plus unexpired pending invitations.
+- `admin_create_client_user` and `send_team_invitation` now return HTTP 409 with "No team seats left for this organisation…" before creating the invitation or sending email.
+- `complete_invited_signup` re-checks seats before creating the auth user, so an invitee sees a clear message instead of a failed sign-up if seats filled after the invite.
+- Not changed: ~11 other Edge Functions still use the `String(e)` pattern and can show `[object Object]` for database errors. Worth a follow-up sweep.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- `complete_invited_signup`, `admin_create_client_user`, `send_team_invitation` — deployed to **staging** (`beqejxneehilplrtpntn`) and, at Damian's explicit instruction, to **production** (`gxixwdjfmegxcxfeflro`) on 2026-10-02 from the PR branch (before merge to `main`). Staging test steps below had not been ticked when production was deployed.
+
+### Frontend
+- No change.
+
+### Rollback plan
+Revert the commit and redeploy the three functions (previous behaviour: no seat pre-check, raw error text). No data or schema impact.
+
+### Verified
+- [x] `deno check` passes for all three functions; `errorMessage` returns the message for plain-object errors
+- [ ] Staging: invite to a full 1-seat customer returns the seat message and sends no email
+- [ ] Staging: invite to a customer with a free seat still works end to end
+- [ ] Customer-facing unblock (plan change or seat override) applied by Damian
+
+---
+
 ## 2026-09-30 — [Production] Admin customer workspace: left-column nav instead of tabs
 
 **Branch/PR:** [`fix/2026-09-29-admin-workspace-feature-panel-nav`](https://github.com/layercake-cx/directory-maps/tree/fix/2026-09-29-admin-workspace-feature-panel-nav), [PR #272](https://github.com/layercake-cx/directory-maps/pull/272) — merged to `main` and deployed live (`uk-associations.com`) at Damian's "go ahead to production please".

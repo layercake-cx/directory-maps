@@ -592,6 +592,7 @@ You will see an error instead of sending email if:
 | They are on another organisation’s team | *This user already belongs to another organisation.* |
 | They are already on your team | *This email is already on your team.* |
 | Invite already pending | *A pending invitation already exists for this email.* |
+| No team seats left on the plan | *No team seats left for this organisation: 1 seat on its plan…* — existing members and pending invitations both use a seat. Upgrade the plan or ask a Layercake admin to add a seat override. |
 
 Invitations expire after **7 days** — send a new one if needed.
 
@@ -756,6 +757,8 @@ From a customer’s **Users** tab, admins can add a user by entering:
 - Optional permissions (Manage maps, Manage users)
 
 On submit, Directory Maps sends an invitation email that opens a create-account / set-password screen. The contact is linked to the customer after the invitee completes signup.
+
+The invitation is refused up front if the customer has no free team seats (members plus pending invitations versus the plan's seat limit, including any seat override). Fix it by changing the plan or adding a `maps.seats` override on the **Entitlements** tab, then add the user again.
 
 Admins can also remove users (including primary contacts) from the same list using the trash icon. Deleting requires typing `delete` to confirm.
 If a user is associated with another customer, deletion is blocked and a warning above the table lists those customers.

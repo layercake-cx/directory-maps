@@ -1,4 +1,6 @@
 import { createServiceClient, requireAdmin } from "../_shared/supabase.ts";
+import { errorMessage } from "../_shared/errors.ts";
+import { checkSeatAvailability } from "../_shared/seats.ts";
 import { getPlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 
 const CORS_HEADERS = {
@@ -128,6 +130,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "A pending invitation already exists for this email." }, 409);
     }
 
+    const seats = await checkSeatAvailability(service, clientId);
+    if (!seats.ok) return jsonResponse({ error: seats.message }, 409);
+
     const { data: inv, error: invitationError } = await service
       .from("invitations")
       .insert({
@@ -191,7 +196,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, invitationId: inv.id, emailSent: true, signupUrl });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     const status = msg === "Not authenticated" ? 401 : msg.includes("Admin access required") ? 403 : 500;
     return jsonResponse({ error: msg }, status);
   }
