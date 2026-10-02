@@ -21,6 +21,7 @@
  * Auth: service-role only (called server-side / from cron).
  */
 
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 import { uploadToBlob } from "../_shared/staticSiteRenderer.ts";
 
@@ -175,7 +176,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, ...result });
 
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     console.error("generate_map_snapshot error:", msg);
     return json({ error: msg }, 500);
   }

@@ -73,6 +73,7 @@
  * entry, per the epic's non-negotiable publishing-isolation rule.
  */
 
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import { backfillDirectorySeoMetadata } from "../_shared/seoMetadataBackfill.ts";
@@ -260,7 +261,7 @@ async function generateForDirectory(directoryId: string, request: GenerationRequ
     }
     return result;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     await db.from("directories").update({ site_generation_status: "failed", site_generation_error: msg }).eq("id", directoryId);
     throw e;
   }
@@ -1126,7 +1127,7 @@ Deno.serve(async (req) => {
     const result = await generateForDirectory(directory_id, request);
     return json({ ok: true, ...result });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     console.error("generate_directory_site error:", msg);
     return json({ error: msg }, 500);
   }

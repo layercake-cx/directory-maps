@@ -1,5 +1,6 @@
 // Directory map contact form → Resend (listing To, visitor Cc).
 // Platform: RESEND_API_KEY, RESEND_FROM. Per-client verified domain overrides From when configured.
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 import { buildFromHeader, parsePlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 
@@ -313,6 +314,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: true, sentToContact: true, ccSender: true });
   } catch (e) {
     console.error(e);
-    return jsonResponse({ error: e instanceof Error ? e.message : "Failed to send message." }, 500);
+    return jsonResponse({ error: errorMessage(e, "Failed to send message.") }, 500);
   }
 });

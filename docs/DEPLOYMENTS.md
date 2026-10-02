@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-02 — [Not deployed] Edge Functions: stop hiding database errors as `[object Object]`
+
+**Branch/PR:** `fix/2026-10-02-edge-function-error-messages`, stacked on `fix/2026-10-02-invite-signup-seat-errors` ([PR #274](https://github.com/layercake-cx/directory-maps/pull/274)) because it uses that PR's `_shared/errors.ts`.
+**Deployed by:** Claude Code. Follow-up to the invite sign-up blocker.
+
+### What changed
+
+- Nine more Edge Functions had `e instanceof Error ? e.message : String(e)` (or a fixed fallback string) in their catch blocks. supabase-js errors are plain objects, so the real message was lost: `[object Object]` in some, a generic "Request failed." in others. They now use `errorMessage(e)` from `_shared/errors.ts`: `admin_delete_client_user`, `generate_directory_pages`, `generate_map_snapshot`, `generate_directory_site`, `resolve_directory_place`, `create_checkout_session`, `manage_client_domain`, `manage_client_email`, `send_contact_message`.
+- Behaviour change: error responses from these functions now carry the database's message (message, details, hint). Nothing else changes. `builders.ts` is untouched, so no `ENTRY_TEMPLATE_VERSION` bump.
+- Left alone: `_shared/vercel.ts` (returns a structured `{attached:false}`, not a thrown error shown to users).
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None yet. Staging (`beqejxneehilplrtpntn`) first; production only on explicit sign-off.
+
+### Frontend
+- No change.
+
+### Rollback plan
+Revert the commit and redeploy the nine functions. No data or schema impact.
+
+### Verified
+- [x] `deno check` passes for all nine functions
+- [ ] Staging deploy and a spot-check that an error response now shows the real message
+
+---
+
 ## 2026-10-02 — [Staging] Invited sign-up: show the real error, refuse invites when no seats are left
 
 **Branch/PR:** `fix/2026-10-02-invite-signup-seat-errors`

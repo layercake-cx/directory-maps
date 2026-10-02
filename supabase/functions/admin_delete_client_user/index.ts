@@ -1,3 +1,4 @@
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireAdmin } from "../_shared/supabase.ts";
 
 const CORS_HEADERS = {
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, deletedContactId: contactId, deletedUserId: userId ?? null });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     const status = msg === "Not authenticated" ? 401 : msg.includes("Admin access required") ? 403 : 500;
     return jsonResponse({ error: msg }, status);
   }
