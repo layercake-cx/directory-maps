@@ -26,7 +26,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Edge Functions deployed
-- `complete_invited_signup`, `admin_create_client_user`, `send_team_invitation` — **not yet deployed** to any project. Staging (`beqejxneehilplrtpntn`) first; production only on explicit sign-off.
+- `complete_invited_signup`, `admin_create_client_user`, `send_team_invitation` — deployed to **staging** (`beqejxneehilplrtpntn`) on 2026-10-02. **Not deployed to production**; that needs explicit sign-off.
 
 ### Frontend
 - No change.
