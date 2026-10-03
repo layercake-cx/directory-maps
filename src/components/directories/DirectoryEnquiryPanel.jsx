@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { updateDirectory } from "../../lib/directories.js";
+import EntityMessagingSettings from "../EntityMessagingSettings.jsx";
 
 const inputStyle = { width: "100%", maxWidth: 420, boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
 const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
@@ -23,9 +24,9 @@ function truncate(text, max = 120) {
 }
 
 /**
- * Directory Email tab. The contact inbox is per directory. Enable, test mode,
- * from address, subject, and domain are the organisation's map messaging
- * settings — the same records edited at /client/email.
+ * Directory Email tab. The contact inbox, sending profile, enable switch, test
+ * mode and message text are all per directory. Sending profiles (From address +
+ * domain) are the organisation's, managed under Messaging.
  */
 export default function DirectoryEnquiryPanel({ directory, directoryId, clientId, clientName, canManage, recordEvent, eventSource, onSaved }) {
   const [email, setEmail] = useState(directory?.enquiry_email || "");
@@ -91,7 +92,7 @@ export default function DirectoryEnquiryPanel({ directory, directoryId, clientId
       <div className="admin-card" style={{ marginBottom: 16 }}>
         <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Contact email</p>
         <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.75, maxWidth: 640 }}>
-          When this address is set and messaging is on, each published entry page shows <strong>Make an Enquiry</strong> next to Visit website. The message is sent here. Publish again after saving — the button is written into the public pages at publish time.
+          When this address is set and messaging is on (below), each published entry page shows <strong>Make an Enquiry</strong> next to Visit website. The message is sent here. Publish again after saving — the button is written into the public pages at publish time.
         </p>
         <form onSubmit={handleSave}>
           {err ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p> : null}
@@ -118,12 +119,15 @@ export default function DirectoryEnquiryPanel({ directory, directoryId, clientId
         </form>
       </div>
 
-      <div className="admin-card" style={{ marginTop: 16 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Sending settings</p>
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.75, maxWidth: 640 }}>
-          The sending profile, test mode and message text for this directory are being moved onto this
-          tab. Sending profiles themselves are managed under Messaging for your organisation.
-        </p>
+      <div style={{ marginTop: 16 }}>
+        <EntityMessagingSettings
+          entity="directory"
+          entityId={directoryId}
+          clientId={clientId}
+          eventSource={eventSource}
+          canManage={canManage}
+          onSaved={onSaved}
+        />
       </div>
 
       <div className="admin-card" style={{ marginTop: 16 }}>
