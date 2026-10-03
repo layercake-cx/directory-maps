@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-03 — [Not deployed] Admin and client pages: consistent content width
+
+**Branch/PR:** `fix/2026-10-03-consistent-content-width`
+**Deployed by:** Claude Code.
+
+### What changed
+
+- Page content in the new shell was sized by how much each page contained: client pages sit in `.page-main`, whose `margin: auto` made it shrink-wrap inside the flex-column `<main>`. Content is now always left-aligned against the navigation, fills the available width, and stops at 1600px (previously 1230px, centred). Admin and client pages use the same rule, set once in `src/styles/admin-shell.css` for every direct child of `<main>`.
+- Side effect: the admin map editor page (`admin-main--map-page`) was uncapped and is now also limited to 1600px.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- None.
+
+### Frontend
+- CSS only. GitHub Pages on merge; Vercel needs `npm run deploy:test` / `deploy:live`.
+
+### Rollback plan
+Revert the commit (removes the added block in `admin-shell.css`).
+
+### Verified
+- [x] `npm run build` passes
+- [ ] Visual check of admin and client pages on a wide viewport (needs a signed-in session)
+
+---
+
 ## 2026-10-02 — [Not deployed] Edge Functions: stop hiding database errors as `[object Object]`
 
 **Branch/PR:** `fix/2026-10-02-edge-function-error-messages`, stacked on `fix/2026-10-02-invite-signup-seat-errors` ([PR #274](https://github.com/layercake-cx/directory-maps/pull/274)) because it uses that PR's `_shared/errors.ts`.
