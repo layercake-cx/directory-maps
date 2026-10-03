@@ -130,12 +130,14 @@ async function isSnapshotFresh(supabaseClient, mapId, snapshot) {
   }
 }
 
-async function fetchClientMessagingSettings(supabaseClient, clientId) {
-  if (!clientId) return null;
+// Per-map settings. messaging_enabled is the effective value: the map's toggle AND
+// a sending profile chosen AND the messaging entitlement (see map_messaging_settings).
+async function fetchMapMessagingSettings(supabaseClient, mapId) {
+  if (!mapId) return null;
   const { data } = await supabaseClient
-    .from("client_messaging_settings")
-    .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
-    .eq("client_id", clientId)
+    .from("map_messaging_settings")
+    .select("messaging_enabled,messaging_prompt:message_prompt,email_test_mode,email_test_recipient")
+    .eq("map_id", mapId)
     .maybeSingle();
   return data;
 }
@@ -306,7 +308,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           }
 
           if (!cancelled) setClientId(m?.client_id ?? null);
-          const ms = await fetchClientMessagingSettings(supabase, m?.client_id);
+          const ms = await fetchMapMessagingSettings(supabase, mapId);
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
             setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -382,7 +384,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           const resolvedClientId =
             snapshot.config?.map?.client_id ?? (await resolveMapClientId(supabase, mapId));
           if (!cancelled) setClientId(resolvedClientId);
-          const ms = await fetchClientMessagingSettings(supabase, resolvedClientId);
+          const ms = await fetchMapMessagingSettings(supabase, mapId);
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
             setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -452,7 +454,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
 
         // ── Fetch messaging settings for the embed gate ────────────────────
         if (!cancelled) setClientId(mapRow?.client_id ?? null);
-        const ms = await fetchClientMessagingSettings(supabase, mapRow?.client_id);
+        const ms = await fetchMapMessagingSettings(supabase, mapId);
         if (ms && !cancelled) {
           setMessagingEnabled(!!ms.messaging_enabled);
           setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -902,7 +904,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
             setContactFormSent(false);
             setContactFormError("");
             if (clientId) {
-              fetchClientMessagingSettings(supabase, clientId).then((ms) => {
+              fetchMapMessagingSettings(supabase, mapId).then((ms) => {
                 if (!ms) return;
                 setMessagingTestMode(ms.email_test_mode !== false);
                 setMessagingTestRecipient(ms.email_test_recipient ?? "");

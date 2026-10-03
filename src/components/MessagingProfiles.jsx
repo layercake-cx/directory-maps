@@ -6,8 +6,7 @@ import {
   invokeManageClientEmail,
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
-import { useEntitlement } from "../hooks/useEntitlements.js";
-import { fetchClientEntitlements } from "../lib/entitlements.js";
+import { useMessagingAllowed } from "../hooks/useMessagingAllowed.js";
 import EntitlementGate from "./EntitlementGate.jsx";
 import { getBlockedMessage } from "../lib/entitlementMessages.js";
 import MessagingProfileEditor from "./MessagingProfileEditor.jsx";
@@ -35,33 +34,7 @@ export default function MessagingProfiles({ clientId, clientName = "", eventSour
   const [newFromName, setNewFromName] = useState("");
   const [newFromAddress, setNewFromAddress] = useState("");
 
-  // Plan gate: client portal resolves its own (self-scoped) entitlement; admin
-  // resolves the arbitrary customer via the admin-only get_client_entitlements()
-  // RPC. Real enforcement is server-side (map/directory_messaging_settings,
-  // send_contact_message) — this is the UX gate.
-  const isClientPortal = eventSource === "client_portal";
-  const { enabled: myMessagingEnabled, loading: myEntitlementLoading } = useEntitlement("messaging");
-  const [clientMessagingEnabled, setClientMessagingEnabled] = useState(null); // null = loading
-
-  useEffect(() => {
-    if (isClientPortal || !clientId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const resolved = await fetchClientEntitlements(clientId);
-        if (!cancelled) setClientMessagingEnabled(resolved?.messaging?.enabled === true);
-      } catch {
-        // Fail open on a lookup error — UX gate only.
-        if (!cancelled) setClientMessagingEnabled(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isClientPortal, clientId]);
-
-  const messagingAllowed = isClientPortal ? !!myMessagingEnabled : !!clientMessagingEnabled;
-  const messagingGateLoading = isClientPortal ? myEntitlementLoading : clientMessagingEnabled === null;
+  const { allowed: messagingAllowed, loading: messagingGateLoading } = useMessagingAllowed(clientId, eventSource);
 
   const load = useCallback(async () => {
     if (!clientId) return;
