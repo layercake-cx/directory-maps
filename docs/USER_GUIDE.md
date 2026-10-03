@@ -163,7 +163,7 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 On a directory's **Email** tab (owners and managers only):
 
 - **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** in the sidebar's Contact & address panel, below **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
-- **Enable messaging**, **Test mode**, **From address**, and **Domain & DNS** are the same organisation settings as [Messaging](#messaging) (`/client/email`). Changing them here changes them for your maps as well. Test mode sends enquiries to the test recipient instead of the contact email. The prompt, subject, and opening line use `{listing}` for the entry name, the same way map contact emails do.
+- **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first; messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
 
 Sent enquiries are listed at the bottom of the tab (the latest 20).
 
@@ -600,62 +600,48 @@ Invitations expire after **7 days** — send a new one if needed.
 
 ## Messaging
 
-The **Messaging** page (`/client/email`) has two tabs: **Settings** and **Sent messages**.
+Messaging is set up in two places:
 
-### Settings
+- **Organisation level — the Messaging page** (`/client/email`) holds your **sending profiles**: the address messages come *from*, and the domain that proves you own it. It also has a **Sent messages** log.
+- **Per map and per directory — each one's own Messaging settings** choose which profile to use, switch messaging on, set test mode, and write the message text.
 
-Use **Settings** to control whether visitors can send messages to directory listings, and which sender address those messages come from.
+Nothing is sent from a map or directory until a sending profile has been chosen for it.
 
-Messaging requires the **Professional plan or above**. On the Basic plan, the toggle is disabled with a note to upgrade; contact Layercake to change your plan.
+Messaging requires the **Professional plan or above**. On the Basic plan the screens show a note to upgrade; contact Layercake to change your plan.
 
-#### Enable messaging
+### Sending profiles
 
-At the top of the tab there is an **Enable messaging** toggle.
+Open **Messaging** (`/client/email`). The **Sending profiles** tab lists every profile with its From address, domain status, and the maps and directories using it.
 
-- **Off (default):** the "Send message" button is hidden on all your published maps, regardless of what email addresses your listings contain.
-- **On:** the button appears on listings that have an email address. The same switch also shows **Make an Enquiry** on a directory's published entry pages when that directory has a contact email (see [Directory email](#directory-email)).
+Create as many profiles as you need — for example one for events and one for membership — each with its own address and domain.
 
-When you turn messaging on you must also set a **prompt message** — a short line of text shown above the contact form in the map (e.g. *"Complete the form below and we’ll pass your message on."*). This field is required before you can save.
-
-#### Email subject and opening message
-
-Under **From address**, you can customise the subject line and the plain-text opening line of contact emails sent to listing addresses.
-
-**Email subject** (required)
-- Use `{listing}` where you want the listing name to appear.
-
-**Email opening message** (optional)
-- Shown at the top of the email body, above the visitor’s name and message.
-- Use `{listing}` for the listing name.
-- Leave blank to omit an opening line from the email.
-
-Click **Save** with your display name and email address to store both fields.
-
-#### Test mode
-
-Use **Test mode** when you want to try the contact form without emailing real listing addresses.
-
-- **On (default for new organisations):** the Send message form on your published embed shows a test banner and sends messages to the **test recipient email** you enter, not to the listing’s address.
-- **Off:** messages go to each listing’s email address. Turn test mode off when you are ready to go live.
-
-Click **Save test mode settings** after changing the toggle. The change applies on published embeds immediately — you do not need to republish the map.
-
-#### Custom sending domain (optional)
-
-By default, messages are sent from the platform’s address. To send from your own address (e.g. `hello@yourcompany.com`):
-
-1. Under **From address**, enter your display name and email address. Click **Save**, or skip Save — **Set up domain** saves the address automatically.
+1. Click **New profile**. Enter a **profile name** (only used to tell profiles apart), an optional **display name**, and the **email address** messages should come from. Click **Create profile**.
 2. Under **Domain & DNS**, click **Set up domain**. Resend registers your domain and generates DNS records. If something goes wrong, a message appears directly under the button.
 3. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
    - Use the **copy button** next to each value to avoid transcription errors.
    - DNS propagation can take up to 48 hours, though it’s usually minutes.
-4. Click **Verify DNS settings**. When the status badge turns green ("Verified"), messages will send from your address.
+4. Click **Verify DNS settings**. When the status badge turns green ("Verified"), messages using this profile send from your address.
 
 If someone else manages your DNS (IT support, web agency, etc.), click **Setup instructions** (shown while verification is pending) to copy a ready-made email with all required DNS records.
 
 **DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
 
-Until your domain is verified, messages send from the platform email address. If you have set a **Display name**, that name is shown as the sender instead of the platform default.
+Until a profile’s domain is verified, messages send from the platform email address, shown with the profile’s **display name**.
+
+Two profiles on the same domain (for example `info@` and `events@yourcompany.com`) share one verification — verifying one verifies both.
+
+**Changing or deleting a profile:** changing a profile’s email address to a different domain detaches the old domain, so run **Set up domain** again. **Delete profile** asks you to confirm; any map or directory using it stops sending messages until you choose another profile for it.
+
+### Messaging settings on a map
+
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Email** tab — see [Directory email](#directory-email).)
+
+- **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
+- **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
+- **Test mode** — **On (default):** the Send message form shows a test banner and sends to the **test recipient** you enter, not the listing’s address. **Off:** messages go to each listing’s email address. Turn it off when you are ready to go live.
+- **Message text** — the **prompt message** (shown above the contact form; required when messaging is on, e.g. *"Complete the form below and we’ll pass your message on."*), the **email subject** (required when messaging is on; use `{listing}` for the listing name), and an optional **email opening message** shown at the top of the email above the visitor’s details (also supports `{listing}`).
+
+Click **Save messaging settings**. Changes to a map apply on the published map immediately — you do not need to republish.
 
 ### Sent messages
 
@@ -710,13 +696,14 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Publish & embed URL | Map → Publish Map panel |
 | View analytics | Map → Stats |
 | Review sent contact messages | `/client/email` → Sent messages |
-| Enable messaging | `/client/email` → Settings → Enable messaging toggle |
-| Customise contact email subject and opening line | `/client/email` → Settings → From address → Email subject / Email opening message → Save |
-| Turn test mode off for live contact emails | `/client/email` → Settings → Test mode → Save test mode settings |
+| Create a sending profile (From address) | `/client/email` → Sending profiles → New profile |
+| Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
+| Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
+| Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
 | Set a directory enquiry inbox | Directory → Email → Contact email → Save contact email, then Publish |
-| Show Make an Enquiry on entry pages | Directory → Email → contact email set, messaging on, then Publish |
-| Configure custom sending domain | `/client/email` → Settings → Domain & DNS |
-| Copy DNS setup email for IT supplier | `/client/email` → Settings → Domain & DNS → Setup instructions |
+| Show Make an Enquiry on entry pages | Directory → Email → contact email set, sending profile chosen, messaging on, then Publish |
+| Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
+| Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
@@ -746,7 +733,7 @@ When an admin creates a customer in `/admin/clients/new`, they only need:
 - Customer name
 - Customer slug (or leave blank to auto-suggest)
 
-On a customer’s **Messaging** tab (`/admin/clients/:id`), admins have the same controls as the client portal: **Settings** (enable messaging, prompt, test mode, from address, DNS) and **Sent messages** (contact form log for that organisation).
+On a customer’s **Messaging** tab (`/admin/clients/:id`), admins have the same controls as the client portal: **Sending profiles** (create profiles, From address, DNS) and **Sent messages** (contact form log for that organisation). Enabling messaging, test mode and message text are on each map’s **Messaging** setting and each directory’s **Email** tab, in both the admin and client views.
 
 On a customer's **Maps** tab, **New map** now matches the client-portal create-map form exactly (map name, web address/slug, a place search that sets the default centre/zoom, fine-tune lat/lng/zoom, list panel and clustering options). If the customer is already at their plan's map limit, clicking **New map** shows a closeable "Plan limit reached" dialog instead of opening the form — the admin isn't taken to the create-map page at all in that case.
 

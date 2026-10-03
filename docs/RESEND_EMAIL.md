@@ -39,12 +39,12 @@ Until a client verifies their own domain, messages use **`RESEND_FROM`**.
 
 ## Client setup (per organisation)
 
-Clients with **owner** or **manage maps** permission: **Email** in the client portal (`/client/email`).
+Clients with **owner** or **manage maps** permission: **Messaging** in the client portal (`/client/email`). An organisation can have several **sending profiles**; each map and directory chooses one (Messaging tab / directory Email tab) and cannot send until it has.
 
-1. **From address** — display name + email on their domain (e.g. `Acme <hello@acme.com>`).
-2. **Set up domain** — registers the domain in your Resend account and shows DNS records (SPF, DKIM, etc.).
-3. **Verify DNS settings** — after DNS propagates, status becomes **Verified**.
-4. Verified clients send map contact mail **from their address**; unverified clients send from the platform address but use the client's **Display name** when configured.
+1. **New profile** — name, display name and an email on their domain (e.g. `Acme <hello@acme.com>`).
+2. **Set up domain** — registers the domain in your Resend account and shows DNS records (SPF, DKIM, etc.). Profiles on the same domain reuse one Resend domain.
+3. **Verify DNS settings** — after DNS propagates, status becomes **Verified** (for every profile on that domain).
+4. Verified profiles send **from their address**; unverified profiles send from the platform address but use the profile's **Display name**.
 
 DNS is added at the client’s DNS host (Cloudflare, etc.). Resend’s [domain docs](https://resend.com/docs/dashboard/domains/introduction) apply.
 
@@ -52,20 +52,19 @@ DNS is added at the client’s DNS host (Cloudflare, etc.). Resend’s [domain d
 
 | Table / column | Purpose |
 |----------------|---------|
-| `map_contact_submissions` | Every form submit (analytics + audit) |
-| `clients.email_from_name` | Client display name |
-| `clients.email_from_address` | Client From email |
-| `clients.email_domain` | Domain in Resend |
-| `clients.resend_domain_id` | Resend domain id |
-| `clients.email_domain_status` | `not_configured`, `not_started`, `pending`, `verified`, … |
-| `clients.email_dns_records` | JSON DNS rows for the UI |
+| `map_contact_submissions` / `directory_contact_submissions` | Every form submit (analytics + audit) |
+| `messaging_profiles` | Sending identities: `name`, `email_from_name`, `email_from_address`, `email_domain`, `resend_domain_id`, `email_domain_status` (`not_configured`, `not_started`, `pending`, `verified`, …), `email_dns_records` (JSON DNS rows for the UI) |
+| `maps` / `directories` `.messaging_profile_id` | Chosen profile (NULL = messaging blocked) |
+| `maps` / `directories` `.messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` | Per-entity switch, test mode and message text |
+| `map_messaging_settings`, `directory_messaging_settings` (views) | Anon-readable effective settings (toggle AND profile chosen AND entitlement) |
+| `clients.email_*`, `clients.messaging_*` | **Legacy** — no longer read; kept until a cleanup migration |
 
 ## Edge Functions
 
 | Function | Auth | Role |
 |----------|------|------|
-| `send_contact_message` | Public (anon + JWT) | Send to listing, CC visitor, Reply-To visitor; resolve From via `mapId` → client |
-| `manage_client_email` | Logged-in client/admin | `save`, `setup_domain`, `verify` / `refresh` |
+| `send_contact_message` | Public (anon + JWT) | Send to listing/enquiry inbox, CC visitor, Reply-To visitor; resolve profile, test mode and message text from the map (`mapId`) or directory (`directoryId`); 403 until a profile is chosen and messaging is enabled |
+| `manage_client_email` | Logged-in client/admin | Messaging profiles: `create`, `save`, `delete`, `setup_domain`, `verify` / `refresh` (all but `create` take `profileId`) |
 | `send_team_invitation` | Logged-in owner/manager | Create invite + send “join your team” email |
 
 ## Auth email (magic links)

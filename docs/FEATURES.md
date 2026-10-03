@@ -105,7 +105,7 @@ dashboard pages).
 | Home | `/client` | Organisation dashboard (Phase 4) — see §4.2 |
 | My Maps | `/client/maps` | Dashboard grid of maps, data-source badges, links to stats |
 | Team | `/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
-| Messaging | `/client/email` | Settings tab: enable/disable messaging, custom sending domain via Resend, contact-form prompt, email subject/opening line. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
+| Messaging | `/client/email` | **Sending profiles** tab: create/edit/delete sending identities (From name/address + Resend domain + DNS verification). Enable, test mode and message text are per map/directory, not here. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
 | Map sub-nav | `/client/maps/:id/*` | Design · Data · Stats |
 
 Layout: `src/pages/client/ClientLayout.jsx` (renders `AppShell context="client"`) ·
@@ -478,11 +478,11 @@ Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPa
 
 ### 4.4l Directory enquiries (2026-09-22)
 
-Make an Enquiry on a published directory, using the same organisation messaging settings as maps.
+Make an Enquiry on a published directory, using organisation sending profiles with per-directory settings.
 
 - **Contact email** (`directories.enquiry_email`) on the directory **Email** tab. Blank hides the button. The address is not written into the public HTML — `send_contact_message` looks it up when the visitor submits.
-- **Shared messaging settings** — enable, prompt, test mode, from address, subject, opening line, and domain DNS stay on the organisation (`clients`), edited from the directory Email tab or from `/client/email`. Turning messaging on or off, or changing test mode, affects maps as well.
-- **Published entry page** — when the contact email is set and messaging is enabled, **Make an Enquiry** sits beside **Visit website**. It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the organisation test recipient. Takes effect on the next Publish.
+- **Per-directory messaging settings** — sending profile, enable switch, test mode + recipient, prompt, subject and opening line live on the directory itself (`directories.messaging_profile_id` etc.), edited from the directory Email tab. Sending profiles (`messaging_profiles`) are organisation-level and shared with maps. Messaging is blocked until a profile is chosen.
+- **Published entry page** — when the contact email is set and messaging is enabled, **Make an Enquiry** sits beside **Visit website**. It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the directory's test recipient. Takes effect on the next Publish.
 - **Log** — `directory_contact_submissions`, shown as Recent enquiries on the Email tab. Admin event `directory_enquiry_settings_updated` on contact-email save (no raw address). Public events `listing_enquiry_open` (button) and `listing_enquiry_sent` (successful send).
 
 Files: `src/components/directories/DirectoryEnquiryPanel.jsx`, `MessagingSettings.jsx`; `supabase/functions/send_contact_message/index.ts`; `generate_directory_site/builders.ts` + `index.ts`. Migration: `20260922093000_directory_enquiry.sql`.
@@ -847,3 +847,13 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/admin/deployments` | `AdminDeployments` |
 
 Full route tree: `src/App.jsx`.
+
+
+## Messaging profiles and per-map/directory messaging (2026-10-03)
+
+Messaging was one set of settings per organisation on `clients`. It is now:
+
+- **`messaging_profiles`** — organisation-level sending identities (From name/address, Resend domain, status, DNS records). Many per organisation, managed at `/client/email` (`MessagingProfiles.jsx` / `MessagingProfileEditor.jsx`) and the admin customer Messaging tab. Profiles on the same domain share verification state.
+- **Per map and per directory** — `messaging_profile_id`, `messaging_enabled`, `email_test_mode` (default on), `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro`. Edited by `EntityMessagingSettings.jsx` (Messaging tab on map dashboards, directory Email tab).
+- **Readiness** — messaging is effective only when the toggle is on, a profile is chosen and the `messaging` entitlement resolves true. Enforced in `map_messaging_settings` / `directory_messaging_settings` (anon-readable views) and re-checked in `send_contact_message`. There is no fallback for "no profile".
+- The old `clients.messaging_*`, `email_*` columns and the `client_messaging_settings` view are left in place (legacy, no longer read) pending a separate cleanup migration.

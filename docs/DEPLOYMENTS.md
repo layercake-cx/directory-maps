@@ -8,6 +8,46 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-03 — [Not deployed] Messaging: sending profiles, per-map and per-directory settings
+
+**Branch/PR:** `feat/2026-10-03-messaging-profiles`
+**Deployed by:** Claude Code. Not applied or deployed anywhere yet (staging database was unreachable when this was written).
+
+### What changed
+
+- Messaging used to be one set of settings per organisation (on `clients`): one sending domain, one on/off switch, one test mode, one subject/intro/prompt for every map and directory. That doesn't fit organisations with several directories and domains.
+- **Sending profiles** (`messaging_profiles`): an organisation can now create several From identities, each with its own Resend domain and DNS verification, at `/client/email` (and the admin customer Messaging tab). Profiles on the same domain share one verification.
+- **Per map and per directory:** each map (new Messaging tab in the map settings) and each directory (Email tab) chooses a sending profile, switches messaging on, sets test mode and a test recipient, and writes its own prompt, email subject and opening message. Message text lives only on the map/directory.
+- **Blocked until a profile is chosen:** the "Send message" / "Make an Enquiry" controls only appear, and `send_contact_message` only sends, when the toggle is on AND a profile is chosen AND the plan includes messaging. `send_contact_message` also no longer falls back to platform defaults when a map can't be resolved (it now returns 404).
+- `manage_client_email` now manages profiles (`create`, `save`, `delete`, `setup_domain`, `verify`, `refresh`). `generate_directory_site` reads the per-directory view (markup unchanged, so no `ENTRY_TEMPLATE_VERSION` bump). `EmbedMap` and both map dashboards read the per-map view.
+- Known gap, unchanged: in map test mode the recipient is still supplied by the browser, so a direct call to `send_contact_message` could send to a real listing address with test mode on.
+- Admin events added: `email_profile_created/updated/deleted`, `email_map_settings_updated`, `email_directory_settings_updated` (domain events now carry `profile_id`).
+
+### Database migrations applied
+- `20261003120000_messaging_profiles.sql` — NOT APPLIED. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
+
+### Edge Functions deployed
+- None yet. To deploy (staging first, after the migration): `send_contact_message` (deploy with `--no-verify-jwt`, as before), `manage_client_email`, `generate_directory_site`. Deploy them together with the frontend — the old org-level Messaging screen writes columns these functions no longer read.
+
+### Frontend
+- New: `MessagingProfiles.jsx`, `MessagingProfileEditor.jsx` (split from the old `MessagingSettings.jsx`), `EntityMessagingSettings.jsx`, `useMessagingAllowed.js`. Changed: both map dashboards, `EmbedMap.jsx`, `DirectoryEnquiryPanel.jsx`. Frontend must ship together with the migration and functions.
+
+### Rollback plan
+- Database: `_20261003120000_messaging_profiles.rollback.sql` (drops the new views, trigger, functions, columns and `messaging_profiles` — destructive; loses any edits made since). The old `clients` columns were never touched.
+- Edge Functions: redeploy the previous versions of the three functions from `main`.
+- Frontend: revert the branch's merge commit.
+
+### Verified
+- [x] `deno check` passes for the three Edge Functions; `npm run build` passes
+- [ ] Migration dry run on staging (`BEGIN; … ROLLBACK;`), pre/post integrity checks and the parity check (must return 0 rows)
+- [ ] Migration applied on staging
+- [ ] Create a profile, set up and verify a domain (`/client/email`)
+- [ ] Map: choose a profile, enable, test-mode send; confirm the button is hidden with no profile chosen
+- [ ] Directory: choose a profile, enable, publish, Make an Enquiry send; confirm blocked with no profile
+- [ ] Existing orgs behave exactly as before after the backfill
+
+---
+
 ## 2026-10-03 — [Not deployed] Admin and client pages: consistent content width
 
 **Branch/PR:** `fix/2026-10-03-consistent-content-width`

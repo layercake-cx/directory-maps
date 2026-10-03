@@ -374,7 +374,13 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`email_contact_message_failed`**
   - `meta`: `client_id`, `map_id`, `listing_id`, `error`
 - **`email_domain_setup_started` / `email_domain_verified` / `email_domain_verify_failed`**
-  - `meta`: `client_id`, `email_provider` (`resend`), `domain`, `error` (on fail)
+  - `meta`: `client_id`, `profile_id` (messaging profile), `email_provider` (`resend`), `domain`, `error` (on fail), `source`
+- **`email_profile_created` / `email_profile_updated` / `email_profile_deleted`**
+  - `meta`: `client_id`, `profile_id`, `email_provider` (`resend`), `source`; `changed_fields` (string[], updated); `maps_affected`, `directories_affected` (counts, deleted)
+  - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
+- **`email_map_settings_updated` / `email_directory_settings_updated`**
+  - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
+  - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Email tab). Never store the test recipient or message text.
 
 #### Billing
 
