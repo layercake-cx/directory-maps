@@ -168,6 +168,13 @@
 /* Main */
 .shell .main { flex: 1; min-width: 0; padding: var(--main-pad-top) var(--main-pad-x) 32px; display: flex; flex-direction: column; gap: var(--gap-section); }
 .shell .main--wide { padding: var(--main-pad-top) var(--main-pad-x) 32px; } /* tightened 2026-09-29 to match .main — was 36px 48px 48px */
+/* Consistent content width (2026-10-03): every direct child of <main> fills the available width, left-aligned
+   against the navigation, capped at 1600px. Without this, .page-main's `margin: auto` made flex children
+   shrink-wrap their content, so page width varied with how much each page contained. */
+.shell .main > *,
+.shell .main--wide > * { width: 100%; max-width: 1600px; margin-left: 0; margin-right: 0; box-sizing: border-box; }
+.shell .main > .page-main,
+.shell .main--wide > .page-main { padding-left: 0; padding-right: 0; }
 .shell .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .shell .page-title {
   margin: 0; font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.1; font-weight: 600;
