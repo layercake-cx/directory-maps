@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
   emailDomainStatusLabel,
@@ -8,10 +8,6 @@ import {
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupInstructions.js";
-import { useEntitlement } from "../hooks/useEntitlements.js";
-import { fetchClientEntitlements } from "../lib/entitlements.js";
-import EntitlementGate from "./EntitlementGate.jsx";
-import { getBlockedMessage } from "../lib/entitlementMessages.js";
 import styles from "../pages/client/ClientEmail.module.css";
 
 function CopyButton({ value }) {
@@ -195,107 +191,52 @@ function SetupInstructionsOverlay({ open, onClose, text }) {
   );
 }
 
+
 /**
- * Shared messaging / email domain settings for client portal and admin customer detail.
- * @param {{ clientId: string, clientName?: string, eventSource?: string, product?: "maps" | "directory" }} props
- * `product="directory"` is the directory Email tab. The records are still the
- * organisation's — the same ones maps use — with copy that mentions enquiries.
+ * Edit one messaging profile (a sending identity): name, From name/address, and
+ * the Resend domain + DNS setup. Message text (prompt/subject/intro) is NOT
+ * here — it lives on each map or directory.
+ * @param {{ profile: object, clientId: string, clientName?: string, eventSource?: string,
+ *   onUpdated: (profile: object) => void, onDeleted: (id: string) => void, onClose: () => void }} props
  */
-export default function MessagingSettings({
+export default function MessagingProfileEditor({
+  profile,
   clientId,
   clientName = "",
   eventSource = "client_portal",
-  product = "maps",
+  onUpdated,
+  onDeleted,
+  onClose,
 }) {
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [verifyFeedback, setVerifyFeedback] = useState(null);
   const [setupFeedback, setSetupFeedback] = useState(null);
-
-  const [messagingEnabled, setMessagingEnabled] = useState(false);
-  const [messagingPrompt, setMessagingPrompt] = useState("");
-  const [emailTestMode, setEmailTestMode] = useState(true);
-  const [emailTestRecipient, setEmailTestRecipient] = useState("");
-  const [fromName, setFromName] = useState("");
-  const [fromAddress, setFromAddress] = useState("");
-  const [messageIntro, setMessageIntro] = useState("");
-  const [messageSubject, setMessageSubject] = useState("");
-  const [domainStatus, setDomainStatus] = useState("not_configured");
-  const [emailDomain, setEmailDomain] = useState("");
-  const [dnsRecords, setDnsRecords] = useState([]);
-  const [hasDomain, setHasDomain] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [senderFirstName, setSenderFirstName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Plan gate: client portal resolves its own (self-scoped) entitlement;
-  // admin resolves the arbitrary customer being configured via the
-  // admin-only get_client_entitlements() RPC. Same EntitlementGate wraps
-  // the whole screen either way, so both surfaces behave identically.
-  const isClientPortal = eventSource === "client_portal";
-  const { enabled: myMessagingEnabled, loading: myEntitlementLoading } = useEntitlement("messaging");
-  const [clientMessagingEnabled, setClientMessagingEnabled] = useState(null); // null = loading
+  const [name, setName] = useState(profile.name ?? "");
+  const [fromName, setFromName] = useState(profile.email_from_name ?? "");
+  const [fromAddress, setFromAddress] = useState(profile.email_from_address ?? "");
 
+  const domainStatus = profile.email_domain_status ?? "not_configured";
+  const emailDomain = profile.email_domain ?? "";
+  const dnsRecords = Array.isArray(profile.email_dns_records) ? profile.email_dns_records : [];
+  const hasDomain = !!profile.resend_domain_id || dnsRecords.length > 0;
+
+  // Re-seed the form when a different profile is opened.
   useEffect(() => {
-    if (isClientPortal || !clientId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const resolved = await fetchClientEntitlements(clientId);
-        if (!cancelled) setClientMessagingEnabled(resolved?.messaging?.enabled === true);
-      } catch {
-        // Fail open on a lookup error — this is a UX gate, not the real
-        // enforcement (client_messaging_settings / send_contact_message).
-        if (!cancelled) setClientMessagingEnabled(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isClientPortal, clientId]);
-
-  const messagingAllowed = isClientPortal ? !!myMessagingEnabled : !!clientMessagingEnabled;
-  const messagingGateLoading = isClientPortal ? myEntitlementLoading : clientMessagingEnabled === null;
-
-  const loadEmail = useCallback(async () => {
-    if (!clientId) return;
-    setLoading(true);
+    setName(profile.name ?? "");
+    setFromName(profile.email_from_name ?? "");
+    setFromAddress(profile.email_from_address ?? "");
     setErr("");
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select(
-          "messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient,email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
-        )
-        .eq("id", clientId)
-        .single();
-      if (error) throw error;
-      setMessagingEnabled(!!data?.messaging_enabled);
-      setMessagingPrompt(data?.messaging_prompt ?? "");
-      setEmailTestMode(data?.email_test_mode !== false);
-      setEmailTestRecipient(data?.email_test_recipient ?? "");
-      setFromName(data?.email_from_name ?? "");
-      setFromAddress(data?.email_from_address ?? "");
-      setMessageIntro(data?.email_message_intro ?? "");
-      setMessageSubject(data?.email_message_subject ?? "");
-      setEmailDomain(data?.email_domain ?? "");
-      setDomainStatus(data?.email_domain_status ?? "not_configured");
-      setDnsRecords(Array.isArray(data?.email_dns_records) ? data.email_dns_records : []);
-      setHasDomain(
-        !!data?.resend_domain_id ||
-          (Array.isArray(data?.email_dns_records) && data.email_dns_records.length > 0)
-      );
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-
-  useEffect(() => {
-    loadEmail();
-  }, [loadEmail]);
+    setMsg("");
+    setVerifyFeedback(null);
+    setSetupFeedback(null);
+    setConfirmDelete(false);
+  }, [profile.id]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -303,114 +244,59 @@ export default function MessagingSettings({
     });
   }, []);
 
-  function applyEmailPayload(email) {
-    if (!email) return;
-    setFromName(email.email_from_name ?? "");
-    setFromAddress(email.email_from_address ?? "");
-    setMessageIntro(email.email_message_intro ?? "");
-    setMessageSubject(email.email_message_subject ?? "");
-    setEmailDomain(email.email_domain ?? "");
-    setDomainStatus(email.email_domain_status ?? "not_configured");
-    setDnsRecords(Array.isArray(email.email_dns_records) ? email.email_dns_records : []);
-    setHasDomain(!!email.resend_domain_id || (Array.isArray(email.email_dns_records) && email.email_dns_records.length > 0));
+  function track(eventType, extra = {}) {
+    recordAdminEvent(supabase, {
+      eventType,
+      clientId,
+      meta: { client_id: clientId, profile_id: profile.id, email_provider: "resend", source: eventSource, ...extra },
+    });
   }
 
-  async function handleToggleSave() {
-    if (!clientId) return;
-    if (messagingEnabled && !messagingPrompt.trim()) {
-      setErr("A prompt message is required when messaging is enabled.");
-      return;
-    }
-    setErr("");
-    setMsg("");
-    setBusy("toggle");
-    try {
-      const { error } = await supabase
-        .from("clients")
-        .update({ messaging_enabled: messagingEnabled, messaging_prompt: messagingPrompt.trim() || null })
-        .eq("id", clientId);
-      if (error) throw error;
-      recordAdminEvent(supabase, {
-        eventType: "email_messaging_toggled",
-        clientId,
-        meta: { client_id: clientId, enabled: messagingEnabled, source: eventSource },
-      });
-      setMsg(messagingEnabled ? "Messaging enabled." : "Messaging disabled.");
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    } finally {
-      setBusy("");
-    }
+  function changedFields() {
+    const changed = [];
+    if (name.trim() !== (profile.name ?? "")) changed.push("name");
+    if (fromName.trim() !== (profile.email_from_name ?? "")) changed.push("email_from_name");
+    if (fromAddress.trim().toLowerCase() !== (profile.email_from_address ?? "")) changed.push("email_from_address");
+    return changed;
   }
 
-  async function handleTestModeSave() {
-    if (!clientId) return;
-    if (emailTestMode && !emailTestRecipient.trim()) {
-      setErr("A test recipient email is required when test mode is enabled.");
-      return;
-    }
-    setErr("");
-    setMsg("");
-    setBusy("testmode");
-    try {
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          email_test_mode: emailTestMode,
-          email_test_recipient: emailTestMode ? emailTestRecipient.trim() : null,
-        })
-        .eq("id", clientId);
-      if (error) throw error;
-      setMsg(emailTestMode ? "Test mode enabled." : "Test mode disabled — emails will go to listing addresses.");
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    } finally {
-      setBusy("");
-    }
+  async function saveProfile() {
+    const changed = changedFields();
+    const data = await invokeManageClientEmail({
+      clientId,
+      action: "save",
+      profileId: profile.id,
+      name,
+      fromName,
+      fromAddress,
+    });
+    onUpdated(data.profile);
+    if (changed.length) track("email_profile_updated", { changed_fields: changed });
+    return data.profile;
   }
 
   async function handleSave(e) {
     e.preventDefault();
-    if (!clientId) return;
-    if (!messageSubject.trim()) {
-      setErr("Email subject is required.");
+    if (!name.trim()) {
+      setErr("Give this profile a name.");
       return;
     }
     setErr("");
     setMsg("");
     setBusy("save");
     try {
-      const data = await invokeManageClientEmail({
-        clientId,
-        action: "save",
-        fromName,
-        fromAddress,
-        messageIntro: messageIntro.trim() || null,
-        messageSubject: messageSubject.trim(),
-      });
-      applyEmailPayload(data.email);
-      setMsg("From address saved.");
-    } catch (e) {
-      setErr(e?.message ?? String(e));
+      await saveProfile();
+      setMsg("Profile saved.");
+    } catch (e2) {
+      setErr(e2?.message ?? String(e2));
     } finally {
       setBusy("");
     }
   }
 
   async function handleSetupDomain() {
-    if (!clientId) return;
     if (!fromAddress.trim()) {
-      setSetupFeedback({
-        ok: false,
-        text: "Enter a from email address above before setting up the domain.",
-      });
-      return;
-    }
-    if (!messageSubject.trim()) {
-      setSetupFeedback({
-        ok: false,
-        text: "Enter an email subject above before setting up the domain.",
-      });
+      setSetupFeedback({ ok: false, text: "Enter a from email address above before setting up the domain." });
       return;
     }
     setErr("");
@@ -418,29 +304,20 @@ export default function MessagingSettings({
     setSetupFeedback(null);
     setBusy("setup");
     try {
-      const saved = await invokeManageClientEmail({
-        clientId,
-        action: "save",
-        fromName,
-        fromAddress,
-        messageIntro: messageIntro.trim() || null,
-        messageSubject: messageSubject.trim(),
-      });
-      applyEmailPayload(saved.email);
-
+      await saveProfile();
+      track("email_domain_setup_started", { domain: fromAddress.split("@")[1]?.trim().toLowerCase() ?? null });
       const data = await invokeManageClientEmail({
         clientId,
         action: "setup_domain",
+        profileId: profile.id,
         fromAddress,
       });
-
-      if (!data?.email) {
+      if (!data?.profile) {
         throw new Error("Domain setup returned no data. Try again or contact support.");
       }
+      onUpdated(data.profile);
 
-      applyEmailPayload(data.email);
-
-      const records = Array.isArray(data.email.email_dns_records) ? data.email.email_dns_records : [];
+      const records = Array.isArray(data.profile.email_dns_records) ? data.profile.email_dns_records : [];
       if (!records.length) {
         setSetupFeedback({
           ok: false,
@@ -448,7 +325,6 @@ export default function MessagingSettings({
         });
         return;
       }
-
       setSetupFeedback({
         ok: true,
         text: "Domain registered. Add the DNS records below, then verify DNS settings.",
@@ -461,20 +337,19 @@ export default function MessagingSettings({
   }
 
   async function handleVerify() {
-    if (!clientId) return;
     setErr("");
     setMsg("");
     setVerifyFeedback(null);
     setBusy("verify");
     try {
-      const data = await invokeManageClientEmail({
-        clientId,
-        action: "verify",
+      const data = await invokeManageClientEmail({ clientId, action: "verify", profileId: profile.id });
+      onUpdated(data.profile);
+      const verified = data.profile?.email_domain_status === "verified";
+      const anyVerified = Array.isArray(data.profile?.email_dns_records) &&
+        data.profile.email_dns_records.some((r) => r.status === "verified");
+      track(verified ? "email_domain_verified" : "email_domain_verify_failed", {
+        domain: data.profile?.email_domain ?? null,
       });
-      applyEmailPayload(data.email);
-      const verified = data.email?.email_domain_status === "verified";
-      const anyVerified = Array.isArray(data.email?.email_dns_records) &&
-        data.email.email_dns_records.some((r) => r.status === "verified");
       setVerifyFeedback({
         ok: verified,
         text: verified
@@ -486,6 +361,23 @@ export default function MessagingSettings({
     } catch (e) {
       setVerifyFeedback({ ok: false, text: e?.message ?? String(e) });
     } finally {
+      setBusy("");
+    }
+  }
+
+  async function handleDelete() {
+    setErr("");
+    setMsg("");
+    setBusy("delete");
+    try {
+      const data = await invokeManageClientEmail({ clientId, action: "delete", profileId: profile.id });
+      track("email_profile_deleted", {
+        maps_affected: data.maps_affected ?? 0,
+        directories_affected: data.directories_affected ?? 0,
+      });
+      onDeleted(profile.id);
+    } catch (e) {
+      setErr(e?.message ?? String(e));
       setBusy("");
     }
   }
@@ -502,220 +394,63 @@ export default function MessagingSettings({
 
   return (
     <>
-      {err ? <p className={styles.error}>{err}</p> : null}
-      {msg ? <p className={styles.success}>{msg}</p> : null}
+      <section className={`${styles.panelBox} ${styles.panelBoxFull}`}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{profile.name || "Sending profile"}</h2>
+          <button type="button" className="btn" onClick={onClose}>
+            Back to profiles
+          </button>
+        </div>
+        {err ? <p className={styles.error}>{err}</p> : null}
+        {msg ? <p className={styles.success}>{msg}</p> : null}
 
-      {loading ? (
-        <p>Loading…</p>
-      ) : (
-        <EntitlementGate
-          allowed={messagingAllowed}
-          loading={messagingGateLoading}
-          message={getBlockedMessage("messaging")}
-        >
-        <div className={styles.messagingGrid}>
-          <section className={`${styles.panelBox} ${messagingEnabled ? styles.panelBoxActive : styles.panelBoxOff}`}>
-            <h2 className={styles.sectionTitle}>Enable messaging</h2>
-            <p className={styles.hint}>
-              {product === "directory" ? (
-                <>
-                  When on, <strong>Make an Enquiry</strong> appears beside Visit website on this
-                  directory&apos;s published entry pages, once a contact email is saved above and you
-                  publish again. This is the same switch as map messaging, so it also shows Send message
-                  on map listings that have an email address.
-                </>
-              ) : (
-                <>
-                  When on, a &ldquo;Send message&rdquo; button appears on listings that have an email address.
-                  Turn this off to hide the button across all published maps.
-                </>
-              )}
-            </p>
-
-            <label className={styles.toggleRow}>
-              <div
-                className={`${styles.toggle} ${messagingEnabled ? styles.toggleOn : ""}`}
-                onClick={() => setMessagingEnabled((v) => !v)}
-                role="switch"
-                aria-checked={messagingEnabled}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") setMessagingEnabled((v) => !v); }}
-              >
-                <div className={styles.toggleThumb} />
-              </div>
-              <span className={styles.toggleLabel}>
-                {messagingEnabled ? "Messaging is on" : "Messaging is off"}
-              </span>
+        <form onSubmit={handleSave} className={styles.panelSubsection}>
+          <p className={styles.hint}>
+            A sending profile is who messages come <em>from</em>. Choose it on each map or directory under
+            its Messaging tab. Until the domain below is verified, messages send from the platform default,{" "}
+            <strong>{platformDefaultFrom}</strong>, using this profile&apos;s display name.
+          </p>
+          <label className={styles.field}>
+            <span>
+              Profile name <span className={styles.required}>*</span>
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Events team"
+              required
+            />
+            <span className={styles.fieldHint}>Only used to tell your profiles apart. Visitors never see it.</span>
+          </label>
+          <div className={styles.fromAddressRow}>
+            <label className={styles.field}>
+              <span>Display name</span>
+              <input
+                type="text"
+                value={fromName}
+                onChange={(e) => setFromName(e.target.value)}
+                placeholder={clientName || "Your organisation"}
+              />
             </label>
-
-            {messagingEnabled && (
-              <div className={styles.promptField}>
-                <label className={styles.field}>
-                  <span>
-                    Prompt message <span className={styles.required}>*</span>
-                  </span>
-                  <textarea
-                    value={messagingPrompt}
-                    onChange={(e) => setMessagingPrompt(e.target.value)}
-                    placeholder="e.g. Complete the form below and we'll pass your message on."
-                    rows={3}
-                    className={styles.textarea}
-                    required
-                  />
-                  <span className={styles.hint} style={{ marginBottom: 0 }}>
-                    Shown above the contact form inside the map. Required when messaging is enabled.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            <div className={styles.panelFooter}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleToggleSave}
-                disabled={busy === "toggle"}
-              >
-                {busy === "toggle" ? "Saving…" : "Save messaging settings"}
-              </button>
-            </div>
-          </section>
-
-          <section className={`${styles.panelBox} ${emailTestMode ? styles.panelBoxActive : ""}`}>
-            <h2 className={styles.sectionTitle}>Test mode</h2>
-            <p className={styles.hint}>
-              {product === "directory" ? (
-                <>
-                  When test mode is on, enquiry messages go to the test recipient below instead of this
-                  directory&apos;s contact email. The same setting redirects map messages away from listing
-                  addresses. Turn it off when you are ready to go live.
-                </>
-              ) : (
-                <>
-                  When test mode is on, contact form messages are redirected to the test recipient below
-                  instead of the listing&apos;s email address. Turn off when ready to go live.
-                </>
-              )}
-            </p>
-
-            <label className={styles.toggleRow}>
-              <div
-                className={`${styles.toggle} ${emailTestMode ? styles.toggleOn : ""}`}
-                onClick={() => setEmailTestMode((v) => !v)}
-                role="switch"
-                aria-checked={emailTestMode}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") setEmailTestMode((v) => !v); }}
-              >
-                <div className={styles.toggleThumb} />
-              </div>
-              <span className={styles.toggleLabel}>
-                {emailTestMode
-                  ? "Test mode is on"
-                  : product === "directory"
-                    ? "Test mode is off — emails go to the directory contact address and to listing addresses"
-                    : "Test mode is off — emails go to listing addresses"}
-              </span>
+            <label className={styles.field}>
+              <span>Email address</span>
+              <input
+                type="email"
+                value={fromAddress}
+                onChange={(e) => setFromAddress(e.target.value)}
+                placeholder="hello@yourcompany.com"
+                required
+              />
             </label>
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy === "save"}>
+            {busy === "save" ? "Saving…" : "Save"}
+          </button>
+        </form>
 
-            {emailTestMode && (
-              <div className={styles.promptField}>
-                <label className={styles.field}>
-                  <span>Test recipient email <span className={styles.required}>*</span></span>
-                  <input
-                    type="email"
-                    value={emailTestRecipient}
-                    onChange={(e) => setEmailTestRecipient(e.target.value)}
-                    placeholder="you@yourcompany.com"
-                    required
-                  />
-                  <span className={styles.hint} style={{ marginBottom: 0 }}>
-                    All contact form messages will be sent here instead of listing email addresses.
-                  </span>
-                </label>
-              </div>
-            )}
+        <hr className={styles.panelDivider} />
 
-            <div className={styles.panelFooter}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleTestModeSave}
-                disabled={busy === "testmode"}
-              >
-                {busy === "testmode" ? "Saving…" : "Save test mode settings"}
-              </button>
-            </div>
-          </section>
-
-          <section className={`${styles.panelBox} ${styles.panelBoxFull}`}>
-            <form onSubmit={handleSave} className={styles.panelSubsection}>
-              <h2 className={styles.sectionTitle}>From address</h2>
-              <p className={styles.hint}>
-                The address you want map contact emails to be sent from. Once saved, complete the domain
-                setup below — otherwise messages will send from the platform default,{" "}
-                <strong>{platformDefaultFrom}</strong>.
-              </p>
-              <div className={styles.fromAddressRow}>
-                <label className={styles.field}>
-                  <span>Display name</span>
-                  <input
-                    type="text"
-                    value={fromName}
-                    onChange={(e) => setFromName(e.target.value)}
-                    placeholder={clientName || "Your organisation"}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Email address</span>
-                  <input
-                    type="email"
-                    value={fromAddress}
-                    onChange={(e) => setFromAddress(e.target.value)}
-                    placeholder="hello@yourcompany.com"
-                    required
-                  />
-                </label>
-              </div>
-              <div className={styles.emailTemplateFields}>
-                <label className={styles.field}>
-                  <span>
-                    Email subject <span className={styles.required}>*</span>
-                  </span>
-                  <input
-                    type="text"
-                    value={messageSubject}
-                    onChange={(e) => setMessageSubject(e.target.value)}
-                    placeholder="Message received for {listing}"
-                    required
-                  />
-                  <span className={styles.fieldHint}>
-                    Subject line for contact emails sent to listing addresses. Use{" "}
-                    <code>{`{listing}`}</code> for the listing name.
-                  </span>
-                </label>
-                <label className={styles.field}>
-                  <span>Email opening message</span>
-                  <textarea
-                    value={messageIntro}
-                    onChange={(e) => setMessageIntro(e.target.value)}
-                    placeholder="Optional — e.g. You have received a message via the directory map for {listing}."
-                    rows={3}
-                    className={styles.textarea}
-                  />
-                  <span className={styles.fieldHint}>
-                    Optional plain text at the top of the email body, above the visitor&apos;s name and
-                    message. Use <code>{`{listing}`}</code> for the listing name. Leave blank to omit
-                    an opening line.
-                  </span>
-                </label>
-              </div>
-              <button type="submit" className="btn btn-primary" disabled={busy === "save"}>
-                {busy === "save" ? "Saving…" : "Save"}
-              </button>
-            </form>
-
-            <hr className={styles.panelDivider} />
 
             <div className={styles.panelSubsection}>
             <div className={styles.sectionHeader}>
@@ -905,10 +640,33 @@ export default function MessagingSettings({
               </p>
             ) : null}
             </div>
-          </section>
+
+        <hr className={styles.panelDivider} />
+
+        <div className={styles.panelSubsection}>
+          <h2 className={styles.sectionTitle}>Delete profile</h2>
+          {confirmDelete ? (
+            <>
+              <p className={styles.hint}>
+                Any map or directory using this profile will stop sending messages until you choose another
+                profile for it. This cannot be undone.
+              </p>
+              <div className={styles.actions}>
+                <button type="button" className="btn btn-primary" onClick={handleDelete} disabled={busy === "delete"}>
+                  {busy === "delete" ? "Deleting…" : "Yes, delete this profile"}
+                </button>
+                <button type="button" className="btn" onClick={() => setConfirmDelete(false)} disabled={busy === "delete"}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>
+              Delete profile
+            </button>
+          )}
         </div>
-        </EntitlementGate>
-      )}
+      </section>
 
       <SetupInstructionsOverlay
         open={instructionsOpen}

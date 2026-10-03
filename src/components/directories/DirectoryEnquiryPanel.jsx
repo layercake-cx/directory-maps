@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { updateDirectory } from "../../lib/directories.js";
-import MessagingSettings from "../MessagingSettings.jsx";
 
 const inputStyle = { width: "100%", maxWidth: 420, boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
 const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
@@ -119,12 +118,13 @@ export default function DirectoryEnquiryPanel({ directory, directoryId, clientId
         </form>
       </div>
 
-      <MessagingSettings
-        clientId={clientId}
-        clientName={clientName}
-        eventSource={eventSource}
-        product="directory"
-      />
+      <div className="admin-card" style={{ marginTop: 16 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Sending settings</p>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.75, maxWidth: 640 }}>
+          The sending profile, test mode and message text for this directory are being moved onto this
+          tab. Sending profiles themselves are managed under Messaging for your organisation.
+        </p>
+      </div>
 
       <div className="admin-card" style={{ marginTop: 16 }}>
         <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Recent enquiries</p>

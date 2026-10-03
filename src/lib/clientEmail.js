@@ -1,10 +1,15 @@
 import { supabase } from "./supabase";
 import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
-export async function invokeManageClientEmail({ clientId, action, fromName, fromAddress, messageIntro, messageSubject }) {
+/**
+ * Messaging profile (sending identity) actions on the manage_client_email Edge Function.
+ * action: create | save | delete | setup_domain | verify | refresh. Everything except
+ * "create" targets one profile via profileId.
+ */
+export async function invokeManageClientEmail({ clientId, action, profileId, name, fromName, fromAddress }) {
   return invokeEdgeFunction(
     "manage_client_email",
-    { clientId, action, fromName, fromAddress, messageIntro, messageSubject },
+    { clientId, action, profileId, name, fromName, fromAddress },
     { supabase, requireAuth: true }
   );
 }
