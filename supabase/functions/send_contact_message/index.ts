@@ -1,8 +1,17 @@
-// Directory map contact form → Resend (listing To, visitor Cc).
-// Platform: RESEND_API_KEY, RESEND_FROM. Per-client verified domain overrides From when configured.
+// Map contact form and directory "Make an Enquiry" -> Resend (recipient To, visitor Cc).
+// Platform: RESEND_API_KEY, RESEND_FROM. Settings come from the map or directory itself:
+// its chosen messaging profile (From identity), enable toggle, test mode, subject and intro.
+// Sending is blocked until a profile is chosen (see _shared/messaging.ts).
 import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
-import { buildFromHeader, parsePlatformFrom, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
+import { buildFromHeader, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
+import {
+  loadDirectoryMessaging,
+  loadMapMessaging,
+  messagingBlockedReason,
+  resolveProfileFrom,
+  type MessagingEntity,
+} from "../_shared/messaging.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -37,83 +46,40 @@ function introToHtml(intro: string): string {
   return `<p>${escapeHtml(intro).replace(/\n/g, "<br>")}</p>`;
 }
 
-// Defense in depth: client_messaging_settings.messaging_enabled already
-// bakes in clients.messaging_enabled AND the resolved "messaging"
-// entitlement (Professional plan and above). EmbedMap.jsx gates the "Send
-// message" button on the same view, but this function is the one that
-// actually spends a Resend send, so it re-checks server-side rather than
-// trusting the caller. Fails open (allows) when the map/client can't be
-// resolved, matching the rest of this function's "no mapId -> use platform
-// defaults" behaviour.
-async function isMessagingEnabledForMap(mapId: string | null): Promise<boolean> {
-  if (!mapId) return true;
-
-  const service = createServiceClient();
-  const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
-  if (!map?.client_id) return true;
-
-  const { data: settings } = await service
-    .from("client_messaging_settings")
-    .select("messaging_enabled")
-    .eq("client_id", map.client_id)
-    .maybeSingle();
-  if (!settings) return true;
-
-  return settings.messaging_enabled === true;
-}
-
-async function resolveClientEmailSettingsForClient(clientId: string | null): Promise<{
-  from: string;
-  messageIntro: string | null;
-  messageSubject: string | null;
-}> {
-  const { name: platformName, email: platformEmail } = parsePlatformFrom();
-  const fallbackName = platformName || "Layercake Maps";
-  const defaultFrom = buildFromHeader(fallbackName, platformEmail);
-
-  if (!clientId) return { from: defaultFrom, messageIntro: null, messageSubject: null };
-
-  const service = createServiceClient();
-  const { data: client } = await service
-    .from("clients")
-    .select("email_from_name,email_from_address,email_domain_status,email_message_intro,email_message_subject")
-    .eq("id", clientId)
-    .maybeSingle();
-
-  let from: string;
-  if (
-    client?.email_domain_status === "verified" &&
-    typeof client.email_from_address === "string" &&
-    client.email_from_address.trim()
-  ) {
-    from = buildFromHeader(client.email_from_name, client.email_from_address);
-  } else {
-    // Domain not verified: platform sending address, client Display Name when configured.
-    const displayName = (client?.email_from_name as string | null | undefined)?.trim() || fallbackName;
-    from = buildFromHeader(displayName, platformEmail);
-  }
-
-  const messageIntro =
-    typeof client?.email_message_intro === "string" ? client.email_message_intro : null;
-  const messageSubject =
-    typeof client?.email_message_subject === "string" ? client.email_message_subject : null;
-
-  return { from, messageIntro, messageSubject };
-}
-
-async function resolveClientEmailSettings(mapId: string | null): Promise<{
-  from: string;
-  messageIntro: string | null;
-  messageSubject: string | null;
-}> {
-  if (!mapId) return resolveClientEmailSettingsForClient(null);
-
-  const service = createServiceClient();
-  const { data: map } = await service.from("maps").select("client_id").eq("id", mapId).maybeSingle();
-  return resolveClientEmailSettingsForClient(map?.client_id ?? null);
-}
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type Visitor = { senderName: string; senderEmail: string; senderPhone: string; message: string };
+
+/** Subject and HTML body, built from the map's or directory's own message text. */
+function buildEmail(entity: MessagingEntity, listingName: string, v: Visitor) {
+  const subjectTemplate = entity.subject?.trim() || DEFAULT_MESSAGE_SUBJECT;
+  const subject = applyListingPlaceholder(subjectTemplate, listingName);
+  const introTemplate = entity.intro?.trim() ?? "";
+  const introHtml = introTemplate ? introToHtml(applyListingPlaceholder(introTemplate, listingName)) : "";
+  const introDivider = introHtml ? `<hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>` : "";
+
+  const html = `
+      ${introHtml}
+      ${introDivider}
+      <p><strong>From:</strong> ${escapeHtml(v.senderName || "—")}<br/>
+      <strong>Email:</strong> ${escapeHtml(v.senderEmail)}<br/>
+      ${v.senderPhone ? `<strong>Phone:</strong> ${escapeHtml(v.senderPhone)}<br/>` : ""}</p>
+      <p><strong>Message:</strong></p>
+      <p>${escapeHtml(v.message).replace(/\n/g, "<br>")}</p>
+    `;
+  return { subject, html };
+}
+
+function readResendError(raw: string | undefined): string {
+  let errMsg = raw ?? "Failed to send email to recipient.";
+  try {
+    const parsed = JSON.parse(errMsg);
+    if (typeof parsed?.message === "string") errMsg = parsed.message;
+  } catch {
+    /* use raw */
+  }
+  return errMsg;
+}
 
 async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Response> {
   const directoryId = typeof body.directoryId === "string" ? body.directoryId.trim() : "";
@@ -131,15 +97,10 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
   if (!message) return jsonResponse({ error: "Message is required." }, 400);
 
   const service = createServiceClient();
-  const { data: directory } = await service
-    .from("directories")
-    .select("id, client_id, enquiry_email")
-    .eq("id", directoryId)
-    .maybeSingle();
-  if (!directory?.client_id) return jsonResponse({ error: "Directory not found." }, 404);
+  const directory = await loadDirectoryMessaging(service, directoryId);
+  if (!directory) return jsonResponse({ error: "Directory not found." }, 404);
 
-  const contactEmail = typeof directory.enquiry_email === "string" ? directory.enquiry_email.trim() : "";
-  if (!contactEmail) return jsonResponse({ error: "This directory is not accepting enquiries." }, 403);
+  if (!directory.enquiryEmail) return jsonResponse({ error: "This directory is not accepting enquiries." }, 403);
 
   const { data: entry } = await service
     .from("directory_entries")
@@ -148,42 +109,18 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
     .maybeSingle();
   if (!entry || entry.directory_id !== directoryId) return jsonResponse({ error: "Entry not found." }, 404);
 
-  const { data: settings } = await service
-    .from("client_messaging_settings")
-    .select("messaging_enabled, email_test_mode, email_test_recipient")
-    .eq("client_id", directory.client_id)
-    .maybeSingle();
-  if (settings && settings.messaging_enabled !== true) {
-    return jsonResponse({ error: "Messaging is not enabled for this directory." }, 403);
-  }
+  const blocked = await messagingBlockedReason(service, directory, "directory");
+  if (blocked) return jsonResponse({ error: blocked }, 403);
 
-  const testMode = settings?.email_test_mode !== false;
-  const testRecipient = typeof settings?.email_test_recipient === "string" ? settings.email_test_recipient.trim() : "";
-  if (testMode && !testRecipient) {
+  if (directory.testMode && !directory.testRecipient) {
     return jsonResponse({ error: "Test mode is on but no test recipient is configured." }, 400);
   }
-  const toEmail = testMode ? testRecipient : contactEmail;
+  const toEmail = directory.testMode ? directory.testRecipient : directory.enquiryEmail;
 
   const listingName = (typeof entry.name === "string" && entry.name.trim()) || "the listing";
-  const { from, messageIntro, messageSubject } = await resolveClientEmailSettingsForClient(directory.client_id);
+  const from = await resolveProfileFrom(service, directory.profileId!, directory.clientId);
   const replyTo = buildFromHeader(senderName, senderEmail);
-  const subjectTemplate = messageSubject?.trim() || DEFAULT_MESSAGE_SUBJECT;
-  const subjectText = applyListingPlaceholder(subjectTemplate, listingName);
-  const introTemplate = messageIntro?.trim() ?? "";
-  const introHtml = introTemplate ? introToHtml(applyListingPlaceholder(introTemplate, listingName)) : "";
-  const introDivider = introHtml
-    ? `<hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>`
-    : "";
-
-  const htmlToContact = `
-      ${introHtml}
-      ${introDivider}
-      <p><strong>From:</strong> ${escapeHtml(senderName || "—")}<br/>
-      <strong>Email:</strong> ${escapeHtml(senderEmail)}<br/>
-      ${senderPhone ? `<strong>Phone:</strong> ${escapeHtml(senderPhone)}<br/>` : ""}</p>
-      <p><strong>Message:</strong></p>
-      <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
-    `;
+  const { subject, html } = buildEmail(directory, listingName, { senderName, senderEmail, senderPhone, message });
 
   const baseRow = {
     directory_id: directoryId,
@@ -197,23 +134,10 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
     surface,
   };
 
-  const sent = await resendSendEmail({
-    from,
-    to: toEmail,
-    cc: senderEmail,
-    replyTo,
-    subject: subjectText,
-    html: htmlToContact,
-  });
+  const sent = await resendSendEmail({ from, to: toEmail, cc: senderEmail, replyTo, subject, html });
 
   if (!sent.ok) {
-    let errMsg = sent.error ?? "Failed to send email to recipient.";
-    try {
-      const parsed = JSON.parse(errMsg);
-      if (typeof parsed?.message === "string") errMsg = parsed.message;
-    } catch {
-      /* use raw */
-    }
+    const errMsg = readResendError(sent.error);
     await service.from("directory_contact_submissions").insert({
       ...baseRow,
       email_sent: false,
@@ -222,10 +146,40 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
     return jsonResponse({ error: errMsg }, 500);
   }
 
-  await service.from("directory_contact_submissions").insert({
-    ...baseRow,
-    email_sent: true,
-  });
+  await service.from("directory_contact_submissions").insert({ ...baseRow, email_sent: true });
+
+  return jsonResponse({ ok: true, sentToContact: true, ccSender: true });
+}
+
+async function handleMapMessage(body: Record<string, unknown>): Promise<Response> {
+  const mapId = typeof body.mapId === "string" ? body.mapId.trim() : "";
+  const toEmail = typeof body.toEmail === "string" ? body.toEmail.trim() : "";
+  const listingName = typeof body.listingName === "string" ? body.listingName.trim() : "the listing";
+  const senderName = typeof body.senderName === "string" ? body.senderName.trim() : "";
+  const senderEmail = typeof body.senderEmail === "string" ? body.senderEmail.trim() : "";
+  const senderPhone = typeof body.senderPhone === "string" ? body.senderPhone.trim() : "";
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+
+  if (!mapId) return jsonResponse({ error: "Missing map (mapId)." }, 400);
+  if (!toEmail) return jsonResponse({ error: "Missing recipient email (toEmail)." }, 400);
+  if (!senderEmail) return jsonResponse({ error: "Sender email is required." }, 400);
+  if (!message) return jsonResponse({ error: "Message is required." }, 400);
+
+  const service = createServiceClient();
+  const map = await loadMapMessaging(service, mapId);
+  if (!map) return jsonResponse({ error: "Map not found." }, 404);
+
+  // This function spends a Resend send, so it re-checks readiness server-side
+  // rather than trusting the embed that hid or showed the button.
+  const blocked = await messagingBlockedReason(service, map, "map");
+  if (blocked) return jsonResponse({ error: blocked }, 403);
+
+  const from = await resolveProfileFrom(service, map.profileId!, map.clientId);
+  const replyTo = buildFromHeader(senderName, senderEmail);
+  const { subject, html } = buildEmail(map, listingName, { senderName, senderEmail, senderPhone, message });
+
+  const sent = await resendSendEmail({ from, to: toEmail, cc: senderEmail, replyTo, subject, html });
+  if (!sent.ok) return jsonResponse({ error: readResendError(sent.error) }, 500);
 
   return jsonResponse({ ok: true, sentToContact: true, ccSender: true });
 }
@@ -256,62 +210,7 @@ Deno.serve(async (req) => {
     if (typeof body?.directoryId === "string" && body.directoryId.trim()) {
       return await handleDirectoryEnquiry(body);
     }
-    const mapId = typeof body?.mapId === "string" ? body.mapId.trim() : "";
-    const toEmail = typeof body?.toEmail === "string" ? body.toEmail.trim() : "";
-    const listingName = typeof body?.listingName === "string" ? body.listingName.trim() : "the listing";
-    const senderName = typeof body?.senderName === "string" ? body.senderName.trim() : "";
-    const senderEmail = typeof body?.senderEmail === "string" ? body.senderEmail.trim() : "";
-    const senderPhone = typeof body?.senderPhone === "string" ? body.senderPhone.trim() : "";
-    const message = typeof body?.message === "string" ? body.message.trim() : "";
-
-    if (!toEmail) return jsonResponse({ error: "Missing recipient email (toEmail)." }, 400);
-    if (!senderEmail) return jsonResponse({ error: "Sender email is required." }, 400);
-    if (!message) return jsonResponse({ error: "Message is required." }, 400);
-
-    if (!(await isMessagingEnabledForMap(mapId || null))) {
-      return jsonResponse({ error: "Messaging is not enabled for this map." }, 403);
-    }
-
-    const { from, messageIntro, messageSubject } = await resolveClientEmailSettings(mapId || null);
-    const replyTo = buildFromHeader(senderName, senderEmail);
-    const subjectTemplate = messageSubject?.trim() || DEFAULT_MESSAGE_SUBJECT;
-    const subjectText = applyListingPlaceholder(subjectTemplate, listingName);
-    const introTemplate = messageIntro?.trim() ?? "";
-    const introHtml = introTemplate ? introToHtml(applyListingPlaceholder(introTemplate, listingName)) : "";
-    const introDivider = introHtml
-      ? `<hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>`
-      : "";
-
-    const htmlToContact = `
-      ${introHtml}
-      ${introDivider}
-      <p><strong>From:</strong> ${escapeHtml(senderName || "—")}<br/>
-      <strong>Email:</strong> ${escapeHtml(senderEmail)}<br/>
-      ${senderPhone ? `<strong>Phone:</strong> ${escapeHtml(senderPhone)}<br/>` : ""}</p>
-      <p><strong>Message:</strong></p>
-      <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
-    `;
-
-    const sent = await resendSendEmail({
-      from,
-      to: toEmail,
-      cc: senderEmail,
-      replyTo,
-      subject: subjectText,
-      html: htmlToContact,
-    });
-    if (!sent.ok) {
-      let errMsg = sent.error ?? "Failed to send email to recipient.";
-      try {
-        const parsed = JSON.parse(errMsg);
-        if (typeof parsed?.message === "string") errMsg = parsed.message;
-      } catch {
-        /* use raw */
-      }
-      return jsonResponse({ error: errMsg }, 500);
-    }
-
-    return jsonResponse({ ok: true, sentToContact: true, ccSender: true });
+    return await handleMapMessage(body);
   } catch (e) {
     console.error(e);
     return jsonResponse({ error: errorMessage(e, "Failed to send message.") }, 500);

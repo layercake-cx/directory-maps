@@ -1,3 +1,8 @@
+// Manage messaging profiles (sending identities): create, save, delete, and the
+// Resend domain lifecycle (setup_domain / verify / refresh). A profile is a From
+// name + address + Resend domain; which profile a map or directory sends through
+// is chosen on the map/directory itself. Message text (subject/intro/prompt) is
+// NOT managed here -- it lives on the map or directory.
 import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
 import {
@@ -14,6 +19,12 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
   "Access-Control-Max-Age": "86400",
 };
+
+const PROFILE_COLUMNS =
+  "id,client_id,name,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records";
+
+type Service = ReturnType<typeof createServiceClient>;
+type Profile = Record<string, unknown> & { id: string; client_id: string };
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -43,20 +54,6 @@ async function requireClientEmailAccess(req: Request, clientId: string) {
   return user;
 }
 
-function normalizeClientEmailRow(row: Record<string, unknown> | null) {
-  if (!row) return null;
-  return {
-    email_from_name: row.email_from_name ?? null,
-    email_from_address: row.email_from_address ?? null,
-    email_message_intro: row.email_message_intro ?? null,
-    email_message_subject: row.email_message_subject ?? null,
-    email_domain: row.email_domain ?? null,
-    resend_domain_id: row.resend_domain_id ?? null,
-    email_domain_status: row.email_domain_status ?? "not_configured",
-    email_dns_records: row.email_dns_records ?? null,
-  };
-}
-
 function readResendDomainList(list: unknown): Array<{ id: string; name: string }> {
   if (!list || typeof list !== "object") return [];
   const rows = (list as { data?: unknown }).data;
@@ -75,24 +72,40 @@ function readResendDomainPayload(remote: unknown) {
   };
 }
 
-async function writeClientEmailFields(
-  service: ReturnType<typeof createServiceClient>,
-  clientId: string,
-  fields: Record<string, unknown>,
-) {
+async function writeProfileFields(service: Service, profileId: string, fields: Record<string, unknown>): Promise<Profile> {
   const { data, error } = await service
-    .from("clients")
+    .from("messaging_profiles")
     .update({ ...fields, updated_at: new Date().toISOString() })
-    .eq("id", clientId)
-    .select(
-      "email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records",
-    )
+    .eq("id", profileId)
+    .select(PROFILE_COLUMNS)
     .single();
   if (error) throw error;
-  return normalizeClientEmailRow(data as Record<string, unknown>);
+  return data as Profile;
 }
 
-async function syncDomainFromResend(service: ReturnType<typeof createServiceClient>, clientId: string, domainId: string) {
+/**
+ * Write a Resend domain's state to a profile AND to every other profile of the
+ * same client sharing that Resend domain (e.g. info@ and events@), so their
+ * verification status never drifts apart.
+ */
+async function writeDomainState(
+  service: Service,
+  profile: Profile,
+  domainId: string,
+  state: { email_domain: string | null; email_domain_status: string; email_dns_records: unknown[] | null },
+): Promise<Profile> {
+  const now = new Date().toISOString();
+  const { error } = await service
+    .from("messaging_profiles")
+    .update({ ...state, resend_domain_id: domainId, updated_at: now })
+    .eq("client_id", profile.client_id)
+    .eq("resend_domain_id", domainId)
+    .neq("id", profile.id);
+  if (error) throw error;
+  return await writeProfileFields(service, profile.id, { ...state, resend_domain_id: domainId });
+}
+
+async function syncDomainFromResend(service: Service, profile: Profile, domainId: string) {
   let remote = await resendGetDomain(domainId);
   let { name, status, records } = readResendDomainPayload(remote);
 
@@ -103,7 +116,7 @@ async function syncDomainFromResend(service: ReturnType<typeof createServiceClie
     ({ name, status, records } = readResendDomainPayload(remote));
   }
 
-  return await writeClientEmailFields(service, clientId, {
+  return await writeDomainState(service, profile, domainId, {
     email_domain: name,
     email_domain_status: status,
     email_dns_records: records,
@@ -132,6 +145,10 @@ async function pollUntilChecked(domainId: string, attempts = 8, intervalMs = 300
   return await resendGetDomain(domainId) as Record<string, unknown>;
 }
 
+function readString(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -142,87 +159,140 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const clientId = typeof body?.clientId === "string" ? body.clientId.trim() : "";
-    const action = typeof body?.action === "string" ? body.action.trim() : "";
+    const clientId = readString(body?.clientId);
+    const action = readString(body?.action);
+    const profileId = readString(body?.profileId);
 
     if (!clientId) return jsonResponse({ error: "Missing clientId." }, 400);
     await requireClientEmailAccess(req, clientId);
 
     const service = createServiceClient();
-    const { data: client, error: clientErr } = await service
-      .from("clients")
-      .select(
-        "id,email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
-      )
-      .eq("id", clientId)
-      .single();
-    if (clientErr || !client) return jsonResponse({ error: "Client not found." }, 404);
 
-    if (action === "save") {
-      const fromName = typeof body?.fromName === "string" ? body.fromName.trim() : "";
-      const fromAddress = typeof body?.fromAddress === "string" ? body.fromAddress.trim().toLowerCase() : "";
-      const messageIntro =
-        body?.messageIntro === null || body?.messageIntro === undefined
-          ? null
-          : typeof body?.messageIntro === "string"
-          ? body.messageIntro.trim() || null
-          : undefined;
-      const messageSubject = typeof body?.messageSubject === "string" ? body.messageSubject.trim() : "";
+    if (action === "create") {
+      const name = readString(body?.name);
+      const fromName = readString(body?.fromName);
+      const fromAddress = readString(body?.fromAddress).toLowerCase();
+      if (!name) return jsonResponse({ error: "Profile name is required." }, 400);
       if (!fromAddress) return jsonResponse({ error: "From email address is required." }, 400);
-      if (!messageSubject) return jsonResponse({ error: "Email subject is required." }, 400);
       const domain = extractEmailDomain(fromAddress);
       if (!domain) return jsonResponse({ error: "Enter a valid email address." }, 400);
 
-      const updateFields: Record<string, unknown> = {
+      // Reuse the domain state of a sibling profile on the same domain.
+      const { data: sibling } = await service
+        .from("messaging_profiles")
+        .select("resend_domain_id,email_domain_status,email_dns_records")
+        .eq("client_id", clientId)
+        .eq("email_domain", domain)
+        .not("resend_domain_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+
+      const { data, error } = await service
+        .from("messaging_profiles")
+        .insert({
+          client_id: clientId,
+          name,
+          email_from_name: fromName || null,
+          email_from_address: fromAddress,
+          email_domain: domain,
+          ...(sibling
+            ? {
+              resend_domain_id: sibling.resend_domain_id,
+              email_domain_status: sibling.email_domain_status,
+              email_dns_records: sibling.email_dns_records,
+            }
+            : {}),
+        })
+        .select(PROFILE_COLUMNS)
+        .single();
+      if (error) throw error;
+      return jsonResponse({ ok: true, profile: data });
+    }
+
+    // Every other action targets one existing profile of this client.
+    if (!profileId) return jsonResponse({ error: "Missing profileId." }, 400);
+    const { data: found, error: profileErr } = await service
+      .from("messaging_profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("id", profileId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+    if (profileErr || !found) return jsonResponse({ error: "Messaging profile not found." }, 404);
+    const profile = found as Profile;
+
+    if (action === "save") {
+      const name = readString(body?.name);
+      const fromName = readString(body?.fromName);
+      const fromAddress = readString(body?.fromAddress).toLowerCase();
+      if (!name) return jsonResponse({ error: "Profile name is required." }, 400);
+      if (!fromAddress) return jsonResponse({ error: "From email address is required." }, 400);
+      const domain = extractEmailDomain(fromAddress);
+      if (!domain) return jsonResponse({ error: "Enter a valid email address." }, 400);
+
+      const fields: Record<string, unknown> = {
+        name,
         email_from_name: fromName || null,
         email_from_address: fromAddress,
         email_domain: domain,
-        email_message_subject: messageSubject,
-        updated_at: new Date().toISOString(),
       };
-      if (messageIntro !== undefined) {
-        updateFields.email_message_intro = messageIntro;
+      // Changing to a different domain detaches the old Resend domain; the user
+      // must run domain setup again for the new one.
+      if (profile.email_domain && profile.email_domain !== domain) {
+        fields.resend_domain_id = null;
+        fields.email_domain_status = "not_configured";
+        fields.email_dns_records = null;
       }
+      return jsonResponse({ ok: true, profile: await writeProfileFields(service, profile.id, fields) });
+    }
 
-      const { data, error } = await service
-        .from("clients")
-        .update(updateFields)
-        .eq("id", clientId)
-        .select(
-          "email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records"
-        )
-        .single();
+    if (action === "delete") {
+      // maps/directories.messaging_profile_id is ON DELETE SET NULL, so anything
+      // using this profile has messaging blocked until another is chosen.
+      const [{ count: mapCount }, { count: directoryCount }] = await Promise.all([
+        service.from("maps").select("id", { count: "exact", head: true }).eq("messaging_profile_id", profile.id),
+        service.from("directories").select("id", { count: "exact", head: true }).eq("messaging_profile_id", profile.id),
+      ]);
+      const { error } = await service.from("messaging_profiles").delete().eq("id", profile.id);
       if (error) throw error;
-      return jsonResponse({ ok: true, email: normalizeClientEmailRow(data as Record<string, unknown>) });
+      return jsonResponse({ ok: true, maps_affected: mapCount ?? 0, directories_affected: directoryCount ?? 0 });
     }
 
     if (action === "setup_domain") {
-      const fromAddress =
-        (typeof body?.fromAddress === "string" ? body.fromAddress.trim().toLowerCase() : "") ||
-        (client.email_from_address as string | null) ||
-        "";
+      const fromAddress = readString(body?.fromAddress).toLowerCase() || (profile.email_from_address as string | null) || "";
       const domain = extractEmailDomain(fromAddress);
       if (!domain) {
         return jsonResponse({ error: "Save a valid From email address first." }, 400);
       }
 
-      let domainId = client.resend_domain_id as string | null;
+      let domainId = profile.resend_domain_id as string | null;
       let createPayload: ReturnType<typeof readResendDomainPayload> | null = null;
 
-      if (!domainId || client.email_domain !== domain) {
-        let existingId: string | null = null;
-        try {
-          const list = await resendListDomains();
-          const match = readResendDomainList(list).find((d) => d.name === domain);
-          if (match?.id) existingId = match.id;
-        } catch {
-          // If listing fails, fall through and attempt creation.
+      if (!domainId || profile.email_domain !== domain) {
+        // A sibling profile of this client may already own the Resend domain.
+        const { data: sibling } = await service
+          .from("messaging_profiles")
+          .select("resend_domain_id")
+          .eq("client_id", clientId)
+          .eq("email_domain", domain)
+          .not("resend_domain_id", "is", null)
+          .neq("id", profile.id)
+          .limit(1)
+          .maybeSingle();
+
+        let existingId: string | null = (sibling?.resend_domain_id as string | null) ?? null;
+        if (!existingId) {
+          try {
+            const list = await resendListDomains();
+            const match = readResendDomainList(list).find((d) => d.name === domain);
+            if (match?.id) existingId = match.id;
+          } catch {
+            // If listing fails, fall through and attempt creation.
+          }
         }
 
         if (existingId) {
           domainId = existingId;
-          const existing = await resendGetDomain(existingId);
-          createPayload = readResendDomainPayload(existing);
+          createPayload = readResendDomainPayload(await resendGetDomain(existingId));
         } else {
           const created = await resendCreateDomain(domain);
           createPayload = readResendDomainPayload(created);
@@ -232,35 +302,32 @@ Deno.serve(async (req) => {
           if (!domainId) throw new Error("Resend did not return a domain id.");
         }
 
-        await writeClientEmailFields(service, clientId, {
+        await writeDomainState(service, profile, domainId, {
           email_domain: createPayload?.name ?? domain,
-          resend_domain_id: domainId,
           email_domain_status: createPayload?.status ?? "not_started",
           email_dns_records: createPayload?.records ?? null,
         });
       }
 
-      let email = await syncDomainFromResend(service, clientId, domainId);
+      let updated = await syncDomainFromResend(service, profile, domainId!);
 
       // Resend includes DNS records on create; GET can occasionally return none immediately.
       if (
         createPayload?.records?.length &&
-        (!email?.email_dns_records || !Array.isArray(email.email_dns_records) || email.email_dns_records.length === 0)
+        (!updated.email_dns_records || !Array.isArray(updated.email_dns_records) || updated.email_dns_records.length === 0)
       ) {
-        email = await writeClientEmailFields(service, clientId, {
+        updated = await writeDomainState(service, profile, domainId!, {
           email_domain: createPayload.name ?? domain,
-          resend_domain_id: domainId,
           email_domain_status: createPayload.status,
           email_dns_records: createPayload.records,
         });
       }
 
-      if (!email) throw new Error("Domain setup completed but client email settings could not be loaded.");
-      return jsonResponse({ ok: true, email });
+      return jsonResponse({ ok: true, profile: updated });
     }
 
     if (action === "verify" || action === "refresh") {
-      const domainId = client.resend_domain_id as string | null;
+      const domainId = profile.resend_domain_id as string | null;
       if (!domainId) {
         return jsonResponse({ error: "Set up your domain first." }, 400);
       }
@@ -275,25 +342,12 @@ Deno.serve(async (req) => {
         remote = await resendGetDomain(domainId) as Record<string, unknown>;
       }
 
-      // Write whatever Resend now reports back to the DB.
-      const status = typeof remote?.status === "string" ? remote.status : "not_started";
-      const records = Array.isArray(remote?.records) ? remote.records : null;
-      const name = typeof remote?.name === "string" ? remote.name : null;
-
-      const { data, error: dbErr } = await service
-        .from("clients")
-        .update({
-          email_domain: name,
-          email_domain_status: status,
-          email_dns_records: records,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", clientId)
-        .select("email_from_name,email_from_address,email_message_intro,email_message_subject,email_domain,resend_domain_id,email_domain_status,email_dns_records")
-        .single();
-      if (dbErr) throw dbErr;
-
-      return jsonResponse({ ok: true, email: normalizeClientEmailRow(data as Record<string, unknown>) });
+      const updated = await writeDomainState(service, profile, domainId, {
+        email_domain: typeof remote?.name === "string" ? remote.name : null,
+        email_domain_status: typeof remote?.status === "string" ? remote.status : "not_started",
+        email_dns_records: Array.isArray(remote?.records) ? remote.records : null,
+      });
+      return jsonResponse({ ok: true, profile: updated });
     }
 
     return jsonResponse({ error: "Unknown action." }, 400);

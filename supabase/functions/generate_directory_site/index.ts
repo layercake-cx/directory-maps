@@ -558,14 +558,16 @@ async function generateForDirectoryInner(
     : "";
   let entryEnquiry: DirectoryEnquiry | null = null;
   if (enquiryEmail && supabaseUrl && supabaseAnonKey) {
+    // Per-directory settings; messaging_enabled is already the effective value
+    // (toggle on AND a sending profile chosen AND the messaging entitlement).
     const { data: messaging } = await db
-      .from("client_messaging_settings")
-      .select("messaging_enabled, messaging_prompt, email_test_mode")
-      .eq("client_id", client.id)
+      .from("directory_messaging_settings")
+      .select("messaging_enabled, message_prompt, email_test_mode")
+      .eq("directory_id", directory.id)
       .maybeSingle();
     if (messaging?.messaging_enabled === true) {
       entryEnquiry = {
-        prompt: typeof messaging.messaging_prompt === "string" ? messaging.messaging_prompt : null,
+        prompt: typeof messaging.message_prompt === "string" ? messaging.message_prompt : null,
         testMode: messaging.email_test_mode !== false,
         directoryId: directory.id,
         supabaseUrl,

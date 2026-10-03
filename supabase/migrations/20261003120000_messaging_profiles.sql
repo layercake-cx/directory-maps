@@ -131,8 +131,9 @@ create table public.messaging_profiles (
 );
 
 create index idx_messaging_profiles_client on public.messaging_profiles (client_id);
--- A Resend domain id can only back one profile (Resend domains are global to our account).
-create unique index idx_messaging_profiles_resend_domain
+-- Not unique: two profiles of the same client may share one Resend domain
+-- (e.g. info@ and events@). manage_client_email keeps their status in sync.
+create index idx_messaging_profiles_resend_domain
   on public.messaging_profiles (resend_domain_id) where resend_domain_id is not null;
 
 comment on table public.messaging_profiles is
