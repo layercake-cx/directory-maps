@@ -15,6 +15,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### What changed
 - The map Design view was broken after the shell redesign: `.admin-main--map-page` gave every child `flex: 1` and a fixed `100vh - 130px` height, so the page title, sub-nav and map split the space equally and the map was squashed to the bottom. Now the title and sub-nav keep their natural height and the map area stretches to fill the rest of the main body (minimum 560px). 
+- Map sub-nav is now dark teal with white links and a white Save button, thinner with vertical padding.
 - Follow-up: on the admin map Design page the page title/breadcrumbs and the shell's main padding are removed; the map sub-nav (now carrying the Save button on the right) and the map run edge to edge in the main area.
 
 ### Database migrations applied

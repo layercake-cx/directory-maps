@@ -55,18 +55,18 @@
 
 /* Standalone sub-nav bar (client portal) */
 .subNav {
-  background: linear-gradient(to bottom, #e9f6f8, #ffffff);
-  border-bottom: 1px solid #c8e6ea;
+  background: #0f5e63;
+  border-bottom: 1px solid #0b4a4e;
 }
 
 .subNavInner {
   max-width: 1230px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 6px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .subNavInnerFull {
@@ -81,6 +81,20 @@
   margin-left: 8px;
 }
 
+/* Save (shell-btn--primary): white on the dark teal bar */
+.subNav .subNavActions :global(.shell-btn--primary) {
+  background: #fff;
+  border-color: #fff;
+  color: #0f5e63;
+  height: 28px;
+  font-size: 13px;
+}
+
+.subNav .subNavActions :global(.shell-btn--primary):hover:not(:disabled) {
+  background: #e8f4f5;
+  color: #0f5e63;
+}
+
 .subNavLeft {
   display: flex;
   align-items: center;
@@ -92,7 +106,7 @@
 .backLink {
   display: inline-flex;
   align-items: center;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   flex-shrink: 0;
   padding: 4px;
@@ -101,14 +115,14 @@
 }
 
 .backLink:hover {
-  color: #111827;
-  background: #f3f4f6;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .subNavMapName {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -122,24 +136,25 @@
 }
 
 .subNavTab {
-  color: #6b7280;
+  color: #fff;
   text-decoration: none;
   font-weight: 500;
   font-size: 13.5px;
-  padding: 11px 12px;
+  padding: 5px 12px;
   display: inline-block;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  opacity: 0.85;
   transition: color 0.12s, border-color 0.12s;
 }
 
 .subNavTab:hover {
-  color: #111827;
+  opacity: 1;
 }
 
 .subNavTabActive {
-  color: #1a363b;
-  border-bottom-color: #4a9ba9;
+  color: #fff;
+  opacity: 1;
+  border-bottom-color: #fff;
 }
 
 .subNavTabPublish {
@@ -151,13 +166,14 @@
 }
 
 .subNavTabDraft {
-  background: rgba(234, 179, 8, 0.12);
-  color: #92400e;
+  background: rgba(250, 204, 21, 0.2);
+  color: #fde68a;
+  opacity: 1;
   border-radius: 6px 6px 0 0;
   font-weight: 600;
 }
 
 .subNavTabDraft:hover {
-  background: rgba(234, 179, 8, 0.2);
-  color: #78350f;
+  background: rgba(250, 204, 21, 0.3);
+  color: #fef3c7;
 }
