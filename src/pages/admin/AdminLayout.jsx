@@ -45,6 +45,8 @@ export default function AdminLayout({
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
   const clientWorkspaceId = clientWorkspaceIdFromPath(pathname);
+  // The map design page is edge-to-edge: no page title/padding; the sub-nav carries the actions instead.
+  const flush = showMapSubNav && mainClassName.includes("admin-main--map-page");
   const context = clientWorkspaceId ? "client" : "platform";
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function AdminLayout({
       panel={panel}
     >
       <div className={`admin-main ${mainClassName}`.trim()}>
-        {(breadcrumbs.length > 0 || rightActions) && (
+        {!flush && (breadcrumbs.length > 0 || rightActions) && (
           <div className="page-head" style={{ marginBottom: 16 }}>
             <div>
               {breadcrumbs.length > 1 && (
@@ -85,7 +87,7 @@ export default function AdminLayout({
           </div>
         )}
 
-        {showMapSubNav && <MapEditSubNav standalone />}
+        {showMapSubNav && <MapEditSubNav standalone actions={flush ? rightActions : null} />}
 
         {children}
       </div>
