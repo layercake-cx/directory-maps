@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-03 — [Staging] Messaging: sending profiles, per-map and per-directory settings
+## 2026-10-03 — [Production: database + Edge Functions; frontend pending] Messaging: sending profiles, per-map and per-directory settings
 
 **Branch/PR:** `feat/2026-10-03-messaging-profiles`
-**Deployed by:** Claude Code. Migration and Edge Functions applied to staging (`beqejxneehilplrtpntn`) on 2026-10-04. Frontend not deployed to a preview yet. Production: not deployed.
+**Deployed by:** Claude Code. Migration and Edge Functions applied to staging (`beqejxneehilplrtpntn`) and then production (`gxixwdjfmegxcxfeflro`) on 2026-10-04, on the user's explicit instruction. Frontend not yet deployed anywhere (waiting on merge of PR #277 + `npm run deploy:live`).
 
 ### What changed
 
@@ -26,10 +26,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Admin events added: `email_profile_created/updated/deleted`, `email_map_settings_updated`, `email_directory_settings_updated` (domain events now carry `profile_id`).
 
 ### Database migrations applied
-- `20261003120000_messaging_profiles.sql` — staging (`beqejxneehilplrtpntn`), 2026-10-04: applied with `supabase db push`; its built-in post-migration check printed `VERIFY PASSED: 1 profiles created and linked`. Production: NOT APPLIED. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
+- `20261003120000_messaging_profiles.sql` — staging (`beqejxneehilplrtpntn`), 2026-10-04: applied with `supabase db push`; its built-in post-migration check printed `VERIFY PASSED: 1 profiles created and linked`. Production (`gxixwdjfmegxcxfeflro`), 2026-10-04: `db push --dry-run` showed only this file pending, matching staging; applied; notice `VERIFY PASSED: 2 profiles created and linked`. The pre-apply production check showed the largest affected client (IAPCO) has 3 maps, messaging enabled, test mode off — all three were linked to one Default profile with those values copied. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
 
 ### Edge Functions deployed
-- Staging (`beqejxneehilplrtpntn`), 2026-10-04: `send_contact_message` (`--no-verify-jwt`), `manage_client_email`, `generate_directory_site`. Production: not deployed. They must go to production together with the frontend — the old org-level Messaging screen writes columns these functions no longer read.
+- Staging (`beqejxneehilplrtpntn`), 2026-10-04: `send_contact_message` (`--no-verify-jwt`), `manage_client_email`, `generate_directory_site`. Production (`gxixwdjfmegxcxfeflro`), 2026-10-04: the same three functions, after the migration. Until the frontend is deployed, the old org-level Messaging screen still writes the legacy `clients` columns, which the new functions no longer read. The frontend must follow immediately — the old org-level Messaging screen writes columns these functions no longer read.
 
 ### Frontend
 - New: `MessagingProfiles.jsx`, `MessagingProfileEditor.jsx` (split from the old `MessagingSettings.jsx`), `EntityMessagingSettings.jsx`, `useMessagingAllowed.js`. Changed: both map dashboards, `EmbedMap.jsx`, `DirectoryEnquiryPanel.jsx`. Frontend must ship together with the migration and functions.
