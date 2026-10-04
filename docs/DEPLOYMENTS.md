@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-04 — [Staging] send_contact_message: allow the apikey header (directory Contact "NetworkError")
+## 2026-10-04 — [Production] send_contact_message: allow the apikey header (directory Contact "NetworkError")
 
 **Branch/PR:** `fix/2026-10-04-contact-message-cors-apikey` ([PR #279](https://github.com/layercake-cx/directory-maps/pull/279))
-**Deployed by:** Claude Code. Staging only; production waiting on explicit sign-off.
+**Deployed by:** Claude Code. Staging, then production on the user's explicit instruction.
 
 ### What changed
 
@@ -22,14 +22,15 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Edge Functions deployed
-- `send_contact_message` (`--no-verify-jwt`) — staging (`beqejxneehilplrtpntn`), 2026-10-04. Production: not deployed.
+- `send_contact_message` (`--no-verify-jwt`) — staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`), 2026-10-04.
 
 ### Rollback plan
 Redeploy `send_contact_message` from the previous commit.
 
 ### Verified
 - [x] Preflight on staging with `Access-Control-Request-Headers: apikey,content-type` now returns the header in `access-control-allow-headers`
-- [ ] A real Contact send from a published directory entry page on staging
+- [x] Preflight on production returns `apikey` in `access-control-allow-headers`
+- [ ] A real Contact send from a published directory entry page
 
 ---
 
