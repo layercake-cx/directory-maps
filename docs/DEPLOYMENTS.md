@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-03 — [Not deployed] Messaging: sending profiles, per-map and per-directory settings
+## 2026-10-03 — [Staging] Messaging: sending profiles, per-map and per-directory settings
 
 **Branch/PR:** `feat/2026-10-03-messaging-profiles`
-**Deployed by:** Claude Code. Not applied or deployed anywhere yet (staging database was unreachable when this was written).
+**Deployed by:** Claude Code. Migration and Edge Functions applied to staging (`beqejxneehilplrtpntn`) on 2026-10-04. Frontend not deployed to a preview yet. Production: not deployed.
 
 ### What changed
 
@@ -24,10 +24,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Admin events added: `email_profile_created/updated/deleted`, `email_map_settings_updated`, `email_directory_settings_updated` (domain events now carry `profile_id`).
 
 ### Database migrations applied
-- `20261003120000_messaging_profiles.sql` — NOT APPLIED. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
+- `20261003120000_messaging_profiles.sql` — staging (`beqejxneehilplrtpntn`), 2026-10-04: applied with `supabase db push`; its built-in post-migration check printed `VERIFY PASSED: 1 profiles created and linked`. Production: NOT APPLIED. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
 
 ### Edge Functions deployed
-- None yet. To deploy (staging first, after the migration): `send_contact_message` (deploy with `--no-verify-jwt`, as before), `manage_client_email`, `generate_directory_site`. Deploy them together with the frontend — the old org-level Messaging screen writes columns these functions no longer read.
+- Staging (`beqejxneehilplrtpntn`), 2026-10-04: `send_contact_message` (`--no-verify-jwt`), `manage_client_email`, `generate_directory_site`. Production: not deployed. They must go to production together with the frontend — the old org-level Messaging screen writes columns these functions no longer read.
 
 ### Frontend
 - New: `MessagingProfiles.jsx`, `MessagingProfileEditor.jsx` (split from the old `MessagingSettings.jsx`), `EntityMessagingSettings.jsx`, `useMessagingAllowed.js`. Changed: both map dashboards, `EmbedMap.jsx`, `DirectoryEnquiryPanel.jsx`. Frontend must ship together with the migration and functions.
@@ -39,8 +39,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `deno check` passes for the three Edge Functions; `npm run build` passes
-- [ ] Migration dry run on staging (`BEGIN; … ROLLBACK;`), pre/post integrity checks and the parity check (must return 0 rows)
-- [ ] Migration applied on staging
+- [ ] Migration dry run in the SQL editor (not done — applied directly via `supabase db push` on the user's instruction; the file's own assertions passed)
+- [x] Migration applied on staging
+- [ ] Post-migration row counts, orphan checks and the parity check (must return 0 rows) reviewed
 - [ ] Create a profile, set up and verify a domain (`/client/email`)
 - [ ] Map: choose a profile, enable, test-mode send; confirm the button is hidden with no profile chosen
 - [ ] Directory: choose a profile, enable, publish, Make an Enquiry send; confirm blocked with no profile
