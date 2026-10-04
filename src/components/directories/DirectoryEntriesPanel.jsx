@@ -93,7 +93,7 @@ const inputStyle = {
  *
  * @param {string} directoryId
  * @param {string} directoryBasePath - this directory's own base route (e.g. `/client/directories/:id` or the admin equivalent) — entries are edited at `${directoryBasePath}/entries/:entryId`.
- * @param {string} [clientId] - required to show the Categorisations tag picker (DIR-E5-S2); omit to hide it.
+ * @param {string} [clientId] - required to show the Categories tag picker (DIR-E5-S2); omit to hide it.
  * @param {boolean} canEdit - Owner/Manager, or a Member explicitly granted access.
  * @param {(eventType: string, meta?: object) => void} [recordEvent] - admin-event emitter (see AGENTS.md), matches the recordFilterEvent convention used by FilterFieldsPanel.
  */
@@ -400,7 +400,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
       // Resolve category_<key> columns against existing term slugs/labels.
       // Unknown tokens are reported as warnings, not auto-created — that's a
-      // taxonomy change and belongs in Categorisations, not a data import.
+      // taxonomy change and belongs in Categories, not a data import.
       const termLookupByCat = new Map();
       for (const cat of categorisations) {
         const m = new Map();

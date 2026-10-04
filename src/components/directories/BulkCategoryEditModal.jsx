@@ -60,14 +60,14 @@ export default function BulkCategoryEditModal({ categorisations, entryIds, onClo
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", padding: 16 }} onClick={onClose}>
       <div className="admin-card" style={{ padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>Bulk tag entries</h3>
-        <p style={{ margin: "0 0 14px", fontSize: 13, opacity: 0.75 }}>Apply a categorisation term to {count} selected entr{count === 1 ? "y" : "ies"}.</p>
+        <p style={{ margin: "0 0 14px", fontSize: 13, opacity: 0.75 }}>Apply a category term to {count} selected entr{count === 1 ? "y" : "ies"}.</p>
 
         {taggable.length === 0 ? (
-          <p style={{ fontSize: 13 }}>No categorisations apply to entries yet. Create one in Categorisations first.</p>
+          <p style={{ fontSize: 13 }}>No categories apply to entries yet. Create one in Categories first.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Categorisation</span>
+              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Category</span>
               <select value={categorisationId} onChange={(e) => { setCategorisationId(e.target.value); setTermIds(new Set()); }} style={{ width: "100%" }}>
                 {taggable.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
@@ -128,7 +128,7 @@ export default function BulkCategoryEditModal({ categorisations, entryIds, onClo
                 <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Mode</span>
                 <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ width: "100%" }}>
                   <option value="add">Add to existing tags</option>
-                  <option value="replace">Replace this categorisation's tags</option>
+                  <option value="replace">Replace this category's tags</option>
                 </select>
               </label>
             )}

@@ -480,7 +480,7 @@ export default function AdminClientDetail() {
 
             {activeTab === "categorisations" && (
               <div>
-                <p className="card-title" style={{ marginBottom: 16 }}>Categorisations</p>
+                <p className="card-title" style={{ marginBottom: 16 }}>Categories</p>
                 <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
@@ -556,9 +556,9 @@ export default function AdminClientDetail() {
                       style={{ marginTop: 3 }}
                     />
                     <span>
-                      <strong>Directories &amp; Categorisations</strong>
+                      <strong>Directories &amp; Categories</strong>
                       <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Show the Directories and Categorisations sections in this customer&apos;s portal.
+                        Show the Directories and Categories sections in this customer&apos;s portal.
                         Saved immediately.
                       </span>
                     </span>

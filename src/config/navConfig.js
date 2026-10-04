@@ -29,7 +29,7 @@ export const CLIENT_RAIL = [
   },
   {
     id: "categorisations",
-    label: "Categorisations",
+    label: "Categories",
     icon: "tag",
     route: "/client/categorisations",
     flag: DIRECTORIES_FLAG,

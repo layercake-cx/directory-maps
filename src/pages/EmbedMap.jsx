@@ -179,7 +179,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
   /**
-   * Categorisation-derived filter fields + per-record values (see
+   * Category-derived filter fields + per-record values (see
    * src/lib/categorisations.js's loadCategorisationFiltersForEntries /
    * loadCategorisationFiltersForListings) — for a directory-sourced map,
    * sourced from categorisations attached to that directory (shared with
