@@ -348,19 +348,24 @@ a.btn-primary:hover {
   color: var(--page-heading-color);
 }
 
+/* Map design page: fills the shell's <main> (viewport minus top bar and main padding). The page head and
+   map sub-nav keep their natural height; only the map area (.admin-map-page) stretches. */
 .admin-main--map-page {
   max-width: none;
   margin: 0;
   padding: 0;
-  height: calc(100vh - 130px); /* header + nav + breadcrumbs */
-  min-height: 0;
+  min-height: calc(100vh - var(--header-h, 72px) - 52px);
   display: flex;
   flex-direction: column;
 }
 
 .admin-main--map-page > * {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+}
+
+.admin-main--map-page > .admin-map-page {
+  flex: 1 1 auto;
+  min-height: 560px;
 }
 
 .admin-card {
