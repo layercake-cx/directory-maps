@@ -160,7 +160,7 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 
 ### Directory email
 
-On a directory's **Settings → Email sending** page (owners and managers only):
+On a directory's **Email** tab (owners and managers only):
 
 - **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** in the sidebar's Contact & address panel, below **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
 - **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first; messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
@@ -634,7 +634,7 @@ Two profiles on the same domain (for example `info@` and `events@yourcompany.com
 
 ### Messaging settings on a map
 
-Open the map, then **Messaging** in the Map Settings list. (Directories: **Settings → Email sending** — see [Directory email](#directory-email).)
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Email** tab — see [Directory email](#directory-email).)
 
 - **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
 - **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
@@ -700,8 +700,8 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
 | Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
 | Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
-| Set a directory enquiry inbox | Directory → Settings → Email sending → Contact email → Save contact email, then Publish |
-| Show Make an Enquiry on entry pages | Directory → Settings → Email sending → contact email set, sending profile chosen, messaging on, then Publish |
+| Set a directory enquiry inbox | Directory → Email → Contact email → Save contact email, then Publish |
+| Show Make an Enquiry on entry pages | Directory → Email → contact email set, sending profile chosen, messaging on, then Publish |
 | Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |

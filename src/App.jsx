@@ -131,7 +131,9 @@ export default function App() {
           <Route path="design" element={<DirectoryDesignRoute />} />
           <Route path="search" element={<DirectorySearchRoute />} />
           <Route path="claims" element={<DirectoryClaimsRoute />} />
-          <Route path="enquiries" element={<DirectoryEnquiriesRoute />} />
+          <Route path="email-sending" element={<DirectoryEnquiriesRoute />} />
+          {/* Old URL, before the tab became Settings → Email sending */}
+          <Route path="enquiries" element={<Navigate to="../email-sending" replace />} />
           <Route path="analytics" element={<DirectoryAnalyticsRoute />} />
           <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
           <Route path="seo" element={<DirectorySettingsSeoRoute />} />
@@ -310,7 +312,9 @@ export default function App() {
         <Route path="design" element={<DirectoryDesignRoute />} />
         <Route path="search" element={<DirectorySearchRoute />} />
         <Route path="claims" element={<DirectoryClaimsRoute />} />
-        <Route path="enquiries" element={<DirectoryEnquiriesRoute />} />
+        <Route path="email-sending" element={<DirectoryEnquiriesRoute />} />
+        {/* Old URL, before the tab became Settings → Email sending */}
+        <Route path="enquiries" element={<Navigate to="../email-sending" replace />} />
         <Route path="analytics" element={<DirectoryAnalyticsRoute />} />
         <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
         <Route path="seo" element={<DirectorySettingsSeoRoute />} />

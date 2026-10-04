@@ -24,7 +24,7 @@ function truncate(text, max = 120) {
 }
 
 /**
- * Directory Email tab. The contact inbox, sending profile, enable switch, test
+ * Directory Settings → Email sending page. The contact inbox, sending profile, enable switch, test
  * mode and message text are all per directory. Sending profiles (From address +
  * domain) are the organisation's, managed under Messaging.
  */

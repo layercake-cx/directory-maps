@@ -380,7 +380,7 @@ Use these event types and metadata fields as the baseline. When implementing, pr
   - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
 - **`email_map_settings_updated` / `email_directory_settings_updated`**
   - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
-  - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Email tab). Never store the test recipient or message text.
+  - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Settings → Email sending page). Never store the test recipient or message text.
 
 #### Billing
 
@@ -450,7 +450,7 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
   - Fired when an org-saved preset is deleted. Never fires for the 5 built-in presets (not deletable).
 - **`directory_enquiry_settings_updated`**
   - `meta`: `client_id`, `directory_id`, `contact_email_set` (boolean), `changed_fields` (string[])
-  - Fired from the directory Email tab when the contact inbox is saved. Never store the address itself.
+  - Fired from the directory Settings → Email sending page when the contact inbox is saved. Never store the address itself.
   - The visitor events for the public button (`listing_enquiry_open`, `listing_enquiry_sent`) are engagement rows, not admin events — see `docs/MAP_ENGAGEMENT.md` and section 5 below.
 - **`directory_created`**
   - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
