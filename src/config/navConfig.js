@@ -109,6 +109,7 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
         ...(canManage ? [{ id: "pages", label: "Pages", route: `${basePath}/pages` }] : []),
         { id: "categories", label: "Categories", route: `${basePath}/categories` },
         ...(canManage ? [{ id: "accreditations", label: "Accreditations", route: `${basePath}/accreditations` }] : []),
+        ...(canManage ? [{ id: "ai-enrichment", label: "AI enrichment", route: `${basePath}/ai-enrichment` }] : []),
       ],
     },
     {

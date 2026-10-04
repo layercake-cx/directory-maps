@@ -65,6 +65,7 @@ import ClientCategorisations from "./pages/client/ClientCategorisations.jsx";
 
 import DirectoryOverviewRoute from "./components/directoryPanel/DirectoryOverviewRoute.jsx";
 import DirectoryEntriesRoute from "./components/directoryPanel/DirectoryEntriesRoute.jsx";
+import DirectoryAiEnrichmentRoute from "./components/directoryPanel/DirectoryAiEnrichmentRoute.jsx";
 import DirectoryPagesRoute from "./components/directoryPanel/DirectoryPagesRoute.jsx";
 import DirectoryCategoriesRoute from "./components/directoryPanel/DirectoryCategoriesRoute.jsx";
 import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryAccreditationsRoute.jsx";
@@ -129,6 +130,7 @@ export default function App() {
           <Route path="pages" element={<DirectoryPagesRoute />} />
           <Route path="categories" element={<DirectoryCategoriesRoute />} />
           <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
+          <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
           <Route path="design" element={<DirectoryDesignRoute />} />
           <Route path="search" element={<DirectorySearchRoute />} />
           <Route path="claims" element={<DirectoryClaimsRoute />} />
@@ -312,6 +314,7 @@ export default function App() {
         <Route path="pages" element={<DirectoryPagesRoute />} />
         <Route path="categories" element={<DirectoryCategoriesRoute />} />
         <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
+        <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
         <Route path="design" element={<DirectoryDesignRoute />} />
         <Route path="search" element={<DirectorySearchRoute />} />
         <Route path="claims" element={<DirectoryClaimsRoute />} />
