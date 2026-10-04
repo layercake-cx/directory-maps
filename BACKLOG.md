@@ -106,3 +106,23 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Shown meanwhile:** three token systems coexist; new shell components only ever reference `admin-shell-tokens.css`'s names
 - **Size guess:** L
 - **Status:** To do
+
+## Tech debt
+
+Cleanup that is safe to defer but should not be forgotten. Entries are removed when the work lands.
+
+### [TECH-DEBT] Messaging: drop the legacy organisation-level columns and view
+- **Origin:** messaging moved from one set of settings per organisation (`clients`) to sending profiles + per-map/per-directory settings (PR #277, 2026-10-04, migration `20261003120000_messaging_profiles.sql`). The old objects were deliberately left in place so the rollout was additive and reversible.
+- **To remove (database):** `clients.messaging_enabled`, `messaging_prompt`, `email_test_mode`, `email_test_recipient`, `email_from_name`, `email_from_address`, `email_domain`, `resend_domain_id`, `email_domain_status`, `email_dns_records`, `email_message_intro`, `email_message_subject`; the `client_messaging_settings` view; and `directories.enquiry_email` (unused since the directory-wide inbox was replaced by Contact -> the entry's own email).
+- **Still read by app code (clear these first, or dropping the columns breaks the map dashboards):** `ClientMapDashboard.jsx` (~line 756) and `AdminMapDashboard.jsx` (~line 592) still `select` `email_test_mode,email_test_recipient` from `clients`; `src/lib/directories.js` (~lines 41 and 81) still selects `enquiry_email` and has a fallback for the column being missing. Nothing else reads the legacy columns: the embed, dashboards' previews, `send_contact_message`, `manage_client_email` and `generate_directory_site` all use the per-map/per-directory columns and views.
+- **Also tidy:** the two stale comments in the map dashboards ("test mode is now driven by client.email_test_mode"); the now-unused `domainsHref` in `src/context/DirectoryContext.jsx`; `DirectoryEnquiryPanel` / `DirectoryEnquiriesRoute` are named after the old "enquiries" feature (the page is now Settings -> Email sending); the retired `directory_enquiry_settings_updated` event (nothing emits it).
+- **Rules:** `DROP COLUMN` / dropping a view is a forbidden-without-sign-off operation (AGENTS.md). Do it as a standalone migration with its own rollback, after backing up the data, staging first, and only after confirming the app-code readers above are gone and deployed. The data is already copied onto `messaging_profiles`, `maps` and `directories`, so nothing is lost by dropping, but the rollback should restore the columns and the view.
+- **Size guess:** S-M (one frontend/code PR to remove the readers, then one migration)
+- **Status:** To do
+
+### [TECH-DEBT] Map messaging test mode: recipient is supplied by the browser
+- **Origin:** pre-existing behaviour, carried over unchanged by the messaging rework (2026-10-04).
+- **What's wrong:** in map test mode the embed's form asks the visitor for a test recipient and sends it as `toEmail`; `send_contact_message`'s map path trusts `toEmail`. A direct call to the function can therefore send to a real listing address even with test mode on. Directory sends are not affected: that path resolves the recipient server-side (the entry's email, or the saved test recipient in test mode).
+- **Fix:** resolve the map recipient server-side from `listingId` (the listing's own email, or `maps.email_test_recipient` when `email_test_mode` is on) instead of trusting `toEmail`. Needs a frontend change too: the embed would send `listingId` and stop sending an address.
+- **Size guess:** S-M
+- **Status:** To do
