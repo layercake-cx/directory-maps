@@ -130,7 +130,8 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
       items: [
         { id: "general", label: "General", route: `${basePath}/settings` },
         { id: "seo", label: "SEO", route: `${basePath}/seo` },
-        { id: "domain-publishing", label: "Domain & Publishing", route: `${basePath}/publishing` },
+        { id: "publishing", label: "Publishing", route: `${basePath}/publishing` },
+        ...(canManage ? [{ id: "domain", label: "Domain", route: `${basePath}/domain` }] : []),
         { id: "integrations", label: "Integrations", route: `${basePath}/integrations` },
         ...(canManage ? [{ id: "email-sending", label: "Email sending", route: `${basePath}/email-sending` }] : []),
       ],

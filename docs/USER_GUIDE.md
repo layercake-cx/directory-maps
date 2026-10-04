@@ -105,7 +105,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
 
-A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Domain & Publishing, Integrations, Email sending). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Domain & Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, and Email sending are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Publishing, Domain, Integrations, Email sending). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, Domain, and Email sending are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
 
 **Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
@@ -657,6 +657,8 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map or a directory to it. Once verified: the root of your domain shows the published entity's landing page — for a map, that's the SEO-friendly listing page, with `/map` showing the full interactive map (also usable as an iframe source elsewhere); for a directory, that's the directory's own landing page. Either way, each listing/entry gets its own page at the root.
 
+A directory also has its own **Settings → Domain** page (owners and managers only) showing just that directory's domains, where you can add one that always publishes that directory. **Settings → Publishing** is a separate page for publishing the directory itself.
+
 Custom domains for **maps** require the **Professional plan or above** — on the Basic plan, that option is unavailable and the section shows a note to upgrade. Custom domains for **directories** are included with early access to the Directories beta — no separate upgrade needed while that feature is in beta.
 
 ### Add a domain
@@ -704,6 +706,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |
+| Add a custom domain for just one directory | Directory → Settings → Domain → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
 | Show or hide the directory header title | Directory → Branding → Site title (On/Off) |

@@ -76,6 +76,7 @@ import DirectoryAnalyticsRoute from "./components/directoryPanel/DirectoryAnalyt
 import DirectorySettingsGeneralRoute from "./components/directoryPanel/DirectorySettingsGeneralRoute.jsx";
 import DirectorySettingsSeoRoute from "./components/directoryPanel/DirectorySettingsSeoRoute.jsx";
 import DirectoryPublishingRoute from "./components/directoryPanel/DirectoryPublishingRoute.jsx";
+import DirectoryDomainRoute from "./components/directoryPanel/DirectoryDomainRoute.jsx";
 import DirectoryIntegrationsRoute from "./components/directoryPanel/DirectoryIntegrationsRoute.jsx";
 import DirectoryAccessGuard from "./components/shell/DirectoryAccessGuard.jsx";
 
@@ -138,6 +139,8 @@ export default function App() {
           <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
           <Route path="seo" element={<DirectorySettingsSeoRoute />} />
           <Route path="publishing" element={<DirectoryPublishingRoute />} />
+        <Route path="domain" element={<DirectoryDomainRoute />} />
+          <Route path="domain" element={<DirectoryDomainRoute />} />
           <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
           <Route path="entries/:entryId" element={<ClientDirectoryEntryEdit tab="basic" />} />
           <Route path="entries/:entryId/categories" element={<ClientDirectoryEntryEdit tab="categories" />} />
