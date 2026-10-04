@@ -53,11 +53,11 @@ export default function DirectoryEnquiryPanel({ directoryId, clientId, canManage
 
   return (
     <>
-      <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.75, maxWidth: 680 }}>
-        When messaging is on, each published entry page shows a <strong>Contact</strong> button under Visit website
-        for entries that have an email address. The visitor&apos;s message goes to that entry&apos;s own email and the
-        visitor is copied. Publish the directory again after changing these settings.
-      </p>
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1 className="page-title">Email sending</h1>
+        </div>
+      </div>
 
       <div>
         <EntityMessagingSettings
