@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Move AI content generation to Content › AI enrichment
+
+**Branch/commit:** `feat/2026-10-04-ai-enrichment-section` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- AI content generation (the content prompt and "Generate all entry content") used to sit above the entries table on the Entries page. It now has its own page, **Content › AI enrichment** (`/directories/:id/ai-enrichment`), in the directory side panel, so Entries is only the entries table. Owner/manager-only, as before.
+- No behaviour, events or data changed; the panel is the same component in a new route.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [ ] "AI enrichment" appears under Content for managers, not for members
+- [ ] Entries page no longer shows the AI panel; the AI enrichment page saves a prompt and starts a bulk run
+
+---
+
 ## 2026-10-04 — [Production] Rename "Categorisations" to "Categories" in the UI
 
 **Branch/commit:** `chore/2026-10-04-categories-label` (PR pending)
