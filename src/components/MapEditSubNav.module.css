@@ -55,8 +55,8 @@
 
 /* Standalone sub-nav bar (client portal) */
 .subNav {
-  background: #0f5e63;
-  border-bottom: 1px solid #0b4a4e;
+  background: #1f2b2e;
+  border-bottom: 1px solid #172023;
 }
 
 .subNavInner {
@@ -85,14 +85,14 @@
 .subNav .subNavActions :global(.shell-btn--primary) {
   background: #fff;
   border-color: #fff;
-  color: #0f5e63;
+  color: #1f2b2e;
   height: 28px;
   font-size: 13px;
 }
 
 .subNav .subNavActions :global(.shell-btn--primary):hover:not(:disabled) {
-  background: #e8f4f5;
-  color: #0f5e63;
+  background: #eef2f3;
+  color: #1f2b2e;
 }
 
 .subNavLeft {
@@ -103,7 +103,7 @@
   min-width: 0;
 }
 
-.backLink {
+.subNav .backLink {
   display: inline-flex;
   align-items: center;
   color: rgba(255, 255, 255, 0.8);
@@ -114,7 +114,7 @@
   transition: color 0.12s, background 0.12s;
 }
 
-.backLink:hover {
+.subNav .backLink:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.14);
 }
@@ -135,7 +135,7 @@
   flex-shrink: 0;
 }
 
-.subNavTab {
+.subNav .subNavTab {
   color: #fff;
   text-decoration: none;
   font-weight: 500;
@@ -143,15 +143,14 @@
   padding: 5px 12px;
   display: inline-block;
   border-bottom: 2px solid transparent;
-  opacity: 0.85;
   transition: color 0.12s, border-color 0.12s;
 }
 
-.subNavTab:hover {
+.subNav .subNavTab:hover {
   opacity: 1;
 }
 
-.subNavTabActive {
+.subNav .subNavTabActive {
   color: #fff;
   opacity: 1;
   border-bottom-color: #fff;
@@ -165,7 +164,7 @@
   margin-left: 8px;
 }
 
-.subNavTabDraft {
+.subNav .subNavTabDraft {
   background: rgba(250, 204, 21, 0.2);
   color: #fde68a;
   opacity: 1;
@@ -173,7 +172,7 @@
   font-weight: 600;
 }
 
-.subNavTabDraft:hover {
+.subNav .subNavTabDraft:hover {
   background: rgba(250, 204, 21, 0.3);
   color: #fef3c7;
 }
