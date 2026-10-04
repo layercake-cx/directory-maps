@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-04 — [Staging] Rename "Categorisations" to "Categories" in the UI
+## 2026-10-04 — [Production] Rename "Categorisations" to "Categories" in the UI
 
 **Branch/commit:** `chore/2026-10-04-categories-label` (PR pending)
 **Deployed by:** Claude Code
@@ -29,6 +29,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] `npm run build` succeeds
 - [ ] Nav, page heading and admin tab read "Categories" on staging
+
+---
+
+## 2026-10-04 — [Staging] Fix map design page layout in the new admin shell
+
+**Branch/commit:** `fix/2026-10-04-map-design-fill-body` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The map Design view was broken after the shell redesign: `.admin-main--map-page` gave every child `flex: 1` and a fixed `100vh - 130px` height, so the page title, sub-nav and map split the space equally and the map was squashed to the bottom. Now the title and sub-nav keep their natural height and the map area stretches to fill the rest of the main body (minimum 560px). 
+- Map sub-nav is now dark teal with white links and a white Save button, thinner with vertical padding.
+- Follow-up: on the admin map Design page the page title/breadcrumbs and the shell's main padding are removed; the map sub-nav (now carrying the Save button on the right) and the map run edge to edge in the main area.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [ ] Admin map Design view: map fills the body below the title and sub-nav; settings rail and panels still overlay correctly
+- [ ] Client portal map Design view still fills its page
 
 ---
 
