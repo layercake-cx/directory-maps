@@ -105,7 +105,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
 
-A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Publishing, Domain, Integrations, Email sending). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, Domain, and Email sending are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims, Enquiries), **Insights** (Analytics), and **Settings** (General, SEO, Domain & Publishing, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Domain & Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, and Enquiries are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
 
 **Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
@@ -160,12 +160,12 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 
 ### Directory email
 
-On a directory's **Settings → Email sending** page (owners and managers only):
+On a directory's **Email** tab (owners and managers only):
 
-- **Contact button on entry pages** — when messaging is turned on (below), each published entry page shows **Contact** in the sidebar's Contact & address panel, under **Visit website**. It opens a side panel where the visitor writes a message. The message is emailed to **that entry's own email address** (the one on the entry's Basic Info tab), and the visitor is copied. Entries with no email address don't show the button. It doesn't matter whether the entry's "Show publicly" email box is ticked — the visitor never sees the address. **Publish** again after changing settings — the button is written into the public pages at publish time.
+- **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** in the sidebar's Contact & address panel, below **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
 - **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first; messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
 
-Sent messages are listed at the bottom of the page (the latest 20).
+Sent enquiries are listed at the bottom of the tab (the latest 20).
 
 ### Publishing a directory
 
@@ -179,7 +179,7 @@ Publish rewrites only the pages affected by what changed since the last successf
 - **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
 - **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
 
-The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the Contact button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
+The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the enquiry button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
 
 Each publish also regenerates `sitemap.xml` and `llms.txt`. Every sitemap URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
 
@@ -215,7 +215,7 @@ Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP
 
 ### Entry layout
 
-Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each categorisation the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Contact button when messaging is on and the entry has an email address, the website's domain, and the address), a **map card** (the interactive directory map focused on this entry's pin, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), a quiet **Claim this listing** link when claims are open on this entry, then **Directory attributes** (every single/boolean categorisation, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select categorisation. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, claim, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
+Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each categorisation the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Make an Enquiry button when the directory's Email tab has a contact address set, the website's domain, and the address), a **map card** (the interactive directory map focused on this entry's pin, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), a quiet **Claim this listing** link when claims are open on this entry, then **Directory attributes** (every single/boolean categorisation, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select categorisation. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, claim, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
 
 On a directory's **Entry Layout** tab (owners and managers only), the panel still controls the order of the sections (blocks) in the *main column*: hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips). **Logo, Name, Address and Contact details are no longer configurable here** — those moved into the fixed hero and sidebar described above, so adding one of those four blocks back on this tab has no visible effect on the published page (they're kept only so an existing saved layout doesn't error).
 
@@ -634,7 +634,7 @@ Two profiles on the same domain (for example `info@` and `events@yourcompany.com
 
 ### Messaging settings on a map
 
-Open the map, then **Messaging** in the Map Settings list. (Directories: **Settings → Email sending** — see [Directory email](#directory-email).)
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Email** tab — see [Directory email](#directory-email).)
 
 - **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
 - **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
@@ -656,8 +656,6 @@ See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 ## Domains
 
 The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map or a directory to it. Once verified: the root of your domain shows the published entity's landing page — for a map, that's the SEO-friendly listing page, with `/map` showing the full interactive map (also usable as an iframe source elsewhere); for a directory, that's the directory's own landing page. Either way, each listing/entry gets its own page at the root.
-
-A directory also has its own **Settings → Domain** page (owners and managers only) showing just that directory's domains, where you can add one that always publishes that directory. **Settings → Publishing** is a separate page for publishing the directory itself.
 
 Custom domains for **maps** require the **Professional plan or above** — on the Basic plan, that option is unavailable and the section shows a note to upgrade. Custom domains for **directories** are included with early access to the Directories beta — no separate upgrade needed while that feature is in beta.
 
@@ -702,11 +700,11 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
 | Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
 | Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
-| Show Contact on entry pages | Directory → Settings → Email sending → sending profile chosen, messaging on, Save, then Publish (entries need an email address) |
+| Set a directory enquiry inbox | Directory → Email → Contact email → Save contact email, then Publish |
+| Show Make an Enquiry on entry pages | Directory → Email → contact email set, sending profile chosen, messaging on, then Publish |
 | Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |
-| Add a custom domain for just one directory | Directory → Settings → Domain → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
 | Show or hide the directory header title | Directory → Branding → Site title (On/Off) |

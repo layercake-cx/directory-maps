@@ -358,8 +358,8 @@ for (const entry of ENTRIES) {
       supabaseAnonKey: "preview-anon-key",
     },
   });
-  if (!html.includes("Make an Enquiry") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
-    throw new Error("entry page should include the Make an Enquiry drawer");
+  if (!html.includes(">Contact</button>") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
+    throw new Error("entry page should include the Contact button and drawer");
   }
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), useLocalCss(html, "theme.css"));
 }

@@ -374,7 +374,13 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`email_contact_message_failed`**
   - `meta`: `client_id`, `map_id`, `listing_id`, `error`
 - **`email_domain_setup_started` / `email_domain_verified` / `email_domain_verify_failed`**
-  - `meta`: `client_id`, `email_provider` (`resend`), `domain`, `error` (on fail)
+  - `meta`: `client_id`, `profile_id` (messaging profile), `email_provider` (`resend`), `domain`, `error` (on fail), `source`
+- **`email_profile_created` / `email_profile_updated` / `email_profile_deleted`**
+  - `meta`: `client_id`, `profile_id`, `email_provider` (`resend`), `source`; `changed_fields` (string[], updated); `maps_affected`, `directories_affected` (counts, deleted)
+  - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
+- **`email_map_settings_updated` / `email_directory_settings_updated`**
+  - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
+  - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Settings → Email sending page). Never store the test recipient or message text.
 
 #### Billing
 
@@ -442,9 +448,7 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_theme_preset_deleted`**
   - `meta`: `client_id`, `preset_id`
   - Fired when an org-saved preset is deleted. Never fires for the 5 built-in presets (not deletable).
-- **`directory_enquiry_settings_updated`**
-  - `meta`: `client_id`, `directory_id`, `contact_email_set` (boolean), `changed_fields` (string[])
-  - Fired from the directory Email tab when the contact inbox is saved. Never store the address itself.
+- **`directory_enquiry_settings_updated`** — **retired (2026-10-04).** The directory-wide contact inbox was removed; the Contact button sends to each entry's own email. Settings changes now fire `email_directory_settings_updated`. Nothing emits this event any more.
   - The visitor events for the public button (`listing_enquiry_open`, `listing_enquiry_sent`) are engagement rows, not admin events — see `docs/MAP_ENGAGEMENT.md` and section 5 below.
 - **`directory_created`**
   - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
@@ -575,4 +579,4 @@ Every new visitor action on a published directory site must record a row in `map
 - Do not put personal data in `meta` (no names, emails, message bodies, or phone numbers).
 - Configuration of that feature in the admin or client portal still needs an admin event from the catalogue above. A visitor action and the admin action that configures it are two different events.
 
-Directory enquiry is the reference: `listing_enquiry_open` when **Make an Enquiry** is clicked, `listing_enquiry_sent` when the email send succeeds, and `directory_enquiry_settings_updated` when the contact email is saved.
+Directory Contact is the reference: `listing_enquiry_open` when **Contact** is clicked, `listing_enquiry_sent` when the email send succeeds, and `email_directory_settings_updated` when its settings are saved.

@@ -238,7 +238,7 @@ Phase 3a of the Directories build-out — the data model DIR-E2 (publish/SEO) ne
 - **SEO overrides** — `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority` per entry; `seo_defaults_json` per directory.
 - **`directory_publications`** + `publish_directory`/`rollback_directory_to`/`list_directory_publications` — exact mirror of `map_publications`' final, tenant-checked shape. The publish snapshot (`config jsonb`) covers directory settings + the categorisation taxonomy structure; entries and their live tag assignments are read live at generation time, not snapshotted (mirrors how `EmbedMap.jsx` reads `public_listings` live regardless of a map's publication version).
 - **`directory_redirects`** — records an entry's old slug whenever it changes (`AFTER UPDATE` trigger), so a renamed entry's old public URL keeps working. This was deferred out of Phase 2 because it needed `directory_entries.slug` to exist first.
-- **`directory_contact_submissions`** — visitor enquiry log (mirrors `map_contact_submissions`). The form and send path landed later: directory **Settings → Email sending** page, the **Contact** button on published entry pages, and `send_contact_message` (`20260922093000_directory_enquiry.sql`).
+- **`directory_contact_submissions`** — visitor enquiry log (mirrors `map_contact_submissions`). The form and send path landed later: directory **Email** tab, **Make an Enquiry** on published entry pages, and `send_contact_message` (`20260922093000_directory_enquiry.sql`).
 
 **Not built yet (at the time):** the actual static generator, `middleware.js` routing for directory URLs, anon-read RLS/a `public_directory_entries`-style view, and any Publish UI. A pre-existing gap was noticed but not fixed here: `maps.slug` has no uniqueness constraint at all (not even per-client), so a directory slug could in principle collide with a map slug for the same client — resolved for routing purposes in Phase 3b below without needing that constraint (see the URL shape decision there).
 
@@ -476,14 +476,14 @@ Tables: `directory_content_pages` (`20260919150000`, columns extended `202609200
 
 Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPagesPanel.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx`; `supabase/functions/generate_directory_site/builders.ts` + `index.ts`; `middleware.js`.
 
-### 4.4l Directory entry Contact (2026-09-22, reworked 2026-10-04)
+### 4.4l Directory enquiries (2026-09-22)
 
-The **Contact** button on published directory entry pages (originally "Make an Enquiry" to one directory-wide inbox), using organisation sending profiles with per-directory settings.
+Make an Enquiry on a published directory, using organisation sending profiles with per-directory settings.
 
-- **Recipient is the entry's own email** (`directory_entries.email`), the same as map listings. `send_contact_message` looks it up from `entryId` when the visitor submits, so the address is never written into the public HTML. `directories.enquiry_email` is no longer read or editable (column kept, unused).
-- **Per-directory messaging settings** — sending profile, enable switch, test mode + recipient, prompt, subject and opening line live on the directory itself (`directories.messaging_profile_id` etc.), edited from the directory Settings → Email sending page. Sending profiles (`messaging_profiles`) are organisation-level and shared with maps. Messaging is blocked until a profile is chosen.
-- **Published entry page** — when messaging is enabled for the directory and the entry has an email address, **Contact** sits under **Visit website** (independent of `show_email`). It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the directory's test recipient. Takes effect on the next Publish.
-- **Log** — `directory_contact_submissions`, shown as Recent messages on the Email sending page. Admin event `email_directory_settings_updated` on settings save; `directory_enquiry_settings_updated` is retired (nothing emits it). Public events keep their names for analytics continuity: `listing_enquiry_open` (Contact button) and `listing_enquiry_sent` (successful send).
+- **Contact email** (`directories.enquiry_email`) on the directory **Email** tab. Blank hides the button. The address is not written into the public HTML — `send_contact_message` looks it up when the visitor submits.
+- **Per-directory messaging settings** — sending profile, enable switch, test mode + recipient, prompt, subject and opening line live on the directory itself (`directories.messaging_profile_id` etc.), edited from the directory Email tab. Sending profiles (`messaging_profiles`) are organisation-level and shared with maps. Messaging is blocked until a profile is chosen.
+- **Published entry page** — when the contact email is set and messaging is enabled, **Make an Enquiry** sits beside **Visit website**. It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the directory's test recipient. Takes effect on the next Publish.
+- **Log** — `directory_contact_submissions`, shown as Recent enquiries on the Email tab. Admin event `directory_enquiry_settings_updated` on contact-email save (no raw address). Public events `listing_enquiry_open` (button) and `listing_enquiry_sent` (successful send).
 
 Files: `src/components/directories/DirectoryEnquiryPanel.jsx`, `MessagingSettings.jsx`; `supabase/functions/send_contact_message/index.ts`; `generate_directory_site/builders.ts` + `index.ts`. Migration: `20260922093000_directory_enquiry.sql`.
 
@@ -559,7 +559,7 @@ Files: `src/components/directories/DirectoryClaimsPanel.jsx`, `src/lib/directory
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
 | Directory tracking config | Directory → Settings → Integrations | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish. `DirectoryAnalyticsPanel.jsx` — not to be confused with the dashboard below. |
 | Directory Insights › Analytics (new, 2026-09-29) | Directory → Insights → Analytics | Real visitor-engagement dashboard: views over time, activity-by-type donut, a directory→entry→enquiry-opened→enquiry-sent funnel, top search terms, top entries. Reuses the map-side dashboard's generic aggregation helpers and chart/table components — only `deriveDirectoryMetrics()`/`deriveTopDirectoryEntries()` (`engagementAnalytics.js`) and `useDirectoryEngagement.js`/`DirectoryAnalyticsRoute.jsx` are new. One gotcha handled: a "Visit website" click inserts both `listing_website_click` and a duplicate `listing_cta_click` row — the dashboard counts only the latter to avoid double-counting. |
-| Directory Email sending | Directory → Settings → Email sending | Sending profile, enable, test mode and message text for the directory. **Contact** on published entry pages (entries with an email) after Publish. |
+| Directory enquiries | Directory → Engagement → Enquiries | Contact inbox plus the shared messaging settings. **Make an Enquiry** on published entry pages after Publish. |
 
 Data source: `map_engagement_events` (public embed **and** published directory HTML) — RLS already lets a directory owner/manager (or a contact with a `contact_directory_permissions` grant) query their own directory's rows directly, same as the map side. See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
 
@@ -833,7 +833,7 @@ Shared utilities: `supabase/functions/_shared/`.
 | `/client/maps/:mapId/stats/listings/:listingId` | `ListingStats` |
 | `/client/directories` | `ClientDirectories` |
 | `/client/directories/new` | `ClientDirectoryNew` |
-| `/client/directories/:directoryId` (+ nested `entries`, `pages`, `categories`, `accreditations`, `design`, `search`, `claims`, `email-sending`, `analytics`, `settings`, `seo`, `publishing`, `integrations`) | see `src/components/directoryPanel/*Route.jsx` (admin shell redesign, Phase 2) |
+| `/client/directories/:directoryId` (+ nested `entries`, `pages`, `categories`, `accreditations`, `design`, `search`, `claims`, `enquiries`, `analytics`, `settings`, `seo`, `publishing`, `integrations`) | see `src/components/directoryPanel/*Route.jsx` (admin shell redesign, Phase 2) |
 | `/client/categorisations` | `ClientCategorisations` |
 | `/admin/clients` | `AdminClients` |
 | `/admin/maps` | `AdminMaps` |
@@ -854,6 +854,6 @@ Full route tree: `src/App.jsx`.
 Messaging was one set of settings per organisation on `clients`. It is now:
 
 - **`messaging_profiles`** — organisation-level sending identities (From name/address, Resend domain, status, DNS records). Many per organisation, managed at `/client/email` (`MessagingProfiles.jsx` / `MessagingProfileEditor.jsx`) and the admin customer Messaging tab. Profiles on the same domain share verification state.
-- **Per map and per directory** — `messaging_profile_id`, `messaging_enabled`, `email_test_mode` (default on), `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro`. Edited by `EntityMessagingSettings.jsx` (Messaging tab on map dashboards, directory Settings → Email sending page).
+- **Per map and per directory** — `messaging_profile_id`, `messaging_enabled`, `email_test_mode` (default on), `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro`. Edited by `EntityMessagingSettings.jsx` (Messaging tab on map dashboards, directory Email tab).
 - **Readiness** — messaging is effective only when the toggle is on, a profile is chosen and the `messaging` entitlement resolves true. Enforced in `map_messaging_settings` / `directory_messaging_settings` (anon-readable views) and re-checked in `send_contact_message`. There is no fallback for "no profile".
 - The old `clients.messaging_*`, `email_*` columns and the `client_messaging_settings` view are left in place (legacy, no longer read) pending a separate cleanup migration.
