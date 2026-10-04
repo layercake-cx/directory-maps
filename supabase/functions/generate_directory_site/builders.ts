@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 3;
+export const ENTRY_TEMPLATE_VERSION = 4;
 
 export type Entry = {
   id: string;
@@ -1190,7 +1190,7 @@ function formatDomain(url: string): string {
   }
 }
 
-/** Baked into an entry page when the directory has a contact email and messaging is on. The inbox address stays on the server. */
+/** Baked into an entry page when the directory has messaging on (a sending profile chosen, switch on, plan allows). The recipient is the entry's own email, looked up on the server at send time -- it is never written into the page. */
 export type DirectoryEnquiry = {
   prompt: string | null;
   testMode: boolean;
@@ -1204,7 +1204,7 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
     ? `<p class="dir-enquiry__prompt">${escapeHtml(enquiry.prompt.trim())}</p>`
     : "";
   const testBanner = enquiry.testMode
-    ? `<p class="dir-enquiry__test"><strong>Test mode:</strong> This message goes to the organisation&apos;s test recipient, not the public contact address.</p>`
+    ? `<p class="dir-enquiry__test"><strong>Test mode:</strong> This message goes to the test recipient, not the listing&apos;s email address.</p>`
     : "";
   const cfg = embedJson({
     directoryId: enquiry.directoryId,
@@ -1216,11 +1216,11 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
   <button type="button" class="dir-enquiry__backdrop" data-dm-enquiry-close aria-label="Close"></button>
   <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-enquiry-title">
     <div class="dir-enquiry__header">
-      <h2 id="dir-enquiry-title">Make an Enquiry</h2>
+      <h2 id="dir-enquiry-title">Contact</h2>
       <button type="button" class="dir-enquiry__close" data-dm-enquiry-close aria-label="Close">&times;</button>
     </div>
     <div class="dir-enquiry__body">
-      <p class="dir-enquiry__to">About: ${escapeHtml(entry.name)}</p>
+      <p class="dir-enquiry__to">Message ${escapeHtml(entry.name)}</p>
       ${prompt}
       ${testBanner}
       <form id="dir-enquiry-form" class="dir-enquiry__body" style="padding:0;">
@@ -1525,7 +1525,7 @@ export function buildEntryPage(opts: {
   // downscaled H1 + action-button row is replaced with a landscape logo
   // tile, full-size serif H1, a one-line summary, and chips linking to the
   // filtered directory. Every action button that used to live here (Visit
-  // website, Make an Enquiry, Show on map, Claim this listing) has moved
+  // website, Contact, Show on map, Claim this listing) has moved
   // into the sidebar below so each appears exactly once on the page. ----
   const initials = entry.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
   // Same panel_background_color the landing page's card grid already applies
@@ -1666,15 +1666,18 @@ export function buildEntryPage(opts: {
   // ---- Right aside ----
   // Contact & address panel (new, fixed — not admin-orderable): Visit
   // website appears here and only here (BUILD_BRIEF.md's "one place per
-  // action" rule); Make an Enquiry moves here too rather than being
-  // dropped. Domain shown as plain text without protocol/www; address as
+  // action" rule); Contact (the message drawer) sits
+  // underneath it. Domain shown as plain text without protocol/www; address as
   // real prose, already deduplicated since it's built from discrete
   // columns rather than a repeated-lines array.
   const websiteButton = entry.show_website && entry.website_url
     ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a>`
     : "";
-  const enquiryButton = enquiry
-    ? `<button type="button" class="btn ${websiteButton ? "btn-ghost" : "btn-primary"}" data-dm-event="listing_enquiry_open" data-dm-cta="enquiry" data-dm-enquiry-open>Make an Enquiry</button>`
+  // "Contact" opens the side drawer; the message goes to the entry's own email
+  // (resolved server-side), so the button only exists when the entry has one.
+  // It does not depend on show_email: the visitor never sees the address.
+  const enquiryButton = enquiry && entry.email && entry.email.trim()
+    ? `<button type="button" class="btn ${websiteButton ? "btn-ghost" : "btn-primary"}" data-dm-event="listing_enquiry_open" data-dm-cta="enquiry" data-dm-enquiry-open>Contact</button>`
     : "";
   const domainRow = entry.show_website && entry.website_url
     ? `<p class="dir-contact-row"><span class="dir-contact-row__label">Website</span>${escapeHtml(formatDomain(entry.website_url))}</p>`
@@ -1801,7 +1804,7 @@ ${jumpBar}
 </div>
 ${relatedSection}
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
-${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
+${enquiry && entry.email && entry.email.trim() ? buildEnquiryDrawer(enquiry, entry) : ""}
 ${claim ? buildClaimWidget(claim, entry) : ""}
 `.trim();
 

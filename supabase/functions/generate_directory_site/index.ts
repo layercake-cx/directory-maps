@@ -274,7 +274,7 @@ async function generateForDirectoryInner(
 ): Promise<GenerationResult> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, location_search_enabled, updated_at, site_generation_manifest")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, location_search_enabled, updated_at, site_generation_manifest")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -553,11 +553,8 @@ async function generateForDirectoryInner(
         }
       : null;
 
-  const enquiryEmail = typeof (directory as { enquiry_email?: string | null }).enquiry_email === "string"
-    ? (directory as { enquiry_email: string }).enquiry_email.trim()
-    : "";
   let entryEnquiry: DirectoryEnquiry | null = null;
-  if (enquiryEmail && supabaseUrl && supabaseAnonKey) {
+  if (supabaseUrl && supabaseAnonKey) {
     // Per-directory settings; messaging_enabled is already the effective value
     // (toggle on AND a sending profile chosen AND the messaging entitlement).
     const { data: messaging } = await db

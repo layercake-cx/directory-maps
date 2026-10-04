@@ -1,4 +1,4 @@
-// Map contact form and directory "Make an Enquiry" -> Resend (recipient To, visitor Cc).
+// Map contact form and directory entry "Contact" drawer -> Resend (recipient To, visitor Cc).
 // Platform: RESEND_API_KEY, RESEND_FROM. Settings come from the map or directory itself:
 // its chosen messaging profile (From identity), enable toggle, test mode, subject and intro.
 // Sending is blocked until a profile is chosen (see _shared/messaging.ts).
@@ -100,14 +100,17 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
   const directory = await loadDirectoryMessaging(service, directoryId);
   if (!directory) return jsonResponse({ error: "Directory not found." }, 404);
 
-  if (!directory.enquiryEmail) return jsonResponse({ error: "This directory is not accepting enquiries." }, 403);
-
   const { data: entry } = await service
     .from("directory_entries")
-    .select("id, name, directory_id")
+    .select("id, name, email, directory_id")
     .eq("id", entryId)
     .maybeSingle();
   if (!entry || entry.directory_id !== directoryId) return jsonResponse({ error: "Entry not found." }, 404);
+
+  // The recipient is the entry's own email, looked up here so it never has to
+  // be written into the public page (same as map listings, but resolved server-side).
+  const entryEmail = typeof entry.email === "string" ? entry.email.trim() : "";
+  if (!entryEmail) return jsonResponse({ error: "This listing has no email address to contact." }, 403);
 
   const blocked = await messagingBlockedReason(service, directory, "directory");
   if (blocked) return jsonResponse({ error: blocked }, 403);
@@ -115,7 +118,7 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
   if (directory.testMode && !directory.testRecipient) {
     return jsonResponse({ error: "Test mode is on but no test recipient is configured." }, 400);
   }
-  const toEmail = directory.testMode ? directory.testRecipient : directory.enquiryEmail;
+  const toEmail = directory.testMode ? directory.testRecipient : entryEmail;
 
   const listingName = (typeof entry.name === "string" && entry.name.trim()) || "the listing";
   const from = await resolveProfileFrom(service, directory.profileId!, directory.clientId);

@@ -18,7 +18,7 @@ const DEFAULT_SUBJECT_PLACEHOLDER = "Message received for {listing}";
  * (From address + domain) are created at organisation level under Messaging.
  *
  * Messaging is blocked until a profile is chosen — the switch stays disabled and the
- * public "Send message" / "Make an Enquiry" controls do not appear.
+ * public "Send message" / "Contact" controls do not appear.
  *
  * @param {{ entity: "map" | "directory", entityId: string, clientId: string,
  *   eventSource?: string, canManage?: boolean, onSaved?: () => void }} props
@@ -149,7 +149,7 @@ export default function EntityMessagingSettings({
       apply(data);
       setMsg(
         entity === "directory"
-          ? "Saved. Publish the directory again for changes to the Make an Enquiry button to appear on entry pages."
+          ? "Saved. Publish the directory again for changes to the Contact button to appear on entry pages."
           : "Saved. Changes apply to the published map straight away.",
       );
       onSaved?.();
@@ -231,8 +231,8 @@ export default function EntityMessagingSettings({
           <p className={styles.hint}>
             {entity === "directory" ? (
               <>
-                When on, <strong>Make an Enquiry</strong> appears beside Visit website on this directory&apos;s
-                published entry pages (once a contact email is saved on this tab and you publish again).
+                When on, a <strong>Contact</strong> button appears under Visit website on this directory&apos;s
+                published entry pages, for entries that have an email address (after you publish again).
               </>
             ) : (
               <>
@@ -257,7 +257,7 @@ export default function EntityMessagingSettings({
           <h2 className={styles.sectionTitle}>Test mode</h2>
           <p className={styles.hint}>
             {entity === "directory"
-              ? "When test mode is on, enquiries go to the test recipient below instead of this directory's contact email."
+              ? "When test mode is on, messages go to the test recipient below instead of the entry's email address."
               : "When test mode is on, messages are sent to the test recipient below instead of the listing's email address."}{" "}
             Turn it off when you are ready to go live.
           </p>
@@ -301,7 +301,7 @@ export default function EntityMessagingSettings({
                 disabled={!canManage}
               />
               <span className={styles.fieldHint}>
-                Shown to visitors above the {entity === "directory" ? "enquiry" : "contact"} form.
+                Shown to visitors above the contact form.
               </span>
             </label>
             <label className={styles.field}>

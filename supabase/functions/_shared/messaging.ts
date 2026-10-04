@@ -42,21 +42,9 @@ export async function loadMapMessaging(service: ServiceClient, mapId: string): P
   return data ? readEntity(data as Record<string, unknown>) : null;
 }
 
-export async function loadDirectoryMessaging(
-  service: ServiceClient,
-  directoryId: string,
-): Promise<(MessagingEntity & { enquiryEmail: string }) | null> {
-  const { data } = await service
-    .from("directories")
-    .select(`${COLUMNS}, enquiry_email`)
-    .eq("id", directoryId)
-    .maybeSingle();
-  if (!data) return null;
-  const row = data as Record<string, unknown>;
-  return {
-    ...readEntity(row),
-    enquiryEmail: typeof row.enquiry_email === "string" ? row.enquiry_email.trim() : "",
-  };
+export async function loadDirectoryMessaging(service: ServiceClient, directoryId: string): Promise<MessagingEntity | null> {
+  const { data } = await service.from("directories").select(COLUMNS).eq("id", directoryId).maybeSingle();
+  return data ? readEntity(data as Record<string, unknown>) : null;
 }
 
 /** Returns a human-readable reason messaging is blocked, or null when ready to send. */
