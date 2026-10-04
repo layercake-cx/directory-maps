@@ -198,7 +198,7 @@ export default function AdminMapData() {
     return () => { alive = false; };
   }, [mapId]);
 
-  // Categorisations attached to this map (categorisation_attachments), used
+  // Categories attached to this map (categorisation_attachments), used
   // for CSV import's category_<key> columns.
   useEffect(() => {
     let alive = true;

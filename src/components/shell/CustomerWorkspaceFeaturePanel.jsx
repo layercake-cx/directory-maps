@@ -22,7 +22,7 @@ export default function CustomerWorkspaceFeaturePanel({ clientId, clientName }) 
           items: [
             { id: "maps", label: "Maps", route: basePath },
             { id: "directories", label: "Directories", route: `${basePath}/directories` },
-            { id: "categorisations", label: "Categorisations", route: `${basePath}/categorisations` },
+            { id: "categorisations", label: "Categories", route: `${basePath}/categorisations` },
             { id: "entitlements", label: "Entitlements", route: `${basePath}/entitlements` },
             { id: "details", label: "Customer details", route: `${basePath}/details` },
             { id: "users", label: "Users", route: `${basePath}/users` },

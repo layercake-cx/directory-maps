@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Rename "Categorisations" to "Categories" in the UI
+
+**Branch/commit:** `chore/2026-10-04-categories-label` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The user-facing label "Categorisations" is now "Categories" everywhere visible: the portal and admin navigation, the page heading, the admin customer tab and feature-flag description, the panel's form text and buttons, and `docs/USER_GUIDE.md`, `docs/FEATURES.md` and `docs/DIRECTORIES.md`.
+- Internals are unchanged on purpose: the `/client/categorisations` route, the `categorisations` tables, file and function names, and the CSV column contract.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Nav, page heading and admin tab read "Categories" on staging
+
+---
+
 ## 2026-10-04 — [Staging] Publish status box: View live site link
 
 **Branch/commit:** `feat/2026-10-04-publish-status-live-link` (PR pending)

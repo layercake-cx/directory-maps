@@ -1,5 +1,5 @@
 /**
- * Categorisations — shared data access.
+ * Categories — shared data access.
  *
  * A categorisation is a standalone, reusable, client-wide taxonomy (e.g.
  * "Sector") with its own terms. What it can tag is governed entirely by
@@ -102,7 +102,7 @@ export async function createCategorisation({ clientId, label, key, terms = [], f
     .select()
     .single();
   if (error) {
-    if (error.code === "23505") throw new Error("Another categorisation already uses this key.");
+    if (error.code === "23505") throw new Error("Another category already uses this key.");
     throw error;
   }
 
@@ -206,7 +206,7 @@ export async function countUsageForTerm(termId) {
 // ---- Attachment: which map(s)/directory(ies) a categorisation is active on ----
 // (20260829040000_create_categorisation_attachments.sql)
 
-/** Categorisations (with terms) currently attached to a specific map or directory, in admin-configured render order. */
+/** Categories (with terms) currently attached to a specific map or directory, in admin-configured render order. */
 export async function listAttachedCategorisations(targetType, targetId) {
   if (!targetId) return [];
   const { data: attachments, error: attErr } = await supabase

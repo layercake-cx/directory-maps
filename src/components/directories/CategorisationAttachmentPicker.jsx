@@ -163,7 +163,7 @@ export default function CategorisationAttachmentPicker({ clientId, targetType, t
         )
       )}
       {canManage && available.length === 0 && allCats.length === 0 && (
-        <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>No categories exist for this client yet — create one in Categorisations.</p>
+        <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>No categories exist for this client yet — create one in Categories.</p>
       )}
     </div>
   );

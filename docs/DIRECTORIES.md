@@ -46,7 +46,7 @@ Two generations of pattern exist for the map `listings` entity; this spec follow
   - Bulk actions: `selectedIds` as a `Set` in state, a "Bulk edit filters" button opening `src/components/BulkFilterEditModal.jsx`, which upserts into an EAV values table with an `onConflict` clause and an add-vs-replace mode toggle.
   - CSV import: **no interactive column-mapper** — a fixed-header-convention template (`downloadTemplate()` emits `id,name,address,postcode,country,lat,lng,website_url,email,phone,logo_url,notes_html,allow_html,group_name,is_active` plus one auto-appended `filter_<key>` column per active custom field), hand-rolled RFC4180 parser (`parseCSV`), Replace-vs-Add-to-existing choice, then `upsert(..., { onConflict: "id" })`. Directories' import/mapping requirement (scope item 1) is genuinely new UI if free-form column mapping is wanted — reusing the template-download convention is the lower-risk, pattern-consistent option (see DIR-E1-S6).
   - Delete/archive: `listings.is_active` is a soft **visibility** toggle (still shown in admin, hidden from the public map), not an audit-safe archive. Actual deletion is a hard `DELETE` behind a native `window.confirm()` — there is no Mantine confirm dialog anywhere in the codebase.
-  - Per-record custom fields: `map_filter_fields` / `map_filter_field_options` / `listing_filter_values` (`supabase/migrations/20260713120000_create_map_filter_fields.sql`) is a mature three-table EAV pattern (field defs → options → per-record values) with its own admin panel (`src/components/FilterFieldsPanel.jsx`) and CSV-import glue (`src/lib/filterFields.js`). This is the strongest existing precedent for the new Categorisation model in DIR-E5, and this spec explicitly reuses its shape rather than inventing a new one.
+  - Per-record custom fields: `map_filter_fields` / `map_filter_field_options` / `listing_filter_values` (`supabase/migrations/20260713120000_create_map_filter_fields.sql`) is a mature three-table EAV pattern (field defs → options → per-record values) with its own admin panel (`src/components/FilterFieldsPanel.jsx`) and CSV-import glue (`src/lib/filterFields.js`). This is the strongest existing precedent for the new Category model in DIR-E5, and this spec explicitly reuses its shape rather than inventing a new one.
 
 ### 3.3 Settings screens
 
@@ -161,9 +161,9 @@ Seed schema requested: `id, name, address, postcode, country, website_url, email
 
 Columns added by later migrations, not shown above: `show_phone`/`show_email`/`show_website`/`show_address` (contact-field visibility toggles, boolean default `true`), `slug` (`not null`, unique per directory, auto-derived from `name` on insert), `og_title`/`og_description`/`og_image_url`/`canonical_url`/`keywords`/`twitter_card_type` (social/SEO), `panel_image_url`/`panel_background_color` (homepage card styling). All of these except `slug`'s auto-derivation, plus everything above from `meta_title` down to `sitemap_priority`, are part of the CSV import/export contract as of DIR-E1-S8 — see that story and AGENTS.md's "Directory entries CSV import/export contract" note for which columns are (and deliberately aren't) included.
 
-**Reconciling `group_name` with the new Categorisation model (scope item 5):** `group_name` remains, unchanged, as the simple single-value grouping column used by CSV import today — `directory_groups` is a straight copy of the existing `groups` table, scoped to `directory_id` instead of `map_id`, for exactly this purpose, and the CSV template keeps a `group_name` column with the same auto-create-on-import behaviour as `groups` has today. The new, richer **Categorisation** model (§4.3) is additive and reusable *across directories* — e.g. a "Sector" categorisation shared by every directory a client owns — which `directory_groups` structurally cannot do (it is per-directory only, single-valued, exactly like `groups` is per-map only). Put simply: `directory_group_id` answers "which single group is this entry filed under" (cheap, familiar, matches existing import UX); `entry_category_terms` answers "which of any number of reusable, multi-directory taxonomy terms apply to this entry" (the new capability). Both coexist, exactly as `groups` and `map_filter_fields` already coexist for maps today (§3.2) — this is not a novel shape for this codebase, it's the same precedent applied to a new entity.
+**Reconciling `group_name` with the new Category model (scope item 5):** `group_name` remains, unchanged, as the simple single-value grouping column used by CSV import today — `directory_groups` is a straight copy of the existing `groups` table, scoped to `directory_id` instead of `map_id`, for exactly this purpose, and the CSV template keeps a `group_name` column with the same auto-create-on-import behaviour as `groups` has today. The new, richer **Category** model (§4.3) is additive and reusable *across directories* — e.g. a "Sector" categorisation shared by every directory a client owns — which `directory_groups` structurally cannot do (it is per-directory only, single-valued, exactly like `groups` is per-map only). Put simply: `directory_group_id` answers "which single group is this entry filed under" (cheap, familiar, matches existing import UX); `entry_category_terms` answers "which of any number of reusable, multi-directory taxonomy terms apply to this entry" (the new capability). Both coexist, exactly as `groups` and `map_filter_fields` already coexist for maps today (§3.2) — this is not a novel shape for this codebase, it's the same precedent applied to a new entity.
 
-### 4.3 Categorisations (taxonomies) — DIR-E5
+### 4.3 Categories (taxonomies) — DIR-E5
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -244,7 +244,7 @@ The directory-entry successor to the removed map-level AI search enrichment feat
 | **DIR-E2** | Publishing as an SEO/AI-discoverable website | A directory can be published as a crawlable public site with full SEO metadata, sitemap, and structured data. | Publish snapshot model, public rendering path, per-directory/per-entry SEO settings. |
 | **DIR-E3** | White-labelling & branding | A client can brand their directory's public site and serve it from their own domain. | `theme_json` branding UI + preview, custom domain mapping + DNS/TLS verification. |
 | **DIR-E4** | Directory as a map datasource | An existing map can use a directory's published entries as its live pin data — no sync/copy step. | New "Directories" tab in the map Data panel (built on a newly-extracted shared tab component, §3.1); `directory_map_associations` (map → directory) + `public_directory_entries` view (§4.7); explicitly does **not** touch `map_data_sources`/`listings`. |
-| **DIR-E5** | Categorisations | Reusable, client-wide taxonomies can be applied to directories and entries, driving filtering/navigation. | `categorisations`/`category_terms` model + management UI; reconciles with `group_name`. |
+| **DIR-E5** | Categories | Reusable, client-wide taxonomies can be applied to directories and entries, driving filtering/navigation. | `categorisations`/`category_terms` model + management UI; reconciles with `group_name`. |
 | **DIR-E6** | Entry page layout designer | A client can arrange the blocks on an entry's page and save one or more reusable templates, optionally targeted to a group or category term. | Drag-and-drop block editor + live preview, `entry_templates` (multi-template supported from v1, §4.4). |
 | **DIR-E7** | Natural-language search + faceted filtering | Visitors (and portal users) can search entries in plain language or by structured filters. | LLM-backed NL query parsing to structured predicates (new Edge Function, §5), published-site and in-app filter UI. |
 
@@ -586,7 +586,7 @@ Then the map continues showing the previous published state (the old location, o
 
 ---
 
-### DIR-E5 — Categorisations
+### DIR-E5 — Categories
 
 **DIR-E5-S1 — Create a categorisation and its terms**
 As a **Client Owner/Manager**, I want to define a reusable categorisation (e.g. "Sector") with a set of terms, so that I can consistently tag directories and entries across my organisation.
@@ -625,7 +625,7 @@ As a **Client Owner/Manager**, I want the existing "Group" field (from CSV impor
 ```gherkin
 Given directory "Accredited Suppliers" already has entries with a group_name-based group assigned (directory_group_id)
 When I additionally define and apply a "Sector" categorisation
-Then both the entry's group and its categorisation terms are visible and independently editable on the entry's edit form, in clearly separate sections labelled "Group" and "Categorisations"
+Then both the entry's group and its categorisation terms are visible and independently editable on the entry's edit form, in clearly separate sections labelled "Group" and "Categories"
 
 Given I export or view the CSV import template for this directory
 Then it still contains a single group_name column (unchanged, backward-compatible) plus one additional column per active categorisation
@@ -682,12 +682,12 @@ When I look at the preview pane
 Then it renders using a real entry from this directory (or a placeholder if the directory has none yet) reflecting the current unsaved block order
 ```
 
-**DIR-E6-S3 — Categorisation-driven block**
+**DIR-E6-S3 — Category-driven block**
 As a **Client Owner/Manager**, I want to include a specific categorisation's tags as a block on the entry page, so that visitors can see (and click through to) an entry's category memberships.
 
 ```gherkin
 Given categorisation "Sector" applies_to "entry"
-When I add a "Categorisation: Sector" block to the layout
+When I add a "Category: Sector" block to the layout
 Then published entry pages render that entry's Sector terms as clickable chips linking to the filtered directory index (DIR-E5-S4)
 
 Given I try to add a block for a categorisation with applies_to "directory"

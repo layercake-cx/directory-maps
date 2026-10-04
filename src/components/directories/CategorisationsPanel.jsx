@@ -28,7 +28,7 @@ const FIELD_TYPE_OPTIONS = [
 ];
 
 /**
- * Self-contained "Categorisations" panel — client-wide taxonomy
+ * Self-contained "Categories" panel — client-wide taxonomy
  * definitions, terms, archive/delete (docs/DIRECTORIES.md, DIR-E5).
  * Modelled directly on FilterFieldsPanel.jsx, but scoped to a client
  * rather than a single map (a categorisation is reusable across every
@@ -176,14 +176,14 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
     }
   }
 
-  if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading categorisations…</p>;
+  if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading categories…</p>;
 
   if (form) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
         <div className="panel-section">
-          <p className="panel-section__title">{form.id ? "Edit categorisation" : "New categorisation"}</p>
+          <p className="panel-section__title">{form.id ? "Edit category" : "New category"}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <label style={{ fontSize: 13 }}>
               <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Label</span>
@@ -197,7 +197,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
                 placeholder="sector"
                 style={{ width: "100%", boxSizing: "border-box" }}
               />
-              {keyConflict && <span style={{ color: "#b91c1c", fontSize: 12 }}>Another categorisation already uses this key.</span>}
+              {keyConflict && <span style={{ color: "#b91c1c", fontSize: 12 }}>Another category already uses this key.</span>}
             </label>
           </div>
         </div>
@@ -222,14 +222,14 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
               </label>
             ))}
             {form.id && (
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Facet type can't be changed after a categorisation is created.</p>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Facet type can't be changed after a category is created.</p>
             )}
           </div>
         </div>
 
         <div className="panel-section">
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-            A new categorisation isn't attached anywhere yet — attach it to a map or a directory from that map's
+            A new category isn't attached anywhere yet — attach it to a map or a directory from that map's
             Filters panel or that directory's settings to make its terms usable there.
           </p>
         </div>
@@ -262,7 +262,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
 
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="btn btn-primary" onClick={saveForm} disabled={!canSave || busy}>
-            {busy ? "Saving…" : form.id ? "Save changes" : "Create categorisation"}
+            {busy ? "Saving…" : form.id ? "Save changes" : "Create category"}
           </button>
           <button type="button" className="btn" onClick={closeForm} disabled={busy}>Cancel</button>
         </div>
@@ -274,14 +274,14 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
       <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-        Categorisations are reusable taxonomies (e.g. Sector, Region) shared across every directory you own —
+        Categories are reusable taxonomies (e.g. Sector, Region) shared across every directory you own —
         separate from a directory's simple Group field.
       </p>
 
       {visibleCats.length === 0 ? (
         <div className="panel-section" style={{ textAlign: "center" }}>
-          <p style={{ margin: "0 0 10px", opacity: 0.8 }}>No categorisations yet.</p>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Create your first categorisation</button>
+          <p style={{ margin: "0 0 10px", opacity: 0.8 }}>No categories yet.</p>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>Create your first category</button>
         </div>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -312,7 +312,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
 
       {visibleCats.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" className="btn btn-primary" onClick={openCreate} disabled={busy}>+ New categorisation</button>
+          <button type="button" className="btn btn-primary" onClick={openCreate} disabled={busy}>+ New category</button>
           <span style={{ flex: 1 }} />
           <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
             <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
@@ -352,7 +352,7 @@ function ConfirmDelete({ cat, onCancel, onConfirm, busy }) {
     <div className="panel-section" style={{ border: "1px solid #b91c1c" }}>
       <p className="panel-section__title" style={{ color: "#b91c1c" }}>Delete "{cat.label}" permanently?</p>
       <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-        This removes the categorisation, its terms, and all directory/entry tags for it.
+        This removes the category, its terms, and all directory/entry tags for it.
         {usage != null && usage > 0 ? ` ${usage} tag${usage === 1 ? "" : "s"} will be removed.` : ""}
         {" "}This can't be undone.
       </p>

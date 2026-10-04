@@ -15,7 +15,7 @@ export default function ClientCategorisations() {
     <div>
       <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Categorisations</h1>
+          <h1 className="page-title">Categories</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
             Reusable taxonomies applied across all of your directories.
           </p>

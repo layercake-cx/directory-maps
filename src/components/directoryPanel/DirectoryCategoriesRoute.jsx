@@ -26,7 +26,7 @@ export default function DirectoryCategoriesRoute() {
 
       <div className="card card-pad">
         <p className="card-title">
-          Categorisations {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
+          Categories {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
         </p>
         <CategoryTagPicker
           directoryId={directoryId}
