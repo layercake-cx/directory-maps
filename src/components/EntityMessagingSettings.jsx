@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { emailDomainStatusLabel } from "../lib/clientEmail.js";
@@ -32,6 +33,12 @@ export default function EntityMessagingSettings({
   onSaved,
 }) {
   const table = entity === "directory" ? "directories" : "maps";
+  // Profiles are created at organisation level (the Messaging page), which opens the
+  // "New profile" form when given ?new=1. Staff land on the customer's Messaging tab.
+  const newProfileHref =
+    eventSource === "admin_dashboard"
+      ? `/admin/clients/${encodeURIComponent(clientId)}/messaging?new=1`
+      : "/client/email?new=1";
   const noun = entity === "directory" ? "directory" : "map";
 
   const [loading, setLoading] = useState(true);
@@ -213,9 +220,14 @@ export default function EntityMessagingSettings({
               ))}
             </select>
           </label>
+          {canManage ? (
+            <p className={styles.hint}>
+              <Link to={newProfileHref}>Create a new profile</Link>
+            </p>
+          ) : null}
           {profiles.length === 0 ? (
             <p className={styles.disabledNote}>
-              Your organisation has no sending profiles yet. Create one under Messaging, then come back to choose it.
+              Your organisation has no sending profiles yet. Create one, then come back to choose it.
             </p>
           ) : null}
           {chosen && chosen.email_domain_status !== "verified" ? (

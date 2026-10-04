@@ -28,7 +28,8 @@ export default function MessagingProfiles({ clientId, clientName = "", eventSour
   const [profiles, setProfiles] = useState([]);
   const [usage, setUsage] = useState({}); // profileId -> { maps, directories }
   const [selectedId, setSelectedId] = useState(null);
-  const [creating, setCreating] = useState(false);
+  // ?new=1 (from a map or directory's Sending profile panel) opens the create form straight away.
+  const [creating, setCreating] = useState(() => new URLSearchParams(window.location.search).get("new") === "1");
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("");
   const [newFromName, setNewFromName] = useState("");

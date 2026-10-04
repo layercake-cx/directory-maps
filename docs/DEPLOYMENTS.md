@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Rename "Email sending" to "Emails"; link to create a sending profile
+
+**Branch/commit:** `feat/2026-10-04-emails-label-and-new-profile-link` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The directory **Settings → Email sending** item and page title are now **Emails**. Route (`/email-sending`) is unchanged, so existing links keep working.
+- The **Sending profile** panel (directory Emails page and each map's Messaging tab, client and admin) now has a **Create a new profile** link (owners/managers only). It opens the organisation's Messaging page with the New profile form already open (`?new=1`), so nobody has to hunt for where profiles live. Staff are sent to the customer's Messaging tab.
+- Docs: `USER_GUIDE.md` and `FEATURES.md` use the new name.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: directory → Settings → Emails → Create a new profile opens the form
+
+---
+
 ## 2026-10-04 — [Production] send_contact_message: allow the apikey header (directory Contact "NetworkError")
 
 **Branch/PR:** `fix/2026-10-04-contact-message-cors-apikey` ([PR #279](https://github.com/layercake-cx/directory-maps/pull/279))

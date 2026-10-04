@@ -105,7 +105,7 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
 
-A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Publishing, Domain, Integrations, Email sending). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, Domain, and Email sending are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Publishing, Domain, Integrations, Emails). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, Domain, and Emails are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
 
 **Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
@@ -160,10 +160,10 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 
 ### Directory email
 
-On a directory's **Settings → Email sending** page (owners and managers only):
+On a directory's **Settings → Emails** page (owners and managers only):
 
 - **Contact button on entry pages** — when messaging is turned on (below), each published entry page shows **Contact** in the sidebar's Contact & address panel, under **Visit website**. It opens a side panel where the visitor writes a message. The message is emailed to **that entry's own email address** (the one on the entry's Basic Info tab), and the visitor is copied. Entries with no email address don't show the button. It doesn't matter whether the entry's "Show publicly" email box is ticked — the visitor never sees the address. **Publish** again after changing settings — the button is written into the public pages at publish time.
-- **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first; messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
+- **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first (no suitable profile yet? use **Create a new profile** under the Sending profile list — it opens the New profile form on your organisation's Messaging page); messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
 
 Sent messages are listed at the bottom of the page (the latest 20).
 
@@ -634,7 +634,7 @@ Two profiles on the same domain (for example `info@` and `events@yourcompany.com
 
 ### Messaging settings on a map
 
-Open the map, then **Messaging** in the Map Settings list. (Directories: **Settings → Email sending** — see [Directory email](#directory-email).)
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Settings → Emails** — see [Directory email](#directory-email).)
 
 - **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
 - **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
@@ -702,7 +702,7 @@ Click **Remove** on a domain's card. This can't be undone — you'd need to add 
 | Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
 | Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
 | Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
-| Show Contact on entry pages | Directory → Settings → Email sending → sending profile chosen, messaging on, Save, then Publish (entries need an email address) |
+| Show Contact on entry pages | Directory → Settings → Emails → sending profile chosen, messaging on, Save, then Publish (entries need an email address) |
 | Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |

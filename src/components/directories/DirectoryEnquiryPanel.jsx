@@ -21,7 +21,7 @@ function truncate(text, max = 120) {
 }
 
 /**
- * Directory Settings → Email sending. The sending profile, enable switch, test
+ * Directory Settings → Emails. The sending profile, enable switch, test
  * mode and message text are per directory. Each published entry page shows a
  * Contact button (when the entry has an email address); the message goes to that
  * entry's own email. Sending profiles (From address + domain) are the
@@ -55,7 +55,7 @@ export default function DirectoryEnquiryPanel({ directoryId, clientId, canManage
     <>
       <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Email sending</h1>
+          <h1 className="page-title">Emails</h1>
         </div>
       </div>
 
