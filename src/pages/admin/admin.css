@@ -354,9 +354,20 @@ a.btn-primary:hover {
   max-width: none;
   margin: 0;
   padding: 0;
-  min-height: calc(100vh - var(--header-h, 72px) - 52px);
+  min-height: calc(100vh - var(--header-h, 52px));
   display: flex;
   flex-direction: column;
+}
+
+/* Edge-to-edge: drop the shell's main padding and the 1600px cap so the sub-nav and map meet the container edges */
+.shell .main:has(> .admin-main--map-page),
+.shell .main--wide:has(> .admin-main--map-page) {
+  padding: 0;
+}
+
+.shell .main > .admin-main--map-page,
+.shell .main--wide > .admin-main--map-page {
+  max-width: none;
 }
 
 .admin-main--map-page > * {

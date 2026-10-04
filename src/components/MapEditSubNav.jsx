@@ -78,10 +78,10 @@ function InlineMapEditSubNav({ route, mapName, linkClassName }) {
 }
 
 /** Standalone variant — renders as its own bar below the primary nav */
-function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen, onLeavePublish }) {
+function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen, onLeavePublish, actions }) {
   return (
     <nav className={styles.subNav} aria-label="Map sections">
-      <div className={styles.subNavInner}>
+      <div className={`${styles.subNavInner} ${actions ? styles.subNavInnerFull : ""}`}>
         <div className={styles.subNavLeft}>
           <Link to={route.backPath} className={styles.backLink} aria-label={`Back to ${route.backLabel}`}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -122,12 +122,14 @@ function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublis
             Publish Map
           </button>
         </div>
+        {actions ? <div className={styles.subNavActions}>{actions}</div> : null}
       </div>
     </nav>
   );
 }
 
-export default function MapEditSubNav({ linkClassName = "", standalone = false }) {
+/** `actions`: optional right-aligned slot (standalone only) — also lets the bar span the full width. */
+export default function MapEditSubNav({ linkClassName = "", standalone = false, actions = null }) {
   const { pathname } = useLocation();
   const route = useMemo(() => parseMapEditRoute(pathname || "/"), [pathname]);
   const [mapName, setMapName] = useState("");
@@ -157,6 +159,7 @@ export default function MapEditSubNav({ linkClassName = "", standalone = false }
         onPublish={() => openPublishRef.current?.()}
         isPublishOpen={publishPanelOpen}
         onLeavePublish={() => closePublishRef.current?.()}
+        actions={actions}
       />
     );
   }
