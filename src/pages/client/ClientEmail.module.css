@@ -260,11 +260,24 @@
   font-size: 13px;
 }
 
-.field input {
+.field input,
+.field select {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--lc-border);
   font-size: 14px;
+}
+
+.field select {
+  background: #fff;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.field select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .actions {
