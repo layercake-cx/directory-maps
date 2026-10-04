@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Directory side panel: collapsible sections
+
+**Branch/commit:** `feat/2026-10-04-collapsible-directory-nav` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The directory side panel's group headings (Content, Experience, Engagement, Insights, Settings) are now accordion headers: bolder, with an arrow, and their items are indented under a guide line. Only one section is open at a time, and the section holding the current page opens automatically. This makes headings read as controls rather than nav items, and the panel fits a laptop screen without scrolling.
+- Implemented once in `FeaturePanel.jsx` + `admin-shell.css`, so client and admin directory workspaces both get it. Panels with unlabelled groups (Customers, Logs, customer workspace) render exactly as before.
+- Docs: `USER_GUIDE.md` describes the new behaviour.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: open a directory in client and admin, expand/collapse sections, confirm the active page's section is open
+
+---
+
 ## 2026-10-04 — [Staging] Rename "Email sending" to "Emails"; link to create a sending profile
 
 **Branch/commit:** `feat/2026-10-04-emails-label-and-new-profile-link` (PR pending)
