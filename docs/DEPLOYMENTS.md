@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Publish status box: View live site link
+
+**Branch/commit:** `feat/2026-10-04-publish-status-live-link` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- Under the publish status box in the directory side panel there is now a **View live site** link (new tab). It uses the directory's active custom domain when it has one (primary first, from `client_domains`), otherwise `maps.layercake-cx.biz/directories/<client>/<directory>`. Hidden until the directory is first published.
+- `getDirectoryPublishState` now also returns `customHostname`. No schema change.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through: directory without a domain links to the Maps address; directory with an active domain links to the domain
+
+---
+
 ## 2026-10-04 — [Staging] Directory side panel: publish status
 
 **Branch/commit:** `feat/2026-10-04-panel-publish-status` (PR pending)

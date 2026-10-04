@@ -16,7 +16,7 @@ const LABELS = {
  * published. Links to the Publishing page. Re-checks on every navigation (edits happen on
  * sibling routes) and polls while a generation is running.
  */
-export default function DirectoryPublishStatus({ directoryId, publishingRoute, publishedAtKey }) {
+export default function DirectoryPublishStatus({ directoryId, publishingRoute, publishedAtKey, fallbackUrl }) {
   const { pathname } = useLocation();
   const [status, setStatus] = useState(null);
 
@@ -38,7 +38,8 @@ export default function DirectoryPublishStatus({ directoryId, publishingRoute, p
   }, [status?.state, load]);
 
   if (!status) return null;
-  const { state, changeCount, publishedAt } = status;
+  const { state, changeCount, publishedAt, customHostname } = status;
+  const liveUrl = state === "not_published" ? null : customHostname ? `https://${customHostname}` : fallbackUrl;
   const detail =
     state === "changes" ? "Review and publish" :
     state === "published" && publishedAt ? `Live since ${new Date(publishedAt).toLocaleDateString()}` :
@@ -46,12 +47,19 @@ export default function DirectoryPublishStatus({ directoryId, publishingRoute, p
     state === "failed" ? "See details" : null;
 
   return (
-    <Link to={publishingRoute} className="publish-status" data-state={state} title={changeCount ? `${changeCount} item${changeCount === 1 ? "" : "s"} changed since the last publish` : undefined}>
-      <span className="publish-status-dot" aria-hidden="true" />
-      <span className="publish-status-text">
-        <strong>{LABELS[state]}</strong>
-        {detail && <span>{detail}</span>}
-      </span>
-    </Link>
+    <div className="publish-status-wrap">
+      <Link to={publishingRoute} className="publish-status" data-state={state} title={changeCount ? `${changeCount} item${changeCount === 1 ? "" : "s"} changed since the last publish` : undefined}>
+        <span className="publish-status-dot" aria-hidden="true" />
+        <span className="publish-status-text">
+          <strong>{LABELS[state]}</strong>
+          {detail && <span>{detail}</span>}
+        </span>
+      </Link>
+      {liveUrl && (
+        <a className="publish-status-live" href={liveUrl} target="_blank" rel="noopener noreferrer">
+          View live site{customHostname ? ` · ${customHostname}` : ""} ↗
+        </a>
+      )}
+    </div>
   );
 }
