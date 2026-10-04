@@ -16,7 +16,10 @@ import {
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  // apikey / x-client-info: published directory entry pages post here with an `apikey`
+  // header. A cross-origin preflight that doesn't allow it is blocked by the browser
+  // with "NetworkError when attempting to fetch resource".
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, apikey, x-client-info",
   "Access-Control-Max-Age": "86400",
 };
 
