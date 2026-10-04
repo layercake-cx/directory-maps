@@ -145,6 +145,22 @@
   line-height: 1.15; font-weight: 600; color: var(--shell-ink);
 }
 .shell .panel-head { display: flex; align-items: center; justify-content: space-between; }
+.shell .publish-status {
+  display: flex; align-items: center; gap: 10px; margin: -6px 0 0; padding: 8px 10px; border-radius: var(--radius-item);
+  border: 1px solid var(--shell-line); text-decoration: none; color: var(--shell-ink); font-size: var(--fs-small);
+  --ps-color: #9ca3af; --ps-bg: var(--shell-ground);
+}
+.shell .publish-status[data-state="published"] { --ps-color: #16a34a; --ps-bg: #f0fdf4; }
+.shell .publish-status[data-state="changes"] { --ps-color: #d97706; --ps-bg: #fffbeb; }
+.shell .publish-status[data-state="failed"] { --ps-color: #dc2626; --ps-bg: #fef2f2; }
+.shell .publish-status[data-state="generating"] { --ps-color: #2563eb; --ps-bg: #eff6ff; }
+.shell .publish-status { background: var(--ps-bg); border-color: color-mix(in srgb, var(--ps-color) 35%, transparent); }
+.shell .publish-status:hover { border-color: var(--ps-color); }
+.shell .publish-status-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--ps-color); flex-shrink: 0; }
+.shell .publish-status[data-state="generating"] .publish-status-dot { animation: ps-pulse 1s ease-in-out infinite; }
+@keyframes ps-pulse { 50% { opacity: 0.35; } }
+.shell .publish-status-text { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.shell .publish-status-text span { color: var(--shell-text-muted); }
 .shell .panel-divider { height: 1px; background: var(--shell-line); }
 .shell .nav-group { display: flex; flex-direction: column; gap: 2px; }
 .shell .nav-group-label {

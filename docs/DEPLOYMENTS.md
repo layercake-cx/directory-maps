@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] Directory side panel: publish status
+
+**Branch/commit:** `feat/2026-10-04-panel-publish-status` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- Under the directory name in the side panel there is now a publish status box linking to Settings › Publishing: green = published and up to date, amber = published but edited since, red = last page generation failed, blue = generating, grey = never published. Hovering the amber state shows how many items changed.
+- "Changed" is computed in the browser (`getDirectoryPublishState` in `directoryPublications.js`): the directory row, active entries or active content pages with `updated_at` later than the last successful site generation (falling back to `published_at`). It re-checks on every navigation and polls while generating. Known limits: deleting an entry isn't detected, and a claim-item publish moves the baseline.
+- Shared panel, so client and admin both get it. No schema change, no new visitor events.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: publish → green; edit an entry → amber after navigating; click box opens Publishing
+
+---
+
 ## 2026-10-04 — [Staging] Directory side panel: collapsible sections
 
 **Branch/commit:** `feat/2026-10-04-collapsible-directory-nav` (PR pending)

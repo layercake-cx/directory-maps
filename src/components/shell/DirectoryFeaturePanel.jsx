@@ -2,6 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import { getDirectoryPanelGroups } from "../../config/navConfig.js";
 import FeaturePanel from "./FeaturePanel.jsx";
+import DirectoryPublishStatus from "./DirectoryPublishStatus.jsx";
 
 /** Thin FeaturePanel consumer for the directory workspace — reads everything from DirectoryContext. */
 export default function DirectoryFeaturePanel() {
@@ -16,6 +17,15 @@ export default function DirectoryFeaturePanel() {
       title={directory?.name ?? "…"}
       backHref={backHref}
       backLabel={backLabel}
+      subtitle={
+        directory?.id ? (
+          <DirectoryPublishStatus
+            directoryId={directory.id}
+            publishingRoute={`${basePath}/publishing`}
+            publishedAtKey={directory.published_at}
+          />
+        ) : null
+      }
       groups={groups}
     />
   );
