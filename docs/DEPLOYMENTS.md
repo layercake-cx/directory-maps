@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-04 — [Staging] send_contact_message: allow the apikey header (directory Contact "NetworkError")
+
+**Branch/PR:** `fix/2026-10-04-contact-message-cors-apikey` ([PR #279](https://github.com/layercake-cx/directory-maps/pull/279))
+**Deployed by:** Claude Code. Staging only; production waiting on explicit sign-off.
+
+### What changed
+
+- Sending a message from a published directory entry page failed in the browser with "NetworkError when attempting to fetch resource". The page script posts to `send_contact_message` with an `apikey` header, but the function's CORS `Access-Control-Allow-Headers` only listed `Authorization, Content-Type`, so the browser blocked the cross-origin preflight before the request was sent. Map messages were unaffected (they use `invokeEdgeFunction`, which deliberately omits `apikey`).
+- The function now also allows `apikey` and `x-client-info`. This fixes every already-published directory page with no republish, so `ENTRY_TEMPLATE_VERSION` is unchanged.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- `send_contact_message` (`--no-verify-jwt`) — staging (`beqejxneehilplrtpntn`), 2026-10-04. Production: not deployed.
+
+### Rollback plan
+Redeploy `send_contact_message` from the previous commit.
+
+### Verified
+- [x] Preflight on staging with `Access-Control-Request-Headers: apikey,content-type` now returns the header in `access-control-allow-headers`
+- [ ] A real Contact send from a published directory entry page on staging
+
+---
+
 ## 2026-10-03 — [Production: database + Edge Functions; frontend pending] Messaging: sending profiles, per-map and per-directory settings
 
 **Branch/PR:** `feat/2026-10-03-messaging-profiles`
