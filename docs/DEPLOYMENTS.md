@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-04 — [Staging] Move AI content generation to Content › AI enrichment
+## 2026-10-04 — [Production] Move AI content generation to Content › AI enrichment
 
-**Branch/commit:** `feat/2026-10-04-ai-enrichment-section` (PR pending)
+**Branch/commit:** `feat/2026-10-04-ai-enrichment-section` (PR #287, merged as `5261bca`)
 **Deployed by:** Claude Code
 
 ### What changed
@@ -24,7 +24,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Rollback plan
-- Revert the merge commit on `main`.
+- Revert the merge commit on `main`, then redeploy both frontends (GitHub Pages runs on push; `npm run deploy:live` for Vercel).
+
+### Deployed
+- GitHub Pages: automatic on merge to `main`. Vercel (`maps.layercake-cx.biz`): `npm run deploy:live`, Ready.
 
 ### Verified
 - [ ] "AI enrichment" appears under Content for managers, not for members
