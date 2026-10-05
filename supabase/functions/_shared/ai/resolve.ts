@@ -79,7 +79,16 @@ async function recommendedModel(ctx: AiContext, provider: string): Promise<strin
   return data?.model_id ?? null;
 }
 
-export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
+/** A resolved route before credentials are attached -- safe to compute for display. */
+export type AiRoutePlan = Omit<AiRoute, "apiKey">;
+
+/**
+ * Works out which provider and model a request would use and where the key
+ * comes from, WITHOUT reading any credential. resolveRoute() adds the key;
+ * the Integrations UI and AI availability checks use this directly.
+ * Throws AiUnavailableError when nothing is usable.
+ */
+export async function planRoute(ctx: AiContext): Promise<AiRoutePlan> {
   const [{ data: configRows, error: cfgErr }, { data: integrationRows, error: intErr }] = await Promise.all([
     ctx.db
       .from("ai_model_configuration")
@@ -128,18 +137,9 @@ export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
         `The selected AI model (${modelId}) is temporarily unavailable. Choose another model in Integrations.`,
       );
     }
-    const { data: secret, error: secretErr } = await ctx.db.rpc("read_integration_secret", { p_integration_id: integration.id });
-    if (secretErr) throw secretErr;
-    if (!secret) {
-      throw new AiUnavailableError(
-        "provider_not_connected",
-        `The ${providerLabel(integration.provider)} connection has no stored API key. Replace the key in Integrations.`,
-      );
-    }
     return {
       provider: integration.provider,
       model: modelId,
-      apiKey: secret as string,
       source: "customer",
       integrationId: integration.id,
       modelRow,
@@ -148,14 +148,11 @@ export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
 
   // No usable customer connection. Layercake's own account only if explicitly allowed.
   if (await resolveFeatureFlag(ctx.db, ctx.clientId, PLATFORM_AI_FLAG)) {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
     const modelId = await recommendedModel(ctx, "anthropic");
     if (!modelId) throw new AiUnavailableError("no_model", "No recommended AI model is configured for this feature yet.");
     return {
       provider: "anthropic",
       model: modelId,
-      apiKey,
       source: "platform",
       integrationId: null,
       modelRow: await loadModelRow(ctx, "anthropic", modelId),
@@ -173,4 +170,25 @@ export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
     "no_connection",
     "AI features aren't currently available because an AI provider hasn't been connected for this organisation.",
   );
+}
+
+/** Plan + credentials: the route a request actually runs on. */
+export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
+  const plan = await planRoute(ctx);
+
+  if (plan.source === "platform") {
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
+    return { ...plan, apiKey };
+  }
+
+  const { data: secret, error: secretErr } = await ctx.db.rpc("read_integration_secret", { p_integration_id: plan.integrationId });
+  if (secretErr) throw secretErr;
+  if (!secret) {
+    throw new AiUnavailableError(
+      "provider_not_connected",
+      `The ${providerLabel(plan.provider)} connection has no stored API key. Replace the key in Integrations.`,
+    );
+  }
+  return { ...plan, apiKey: secret as string };
 }

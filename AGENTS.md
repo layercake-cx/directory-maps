@@ -270,6 +270,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
   - **Directory content pages**: `directory_content_page_*`
   - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
+  - **AI model configuration**: `ai_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -504,7 +505,7 @@ Successor to the removed map-level "AI search enrichment" feature (`ai_search_*`
 - **`directory_ai_content_failed`**
   - `meta`: `client_id`, `directory_id`, `entry_id`, `error`
 - **`directory_ai_content_bulk_requested`**
-  - `meta`: `client_id`, `directory_id`, `entries_queued`
+  - `meta`: `client_id`, `directory_id`, `entries_queued`; `target` (`seo_metadata` for the SEO backfill); `retry` (`true` when it is a "Retry failed" re-queue rather than a new run)
 - **`directory_ai_content_bulk_completed`**
   - `meta`: `client_id`, `directory_id`, `entries_processed`, `entries_failed`
 - **`directory_entry_content_restored`**
@@ -534,6 +535,9 @@ Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab
   - `meta`: `client_id`, `provider`, `status` (`connected`/`error`), `ok` (boolean), `source`
 - **`integration_disconnected`**
   - `meta`: `client_id`, `provider`, `source`
+- **`ai_model_config_updated`**
+  - `meta`: `client_id`, `product` (`directory_maps`, or null for the organisation default), `feature` (null for the organisation default), `provider` (null = automatic), `model` (null when using the recommended model), `use_recommended`, `source`
+  - Fired from `AiFeaturesConfig.jsx` on save. Never put prompts or keys in `meta`.
 
 #### Claims
 

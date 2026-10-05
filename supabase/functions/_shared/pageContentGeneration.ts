@@ -13,7 +13,7 @@ import { AiScope, directoryMapsContext, generate, requireToolInput } from "./ai/
 const TOOL_NAME = "write_page_content";
 
 async function callModel(scope: AiScope, directoryName: string, pageTitle: string, outline: string): Promise<string> {
-  const result = await generate(directoryMapsContext(scope, "content_page_draft", "STANDARD_MODEL"), {
+  const result = await generate(directoryMapsContext(scope, "content_page_draft"), {
     maxTokens: 4096,
     system:
       "You write a full page of content for one page on an online directory's website, from the editor's outline. " +

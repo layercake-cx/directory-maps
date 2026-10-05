@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Group, Text } from "@mantine/core";
+import { useAiFeature } from "../../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../../components/ai/AiUnavailableNotice.jsx";
 import {
   updateDirectoryEntry,
   generateEntryContent,
@@ -33,6 +35,7 @@ const SOURCE_LABELS = {
  * version history list below, fetched from directory_entry_versions.
  */
 export default function EntryContentTab({ directoryId, entryId, clientId, entry, canEdit, aiContentEnabled, recordEvent, onSaved }) {
+  const ai = useAiFeature("content_generation");
   const [notesHtml, setNotesHtml] = useState(entry?.notes_html || "");
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -101,9 +104,10 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
         <Group justify="space-between" mb={10}>
           <Text size="sm" fw={600}>Notes</Text>
           {canEdit && aiContentEnabled && (
-            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating}>Generate with AI</Button>
+            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
           )}
         </Group>
+        {canEdit && aiContentEnabled && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
         <RichTextEditor value={notesHtml} onChange={setNotesHtml} editable={canEdit} />
         {err && <Alert color="red" variant="light" mt="xs">{err}</Alert>}
         {canEdit && (

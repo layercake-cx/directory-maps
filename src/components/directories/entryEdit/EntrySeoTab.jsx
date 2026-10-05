@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
+import { useAiFeature } from "../../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../../components/ai/AiUnavailableNotice.jsx";
 import { updateDirectoryEntry, generateEntrySeoMetadata } from "../../../lib/directories.js";
 
 const inputStyle = {
@@ -49,6 +51,7 @@ const AI_DRAFT_FIELDS = ["meta_title", "meta_description", "keywords", "og_title
  * auto-saved.
  */
 export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, recordEvent, onSaved }) {
+  const ai = useAiFeature("seo_metadata");
   const [form, setForm] = useState(() => buildForm(entry));
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -113,9 +116,10 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
           <Group justify="space-between">
             <Text size="sm" fw={600}>Search engines</Text>
             {canEdit && (
-              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating}>Generate with AI</Button>
+              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
             )}
           </Group>
+          {canEdit && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ marginTop: -8 }} />}
           <Text size="xs" c="dimmed" mt={-8}>Drafts every field below (including Social &amp; AI) from this entry's own data. Lands here for review — nothing is saved until you click Save metadata.</Text>
           {entry?.seo_metadata_ai_generated_at && (
             <Alert color="blue" variant="light" py={6}>

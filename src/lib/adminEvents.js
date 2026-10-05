@@ -1,4 +1,4 @@
-/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'|'leads'|'entitlements'|'domain'|'integration'} AdminEventCategory */
+/** @typedef {'map_design'|'map_publish'|'data'|'team'|'email'|'billing'|'ops'|'leads'|'entitlements'|'domain'|'integration'|'ai'} AdminEventCategory */
 
 /** Labels for filter UI (type = category). */
 export const ADMIN_EVENT_CATEGORY_LABELS = {
@@ -13,6 +13,7 @@ export const ADMIN_EVENT_CATEGORY_LABELS = {
   entitlements: "Entitlements",
   domain: "Domains",
   integration: "Integrations",
+  ai: "AI",
 };
 
 /** Known subtypes per category (subtype filter options). */
@@ -79,6 +80,7 @@ export const ADMIN_EVENT_SUBTYPES_BY_CATEGORY = {
   entitlements: ["plan_changed", "override_set", "override_cleared"],
   domain: ["added", "verified", "verify_failed", "removed"],
   integration: ["connected", "tested", "credentials_replaced", "disconnected"],
+  ai: ["model_config_updated"],
 };
 
 const TWO_PART_PREFIXES = ["map_design", "map_publish"];

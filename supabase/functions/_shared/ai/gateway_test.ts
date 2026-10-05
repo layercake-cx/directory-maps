@@ -4,6 +4,8 @@
 
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { AiScope, AiUnavailableError, directoryMapsContext, generate } from "./gateway.ts";
+import { planRoute } from "./resolve.ts";
+import { AI_FEATURES, AI_FEATURE_KEYS } from "./features.ts";
 
 type Row = Record<string, unknown>;
 
@@ -85,7 +87,7 @@ Deno.test("platform key is used only while the ai_platform_provider flag is on, 
   const { db, inserted } = fakeDb(tablesWith({ feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }] }));
   const f = stubFetch(OK_RESPONSE);
   try {
-    const res = await generate(directoryMapsContext(scope(db), "seo_metadata", "ECONOMY_MODEL"), REQ);
+    const res = await generate(directoryMapsContext(scope(db), "seo_metadata"), REQ);
     assertEquals(f.calls[0].headers["x-api-key"], "platform-key");
     assertEquals(f.calls[0].body.model, "claude-haiku-4-5");
     assertEquals(res.toolCalls[0].input, { html: "<p>x</p>" });
@@ -113,7 +115,7 @@ Deno.test("no customer connection and flag off -> AiUnavailableError, no provide
   const f = stubFetch(OK_RESPONSE);
   try {
     const err = await assertRejects(
-      () => generate(directoryMapsContext(scope(db), "seo_metadata", "ECONOMY_MODEL"), REQ),
+      () => generate(directoryMapsContext(scope(db), "seo_metadata"), REQ),
       AiUnavailableError,
     );
     assertEquals(err.code, "no_connection");
@@ -135,7 +137,7 @@ Deno.test("a connected customer integration wins over the platform key and uses 
   );
   const f = stubFetch(OK_RESPONSE);
   try {
-    await generate(directoryMapsContext(scope(db), "intent_search", "FAST_MODEL"), REQ);
+    await generate(directoryMapsContext(scope(db), "intent_search"), REQ);
     assertEquals(f.calls[0].headers["x-api-key"], "customer-key");
     assertEquals(inserted["ai_usage_events"][0].connection_source, "customer");
   } finally {
@@ -156,7 +158,7 @@ Deno.test("most specific configuration wins: feature override beats product defa
   );
   const f = stubFetch(OK_RESPONSE);
   try {
-    await generate(directoryMapsContext(scope(db), "seo_metadata", "ECONOMY_MODEL"), REQ);
+    await generate(directoryMapsContext(scope(db), "seo_metadata"), REQ);
     assertEquals(f.calls[0].body.model, "claude-sonnet-5-5");
   } finally {
     f.restore();
@@ -174,7 +176,7 @@ Deno.test("a disabled model is refused", async () => {
     { i1: "customer-key" },
   );
   const err = await assertRejects(
-    () => generate(directoryMapsContext(scope(db), "seo_metadata", "ECONOMY_MODEL"), REQ),
+    () => generate(directoryMapsContext(scope(db), "seo_metadata"), REQ),
     AiUnavailableError,
   );
   assertEquals(err.code, "model_disabled");
@@ -185,7 +187,7 @@ Deno.test("provider errors are rethrown and metered as failed requests", async (
   const { db, inserted } = fakeDb(tablesWith({ feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }] }));
   const f = stubFetch("overloaded", 529);
   try {
-    await assertRejects(() => generate(directoryMapsContext(scope(db), "seo_metadata", "ECONOMY_MODEL"), REQ), Error, "529");
+    await assertRejects(() => generate(directoryMapsContext(scope(db), "seo_metadata"), REQ), Error, "529");
     const ev = inserted["ai_usage_events"][0];
     assertEquals(ev.status, "error");
     assertEquals(ev.total_tokens, 0);
@@ -194,4 +196,33 @@ Deno.test("provider errors are rethrown and metered as failed requests", async (
   } finally {
     f.restore();
   }
+});
+
+Deno.test("planRoute resolves provider + model without ever reading a credential", async () => {
+  const { db } = fakeDb(
+    tablesWith({ integrations: [{ id: "i1", client_id: "c1", integration_type: "ai", status: "connected", provider: "anthropic" }] }),
+    { i1: "customer-key" },
+  );
+  let secretReads = 0;
+  const realRpc = db.rpc;
+  db.rpc = (...args: unknown[]) => {
+    secretReads += 1;
+    // deno-lint-ignore no-explicit-any
+    return (realRpc as any)(...args);
+  };
+  const plan = await planRoute(directoryMapsContext(scope(db), "seo_metadata"));
+  assertEquals(plan.source, "customer");
+  assertEquals(plan.model, "claude-haiku-4-5");
+  assertEquals(secretReads, 0);
+  assert(!("apiKey" in plan));
+});
+
+Deno.test("every registered AI feature maps to a capability that has a recommended model profile", () => {
+  const capabilities = new Set(PROFILES.map((p) => p.capability));
+  for (const key of AI_FEATURE_KEYS) {
+    const cap = AI_FEATURES[key].capability;
+    // The seeded test profiles cover ECONOMY and FAST; STANDARD/ADVANCED are covered by the real seed.
+    assert(["ECONOMY_MODEL", "FAST_MODEL", "STANDARD_MODEL", "ADVANCED_MODEL"].includes(cap), `${key} has unknown capability`);
+  }
+  assert(capabilities.has("ECONOMY_MODEL") && capabilities.has("FAST_MODEL"));
 });

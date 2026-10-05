@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AiProvidersTab from "./AiProvidersTab.jsx";
+import AiFeaturesConfig from "./AiFeaturesConfig.jsx";
 import styles from "../../pages/client/ClientEmail.module.css";
 
 const COMING_SOON = ["Analytics", "Payments", "CRM", "Identity & SSO", "Data & webhooks"];
@@ -16,6 +17,8 @@ export default function IntegrationsPanel({
   showPageTitle = true,
 }) {
   const [tab, setTab] = useState("ai");
+  // Bumped when a provider is connected/disconnected so the feature configuration reloads.
+  const [connectionsVersion, setConnectionsVersion] = useState(0);
 
   return (
     <>
@@ -48,7 +51,16 @@ export default function IntegrationsPanel({
         </button>
       </div>
 
-      {tab === "ai" ? <AiProvidersTab clientId={clientId} eventSource={eventSource} /> : null}
+      {tab === "ai" ? (
+        <>
+          <AiProvidersTab
+            clientId={clientId}
+            eventSource={eventSource}
+            onConnectionsChanged={() => setConnectionsVersion((v) => v + 1)}
+          />
+          <AiFeaturesConfig clientId={clientId} eventSource={eventSource} refreshKey={connectionsVersion} />
+        </>
+      ) : null}
 
       <p className={styles.note} style={{ marginTop: 16 }}>
         Coming later: {COMING_SOON.join(", ")}.

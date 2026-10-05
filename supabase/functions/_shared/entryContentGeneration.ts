@@ -80,7 +80,7 @@ export type DirectoryEntryForGeneration = {
 };
 
 async function callModel(scope: AiScope, prompt: string, entryText: string): Promise<string> {
-  const result = await generate(directoryMapsContext(scope, "content_generation", "STANDARD_MODEL"), {
+  const result = await generate(directoryMapsContext(scope, "content_generation"), {
     maxTokens: 4096,
     system:
       "You write the page content for one directory entry, following the directory-specific instructions you are given. " +

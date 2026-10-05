@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import {
   listContentPages,
   createContentPage,
@@ -72,6 +74,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(() => buildForm(null));
+  const ai = useAiFeature("content_page_draft");
   const [outline, setOutline] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -523,7 +526,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                 Generate with AI
               </Text>
               <Text size="xs" c="dimmed" mb={6}>
-                Give Claude an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review.
+                Give the AI an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review.
               </Text>
               <textarea
                 value={outline}
@@ -532,7 +535,8 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                 placeholder="e.g. Cover: what membership costs, the application process, and who to contact with questions."
                 style={{ ...inputStyle, resize: "vertical", marginBottom: 6 }}
               />
-              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!outline.trim()}>
+              {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
+              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!outline.trim() || !ai.available}>
                 Generate with AI
               </Button>
             </div>

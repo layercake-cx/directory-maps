@@ -265,7 +265,7 @@ async function runTurn(
   systemPrompt: string,
   webEnabled: boolean,
 ): Promise<TurnResult> {
-  const ctx = directoryMapsContext(scope, "intent_search", "FAST_MODEL");
+  const ctx = directoryMapsContext(scope, "intent_search");
   const decisionTools = [FOLLOW_UP_TOOL, SELECT_TOOL];
   if (!webEnabled) {
     const resp = await generate(ctx, {

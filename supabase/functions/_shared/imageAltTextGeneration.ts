@@ -30,7 +30,7 @@ export async function generateImageAltText(
   entryName: string,
   imageKind: "hero" | "gallery",
 ): Promise<string> {
-  const result = await generate(directoryMapsContext(scope, "alt_text", "ECONOMY_MODEL"), {
+  const result = await generate(directoryMapsContext(scope, "alt_text"), {
     maxTokens: 256,
     system:
       "You write concise, descriptive alt text for images on an organisation's directory listing page. " +
