@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-05 — [Staging] Platform Integrations framework, stage 3 (model choice, unavailable states, bulk-run tooling)
 
 **Branch/commit:** `feat/2026-10-05-integrations-model-config` (stacked on `feat/2026-10-05-integrations-ui-providers`, PR pending)
-**Deployed by:** Claude Code (built and dry-run only; not applied or deployed anywhere)
+**Deployed by:** Claude Code + Damian — migration applied to staging (`beqejxneehilplrtpntn`) and all eleven affected Edge Functions deployed there on 2026-10-05; production untouched
 
 ### What changed
 - **Choose providers and models** (Integrations → AI providers → *AI features*): a default provider plus, per AI feature, "use recommended model" (default) or a manual provider + model, with £-tier cost guidance, a rationale from the capability profile, and non-blocking "not recommended for this task" advice. Stored in `ai_model_configuration`; the gateway already honoured it. Event `ai_model_config_updated`.
@@ -22,10 +22,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Provider-neutral wording replaces "Claude/Anthropic" in the AI panels.
 
 ### Database migrations applied
-- `20261005140000_ai_bulk_run_tools.sql` (rollback: `_20261005140000_ai_bulk_run_tools.rollback.sql`): functions only (claim functions replaced, `retry_failed_entry_content_jobs`, `retry_failed_entry_seo_metadata_jobs`, `get_ai_bulk_run_summary`); no table changes. **Not yet applied.** A forced-rollback dry run on staging passed (`VERIFY PASSED`). Requires stages 1-2 first.
+- `20261005140000_ai_bulk_run_tools.sql` (rollback: `_20261005140000_ai_bulk_run_tools.rollback.sql`): functions only (claim functions replaced, `retry_failed_entry_content_jobs`, `retry_failed_entry_seo_metadata_jobs`, `get_ai_bulk_run_summary`); no table changes. **Applied to staging 2026-10-05** after a forced-rollback dry run passed; post-migration `VERIFY PASSED`. **Not applied to production.** Requires stages 1-2 first.
 
 ### Edge functions deployed
-- None yet. New: `get_ai_route_preview`. Changed: `manage_client_integrations` (adds `save_model_config`), `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (failure reason in the directory error), and every function importing the gateway (registry refactor). Staging (`beqejxneehilplrtpntn`) first; production only with explicit sign-off.
+- Deployed to staging 2026-10-05. New: `get_ai_route_preview`. Changed: `manage_client_integrations` (adds `save_model_config`), `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (failure reason in the directory error), and every function importing the gateway (registry refactor). Staging (`beqejxneehilplrtpntn`) first; production only with explicit sign-off.
 
 ### Rollback plan
 - Run `_20261005140000_ai_bulk_run_tools.rollback.sql` (drops the three new functions, restores the original claim functions; no table data touched), redeploy the previous Edge Functions, revert the branch and redeploy both frontends. Saved model choices in `ai_model_configuration` are inert if the UI is reverted (the gateway keeps honouring them; clear them with a DELETE if unwanted).
