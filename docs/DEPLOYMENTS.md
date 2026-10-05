@@ -8,9 +8,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-05 — [Staging] Embedded map: real fullscreen + sidebar in fullscreen
+## 2026-10-05 — [Production] Embedded map: real fullscreen + sidebar in fullscreen
 
-**Branch/commit:** `fix/2026-10-05-embedded-map-fullscreen` (PR pending)
+**Branch/commit:** `fix/2026-10-05-embedded-map-fullscreen` (PR #289, merged as `d6ddf9e`)
 **Deployed by:** Claude Code
 
 ### What changed
@@ -22,13 +22,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Edge functions deployed
-- `generate_directory_site` to staging only.
+- `generate_directory_site` to staging, then production (`gxixwdjfmegxcxfeflro`).
 
 ### Rollback plan
 - Revert the branch; redeploy `generate_directory_site` and republish directories.
 
+### Deployed
+- GitHub Pages: automatic on merge. Vercel: `npm run deploy:live`, Ready (aliased `uk-associations.com`). Directories need a republish to pick up the iframe fix.
+
 ### Verified
-- [ ] Staging: republish a directory, click ⛶ on its map: fills the browser window, sidebar appears, hides on exit
+- [x] Staging: republish a directory, click ⛶ on its map: fills the browser window, sidebar appears, hides on exit
 - [ ] Entry page map card fullscreen works
 
 ---
