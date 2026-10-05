@@ -1,4 +1,4 @@
-import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG } from "../lib/featureFlags.js";
+import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG, INTEGRATIONS_FLAG } from "../lib/featureFlags.js";
 import { canManageOrg } from "../lib/clientAuth.js";
 
 /**
@@ -60,6 +60,15 @@ export const CLIENT_RAIL = [
     flag: CUSTOM_DOMAIN_FLAG,
     permissionCheck: (contact) => contact?.is_primary || contact?.can_manage_maps,
     staffRoute: (clientId) => `/admin/clients/${clientId}/domains`,
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    icon: "plug",
+    route: "/client/integrations",
+    flag: INTEGRATIONS_FLAG,
+    permissionCheck: (contact) => contact?.is_primary || contact?.can_manage_maps,
+    staffRoute: (clientId) => `/admin/clients/${clientId}/integrations`,
   },
   {
     id: "customer-account",

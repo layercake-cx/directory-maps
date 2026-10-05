@@ -65,6 +65,7 @@ rail down the left for the sections you can access:
 | **Team** | `/client/team` | Owners and managers |
 | **Messaging** | `/client/email` | Users who can manage maps |
 | **Domains** | `/client/domains` | Users who can manage maps *(beta — only if enabled for your organisation)* |
+| **Integrations** | `/client/integrations` | Users who can manage maps *(beta — only if enabled for your organisation)* |
 
 Hover or focus a rail icon to see its label as a tooltip. Sign out from the account menu (your
 initial, top right) when finished.
@@ -678,6 +679,30 @@ Custom domains for **maps** require the **Professional plan or above** — on th
 ### Remove a domain
 
 Click **Remove** on a domain's card. This can't be undone — you'd need to add it again and re-verify from scratch.
+
+---
+
+## Integrations
+
+The **Integrations** page (`/client/integrations`) is where your organisation connects outside services once, for use across Layercake products. Today it covers **AI providers**: Anthropic, OpenAI and Google Gemini.
+
+Layercake provides the AI-enabled capabilities (search, content and metadata generation); the AI usage itself is billed by **your own provider account**, not by Layercake. Connecting a provider means the listing and visitor information needed for each AI request is sent to that provider under your own agreement with them.
+
+### Connect an AI provider
+
+1. Create an API key in your provider's console (each card links to the right page).
+2. On the provider's card, click **Connect**, paste the key and click **Test & connect**. The key is tested first and only saved if it works.
+3. The card turns green ("Connected") and shows the last four characters of the key. The full key is stored encrypted and can't be viewed again, by you or by Layercake staff.
+
+### Test, replace or disconnect
+
+- **Test connection** re-checks the stored key and shows any problem (key rejected, no access to the model, quota or billing issue). A failing connection shows as "Connection error" with the reason.
+- **Replace key** tests a new key and swaps it in.
+- **Disconnect** deletes the stored key. AI features that relied on it stop working until a provider is connected; everything else (browsing, keyword search, manual editing) carries on.
+
+Layercake picks a suitable low-cost model for each task by default. Most tasks, such as metadata, classification and search interpretation, don't need a premium model.
+
+Staff can open the same page for any customer from **Customers → (customer) → Integrations**. Connecting, testing, replacing and disconnecting are recorded in the admin event log.
 
 ---
 

@@ -28,6 +28,7 @@ export default function CustomerWorkspaceFeaturePanel({ clientId, clientName }) 
             { id: "users", label: "Users", route: `${basePath}/users` },
             { id: "messaging", label: "Messaging", route: `${basePath}/messaging` },
             { id: "domains", label: "Domains", route: `${basePath}/domains` },
+            { id: "integrations", label: "Integrations", route: `${basePath}/integrations` },
           ],
         },
       ]}

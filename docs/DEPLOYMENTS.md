@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-05 — [Staging] Platform Integrations framework, stage 2 (connect your own AI provider)
+
+**Branch/commit:** `feat/2026-10-05-integrations-ui-providers` (stacked on `feat/2026-10-05-integrations-ai-gateway`, PR pending)
+**Deployed by:** Claude Code (not yet deployed anywhere; depends on stage 1 being applied first)
+
+### What changed
+- New **Integrations** area (`/client/integrations`; rail item and admin customer tab). Organisation owners/managers can connect Anthropic, OpenAI or Google Gemini with their own API key, test the connection, replace the key, or disconnect. Behind a new `integrations` feature flag: off for customers, on for admins and @layercake-cx.biz users, grantable per customer (Customers → feature flags).
+- New Edge Function `manage_client_integrations` (list / connect / replace / test / disconnect). A key is tested with one tiny request before it is saved; it is stored only in Supabase Vault, never returned, never logged, and error messages are curated so provider text can't leak a key fragment. Only the last four characters are shown.
+- The AI Gateway now has OpenAI and Gemini adapters, so once a customer connects a provider its AI features run on it (recommended low-cost model per provider by default). With a connected customer provider the Layercake key is not used for that organisation. Web search in Help me choose is Anthropic-only; on other providers that feature reports "AI unavailable" to visitors rather than silently using another provider.
+- Admin events: `integration_connected`, `integration_credentials_replaced`, `integration_tested`, `integration_disconnected` (documented in `AGENTS.md`, registered in `src/lib/adminEvents.js`).
+- Not in this stage: choosing models per feature, recommendations/cost guidance UI, unavailable-state messages inside each AI panel, usage dashboard (stage 3 and later).
+
+### Database migrations applied
+- `20261005130000_integrations_providers_seed.sql` (rollback: `_20261005130000_integrations_providers_seed.rollback.sql`). **Not yet applied.** Registers the `integrations` flag and the OpenAI/Gemini model catalogue and recommendations. The model IDs came from the vendors' published model lists on 2026-10-05 and are data: fix any wrong one with an UPDATE on `ai_models` / `ai_capability_profiles`. Requires `20261005120000` first.
+
+### Edge functions deployed
+- None yet. New: `manage_client_integrations`. Changed (adapters registered in the gateway): every function that calls the AI Gateway (`_shared/ai/resolve.ts`), i.e. the nine from stage 1. Deploy to the test project (`beqejxneehilplrtpntn`) first; production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off.
+
+### Rollback plan
+- Disconnect any customers' OpenAI/Gemini connections, run `_20261005130000_integrations_providers_seed.rollback.sql` (it refuses while any exist), redeploy the previous Edge Functions, revert the branch and redeploy both frontends.
+
+### Verified
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` (10 pass, including adapter request/response mapping and curated connection-test errors); `deno check` on `manage_client_integrations`; `vite build`
+- [ ] Staging: connect a real key for each provider (OpenAI and Gemini adapters have **never run against the live APIs**; a failure here is expected to be a model ID or request-shape fix)
+- [ ] Staging: a bad key is rejected and not saved; Test connection, Replace key and Disconnect behave; the key never appears in network responses, `admin_events` or function logs
+- [ ] Staging: with a customer provider connected, an AI feature produces an `ai_usage_events` row with `connection_source = customer` and the right provider/model
+- [ ] Staging: another organisation cannot read the first one's integrations; non-managers see the no-permission message
+- [ ] Browser check of `/client/integrations` and the admin Integrations tab (not done: needs a signed-in staging session)
+
+---
+
 ## 2026-10-05 — [Staging] Platform Integrations framework + AI Gateway, stage 1 (routing and metering only)
 
 **Branch/commit:** `feat/2026-10-05-integrations-ai-gateway` (PR pending)

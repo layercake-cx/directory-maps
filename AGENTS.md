@@ -269,6 +269,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory AI search**: `directory_ai_search_*`
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
   - **Directory content pages**: `directory_content_page_*`
+  - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -519,6 +520,20 @@ Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`)
 - **`directory_ai_search_web_toggled`**
   - `meta`: `client_id`, `directory_id`, `enabled` (boolean)
   - Fired only when the web-search opt-in's value actually changes on save, not on every unrelated prompt save.
+
+#### Integrations
+
+Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab.jsx`, shared by the client portal and the admin customer detail. Never put API keys, key fragments or provider error text in `meta`.
+
+- **`integration_connected`**
+  - `meta`: `client_id`, `provider` (`anthropic`/`openai`/`gemini`), `status`, `source` (`client_portal` / `admin_dashboard`)
+  - Fired after a key passes its connection test and is saved.
+- **`integration_credentials_replaced`**
+  - `meta`: `client_id`, `provider`, `status`, `source`
+- **`integration_tested`**
+  - `meta`: `client_id`, `provider`, `status` (`connected`/`error`), `ok` (boolean), `source`
+- **`integration_disconnected`**
+  - `meta`: `client_id`, `provider`, `source`
 
 #### Claims
 
