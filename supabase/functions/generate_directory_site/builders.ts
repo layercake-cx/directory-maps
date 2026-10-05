@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 4;
+export const ENTRY_TEMPLATE_VERSION = 5;
 
 export type Entry = {
   id: string;
@@ -1714,7 +1714,7 @@ export function buildEntryPage(opts: {
         )}">`
       : "";
   const mapMedia = attachedMapFocusedEmbedSrc
-    ? `<iframe class="dir-map-embed" src="${escapeAttr(attachedMapFocusedEmbedSrc)}" loading="lazy" title="Map showing ${escapeAttr(entry.city || entry.name)}"></iframe>`
+    ? `<iframe class="dir-map-embed" allowfullscreen allow="fullscreen" src="${escapeAttr(attachedMapFocusedEmbedSrc)}" loading="lazy" title="Map showing ${escapeAttr(entry.city || entry.name)}"></iframe>`
     : staticMap;
   const mapCard = mapMedia || attachedMapEmbedSrc
     ? `<div class="dir-aside-block dir-map-card">
@@ -3530,7 +3530,7 @@ export function buildDirectoryLandingPage(opts: {
   const mapPane = hasMap
     ? `<div id="dir-map-pane" class="dir-map-pane dir-pane-hidden">
     <span class="chip dir-map-count" id="dir-map-count"></span>
-    <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
+    <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" allowfullscreen allow="fullscreen" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
   </div>`
     : "";
 

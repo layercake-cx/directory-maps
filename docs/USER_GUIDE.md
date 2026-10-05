@@ -553,6 +553,8 @@ If any sync run has failed for your organisation, a red **Sync errors detected**
 
 Only **published** maps are visible on the embed.
 
+**Fullscreen in a directory:** When a map is embedded in a published directory, its sidebar (search, filters, listings) is hidden because the directory page does the filtering. The ⛶ button now expands the map to the whole browser window (directory pages include `allowfullscreen` on the map frame), and the sidebar is shown while it is fullscreen so visitors can still search and filter. It hides again on exit. Directories must be republished to pick up the fix.
+
 **Fullscreen zoom:** Normally the map ignores mouse-wheel/trackpad scrolling so the surrounding page can still scroll (visitors zoom with the +/− buttons, or Ctrl/⌘ + scroll). When a visitor enters **fullscreen** (the ⛶ button), the standard Google Maps gestures take over — scroll-to-zoom, pinch-to-zoom and one-finger pan all work — and revert automatically on exit.
 
 ---
