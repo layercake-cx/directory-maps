@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-05 — [Staging] Platform Integrations framework, stage 2 (connect your own AI provider)
 
 **Branch/commit:** `feat/2026-10-05-integrations-ui-providers` (stacked on `feat/2026-10-05-integrations-ai-gateway`, PR pending)
-**Deployed by:** Claude Code (not yet deployed anywhere; depends on stage 1 being applied first)
+**Deployed by:** Claude Code + Damian — migration applied to staging and `manage_client_integrations` plus the gateway functions deployed there on 2026-10-05; production untouched
 
 ### What changed
 - New **Integrations** area (`/client/integrations`; rail item and admin customer tab). Organisation owners/managers can connect Anthropic, OpenAI or Google Gemini with their own API key, test the connection, replace the key, or disconnect. Behind a new `integrations` feature flag: off for customers, on for admins and @layercake-cx.biz users, grantable per customer (Customers → feature flags).
@@ -21,10 +21,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Not in this stage: choosing models per feature, recommendations/cost guidance UI, unavailable-state messages inside each AI panel, usage dashboard (stage 3 and later).
 
 ### Database migrations applied
-- `20261005130000_integrations_providers_seed.sql` (rollback: `_20261005130000_integrations_providers_seed.rollback.sql`). **Not yet applied.** Registers the `integrations` flag and the OpenAI/Gemini model catalogue and recommendations. The model IDs came from the vendors' published model lists on 2026-10-05 and are data: fix any wrong one with an UPDATE on `ai_models` / `ai_capability_profiles`. Requires `20261005120000` first.
+- `20261005130000_integrations_providers_seed.sql` (rollback: `_20261005130000_integrations_providers_seed.rollback.sql`). **Applied to staging 2026-10-05** (applied in the same `supabase db push` as stage 1, post-migration `VERIFY PASSED`; it did not get its own separate dry run). **Not applied to production.** Registers the `integrations` flag and the OpenAI/Gemini model catalogue and recommendations. The model IDs came from the vendors' published model lists on 2026-10-05 and are data: fix any wrong one with an UPDATE on `ai_models` / `ai_capability_profiles`. Requires `20261005120000` first.
 
 ### Edge functions deployed
-- None yet. New: `manage_client_integrations`. Changed (adapters registered in the gateway): every function that calls the AI Gateway (`_shared/ai/resolve.ts`), i.e. the nine from stage 1. Deploy to the test project (`beqejxneehilplrtpntn`) first; production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off.
+- Deployed to staging 2026-10-05. New: `manage_client_integrations`. Changed (adapters registered in the gateway): every function that calls the AI Gateway (`_shared/ai/resolve.ts`), i.e. the nine from stage 1. Deploy to the test project (`beqejxneehilplrtpntn`) first; production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off.
 
 ### Rollback plan
 - Disconnect any customers' OpenAI/Gemini connections, run `_20261005130000_integrations_providers_seed.rollback.sql` (it refuses while any exist), redeploy the previous Edge Functions, revert the branch and redeploy both frontends.
@@ -42,7 +42,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-05 — [Staging] Platform Integrations framework + AI Gateway, stage 1 (routing and metering only)
 
 **Branch/commit:** `feat/2026-10-05-integrations-ai-gateway` (PR pending)
-**Deployed by:** Claude Code (not yet deployed — migration and Edge Functions have not been applied anywhere)
+**Deployed by:** Claude Code + Damian — migration applied to staging (`beqejxneehilplrtpntn`) and the nine Edge Functions deployed there on 2026-10-05; production untouched
 
 ### What changed
 - Stage 1 of the platform Integrations / AI provider work. No user-visible change: every AI feature still runs on Layercake's Anthropic account and the same model (`claude-haiku-4-5`). What changes is *how* it is called, to prepare for customers connecting their own provider.
@@ -54,12 +54,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 - "AI unavailable" and queue-worker "no provider" outcomes are no longer sent to the error log / Teams alerts, since they are configuration states.
 
 ### Database migrations applied
-- `20261005120000_integrations_ai_gateway.sql` (rollback: `_20261005120000_integrations_ai_gateway.rollback.sql`). **Not yet applied.** Needs a staging dry run first. In particular, confirm on staging that the migration role can `delete from vault.secrets` (used by the Vault delete helper and the rollback).
+- `20261005120000_integrations_ai_gateway.sql` (rollback: `_20261005120000_integrations_ai_gateway.rollback.sql`). **Applied to staging 2026-10-05** after a forced-rollback dry run on staging passed; its post-migration `VERIFY PASSED`. **Not applied to production.** Still to confirm on staging: that the migration role can `delete from vault.secrets` (used by the Vault delete helper and the rollback) — first exercised by Disconnect.
 - Model IDs seeded for Anthropic (`claude-haiku-4-5`, `claude-sonnet-5-5`, `claude-opus-5-5`) should be confirmed against a real call on staging.
 - Recommendations are set so behaviour is unchanged: every capability except ADVANCED maps to Haiku. Raise STANDARD (listing content) to a stronger model later by editing `ai_capability_profiles`; no release needed.
 
 ### Edge functions deployed
-- None yet. Affected: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_content_page_draft`, `generate_media_alt_text`, `directory_ai_search`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `generate_directory_site`. **Apply the migration first, then deploy these** to the test project (`beqejxneehilplrtpntn`), then production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off. `generate_directory_site` changes no markup, so `ENTRY_TEMPLATE_VERSION` is not bumped.
+- Deployed to staging 2026-10-05: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_content_page_draft`, `generate_media_alt_text`, `directory_ai_search`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `generate_directory_site`. Production (`gxixwdjfmegxcxfeflro`): migration first, then these functions, only with explicit sign-off. `generate_directory_site` changes no markup, so `ENTRY_TEMPLATE_VERSION` is not bumped.
 
 ### Rollback plan
 - Redeploy the nine Edge Functions from the previous commit **first**, then run the rollback migration (it drops `ai_usage_events` and the new tables, removes the flag, and deletes any `integration_*` Vault secrets). Take a copy of `ai_usage_events` first if the usage data matters.
