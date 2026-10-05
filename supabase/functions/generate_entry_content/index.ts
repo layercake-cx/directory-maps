@@ -9,9 +9,11 @@
 // (requireDirectoryAccess) — this is a user-invoked action, not a
 // service-role-only worker like process_entry_content_jobs.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts): the organisation's own
+// connected provider, or a clear "AI unavailable" response if there is none.
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
 import { generateContentForEntry, recordEntryContentVersion } from "../_shared/entryContentGeneration.ts";
 
 const CORS = {
@@ -31,12 +33,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "generate_entry_content", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let entryId: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
@@ -64,7 +60,8 @@ Deno.serve(async (req) => {
       return json({ error: "AI content generation is not configured for this directory" }, 400);
     }
 
-    const html = await generateContentForEntry(apiKey, entry, prompt);
+    const clientId = await getDirectoryClientId(service, entry.directory_id);
+    const html = await generateContentForEntry({ db: service, clientId, productInstanceId: entry.directory_id }, entry, prompt);
 
     const { error: updateErr } = await service
       .from("directory_entries")
@@ -76,6 +73,7 @@ Deno.serve(async (req) => {
 
     return json({ notes_html: html });
   } catch (err) {
+    if (err instanceof AiUnavailableError) return json(aiUnavailableBody(err));
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "generate_entry_content", message, context: { entry_id: entryId } });
     return json({ error: message }, 500);

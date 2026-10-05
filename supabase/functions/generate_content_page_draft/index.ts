@@ -7,9 +7,11 @@
 // Body (JSON): { page_id: string, outline: string }
 // Auth: requires a signed-in user with access to the page's directory.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts): the organisation's own
+// connected provider, or a clear "AI unavailable" response if there is none.
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
 import { generatePageContentDraft } from "../_shared/pageContentGeneration.ts";
 
 const CORS = {
@@ -29,12 +31,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "generate_content_page_draft", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let pageId: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
@@ -60,10 +56,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (dirErr) throw dirErr;
 
-    const html = await generatePageContentDraft(apiKey, directory?.name ?? "this directory", page.title, outline);
+    const clientId = await getDirectoryClientId(service, page.directory_id);
+    const html = await generatePageContentDraft(
+      { db: service, clientId, productInstanceId: page.directory_id },
+      directory?.name ?? "this directory",
+      page.title,
+      outline,
+    );
 
     return json({ body_html: html });
   } catch (err) {
+    if (err instanceof AiUnavailableError) return json(aiUnavailableBody(err));
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "generate_content_page_draft", message, context: { page_id: pageId } });
     return json({ error: message }, 500);

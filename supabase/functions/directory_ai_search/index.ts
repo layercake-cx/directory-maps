@@ -29,9 +29,21 @@
 // }
 //           { error: string } (non-2xx)
 //
-// Platform: ANTHROPIC_API_KEY.
+// `disabled: true` is also returned (with `ai_unavailable: true`) when the
+// directory's organisation has no usable AI provider connection -- the
+// published widget treats it as "Help me choose isn't available" and keyword
+// search carries on. LLM calls go through the AI Gateway (_shared/ai/gateway.ts).
 import { createServiceClient } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import {
+  AiGenerateResult,
+  AiMessage,
+  AiScope,
+  AiToolCall,
+  AiUnavailableError,
+  directoryMapsContext,
+  generate,
+} from "../_shared/ai/gateway.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -46,10 +58,8 @@ function json(body: unknown, status = 200) {
   });
 }
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5";
 const SELECT_TOOL_NAME = "select_matching_entries";
 const FOLLOW_UP_TOOL_NAME = "ask_follow_up";
-const WEB_SEARCH_TOOL_TYPE = "web_search_20250305";
 const MAX_QUERY_LENGTH = 300;
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_MESSAGES = 16;
@@ -143,7 +153,7 @@ function buildSystemPrompt(directoryPrompt: string, webEnabled: boolean, narrowi
 const SELECT_TOOL = {
   name: SELECT_TOOL_NAME,
   description: "Record the directory entries that best match the visitor's needs, with optional grounded reasons.",
-  input_schema: {
+  inputSchema: {
     type: "object",
     properties: {
       entry_ids: {
@@ -176,7 +186,7 @@ const SELECT_TOOL = {
 const FOLLOW_UP_TOOL = {
   name: FOLLOW_UP_TOOL_NAME,
   description: "Ask the visitor one clarifying question when their needs are still too vague to pick useful entries.",
-  input_schema: {
+  inputSchema: {
     type: "object",
     properties: {
       question: {
@@ -188,27 +198,11 @@ const FOLLOW_UP_TOOL = {
   },
 };
 
-type ContentBlock = { type: string; name?: string; input?: unknown };
-type ClaudeResponse = { stop_reason?: string; content?: ContentBlock[] };
-
-async function callClaude(apiKey: string, body: Record<string, unknown>): Promise<ClaudeResponse> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Anthropic API error ${res.status}: ${text.slice(0, 500)}`);
-  }
-  return await res.json();
+function findToolUse(resp: AiGenerateResult, name: string): AiToolCall | null {
+  return resp.toolCalls.find((c) => c.name === name) ?? null;
 }
 
-function findToolUse(resp: ClaudeResponse, name: string): ContentBlock | null {
-  return (resp.content ?? []).find((b) => b.type === "tool_use" && b.name === name) ?? null;
-}
-
-function parseSelect(block: ContentBlock | null): TurnResult | null {
+function parseSelect(block: AiToolCall | null): TurnResult | null {
   const input = block?.input as { entry_ids?: unknown; reasons?: unknown; based_on?: unknown } | undefined;
   if (!input || !Array.isArray(input.entry_ids)) return null;
   const ids = input.entry_ids.filter((id): id is string => typeof id === "string");
@@ -228,13 +222,13 @@ function parseSelect(block: ContentBlock | null): TurnResult | null {
   return { kind: "select", ids, reasons, basedOn };
 }
 
-function parseFollowUp(block: ContentBlock | null): TurnResult | null {
+function parseFollowUp(block: AiToolCall | null): TurnResult | null {
   const input = block?.input as { question?: unknown } | undefined;
   if (!input || typeof input.question !== "string" || !input.question.trim()) return null;
   return { kind: "follow_up", question: input.question.trim().slice(0, 500) };
 }
 
-function parseTurn(resp: ClaudeResponse): TurnResult | null {
+function parseTurn(resp: AiGenerateResult): TurnResult | null {
   const selected = parseSelect(findToolUse(resp, SELECT_TOOL_NAME));
   if (selected && selected.kind === "select" && selected.ids.length > 0) return selected;
   const follow = parseFollowUp(findToolUse(resp, FOLLOW_UP_TOOL_NAME));
@@ -243,7 +237,7 @@ function parseTurn(resp: ClaudeResponse): TurnResult | null {
   return null;
 }
 
-function toClaudeMessages(messages: ChatMessage[], userMessage: string): { role: "user" | "assistant"; content: string }[] {
+function toModelMessages(messages: ChatMessage[], userMessage: string): { role: "user" | "assistant"; content: string }[] {
   const out: { role: "user" | "assistant"; content: string }[] = [];
   for (const m of messages) {
     if (m.role !== "user" && m.role !== "assistant") continue;
@@ -266,57 +260,56 @@ function toClaudeMessages(messages: ChatMessage[], userMessage: string): { role:
 }
 
 async function runTurn(
-  apiKey: string,
-  claudeMessages: { role: "user" | "assistant"; content: string }[],
+  scope: AiScope,
+  messages: { role: "user" | "assistant"; content: string }[],
   systemPrompt: string,
   webEnabled: boolean,
 ): Promise<TurnResult> {
+  const ctx = directoryMapsContext(scope, "intent_search", "FAST_MODEL");
   const decisionTools = [FOLLOW_UP_TOOL, SELECT_TOOL];
   if (!webEnabled) {
-    const resp = await callClaude(apiKey, {
-      model: ANTHROPIC_MODEL,
-      max_tokens: 2048,
+    const resp = await generate(ctx, {
+      maxTokens: 2048,
       system: systemPrompt,
       tools: decisionTools,
-      tool_choice: { type: "any" },
-      messages: claudeMessages,
+      toolChoice: { type: "any" },
+      messages,
     });
     const parsed = parseTurn(resp);
-    if (!parsed) throw new Error("Anthropic response did not include a valid tool_use block");
+    if (!parsed) throw new Error("AI response did not include a valid tool call");
     return parsed;
   }
 
-  const webSearchTool = { type: WEB_SEARCH_TOOL_TYPE, name: "web_search", max_uses: MAX_WEB_SEARCHES };
-  const first = await callClaude(apiKey, {
-    model: ANTHROPIC_MODEL,
-    max_tokens: 4096,
+  const first = await generate(ctx, {
+    maxTokens: 4096,
     system: systemPrompt,
-    tools: [webSearchTool, ...decisionTools],
-    tool_choice: { type: "auto" },
-    messages: claudeMessages,
+    tools: decisionTools,
+    toolChoice: { type: "auto" },
+    webSearch: { maxUses: MAX_WEB_SEARCHES },
+    messages,
   });
 
   const direct = parseTurn(first);
   if (direct) return direct;
 
-  if (first.stop_reason === "pause_turn") {
-    throw new Error("Anthropic web search did not complete in time");
+  if (first.stopReason === "pause") {
+    throw new Error("Web search did not complete in time");
   }
 
-  const second = await callClaude(apiKey, {
-    model: ANTHROPIC_MODEL,
-    max_tokens: 2048,
+  const followUpMessages: AiMessage[] = [
+    ...messages,
+    { role: "assistant", content: [{ type: "provider_raw", provider: first.provider, blocks: first.rawAssistantContent }] },
+    { role: "user", content: `Call either ${FOLLOW_UP_TOOL_NAME} or ${SELECT_TOOL_NAME} now with your final answer.` },
+  ];
+  const second = await generate(ctx, {
+    maxTokens: 2048,
     system: systemPrompt,
     tools: decisionTools,
-    tool_choice: { type: "any" },
-    messages: [
-      ...claudeMessages,
-      { role: "assistant", content: first.content ?? [] },
-      { role: "user", content: `Call either ${FOLLOW_UP_TOOL_NAME} or ${SELECT_TOOL_NAME} now with your final answer.` },
-    ] as { role: string; content: unknown }[],
+    toolChoice: { type: "any" },
+    messages: followUpMessages,
   });
   const parsed = parseTurn(second);
-  if (!parsed) throw new Error("Anthropic did not return a final tool call after web search");
+  if (!parsed) throw new Error("The AI model did not return a final tool call after web search");
   return parsed;
 }
 
@@ -345,12 +338,6 @@ Deno.serve(async (req) => {
   const service = createServiceClient();
   let directoryId: string | undefined;
   try {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      await logEdgeFunctionError({ fn: "directory_ai_search", message: "Missing ANTHROPIC_API_KEY" });
-      return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-    }
-
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     directoryId = typeof body?.directory_id === "string" ? body.directory_id : undefined;
     if (!directoryId) return json({ error: "Missing directory_id" }, 400);
@@ -359,7 +346,7 @@ Deno.serve(async (req) => {
 
     const { data: directory, error: dirErr } = await service
       .from("directories")
-      .select("id, ai_search_prompt, ai_search_web_enabled")
+      .select("id, client_id, ai_search_prompt, ai_search_web_enabled")
       .eq("id", directoryId)
       .eq("is_active", true)
       .maybeSingle();
@@ -435,9 +422,14 @@ Deno.serve(async (req) => {
     const userSuffix =
       `Directory entries (the only source of truth for what exists — never invent one not listed here):\n${corpus}\n\n` +
       `Call ${FOLLOW_UP_TOOL_NAME} if you need one clarifying question, otherwise call ${SELECT_TOOL_NAME} with the best-matching entry ids, most relevant first.`;
-    const claudeMessages = toClaudeMessages(messages, userSuffix);
+    const modelMessages = toModelMessages(messages, userSuffix);
 
-    const turn = await runTurn(apiKey, claudeMessages, systemPrompt, webEnabled);
+    const turn = await runTurn(
+      { db: service, clientId: directory.client_id, productInstanceId: directoryId },
+      modelMessages,
+      systemPrompt,
+      webEnabled,
+    );
 
     await service.from("directory_ai_search_requests").insert({ directory_id: directoryId });
 
@@ -457,6 +449,8 @@ Deno.serve(async (req) => {
       based_on: turn.basedOn,
     });
   } catch (err) {
+    // Public endpoint: say nothing about the organisation's AI configuration to a visitor.
+    if (err instanceof AiUnavailableError) return json({ entry_ids: null, follow_up: null, disabled: true, ai_unavailable: true });
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "directory_ai_search", message, context: { directory_id: directoryId } });
     return json({ error: message }, 500);

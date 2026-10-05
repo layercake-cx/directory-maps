@@ -3,11 +3,12 @@
 // entry) and process_entry_content_jobs (batch worker, cron-invoked). See
 // docs/FEATURES.md §4.4g and 20260906120000_create_directory_ai_content_generation.sql.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (./ai/gateway.ts), which resolves the
+// organisation's provider, model and credentials and meters usage.
 
 import { createServiceClient } from "./supabase.ts";
+import { AiScope, directoryMapsContext, generate, requireToolInput } from "./ai/gateway.ts";
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5";
 const TOOL_NAME = "write_entry_content";
 
 // Mirrors src/lib/sanitizeHtml.js's ALLOWED_TAGS/ALLOWED_ATTR exactly — kept
@@ -78,71 +79,49 @@ export type DirectoryEntryForGeneration = {
   notes_html: string | null;
 };
 
-async function callClaude(apiKey: string, prompt: string, entryText: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      system:
-        "You write the page content for one directory entry, following the directory-specific instructions you are given. " +
-        "Only use the entry data provided in the user message. Never invent, assume, or infer facts that are not present in it — " +
-        "where the instructions ask for something the data doesn't cover, write around it rather than guessing. " +
-        "Write clean HTML using only these tags: p, br, strong, b, em, i, u, ul, ol, li, h2, h3, h4, blockquote, a, img, span, div. " +
-        "No <script>, <style>, inline event handlers, or javascript:/data: URIs. " +
-        `Respond only by calling the ${TOOL_NAME} tool.`,
-      tools: [
-        {
-          name: TOOL_NAME,
-          description: "Record the generated HTML page content for this directory entry.",
-          input_schema: {
-            type: "object",
-            properties: {
-              html: { type: "string", description: "The entry's page content, as HTML using only the allowed tags." },
-            },
-            required: ["html"],
+async function callModel(scope: AiScope, prompt: string, entryText: string): Promise<string> {
+  const result = await generate(directoryMapsContext(scope, "content_generation", "STANDARD_MODEL"), {
+    maxTokens: 4096,
+    system:
+      "You write the page content for one directory entry, following the directory-specific instructions you are given. " +
+      "Only use the entry data provided in the user message. Never invent, assume, or infer facts that are not present in it — " +
+      "where the instructions ask for something the data doesn't cover, write around it rather than guessing. " +
+      "Write clean HTML using only these tags: p, br, strong, b, em, i, u, ul, ol, li, h2, h3, h4, blockquote, a, img, span, div. " +
+      "No <script>, <style>, inline event handlers, or javascript:/data: URIs. " +
+      `Respond only by calling the ${TOOL_NAME} tool.`,
+    tools: [
+      {
+        name: TOOL_NAME,
+        description: "Record the generated HTML page content for this directory entry.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            html: { type: "string", description: "The entry's page content, as HTML using only the allowed tags." },
           },
+          required: ["html"],
         },
-      ],
-      tool_choice: { type: "tool", name: TOOL_NAME },
-      messages: [
-        {
-          role: "user",
-          content:
-            `Content instructions for this directory:\n${prompt}\n\n` +
-            `Entry data (the only source of truth — do not use outside knowledge):\n${entryText}\n\n` +
-            "Call the tool now with the generated HTML.",
-        },
-      ],
-    }),
+      },
+    ],
+    toolChoice: { type: "tool", name: TOOL_NAME },
+    messages: [
+      {
+        role: "user",
+        content:
+          `Content instructions for this directory:\n${prompt}\n\n` +
+          `Entry data (the only source of truth — do not use outside knowledge):\n${entryText}\n\n` +
+          "Call the tool now with the generated HTML.",
+      },
+    ],
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Anthropic API error ${res.status}: ${text.slice(0, 500)}`);
-  }
-
-  const body = await res.json();
-  if (body.stop_reason === "max_tokens") {
-    throw new Error("Anthropic response was truncated (max_tokens reached) before completing the tool call");
-  }
-  const toolUse = (body.content ?? []).find((block: { type?: string }) => block.type === "tool_use");
-  if (!toolUse || typeof toolUse.input !== "object") {
-    throw new Error("Anthropic response did not include a valid tool_use block");
-  }
-  const html = toolUse.input.html;
+  const html = requireToolInput(result, TOOL_NAME).html;
   if (typeof html !== "string" || !html.trim()) {
-    throw new Error("Anthropic returned empty content — check the directory's content prompt isn't too large for the model to complete");
+    throw new Error("The AI model returned empty content — check the directory's content prompt isn't too large for the model to complete");
   }
   return html;
 }
 
-/** Builds the plain-text entry summary sent to Claude alongside the directory's prompt. */
+/** Builds the plain-text entry summary sent to the model alongside the directory's prompt. */
 export function buildEntryText(entry: DirectoryEntryForGeneration): string {
   return [
     `Name: ${entry.name}`,
@@ -159,13 +138,13 @@ export function buildEntryText(entry: DirectoryEntryForGeneration): string {
     .join("\n");
 }
 
-/** Calls Claude and returns sanitized HTML — the one implementation shared by both Edge Functions. */
+/** Calls the AI Gateway and returns sanitized HTML — the one implementation shared by both Edge Functions. */
 export async function generateContentForEntry(
-  apiKey: string,
+  scope: AiScope,
   entry: DirectoryEntryForGeneration,
   prompt: string,
 ): Promise<string> {
-  const html = await callClaude(apiKey, prompt, buildEntryText(entry));
+  const html = await callModel(scope, prompt, buildEntryText(entry));
   return sanitizeGeneratedHtml(html);
 }
 
