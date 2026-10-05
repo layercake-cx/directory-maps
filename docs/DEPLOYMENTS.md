@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-05 — [Production] Platform Integrations framework + AI Gateway (stages 1-3)
+
+**Branch/commit:** PRs #291 (`03905df`), #292 (`8c72231`) and #293, merged to `main` in that order
+**Deployed by:** Claude Code, with Damian's explicit go-ahead at each production step
+
+### What changed
+- Everything in the three staging entries below, now on production: all AI calls go through the AI Gateway (metered into `ai_usage_events`); customers can connect their own Anthropic / OpenAI / Gemini key under Integrations; per-feature model choice, honest "no provider" states and bulk-run tooling. The Integrations area is behind the `integrations` feature flag (off for customers, on for admins/@layercake-cx.biz; enable per customer under feature flags).
+- **No customer-visible behaviour change today.** Migration `20261005120000` inserted an `ai_platform_provider` override (ON) for every existing client, so all current AI usage continues on Layercake's Anthropic account (`ANTHROPIC_API_KEY`, already set on production) with the same model. New clients default OFF and must connect their own provider to use AI features.
+- Staging found and fixed two issues before this went out: the OpenAI adapter now sends `reasoning_effort: "none"` with function tools, and the client surfaces functions' real error messages.
+
+### Database migrations applied
+- `20261005120000_integrations_ai_gateway.sql`, `20261005130000_integrations_providers_seed.sql`, `20261005140000_ai_bulk_run_tools.sql` (rollbacks: matching `_…rollback.sql`). Applied to production one at a time, each after a forced-rollback dry run on production, each with post-migration `VERIFY PASSED`. Applied individually (not in one `db push`) because `db push` commits each migration as it goes, so a dry-run marker on the last would have applied the first two.
+
+### Edge functions deployed
+- To production (`gxixwdjfmegxcxfeflro`) from `main`'s lineage (branch `feat/2026-10-05-integrations-model-config` at `2eeb89c`): new `manage_client_integrations` (v1), `get_ai_route_preview` (v1); updated `generate_entry_content` (v3→v4), `generate_entry_seo_metadata` (v3→v4), `generate_directory_seo_metadata` (v3→v4), `generate_content_page_draft` (v3→v4), `generate_media_alt_text` (v3→v4), `directory_ai_search` (v5→v6), `process_entry_content_jobs` (v3→v4), `process_entry_seo_metadata_jobs` (v3→v4), `generate_directory_site` (v52→v53; no markup change, `ENTRY_TEMPLATE_VERSION` not bumped).
+
+### Rollback plan
+- Redeploy the nine updated functions from `main` at `8cac5b3` and delete `manage_client_integrations` and `get_ai_route_preview`; revert the merges and redeploy both frontends. The new tables/functions are inert without the new code. Only if truly needed, run the three `_20261005…rollback.sql` files in reverse order (they drop `ai_usage_events` and any customer connections; disconnect providers and take a copy of `ai_usage_events` first).
+
+### Deployed
+- Supabase migrations and Edge Functions: done (above). GitHub Pages: automatic on merge to `main`. Vercel (`maps.layercake-cx.biz`): `npm run deploy:live`, pending (needs Damian's Vercel login).
+
+### Verified
+- [x] Production migrations recorded (`supabase migration list`), functions ACTIVE at the versions above, CORS preflight 204 on the public search function and both new functions, unauthenticated call to `get_ai_route_preview` returns a clean 401
+- [ ] A real production AI call (e.g. generate SEO metadata for one entry) succeeds on Layercake's account and writes an `ai_usage_events` row with `connection_source = platform`
+- [ ] Production Teams error alerts quiet after the first AI calls
+- [ ] GitHub Pages deploy green; Vercel `deploy:live` Ready; `/client/integrations` visible to an admin and hidden from a customer without the flag
+- [ ] Gemini adapter still unproven against the live API: test on staging before enabling it for anyone
+
+---
+
 ## 2026-10-05 — [Staging] Platform Integrations framework, stage 3 (model choice, unavailable states, bulk-run tooling)
 
 **Branch/commit:** `feat/2026-10-05-integrations-model-config` (stacked on `feat/2026-10-05-integrations-ui-providers`, PR pending)
