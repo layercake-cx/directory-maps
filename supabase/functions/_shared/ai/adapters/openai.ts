@@ -64,6 +64,12 @@ export const openaiAdapter: AiAdapter = {
       ],
     };
     if (req.tools?.length) {
+      // Newer OpenAI models reject function tools on /v1/chat/completions unless reasoning is
+      // explicitly off ("Function tools with reasoning_effort are not supported ..."). Layercake's
+      // tool-driven tasks (metadata, classification, search interpretation, listing copy) don't
+      // need hidden reasoning, and "none" keeps them cheap. The long-term alternative is the
+      // Responses API.
+      body.reasoning_effort = "none";
       body.tools = req.tools.map((t) => ({
         type: "function",
         function: { name: t.name, description: t.description, parameters: t.inputSchema },

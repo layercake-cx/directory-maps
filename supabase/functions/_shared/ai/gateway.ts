@@ -7,10 +7,10 @@
 // failure), and returns a provider-neutral result. Products never see
 // credentials and never name a provider or model.
 
+import { AI_FEATURES, AiFeatureKey } from "./features.ts";
 import { getAdapter, resolveRoute } from "./resolve.ts";
 import {
   AI_PRODUCT_DIRECTORY_MAPS,
-  AiCapability,
   AiContext,
   AiScope,
   AiGenerateRequest,
@@ -70,8 +70,8 @@ async function recordUsage(
 }
 
 /** Builds a Directory Maps AI context from a call site's scope plus its feature/capability. */
-export function directoryMapsContext(scope: AiScope, feature: string, capability: AiCapability): AiContext {
-  return { ...scope, product: AI_PRODUCT_DIRECTORY_MAPS, feature, capability };
+export function directoryMapsContext(scope: AiScope, feature: AiFeatureKey): AiContext {
+  return { ...scope, product: AI_PRODUCT_DIRECTORY_MAPS, feature, capability: AI_FEATURES[feature].capability };
 }
 
 /** The organisation that owns a directory -- the AI Gateway's tenant key. */

@@ -1,4 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
+import AiRunSummary from "../ai/AiRunSummary.jsx";
+import AiBulkRunReport from "../ai/AiBulkRunReport.jsx";
+import { getAiBulkRunSummary, retryFailedBulkJobs } from "../../lib/aiUsage.js";
 import {
   countEntriesMissingSeoMetadata,
   triggerDirectorySeoMetadataBackfill,
@@ -17,6 +22,9 @@ import {
  * empty fields), so there's no type-to-confirm friction here.
  */
 export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, recordEvent }) {
+  const ai = useAiFeature("seo_metadata");
+  const [runSummary, setRunSummary] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const [missingCount, setMissingCount] = useState(null);
   const [countLoading, setCountLoading] = useState(true);
   const [queuing, setQueuing] = useState(false);
@@ -40,6 +48,7 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
     if (!directoryId) return;
     try {
       setStatus(await getDirectorySeoMetadataBackfillStatus(directoryId));
+      setRunSummary(await getAiBulkRunSummary(directoryId, "seo"));
     } catch {
       /* non-fatal: status display just stays stale/empty */
     }
@@ -77,6 +86,22 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
       setErr(e?.message ?? String(e));
     } finally {
       setQueuing(false);
+    }
+  }
+
+  async function handleRetryFailed() {
+    setErr("");
+    setMsg("");
+    try {
+      setRetrying(true);
+      const n = await retryFailedBulkJobs(directoryId, "seo");
+      recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, target: "seo_metadata", entries_queued: n, retry: true });
+      setMsg(n > 0 ? `Re-queued ${n} failed ${n === 1 ? "entry" : "entries"}.` : "Nothing to retry.");
+      await refreshStatus();
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -126,6 +151,18 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
       </p>
 
       {statusLine}
+      <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
+      {ai.available && missingCount > 0 && !running && (
+        <AiRunSummary
+          plan={ai.plan}
+          count={missingCount}
+          clientId={ai.clientId}
+          directoryId={directoryId}
+          featureKey="seo_metadata"
+          catalogue={ai.catalogue}
+        />
+      )}
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
@@ -133,7 +170,7 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
           className="btn"
           style={{ fontSize: 12, padding: "5px 12px" }}
           onClick={handleBackfill}
-          disabled={queuing || running || !missingCount}
+          disabled={queuing || running || !missingCount || !ai.available}
         >
           {queuing ? "Queuing…" : "Backfill missing metadata"}
         </button>

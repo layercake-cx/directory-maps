@@ -114,11 +114,27 @@ async function updateDirectoryProgress(service: ReturnType<typeof createServiceC
     .gte("created_at", startedAt)
     .eq("status", "failed");
 
+  // Surface WHY jobs failed (e.g. "AI provider not connected") rather than only a count.
+  let firstError: string | null = null;
+  if ((failed ?? 0) > 0) {
+    const { data: failedJob } = await service
+      .from("entry_seo_metadata_jobs")
+      .select("error")
+      .eq("directory_id", directoryId)
+      .eq("requested_by", "bulk")
+      .gte("created_at", startedAt)
+      .eq("status", "failed")
+      .not("error", "is", null)
+      .limit(1)
+      .maybeSingle();
+    firstError = failedJob?.error ? String(failedJob.error).slice(0, 200) : null;
+  }
+
   await service
     .from("directories")
     .update({
       seo_metadata_backfill_status: (failed ?? 0) > 0 ? "failed" : "succeeded",
-      seo_metadata_backfill_error: (failed ?? 0) > 0 ? `${failed} of the queued entries failed to generate` : null,
+      seo_metadata_backfill_error: (failed ?? 0) > 0 ? `${failed} of the queued entries failed to generate${firstError ? `: ${firstError}` : ""}` : null,
       seo_metadata_backfill_processed: processed,
       seo_metadata_backfill_completed_at: new Date().toISOString(),
     })

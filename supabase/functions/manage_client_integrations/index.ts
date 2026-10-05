@@ -6,6 +6,9 @@
 //   replace     -> same as connect for an already-connected provider (new key)
 //   test        -> re-tests the stored key; always HTTP 200 with { ok, error? }
 //   disconnect  -> deletes the Vault secret and the connection
+//   save_model_config -> { scope: "default" | "feature", feature?, provider?, useRecommended?, model? }
+//                        chooses which connected provider/model an AI feature uses ("" provider =
+//                        automatic). Models are advisory-only: any active catalogue model may be chosen.
 //
 // API keys are write-only: they go into Vault via service-role RPCs and are
 // never returned, logged or placed in admin event meta. Only a last-four hint
@@ -15,6 +18,8 @@ import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 import { SUPPORTED_AI_PROVIDERS } from "../_shared/ai/resolve.ts";
+import { AI_FEATURES, isAiFeatureKey } from "../_shared/ai/features.ts";
+import { AI_PRODUCT_DIRECTORY_MAPS } from "../_shared/ai/types.ts";
 import { testProviderKey } from "../_shared/ai/testConnection.ts";
 
 const CORS_HEADERS = {
@@ -91,6 +96,87 @@ async function findIntegration(service: Service, clientId: string, provider: str
   return data as { id: string } | null;
 }
 
+/**
+ * Upserts (or clears) the organisation's model choice. scope "default" is the
+ * organisation-wide provider choice (product/feature NULL); scope "feature" is a
+ * Directory Maps feature row. The unique index is over coalesced scope columns,
+ * so this does select-then-write rather than an ON CONFLICT upsert.
+ */
+async function saveModelConfig(service: Service, clientId: string, body: Record<string, unknown>) {
+  const scope = readString(body.scope);
+  const feature = readString(body.feature);
+  const provider = readString(body.provider).toLowerCase();
+  const model = readString(body.model);
+  const isDefault = scope === "default";
+  // The organisation default only picks a provider; a model is always per feature.
+  const useRecommended = isDefault ? true : body.useRecommended !== false;
+
+  if (!isDefault && scope !== "feature") return jsonResponse({ error: "Unknown scope." }, 400);
+  if (!isDefault && !isAiFeatureKey(feature)) return jsonResponse({ error: "Unknown AI feature." }, 400);
+
+  let integrationId: string | null = null;
+  if (provider) {
+    if (!SUPPORTED_AI_PROVIDERS.includes(provider)) return jsonResponse({ error: "Choose a supported AI provider." }, 400);
+    const { data, error } = await service
+      .from("integrations")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("provider", provider)
+      .eq("status", "connected")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return jsonResponse({ error: "Connect this provider before choosing it." }, 400);
+    integrationId = data.id as string;
+  }
+  if (!useRecommended) {
+    if (!provider || !model) return jsonResponse({ error: "Choose a provider and a model." }, 400);
+    const { data, error } = await service
+      .from("ai_models")
+      .select("status")
+      .eq("provider", provider)
+      .eq("model_id", model)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return jsonResponse({ error: "That model isn't in the supported list." }, 400);
+    if (data.status === "disabled") return jsonResponse({ error: "That model is temporarily unavailable." }, 400);
+  }
+
+  const product = isDefault ? null : AI_PRODUCT_DIRECTORY_MAPS;
+  const featureKey = isDefault ? null : feature;
+  let find = service.from("ai_model_configuration").select("id").eq("client_id", clientId).is("product_instance_id", null);
+  find = product === null ? find.is("product", null) : find.eq("product", product);
+  find = featureKey === null ? find.is("feature", null) : find.eq("feature", featureKey);
+  const { data: existing, error: findErr } = await find.maybeSingle();
+  if (findErr) throw findErr;
+
+  // Automatic + recommended is the absence of a row.
+  if (!provider && useRecommended) {
+    if (existing) {
+      const { error } = await service.from("ai_model_configuration").delete().eq("id", existing.id);
+      if (error) throw error;
+    }
+    return jsonResponse({ ok: true, config: null });
+  }
+
+  const row = {
+    client_id: clientId,
+    product,
+    product_instance_id: null,
+    feature: featureKey,
+    capability: featureKey ? AI_FEATURES[featureKey as keyof typeof AI_FEATURES].capability : null,
+    integration_id: integrationId,
+    provider: provider || null,
+    model: useRecommended ? null : model,
+    use_recommended: useRecommended,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = existing
+    ? await service.from("ai_model_configuration").update(row).eq("id", existing.id)
+    : await service.from("ai_model_configuration").insert(row);
+  if (error) throw error;
+  return jsonResponse({ ok: true, config: { feature: featureKey, provider: row.provider, model: row.model, use_recommended: useRecommended } });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
 
@@ -108,6 +194,10 @@ Deno.serve(async (req) => {
 
     if (action === "list") {
       return jsonResponse({ ok: true, integrations: await listIntegrations(service, clientId) });
+    }
+
+    if (action === "save_model_config") {
+      return await saveModelConfig(service, clientId, body);
     }
 
     if (!SUPPORTED_AI_PROVIDERS.includes(provider)) {

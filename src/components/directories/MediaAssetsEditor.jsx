@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import { deleteMediaAsset, generateMediaAltText, listMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
@@ -11,6 +13,7 @@ const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px",
  * is confirmed. Alt text is still required before upload, same as before.
  */
 export default function MediaAssetsEditor({ directoryId, entryId, recordEvent }) {
+  const ai = useAiFeature("alt_text");
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -130,10 +133,11 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
               <div style={{ flex: 1, display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input value={altText} onChange={(e) => setAltText(e.target.value)} placeholder="Alt text (required before upload)" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" className="btn" style={{ fontSize: 11, padding: "5px 8px", whiteSpace: "nowrap" }} onClick={handleGenerateAltText} disabled={generating}>
+                  <button type="button" className="btn" style={{ fontSize: 11, padding: "5px 8px", whiteSpace: "nowrap" }} onClick={handleGenerateAltText} disabled={generating || !ai.available}>
                     {generating ? "Generating…" : "Generate with AI"}
                   </button>
                 </div>
+                {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ margin: 0 }} />}
                 <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption (optional)" style={inputStyle} />
                 <input value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Credit (optional)" style={inputStyle} />
                 <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>

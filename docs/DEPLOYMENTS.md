@@ -8,6 +8,71 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-05 — [Production] Platform Integrations framework + AI Gateway (stages 1-3)
+
+**Branch/commit:** PRs #291 (`03905df`), #292 (`8c72231`) and #293, merged to `main` in that order
+**Deployed by:** Claude Code, with Damian's explicit go-ahead at each production step
+
+### What changed
+- Everything in the three staging entries below, now on production: all AI calls go through the AI Gateway (metered into `ai_usage_events`); customers can connect their own Anthropic / OpenAI / Gemini key under Integrations; per-feature model choice, honest "no provider" states and bulk-run tooling. The Integrations area is behind the `integrations` feature flag (off for customers, on for admins/@layercake-cx.biz; enable per customer under feature flags).
+- **No customer-visible behaviour change today.** Migration `20261005120000` inserted an `ai_platform_provider` override (ON) for every existing client, so all current AI usage continues on Layercake's Anthropic account (`ANTHROPIC_API_KEY`, already set on production) with the same model. New clients default OFF and must connect their own provider to use AI features.
+- Staging found and fixed two issues before this went out: the OpenAI adapter now sends `reasoning_effort: "none"` with function tools, and the client surfaces functions' real error messages.
+
+### Database migrations applied
+- `20261005120000_integrations_ai_gateway.sql`, `20261005130000_integrations_providers_seed.sql`, `20261005140000_ai_bulk_run_tools.sql` (rollbacks: matching `_…rollback.sql`). Applied to production one at a time, each after a forced-rollback dry run on production, each with post-migration `VERIFY PASSED`. Applied individually (not in one `db push`) because `db push` commits each migration as it goes, so a dry-run marker on the last would have applied the first two.
+
+### Edge functions deployed
+- To production (`gxixwdjfmegxcxfeflro`) from `main`'s lineage (branch `feat/2026-10-05-integrations-model-config` at `2eeb89c`): new `manage_client_integrations` (v1), `get_ai_route_preview` (v1); updated `generate_entry_content` (v3→v4), `generate_entry_seo_metadata` (v3→v4), `generate_directory_seo_metadata` (v3→v4), `generate_content_page_draft` (v3→v4), `generate_media_alt_text` (v3→v4), `directory_ai_search` (v5→v6), `process_entry_content_jobs` (v3→v4), `process_entry_seo_metadata_jobs` (v3→v4), `generate_directory_site` (v52→v53; no markup change, `ENTRY_TEMPLATE_VERSION` not bumped).
+
+### Rollback plan
+- Redeploy the nine updated functions from `main` at `8cac5b3` and delete `manage_client_integrations` and `get_ai_route_preview`; revert the merges and redeploy both frontends. The new tables/functions are inert without the new code. Only if truly needed, run the three `_20261005…rollback.sql` files in reverse order (they drop `ai_usage_events` and any customer connections; disconnect providers and take a copy of `ai_usage_events` first).
+
+### Deployed
+- Supabase migrations and Edge Functions: done (above). GitHub Pages: automatic on merge to `main`. Vercel (`maps.layercake-cx.biz`): `npm run deploy:live`, pending (needs Damian's Vercel login).
+
+### Verified
+- [x] Production migrations recorded (`supabase migration list`), functions ACTIVE at the versions above, CORS preflight 204 on the public search function and both new functions, unauthenticated call to `get_ai_route_preview` returns a clean 401
+- [ ] A real production AI call (e.g. generate SEO metadata for one entry) succeeds on Layercake's account and writes an `ai_usage_events` row with `connection_source = platform`
+- [ ] Production Teams error alerts quiet after the first AI calls
+- [ ] GitHub Pages deploy green; Vercel `deploy:live` Ready; `/client/integrations` visible to an admin and hidden from a customer without the flag
+- [ ] Gemini adapter still unproven against the live API: test on staging before enabling it for anyone
+
+---
+
+## 2026-10-05 — [Staging] Platform Integrations framework, stage 3 (model choice, unavailable states, bulk-run tooling)
+
+**Branch/commit:** `feat/2026-10-05-integrations-model-config` (stacked on `feat/2026-10-05-integrations-ui-providers`, PR pending)
+**Deployed by:** Claude Code + Damian — migration applied to staging (`beqejxneehilplrtpntn`) and all eleven affected Edge Functions deployed there on 2026-10-05; production untouched
+
+### What changed
+- **Choose providers and models** (Integrations → AI providers → *AI features*): a default provider plus, per AI feature, "use recommended model" (default) or a manual provider + model, with £-tier cost guidance, a rationale from the capability profile, and non-blocking "not recommended for this task" advice. Stored in `ai_model_configuration`; the gateway already honoured it. Event `ai_model_config_updated`.
+- **Honest unavailable states.** New Edge Function `get_ai_route_preview` reports, per feature, what would run now or why it can't. Generate-with-AI buttons (entry content, entry/directory SEO, content page drafts, image alt text), the two bulk actions and Help me choose now explain a missing provider with a link to Integrations instead of failing on click. Help me choose with web search on a non-Anthropic provider is flagged (web search is Anthropic-only).
+- **Bulk runs.** The confirm dialog for "Generate all entry content" (and the SEO backfill panel) shows records, provider/model and a usage band + estimated cost from the organisation's own usage history (cost only where model prices are known; labelled an estimate). Finished runs show requests, tokens, estimated cost and failures with the reason, plus **Retry failed**. The directory's error line now includes the first failure reason.
+- Jobs stuck in `processing` for 15+ minutes (crashed worker) are reclaimed, up to 3 attempts.
+- One registry (`_shared/ai/features.ts`) now maps each AI feature to its capability; call sites name only the feature. `resolveRoute` is split into a credential-free `planRoute` plus the credential step; behaviour is unchanged.
+- Provider-neutral wording replaces "Claude/Anthropic" in the AI panels.
+- **OpenAI fix found on staging:** the first real OpenAI tool call failed with a 400 (`Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions`). The OpenAI adapter now sends `reasoning_effort: "none"` whenever tools are used (the Responses API is the longer-term alternative). The Gemini adapter is still unproven against the live API.
+- `invokeFunction` (`src/lib/supabase.js`) now surfaces the function's own error message instead of supabase-js's generic "Edge Function returned a non-2xx status code", which is what made the OpenAI error diagnosable.
+
+### Database migrations applied
+- `20261005140000_ai_bulk_run_tools.sql` (rollback: `_20261005140000_ai_bulk_run_tools.rollback.sql`): functions only (claim functions replaced, `retry_failed_entry_content_jobs`, `retry_failed_entry_seo_metadata_jobs`, `get_ai_bulk_run_summary`); no table changes. **Applied to staging 2026-10-05** after a forced-rollback dry run passed; post-migration `VERIFY PASSED`. **Not applied to production.** Requires stages 1-2 first.
+
+### Edge functions deployed
+- Deployed to staging 2026-10-05. New: `get_ai_route_preview`. Changed: `manage_client_integrations` (adds `save_model_config`), `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (failure reason in the directory error), and every function importing the gateway (registry refactor). Staging (`beqejxneehilplrtpntn`) first; production only with explicit sign-off.
+
+### Rollback plan
+- Run `_20261005140000_ai_bulk_run_tools.rollback.sql` (drops the three new functions, restores the original claim functions; no table data touched), redeploy the previous Edge Functions, revert the branch and redeploy both frontends. Saved model choices in `ai_model_configuration` are inert if the UI is reverted (the gateway keeps honouring them; clear them with a DELETE if unwanted).
+
+### Verified
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` (12 pass); `deno check` on the changed functions; `vite build`; migration dry run on staging
+- [ ] Staging: pick a manual model for one feature, run that feature, and confirm `ai_usage_events` shows that provider/model; reset to recommended and confirm the row is removed
+- [ ] Staging: disconnect all providers (and with `ai_platform_provider` off for the test client): every AI button/bulk action is disabled with the notice, Help me choose is hidden to visitors, publish still succeeds
+- [ ] Staging: bulk content run on a small directory shows usage, then force a failure (disconnect mid-run), see the reason, reconnect, **Retry failed** completes it
+- [ ] Staging: the bulk confirm shows a usage band after a few runs, and a cost once `ai_models` prices are filled in
+- [ ] Browser check of Integrations → AI features and the AI enrichment / SEO pages (needs a signed-in staging session)
+
+---
+
 ## 2026-10-05 — [Staging] Platform Integrations framework, stage 2 (connect your own AI provider)
 
 **Branch/commit:** `feat/2026-10-05-integrations-ui-providers` (stacked on `feat/2026-10-05-integrations-ai-gateway`, PR pending)

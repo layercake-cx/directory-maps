@@ -24,7 +24,7 @@ async function callModelTool<T>(
   toolDescription: string,
   inputSchema: Record<string, unknown>,
 ): Promise<T> {
-  const result = await generate(directoryMapsContext(scope, "seo_metadata", "ECONOMY_MODEL"), {
+  const result = await generate(directoryMapsContext(scope, "seo_metadata"), {
     maxTokens: 1024,
     system,
     tools: [{ name: toolName, description: toolDescription, inputSchema }],

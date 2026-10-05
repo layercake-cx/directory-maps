@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { updateDirectory } from "../../lib/directories.js";
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
@@ -10,6 +12,7 @@ const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px",
  * The published search box stays on plain keyword matching regardless.
  */
 export default function DirectoryAiSearchPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+  const ai = useAiFeature("intent_search");
   const [prompt, setPrompt] = useState(directory?.ai_search_prompt ?? "");
   const [webEnabled, setWebEnabled] = useState(!!directory?.ai_search_web_enabled);
   const [saving, setSaving] = useState(false);
@@ -52,6 +55,18 @@ export default function DirectoryAiSearchPanel({ directory, directoryId, canMana
       {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
       {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
 
+      {!ai.available && (
+        <AiUnavailableNotice
+          message={`${ai.message} Until one is connected, Help me choose stays hidden on the published site and keyword search carries on as normal.`}
+          href={ai.integrationsHref}
+        />
+      )}
+      {ai.available && webEnabled && ai.plan?.provider && ai.plan.provider !== "anthropic" && (
+        <AiUnavailableNotice
+          message="Web search for Help me choose is only available on Anthropic. With your current provider, Help me choose will be unavailable to visitors while web search is on."
+          href={ai.integrationsHref}
+        />
+      )}
       <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>
         Describe how Help me choose should interpret a visitor&apos;s circumstances and pick relevant entries — e.g. how
         to weigh location, which categories matter most, or when to ask a follow-up. Leave blank to hide Help me choose
@@ -76,15 +91,15 @@ export default function DirectoryAiSearchPanel({ directory, directoryId, canMana
           onChange={(e) => setWebEnabled(e.target.checked)}
           style={{ marginTop: 2 }}
         />
-        <span>Let Claude search the web for extra context (e.g. to interpret a place, term, or accreditation it doesn't recognise)</span>
+        <span>Let the AI search the web for extra context (e.g. to interpret a place, term, or accreditation it doesn't recognise)</span>
       </label>
       {!prompt.trim() && <p style={{ fontSize: 12, opacity: 0.6, margin: "-4px 0 0 24px" }}>Save instructions above first.</p>}
 
       <p style={{ margin: 0, fontSize: 12, opacity: 0.65, background: "var(--lc-bg-subtle, #f4f4f2)", padding: "8px 10px", borderRadius: 8 }}>
         Turning on Help me choose sends a visitor&apos;s conversation (and, with web search enabled, related lookups) to
-        Anthropic (Claude&apos;s API). Only entries already in this directory can ever be shown as results — web results
+        your connected AI provider. Only entries already in this directory can ever be shown as results — web results
         can inform the AI&apos;s reasoning but can never add a new entry that isn&apos;t already here. The main search
-        box does not send queries to Claude.
+        box does not send queries to an AI provider.
       </p>
 
       <div>

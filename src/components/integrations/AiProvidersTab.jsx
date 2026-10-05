@@ -20,7 +20,7 @@ function formatWhen(iso) {
  * Keys are write-only -- they are sent once and never shown again (only the last four characters).
  * @param {{ clientId: string, eventSource?: string }} props
  */
-export default function AiProvidersTab({ clientId, eventSource = "client_portal" }) {
+export default function AiProvidersTab({ clientId, eventSource = "client_portal", onConnectionsChanged }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -84,6 +84,7 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
       });
       closeForm();
       setMsg(mode === "replace" ? "API key replaced." : "Connected.");
+      onConnectionsChanged?.();
     } catch (e2) {
       setErr(e2?.message ?? String(e2));
     } finally {
@@ -98,6 +99,7 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
     try {
       const data = await invokeManageClientIntegrations({ clientId, action: "test", provider });
       setIntegrations(data.integrations ?? []);
+      onConnectionsChanged?.();
       event("integration_tested", provider, { status: data.ok ? "connected" : "error", ok: !!data.ok });
       if (data.ok) setMsg("Connection test passed.");
       else setErr(data.test_error || "Connection test failed.");
@@ -125,6 +127,7 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
       setIntegrations((rows) => rows.filter((r) => r.provider !== provider));
       if (editing?.provider === provider) closeForm();
       setMsg(`${label} disconnected.`);
+      onConnectionsChanged?.();
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {

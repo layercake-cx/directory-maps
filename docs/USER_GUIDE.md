@@ -700,7 +700,25 @@ Layercake provides the AI-enabled capabilities (search, content and metadata gen
 - **Replace key** tests a new key and swaps it in.
 - **Disconnect** deletes the stored key. AI features that relied on it stop working until a provider is connected; everything else (browsing, keyword search, manual editing) carries on.
 
-Layercake picks a suitable low-cost model for each task by default. Most tasks, such as metadata, classification and search interpretation, don't need a premium model.
+### Choose providers and models for each AI feature
+
+Below the provider cards, **AI features** lists each AI task (SEO & social metadata, image alt text, Help me choose, listing content, content page drafts) and shows which model it currently runs on.
+
+- **Default AI provider** applies to every feature unless that feature has its own. "Automatic" uses your first connected provider.
+- **Use recommended model** (the default) lets Layercake pick the cheapest model that is suitable for the task, with a short explanation. Most tasks, such as metadata, classification and search interpretation, don't need a premium model.
+- **Select model manually** lets you choose the provider and model yourself, for example to follow your own AI policy or an existing agreement. Each model shows a cost guide (£ very low cost, ££ low, £££ higher, ££££ premium). Layercake advises ("Not recommended for this task") but never stops you choosing.
+
+The cost symbols are a rough guide, not prices; providers change prices often, so use the pricing links on the page.
+
+### When no provider is connected
+
+AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Help me choose stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)
+
+### Bulk AI runs
+
+Before "Generate all entry content" runs, the confirmation shows how many entries will be processed, which provider and model will do it, and, once there is usage history to base it on, a rough usage size ("Light", "Moderate", "Heavy") and an estimated provider cost where the model's prices are known. It is an estimate only; your provider account is the authoritative source for billing.
+
+Afterwards the AI enrichment and SEO pages show how many requests and tokens the run used and how many entries failed, with the reason. After fixing the cause (for example reconnecting a provider), **Retry failed** re-queues just the failures. A job left stuck by a crashed worker is picked up again automatically.
 
 Staff can open the same page for any customer from **Customers → (customer) → Integrations**. Connecting, testing, replacing and disconnecting are recorded in the admin event log.
 

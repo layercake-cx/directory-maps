@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@mantine/core";
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import { updateDirectory, generateDirectorySeoMetadata } from "../../lib/directories.js";
 
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
@@ -31,6 +33,7 @@ function seoDefaultsFromDirectory(directory) {
  * tag, all at once — see generate_directory_site/index.ts.
  */
 export default function DirectorySeoSettingsPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+  const ai = useAiFeature("seo_metadata");
   const [seo, setSeo] = useState(() => seoDefaultsFromDirectory(directory));
   const [ogImageUrl, setOgImageUrl] = useState(directory?.seo_og_image_url || "");
   const [saving, setSaving] = useState(false);
@@ -111,9 +114,10 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <p style={{ ...sectionTitleStyle, marginBottom: 4 }}>SEO settings</p>
           {canManage && (
-            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating}>Generate with AI</Button>
+            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
           )}
         </div>
+        {canManage && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
         <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.65 }}>
           Controls how this directory's public pages appear in search results and when shared on social media. "Generate with AI" drafts the title and description below from this directory's own entry count and categorisation — lands here for review, nothing is saved until you click Save settings.
         </p>
