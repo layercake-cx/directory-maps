@@ -20,6 +20,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Jobs stuck in `processing` for 15+ minutes (crashed worker) are reclaimed, up to 3 attempts.
 - One registry (`_shared/ai/features.ts`) now maps each AI feature to its capability; call sites name only the feature. `resolveRoute` is split into a credential-free `planRoute` plus the credential step; behaviour is unchanged.
 - Provider-neutral wording replaces "Claude/Anthropic" in the AI panels.
+- **OpenAI fix found on staging:** the first real OpenAI tool call failed with a 400 (`Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions`). The OpenAI adapter now sends `reasoning_effort: "none"` whenever tools are used (the Responses API is the longer-term alternative). The Gemini adapter is still unproven against the live API.
+- `invokeFunction` (`src/lib/supabase.js`) now surfaces the function's own error message instead of supabase-js's generic "Edge Function returned a non-2xx status code", which is what made the OpenAI error diagnosable.
 
 ### Database migrations applied
 - `20261005140000_ai_bulk_run_tools.sql` (rollback: `_20261005140000_ai_bulk_run_tools.rollback.sql`): functions only (claim functions replaced, `retry_failed_entry_content_jobs`, `retry_failed_entry_seo_metadata_jobs`, `get_ai_bulk_run_summary`); no table changes. **Applied to staging 2026-10-05** after a forced-rollback dry run passed; post-migration `VERIFY PASSED`. **Not applied to production.** Requires stages 1-2 first.

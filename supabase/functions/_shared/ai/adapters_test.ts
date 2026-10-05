@@ -40,6 +40,7 @@ Deno.test("openai: maps tools, forced tool choice, images and usage", async () =
     assertEquals(call.url, "https://api.openai.com/v1/chat/completions");
     assertEquals(call.headers.Authorization, "Bearer sk-test");
     assertEquals(call.body.max_completion_tokens, 50);
+    assertEquals(call.body.reasoning_effort, "none"); // required for function tools on chat completions
     assertEquals(call.body.tool_choice, { type: "function", function: { name: "write" } });
     const msgs = call.body.messages as { role: string; content: unknown }[];
     assertEquals(msgs[0], { role: "system", content: "sys" });
@@ -47,6 +48,16 @@ Deno.test("openai: maps tools, forced tool choice, images and usage", async () =
     assertEquals(res.toolCalls[0], { name: "write", input: { html: "<p>x</p>" } });
     assertEquals(res.stopReason, "tool");
     assertEquals(res.usage, { inputTokens: 100, cachedInputTokens: 20, outputTokens: 30, totalTokens: 150 });
+  } finally {
+    f.restore();
+  }
+});
+
+Deno.test("openai: no reasoning_effort is sent for plain text requests", async () => {
+  const f = stubFetch({ choices: [{ finish_reason: "stop", message: { content: "OK" } }], usage: {} });
+  try {
+    await openaiAdapter.generate("k", "m", { system: "s", maxTokens: 8, messages: [{ role: "user", content: "x" }] });
+    assertEquals("reasoning_effort" in f.calls[0].body, false);
   } finally {
     f.restore();
   }
