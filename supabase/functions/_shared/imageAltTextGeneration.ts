@@ -4,9 +4,11 @@
 // text, since a genuinely descriptive caption needs to describe what's
 // actually in the photo, not just guess from the entry's name.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (./ai/gateway.ts); requires a
+// vision-capable model.
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5";
+import { AiScope, directoryMapsContext, generate, requireToolInput } from "./ai/gateway.ts";
+
 const TOOL_NAME = "write_alt_text";
 
 const SUPPORTED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -22,72 +24,50 @@ export function isSupportedImageMediaType(mediaType: string): boolean {
  * Management's office building" when that context helps).
  */
 export async function generateImageAltText(
-  apiKey: string,
+  scope: AiScope,
   imageBase64: string,
   mediaType: string,
   entryName: string,
   imageKind: "hero" | "gallery",
 ): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 256,
-      system:
-        "You write concise, descriptive alt text for images on an organisation's directory listing page. " +
-        "Describe what the image actually shows — never start with \"Image of\" or \"Photo of\", and never use placeholder language. " +
-        "Keep it under 125 characters where possible. Weave in the organisation's name only where it reads naturally, not as a forced prefix. " +
-        `Respond only by calling the ${TOOL_NAME} tool.`,
-      tools: [
-        {
-          name: TOOL_NAME,
-          description: "Record the generated alt text for this image.",
-          input_schema: {
-            type: "object",
-            properties: {
-              alt_text: { type: "string", description: "Descriptive alt text for the image, under 125 characters." },
-            },
-            required: ["alt_text"],
+  const result = await generate(directoryMapsContext(scope, "alt_text", "ECONOMY_MODEL"), {
+    maxTokens: 256,
+    system:
+      "You write concise, descriptive alt text for images on an organisation's directory listing page. " +
+      "Describe what the image actually shows — never start with \"Image of\" or \"Photo of\", and never use placeholder language. " +
+      "Keep it under 125 characters where possible. Weave in the organisation's name only where it reads naturally, not as a forced prefix. " +
+      `Respond only by calling the ${TOOL_NAME} tool.`,
+    tools: [
+      {
+        name: TOOL_NAME,
+        description: "Record the generated alt text for this image.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            alt_text: { type: "string", description: "Descriptive alt text for the image, under 125 characters." },
           },
+          required: ["alt_text"],
         },
-      ],
-      tool_choice: { type: "tool", name: TOOL_NAME },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
-            {
-              type: "text",
-              text: `This is a ${imageKind} image on the directory listing page for "${entryName}". Call the tool now with descriptive alt text for it.`,
-            },
-          ],
-        },
-      ],
-    }),
+      },
+    ],
+    toolChoice: { type: "tool", name: TOOL_NAME },
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", mediaType, base64: imageBase64 },
+          {
+            type: "text",
+            text: `This is a ${imageKind} image on the directory listing page for "${entryName}". Call the tool now with descriptive alt text for it.`,
+          },
+        ],
+      },
+    ],
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Anthropic API error ${res.status}: ${text.slice(0, 500)}`);
-  }
-
-  const body = await res.json();
-  if (body.stop_reason === "max_tokens") {
-    throw new Error("Anthropic response was truncated (max_tokens reached) before completing the tool call");
-  }
-  const toolUse = (body.content ?? []).find((block: { type?: string }) => block.type === "tool_use");
-  if (!toolUse || typeof toolUse.input !== "object") {
-    throw new Error("Anthropic response did not include a valid tool_use block");
-  }
-  const altText = toolUse.input.alt_text;
+  const altText = requireToolInput(result, TOOL_NAME).alt_text;
   if (typeof altText !== "string" || !altText.trim()) {
-    throw new Error("Anthropic returned empty alt text");
+    throw new Error("The AI model returned empty alt text");
   }
   return altText.trim();
 }

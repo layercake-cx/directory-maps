@@ -9,9 +9,11 @@
 // Body: { entry_id: string }
 // Auth: requires a signed-in user with access to the entry's directory.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts): the organisation's own
+// connected provider, or a clear "AI unavailable" response if there is none.
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
 import { generateEntrySeoMetadataDraft } from "../_shared/seoMetadataGeneration.ts";
 
 const CORS = {
@@ -31,12 +33,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "generate_entry_seo_metadata", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let entryId: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
@@ -60,10 +56,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (dirErr) throw dirErr;
 
-    const draft = await generateEntrySeoMetadataDraft(apiKey, entry, directory?.name ?? "this directory");
+    const clientId = await getDirectoryClientId(service, entry.directory_id);
+    const draft = await generateEntrySeoMetadataDraft(
+      { db: service, clientId, productInstanceId: entry.directory_id },
+      entry,
+      directory?.name ?? "this directory",
+    );
 
     return json(draft);
   } catch (err) {
+    if (err instanceof AiUnavailableError) return json(aiUnavailableBody(err));
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "generate_entry_seo_metadata", message, context: { entry_id: entryId } });
     return json({ error: message }, 500);

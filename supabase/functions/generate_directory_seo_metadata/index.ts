@@ -8,9 +8,11 @@
 // Body: { directory_id: string }
 // Auth: requires a signed-in user with access to the directory.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts): the organisation's own
+// connected provider, or a clear "AI unavailable" response if there is none.
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
 import { generateDirectorySeoMetadataDraft } from "../_shared/seoMetadataGeneration.ts";
 
 const CORS = {
@@ -30,12 +32,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "generate_directory_seo_metadata", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let directoryId: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
@@ -77,8 +73,9 @@ Deno.serve(async (req) => {
       categorisationLabels = (categorisations ?? []).map((c) => c.label).filter(Boolean);
     }
 
+    const clientId = await getDirectoryClientId(service, directoryId);
     const draft = await generateDirectorySeoMetadataDraft(
-      apiKey,
+      { db: service, clientId, productInstanceId: directoryId },
       directory.name,
       directory.description,
       entryCount ?? 0,
@@ -87,6 +84,7 @@ Deno.serve(async (req) => {
 
     return json(draft);
   } catch (err) {
+    if (err instanceof AiUnavailableError) return json(aiUnavailableBody(err));
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "generate_directory_seo_metadata", message, context: { directory_id: directoryId } });
     return json({ error: message }, 500);

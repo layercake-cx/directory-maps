@@ -8,53 +8,30 @@
 // what makes it stick, per the product doc's "generated copy always lands
 // in the editable field for review before publish" rule.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (./ai/gateway.ts).
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5";
+import { AiScope, directoryMapsContext, generate, requireToolInput } from "./ai/gateway.ts";
 
 const AVOID_PLACEHOLDER_RULE =
   "Never use placeholder or demo-sounding language (e.g. \"Sample\", \"Example\", \"Test\", \"Lorem ipsum\") — write as if this is a real, live resource, because it is. " +
   "Only use the facts given to you; do not invent or assume anything not present in the data.";
 
-async function callClaudeTool<T>(
-  apiKey: string,
+async function callModelTool<T>(
+  scope: AiScope,
   system: string,
   userContent: string,
   toolName: string,
   toolDescription: string,
   inputSchema: Record<string, unknown>,
 ): Promise<T> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system,
-      tools: [{ name: toolName, description: toolDescription, input_schema: inputSchema }],
-      tool_choice: { type: "tool", name: toolName },
-      messages: [{ role: "user", content: userContent }],
-    }),
+  const result = await generate(directoryMapsContext(scope, "seo_metadata", "ECONOMY_MODEL"), {
+    maxTokens: 1024,
+    system,
+    tools: [{ name: toolName, description: toolDescription, inputSchema }],
+    toolChoice: { type: "tool", name: toolName },
+    messages: [{ role: "user", content: userContent }],
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Anthropic API error ${res.status}: ${text.slice(0, 500)}`);
-  }
-
-  const body = await res.json();
-  if (body.stop_reason === "max_tokens") {
-    throw new Error("Anthropic response was truncated (max_tokens reached) before completing the tool call");
-  }
-  const toolUse = (body.content ?? []).find((block: { type?: string }) => block.type === "tool_use");
-  if (!toolUse || typeof toolUse.input !== "object") {
-    throw new Error("Anthropic response did not include a valid tool_use block");
-  }
-  return toolUse.input as T;
+  return requireToolInput(result, toolName) as T;
 }
 
 function stripHtml(html: string | null | undefined): string {
@@ -82,7 +59,7 @@ export type EntryForSeoGeneration = {
 };
 
 export async function generateEntrySeoMetadataDraft(
-  apiKey: string,
+  scope: AiScope,
   entry: EntryForSeoGeneration,
   directoryName: string,
 ): Promise<EntrySeoMetadataDraft> {
@@ -98,8 +75,8 @@ export async function generateEntrySeoMetadataDraft(
     .filter(Boolean)
     .join("\n");
 
-  return callClaudeTool<EntrySeoMetadataDraft>(
-    apiKey,
+  return callModelTool<EntrySeoMetadataDraft>(
+    scope,
     "You write concise, accurate SEO and social-sharing metadata for one organisation's page within an online directory. " +
       `${AVOID_PLACEHOLDER_RULE} ` +
       "meta_title: under 60 characters, the organisation's name plus a few words of context. " +
@@ -131,7 +108,7 @@ export type DirectorySeoMetadataDraft = {
 };
 
 export async function generateDirectorySeoMetadataDraft(
-  apiKey: string,
+  scope: AiScope,
   directoryName: string,
   directoryDescription: string | null,
   entryCount: number,
@@ -146,8 +123,8 @@ export async function generateDirectorySeoMetadataDraft(
     .filter(Boolean)
     .join("\n");
 
-  return callClaudeTool<DirectorySeoMetadataDraft>(
-    apiKey,
+  return callModelTool<DirectorySeoMetadataDraft>(
+    scope,
     "You write the homepage SEO title and description for a published online directory. " +
       `${AVOID_PLACEHOLDER_RULE} ` +
       "meta_title_template: under 60 characters. " +

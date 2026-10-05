@@ -8,6 +8,40 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-05 — [Staging] Platform Integrations framework + AI Gateway, stage 1 (routing and metering only)
+
+**Branch/commit:** `feat/2026-10-05-integrations-ai-gateway` (PR pending)
+**Deployed by:** Claude Code (not yet deployed — migration and Edge Functions have not been applied anywhere)
+
+### What changed
+- Stage 1 of the platform Integrations / AI provider work. No user-visible change: every AI feature still runs on Layercake's Anthropic account and the same model (`claude-haiku-4-5`). What changes is *how* it is called, to prepare for customers connecting their own provider.
+- New **AI Gateway** (`supabase/functions/_shared/ai/`). The seven places that each had their own copy of the Anthropic `fetch` (entry content, SEO metadata, page drafts, alt text, directory SEO backfill, Help me choose, and the two queue workers) now call one function. Products ask for a *capability* (economy / fast / standard / advanced), never a model name; the gateway resolves provider, model and credentials.
+- **Usage metering.** Every request now writes an `ai_usage_events` row (organisation, directory, feature, provider, model, input/output/cached tokens, duration, status, and the queue job id for bulk work). Cost estimates are blank until model prices are entered in `ai_models`.
+- **No silent fallback.** Layercake's own key is used only while the new `ai_platform_provider` feature flag is on for the organisation. The migration turns it **on for every existing client** so nothing changes today; new clients default to off. When no provider is usable, AI features return a clear "AI isn't available because no provider is connected" message instead of failing (Help me choose reports itself as disabled to visitors, and the publish-time directory SEO backfill is skipped).
+- Schema for the later stages is created now: `integrations`, `integration_credentials` (Supabase Vault pointer; no client access at all), `ai_models`, `ai_capability_profiles`, `ai_model_configuration`, plus service-role-only Vault helper functions. Nothing reads or writes the customer-facing tables yet.
+- Fixed an existing bug in both queue workers: their "bulk run completed" admin event omitted the NOT NULL `event_category` and was silently dropped. It now records correctly with `client_id` set.
+- "AI unavailable" and queue-worker "no provider" outcomes are no longer sent to the error log / Teams alerts, since they are configuration states.
+
+### Database migrations applied
+- `20261005120000_integrations_ai_gateway.sql` (rollback: `_20261005120000_integrations_ai_gateway.rollback.sql`). **Not yet applied.** Needs a staging dry run first. In particular, confirm on staging that the migration role can `delete from vault.secrets` (used by the Vault delete helper and the rollback).
+- Model IDs seeded for Anthropic (`claude-haiku-4-5`, `claude-sonnet-5-5`, `claude-opus-5-5`) should be confirmed against a real call on staging.
+- Recommendations are set so behaviour is unchanged: every capability except ADVANCED maps to Haiku. Raise STANDARD (listing content) to a stronger model later by editing `ai_capability_profiles`; no release needed.
+
+### Edge functions deployed
+- None yet. Affected: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_content_page_draft`, `generate_media_alt_text`, `directory_ai_search`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `generate_directory_site`. **Apply the migration first, then deploy these** to the test project (`beqejxneehilplrtpntn`), then production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off. `generate_directory_site` changes no markup, so `ENTRY_TEMPLATE_VERSION` is not bumped.
+
+### Rollback plan
+- Redeploy the nine Edge Functions from the previous commit **first**, then run the rollback migration (it drops `ai_usage_events` and the new tables, removes the flag, and deletes any `integration_*` Vault secrets). Take a copy of `ai_usage_events` first if the usage data matters.
+
+### Verified
+- [x] `deno check` passes for all nine functions; `deno test --allow-env supabase/functions/_shared/ai/gateway_test.ts` passes (routing, platform-flag gating, specificity, disabled model, metering, failed-request metering)
+- [ ] Staging migration dry run and integrity checklist
+- [ ] Staging: each AI feature still works; one `ai_usage_events` row per call with sensible token counts
+- [ ] Staging: a bulk content run and a bulk SEO backfill produce usage rows sharing job ids, and the "bulk completed" admin event now appears
+- [ ] Staging: with the flag overridden off for a test client, AI buttons show the "no provider connected" message and publish still succeeds
+
+---
+
 ## 2026-10-05 — [Production] Embedded map: real fullscreen + sidebar in fullscreen
 
 **Branch/commit:** `fix/2026-10-05-embedded-map-fullscreen` (PR #289, merged as `d6ddf9e`)

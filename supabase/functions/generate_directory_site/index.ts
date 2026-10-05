@@ -297,8 +297,6 @@ async function generateForDirectoryInner(
   };
   const directoryNoindex = !!seoDefaults.default_noindex;
 
-  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
-
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug, name").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
 
@@ -468,12 +466,13 @@ async function generateForDirectoryInner(
   // Directory-homepage SEO metadata backfill — one-off, skipped entirely
   // once both fields are set. Stays inline here (unlike the entry-level
   // backfill, which moved to an async queue — see _shared/seoMetadataBackfill.ts's
-  // header) since it's at most one extra Claude call per publish.
+  // header) since it's at most one extra AI Gateway call per publish
+  // (skipped silently when the organisation has no AI provider connected).
   // filterBarCategorisations' labels double as the "categorised by X"
   // context, no separate lookup needed.
   const directorySeoBackfill = await backfillDirectorySeoMetadata(
     db,
-    anthropicApiKey,
+    client.id,
     directory.id,
     directory.name,
     directory.description,

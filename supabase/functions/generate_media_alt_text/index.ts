@@ -1,6 +1,6 @@
 // Synchronous, single-image AI alt-text generation — invoked by the
 // "Generate with AI" action in MediaAssetsEditor.jsx, before the image is
-// even uploaded (the image bytes are sent directly to Claude's vision API;
+// even uploaded (the image bytes are sent directly to the vision model;
 // nothing is persisted here — the caller gets back a suggested alt_text and
 // decides whether to use it, same review-before-save pattern as every other
 // "Generate with AI" action in this codebase).
@@ -9,9 +9,11 @@
 //                image_kind?: "hero" | "gallery" }
 // Auth: requires a signed-in user with access to the entry's directory.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts): the organisation's own
+// connected provider, or a clear "AI unavailable" response if there is none.
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
 import { generateImageAltText, isSupportedImageMediaType } from "../_shared/imageAltTextGeneration.ts";
 
 const CORS = {
@@ -36,12 +38,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "generate_media_alt_text", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let entryId: string | undefined;
   try {
     const body = await req.json().catch(() => ({}));
@@ -65,10 +61,18 @@ Deno.serve(async (req) => {
 
     await requireDirectoryAccess(req, entry.directory_id);
 
-    const altText = await generateImageAltText(apiKey, imageBase64, mediaType, entry.name, imageKind);
+    const clientId = await getDirectoryClientId(service, entry.directory_id);
+    const altText = await generateImageAltText(
+      { db: service, clientId, productInstanceId: entry.directory_id },
+      imageBase64,
+      mediaType,
+      entry.name,
+      imageKind,
+    );
 
     return json({ alt_text: altText });
   } catch (err) {
+    if (err instanceof AiUnavailableError) return json(aiUnavailableBody(err));
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({ fn: "generate_media_alt_text", message, context: { entry_id: entryId } });
     return json({ error: message }, 500);

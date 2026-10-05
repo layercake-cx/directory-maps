@@ -341,6 +341,12 @@ The response (the generated page content) is written back into Supabase (`direct
 
 The response (matching entry ids, optional follow-up question, optional per-entry reasons) is used only to filter the already-rendered page in the visitor's browser and is not stored anywhere.
 
+### AI Gateway and usage metering (2026-10-05)
+
+All calls described above are routed through a central AI Gateway inside the Edge Functions. Today every organisation still uses Layercake's Anthropic account (the `ai_platform_provider` flag is on for existing clients); the gateway is the groundwork for customers connecting their own AI provider, after which the relevant data is sent to *that* provider under the customer's own agreement with them, and this section will be extended per provider.
+
+The gateway records one `ai_usage_events` row per request: organisation, directory, feature, provider, model, token counts, duration, status and a short error string on failure. It stores **no prompt text, response text or entry content**, and no personal data beyond the organisation and directory ids. Customer-supplied provider API keys (not live yet) are held in Supabase Vault and never returned to the browser.
+
 ### Processing location
 
 Anthropic PBC is a **US company**. API requests are processed on Anthropic's infrastructure.

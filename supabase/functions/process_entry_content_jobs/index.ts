@@ -3,13 +3,14 @@
 // 20260906130000_entry_content_generation_worker_cron.sql) — never called
 // directly by client code. Claims a small batch of pending entry_content_jobs
 // (both 'auto', from the empty-on-insert trigger, and 'bulk', from the
-// directory-wide "Generate all entry content" action), asks Claude Haiku 4.5
-// to write each entry's page content following that entry's directory's
+// directory-wide "Generate all entry content" action), asks the AI Gateway's
+// configured model to write each entry's page content following that entry's directory's
 // ai_content_prompt, and writes the result to directory_entries.notes_html.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts), metered per job.
 import { createServiceClient } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError } from "../_shared/ai/gateway.ts";
 import { generateContentForEntry, recordEntryContentVersion } from "../_shared/entryContentGeneration.ts";
 
 const CORS = {
@@ -35,7 +36,7 @@ type ContentJob = {
   attempt_count: number;
 };
 
-async function processJob(service: ReturnType<typeof createServiceClient>, apiKey: string, job: ContentJob) {
+async function processJob(service: ReturnType<typeof createServiceClient>, job: ContentJob) {
   const { data: entry, error: entryErr } = await service
     .from("directory_entries")
     .select("id, directory_id, name, address, postcode, country, city, website_url, phone, email, notes_html")
@@ -46,14 +47,18 @@ async function processJob(service: ReturnType<typeof createServiceClient>, apiKe
 
   const { data: directory, error: dirErr } = await service
     .from("directories")
-    .select("ai_content_prompt")
+    .select("ai_content_prompt, client_id")
     .eq("id", job.directory_id)
     .maybeSingle();
   if (dirErr) throw dirErr;
   const prompt = directory?.ai_content_prompt;
   if (!prompt || !prompt.trim()) throw new Error("Directory has no ai_content_prompt configured");
 
-  const html = await generateContentForEntry(apiKey, entry, prompt);
+  const html = await generateContentForEntry(
+    { db: service, clientId: directory!.client_id, productInstanceId: job.directory_id, batchJobId: job.id },
+    entry,
+    prompt,
+  );
 
   const { error: updateErr } = await service
     .from("directory_entries")
@@ -119,8 +124,13 @@ async function updateDirectoryProgress(service: ReturnType<typeof createServiceC
     })
     .eq("id", directoryId);
 
-  await service.from("admin_events").insert({
+  // event_category is NOT NULL on admin_events; this insert used to omit it and was
+  // silently rejected. Mirrors src/lib/adminEvents.js parseAdminEventType().
+  const { error: eventErr } = await service.from("admin_events").insert({
     event_type: "directory_ai_content_bulk_completed",
+    event_category: "directory",
+    event_subtype: "ai_content_bulk_completed",
+    client_id: directory.client_id,
     meta: {
       client_id: directory.client_id,
       directory_id: directoryId,
@@ -128,19 +138,16 @@ async function updateDirectoryProgress(service: ReturnType<typeof createServiceC
       entries_failed: failed ?? 0,
       source: "edge_function",
     },
-  }).then(() => {});
+  });
+  if (eventErr) {
+    await logEdgeFunctionError({ fn: "process_entry_content_jobs", message: `admin event insert failed: ${eventErr.message}`, context: { directory_id: directoryId } });
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "process_entry_content_jobs", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let batchSize = DEFAULT_BATCH_SIZE;
   try {
     const body = await req.json().catch(() => ({}));
@@ -160,16 +167,19 @@ Deno.serve(async (req) => {
   const results = { processed: 0, failed: 0 };
   for (const job of (jobs ?? []) as ContentJob[]) {
     try {
-      await processJob(service, apiKey, job);
+      await processJob(service, job);
       results.processed += 1;
     } catch (err) {
       results.failed += 1;
       const message = err instanceof Error ? err.message : String(err);
-      await logEdgeFunctionError({
-        fn: "process_entry_content_jobs",
-        message,
-        context: { entry_id: job.entry_id, directory_id: job.directory_id, job_id: job.id },
-      });
+      // "No AI provider connected" is a configuration state, not a fault worth alerting on.
+      if (!(err instanceof AiUnavailableError)) {
+        await logEdgeFunctionError({
+          fn: "process_entry_content_jobs",
+          message,
+          context: { entry_id: job.entry_id, directory_id: job.directory_id, job_id: job.id },
+        });
+      }
       await service
         .from("entry_content_jobs")
         .update({
