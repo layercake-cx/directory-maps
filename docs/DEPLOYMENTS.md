@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-05 — [Staging] Embedded map: real fullscreen + sidebar in fullscreen
+
+**Branch/commit:** `fix/2026-10-05-embedded-map-fullscreen` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The map iframes on published directory pages lacked `allowfullscreen`, so the browser refused real fullscreen and the map only filled its own box. Added `allowfullscreen` to both iframes (directory page map pane, entry-page map card).
+- A map embedded with `hideListPanel=1` (directory pages) now shows its sidebar while fullscreen, since the page's filters aren't visible then. It hides again on exit. Works for real and fallback fullscreen.
+- `ENTRY_TEMPLATE_VERSION` bumped 4 → 5 so the next ordinary Publish rebuilds existing pages.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` to staging only.
+
+### Rollback plan
+- Revert the branch; redeploy `generate_directory_site` and republish directories.
+
+### Verified
+- [ ] Staging: republish a directory, click ⛶ on its map: fills the browser window, sidebar appears, hides on exit
+- [ ] Entry page map card fullscreen works
+
+---
+
 ## 2026-10-04 — [Production] Move AI content generation to Content › AI enrichment
 
 **Branch/commit:** `feat/2026-10-04-ai-enrichment-section` (PR #287, merged as `5261bca`)

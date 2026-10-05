@@ -860,6 +860,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}
+          showListPanelInFullscreen={hideListPanel}
           showSearch={parsedTheme.showSearch !== false}
           showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
           mapName={map?.name ?? ""}
