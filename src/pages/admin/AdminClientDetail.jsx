@@ -5,6 +5,7 @@ import AdminLayout from "./AdminLayout.jsx";
 import CustomerWorkspaceFeaturePanel from "../../components/shell/CustomerWorkspaceFeaturePanel.jsx";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
+import IntegrationsPanel from "../../components/integrations/IntegrationsPanel.jsx";
 import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import DirectoriesDashboard from "../../components/directories/DirectoriesDashboard.jsx";
@@ -789,6 +790,15 @@ export default function AdminClientDetail() {
 
             {activeTab === "domains" && (
               <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+            )}
+
+            {activeTab === "integrations" && (
+              <IntegrationsPanel
+                clientId={clientId}
+                clientName={client?.name}
+                eventSource="admin_dashboard"
+                showPageTitle={false}
+              />
             )}
           </>
         )}

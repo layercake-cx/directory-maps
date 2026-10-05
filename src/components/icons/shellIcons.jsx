@@ -89,6 +89,16 @@ export function GlobeIcon(props) {
   );
 }
 
+export function PlugIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M9 3v5M15 3v5" />
+      <path d="M6 8h12v3a6 6 0 0 1-12 0V8z" />
+      <path d="M12 17v4" />
+    </Icon>
+  );
+}
+
 export function IdCardIcon(props) {
   return (
     <Icon {...props}>
@@ -213,6 +223,7 @@ export const RAIL_ICONS = {
   users: UsersIcon,
   mail: MailIcon,
   globe: GlobeIcon,
+  plug: PlugIcon,
   "id-card": IdCardIcon,
   building: BuildingIcon,
   "user-cog": UserCogIcon,

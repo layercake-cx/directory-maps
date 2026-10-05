@@ -595,6 +595,17 @@ Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
 
 ---
 
+### 4.4n Platform Integrations & AI Gateway (new, in development, 2026-10-05)
+
+Layercake is moving AI usage onto the customer's own provider account (customers pay their provider directly; Layercake licenses the capability). Built in stages:
+
+- **AI Gateway** (stage 1, `supabase/functions/_shared/ai/`): every LLM call goes through one gateway that resolves organisation → connected provider → configuration → capability profile → model → credentials, runs a provider adapter (Anthropic, OpenAI, Gemini), and writes one `ai_usage_events` row per request (tokens, feature, directory, model, queue job id). Products ask for a capability (`ECONOMY_MODEL`, `FAST_MODEL`, `STANDARD_MODEL`, `ADVANCED_MODEL`), never a model name. There is no silent fallback to Layercake's own account: it is used only where the `ai_platform_provider` flag is on for the organisation (on for existing clients, off for new ones). With no usable provider, AI actions return a clear "no provider connected" message and non-AI functionality is unaffected.
+- **Integrations area** (stage 2, flag `integrations`): `/client/integrations` and the admin customer's Integrations tab. Connect, test, replace and disconnect Anthropic / OpenAI / Gemini keys via `manage_client_integrations`. Keys are tested before saving, stored in Supabase Vault (write-only, last-four hint), and never logged or returned. OpenAI and Gemini adapters are new and have not been exercised against the live APIs yet; the Test connection button is the first real call.
+- **Not yet built:** model configuration per feature with recommendations and cost guidance (stage 3), the usage and estimated-cost dashboard, and removal of the Layercake key.
+- Data model: `integrations`, `integration_credentials`, `ai_models`, `ai_capability_profiles`, `ai_model_configuration`, `ai_usage_events`. The model catalogue and recommendations are data, editable without a release.
+
+---
+
 ## 5. Public embed (visitor experience)
 
 | Feature | Route | Description |

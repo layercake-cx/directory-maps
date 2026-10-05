@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AdminGate from "./components/AdminGate.jsx";
 import ClientGate from "./components/ClientGate.jsx";
 import FeatureGate from "./components/FeatureGate.jsx";
-import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG } from "./lib/featureFlags.js";
+import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG, INTEGRATIONS_FLAG } from "./lib/featureFlags.js";
 
 import PublicMap from "./pages/PublicMap.jsx";
 import SlugMap from "./pages/SlugMap.jsx";
@@ -52,6 +52,7 @@ import ClientHome from "./pages/client/ClientHome.jsx";
 import ClientTeam from "./pages/client/ClientTeam.jsx";
 import ClientEmail from "./pages/client/ClientEmail.jsx";
 import ClientDomains from "./pages/client/ClientDomains.jsx";
+import ClientIntegrations from "./pages/client/ClientIntegrations.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -113,6 +114,7 @@ export default function App() {
         <Route path="team" element={<ClientTeam />} />
         <Route path="email" element={<ClientEmail />} />
         <Route path="domains" element={<FeatureGate flag={CUSTOM_DOMAIN_FLAG}><ClientDomains /></FeatureGate>} />
+        <Route path="integrations" element={<FeatureGate flag={INTEGRATIONS_FLAG}><ClientIntegrations /></FeatureGate>} />
         <Route path="maps/new" element={<ClientMapNew />} />
         <Route path="maps/:mapId" element={<ClientMapDashboard />} />
         <Route path="maps/:mapId/data" element={<ClientMapData />} />

@@ -13,13 +13,14 @@ const CLIENT_HOME_EXCLUDED_PREFIXES = [
   "/client/team",
   "/client/email",
   "/client/domains",
+  "/client/integrations",
   "/client/directories",
   "/client/categorisations",
 ];
 
 // Same idea for staff-in-customer-workspace routes (Phase 3): Home's href
 // (/admin/clients/:clientId) is a prefix of every other rail item's staffRoute.
-const STAFF_HOME_EXCLUDED_SUFFIXES = ["/details", "/entitlements", "/categorisations", "/users", "/messaging", "/domains", "/directories", "/maps"];
+const STAFF_HOME_EXCLUDED_SUFFIXES = ["/details", "/entitlements", "/categorisations", "/users", "/messaging", "/domains", "/integrations", "/directories", "/maps"];
 
 function isRailItemActive(route, pathname, isCollapsedHome) {
   if (isCollapsedHome) {

@@ -345,7 +345,7 @@ The response (matching entry ids, optional follow-up question, optional per-entr
 
 All calls described above are routed through a central AI Gateway inside the Edge Functions. Today every organisation still uses Layercake's Anthropic account (the `ai_platform_provider` flag is on for existing clients); the gateway is the groundwork for customers connecting their own AI provider, after which the relevant data is sent to *that* provider under the customer's own agreement with them, and this section will be extended per provider.
 
-The gateway records one `ai_usage_events` row per request: organisation, directory, feature, provider, model, token counts, duration, status and a short error string on failure. It stores **no prompt text, response text or entry content**, and no personal data beyond the organisation and directory ids. Customer-supplied provider API keys (not live yet) are held in Supabase Vault and never returned to the browser.
+The gateway records one `ai_usage_events` row per request: organisation, directory, feature, provider, model, token counts, duration, status and a short error string on failure. It stores **no prompt text, response text or entry content**, and no personal data beyond the organisation and directory ids. Customer-supplied provider API keys (see §12) are held in Supabase Vault and never returned to the browser.
 
 ### Processing location
 
@@ -378,6 +378,33 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 
 ---
 
+## 12. Customer-connected AI providers (OpenAI, Google Gemini, Anthropic)
+
+**Role:** an organisation can connect its **own** AI provider account (Integrations → AI providers, added 2026-10-05) so that Layercake's AI features run on, and are billed by, that provider rather than Layercake's Anthropic account.
+
+**Who is the processor:** the provider the customer connects. The customer holds the agreement (terms and DPA) with that provider directly, and chooses the provider. Layercake sends AI requests to the provider on the customer's behalf using the customer's key. Providers: Anthropic PBC (US), OpenAI (US), Google (Gemini API, global/US).
+
+### Data involved
+
+The same request content described in §10 for each AI feature (directory entry content and the directory's admin-authored prompts; for Help me choose, the anonymous visitor's conversation text and entry content), now sent to the customer's chosen provider instead of Layercake's Anthropic account. No account credentials or payment data is included.
+
+Layercake additionally stores:
+
+- **The customer's API key** — in Supabase Vault (encrypted at rest), referenced from `integration_credentials`. It is write-only: never returned to the browser, never written to logs or admin events, and decrypted only inside Edge Functions. Only the last four characters are stored for display. Replacing or disconnecting deletes the stored secret.
+- **Usage events** (`ai_usage_events`) — organisation, directory, feature, provider, model, token counts, duration, status, short error text. No prompt, response or entry content.
+
+### Processing location
+
+Determined by the provider and the customer's account settings with it. Layercake does not control it.
+
+### Legal basis & agreements
+
+The customer contracts with the provider directly. The Integrations page tells the customer that connecting a provider sends the relevant information to that provider under their own agreement. Organisations that have not connected a provider continue to use Layercake's Anthropic account (§10) while the `ai_platform_provider` flag is on for them.
+
+> **Action item:** when this moves beyond early access, confirm the customer-facing terms say the customer is responsible for their provider agreement, and add each provider's current DPA link here.
+
+---
+
 ## Summary table — personal data by third party
 
 | Third party | Personal data shared | EU data processing | DPA available |
@@ -393,6 +420,7 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 | **GitHub Pages** | Visitor IP, user-agent | No — GitHub US | GitHub Privacy Statement |
 | **HubSpot Forms** | Founding-partner form submissions (name, email, organisation, message) | Yes — EU hub (`eu1`) | Yes (via request) |
 | **Anthropic (Claude API)** | Directory entry content (name, address, notes) for AI content generation; anonymous visitor Help me choose conversation + entry content for `directory_ai_search` — no account/payment data | No — US-based, confirm before go-live | Confirm before go-live |
+| **OpenAI / Google Gemini / Anthropic (customer-connected)** | Same content as the Anthropic row, sent to whichever provider the customer connected, using the customer's own key and agreement | Depends on the customer's provider account | Customer's own agreement with the provider |
 | **Cloudflare (DNS-over-HTTPS)** | Hostname being verified only — no personal data | Global anycast | Not applicable — public DNS lookup, no account |
 
 ---

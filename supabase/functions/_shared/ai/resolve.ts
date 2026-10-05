@@ -6,13 +6,19 @@
 
 import { resolveFeatureFlag } from "../featureFlags.ts";
 import { anthropicAdapter } from "./adapters/anthropic.ts";
+import { geminiAdapter } from "./adapters/gemini.ts";
+import { openaiAdapter } from "./adapters/openai.ts";
 import { AiAdapter, AiContext, AiModelRow, AiRoute, AiUnavailableError } from "./types.ts";
 
 export const PLATFORM_AI_FLAG = "ai_platform_provider";
 
 const ADAPTERS: Record<string, AiAdapter> = {
   anthropic: anthropicAdapter,
+  openai: openaiAdapter,
+  gemini: geminiAdapter,
 };
+
+export const SUPPORTED_AI_PROVIDERS = Object.keys(ADAPTERS);
 
 export function getAdapter(provider: string): AiAdapter | null {
   return ADAPTERS[provider] ?? null;
