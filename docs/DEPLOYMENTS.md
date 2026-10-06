@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-06 — [Staging] AI usage dashboard (Integrations → AI usage)
 
 **Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR pending)
-**Deployed by:** Claude Code (built and tested; see below for what is applied)
+**Deployed by:** Claude Code — migration applied to staging (`beqejxneehilplrtpntn`) 2026-10-06; production untouched
 
 ### What changed
 - New **AI usage** tab on the Integrations page (client portal and admin customer Integrations tab): requests, input/output/total tokens and estimated provider cost for a chosen period, tokens per day, and tables by feature, directory, and provider/model (with whether a request ran on the customer's account or Layercake's). Filters: period, directory, provider.
@@ -19,7 +19,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - No new Edge Functions. No admin events (a read-only report).
 
 ### Database migrations applied
-- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`): one function, `get_ai_usage_summary` (security invoker, so `ai_usage_events` RLS applies; not executable by anon). No table changes. Tested on staging with a forced-rollback transaction that inserted known rows and asserted totals, cached-token handling, failed counts, platform/customer split, ordering, provider filter, mixed-currency refusal and an empty window (all passed, rolled back). **Application to staging/production: see the Verified section.**
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`): one function, `get_ai_usage_summary` (security invoker, so `ai_usage_events` RLS applies; not executable by anon). No table changes. Tested on staging with a forced-rollback transaction that inserted known rows and asserted totals, cached-token handling, failed counts, platform/customer split, ordering, provider filter, mixed-currency refusal and an empty window (all passed, rolled back). **Applied to staging 2026-10-06** (post-migration `VERIFY PASSED`). **Not applied to production.**
 
 ### Edge functions deployed
 - None.
