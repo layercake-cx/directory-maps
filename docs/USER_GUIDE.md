@@ -155,7 +155,7 @@ On a directory's **Settings** tab, the top panel covers:
   - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description. A **Generate with AI** button on this section drafts both from the directory's own entry count and category (in the style of "A directory of 329 UK professional associations, trade bodies and regulators, categorised by industry sector and organisation type"); the draft lands in these two fields for review, nothing is saved until you click **Save settings**.
   - **Social/SEO image URL** — the image shown when the directory's homepage is shared on social media, and the fallback image for any entry that hasn't set its own.
 
-- **Analytics & Tracking** — optional Google Analytics 4 Measurement ID (`G-…`) and/or Google Tag Manager Container ID (`GTM-…`) for this directory only. Each can be enabled independently. After you **Save analytics** and **Publish**, every public page (homepage, entries, content pages) includes those tags. Visitors see a cookie banner and must accept analytics before Google tags load. Directory Maps still records anonymous first-party events (page views, searches, filters, listing clicks) even if a visitor rejects Google cookies — those events stay in Directory Maps and are not sent to Google. Invalid IDs are rejected on save.
+- **Analytics & Tracking** (now its own **Web Analytics** page in the Settings menu, above SEO) — optional Google Analytics 4 Measurement ID (`G-…`) and/or Google Tag Manager Container ID (`GTM-…`) for this directory only. Each can be enabled independently. After you **Save analytics** and **Publish**, every public page (homepage, entries, content pages) includes those tags. Visitors see a cookie banner and must accept analytics before Google tags load. Directory Maps still records anonymous first-party events (page views, searches, filters, listing clicks) even if a visitor rejects Google cookies — those events stay in Directory Maps and are not sent to Google. Invalid IDs are rejected on save.
 
 Click **Save settings** or **Save analytics**, then **Publish** (or republish) for changes to reach the live site.
 
@@ -759,7 +759,7 @@ Staff can open the same page for any customer from **Customers → (customer) �
 | Set the published directory favicon | Directory → Branding → Favicon |
 | Set a full-width hero banner | Directory → Branding → Hero banner |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
-| Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
+| Connect GA4 or GTM to a directory | Directory → Settings → Web Analytics |
 | Turn on location search | Directory → Settings → Search → Location search, then Publish |
 | Read a published directory's AI overview | `llms.txt` on the public site (updates when you Publish) |
 | Filter a published directory by distance | Published homepage → Distance from |

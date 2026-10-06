@@ -20,7 +20,7 @@ import {
  * helpers and presentational components (src/lib/engagementAnalytics.js,
  * src/components/engagement/*) — only the directory-specific event aggregation
  * (deriveDirectoryMetrics) and this page are new. Not to be confused with
- * DirectoryAnalyticsPanel.jsx (GA4/GTM tracking-code config, Settings › Integrations).
+ * DirectoryAnalyticsPanel.jsx (GA4/GTM tracking-code config, Settings › Web Analytics).
  *
  * Deliberately keeps `EngagementShared.jsx`'s own `Panel`/`MetricCards`/`DataTable` look (its own
  * CSS module, shared with the working `MapStats.jsx`/`ListingStats.jsx`) rather than reaching for
