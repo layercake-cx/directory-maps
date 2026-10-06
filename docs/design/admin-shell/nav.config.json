@@ -76,7 +76,7 @@
           { "id": "general", "label": "General", "route": "/client/directories/:directoryId/settings", "current": "Settings tab: title, home nav label; header Archive/Delete", "status": "built" },
           { "id": "seo", "label": "SEO", "route": "/client/directories/:directoryId/seo", "current": "Settings tab SEO section + AI tab 'Backfill missing metadata'", "status": "built", "note": "Also list generated files: sitemap.xml, robots.txt, llms.txt." },
           { "id": "domain-publishing", "label": "Domain & Publishing", "route": "/client/directories/:directoryId/publishing", "current": "Publish tab (DirectoryPublishPanel) + directory custom domain (DomainSettings targetType=directory)", "status": "built" },
-          { "id": "integrations", "label": "Integrations", "route": "/client/directories/:directoryId/integrations", "current": "Settings tab: Analytics & Tracking (DirectoryAnalyticsPanel: GA4, GTM)", "status": "built" }
+          { "id": "integrations", "label": "Web Analytics", "route": "/client/directories/:directoryId/integrations", "current": "Settings tab: Analytics & Tracking (DirectoryAnalyticsPanel: GA4, GTM)", "status": "built" }
         ]}
       ],
       "notPlaced": [

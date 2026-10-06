@@ -104,7 +104,7 @@ export const NAV_CONFIG = {
  * Gating here reproduces the *exact* permission matrix ClientDirectoryEntries.jsx enforced before
  * this phase (see the Phase 2 plan doc's permission table) — most items are `canManage`-only
  * because their whole outer tab was hidden from non-managers today; Entries/Categories/General/
- * SEO/Search/Integrations/Publishing stay visible to any user with access, same as today's
+ * SEO/Search/Web Analytics/Publishing stay visible to any user with access, same as today's
  * Settings tab was (each panel keeps its own internal `disabled={!canManage}` for read-only vs.
  * editable — this config only controls whether the *route* is reachable at all).
  */
@@ -146,10 +146,10 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
       label: "Settings",
       items: [
         { id: "general", label: "General", route: `${basePath}/settings` },
+        { id: "integrations", label: "Web Analytics", route: `${basePath}/integrations` },
         { id: "seo", label: "SEO", route: `${basePath}/seo` },
         { id: "publishing", label: "Publishing", route: `${basePath}/publishing` },
         ...(canManage ? [{ id: "domain", label: "Domain", route: `${basePath}/domain` }] : []),
-        { id: "integrations", label: "Integrations", route: `${basePath}/integrations` },
       ],
     },
   ];

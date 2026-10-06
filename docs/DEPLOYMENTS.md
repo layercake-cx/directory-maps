@@ -8,6 +8,23 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-06 — [Staging] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
+
+**Branch/commit:** `feat/2026-10-06-web-analytics-nav`
+**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+
+### What changed
+- In the directory Settings menu, **Integrations** is now **Web Analytics** (GA4 / GTM tracking IDs) and sits above **SEO**. Route (`/integrations`) is unchanged, so existing links keep working. The customer-level Integrations page (AI providers) is untouched.
+- Docs and nav config references updated. No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Verified
+- [ ] Menu order and label correct in client and admin panels
+
+---
+
 ## 2026-10-06 — [Staging] Directory nav: Insights under Engagement, Emails as its own category
 
 **Branch/commit:** `feat/2026-10-06-nav-insights-emails`

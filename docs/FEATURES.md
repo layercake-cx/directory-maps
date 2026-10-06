@@ -557,7 +557,7 @@ Files: `src/components/directories/DirectoryClaimsPanel.jsx`, `src/lib/directory
 |---------|-------|-------------|
 | Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
 | Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
-| Directory tracking config | Directory → Settings → Integrations | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish. `DirectoryAnalyticsPanel.jsx` — not to be confused with the dashboard below. |
+| Directory tracking config | Directory → Settings → Web Analytics | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish. `DirectoryAnalyticsPanel.jsx` — not to be confused with the dashboard below. |
 | Directory Insights › Analytics (new, 2026-09-29) | Directory → Insights → Analytics | Real visitor-engagement dashboard: views over time, activity-by-type donut, a directory→entry→enquiry-opened→enquiry-sent funnel, top search terms, top entries. Reuses the map-side dashboard's generic aggregation helpers and chart/table components — only `deriveDirectoryMetrics()`/`deriveTopDirectoryEntries()` (`engagementAnalytics.js`) and `useDirectoryEngagement.js`/`DirectoryAnalyticsRoute.jsx` are new. One gotcha handled: a "Visit website" click inserts both `listing_website_click` and a duplicate `listing_cta_click` row — the dashboard counts only the latter to avoid double-counting. |
 | Directory Emails | Directory → Settings → Emails | Sending profile, enable, test mode and message text for the directory. **Contact** on published entry pages (entries with an email) after Publish. |
 
