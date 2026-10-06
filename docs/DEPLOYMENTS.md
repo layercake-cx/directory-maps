@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-06 — [Staging] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
+## 2026-10-06 — [Production] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
 
-**Branch/commit:** `feat/2026-10-06-web-analytics-nav`
-**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+**Branch/commit:** `feat/2026-10-06-web-analytics-nav` (PR #299, merge `d862658`)
+**Deployed by:** Claude Code (frontend only); live in production, verified by Damian
 
 ### What changed
 - In the directory Settings menu, **Integrations** is now **Web Analytics** (GA4 / GTM tracking IDs) and sits above **SEO**. Route (`/integrations`) is unchanged, so existing links keep working. The customer-level Integrations page (AI providers) is untouched.
@@ -21,7 +21,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Revert the merge commit; no data or schema was touched.
 
 ### Verified
-- [ ] Menu order and label correct in client and admin panels
+- [x] Menu order and label correct in client and admin panels (staging and production)
 
 ---
 
