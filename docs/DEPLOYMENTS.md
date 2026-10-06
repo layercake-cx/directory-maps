@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-06 — [Staging] Directory Overview: title, compact status tiles, tile links
+
+**Branch/commit:** `feat/2026-10-06-directory-overview-tiles`
+**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+
+### What changed
+- The directory Overview page now has an "Overview" heading and a first tile showing the number of entries. Tiles are about half their previous height and sit in an auto-fitting grid; the Publishing, Claims and Visitor features cards beneath share one row.
+- Each tile is green when there is nothing to do and amber when action is needed, and amber tiles link to where it can be fixed: Publishing (unpublished changes), Settings › SEO (missing metadata, which has the backfill), the single affected entry when exactly one entry is missing a logo/content/coordinates, otherwise the Entries list pre-filtered with the existing Gaps dropdown.
+- The Entries list now reads `?gap=` from the URL for its initial Gaps filter and keeps the URL in step when the dropdown changes. Shared by client and admin panels, so both get the change.
+- No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Verified
+- [x] `vite build` succeeds
+- [ ] Overview tiles render, colour and link correctly on staging (admin and client panels)
+- [ ] `/entries?gap=no_logo` opens pre-filtered; changing the dropdown updates the URL
+
+---
+
 ## 2026-10-05 — [Production] Platform Integrations framework + AI Gateway (stages 1-3)
 
 **Branch/commit:** PRs #291 (`03905df`), #292 (`8c72231`) and #293, merged to `main` in that order
