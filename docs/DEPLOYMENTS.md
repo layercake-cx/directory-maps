@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-06 — [Staging] Directory Overview: title, compact status tiles, tile links
+## 2026-10-06 — [Production] Directory Overview: title, compact status tiles, tile links
 
-**Branch/commit:** `feat/2026-10-06-directory-overview-tiles`
-**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+**Branch/commit:** PR #295, merged to `main` as `1308a29`
+**Deployed by:** Claude Code, with Damian's explicit go-ahead to skip staging (frontend-only, no data or schema change)
 
 ### What changed
 - The directory Overview page now has an "Overview" heading and a first tile showing the number of entries. Tiles are about half their previous height and sit in an auto-fitting grid; the Publishing, Claims and Visitor features cards beneath share one row.
@@ -22,9 +22,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Rollback plan
 - Revert the merge commit; no data or schema was touched.
 
+### Deployed
+- GitHub Pages: automatic on merge, run succeeded. Vercel: `npm run deploy:live` from `main` at `1308a29`, deployment `directory-maps-pnkdlwksq-layercake-apps.vercel.app`, READY, target production, aliased to `maps.layercake-cx.biz` (HTTP 200). The first attempt failed with `Not authorized`; the retry succeeded with no change (same as the 2026-10-05 deploy).
+
 ### Verified
-- [x] `vite build` succeeds
-- [ ] Overview tiles render, colour and link correctly on staging (admin and client panels)
+- [x] `vite build` succeeds; both hosts deployed; `maps.layercake-cx.biz` returns 200
+- [ ] Staging was skipped; Overview tiles render, colour and link correctly on staging (admin and client panels)
 - [ ] `/entries?gap=no_logo` opens pre-filtered; changing the dropdown updates the URL
 
 ---
