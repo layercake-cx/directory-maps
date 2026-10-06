@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Badge, Button, Group, Loader, Text } from "@mantine/core";
 import {
   ENTRIES_PAGE_SIZE,
@@ -99,6 +99,7 @@ const inputStyle = {
  */
 export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, clientId, canEdit = true, recordEvent }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -106,7 +107,15 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [gap, setGap] = useState("");
+  // Initial gap filter comes from ?gap= (Overview tiles link here); changing the dropdown keeps the URL in step.
+  const [gap, setGapState] = useState(() => {
+    const g = searchParams.get("gap");
+    return ["no_logo", "no_content", "no_seo", "not_geocoded"].includes(g) ? g : "";
+  });
+  const setGap = (value) => {
+    setGapState(value);
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); if (value) n.set("gap", value); else n.delete("gap"); return n; }, { replace: true });
+  };
   const [categoryTermId, setCategoryTermId] = useState("");
 
   const [groups, setGroups] = useState([]);

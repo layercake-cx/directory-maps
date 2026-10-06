@@ -34,6 +34,10 @@
   /* Status */
   --shell-warn-bg: #fbefd9;
   --shell-warn-text: #7a4a06;
+  --shell-ok-bg: #e3f1e4;
+  --shell-ok-border: #b7d8ba;
+  --shell-ok-text: #1f5a28;
+  --shell-warn-border: #ecd2a0;
   --shell-danger: #a3281c;
 
   /* Type */

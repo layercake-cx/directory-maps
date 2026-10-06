@@ -280,6 +280,20 @@
 .shell .stat-label { font-size: var(--fs-small); font-weight: 600; color: var(--shell-text-muted); }
 .shell .stat-value { font-family: var(--font-display); font-size: var(--fs-stat); line-height: 1.1; font-weight: 600; color: var(--shell-ink); }
 .shell .stat-sub { font-size: var(--fs-small); color: var(--shell-text-soft); }
+/* Compact status tiles (Directory Overview): green = nothing to do, amber = action needed. */
+.shell .stat-grid--compact { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.shell .stat--compact { padding: 10px 14px; gap: 2px; color: inherit; }
+.shell .stat--compact .stat-label { font-size: var(--fs-label); }
+.shell .stat--compact .stat-value { font-size: 24px; }
+.shell .stat--compact .stat-sub { font-size: var(--fs-label); }
+.shell .stat--ok { background: var(--shell-ok-bg); border-color: var(--shell-ok-border); }
+.shell .stat--ok .stat-value, .shell .stat--ok .stat-label { color: var(--shell-ok-text); }
+.shell .stat--warn { background: var(--shell-warn-bg); border-color: var(--shell-warn-border); }
+.shell .stat--warn .stat-value, .shell .stat--warn .stat-label { color: var(--shell-warn-text); }
+.shell a.stat:hover { filter: brightness(0.97); }
+.shell a.stat:focus-visible { outline: 2px solid var(--shell-ink); outline-offset: 2px; }
+.shell .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.shell .card-pad--compact { padding: 14px 18px; gap: 6px; }
 .shell .action-row { padding: 16px 24px; border-top: 1px solid var(--shell-line); display: flex; align-items: center; gap: 16px; text-decoration: none; color: inherit; }
 .shell .action-row:first-child { border-top: 0; }
 .shell .action-count { min-width: 44px; height: 30px; padding: 0 8px; border-radius: var(--radius-item); display: grid; place-items: center; font-weight: 600; background: var(--shell-chip-neutral); color: var(--shell-text-soft); }
