@@ -132,9 +132,16 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
       label: "Engagement",
       items: [
         ...(canManage ? [{ id: "claims", label: "Claims", route: `${basePath}/claims` }] : []),
+        { id: "insights", label: "Insights", route: `${basePath}/insights` },
       ],
     },
-    { label: "Insights", items: [{ id: "analytics", label: "Analytics", route: `${basePath}/analytics` }] },
+    {
+      label: "Emails",
+      items: [
+        ...(canManage ? [{ id: "email-settings", label: "Email settings", route: `${basePath}/email-settings` }] : []),
+        ...(canManage ? [{ id: "email-log", label: "Email log", route: `${basePath}/email-log` }] : []),
+      ],
+    },
     {
       label: "Settings",
       items: [
@@ -143,7 +150,6 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
         { id: "publishing", label: "Publishing", route: `${basePath}/publishing` },
         ...(canManage ? [{ id: "domain", label: "Domain", route: `${basePath}/domain` }] : []),
         { id: "integrations", label: "Integrations", route: `${basePath}/integrations` },
-        ...(canManage ? [{ id: "email-sending", label: "Emails", route: `${basePath}/email-sending` }] : []),
       ],
     },
   ];

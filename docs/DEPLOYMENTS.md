@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-06 — [Staging] Directory nav: Insights under Engagement, Emails as its own category
+
+**Branch/commit:** `feat/2026-10-06-nav-insights-emails`
+**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+
+### What changed
+- The directory side panel's Analytics page is now called **Insights** and sits in the Engagement group; the separate "Insights" group label is gone. Visible to anyone with access to the directory (it was before too).
+- Emails moved out of Settings into its own **Emails** group with two pages: **Email settings** (sending profile, switch, test mode, message text) and **Email log** (recent contact messages). Owners/managers only, as before.
+- Routes: `/insights`, `/email-settings`, `/email-log`. Old `/analytics`, `/email-sending` and `/enquiries` redirect. The Overview "Enquiries" tile now links to the Email log.
+- Client and admin panels share these routes, so both change. No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Verified
+- [x] `vite build` succeeds
+- [ ] Nav groups and redirects work in client and admin panels on staging
+
+---
+
 ## 2026-10-06 — [Production] Directory Overview: title, compact status tiles, tile links
 
 **Branch/commit:** PR #295, merged to `main` as `1308a29`
