@@ -34,6 +34,8 @@ git checkout -b feat/YYYY-MM-DD-short-description
 # e.g. feat/2026-06-01-logo-bg-toggle
 ```
 
+**Raise the Monday ticket at the same moment you create the branch** — not later, and not only when writing the deployment log. Follow "Feature ticket" under *Monday.com feature/deployment tracking* below: search the Tasks board for a matching open item, create one in `Product Backlog` if none exists, and set it to `Working on it`. Put the branch name in the ticket description (first update) so the two can be matched up. Skip only for work that genuinely has no ticket-worthy content (e.g. a one-line typo), and say so.
+
 Use the prefix that matches the work:
 - `feat/` — new user-facing feature
 - `fix/` — bug fix
@@ -119,7 +121,7 @@ Board reference (so you don't need to re-query it every session):
 - `project_status` (status column): `Not Started`, `Working on it`, `Testing`, `Stuck`, `Done`.
 - `project_owner` (people), `people` (collaborators), `status_1` (priority: `Critical ⚠`/`High`/`Medium`/`Low`).
 
-**1 — Feature ticket:** whenever the user requests a new feature, or a change to an existing feature, search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
+**1 — Feature ticket (raise it when you create the branch):** whenever the user requests a new feature, or a change to an existing feature — and in any case at the same time as `git checkout -b` — search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
 
 **2 — Deployment log → Monday comment:** every time you write a `docs/DEPLOYMENTS.md` entry (see below), also post that entry's content as an update (`create_update`) on the matching Monday item — same "what changed" text, environment, and rollback plan. Then:
 - Set `project_status` to `"Testing"` once staging is verified.
