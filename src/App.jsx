@@ -136,10 +136,13 @@ export default function App() {
           <Route path="design" element={<DirectoryDesignRoute />} />
           <Route path="search" element={<DirectorySearchRoute />} />
           <Route path="claims" element={<DirectoryClaimsRoute />} />
-          <Route path="email-sending" element={<DirectoryEnquiriesRoute />} />
-          {/* Old URL, before the tab became Settings → Emails */}
-          <Route path="enquiries" element={<Navigate to="../email-sending" replace />} />
-          <Route path="analytics" element={<DirectoryAnalyticsRoute />} />
+          <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
+          <Route path="email-log" element={<DirectoryEnquiriesRoute section="log" />} />
+          {/* Old URLs, before Emails became its own nav category */}
+          <Route path="email-sending" element={<Navigate to="../email-settings" replace />} />
+          <Route path="enquiries" element={<Navigate to="../email-settings" replace />} />
+          <Route path="insights" element={<DirectoryAnalyticsRoute />} />
+          <Route path="analytics" element={<Navigate to="../insights" replace />} />
           <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
           <Route path="seo" element={<DirectorySettingsSeoRoute />} />
           <Route path="publishing" element={<DirectoryPublishingRoute />} />
@@ -320,10 +323,13 @@ export default function App() {
         <Route path="design" element={<DirectoryDesignRoute />} />
         <Route path="search" element={<DirectorySearchRoute />} />
         <Route path="claims" element={<DirectoryClaimsRoute />} />
-        <Route path="email-sending" element={<DirectoryEnquiriesRoute />} />
-        {/* Old URL, before the tab became Settings → Emails */}
-        <Route path="enquiries" element={<Navigate to="../email-sending" replace />} />
-        <Route path="analytics" element={<DirectoryAnalyticsRoute />} />
+        <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
+        <Route path="email-log" element={<DirectoryEnquiriesRoute section="log" />} />
+        {/* Old URLs, before Emails became its own nav category */}
+        <Route path="email-sending" element={<Navigate to="../email-settings" replace />} />
+        <Route path="enquiries" element={<Navigate to="../email-settings" replace />} />
+        <Route path="insights" element={<DirectoryAnalyticsRoute />} />
+        <Route path="analytics" element={<Navigate to="../insights" replace />} />
         <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
         <Route path="seo" element={<DirectorySettingsSeoRoute />} />
         <Route path="publishing" element={<DirectoryPublishingRoute />} />

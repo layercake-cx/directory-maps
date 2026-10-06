@@ -15,7 +15,7 @@ import {
 } from "../../components/engagement/EngagementShared.jsx";
 
 /**
- * Insights › Analytics (Phase 4 follow-up) — real visitor-engagement dashboard for a directory,
+ * Insights (Phase 4 follow-up) — real visitor-engagement dashboard for a directory,
  * replacing the earlier stub. Reuses the map-side engagement dashboard's generic aggregation
  * helpers and presentational components (src/lib/engagementAnalytics.js,
  * src/components/engagement/*) — only the directory-specific event aggregation

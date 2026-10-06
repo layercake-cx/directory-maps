@@ -106,11 +106,11 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
 
-A directory has its own side panel. Under the directory name, a **publish status** box shows whether the live site is up to date — green **Published**, amber **Unpublished changes** (something has been edited since the last publish), red **Publishing failed**, or grey **Not published** — and clicking it opens Settings › Publishing. Below it, **View live site** opens the public directory in a new tab — on your custom domain when one is active (see Domain), otherwise the standard Maps address. **Overview** sits at the top; the other groups are collapsible sections — click a heading (or its arrow) to open it. One section is open at a time, and the one containing the page you're on opens automatically. The groups are **Overview**, **Content** (Entries, Pages, Categories, Accreditations, AI enrichment), **Experience** (Design, Search & Discovery), **Engagement** (Claims), **Insights** (Analytics), and **Settings** (General, SEO, Publishing, Domain, Integrations, Emails). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, AI enrichment, Design, Claims, Domain, and Emails are owner/manager-only. "AI content generation" has its own **Content › AI enrichment** page, separate from Entries; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+A directory has its own side panel. Under the directory name, a **publish status** box shows whether the live site is up to date — green **Published**, amber **Unpublished changes** (something has been edited since the last publish), red **Publishing failed**, or grey **Not published** — and clicking it opens Settings › Publishing. Below it, **View live site** opens the public directory in a new tab — on your custom domain when one is active (see Domain), otherwise the standard Maps address. **Overview** sits at the top; the other groups are collapsible sections — click a heading (or its arrow) to open it. One section is open at a time, and the one containing the page you're on opens automatically. The groups are **Overview**, **Content** (Entries, Pages, Categories, Accreditations, AI enrichment), **Experience** (Design, Search & Discovery), **Engagement** (Claims, Insights), **Emails** (Email settings, Email log), and **Settings** (General, SEO, Publishing, Domain, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, AI enrichment, Design, Claims, Domain, and the Emails group are owner/manager-only. "AI content generation" has its own **Content › AI enrichment** page, separate from Entries; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
 
 **Overview** is the directory's own dashboard, headed **Overview**. A row of compact tiles shows the **number of entries**, entries changed since the last publish, and counts of entries missing SEO metadata, page content, a logo, or coordinates, plus enquiries in the last 30 days. Each tile is **green** when there's nothing to do and **amber** when something needs attention, and amber tiles are clickable: *Changed since publish* opens Settings › Publishing, *Missing SEO metadata* opens Settings › SEO (where the metadata backfill lives), and the content/logo/coordinates tiles open the one affected entry directly when only one is affected, or the Entries list pre-filtered by the matching **Gaps** filter when several are. Below the tiles, short cards show when the directory was last published and at what version, claims by status, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
-**Insights › Analytics** shows real visitor activity on your published directory: views over time (with a date range picker), a breakdown of activity by type, a visitor journey funnel (directory view → entry view → enquiry opened → enquiry sent), top search terms, and your most-viewed entries.
+**Engagement › Insights** (previously Insights › Analytics) shows real visitor activity on your published directory: views over time (with a date range picker), a breakdown of activity by type, a visitor journey funnel (directory view → entry view → enquiry opened → enquiry sent), top search terms, and your most-viewed entries.
 
 ### Creating a directory
 
@@ -161,12 +161,12 @@ Click **Save settings** or **Save analytics**, then **Publish** (or republish) f
 
 ### Directory email
 
-On a directory's **Settings → Emails** page (owners and managers only):
+On a directory's **Emails → Email settings** page (owners and managers only):
 
 - **Contact button on entry pages** — when messaging is turned on (below), each published entry page shows **Contact** in the sidebar's Contact & address panel, under **Visit website**. It opens a side panel where the visitor writes a message. The message is emailed to **that entry's own email address** (the one on the entry's Basic Info tab), and the visitor is copied. Entries with no email address don't show the button. It doesn't matter whether the entry's "Show publicly" email box is ticked — the visitor never sees the address. **Publish** again after changing settings — the button is written into the public pages at publish time.
 - **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first (no suitable profile yet? use **Create a new profile** under the Sending profile list — it opens the New profile form on your organisation's Messaging page); messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
 
-Sent messages are listed at the bottom of the page (the latest 20).
+Sent messages are listed on the separate **Emails → Email log** page (the latest 20).
 
 ### Publishing a directory
 
@@ -637,7 +637,7 @@ Two profiles on the same domain (for example `info@` and `events@yourcompany.com
 
 ### Messaging settings on a map
 
-Open the map, then **Messaging** in the Map Settings list. (Directories: **Settings → Emails** — see [Directory email](#directory-email).)
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Emails → Email settings** — see [Directory email](#directory-email).)
 
 - **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
 - **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
@@ -747,7 +747,7 @@ Staff can open the same page for any customer from **Customers → (customer) �
 | Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
 | Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
 | Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
-| Show Contact on entry pages | Directory → Settings → Emails → sending profile chosen, messaging on, Save, then Publish (entries need an email address) |
+| Show Contact on entry pages | Directory → Emails → Email settings → sending profile chosen, messaging on, Save, then Publish (entries need an email address) |
 | Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
 | Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
 | Add a custom domain for a map or directory | `/client/domains` → Add domain |

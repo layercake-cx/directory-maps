@@ -148,7 +148,7 @@ export default function DirectoryOverviewRoute() {
         <Tile label="Missing page content" {...gapTile("no_content", missingContent, "/content")} />
         <Tile label="Missing logo" {...gapTile("no_logo", missingLogo, "")} />
         <Tile label="Not geocoded" {...gapTile("not_geocoded", notGeocoded, "")} />
-        <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} to={enquiries30d ? `${basePath}/email-sending` : undefined} />
+        <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} to={enquiries30d ? `${basePath}/email-log` : undefined} />
       </div>
 
       <div className="card-grid">
