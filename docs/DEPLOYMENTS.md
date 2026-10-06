@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-06 — [Staging] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR pending)
+**Deployed by:** Claude Code (built and tested; see below for what is applied)
+
+### What changed
+- New **AI usage** tab on the Integrations page (client portal and admin customer Integrations tab): requests, input/output/total tokens and estimated provider cost for a chosen period, tokens per day, and tables by feature, directory, and provider/model (with whether a request ran on the customer's account or Layercake's). Filters: period, directory, provider.
+- It shows Layercake-attributable usage only and says so; cost is labelled an estimate with the provider account named as the authoritative source for billing. Cost is shown only where the model's price was known when the request ran: partial coverage is marked "≥" and the number of uncosted requests is stated; amounts in different currencies are never added. Until prices are set in `ai_models`, the cost card reads "Not available".
+- No new Edge Functions. No admin events (a read-only report).
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`): one function, `get_ai_usage_summary` (security invoker, so `ai_usage_events` RLS applies; not executable by anon). No table changes. Tested on staging with a forced-rollback transaction that inserted known rows and asserted totals, cached-token handling, failed counts, platform/customer split, ordering, provider filter, mixed-currency refusal and an empty window (all passed, rolled back). **Application to staging/production: see the Verified section.**
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert the branch and redeploy both frontends. Nothing else depends on it.
+
+### Verified
+- [x] Forced-rollback behavioural test of the SQL on staging; Node tests of the period/day-fill/format helpers (including month and year boundaries); `vite build`
+- [ ] Applied to staging; AI usage tab loads with real `ai_usage_events` from staging testing; filters work
+- [ ] Customer cannot see another organisation's usage (RLS)
+- [ ] Production: migration applied, frontend deployed (needs sign-off)
+
+---
+
 ## 2026-10-06 — [Production] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
 
 **Branch/commit:** `feat/2026-10-06-web-analytics-nav` (PR #299, merge `d862658`)

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import AiProvidersTab from "./AiProvidersTab.jsx";
 import AiFeaturesConfig from "./AiFeaturesConfig.jsx";
+import AiUsageTab from "./AiUsageTab.jsx";
 import styles from "../../pages/client/ClientEmail.module.css";
 
 const COMING_SOON = ["Analytics", "Payments", "CRM", "Identity & SSO", "Data & webhooks"];
@@ -49,6 +50,13 @@ export default function IntegrationsPanel({
         >
           AI providers
         </button>
+        <button
+          type="button"
+          className={`admin-map-tabs__tab ${tab === "usage" ? "is-active" : ""}`}
+          onClick={() => setTab("usage")}
+        >
+          AI usage
+        </button>
       </div>
 
       {tab === "ai" ? (
@@ -61,6 +69,8 @@ export default function IntegrationsPanel({
           <AiFeaturesConfig clientId={clientId} eventSource={eventSource} refreshKey={connectionsVersion} />
         </>
       ) : null}
+
+      {tab === "usage" ? <AiUsageTab clientId={clientId} /> : null}
 
       <p className={styles.note} style={{ marginTop: 16 }}>
         Coming later: {COMING_SOON.join(", ")}.
