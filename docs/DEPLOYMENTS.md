@@ -28,13 +28,14 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Redeploy the nine updated functions from `main` at `8cac5b3` and delete `manage_client_integrations` and `get_ai_route_preview`; revert the merges and redeploy both frontends. The new tables/functions are inert without the new code. Only if truly needed, run the three `_20261005…rollback.sql` files in reverse order (they drop `ai_usage_events` and any customer connections; disconnect providers and take a copy of `ai_usage_events` first).
 
 ### Deployed
-- Supabase migrations and Edge Functions: done (above). GitHub Pages: automatic on merge to `main`. Vercel (`maps.layercake-cx.biz`): `npm run deploy:live`, pending (needs Damian's Vercel login).
+- Supabase migrations and Edge Functions: done (above). GitHub Pages: automatic on merge to `main`, run for `bd1865e` succeeded (the runs for the two earlier merges were cancelled as superseded). Vercel: `npm run deploy:live` from `main` at `bd1865e`, deployment `dpl_ApS1ojyoNUEpj4xh2PW8rb3e8i3V`, target production, Ready, aliased to `uk-associations.com`, `maps.layercake-cx.biz`, `ethical-elephant-sanctuaries.com` and `directory-maps.vercel.app`. The first `deploy:live` attempt failed with `Not authorized`; the same command succeeded on retry with no change (cause not established, likely a stale CLI session).
 
 ### Verified
 - [x] Production migrations recorded (`supabase migration list`), functions ACTIVE at the versions above, CORS preflight 204 on the public search function and both new functions, unauthenticated call to `get_ai_route_preview` returns a clean 401
 - [ ] A real production AI call (e.g. generate SEO metadata for one entry) succeeds on Layercake's account and writes an `ai_usage_events` row with `connection_source = platform`
 - [ ] Production Teams error alerts quiet after the first AI calls
-- [ ] GitHub Pages deploy green; Vercel `deploy:live` Ready; `/client/integrations` visible to an admin and hidden from a customer without the flag
+- [x] GitHub Pages deploy green; Vercel `deploy:live` Ready; `uk-associations.com` and `maps.layercake-cx.biz` return HTTP 200
+- [ ] `/client/integrations` visible to an admin and hidden from a customer without the flag
 - [ ] Gemini adapter still unproven against the live API: test on staging before enabling it for anyone
 
 ---
