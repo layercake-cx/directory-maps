@@ -710,6 +710,19 @@ Below the provider cards, **AI features** lists each AI task (SEO & social metad
 
 The cost symbols are a rough guide, not prices; providers change prices often, so use the pricing links on the page.
 
+### AI usage
+
+The **AI usage** tab on the Integrations page shows the AI usage generated through Layercake, for a period you choose (last 7, 30 or 90 days, this month or last month), optionally narrowed to one directory or one provider:
+
+- headline totals: requests, input tokens, output tokens, total tokens and an estimated provider cost;
+- tokens per day;
+- tables by feature (with each feature's share), by directory, and by provider and model, including whether a request ran on **your** provider account or on Layercake's own account.
+
+Two things to keep in mind:
+
+- **It is Layercake's usage, not your whole account.** If you use the same provider account for other things, those are not included. Requests that ran on Layercake's own account are counted but flagged, because your provider doesn't bill those.
+- **Costs are estimates.** They use published provider pricing, shown only for models whose price is known (otherwise the page says how many requests were left out). Cached tokens, discounts, agreements, credits and currency conversion can all make your real bill differ. Your provider account is the authoritative source for billing.
+
 ### When no provider is connected
 
 AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Help me choose stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)

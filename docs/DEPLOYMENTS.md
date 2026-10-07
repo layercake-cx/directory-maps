@@ -8,6 +8,60 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-07 — [Production] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR #301)
+**Deployed by:** Claude Code, with Damian's explicit go-ahead after staging testing
+
+### What changed
+- The AI usage tab described in the staging entry below is now on production: requests, tokens and estimated provider cost for a period, tokens per day, and breakdowns by feature, directory and provider/model, with period/directory/provider filters. Lives under Integrations, so customers see it only where the `integrations` flag is on.
+- Cost reads "Not available" until model prices are set in `ai_models`; token and request figures work from the usage already being recorded.
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`). The only migration pending on production. Forced-rollback dry run first, including a behavioural test of the function against production's own `clients` data (all assertions passed, rolled back), then applied with post-migration `VERIFY PASSED`. Function only, no table changes.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert PR #301 and redeploy both frontends.
+
+### Deployed
+- Supabase migration: done (above). GitHub Pages: automatic on merge to `main`. Vercel: `npm run deploy:live` from `main`, see the follow-up entry/PR if it differs.
+
+### Verified
+- [x] Migration recorded on production (`supabase migration list`); staging testing of the tab signed off by Damian before this deploy
+- [ ] Production: AI usage tab loads for an admin and shows real usage; another organisation's usage is not visible
+
+---
+
+## 2026-10-06 — [Staging] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR pending)
+**Deployed by:** Claude Code — migration applied to staging (`beqejxneehilplrtpntn`) 2026-10-06; production untouched
+
+### What changed
+- New **AI usage** tab on the Integrations page (client portal and admin customer Integrations tab): requests, input/output/total tokens and estimated provider cost for a chosen period, tokens per day, and tables by feature, directory, and provider/model (with whether a request ran on the customer's account or Layercake's). Filters: period, directory, provider.
+- It shows Layercake-attributable usage only and says so; cost is labelled an estimate with the provider account named as the authoritative source for billing. Cost is shown only where the model's price was known when the request ran: partial coverage is marked "≥" and the number of uncosted requests is stated; amounts in different currencies are never added. Until prices are set in `ai_models`, the cost card reads "Not available".
+- No new Edge Functions. No admin events (a read-only report).
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`): one function, `get_ai_usage_summary` (security invoker, so `ai_usage_events` RLS applies; not executable by anon). No table changes. Tested on staging with a forced-rollback transaction that inserted known rows and asserted totals, cached-token handling, failed counts, platform/customer split, ordering, provider filter, mixed-currency refusal and an empty window (all passed, rolled back). **Applied to staging 2026-10-06** (post-migration `VERIFY PASSED`). **Not applied to production.**
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert the branch and redeploy both frontends. Nothing else depends on it.
+
+### Verified
+- [x] Forced-rollback behavioural test of the SQL on staging; Node tests of the period/day-fill/format helpers (including month and year boundaries); `vite build`
+- [ ] Applied to staging; AI usage tab loads with real `ai_usage_events` from staging testing; filters work
+- [ ] Customer cannot see another organisation's usage (RLS)
+- [ ] Production: migration applied, frontend deployed (needs sign-off)
+
+---
+
 ## 2026-10-06 — [Production] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
 
 **Branch/commit:** `feat/2026-10-06-web-analytics-nav` (PR #299, merge `d862658`)

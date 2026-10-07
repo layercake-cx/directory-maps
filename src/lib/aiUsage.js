@@ -79,3 +79,77 @@ export async function retryFailedBulkJobs(directoryId, target) {
   if (error) throw error;
   return data ?? 0;
 }
+
+// ---- Usage dashboard (Integrations -> AI usage) -------------------------------------------------
+
+/** Display names for the AI features and products that appear in ai_usage_events. */
+export const AI_FEATURE_LABELS = {
+  seo_metadata: "SEO & social metadata",
+  alt_text: "Image alt text",
+  intent_search: "Help me choose (search)",
+  content_generation: "Listing content",
+  content_page_draft: "Content page drafts",
+};
+export const AI_PRODUCT_LABELS = { directory_maps: "Directory Maps" };
+
+export const USAGE_PERIODS = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+];
+
+const DAY_MS = 86_400_000;
+const utcMidnight = (y, m, d) => new Date(Date.UTC(y, m, d));
+
+/** [since, until) in UTC for a usage period. Days are bucketed in UTC to match the database. */
+export function usagePeriodRange(period, now = new Date()) {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
+  const tomorrow = utcMidnight(y, m, d + 1);
+  switch (period) {
+    case "7d":
+      return { since: utcMidnight(y, m, d - 6), until: tomorrow };
+    case "90d":
+      return { since: utcMidnight(y, m, d - 89), until: tomorrow };
+    case "this_month":
+      return { since: utcMidnight(y, m, 1), until: tomorrow };
+    case "last_month":
+      return { since: utcMidnight(y, m - 1, 1), until: utcMidnight(y, m, 1) };
+    case "30d":
+    default:
+      return { since: utcMidnight(y, m, d - 29), until: tomorrow };
+  }
+}
+
+/** One entry per UTC day in [since, until), so empty days show as zero rather than being skipped. */
+export function fillUsageDays(byDay, since, until) {
+  const lookup = new Map((byDay ?? []).map((r) => [r.day, r]));
+  const out = [];
+  for (let t = since.getTime(); t < until.getTime(); t += DAY_MS) {
+    const iso = new Date(t).toISOString().slice(0, 10);
+    const row = lookup.get(iso);
+    out.push({
+      day: iso,
+      label: new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }),
+      tokens: row?.total_tokens ?? 0,
+      requests: row?.requests ?? 0,
+    });
+  }
+  return out;
+}
+
+/** Layercake-attributable AI usage for an organisation (see get_ai_usage_summary). */
+export async function getAiUsageSummary({ clientId, since, until, directoryId = null, provider = null }) {
+  const { data, error } = await supabase.rpc("get_ai_usage_summary", {
+    p_client_id: clientId,
+    p_since: since.toISOString(),
+    p_until: until.toISOString(),
+    p_directory_id: directoryId,
+    p_provider: provider,
+  });
+  if (error) throw error;
+  return data;
+}
