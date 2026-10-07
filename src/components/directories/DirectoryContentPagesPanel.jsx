@@ -8,6 +8,7 @@ import {
   updateContentPage,
   deleteContentPage,
   generateContentPageDraft,
+  generateContentPageSeo,
   reorderContentPages,
   applyPageDrop,
   slugify,
@@ -75,11 +76,13 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(() => buildForm(null));
   const ai = useAiFeature("content_page_draft");
+  const aiSeo = useAiFeature("seo_metadata");
   const [outline, setOutline] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingSeo, setGeneratingSeo] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [dragId, setDragId] = useState(null);
@@ -270,6 +273,26 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
       setErr(e?.message ?? String(e));
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleGenerateSeo() {
+    if (!selectedPage || !form.body_html?.trim()) return;
+    if ((form.meta_title?.trim() || form.meta_description?.trim()) && !window.confirm("This will replace the meta title and description here in the form (nothing is saved until you click Save). Continue?")) {
+      return;
+    }
+    setErr("");
+    try {
+      setGeneratingSeo(true);
+      recordEvent?.("directory_content_page_ai_seo_requested", { directory_id: directoryId, page_id: selectedPage.id });
+      const seo = await generateContentPageSeo(selectedPage.id, form.body_html);
+      setForm((f) => ({ ...f, meta_title: seo.meta_title || f.meta_title, meta_description: seo.meta_description || f.meta_description }));
+      recordEvent?.("directory_content_page_ai_seo_generated", { directory_id: directoryId, page_id: selectedPage.id });
+    } catch (e) {
+      recordEvent?.("directory_content_page_ai_seo_failed", { directory_id: directoryId, page_id: selectedPage.id, error: e?.message ?? String(e) });
+      setErr(e?.message ?? String(e));
+    } finally {
+      setGeneratingSeo(false);
     }
   }
 
@@ -523,10 +546,10 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
 
             <div className="admin-card" style={{ padding: 12, background: "#f9fafb" }}>
               <Text size="xs" fw={600} mb={6}>
-                Generate with AI
+                Generate page content with AI
               </Text>
               <Text size="xs" c="dimmed" mb={6}>
-                Give the AI an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review.
+                Give the AI an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review. This only writes the page content; the SEO fields below are generated separately.
               </Text>
               <textarea
                 value={outline}
@@ -537,9 +560,24 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
               />
               {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
               <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!outline.trim() || !ai.available}>
-                Generate with AI
+                Generate content with AI
               </Button>
             </div>
+
+            <Group justify="space-between" align="flex-end" mb={-6}>
+              <div>
+                <Text size="xs" fw={600}>
+                  Search engine (SEO)
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Drafts a meta title and description from the page title and the content in the editor. Your content is not changed.
+                </Text>
+                {!aiSeo.available && <AiUnavailableNotice message={aiSeo.message} href={aiSeo.integrationsHref} />}
+              </div>
+              <Button size="xs" variant="light" onClick={handleGenerateSeo} loading={generatingSeo} disabled={!form.body_html?.trim() || !aiSeo.available}>
+                Generate SEO with AI
+              </Button>
+            </Group>
 
             <Group gap="sm" grow>
               <div>

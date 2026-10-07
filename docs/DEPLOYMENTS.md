@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-07 — [Staging] Separate AI generation for content page SEO
+
+**Branch/commit:** `feat/2026-10-07-content-page-ai-seo-separate`
+**Deployed by:** not yet deployed
+
+### What changed
+- On the Pages tab, "Generate with AI" only ever wrote the page body; the meta title and description had no AI help at all. Content and SEO are now two separate actions.
+- The content box is relabelled **Generate content with AI** (behaviour unchanged).
+- New **Generate SEO with AI** button in a **Search engine (SEO)** section drafts the meta title and description from the page title and the content currently in the editor (including unsaved edits). It needs content to work from and never changes the body. Both land in the unsaved form for review.
+- New Edge Function `generate_content_page_seo`; new `generateContentPageSeoMetadataDraft` in `_shared/seoMetadataGeneration.ts`. Uses the existing `seo_metadata` AI feature, so model routing and the AI usage dashboard need no change.
+- New admin events `directory_content_page_ai_seo_requested` / `_generated` / `_failed`.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_content_page_seo` (new) — to be deployed to staging (`beqejxneehilplrtpntn`) first; production only after sign-off.
+
+### Rollback plan
+- Revert the PR and delete the `generate_content_page_seo` function; no data or schema involved.
+
+### Verified
+- [x] `npm run build` passes
+- [x] Staging: function deployed; on a page with content, Generate SEO fills meta title/description without altering the body; Generate content leaves the SEO fields alone
+
+---
+
 ## 2026-10-07 — [Staging] Consistent page headings across admin and client portal
 
 **Branch/commit:** `chore/2026-10-07-consistent-page-headings` (PR pending)
