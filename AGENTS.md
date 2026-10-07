@@ -493,6 +493,9 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
 - **`directory_content_page_ai_draft_requested`** / **`_ai_draft_generated`** / **`_ai_draft_failed`**
   - `meta`: `directory_id`, `page_id`, `error` (on fail)
   - The editor supplies an outline; Claude drafts the page body. Never persisted by the Edge Function itself — lands in the (unsaved) rich text editor for review, same pattern as `directory_ai_content_*`.
+- **`directory_content_page_ai_seo_requested`** / **`_ai_seo_generated`** / **`_ai_seo_failed`**
+  - `meta`: `directory_id`, `page_id`, `error` (on fail)
+  - Separate "Generate SEO with AI" action: drafts the meta title and description only. Lands in the unsaved form, never persisted by the Edge Function.
 
 #### Directory AI content generation
 

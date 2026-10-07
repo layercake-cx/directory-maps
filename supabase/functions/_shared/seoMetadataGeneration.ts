@@ -142,3 +142,46 @@ export async function generateDirectorySeoMetadataDraft(
     },
   );
 }
+
+export type ContentPageSeoMetadataDraft = {
+  meta_title: string;
+  meta_description: string;
+};
+
+// Drafts only the two SEO fields on a directory content page (Pages tab). Kept
+// separate from the body-drafting generator so editors can regenerate either one
+// without disturbing the other.
+export async function generateContentPageSeoMetadataDraft(
+  scope: AiScope,
+  directoryName: string,
+  pageTitle: string,
+  bodyHtml: string | null,
+): Promise<ContentPageSeoMetadataDraft> {
+  const bodyText = stripHtml(bodyHtml).slice(0, 6000);
+  const contextLines = [
+    `Directory name: ${directoryName}`,
+    `Page title: ${pageTitle}`,
+    bodyText ? `Page content: ${bodyText}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return callModelTool<ContentPageSeoMetadataDraft>(
+    scope,
+    "You write the SEO title and description for one content page (for example About or How to join) on a published online directory. " +
+      `${AVOID_PLACEHOLDER_RULE} ` +
+      "meta_title: under 60 characters, describing what this page covers; include the directory name only if it fits naturally. " +
+      "meta_description: under 160 characters, a genuine one-sentence summary of what a visitor will find on this page, based on its content.",
+    `${contextLines}\n\nCall the tool now with both fields filled in.`,
+    "write_content_page_seo_metadata",
+    "Record drafted SEO metadata for one directory content page.",
+    {
+      type: "object",
+      properties: {
+        meta_title: { type: "string" },
+        meta_description: { type: "string" },
+      },
+      required: ["meta_title", "meta_description"],
+    },
+  );
+}

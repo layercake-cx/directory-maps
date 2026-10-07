@@ -308,3 +308,17 @@ export async function generateContentPageDraft(pageId, outline) {
   if (data?.error) throw new Error(data.error);
   return data.body_html;
 }
+
+/**
+ * AI-drafted meta title + description for one page, from its title and content.
+ * Separate from generateContentPageDraft so body and SEO can be regenerated
+ * independently. Like the body draft, nothing is persisted here; the values land
+ * in the unsaved form for review. Pass the editor's current body_html so the draft
+ * reflects unsaved edits.
+ */
+export async function generateContentPageSeo(pageId, bodyHtml) {
+  const { data, error } = await invokeFunction("generate_content_page_seo", { body: { page_id: pageId, body_html: bodyHtml } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { meta_title: data.meta_title, meta_description: data.meta_description };
+}

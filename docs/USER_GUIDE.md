@@ -364,7 +364,8 @@ A directory's **Pages** tab (owners and managers only) is for editor-built pages
 4. A published page with **Show in site navigation** turned off stays reachable at its URL and can still appear in breadcrumbs, but it is left out of the header, phone menu, and footer.
 5. An unpublished page is omitted from the live site entirely until you publish it and republish the directory.
 6. Child pages get a nested address, e.g. `/membership/why-join`. Changing a parent or slug changes that address; the previous address redirects after the next time you publish.
-7. **Generate with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**.
+7. **Generate content with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**. This only writes the page body — it never touches the SEO fields.
+8. **Generate SEO with AI** — in the **Search engine (SEO)** section, drafts the **Meta title** and **Meta description** from the page title and whatever is currently in the content editor (including unsaved edits). It needs some page content to work from, and it never changes the content. Run it independently of, or after, the content generator; edit the result as you like — nothing is saved until you click **Save**.
 8. **Meta title**, **Meta description**, and **Hide from search engines (noindex)** work the same as an entry's own Search & Metadata fields.
 9. **Delete page** — if the page has children, you must choose to move them to the top level, move them under another page, or delete them too. The live site updates on the next publish.
 
