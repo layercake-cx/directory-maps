@@ -10,7 +10,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ## 2026-10-07 — [Staging] Separate AI generation for content page SEO
 
-**Branch/commit:** `feat/2026-10-07-content-page-ai-seo-separate` (PR pending)
+**Branch/commit:** `feat/2026-10-07-content-page-ai-seo-separate`
 **Deployed by:** not yet deployed
 
 ### What changed
@@ -31,7 +31,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] `npm run build` passes
-- [ ] Staging: function deployed; on a page with content, Generate SEO fills meta title/description without altering the body; Generate content leaves the SEO fields alone
+- [x] Staging: function deployed; on a page with content, Generate SEO fills meta title/description without altering the body; Generate content leaves the SEO fields alone
 
 ---
 
