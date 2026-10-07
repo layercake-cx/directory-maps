@@ -1,5 +1,7 @@
 import React from "react";
 import { useClient } from "../../hooks/useClient.js";
+import PageHead from "../../components/shell/PageHead.jsx";
+import { DOMAINS_SUBTITLE } from "../../lib/clientDomains.js";
 import DomainSettings from "../../components/DomainSettings.jsx";
 
 export default function ClientDomains() {
@@ -19,11 +21,7 @@ export default function ClientDomains() {
 
   return (
     <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">Domains</h1>
-        </div>
-      </div>
+      <PageHead title="Domains" subtitle={DOMAINS_SUBTITLE} />
       <DomainSettings clientId={client.id} clientName={client?.name} eventSource="client_portal" />
     </>
   );

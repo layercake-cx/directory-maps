@@ -122,7 +122,6 @@ export default function AdminContactDetail() {
 
         {contact && client && !loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <p className="card-title" style={{ margin: 0 }}>Edit contact</p>
             <div style={{ fontSize: 13, marginBottom: 8 }}>
               <strong>Customer:</strong>{" "}
               <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>

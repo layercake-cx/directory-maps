@@ -189,10 +189,6 @@ export default function AdminMapNew() {
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
-        <p className="card-title">
-          Create map {client?.name ? <span style={{ opacity: 0.7, fontWeight: 400 }}>for {client.name}</span> : null}
-        </p>
-
         <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
 
         <form onSubmit={createMap}>

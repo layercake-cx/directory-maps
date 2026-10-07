@@ -286,7 +286,7 @@ export default function ClientTeam() {
     <>
       <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Team — {client?.name}</h1>
+          <h1 className="page-title">Team</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
             Manage team members and their map access
           </p>

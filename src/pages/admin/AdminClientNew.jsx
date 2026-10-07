@@ -62,8 +62,6 @@ export default function AdminClientNew() {
           <Link to="/admin/clients">← Back to customers</Link>
         </div>
 
-        <p className="card-title">Create customer</p>
-
         <form onSubmit={createClient}>
           <div style={{ display: "grid", gap: 14 }}>
             <Field label="Customer name">

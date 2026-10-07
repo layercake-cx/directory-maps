@@ -61,10 +61,9 @@ export default function AdminUsers() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Admin Users" }]}
+      subtitle="View admin user details and activity."
     >
       <div className="card card-pad">
-        <p className="card-title">Admin Users</p>
-        <p style={{ color: "var(--lc-muted)" }}>View admin user details and activity.</p>
         {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
         {loading ? (
           <p>Loading…</p>

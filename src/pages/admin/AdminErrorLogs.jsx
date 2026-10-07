@@ -61,17 +61,18 @@ export default function AdminErrorLogs() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Error log" }]}
+      subtitle={
+        <>
+          Recent client-side errors (newest first, last {PAGE_SIZE} entries). Ensure the <code>error_logs</code> migration is applied.
+        </>
+      }
+      rightActions={
+        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
+        </button>
+      }
     >
       <div className="card card-pad">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <p className="card-title" style={{ margin: 0 }}>Error log</p>
-          <button type="button" className="shell-btn" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 16 }}>
-          Recent client-side errors (newest first, last {PAGE_SIZE} entries). Ensure the <code>error_logs</code> migration is applied.
-        </p>
 
         {err ? (
           <p style={{ color: "#b91c1c" }}>{err}</p>

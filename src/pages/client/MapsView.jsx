@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
+import PageHead from "../../components/shell/PageHead.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
 import styles from "./MapsView.module.css";
 
@@ -82,22 +83,22 @@ export default function MapsView({ maps = [], workspaceName, loading, error }) {
   return (
     <div className={styles.wrap}>
       {/* Top bar */}
-      <div className={styles.topbar}>
-        <div>
-          {workspaceName && <p className={styles.pageLabel}>{workspaceName}</p>}
-          <h1 className={styles.pageTitle}>My Maps</h1>
-        </div>
-        <div className={styles.topbarActions}>
-          <div className={styles.search}>
-            <SearchIcon />
-            <span>Search maps…</span>
+      <PageHead
+        title="Maps"
+        subtitle="Interactive maps your visitors can explore."
+        actions={
+          <div className={styles.topbarActions}>
+            <div className={styles.search}>
+              <SearchIcon />
+              <span>Search maps…</span>
+            </div>
+            <button className={styles.filterBtn}>
+              <FilterIcon />
+              Filter
+            </button>
           </div>
-          <button className={styles.filterBtn}>
-            <FilterIcon />
-            Filter
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
         <p style={{ color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>{error}</p>

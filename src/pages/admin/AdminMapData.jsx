@@ -982,41 +982,36 @@ export default function AdminMapData() {
         { label: "Customers", path: "/admin/clients" },
         { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
         { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
-        { label: "Data" },
+        { label: "Map data" },
       ]}
+      subtitle={
+        <>
+          Manage listings for <strong>{map?.name ?? "…"}</strong>
+          {client?.name ? <> · {client.name}</> : null}
+        </>
+      }
+      rightActions={
+        <>
+          <Badge size="md" variant="light" color={listings.length ? "teal" : "gray"}>
+            {listings.length} {listings.length === 1 ? "listing" : "listings"}
+          </Badge>
+          <Button size="sm" variant="default" leftSection={<Download size={14} />} onClick={downloadTemplate}>
+            CSV template
+          </Button>
+          <Button
+            size="sm"
+            variant="filled"
+            leftSection={<Globe size={14} />}
+            component={Link}
+            to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}
+            state={{ openTab: "publish" }}
+          >
+            Publish map
+          </Button>
+        </>
+      }
     >
       <div style={{ maxWidth: 960 }}>
-
-        {/* ── Page header ── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Map data</h2>
-              <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.65 }}>
-                Manage listings for <strong>{map?.name ?? "…"}</strong>
-                {client?.name ? <> · {client.name}</> : null}
-              </p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Badge size="md" variant="light" color={listings.length ? "teal" : "gray"}>
-                {listings.length} {listings.length === 1 ? "listing" : "listings"}
-              </Badge>
-              <Button size="sm" variant="default" leftSection={<Download size={14} />} onClick={downloadTemplate}>
-                CSV template
-              </Button>
-              <Button
-                size="sm"
-                variant="filled"
-                leftSection={<Globe size={14} />}
-                component={Link}
-                to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`}
-                state={{ openTab: "publish" }}
-              >
-                Publish map
-              </Button>
-            </div>
-          </div>
-        </div>
 
         {/* ── Tab bar ── */}
         <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />

@@ -14,6 +14,8 @@ import CategorisationsPanel from "../../components/directories/CategorisationsPa
 import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
 import EntitlementLimitModal from "../../components/admin/EntitlementLimitModal.jsx";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
+import PageHead from "../../components/shell/PageHead.jsx";
+import { DOMAINS_SUBTITLE } from "../../lib/clientDomains.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
   DIRECTORIES_FLAG,
@@ -411,8 +413,10 @@ export default function AdminClientDetail() {
 
             {activeTab === "maps" && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
-                  <p className="card-title" style={{ margin: 0 }}>Maps</p>
+                <PageHead
+                  title="Maps"
+                  subtitle="Interactive maps for this customer."
+                  actions={
                   <button
                     type="button"
                     className="shell-btn shell-btn--primary"
@@ -428,7 +432,8 @@ export default function AdminClientDetail() {
                   >
                     New map
                   </button>
-                </div>
+                  }
+                />
 
                 {maps.length === 0 ? (
                   err ? null : (
@@ -481,24 +486,21 @@ export default function AdminClientDetail() {
 
             {activeTab === "categorisations" && (
               <div>
-                <p className="card-title" style={{ marginBottom: 16 }}>Categories</p>
+                <PageHead title="Categories" subtitle="Reusable taxonomies applied across all of your directories." />
                 <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 
             {activeTab === "entitlements" && (
               <div>
-                <p className="card-title" style={{ marginBottom: 16 }}>Entitlements</p>
+                <PageHead title="Entitlements" subtitle="Plan, feature access and limits for this customer." />
                 <EntitlementsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 
             {activeTab === "details" && (
               <>
-                <div style={{ marginBottom: 20 }}>
-                  <p className="card-title" style={{ marginBottom: 8 }}>Customer details</p>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>ID: {client?.id ?? "—"}</div>
-                </div>
+                <PageHead title="Customer details" subtitle={`ID: ${client?.id ?? "—"}`} />
 
                 {err ? <p style={{ margin: "0 0 12px 0" }}>{err}</p> : null}
                 {notice ? (
@@ -632,8 +634,8 @@ export default function AdminClientDetail() {
 
             {activeTab === "users" && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-                  <p className="card-title" style={{ margin: 0 }}>Users</p>
+                <PageHead title="Users" subtitle="People who can sign in to this customer's workspace." />
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
                   <form onSubmit={handleAddUser} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     <input
                       type="email"
@@ -784,12 +786,14 @@ export default function AdminClientDetail() {
                 clientId={clientId}
                 clientName={client?.name}
                 eventSource="admin_dashboard"
-                showPageTitle={false}
               />
             )}
 
             {activeTab === "domains" && (
-              <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+              <>
+                <PageHead title="Domains" subtitle={DOMAINS_SUBTITLE} />
+                <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+              </>
             )}
 
             {activeTab === "integrations" && (
@@ -797,7 +801,6 @@ export default function AdminClientDetail() {
                 clientId={clientId}
                 clientName={client?.name}
                 eventSource="admin_dashboard"
-                showPageTitle={false}
               />
             )}
           </>

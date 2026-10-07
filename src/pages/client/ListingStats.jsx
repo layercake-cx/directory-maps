@@ -144,7 +144,7 @@ export default function ListingStats() {
           <Link to={`${statsBase}?days=${days}`} className={styles.backLink}>
             ← {mapName} stats
           </Link>
-          <h1 className={styles.title}>{listing?.name || "Listing"}</h1>
+          <h1 className={`page-title ${styles.title}`}>{listing?.name || "Listing"}</h1>
         </div>
         <div className={styles.headerActions}>
           <DateRangeSelect days={days} onChange={setDays} />

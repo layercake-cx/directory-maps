@@ -22,7 +22,6 @@ export default function ClientEmail() {
       clientId={client.id}
       clientName={client?.name}
       eventSource="client_portal"
-      showPageTitle
     />
   );
 }
