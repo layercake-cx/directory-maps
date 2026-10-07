@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-07 — [Production] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR #301)
+**Deployed by:** Claude Code, with Damian's explicit go-ahead after staging testing
+
+### What changed
+- The AI usage tab described in the staging entry below is now on production: requests, tokens and estimated provider cost for a period, tokens per day, and breakdowns by feature, directory and provider/model, with period/directory/provider filters. Lives under Integrations, so customers see it only where the `integrations` flag is on.
+- Cost reads "Not available" until model prices are set in `ai_models`; token and request figures work from the usage already being recorded.
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`). The only migration pending on production. Forced-rollback dry run first, including a behavioural test of the function against production's own `clients` data (all assertions passed, rolled back), then applied with post-migration `VERIFY PASSED`. Function only, no table changes.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert PR #301 and redeploy both frontends.
+
+### Deployed
+- Supabase migration: done (above). GitHub Pages: automatic on merge to `main`. Vercel: `npm run deploy:live` from `main`, see the follow-up entry/PR if it differs.
+
+### Verified
+- [x] Migration recorded on production (`supabase migration list`); staging testing of the tab signed off by Damian before this deploy
+- [ ] Production: AI usage tab loads for an admin and shows real usage; another organisation's usage is not visible
+
+---
+
 ## 2026-10-06 — [Staging] AI usage dashboard (Integrations → AI usage)
 
 **Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR pending)
