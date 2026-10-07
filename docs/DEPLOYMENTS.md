@@ -27,10 +27,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert PR #301 and redeploy both frontends.
 
 ### Deployed
-- Supabase migration: done (above). GitHub Pages: automatic on merge to `main`. Vercel: `npm run deploy:live` from `main`, see the follow-up entry/PR if it differs.
+- Supabase migration: done (above). GitHub Pages: run for `bb4f271` succeeded. Vercel: `npm run deploy:live` from `main` at `bb4f271`, deployment `dpl_8pamstavMkVBfzrkbYR4TiznRG1K`, target production, Ready, aliased to `uk-associations.com`, `maps.layercake-cx.biz`, `ethical-elephant-sanctuaries.com`, `directory-maps.vercel.app` and `directory-maps-layercake-apps.vercel.app`. As on 2026-10-05, the first `deploy:live` call failed with `Not authorized` and the immediate retry succeeded; likely a first-call token refresh (unconfirmed), so just retry once.
 
 ### Verified
 - [x] Migration recorded on production (`supabase migration list`); staging testing of the tab signed off by Damian before this deploy
+- [x] Production sites return HTTP 200 and the live JS bundle contains the usage code (`get_ai_usage_summary`)
 - [ ] Production: AI usage tab loads for an admin and shows real usage; another organisation's usage is not visible
 
 ---
