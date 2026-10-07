@@ -105,12 +105,9 @@ export default function AdminDeployments() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Deployments" }]}
+      subtitle="Deploy to test (preview) or production. If deploy hooks are configured, clicking will trigger a deploy; otherwise the command is copied so you can run it locally."
     >
       <div className="card card-pad">
-        <p className="card-title">Deployments</p>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 24 }}>
-          Deploy to test (preview) or production. If deploy hooks are configured, clicking will trigger a deploy; otherwise the command is copied so you can run it locally.
-        </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320 }}>
           <button

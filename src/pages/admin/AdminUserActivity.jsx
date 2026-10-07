@@ -201,18 +201,19 @@ export default function AdminUserActivity() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "User activity" }]}
-    >
-      <div className="card card-pad">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <p className="card-title" style={{ margin: 0 }}>User activity</p>
-          <button type="button" className="shell-btn" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 16 }}>
+      subtitle={
+        <>
           Admin and client-portal actions (newest first, up to {PAGE_SIZE} rows). Apply the{" "}
           <code>admin_events</code> migration if this list is empty or errors.
-        </p>
+        </>
+      }
+      rightActions={
+        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
+        </button>
+      }
+    >
+      <div className="card card-pad">
 
         <div className="admin-controls" style={{ marginBottom: 16 }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>

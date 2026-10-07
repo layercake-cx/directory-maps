@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-07 — [Staging] Consistent page headings across admin and client portal
+
+**Branch/commit:** `chore/2026-10-07-consistent-page-headings` (PR pending)
+**Deployed by:** not yet deployed (frontend only)
+
+### What changed
+- Every page now opens with the same heading as Directories: serif page title, one-line muted subtitle, actions on the right. Before, pages used a mix of card titles, bare `h2`s, a teal in-card heading (Integrations), no heading at all (admin Domains) or a differently styled "My Maps".
+- New shared `PageHead` component (`src/components/shell/PageHead.jsx`); `AdminLayout` gained a `subtitle` prop so platform admin pages put their description under the title.
+- Staff customer workspace: Maps, Categories, Entitlements, Customer details, Users, Domains, Messaging and Integrations now use the page head. The `showPageTitle` switch on the Messaging and Integrations panels is gone (both always show it).
+- Platform admin pages (Leads, Admin Users, Deployments, Error log, User activity, Sync log, Map data): removed the duplicate in-card title that repeated the page title; Refresh buttons moved into the page head.
+- Client portal: Maps (was "My Maps"), Team (no customer name in the title), Map data, and the map/listing stats titles.
+- No behaviour, data or events changed.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the PR; no data or schema involved.
+
+### Verified
+- [x] `npm run build` passes
+- [ ] Staging: walk each admin customer-workspace section and each client portal page and confirm one heading, matching Directories
+
+---
+
 ## 2026-10-07 — [Production] AI usage dashboard (Integrations → AI usage)
 
 **Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR #301)

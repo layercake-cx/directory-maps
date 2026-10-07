@@ -13,6 +13,7 @@ import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
+import PageHead from "../../components/shell/PageHead.jsx";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
 import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap, createDirectoryFromMap } from "../../lib/directories.js";
 
@@ -1071,17 +1072,18 @@ export default function ClientMapData() {
     <div className="page-main" style={{ maxWidth: 960 }}>
 
       {/* ── Page header ── */}
-      <div style={{ marginBottom: 24 }}>
-        <Link to={`/client/maps/${encodeURIComponent(mapId)}`} style={{ fontSize: 13, opacity: 0.65, textDecoration: "none" }}>
-          ← Back to map
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Map data</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.65 }}>
-              Manage the listings displayed on <strong>{map?.name ?? "this map"}</strong>
-            </p>
-          </div>
+      <Link to={`/client/maps/${encodeURIComponent(mapId)}`} style={{ fontSize: 13, opacity: 0.65, textDecoration: "none" }}>
+        ← Back to map
+      </Link>
+      <PageHead
+        style={{ marginTop: 8 }}
+        title="Map data"
+        subtitle={
+          <>
+            Manage the listings displayed on <strong>{map?.name ?? "this map"}</strong>
+          </>
+        }
+        actions={
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Badge size="md" variant="light" color={listings.length ? "teal" : "gray"}>
               {listings.length} {listings.length === 1 ? "listing" : "listings"}
@@ -1090,8 +1092,8 @@ export default function ClientMapData() {
               CSV template
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Tab bar ── */}
       <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />

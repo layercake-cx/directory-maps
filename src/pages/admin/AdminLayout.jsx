@@ -28,6 +28,7 @@ function clientWorkspaceIdFromPath(pathname) {
  *
  * @param {{
  *   rightActions?: React.ReactNode,
+ *   subtitle?: React.ReactNode,
  *   children: React.ReactNode,
  *   mainClassName?: string,
  *   breadcrumbs?: {label: string, path?: string}[],
@@ -36,6 +37,7 @@ function clientWorkspaceIdFromPath(pathname) {
  */
 export default function AdminLayout({
   rightActions,
+  subtitle,
   children,
   mainClassName = "",
   breadcrumbs = [],
@@ -82,6 +84,7 @@ export default function AdminLayout({
               {breadcrumbs.length > 0 && (
                 <h1 className="page-title">{breadcrumbs[breadcrumbs.length - 1].label}</h1>
               )}
+              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>{subtitle}</p>}
             </div>
             {rightActions && <div style={{ display: "flex", gap: 10, alignItems: "center" }}>{rightActions}</div>}
           </div>

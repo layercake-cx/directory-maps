@@ -77,13 +77,9 @@ export default function AdminSyncLog() {
     <AdminLayout
       panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Sync log" }]}
+      subtitle="Google Sheets sync history across all maps."
     >
       <div style={{ maxWidth: 1100 }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Sync log</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.65 }}>Google Sheets sync history across all maps.</p>
-        </div>
-
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
           <input
             type="text"

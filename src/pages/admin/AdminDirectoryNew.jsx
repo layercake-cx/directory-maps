@@ -63,10 +63,6 @@ export default function AdminDirectoryNew() {
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
-        <p className="card-title">
-          Create directory {client?.name ? <span style={{ opacity: 0.7, fontWeight: 400 }}>for {client.name}</span> : null}
-        </p>
-
         <form onSubmit={handleCreate}>
           <div style={{ display: "grid", gap: 14 }}>
             <Field label="Directory name">

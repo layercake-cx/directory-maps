@@ -15,7 +15,6 @@ export default function IntegrationsPanel({
   clientId,
   clientName = "",
   eventSource = "client_portal",
-  showPageTitle = true,
 }) {
   const [tab, setTab] = useState("ai");
   // Bumped when a provider is connected/disconnected so the feature configuration reloads.
@@ -23,24 +22,15 @@ export default function IntegrationsPanel({
 
   return (
     <>
-      {showPageTitle ? (
-        <div className="page-head" style={{ marginBottom: 16 }}>
-          <div>
-            <h1 className="page-title">Integrations</h1>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
-              Connect external services once and use them across Layercake products. Layercake provides the
-              capabilities; you pay your provider directly for what they use.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: "0 0 4px 0", fontSize: 18 }}>Integrations</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--lc-muted)" }}>
-            External services connected for {clientName || "this customer"}.
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1 className="page-title">Integrations</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+            Connect external services once and use them across Layercake products. Layercake provides the
+            capabilities; you pay your provider directly for what they use.
           </p>
         </div>
-      )}
+      </div>
 
       <div className={`admin-map-tabs ${styles.messagingTabs}`}>
         <button

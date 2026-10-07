@@ -22,7 +22,6 @@ export default function ClientIntegrations() {
       clientId={client.id}
       clientName={client?.name}
       eventSource="client_portal"
-      showPageTitle
     />
   );
 }
