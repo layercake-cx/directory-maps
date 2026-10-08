@@ -31,7 +31,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verified
 - [x] Migration applied; `VERIFY PASSED` (columns exist, one `create_team_invitation` overload, no existing contact has `has_all_access`)
-- [ ] Frontend not yet deployed to the Vercel preview (needs `npm run deploy:test`, which requires an authenticated Vercel CLI)
+- [x] Frontend deployed to the Vercel preview (https://directory-maps-143sieyre-layercake-apps.vercel.app, behind Vercel deployment protection)
 - [ ] Invite as Member, Manager and Primary; sign up; contact has the right role, `is_primary` and `has_all_access`
 - [ ] A manager cannot invite a primary; Member sees all directories
 
