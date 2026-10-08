@@ -294,6 +294,7 @@ async function generateForDirectoryInner(
     meta_title_template?: string | null;
     meta_description?: string | null;
     default_noindex?: boolean | null;
+    bing_site_auth_xml?: string | null;
   };
   const directoryNoindex = !!seoDefaults.default_noindex;
 
@@ -972,6 +973,11 @@ async function generateForDirectoryInner(
     extra: llmsExtra,
   });
   await uploadToBlob(`${basePath}/llms.txt`, llmsTxt, "text/markdown; charset=utf-8");
+
+  // Bing Webmaster Tools verification file (BingSiteAuth.xml) — pasted into
+  // Settings › SEO. Always written (empty when cleared) so removing it
+  // overwrites a previously published copy; middleware.js 404s an empty body.
+  await uploadToBlob(`${basePath}/BingSiteAuth.xml`, seoDefaults.bing_site_auth_xml?.trim() ?? "", "application/xml; charset=utf-8");
 
   // Redirects (docs/DIRECTORIES.md §5.11): old slug -> current slug of
   // whichever entry now holds it, so a renamed entry's previous public URL

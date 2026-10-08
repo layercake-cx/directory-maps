@@ -14,6 +14,7 @@ function seoDefaultsFromDirectory(directory) {
     meta_title_template: s.meta_title_template || "",
     meta_description: s.meta_description || "",
     default_noindex: !!s.default_noindex,
+    bing_site_auth_xml: s.bing_site_auth_xml || "",
   };
 }
 
@@ -76,6 +77,10 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
     setErr("");
     setMsg("");
     try {
+      const bingXml = seo.bing_site_auth_xml.trim();
+      if (bingXml && (!/^(<\?xml[^>]*\?>\s*)?<users>[\s\S]*<\/users>$/i.test(bingXml) || bingXml.length > 2000)) {
+        throw new Error("The Bing verification file should be the contents of BingSiteAuth.xml, starting with <?xml or <users> and ending with </users>.");
+      }
       setSaving(true);
       const prevSeo = seoDefaultsFromDirectory(directory);
       const cleanOgImage = ogImageUrl.trim();
@@ -83,6 +88,7 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
       if (seo.meta_title_template !== prevSeo.meta_title_template) changedFields.push("seo_defaults_json.meta_title_template");
       if (seo.meta_description !== prevSeo.meta_description) changedFields.push("seo_defaults_json.meta_description");
       if (seo.default_noindex !== prevSeo.default_noindex) changedFields.push("seo_defaults_json.default_noindex");
+      if (seo.bing_site_auth_xml.trim() !== prevSeo.bing_site_auth_xml.trim()) changedFields.push("seo_defaults_json.bing_site_auth_xml");
       if (cleanOgImage !== (directory?.seo_og_image_url || "")) changedFields.push("seo_og_image_url");
 
       await updateDirectory(directoryId, {
@@ -91,6 +97,7 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
           meta_title_template: seo.meta_title_template.trim() || null,
           meta_description: seo.meta_description.trim() || null,
           default_noindex: seo.default_noindex,
+          bing_site_auth_xml: bingXml || null,
         },
         seo_og_image_url: cleanOgImage || null,
       });
@@ -158,7 +165,7 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
           />
         </div>
 
-        <div>
+        <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>Social/SEO image URL</label>
           <input
             type="url"
@@ -168,6 +175,21 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
             placeholder="https://yourcompany.com/directory-cover.jpg"
             style={inputStyle}
           />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Bing verification file (BingSiteAuth.xml)</label>
+          <textarea
+            value={seo.bing_site_auth_xml}
+            onChange={(e) => setSeoField("bing_site_auth_xml", e.target.value)}
+            disabled={disabled}
+            rows={4}
+            placeholder={'<?xml version="1.0"?>\n<users>\n\t<user>…</user>\n</users>'}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
+          />
+          <p style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.6 }}>
+            Paste the contents of the XML file from Bing Webmaster Tools. After you Publish it is served at <code>/BingSiteAuth.xml</code> on this directory's custom domain (Bing only checks a domain's own root). Clear the box and publish to remove it.
+          </p>
         </div>
       </div>
 

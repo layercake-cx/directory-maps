@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-08 — [Staging] Bing verification file setting
+
+**Branch/commit:** `feat/2026-10-08-bing-site-auth-file`
+**Deployed by:** not yet deployed
+
+### What changed
+- Settings › SEO has a new **Bing verification file (BingSiteAuth.xml)** box. The pasted XML is stored in `directories.seo_defaults_json.bing_site_auth_xml` (no migration) and validated as a `<users>…</users>` file on save.
+- `generate_directory_site` writes it as `BingSiteAuth.xml` next to `robots.txt` on every publish (an empty file when cleared, so removal overwrites an earlier copy). `middleware.js` serves it at a directory custom domain's root and returns 404 for an empty file.
+- Saving fires the existing `directory_settings_updated` event with `seo_defaults_json.bing_site_auth_xml` in `changed_fields`. No visitor-facing control, so no engagement event.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — pending (staging first, `beqejxneehilplrtpntn`).
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site`; stored XML in `seo_defaults_json` is harmless if left.
+
+### Verified
+- [ ] Paste a Bing file, save, publish; `/BingSiteAuth.xml` on a custom domain returns it
+- [ ] Clear it, publish; the URL returns 404
+
+---
+
 ## 2026-10-08 — [Staging] Header dropdown uses the header colours
 
 **Branch/commit:** `fix/2026-10-08-subnav-dropdown-header-colours`
