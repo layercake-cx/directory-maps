@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-08 — [Staging] "Built on Layercake Maps" footer panel
 
 **Branch/commit:** `feat/2026-10-08-built-on-layercake-footer`
-**Deployed by:** Claude Code (staging); production pending sign-off
+**Deployed by:** Claude Code — migration and function on staging 2026-10-08; production pending sign-off
 **Monday:** https://layercake-cx.monday.com/boards/5094351513/pulses/3269038439
 
 ### What changed
