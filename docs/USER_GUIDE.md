@@ -577,16 +577,17 @@ Owners and managers can open **Team** (`/client/team`) to:
 - See each person’s **status** (Active, Invite pending, Awaiting verification, etc.) and **last logged in**
 - **Send invitation email** to a colleague’s address
 - **Cancel** a pending invitation if needed
-- For **Members**, choose which maps they can access, and — if Directories is enabled for your organisation — which directories they can access (checkboxes granting entry-level view and edit access; there's no view-only tier yet)
-- Change roles or remove members (owners only)
+- Invited people join with the access level you chose. **Members** can use every map and directory in your organisation (there is no per-map or per-directory picking for new invitations); **Managers** also manage the team and organisation settings; **Primary contacts** are managers who are also marked as a primary contact. More than one primary contact is fine.
+- Older Members who were set up with per-map or per-directory checkboxes keep them. Click **Give access to all** on their row to switch them to full access.
+- Change roles, **Make primary** / **Remove primary**, or remove members (owners and primary contacts only)
 
 ### Inviting someone
 
-1. Enter their **email** and **role** (Manager or Member).
+1. Enter their **email** and choose an **access level**: Member, Manager, or Primary contact. Only primary contacts (and Layercake admins) see the Primary contact option.
 2. Click **Send invitation email**.
 3. They receive an email: *“You’re invited to join …”* with a link to **set a password** and create their account.
 4. They must sign up with the **same email** you invited.
-5. After email verification, they log in and join your organisation automatically.
+5. When they create their account they join your organisation with exactly the access level you chose, including primary-contact status.
 
 ### When invitation is not allowed
 

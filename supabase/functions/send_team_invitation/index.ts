@@ -15,6 +15,7 @@ const CORS_HEADERS = {
 const ROLE_LABELS: Record<string, string> = {
   manager: "Manager",
   member: "Member",
+  primary: "Primary contact",
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -54,7 +55,7 @@ async function requireOrgManager(req: Request, clientId: string) {
 
   const { data: profile } = await service.from("profiles").select("role").eq("user_id", user.id).maybeSingle();
   if (profile?.role === "admin") {
-    return { user, contact: { name: null, email: user.email ?? "" } };
+    return { user, contact: { name: null, email: user.email ?? "" }, canGrantPrimary: true };
   }
 
   const { data: contact } = await service
@@ -68,7 +69,8 @@ async function requireOrgManager(req: Request, clientId: string) {
   const canManage =
     contact.role === "owner" || contact.role === "manager" || contact.is_primary === true;
   if (!canManage) throw new Error("Only owners and managers can invite team members.");
-  return { user, contact };
+  const canGrantPrimary = contact.role === "owner" || contact.is_primary === true;
+  return { user, contact, canGrantPrimary };
 }
 
 Deno.serve(async (req) => {
@@ -96,9 +98,7 @@ Deno.serve(async (req) => {
     const clientId = typeof body?.clientId === "string" ? body.clientId.trim() : "";
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const role = typeof body?.role === "string" ? body.role.trim() : "member";
-    const mapIds = Array.isArray(body?.mapIds)
-      ? body.mapIds.filter((id: unknown) => typeof id === "string" && id.trim()).map((id: string) => id.trim())
-      : [];
+    const isPrimary = body?.isPrimary === true;
 
     if (!clientId) return jsonResponse({ error: "Missing clientId." }, 400);
     if (!email) return jsonResponse({ error: "Email is required." }, 400);
@@ -106,7 +106,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Invalid role." }, 400);
     }
 
-    const { user, contact: inviterContact } = await requireOrgManager(req, clientId);
+    const { user, contact: inviterContact, canGrantPrimary } = await requireOrgManager(req, clientId);
+    if (isPrimary && !canGrantPrimary) {
+      return jsonResponse({ error: "Only a primary contact can invite another primary contact." }, 403);
+    }
 
     const seats = await checkSeatAvailability(createServiceClient(), clientId);
     if (!seats.ok) return jsonResponse({ error: seats.message }, 409);
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
       p_client_id: clientId,
       p_email: email,
       p_role: role,
-      p_map_ids: mapIds,
+      p_is_primary: isPrimary,
     });
 
     if (invErr) {
@@ -138,7 +141,7 @@ Deno.serve(async (req) => {
       (inviterContact.email as string)?.trim() ||
       user.email ||
       "A team member";
-    const roleLabel = ROLE_LABELS[role] ?? role;
+    const roleLabel = ROLE_LABELS[isPrimary ? "primary" : role] ?? role;
     const urls = buildInviteUrls(inv.id);
 
     const platformFrom = getPlatformFrom();

@@ -6,11 +6,16 @@ import { sendInvitation } from "../../lib/inviteHelpers";
 import {
   formatLastLoggedIn,
   getTeamStatus,
-  inviteMapNames,
   sortTeamRows,
 } from "../../lib/teamDirectory.js";
 
 const ROLE_LABELS = { owner: "Owner", manager: "Manager", member: "Member" };
+
+const ACCESS_LEVELS = [
+  { value: "member", label: "Member — can use all maps and directories" },
+  { value: "manager", label: "Manager — also manages the team and organisation settings" },
+  { value: "primary", label: "Primary contact — manager, plus listed as a primary contact" },
+];
 
 const STATUS_STYLES = {
   active: { background: "#ecfdf5", color: "#065f46" },
@@ -50,13 +55,15 @@ export default function ClientTeam() {
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
-  const [inviteMapIds, setInviteMapIds] = useState(new Set());
+  const [allAccess, setAllAccess] = useState({});
+  const [invitePrimary, setInvitePrimary] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
   const [msg, setMsg] = useState({ text: "", error: false });
 
   const isOwner = myContact?.role === "owner" || myContact?.is_primary === true;
+  const accessLevels = isOwner ? ACCESS_LEVELS : ACCESS_LEVELS.filter((l) => l.value !== "primary");
 
   useEffect(() => {
     load();
@@ -80,7 +87,13 @@ export default function ClientTeam() {
         .single();
       setClient(clientData);
 
-      const [{ data: directory, error: dirErr }, { data: mapsData }, { data: directoriesData }] = await Promise.all([
+      const [
+        { data: directory, error: dirErr },
+        { data: mapsData },
+        { data: directoriesData },
+        { data: accessRows },
+        { data: pendingInvites },
+      ] = await Promise.all([
         supabase.rpc("list_client_team_directory", { p_client_id: ct.client_id }),
         supabase
           .from("maps")
@@ -93,6 +106,8 @@ export default function ClientTeam() {
           .eq("client_id", ct.client_id)
           .eq("is_active", true)
           .order("name", { ascending: true }),
+        supabase.from("contacts").select("id, has_all_access").eq("client_id", ct.client_id),
+        supabase.from("invitations").select("id, is_primary").eq("client_id", ct.client_id).is("accepted_at", null),
       ]);
 
       if (dirErr) throw dirErr;
@@ -101,6 +116,8 @@ export default function ClientTeam() {
       setTeamRows(rows);
       setMaps(mapsData ?? []);
       setDirectories(directoriesData ?? []);
+      setAllAccess(Object.fromEntries((accessRows ?? []).map((r) => [r.id, !!r.has_all_access])));
+      setInvitePrimary(Object.fromEntries((pendingInvites ?? []).map((r) => [r.id, !!r.is_primary])));
 
       const memberContactIds = rows
         .filter((r) => r.row_kind === "member" && r.role === "member")
@@ -150,8 +167,8 @@ export default function ClientTeam() {
       const { invitation } = await sendInvitation({
         clientId: client.id,
         email: inviteEmail,
-        role: inviteRole,
-        mapIds: inviteRole === "member" ? Array.from(inviteMapIds) : [],
+        role: inviteRole === "primary" ? "manager" : inviteRole,
+        isPrimary: inviteRole === "primary",
       });
       setMsg({
         text: `Invitation email sent to ${invitation.email}. They can set a password and join your team.`,
@@ -159,7 +176,6 @@ export default function ClientTeam() {
       });
       setInviteEmail("");
       setInviteRole("member");
-      setInviteMapIds(new Set());
       await load();
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
@@ -176,6 +192,28 @@ export default function ClientTeam() {
           r.row_kind === "member" && r.row_id === contactId ? { ...r, role: newRole } : r
         )
       );
+    } catch (e) {
+      setMsg({ text: e?.message ?? String(e), error: true });
+    }
+  }
+
+  async function handlePrimaryToggle(contactId, makePrimary) {
+    try {
+      const { error } = await supabase.from("contacts").update({ is_primary: makePrimary }).eq("id", contactId);
+      if (error) throw error;
+      setTeamRows((prev) =>
+        prev.map((r) => (r.row_kind === "member" && r.row_id === contactId ? { ...r, is_primary: makePrimary } : r))
+      );
+    } catch (e) {
+      setMsg({ text: e?.message ?? String(e), error: true });
+    }
+  }
+
+  async function handleAllAccessToggle(contactId, enabled) {
+    try {
+      const { error } = await supabase.from("contacts").update({ has_all_access: enabled }).eq("id", contactId);
+      if (error) throw error;
+      setAllAccess((prev) => ({ ...prev, [contactId]: enabled }));
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
     }
@@ -269,15 +307,6 @@ export default function ClientTeam() {
     }
   }
 
-  function toggleInviteMapId(mapId) {
-    setInviteMapIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(mapId)) next.delete(mapId);
-      else next.add(mapId);
-      return next;
-    });
-  }
-
   if (loading) return <p>Loading…</p>;
 
   const hasRows = teamRows.length > 0;
@@ -327,7 +356,8 @@ export default function ClientTeam() {
                   const isSelf = isMember && row.row_id === myContact?.id;
                   const perms = isMember ? mapPerms[row.row_id] ?? new Set() : new Set();
                   const dPerms = isMember ? dirPerms[row.row_id] ?? new Set() : new Set();
-                  const isPrivileged = row.role === "owner" || row.role === "manager";
+                  const isPrivileged = row.role === "owner" || row.role === "manager" || row.is_primary === true;
+                  const hasAll = isMember && !!allAccess[row.row_id];
                   const rowKey = `${row.row_kind}-${row.row_id}`;
 
                   return (
@@ -363,6 +393,9 @@ export default function ClientTeam() {
                         ) : (
                           <span className="badge">{ROLE_LABELS[row.role] ?? row.role}</span>
                         )}
+                        {(row.is_primary || (isPending && invitePrimary[row.row_id])) && (
+                          <span className="badge" style={{ marginLeft: 6 }}>Primary</span>
+                        )}
                       </td>
                       <td>
                         <StatusBadge row={row} />
@@ -370,12 +403,8 @@ export default function ClientTeam() {
                       <td style={{ fontSize: 13, whiteSpace: "nowrap" }}>{formatLastLoggedIn(row)}</td>
                       <td>
                         {isPending ? (
-                          <span style={{ opacity: 0.75, fontSize: 13 }}>
-                            {row.role === "member"
-                              ? inviteMapNames(row.invite_map_ids, maps)
-                              : "All maps (when joined)"}
-                          </span>
-                        ) : isPrivileged ? (
+                          <span style={{ opacity: 0.75, fontSize: 13 }}>All maps (when joined)</span>
+                        ) : isPrivileged || hasAll ? (
                           <span style={{ opacity: 0.6, fontSize: 13 }}>All maps</span>
                         ) : (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -407,13 +436,20 @@ export default function ClientTeam() {
                       </td>
                       <td>
                         {isPending ? (
-                          <span style={{ opacity: 0.75, fontSize: 13 }}>
-                            {row.role === "member" ? "—" : "All directories (when joined)"}
-                          </span>
-                        ) : isPrivileged ? (
+                          <span style={{ opacity: 0.75, fontSize: 13 }}>All directories (when joined)</span>
+                        ) : isPrivileged || hasAll ? (
                           <span style={{ opacity: 0.6, fontSize: 13 }}>All directories</span>
                         ) : (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {isOwner && (
+                              <button
+                                type="button"
+                                className="shell-btn shell-btn--sm"
+                                onClick={() => handleAllAccessToggle(row.row_id, true)}
+                              >
+                                Give access to all
+                              </button>
+                            )}
                             {directories.map((d) => {
                               const granted = dPerms.has(d.id);
                               return (
@@ -445,13 +481,22 @@ export default function ClientTeam() {
                               Cancel invite
                             </button>
                           ) : !isSelf && row.role !== "owner" ? (
-                            <button
-                              type="button"
-                              className="shell-btn shell-btn--sm"
-                              onClick={() => handleRemove(row.row_id)}
-                            >
-                              Remove
-                            </button>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                className="shell-btn shell-btn--sm"
+                                onClick={() => handlePrimaryToggle(row.row_id, !row.is_primary)}
+                              >
+                                {row.is_primary ? "Remove primary" : "Make primary"}
+                              </button>
+                              <button
+                                type="button"
+                                className="shell-btn shell-btn--sm"
+                                onClick={() => handleRemove(row.row_id)}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           ) : null}
                         </td>
                       )}
@@ -484,36 +529,19 @@ export default function ClientTeam() {
               />
             </div>
             <div>
-              <label className="auth-form__label">Role</label>
+              <label className="auth-form__label">Access level</label>
               <select
                 className="auth-form__input"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
               >
-                <option value="manager">Manager — can edit org details, access all maps</option>
-                <option value="member">Member — access only to selected maps</option>
+                {accessLevels.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
               </select>
             </div>
-            {inviteRole === "member" && maps.length > 0 && (
-              <div>
-                <label className="auth-form__label">Map access</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-                  {maps.map((m) => (
-                    <label
-                      key={m.id}
-                      style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={inviteMapIds.has(m.id)}
-                        onChange={() => toggleInviteMapId(m.id)}
-                      />
-                      {m.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
             <div>
               <button type="submit" className="shell-btn shell-btn--primary" disabled={inviting}>
                 {inviting ? "Sending…" : "Send invitation email"}

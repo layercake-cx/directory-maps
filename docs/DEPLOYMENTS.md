@@ -8,6 +8,34 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-08 — [Staging] Invitations carry primary status and all-access
+
+**Branch/commit:** `fix/2026-10-08-invite-permissions`
+**Deployed by:** not yet deployed
+
+### What changed
+- An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
+- New `contacts.has_all_access` flag (set on every contact created from an invitation): a Member with it sees every map and directory without `contact_directory_permissions` rows. `DirectoryContext` honours it. Existing members are unchanged; owners can click **Give access to all** or **Make primary** in the Team table.
+- Map and directory checklists are removed from the invite form for now.
+- Fixed in passing: `getClientAndContact` did not select `role`, so non-primary Managers failed `canManageOrg` inside the client layout. It now selects `role` and `has_all_access`.
+- Multiple primaries are allowed; nothing assumes a single one.
+
+### Database migrations applied
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — pending (staging first).
+
+### Edge functions deployed
+- `send_team_invitation`, `complete_invited_signup` — pending (staging first, `beqejxneehilplrtpntn`). Deploy after the migration, since the RPC signature changes.
+
+### Rollback plan
+- Run `20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
+
+### Verified
+- [ ] Dry run and integrity counts (contacts, invitations, permissions) unchanged
+- [ ] Invite as Member, Manager and Primary; sign up; contact has the right role, `is_primary` and `has_all_access`
+- [ ] A manager cannot invite a primary; Member sees all directories
+
+---
+
 ## 2026-10-08 — [Staging] Bing verification file setting
 
 **Branch/commit:** `feat/2026-10-08-bing-site-auth-file`
