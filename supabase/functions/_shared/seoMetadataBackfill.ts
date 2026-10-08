@@ -14,12 +14,13 @@
 // entirely once both fields are set, so it never had the cost/time problem
 // the entry-level cap was working around.
 //
-// Platform: ANTHROPIC_API_KEY. Both functions here are written to never
+// LLM calls go through the AI Gateway. Both functions here are written to never
 // throw past their own boundary in ways that would break a caller's larger
 // operation (publish, or the queue worker) — callers still see errors
 // logged via logEdgeFunctionError.
 
 import { createServiceClient } from "./supabase.ts";
+import { AiUnavailableError } from "./ai/gateway.ts";
 import { logEdgeFunctionError } from "./errorLog.ts";
 import {
   generateDirectorySeoMetadataDraft,
@@ -88,7 +89,7 @@ export type DirectorySeoDefaults = {
  */
 export async function backfillDirectorySeoMetadata(
   db: ReturnType<typeof createServiceClient>,
-  apiKey: string | undefined,
+  clientId: string,
   directoryId: string,
   directoryName: string,
   directoryDescription: string | null,
@@ -96,13 +97,12 @@ export async function backfillDirectorySeoMetadata(
   categorisationLabels: string[],
   currentSeoDefaults: DirectorySeoDefaults,
 ): Promise<DirectorySeoDefaults | null> {
-  if (!apiKey) return null;
   const hasTitle = !isBlank(currentSeoDefaults.meta_title_template);
   const hasDescription = !isBlank(currentSeoDefaults.meta_description);
   if (hasTitle && hasDescription) return null;
 
   try {
-    const draft = await generateDirectorySeoMetadataDraft(apiKey, directoryName, directoryDescription, entryCount, categorisationLabels);
+    const draft = await generateDirectorySeoMetadataDraft({ db, clientId, productInstanceId: directoryId }, directoryName, directoryDescription, entryCount, categorisationLabels);
     const nextSeoDefaults: DirectorySeoDefaults = {
       ...currentSeoDefaults,
       meta_title_template: hasTitle ? currentSeoDefaults.meta_title_template : draft.meta_title_template,
@@ -112,6 +112,8 @@ export async function backfillDirectorySeoMetadata(
     if (error) throw error;
     return nextSeoDefaults;
   } catch (err) {
+    // No AI provider connected for this organisation: publishing carries on without the backfill.
+    if (err instanceof AiUnavailableError) return null;
     const message = err instanceof Error ? err.message : String(err);
     await logEdgeFunctionError({
       fn: "generate_directory_site",

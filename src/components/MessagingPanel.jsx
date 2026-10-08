@@ -1,45 +1,39 @@
 import React, { useState } from "react";
-import MessagingSettings from "./MessagingSettings.jsx";
+import MessagingProfiles from "./MessagingProfiles.jsx";
 import MessagingSentMessages from "./MessagingSentMessages.jsx";
 import styles from "../pages/client/ClientEmail.module.css";
 
 /**
- * Messaging hub: settings + sent message log (client portal and admin customer detail).
+ * Messaging hub: sending profiles + sent message log (client portal and admin customer detail).
+ * Enabling messaging, test mode and the message text are set per map / directory.
  */
 export default function MessagingPanel({
   clientId,
   clientName = "",
   eventSource = "client_portal",
-  showPageTitle = true,
 }) {
-  const [tab, setTab] = useState("settings");
+  const [tab, setTab] = useState("profiles");
 
   return (
     <>
-      {showPageTitle ? (
-        <>
-          <h1 className={styles.title}>Messaging</h1>
-          <p className={styles.lead}>
-            Control whether visitors can send messages to directory listings, configure sending
-            options, and review messages sent through your maps.
-          </p>
-        </>
-      ) : (
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: "0 0 4px 0", fontSize: 18 }}>Messaging</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--lc-muted)" }}>
-            Configure messaging and review sent contact messages for this customer.
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1 className="page-title">Messaging</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+            Create the sending profiles (From addresses and domains) your maps and directories send
+            messages from, and review messages sent through them. Turn messaging on for each map or
+            directory under its own Messaging tab.
           </p>
         </div>
-      )}
+      </div>
 
       <div className={`admin-map-tabs ${styles.messagingTabs}`}>
         <button
           type="button"
-          className={`admin-map-tabs__tab ${tab === "settings" ? "is-active" : ""}`}
-          onClick={() => setTab("settings")}
+          className={`admin-map-tabs__tab ${tab === "profiles" ? "is-active" : ""}`}
+          onClick={() => setTab("profiles")}
         >
-          Settings
+          Sending profiles
         </button>
         <button
           type="button"
@@ -50,8 +44,8 @@ export default function MessagingPanel({
         </button>
       </div>
 
-      {tab === "settings" ? (
-        <MessagingSettings
+      {tab === "profiles" ? (
+        <MessagingProfiles
           clientId={clientId}
           clientName={clientName}
           eventSource={eventSource}

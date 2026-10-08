@@ -6,6 +6,12 @@ import {
   getDirectoryAiContentStatus,
 } from "../../lib/directories.js";
 
+import { useAiFeature } from "../../hooks/useAiFeature.js";
+import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
+import AiRunSummary from "../ai/AiRunSummary.jsx";
+import AiBulkRunReport from "../ai/AiBulkRunReport.jsx";
+import { getAiBulkRunSummary, retryFailedBulkJobs } from "../../lib/aiUsage.js";
+
 const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 const CONFIRM_WORD = "CREATE";
@@ -20,6 +26,9 @@ const CONFIRM_WORD = "CREATE";
  * always recoverable via each entry's version history.
  */
 export default function DirectoryAiContentPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+  const ai = useAiFeature("content_generation");
+  const [runSummary, setRunSummary] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const [prompt, setPrompt] = useState(directory?.ai_content_prompt ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -39,6 +48,7 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
     if (!directoryId) return;
     try {
       setStatus(await getDirectoryAiContentStatus(directoryId));
+      setRunSummary(await getAiBulkRunSummary(directoryId, "content"));
     } catch {
       /* non-fatal: status display just stays stale/empty */
     }
@@ -107,6 +117,22 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
     }
   }
 
+  async function handleRetryFailed() {
+    setErr("");
+    setMsg("");
+    try {
+      setRetrying(true);
+      const n = await retryFailedBulkJobs(directoryId, "content");
+      recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, entries_queued: n, retry: true });
+      setMsg(n > 0 ? `Re-queued ${n} failed ${n === 1 ? "entry" : "entries"}.` : "Nothing to retry.");
+      await refreshStatus();
+    } catch (e) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   const statusLine = (() => {
     if (!status?.ai_content_generation_status) return null;
     if (status.ai_content_generation_status === "running") {
@@ -143,7 +169,7 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
         {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
 
         <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>
-          Describe the page content Claude should write for each entry. New entries with no content are written
+          Describe the page content the AI should write for each entry. New entries with no content are written
           automatically once this is set; existing entries only regenerate when you trigger it. Leave blank to turn
           this off for this directory.
         </p>
@@ -168,12 +194,14 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
       <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid var(--lc-border)" }} />
 
       {statusLine}
+      <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
       <button
         type="button"
         className="btn"
         style={{ fontSize: 12, padding: "5px 12px" }}
         onClick={openConfirm}
-        disabled={!directory?.ai_content_prompt?.trim() || status?.ai_content_generation_status === "running"}
+        disabled={!directory?.ai_content_prompt?.trim() || status?.ai_content_generation_status === "running" || !ai.available}
       >
         Generate all entry content
       </button>
@@ -191,8 +219,16 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
             <p style={{ margin: "0 0 8px", fontSize: 13 }}>
               This will overwrite the page content of {entryCount == null ? "every" : entryCount} {entryCount === 1 ? "entry" : "entries"} in
               this directory using the prompt above — including entries that already have hand-written content. It
-              may take a few minutes and uses your Anthropic API budget.
+              may take a few minutes and uses your connected AI provider account.
             </p>
+            <AiRunSummary
+              plan={ai.plan}
+              count={entryCount}
+              clientId={ai.clientId}
+              directoryId={directoryId}
+              featureKey="content_generation"
+              catalogue={ai.catalogue}
+            />
             <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
               Every entry's previous content stays recoverable from its version history, so this can't permanently
               lose anything.

@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import {
   ADMIN_EVENT_CATEGORY_LABELS,
   ADMIN_EVENT_SUBTYPES_BY_CATEGORY,
 } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 
 const PAGE_SIZE = 200;
 
@@ -199,24 +199,21 @@ export default function AdminUserActivity() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "User activity" }]}
+      subtitle={
+        <>
+          Admin and client-portal actions (newest first, up to {PAGE_SIZE} rows). Apply the{" "}
+          <code>admin_events</code> migration if this list is empty or errors.
+        </>
+      }
       rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
+        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
         </button>
       }
     >
-      <div className="admin-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>User activity</h2>
-          <button type="button" className="btn" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 16 }}>
-          Admin and client-portal actions (newest first, up to {PAGE_SIZE} rows). Apply the{" "}
-          <code>admin_events</code> migration if this list is empty or errors.
-        </p>
+      <div className="card card-pad">
 
         <div className="admin-controls" style={{ marginBottom: 16 }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>
@@ -272,7 +269,7 @@ export default function AdminUserActivity() {
           </label>
 
           {hasFilters ? (
-            <button type="button" className="btn" onClick={clearFilters} style={{ alignSelf: "flex-end" }}>
+            <button type="button" className="shell-btn" onClick={clearFilters} style={{ alignSelf: "flex-end" }}>
               Clear filters
             </button>
           ) : null}
@@ -348,8 +345,7 @@ export default function AdminUserActivity() {
                         <td>
                           <button
                             type="button"
-                            className="btn"
-                            style={{ padding: "4px 8px", fontSize: 12 }}
+                            className="shell-btn shell-btn--sm"
                             onClick={() => toggle(r.id)}
                           >
                             {expanded[r.id] ? "Hide" : "Meta"}

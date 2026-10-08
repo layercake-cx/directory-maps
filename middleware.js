@@ -180,6 +180,10 @@ async function handleCustomDomain(host, segments, blobBase) {
   } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "llms.txt") {
     pathname = `${basePath}/llms.txt`;
     contentType = "text/markdown; charset=utf-8";
+  } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "BingSiteAuth.xml") {
+    // Bing Webmaster Tools verification file; must live at the domain root.
+    pathname = `${basePath}/BingSiteAuth.xml`;
+    contentType = "application/xml; charset=utf-8";
   } else if (domain.entityType === "directory" && segments.length === 1 && segments[0] === "robots.txt") {
     // The one place a per-directory robots.txt is actually honoured by real
     // crawlers — this custom domain's own root, unlike the branded-host
@@ -209,6 +213,7 @@ async function handleCustomDomain(host, segments, blobBase) {
       segments[0] !== "sitemap.xml" &&
       segments[0] !== "llms.txt" &&
       segments[0] !== "robots.txt" &&
+      segments[0] !== "BingSiteAuth.xml" &&
       segments[0] !== "theme.css"
     ) {
       const redirectsJson = await fetchBlobHtml(blobBase, `${basePath}/redirects.json`);
@@ -226,7 +231,8 @@ async function handleCustomDomain(host, segments, blobBase) {
 
     return htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
   }
-  const body = contentType.startsWith("text/css") ? html : rewriteForCustomDomain(html, host, domain);
+  if (segments[0] === "BingSiteAuth.xml" && !html.trim()) return new Response("", { status: 404 });
+  const body = contentType.startsWith("text/css") || segments[0] === "BingSiteAuth.xml" ? html : rewriteForCustomDomain(html, host, domain);
   return new Response(body, {
     status: 200,
     headers: { "content-type": contentType },

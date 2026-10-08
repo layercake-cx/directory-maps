@@ -5,6 +5,7 @@
 //
 // Request:  POST { directory_id: string, place: string, region?: string }
 // Response: { ok: true, label, lat, lng } | { ok: false, error }
+import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
     }
     return json({ ok: true, label, lat, lng });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errorMessage(e);
     await logEdgeFunctionError({ fn: "resolve_directory_place", message });
     return json({ ok: false, error: "error" }, 500);
   }

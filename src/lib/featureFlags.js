@@ -15,6 +15,7 @@ import { supabase } from "./supabase";
 export const DIRECTORIES_FLAG = "directories";
 export const DIRECTORY_PAGES_FLAG = "directory_pages";
 export const CUSTOM_DOMAIN_FLAG = "custom_domain";
+export const INTEGRATIONS_FLAG = "integrations";
 
 const INTERNAL_EMAIL_DOMAIN = "layercake-cx.biz";
 
@@ -72,6 +73,16 @@ export async function setClientFeatureOverride(clientId, flagKey, enabled) {
       { onConflict: "flag_key,client_id" }
     );
   if (error) throw error;
+}
+
+/** Admin: distinct client ids with at least one enabled per-organisation override ("beta access"). */
+export async function listClientIdsWithBetaAccess() {
+  const { data, error } = await supabase.from("feature_flag_overrides").select("client_id").eq("enabled", true);
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+  return Array.from(new Set((data ?? []).map((row) => row.client_id).filter(Boolean)));
 }
 
 /** Admin: remove a client's override so the flag falls back to its default. */

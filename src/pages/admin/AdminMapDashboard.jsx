@@ -2,10 +2,10 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
+import EntityMessagingSettings from "../../components/EntityMessagingSettings.jsx";
 import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication, resolveColorForListing, setMapColorFilterFieldId } from "../../lib/filterFields.js";
 import LogoImage from "../../components/LogoImage.jsx";
 import { markerIconDataUrl, normalizePinSize, pinPreviewScale, MARKER_ANCHORS } from "../../lib/markerIcons";
@@ -28,7 +28,7 @@ import {
 import { listClientFeatureOverrides } from "../../lib/featureFlags.js";
 
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters", "messaging"];
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
   { label: "None", value: "" },
@@ -79,6 +79,7 @@ function tabLabel(t) {
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   if (t === "filters") return "Filters";
+  if (t === "messaging") return "Messaging";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -683,9 +684,9 @@ export default function AdminMapDashboard() {
           setClient(c);
           // Fetch messaging test mode settings fresh from the view.
           supabase
-            .from("client_messaging_settings")
+            .from("map_messaging_settings")
             .select("email_test_mode,email_test_recipient")
-            .eq("client_id", clientId)
+            .eq("map_id", mapId)
             .single()
             .then(({ data: ms }) => {
               if (ms && !cancelled) {
@@ -1987,14 +1988,9 @@ export default function AdminMapDashboard() {
       ]}
       mainClassName="admin-main--map-page"
       rightActions={
-        <>
-          <button className="btn btn-primary" type="button" onClick={saveMap} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button onClick={signOut} type="button">
-            Sign out
-          </button>
-        </>
+        <button className="shell-btn shell-btn--primary" type="button" onClick={saveMap} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
       }
     >
       <div className="admin-map-page">
@@ -2059,9 +2055,9 @@ export default function AdminMapDashboard() {
                 // Re-fetch test mode settings in case they changed since page load.
                 if (clientId) {
                   supabase
-                    .from("client_messaging_settings")
-                    .select("email_test_mode,email_test_recipient")
-                    .eq("client_id", clientId)
+                    .from("map_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("map_id", mapId)
                     .single()
                     .then(({ data: ms }) => {
                       if (ms) {
@@ -2090,7 +2086,7 @@ export default function AdminMapDashboard() {
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
 
-            {["detail", "search", "filters"].map((t) => (
+            {["detail", "search", "filters", "messaging"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -3073,6 +3069,15 @@ export default function AdminMapDashboard() {
                   onChange={refreshFilterFields}
                   colorFieldId={colorFilterFieldId}
                   onColorFieldChange={updateColorFilterField}
+                />
+              )}
+
+              {overlayTab === "messaging" && (
+                <EntityMessagingSettings
+                  entity="map"
+                  entityId={mapId}
+                  clientId={clientId}
+                  eventSource="admin_dashboard"
                 />
               )}
 

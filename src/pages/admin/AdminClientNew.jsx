@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase.js";
-import { signOut } from "../../lib/auth.js";
 import AdminLayout from "./AdminLayout.jsx";
 
 function slugify(input) {
@@ -57,23 +56,17 @@ export default function AdminClientNew() {
         { label: "Customers", path: "/admin/clients" },
         { label: "New customer" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card" style={{ maxWidth: 720 }}>
+      <div className="card card-pad" style={{ maxWidth: 720 }}>
         <div style={{ marginBottom: 12 }}>
           <Link to="/admin/clients">← Back to customers</Link>
         </div>
-
-        <h2 style={{ marginTop: 0 }}>Create customer</h2>
 
         <form onSubmit={createClient}>
           <div style={{ display: "grid", gap: 14 }}>
             <Field label="Customer name">
               <input
+                className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. IoIC"
@@ -82,23 +75,24 @@ export default function AdminClientNew() {
 
             <Field label="Slug">
               <input
+                className="input"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder={suggestedSlug || "e.g. ioic"}
               />
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+              <div className="field-hint">
                 Used in URLs. Leave blank to auto-suggest: <strong>{suggestedSlug || "—"}</strong>
               </div>
             </Field>
 
-            {err ? <p style={{ margin: 0 }}>{err}</p> : null}
+            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
+              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
                 {saving ? "Creating…" : "Create customer"}
               </button>
 
-              <Link className="btn" to="/admin/clients">
+              <Link className="shell-btn" to="/admin/clients">
                 Cancel
               </Link>
             </div>
@@ -111,12 +105,9 @@ export default function AdminClientNew() {
 
 function Field({ label, children }) {
   return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>
-        {/* reuse admin input styles */}
-        {children}
-      </div>
+    <div className="field">
+      <label>{label}</label>
+      {children}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import ListingStats from "../client/ListingStats.jsx";
 
@@ -42,11 +41,6 @@ export default function AdminListingStats() {
         { label: "Stats", path: statsPath },
         { label: listing?.name ?? "Listing" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
       <ListingStats />
     </AdminLayout>

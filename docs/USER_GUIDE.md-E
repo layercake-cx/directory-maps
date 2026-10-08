@@ -1,0 +1,768 @@
+# Directory Maps – User Guide
+
+This guide explains how to use **Directory Maps** as a client: signing up, creating maps, importing data, publishing, and embedding your directory.
+
+For a full product feature list (admin, analytics, integrations), see [FEATURES.md](./FEATURES.md).
+
+---
+
+## Overview
+
+Directory Maps lets you build interactive, Google Maps–based directories. You can:
+
+- Create one or more maps per organisation
+- Import listing data via **CSV** or **Google Sheets**
+- Design pins, groups, panels, and map style with a live preview
+- **Publish** versioned snapshots and embed maps for visitors
+- View **analytics** on how visitors use your published embed
+- Manage **team** members (if you have permission)
+- Configure a **custom email domain** for contact-form messages (optional)
+
+**One account, one organisation:** each login can only belong to a single organisation. You cannot invite someone who already has a Directory Maps account to a second organisation.
+
+---
+
+## Getting started
+
+### Public landing page
+
+The site root (`/`) is a public, unauthenticated marketing page pitching the Founding Partner beta programme to prospective association customers — it is separate from the app shell. It links to a live example map (`/layercake/uk-associations-sample-map`) and to **Log in** / **Sign up**. Its "Apply for a founding partner spot" form is a HubSpot embedded form (portal `148819421`, form `9ab8dd2b-9c9d-4b98-af17-cadbc978a3a7`) — this is a pre-account lead-capture form, distinct from an in-app listing contact form. Submissions go directly to HubSpot, not to Directory Maps. The **Leads** admin page (`/admin/leads`) still shows leads captured before this change via the `beta_signups` table, but no longer receives new submissions — treat it as a historical record; current leads live in HubSpot.
+
+### Event demo page
+
+`/memcom-maps-demo` is a chromeless, full-screen embed of the `layercake/uk-associations-sample-map` sample map, built for display on a conference/event screen (e.g. memcom). It reuses the same map-embed rendering as `/embed` and the `/:clientSlug/:mapSlug` published-map URLs (no site header/footer, resolves the map via the `get_map_id_by_slugs` RPC), with a fixed white rounded overlay in the bottom-left corner containing a QR code (`src/assets/founding-partner-qr.png`) and a "Become a founding partner" CTA linking to `/#signup`. The overlay position is not configurable; if the underlying sample map's own publish settings change (e.g. list panel shown/hidden), the overlay may visually overlap it — this was a known, accepted trade-off when the page was built.
+
+### Sign up
+
+1. Open the site homepage and choose **Sign up** (or go to `/signup`).
+2. Enter your **Organisation name** (must be unique). A **client slug** is generated automatically (e.g. `acme-ltd`) for URLs.
+3. Enter your **Email** and **Password**.
+4. Click **Create account**.
+
+If the organisation name is taken, choose another. **Confirm your email** when prompted — you must verify before accessing the client portal.
+
+### Sign in
+
+1. Go to `/login`.
+2. Enter **Email** and **Password**.
+3. Click **Sign in**.
+
+Forgot your password? Use **Forgot password** on the login page.
+
+---
+
+## Client portal navigation
+
+After sign-in you'll see a top bar (logo, search, support, your account menu) and a dark icon
+rail down the left for the sections you can access:
+
+| Section | Path | Who can access |
+|---------|------|----------------|
+| **Home** | `/client` | All team members — organisation dashboard: maps/directories/team counts, enquiries in the last 30 days, and a "Needs attention" list (failed data syncs, directory entries missing SEO metadata) |
+| **My Maps** | `/client/maps` | All team members |
+| **Directories** | `/client/directories` | All team members *(beta — only if enabled for your organisation)* |
+| **Categorisations** | `/client/categorisations` | Owners and managers *(beta — only if enabled for your organisation)* |
+| **Team** | `/client/team` | Owners and managers |
+| **Messaging** | `/client/email` | Users who can manage maps |
+| **Domains** | `/client/domains` | Users who can manage maps *(beta — only if enabled for your organisation)* |
+
+Hover or focus a rail icon to see its label as a tooltip. Sign out from the account menu (your
+initial, top right) when finished.
+
+---
+
+## Your maps
+
+**My Maps** (`/client/maps`) lists every map for your organisation.
+
+- **New map** — Create a new directory map.
+- Click a **map name** to open the **map designer** (live preview).
+- From a map card you can open **Data**, **Stats**, or the designer.
+
+---
+
+## Creating a map
+
+1. From **My Maps**, click **New map**.
+2. Fill in:
+   - **Map name** — e.g. “UK Office Locations”.
+   - **Slug** — Used in URLs; can be auto-suggested from the name.
+   - **Default lat / lng / zoom** — Starting map position.
+   - **Show list panel** / **Enable clustering** — Visitor UI options.
+3. Click **Create map**.
+
+You’ll return to **My Maps**; open the new map to configure it.
+
+Your plan may cap how many maps you can create — the **New map** page shows "X of Y maps used" when a limit applies. Contact Layercake to upgrade if you've reached it.
+
+---
+
+## Directories
+
+> **Beta feature.** Directories and Categorisations are still in development, so they're hidden by default. You'll see them only if your organisation has been given early access. If the **Directories** and **Categorisations** menu items aren't showing, ask your Layercake contact to enable them for your account. (Layercake staff see them automatically.)
+
+**Directories** are separate from your maps — a browsable, structured list of entries (e.g. accredited suppliers, member firms) that isn't tied to a location on a map. Publishing, branding, custom domains, and categorisation-driven filtering are all available on the published site (see [Domains](#domains) below and `docs/DIRECTORIES.md` for the full roadmap of what's still ahead). A map can now use a directory as its live pin data source, including in its published embed (see [Directory as data source](#directory-as-data-source) below).
+
+The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
+
+A directory has its own side panel, grouped as **Overview**, **Content** (Entries, Pages, Categories, Accreditations), **Experience** (Design, Search & Discovery), **Engagement** (Claims, Enquiries), **Insights** (Analytics), and **Settings** (General, SEO, Domain & Publishing, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Domain & Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, Design, Claims, and Enquiries are owner/manager-only. "AI content generation" lives as an action on the Entries page; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+
+**Overview** is the directory's own dashboard: entries changed since the last publish, counts of entries missing SEO metadata/page content/a logo/coordinates, when it was last published and at what version, claims by status, enquiries in the last 30 days, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
+
+**Insights › Analytics** shows real visitor activity on your published directory: views over time (with a date range picker), a breakdown of activity by type, a visitor journey funnel (directory view → entry view → enquiry opened → enquiry sent), top search terms, and your most-viewed entries.
+
+### Creating a directory
+
+1. From **Directories**, click **New directory** (owners and managers only).
+2. Fill in:
+   - **Directory name** — e.g. "Accredited Suppliers".
+   - **Web address (short name)** — used in the directory's future public URL; auto-suggested from the name.
+   - **Description** (optional).
+3. Click **Create directory**.
+
+### Managing entries
+
+Open a directory and go to **Content › Entries** to see its entries table:
+
+- **+ Add entry** / **Edit** — opens a full-page entry editor (no longer a modal), with tabs: **Basic Info** (name, address, postcode, country, group, website, email, phone, logo, active flag, and which contact fields show publicly once published), **Categories**, **Content** (notes plus evidence/media/accreditations/prominent links/product tiles), **Search & Metadata** (meta title/description/keywords/canonical URL/structured data type/sitemap priority/noindex, plus a **Social & AI** section for the social share title/description/image, Twitter card type, and an AI-facing summary — a **Generate with AI** button on this tab drafts the meta title/description/keywords/social title/social description/AI summary from the entry's own data in one go; the draft lands in these fields for review, nothing is saved until you click **Save metadata**. Left blank instead, any of these fields get auto-filled by AI shortly after the entry is created, or via the AI tab's **Backfill missing metadata** action (see **AI** tab below) — a banner on this tab says so once that's happened, since it's worth a quick check even though nothing you've written is ever overwritten this way), **Panel Style** (an optional image and background colour override for this entry's card on the directory homepage — e.g. a white logo that needs a dark background — with a live preview; leave blank to keep using the logo and the directory's own theme), and **Preview & Publish** (an approximate live preview of this entry's homepage card and its own page, plus the directory's Publish button — publishing always goes live for the whole directory, not just this entry; a single-entry "publish just this one" action was considered and deliberately not built once a full republish came down to a few seconds). Coordinates (latitude/longitude) aren't shown or editable — they're calculated automatically from the address.
+- **Search** — filters entries by name or address (server-side, so it works across directories of any size).
+- **Gaps filter** — narrow the table to entries missing a logo, page content, SEO metadata, or coordinates.
+- **Category filter** — narrow the table to entries tagged with one specific categorisation term (only shown once your organisation has attached at least one categorisation to the directory).
+- **Delete** — requires typing **DELETE** to confirm, since it can't be undone.
+- **Group** — a simple, single-value category per directory (add new groups inline from the Basic Info tab). This is distinct from the richer, reusable categorisation model planned for a later phase.
+- **Logo** — paste a hosted image URL, or (once the entry has been saved once) upload a PNG/JPG/WebP file directly (max 2 MB); uploading replaces any previous file-based logo.
+- **Notes** use a rich text (WYSIWYG) editor — bold/italic/underline, headings, bullet/numbered lists, quotes and links. Anything else (scripts, embeds, other formatting) is stripped automatically when the entry is saved. On the published entry page, paragraphs and lists are the same size, and headings have space underneath them before the next paragraph or list.
+- **Pin status** — the entries table shows a **Pin** column: **On map** once an entry has coordinates, **No pin** if it doesn't (e.g. an address that couldn't be found, or an entry created before coordinate lookup existed). Saving the Basic Info tab automatically looks up coordinates from the address/postcode/country whenever that changes or coordinates are still missing — no lat/lng fields are ever shown. Click **Geocode missing coords** above the table to look up every entry currently missing coordinates in one go, e.g. after a CSV import or to backfill older entries.
+
+**Bulk actions:** tick entries' checkboxes (or the header checkbox to select everything on the current page) to reveal a bulk action bar — **Archive**/**Restore** several entries at once, or **Bulk tag…** to add or replace a categorisation's term(s) across the selection.
+
+**Export CSV:** click **Export CSV** to download every entry in the directory — including inactive/hidden ones — as a CSV file, fetched live so it always reflects the current data (including edits made directly in an entry, not just what was last imported). If the directory has no entries yet, you still get a CSV with just the header row and a message saying so. The file uses exactly the same columns, in the same order, as **Download CSV template** and **Import CSV** expect (see below) — including each entry's `id` — so you can edit it in a spreadsheet and re-import it to update those entries rather than create duplicates.
+
+**CSV import:** click **Download CSV template** for a starter file with the seed columns, the visibility/SEO/social/panel-style columns (`show_phone`, `show_email`, `show_website`, `show_address`, `slug`, `meta_title`, `meta_description`, `noindex`, `structured_data_type`, `sitemap_priority`, `og_title`, `og_description`, `og_image_url`, `canonical_url`, `keywords`, `twitter_card_type`, `panel_image_url`, `panel_background_color`), plus one `category_<key>` column per categorisation attached to this directory (pipe-separate multiple term slugs, e.g. `healthcare|retail`). Click **Import CSV**, choose your file, review the preview, then click **Import**. You'll be asked to choose **Replace all existing entries** or **Add to existing entries** before anything is written. Either way, rows are matched on `id`: a row whose `id` matches an existing entry updates it in place rather than creating a duplicate, and a row with no `id` (or one that doesn't match) is created as a new entry. **Replace** additionally deletes every entry not present in the CSV first. Unrecognised group names are created automatically; unrecognised categorisation terms are skipped with a warning rather than failing the import. Leaving `slug` blank on a row that updates an existing entry keeps that entry's current slug unchanged; leaving it blank on a brand-new row lets it auto-derive from the entry's name.
+
+A CSV's own `lat`/`lng` columns are used as-is when filled in; rows left blank are **not** geocoded automatically by the import — click **Geocode missing coords** afterward to fill them in.
+
+**Member access:** Owners and Managers always have full access. A Member can only open a directory's entries if an Owner/Manager has granted them access on the **Team** page (see below); otherwise they'll see a "you don't have access" message instead of the entries table.
+
+### Directory settings
+
+On a directory's **Settings** tab, the top panel covers:
+
+- **General settings** — **Directory title**, editable at any time (this is the same name shown throughout the admin/client UI and, once published, as the page's on-site heading). **Home navigation label** is the word used for the directory landing page in the published site's header, mobile menu, breadcrumbs, and footer; leave blank to use **Home**.
+- **SEO settings** — controls how the directory's published pages appear in search results and when shared on social media:
+  - **Let search engines index this directory** — a single switch. Turned off, the directory's `robots.txt` disallows crawling, its homepage is left out of `sitemap.xml`, and its homepage carries a "noindex" tag — all together. Individual entries keep their own separate index/no-index setting (see their **Search & Metadata** tab) regardless of this switch. `robots.txt` also names four AI crawlers explicitly (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) so AI search/citation tools are clearly allowed or disallowed rather than only implied by the general rule — this list isn't yet client-configurable, it follows the same switch.
+  - **Default SEO title** / **Default SEO description** — override what search engines and social previews show for the directory's homepage; leave blank to fall back to the directory title/description. A **Generate with AI** button on this section drafts both from the directory's own entry count and categorisation (in the style of "A directory of 329 UK professional associations, trade bodies and regulators, categorised by industry sector and organisation type"); the draft lands in these two fields for review, nothing is saved until you click **Save settings**.
+  - **Social/SEO image URL** — the image shown when the directory's homepage is shared on social media, and the fallback image for any entry that hasn't set its own.
+
+- **Analytics & Tracking** — optional Google Analytics 4 Measurement ID (`G-…`) and/or Google Tag Manager Container ID (`GTM-…`) for this directory only. Each can be enabled independently. After you **Save analytics** and **Publish**, every public page (homepage, entries, content pages) includes those tags. Visitors see a cookie banner and must accept analytics before Google tags load. Directory Maps still records anonymous first-party events (page views, searches, filters, listing clicks) even if a visitor rejects Google cookies — those events stay in Directory Maps and are not sent to Google. Invalid IDs are rejected on save.
+
+Click **Save settings** or **Save analytics**, then **Publish** (or republish) for changes to reach the live site.
+
+### Directory email
+
+On a directory's **Email** tab (owners and managers only):
+
+- **Contact email** — the inbox for visitor enquiries. When this is filled in and messaging is turned on, each published entry page shows **Make an Enquiry** in the sidebar's Contact & address panel, below **Visit website**. The visitor writes a message in a side panel; it is emailed to this address, and they are copied on the email. Leave the contact email blank to hide the button. **Publish** again after saving — the button is written into the public pages at publish time.
+- **Sending profile**, **Enable messaging**, **Test mode**, and the **message text** (prompt, subject, opening line) are set for this directory only, in the same form as a map’s Messaging settings — they don’t change your maps, and your maps’ settings don’t change this directory. Choose a [sending profile](#sending-profiles) first; messaging stays off until you do. Test mode sends enquiries to the test recipient instead of the contact email. Subject and opening line use `{listing}` for the entry name. **Publish** again after changing them — the Make an Enquiry button is written into the public pages at publish time.
+
+Sent enquiries are listed at the bottom of the tab (the latest 20).
+
+### Publishing a directory
+
+> **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
+
+On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to snapshot the directory's settings and categorisation taxonomy and to update the public pages. Editing an entry, a content page, branding, or search settings does not change the live site until you publish again.
+
+Publish rewrites only the pages affected by what changed since the last successful generation:
+
+- **Colours, fonts, the logo image, logo height, and the hero banner** update one shared stylesheet. The pages themselves stay as they are.
+- **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
+- **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
+
+The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the enquiry button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
+
+Each publish also regenerates `sitemap.xml` and `llms.txt`. Every sitemap URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
+
+`llms.txt` is a short Markdown overview for AI tools (`/llms.txt` on a custom domain, or `/directories/{your-organisation}/{your-directory}/llms.txt` on the Layercake site). It names the directory, repeats the SEO description (or the directory description), says how listings are categorised, explains that each listing lives at its own address, and links the homepage, the pages in your navigation, and the sitemap. Pages you have published but hidden from navigation are listed under Optional. Listings marked noindex, and anything not yet published, are left out. There is nothing to edit by hand: change the directory title, SEO description, categorisations, or pages, then **Publish** again. On a custom domain, the links inside the file use that domain.
+
+The published homepage has a fast keyword search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed) and, when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categorisations (see **Categorisations** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get a **Help me choose** button — see **Help me choose** below. The search box itself never calls Claude.
+
+**Location search** is optional. On the directory **Settings** tab, turn on **Location search** and **Publish** again. Visitors then get a **Distance from** filter (a town, city, or postcode, plus 5, 10, 25, or 50 miles, and **Use my location**). A search such as “ultimate frisbee near Stroud” fills that filter and keeps “ultimate frisbee” as the keywords, so a club in a nearby town can appear even when its listing does not contain the word Stroud. Listings need coordinates. With location search off, the homepage stays keyword search only.
+
+The header, mobile menu, and footer on every published page are generated from the **Pages** tab (see **Content pages** below): a Home link back to the directory, plus your pages in the order you set. Child pages appear in a dropdown on desktop and an expandable section on a phone.
+
+**If publishing succeeds but the public page doesn't work:** the panel will now tell you directly if page generation was skipped or failed (previously this failed silently). The most likely reason: Layercake staff can see and use the Directories UI for any customer without it being explicitly turned on for them, but generating a real public page still requires the **Directories** toggle under that customer's **Feature access (beta)** section in the admin console to be switched on for that specific customer. Turn it on, then publish again.
+
+If generation fails with a temporary file-host error (for example "Blob service is currently unavailable"), the directory is already published — only the public HTML failed to rewrite. Click **Retry** on the Publish tab; you do not need to publish a new version.
+
+### Branding
+
+On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design. A **live preview** above the colour sections updates instantly as you make changes, before you save.
+
+- **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
+- **Header**, **Hero banner**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently, and a photographic banner can sit behind the top of the page:
+  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo height** control (24–240px, slider or number; width scales automatically from that height; the published header keeps 15px of space above and below the logo), a **favicon upload** (square PNG/JPG/WebP, up to 2 MB — shown in the browser tab on the published site), and a **site title** with an On/Off toggle next to it. Off leaves the title out of the published header (logo only, if you have one). On, leave the field blank to use the directory name. Saving branding then **Publish** (or republish) is what makes that choice live. The favicon is independent of the header layout, so it is still available if you choose Text only.
+  - **Hero banner** — optional full-width image behind the header and the top of every published page (homepage, entries, and content pages). It fades into the **background colour** so listing cards and body text sit on a solid colour. While a banner is set, the header background colours are shown at 40% transparency so the image shows through, and the image extends 100px further down the page than the height slider. Upload a wide PNG/JPG/WebP (up to 5 MB), set **banner height**, or remove it. Save branding, then **Publish**.
+  - **Body** — **primary colour** (links, buttons), **accent colour**, and **background colour** (the page behind the cards) are shown up front; click **Advanced colours…** to set **link hover colour**, **cards and panels**, **logo areas, tags, and hover**, **main text**, **secondary text**, **borders and dividers**, **badge background** (also the homepage search band), and **badge text**.
+  - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
+- A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
+- **Typography** is its own section: pick a **heading font** and **body font** from a curated list of ~45 Google Fonts, and set the **base text size** plus **H1/H2/H3 sizes**. Every heading on the published site (entry titles, section headings, the homepage title) scales proportionally from these, so the relative sizing between, say, a homepage title and an entry title stays the same — only the overall scale changes.
+- **Presets** — a fourth section, below Typography: type a name and click **Save current as preset** to save the current unsaved draft as a reusable, organisation-wide preset (visible from any of your directories, not just this one). Every saved preset appears in a list alongside the 5 built-in ones, each with a small colour-swatch preview; click **Apply** on any of them (built-in or saved) to fill the draft above with its values — like the Theme preset dropdown, this only updates the draft, so click **Save branding** afterward to persist it. Saved presets can also be **Renamed** or **Deleted**; built-in presets can't. Applying a preset is a one-time copy, not a link — editing or deleting a saved preset later never changes a directory that already applied it.
+- **Contrast warnings**: next to each text and link colour field, a small ✓ or ⚠ badge shows its contrast ratio against that region's background (e.g. header text vs the header background, a link vs its region's background) — ✓ means it meets WCAG AA, ⚠ means it doesn't. This is a warning only; it never blocks saving, since a client may have their own brand reasons for a colour choice.
+- Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically. A colour, font, logo, or banner change updates the shared stylesheet. Changing the **site title** wording or the **favicon** rewrites the public pages.
+
+Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
+
+### Entry layout
+
+Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each categorisation the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Make an Enquiry button when the directory's Email tab has a contact address set, the website's domain, and the address), a **map card** (the interactive directory map focused on this entry's pin, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), a quiet **Claim this listing** link when claims are open on this entry, then **Directory attributes** (every single/boolean categorisation, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select categorisation. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, claim, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
+
+On a directory's **Entry Layout** tab (owners and managers only), the panel still controls the order of the sections (blocks) in the *main column*: hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per categorisation attached to this directory (shown as clickable tag chips). **Logo, Name, Address and Contact details are no longer configurable here** — those moved into the fixed hero and sidebar described above, so adding one of those four blocks back on this tab has no visible effect on the published page (they're kept only so an existing saved layout doesn't error).
+
+- **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
+- **+ Add a block** adds one you've previously removed, or a categorisation's tag block.
+- **Section label** (optional, per block) — when set, the published entry page wraps that block in its own anchored section with a heading, and adds a chip for it to the sticky "On this page" bar at the top. Leave it blank for a block that should just render inline with no heading or chip (the previous behaviour). Note: the **Evidence** block no longer shows its own heading automatically — give it a label (e.g. "Evidence") to get one back.
+- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes — it approximates only these main-column blocks, not the fixed hero/sidebar, which don't change based on anything set on this tab.
+- Click **Save layout**, then **Publish** again for it to reach the live site.
+- **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
+
+A directory that has never opened this panel keeps its original section order — nothing changes until you save a layout here.
+
+### Archiving or deleting a directory
+
+From a directory's page (owners and managers only):
+
+- **Archive** — hides the directory from your list; entries are kept. If a map uses this directory as its live pin source, archiving does **not** remove it from that map's public embed — you'll see a warning naming the map(s); archive or delete the map itself to take it out of public view.
+- **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm. If a map uses this directory as its live pin source, you'll see a warning naming the map(s) — deleting the directory removes that link and the map reverts to being manually-edited data, rather than losing its pins with no explanation.
+
+### Categorisations
+
+**Categorisations** (`/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every map and directory you own. They're separate from a directory's simple **Group** field:
+
+- **Group** is per-directory, single-value, and drives the CSV import `group_name` column.
+- A **categorisation** has its own term list, and an entry, directory, or map listing can carry any number of terms from it.
+
+When creating a categorisation, choose its **facet type** — this can't be changed later:
+- **Tags** (the original behaviour) — an entry can carry any number of the categorisation's terms.
+- **Single choice** — an entry can carry at most one term (e.g. Region); picking a different value replaces the previous one.
+- **Yes / No toggle** — a plain on/off switch (e.g. "Awards chartered status") with no term list to manage.
+
+Add a label and, for Tags/Single choice, a set of terms (each with an optional colour) — a new categorisation isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same categorisation can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Where a directory or map has several categorisations attached, use the ▲/▼ buttons next to each one to set the order they're offered in. Archiving hides a categorisation without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the categorisation, its terms, and every tag using it.
+
+Once a categorisation is attached to a directory, it appears as a checkbox picker (Tags), a set of single-pick chips (Single choice), or a switch (Yes/No):
+- On that directory's **Settings** tab, to tag the whole directory.
+- On an entry's create/edit form, to tag that entry.
+
+Only categorisations attached to that specific directory (or map) are offered — attach it first if you don't see it.
+
+A published directory's site has a search box and a filter bar built from your attached categorisations. On the published site, a **Tags** categorisation renders as a compact multi-pick dropdown (its terms live behind a "Any"/"N selected" button, with a search box inside the panel once there are more than 8 terms) rather than a wall of buttons — this keeps the bar readable as you attach more categorisations to a directory. **Single choice** still renders as a native dropdown, and **Yes/No** as a switch. See `docs/DIRECTORIES.md` for the roadmap of what's still ahead (portal-side faceted filtering). On desktop, the filter bar spans the full width above the results, which take two-thirds of the width with the map (if one is attached — see **Directories** under a map's Data tab, above) alongside at one-third. Each result is two columns: a logo cell on the left (full height of the row, background colour filling the cell, logo centred) and the name, description, address, and category on the right. On smaller screens the page layout stacks instead: filters sit above the list, and a **List / Map** toggle switches between the two rather than showing them side by side; on phone-sized screens the filters also collapse into a **Filters** drawer you open on demand. Filtering or searching the directory narrows the map's pins the same way it narrows the list; the map embed itself only shows its own controls (zoom, clustering) here, not a second copy of the search box or results.
+
+### Entry details: evidence, media, team, accreditations, links and product tiles
+
+Open an existing entry (**Edit**) to see these below the main form — they're not available until the entry has been saved once, since they attach to the entry's own record:
+
+- **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
+- **Media** — pick a gallery photo (PNG/JPG/WebP, max 5MB) to see a preview, then either type alt text or click **Generate with AI** to have Claude describe the actual image (not just guess from the entry's name) — alt text is required before you can upload. Mark one image as the **hero** image.
+- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed) — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
+- **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
+- **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
+- **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
+- **Show publicly** checkboxes (in the main form) control which contact fields — phone, email, website, address — will appear once the entry is published; there's no public page yet, so these have no visible effect today.
+
+### Directory-level accreditation schemes and prominent links
+
+On a directory's **Accreditations** and **Prominent Links** tabs (owners and managers only):
+
+- **Accreditation schemes** — define the badges entries can hold (name, issuing body, badge image, description, verification note). Archiving a scheme hides it without losing which entries hold it; deleting it removes it from every entry that holds it.
+- **Prominent links (directory homepage)** — link tiles for the directory as a whole, separate from any single entry's own links.
+
+### Claims
+
+**Claimed Directory Listings** requires the Professional plan or above. On a directory's **Claims** tab (owners and managers only):
+
+- **Overview** — claim activity and commercial analytics, once claiming is in wider use.
+- **Claims** — a searchable, filterable list of every claim against this directory's listings, with a **Create claim** button:
+  1. Pick one of this directory's unclaimed listings.
+  2. Enter the owner's name and email.
+  3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
+  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim. **Activating republishes that one listing automatically** — the public page updates within moments, without needing a separate Publish click (revoking doesn't do this yet — republish the directory manually afterwards if you need the claim button back immediately).
+- **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
+
+Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
+
+### Claiming a listing yourself (self-service)
+
+When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a quiet **Claim this listing** link under the sidebar map card ("Represent this organisation?"). Clicking it shows the directory's own introduction and price, then asks for a work email:
+
+1. **Enter your work email.** It must use the same domain as the listing's own website (e.g. `you@ioic.org.uk` for a listing whose website is `ioic.org.uk`) — personal email providers (Gmail, Outlook, etc.) aren't accepted as proof of organisational control.
+2. If the domain matches, a sign-in link is emailed immediately — no payment, no waiting for an admin.
+3. Clicking that link signs you in at `/claim/login` and activates the claim straight away — the listing's public page updates automatically at the same time (no button, correct provenance) — taking you into the **Listing Manager** (see above).
+
+If your email domain doesn't match the listing's website (a common, legitimate situation — e.g. a rebrand, or a listing whose website belongs to a parent organisation), self-service can't verify you — ask the directory's admin to create the claim manually with an override instead.
+
+Once a claim has started on a listing (self-service or admin-created), the **Claim this listing** link disappears from that listing's public page until the claim is revoked.
+
+**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
+
+The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
+
+- **Listing** — the same rich-text editor used elsewhere in the app, for the listing's body content.
+- **SEO** — page title and meta description.
+- **Contact details** — website, email, phone, and address, each with its own "Show publicly" checkbox.
+- **Team** — add, hide/show, or delete the people shown publicly on the listing. Either the owner or an editor can do this.
+- **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here directly — use **Transfer ownership** below instead.
+
+Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
+
+**Transferring ownership:** on the Users tab, the current owner can hand ownership to anyone else by entering their email under "Transfer ownership to a new person" (an admin can do the same thing from the directory's Claims tab). What happens next depends on who that email belongs to:
+
+- If it's someone already listed as an editor **who has signed in before**, ownership moves immediately — no further steps needed. The old owner becomes an editor; the new owner can now do everything an owner can, including transferring ownership again later.
+- Otherwise (a brand-new email, or an editor who was invited but never actually signed in), that person gets a magic-link invitation. Ownership only actually moves once they click it and sign in at `/claim/login` — until then, the current owner stays the owner.
+
+**Publish** is live once the claim is Active: it republishes only that one listing's own page — never the directory homepage, its own search-result row, any other listing, or any directory-wide setting. Because of that isolation, publishing an edit today updates the listing's dedicated page immediately, but its homepage summary card and its entry in sitemap.xml won't reflect the change until the directory's next ordinary (admin-triggered) publish. **Preview** is visible but disabled — not part of this epic's scope.
+
+### AI content generation
+
+On a directory's **AI** tab (owners and managers only), the first panel lets Claude write each entry's page content for you:
+
+1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
+2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.
+3. **One entry, any time** — on that entry's **Content** tab, click **Generate with AI**. This always runs immediately, even if the entry already has content (you'll be asked to confirm, since it overwrites what's there).
+4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; the panel shows a progress count while it runs.
+
+Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
+
+### SEO metadata backfill
+
+The next panel on the **AI** tab shows how many active entries are missing any of their SEO/social fields (meta title, meta description, keywords, social title, social description, AI summary) and lets you fill them all in one go:
+
+1. It tells you upfront how many entries are missing something, before you click anything.
+2. **Backfill missing metadata** queues a background job for exactly those entries — never entries that already have everything, so there's nothing to confirm or type first (unlike "Generate all entry content" above, this can't overwrite anything you've written). A progress count shows while it runs.
+3. New entries missing any of these fields get them filled in automatically as they're created, without needing this button at all.
+4. Each field this fills in shows a small "auto-drafted by AI" note on that entry's own Search & Metadata tab, so you know it's worth a quick look — though there's no obligation to change anything.
+
+This is separate from the single-entry **Generate with AI** button on an entry's own Search & Metadata tab, which works immediately and lets you review before saving; this panel is for catching up a whole directory's backlog at once.
+
+### Help me choose
+
+Below the content panel on the same **AI** tab, a second panel controls **Help me choose** on the published site (not the main search box):
+
+1. **Set Help me choose instructions** — free text describing how the AI should interpret a visitor's circumstances and pick relevant entries. Leave it blank to turn this off — the published homepage then has keyword search only, and no Help me choose button.
+2. Once instructions are set, visitors see **Help me choose** next to search. It opens a conversation that asks what they would like an association to help them with. The AI may ask a follow-up, then shows matching listings (and map pins) as the normal directory results, with optional "Why this might suit you" notes. Visitors can **Refine with AI** or **Clear**. If they already typed a keyword search, that text is used as the first message and the AI narrows those results.
+3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation. This never adds a result that isn't already an entry in the directory.
+
+Turning Help me choose on sends visitors' conversation text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration. The search box does not.
+
+### Content pages
+
+A directory's **Pages** tab (owners and managers only) is for editor-built pages that sit alongside your entry listings — an "About" page, "How to join", a sector guide — rather than describing a single organisation. Together they form a small website around the directory: the page tree you set here is what visitors see in the header, on a phone menu, in breadcrumbs, and in the footer.
+
+1. Type a title and click **+ Add page** to create one — it's saved immediately so you can start editing it.
+2. The list on the left shows the hierarchy. Drag the ☰ handle to reorder pages, drop a page onto a top-level page to nest it (one level only — a page that already has children has to stay top-level), or drag a nested page back to the top level.
+3. Select a page to edit its **Title**, **URL slug**, **Parent page**, **Navigation label** (optional shorter wording for the header; leave blank to use the title), **Show in site navigation**, **Published**, and its **Content**, written in the same rich text editor entries use. Published pages use that same sizing: paragraphs and lists match, and headings have space underneath them.
+4. A published page with **Show in site navigation** turned off stays reachable at its URL and can still appear in breadcrumbs, but it is left out of the header, phone menu, and footer.
+5. An unpublished page is omitted from the live site entirely until you publish it and republish the directory.
+6. Child pages get a nested address, e.g. `/membership/why-join`. Changing a parent or slug changes that address; the previous address redirects after the next time you publish.
+7. **Generate with AI** — give Claude an outline (headings, bullet points, or a short brief) and it writes a full draft into the content editor for you to review; nothing is saved until you click **Save**.
+8. **Meta title**, **Meta description**, and **Hide from search engines (noindex)** work the same as an entry's own Search & Metadata fields.
+9. **Delete page** — if the page has children, you must choose to move them to the top level, move them under another page, or delete them too. The live site updates on the next publish.
+
+Every content page also shows a breadcrumb under the header (for example **Home > Membership > Membership Benefits**). The logo/title in the header always links back to the directory.
+
+---
+
+## Map designer
+
+The designer shows a **live preview** of your map. Use the header buttons to open settings panels. The preview omits the visitor zoom/fullscreen control so it doesn’t cover **Map Settings**; a small zoom-level readout stays bottom-left while you set the default centre and zoom. Published embeds still show the full zoom controls for visitors.
+
+| Panel | What you can change |
+|-------|---------------------|
+| **General** | Name, slug, **description**, default center/zoom, clustering (saves automatically as you edit) |
+| **Pin Design** | Marker style (pin, rounded pin, dot, custom icon), size, colour, border, favicon overlay, drop shadow — previews match the actual map size |
+| **Panels** | Listing side panel layout and behaviour |
+| **Groups** | Categories for listings; per-group style overrides (style, colour, border, icon) — drop shadow always inherits from Pin Design |
+| **Map Style** | Presets, base map type, land/water/road colours, map detail levels, and map overlays |
+| **Filters** | Create custom, filterable fields (e.g. Sector, Languages spoken); manage their options; choose which appear in the published search bar and how |
+| **Publish Map** | Publish, view history, rollback, embed URL, subscription |
+| **Search** | Set **Display options** (search panel, logo, title, groups key, listings — see below), upload a **logo**, and style the search panel (background colour & transparency, **font colour**, listing background, border, and transparency). Shows a read-only summary of your custom filter fields with a link to the **Filters** panel |
+
+**Custom Icon pins:** upload your own SVG or PNG (max 200KB) instead of a built-in shape. It's shown exactly as uploaded — colour, border and drop shadow don't apply to it, and small/medium/large sizing still works. Groups can upload their own custom icon too, independent of the map's default.
+
+Use the **Publish** button in the top navigation bar when you’re ready to go live. The button turns amber when there are unpublished draft changes. Publishing creates a snapshot visitors see on the embed; you can roll back to earlier versions from the publish panel.
+
+### Map Style panel
+
+Inside **Map Style** you can now customise the map in five sections:
+
+1. **Presets** — Pick a ready-made style (Roadmap, Silver, Dark, Muted, Atlas, Satellite, Hybrid, Terrain).
+2. **Base type** — Switch between Roadmap, Satellite, Hybrid, and Terrain.
+3. **Colours** — Set **Land**, **Water**, and **Roads** colours.
+4. **Map detail** — Tune visibility for places, businesses, transport, road labels, and administrative labels.
+5. **Overlays** — Turn **Traffic**, **Public transport routes**, **Bike lanes**, and **Terrain & contours** on/off (**Traffic is off by default**).
+
+Changes appear in the live preview immediately and are saved as part of your map draft.
+
+### Filters panel
+
+**Filters** let you add your own filterable metadata to a map — separate from Groups. For example a supplier directory might add **Sector**, **Languages spoken**, or **Membership tier**. Visitors can then narrow the map and list by those values.
+
+1. **Create a field** — click **New filter field**, enter a **Label**, and pick a **type**:
+   - **Single choice** — the listing has exactly one value (shown to visitors as a dropdown, checkbox list, or typeahead).
+   - **Multiple choice** — the listing can have several values; visitors can select more than one.
+   - **Yes/No toggle** — a single on/off switch per listing (e.g. "Wheelchair accessible"). No option list to manage — just an optional colour if you want to use it to colour pins (see below).
+   - **Free text** — a free-text tag visitors filter with a type-to-search box.
+2. **Key** — each field has a short **key** (auto-generated from the label). This is the column name used in CSV/Sheet imports (`filter_<key>`). The key can't be changed once options exist, so imports keep matching.
+3. **Options** — for single/multiple choice fields, add the option list (each with an optional colour). You can also let them build themselves: importing via CSV or Google Sheets **creates any new option automatically** from the values in the sheet, so you don't have to type every category by hand. Option labels can be renamed freely; the underlying import value stays stable. In the published search bar, only options that at least one listing actually uses are shown — empty options (and any select field with no populated options) are hidden automatically.
+4. **Show in search bar** — turn this on for each field you want visitors to see, and choose the **control** (dropdown, checkbox list, or typeahead). Only valid combinations are offered (e.g. dropdown isn't available for multiple-choice fields).
+5. **Order** — use the up/down arrows to set the order fields appear in the search bar.
+6. **Archive / Delete** — archive hides a field without losing its data; delete (type-to-confirm) permanently removes the field, its options, and all listing tags.
+
+Filter fields, options, and display settings follow the **draft → publish** cycle: they appear in your live preview immediately but only reach visitors when you **Publish**. Matching within one field is "any of" (OR); across different fields a listing must match **all** active filters (AND) — the same behaviour as group and continent filters.
+
+Tag listings with filter values in three ways: individually (the **Data → Manual entry** editor), in bulk (select rows in the manual table, then **Bulk edit filters**), or via **CSV / Google Sheets** using `filter_<key>` columns. For a Yes/No field, the cell just needs a recognisable Yes (`yes`/`y`/`true`/`1`) or No (`no`/`n`/`false`/`0`) — blank means "not set", same as No.
+
+**Colour pins by** — at the top of the Filters panel, choose which field's option colours set each pin's colour, in place of Group. Only single-choice and Yes/No fields can be picked (a listing can only have one pin colour). Choosing "Group (default)" keeps today's behaviour — every existing map is set to this until you change it. This setting saves immediately and updates your live preview straight away; visitors see it once you **Publish**.
+
+### Co-located pins (same address)
+
+When two or more listings share the exact same address, the map handles them automatically:
+
+- At lower zoom levels they appear as a **cluster** showing the count.
+- Clicking the cluster **zooms to level 17** and then **fans the pins out** in a circle with connecting lines so each one is individually clickable.
+- If you are already at zoom 17 or above, clicking the cluster fans them out immediately.
+- Click any spread pin to open its listing. Click the map background or zoom out to collapse the fan.
+
+### Search panel (published map)
+
+The whole panel only appears if **Show search panel** is on (see **Display options** below). When it is, the panel sits flush to the **top-left** of the published map, full height, and is laid out top to bottom as:
+
+1. **Logo** *(toggle: Show logo)* — the image you upload in the **Search** settings panel (optional).
+2. **Title** *(toggle: Show title)* — your map name.
+3. **Description** — the text from the **General** panel's Description field (only shown if set).
+4. **Search & filter** — a search box (find listings or jump to a place/location), plus **filter lozenges** for each group. Tap a lozenge to show only that group on the map and in the list; tap again to clear. Lozenges use each group's colour and border. When the **continent filter** is enabled, a second row of continent chips appears (derived automatically from each listing's country); these combine with the group filters. Any **custom filter fields** you set to show in the search bar (see **Filters panel**) appear here too, as dropdowns, checkbox lozenges, or type-to-search boxes.
+5. **Key** *(toggle: Show groups key)* — every group listed in your chosen group order with a colour square.
+6. **Listings** *(toggle: Show listings)* — all listings in **alphabetical order**, each showing the logo (left), organisation name, city and country, and its group label. This list scrolls to the bottom of the screen.
+
+**Styling the panel (Search settings):**
+
+- **Display options** — at the top of the **Search** panel:
+  - **Show search panel** — master switch for the whole panel (logo, title, search & filter, key, listings). Off hides all of it. On by default.
+  - **Show logo** — on by default; only has a visible effect once a logo is uploaded below.
+  - **Show title** — shows/hides the map name at the top of the panel. On by default.
+  - **Show groups key** — shows/hides the Key section. On by default.
+  - **Show listings** — shows/hides the scrolling listings list. On by default.
+  - *(Display continent filter is currently hidden from this panel — see note below.)*
+- **Logo** — Upload an SVG, PNG, JPG or WebP (max 500 KB) with a live preview; use **Remove** to clear it.
+- **Background colour** and **Background transparency** — the panel's background.
+- **Font colour** — text colour for the title, description, section labels, filter labels, inactive filter tabs (lozenges), and the Key. Does **not** change listing card text (those stay dark on the listing background).
+- **Search listing background colour**, **Search listing border**, and **Search listing transparency** — the appearance of each listing card.
+
+All Search and Description settings save automatically to your draft and go live when you **Publish**.
+
+> **Continent filter (deprecated):** the continent-filter toggle has been removed from the Search panel UI as tech debt — existing maps keep whatever setting they already had, but it can no longer be changed from the dashboard.
+
+**Sub-navigation** (when editing a map):
+
+- **Design** — Map designer (this page)
+- **Data** — CSV upload and Google Sheets
+- **Stats** — Visitor analytics (published embed only)
+
+---
+
+## Importing data
+
+Open **Data** from the map sub-nav (`/client/maps/<id>/data`).
+
+### CSV upload
+
+1. **Download template** — CSV with expected columns.
+2. Fill columns such as:  
+   `name`, `address`, `postcode`, `country`, `lat`, `lng`, `website_url`, `email`, `phone`, `logo_url`, `notes_html`, `allow_html`, `group_name`, `is_active`.  
+   **name** is required; leave `lat`/`lng` blank to geocode addresses (if enabled).  
+   If the map has custom **filter fields**, the template also includes a `filter_<key>` column per field. Enter the option value(s) for each listing; separate multiple values with a pipe (`|`). You don't need to pre-create the options first — any value that isn't already an option is **added automatically** on import (the import summary tells you how many new options were created).
+3. **Upload CSV** and choose your file.
+4. Optionally enable **Geocode rows missing lat/lng**.
+5. Click **Import**.
+
+### Google Sheets
+
+Connect a Google account, then click **Choose a file from Google Drive** to open Google's own file picker and select a Sheet, CSV, or Excel file from your Drive. The app only gets access to the file you pick — not your whole Drive. Validate columns, then sync. To import a CSV from your computer without Drive, use the **Spreadsheet / CSV** tab instead.
+
+Under **Auto-sync schedule**, choose **Off** (manual only) or **Daily**, then pick the time of day (shown in your local time) when the sync should run each day. See [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md).
+
+### Manual entry
+
+On **Data** (`/client/maps/<id>/data`), open **Manual entry** to add, edit, or delete individual listings. Use the **Filter by name or address…** field above the table to narrow a long list. If Google Drive sync is connected, disconnect it first — manual editing is locked while sync is active.
+
+When you change the **Address** (and leave the field, or save), latitude and longitude update automatically from geocoding. You can still override the coordinates manually if needed.
+
+### Directory as data source
+
+*(Requires the Directories beta — see above.)* On **Data**, the **Directories** tab lets a map read its pins live from one of your directories instead of its own listings — pick a directory and click **Use this directory**, or click **Build a directory from this map** to copy this map's own groups and listings into a brand-new directory first (you'll review and publish it, then come back here to attach it). **Building a directory from a map also carries across the map's own filter fields as categories** attached to the new directory (single-choice, multiple-choice, and Yes/No fields — free-text fields have no category equivalent and aren't carried across), so entries stay just as filterable as the source map's listings were. The Directories tab is always open, even if a Google Sheets sync is currently active — attaching a directory automatically disconnects that sync, since a map is either self-authored or directory-sourced, never both. There's no separate sync step once attached: the map's published embed shows the directory's published entries as they currently stand, and updates automatically the next time the directory is published — not on every draft edit. **Manual entry**, **Upload CSV**, and **Sync data** lock while a directory is linked; click **Disconnect** on the Directories tab to revert the map to its own listings. Note: a directory-sourced map already shows the directory's own categories as filter chips in its search bar — a directory entry's filterable metadata is **categories** (`categorisations`), the directory-side equivalent of a map's own filter fields, not the same underlying data.
+
+**A directory entry needs coordinates to show a pin.** An entry without them still appears in the map's list panel, silently without a pin — before attaching a directory to a map, check its entries' **Pin** column (see [Managing entries](#managing-entries)) and click **Geocode missing coords** if any show **No pin**.
+
+### Loaded Data (logo + logo background per listing)
+
+In **Data** (`/client/maps/<id>/data`), open the **Map data** tab to set a logo and its background for each listing:
+
+1. Use the search field to filter by listing name or address.
+2. Review each listing’s **ingestion method** (**Integration**, **CSV**, or **Manual**) and logo thumbnail preview.
+3. Pick a swatch per row (**None**, **Light**, **Mid**, **Dark**) or use the custom colour picker for the logo background.
+4. If the listing has no logo yet, the **Logo** column shows an **Upload** control — pick an SVG, PNG, JPG or WebP (max 500 KB) to use as that listing's logo. If the listing already has a logo URL (e.g. from a CSV import or Google Sheets sync, or a URL typed in **Manual entry**), that URL always takes precedence and the upload control is hidden; clear the URL in **Manual entry** first if you want to upload a file instead.
+5. Changes save immediately and appear in the listing details panel on your map preview and published map.
+
+### Listings table
+
+**Listings** (`.../listings`) shows all entries with search and filters.
+
+### Sync History tab
+
+If your map has had at least one Google Sheets sync attempt, a **Sync History** tab appears on the Data page (`/client/maps/<id>/data`).
+
+The table shows each sync run with:
+
+| Column | Description |
+|--------|-------------|
+| Started | When the sync began |
+| Duration | How long it took (e.g. "3s", "1m 12s") |
+| Status | Success, Warning, Error, or Running |
+| Provider | Always "google_sheets" for now |
+| Total rows | Rows imported |
+| Inserted | New rows added |
+| Updated | Existing rows updated |
+| Error | First 80 characters of any error message |
+
+Click a row to expand it and see the full error code, message, and raw error detail.
+
+Pagination: 100 rows per page, with Prev / Next controls and a "Page X of Y" indicator.
+
+### Sync error alert on the dashboard
+
+If any sync run has failed for your organisation, a red **Sync errors detected** alert appears at the top of **My Maps** (`/client`). Each line shows the map name, how long ago the failure occurred, and a link directly to the Sync History tab for that map.
+
+---
+
+## Publishing and embedding
+
+1. Open the map designer and click **Publish** in the top navigation bar (turns amber when changes are pending).
+2. Add an optional publish note and confirm **Publish**.
+3. Copy the **embed URL** from the publish panel (e.g. `/your-org/your-map` or `/embed?map=<MAP_ID>`). The live embed shows only the map — no Layercake header or footer.
+4. Use **Launch map** to open the live embed in a new tab.
+5. Paste the **embed code** on your site. Include `allowfullscreen` on the `<iframe>` so visitors can expand the map to the full browser window (without it, fullscreen only fills the iframe box).
+
+Only **published** maps are visible on the embed.
+
+**Fullscreen zoom:** Normally the map ignores mouse-wheel/trackpad scrolling so the surrounding page can still scroll (visitors zoom with the +/− buttons, or Ctrl/⌘ + scroll). When a visitor enters **fullscreen** (the ⛶ button), the standard Google Maps gestures take over — scroll-to-zoom, pinch-to-zoom and one-finger pan all work — and revert automatically on exit.
+
+---
+
+## Analytics (Stats)
+
+Open **Stats** from the map sub-nav for visitor engagement on your published embed. The dashboard includes daily charts, a conversion funnel, **Top listings** (interactions per listing), and **Top search queries**. See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
+
+---
+
+## Team
+
+Owners and managers can open **Team** (`/client/team`) to:
+
+- View members and roles (Owner, Manager, Member), plus anyone with an **Invite pending**
+- See each person’s **status** (Active, Invite pending, Awaiting verification, etc.) and **last logged in**
+- **Send invitation email** to a colleague’s address
+- **Cancel** a pending invitation if needed
+- For **Members**, choose which maps they can access, and — if Directories is enabled for your organisation — which directories they can access (checkboxes granting entry-level view and edit access; there's no view-only tier yet)
+- Change roles or remove members (owners only)
+
+### Inviting someone
+
+1. Enter their **email** and **role** (Manager or Member).
+2. Click **Send invitation email**.
+3. They receive an email: *“You’re invited to join …”* with a link to **set a password** and create their account.
+4. They must sign up with the **same email** you invited.
+5. After email verification, they log in and join your organisation automatically.
+
+### When invitation is not allowed
+
+You will see an error instead of sending email if:
+
+| Situation | Message (typical) |
+|-----------|-------------------|
+| They already have a Directory Maps login | *This user already has an account. Each person can only belong to one organisation.* |
+| They are on another organisation’s team | *This user already belongs to another organisation.* |
+| They are already on your team | *This email is already on your team.* |
+| Invite already pending | *A pending invitation already exists for this email.* |
+| No team seats left on the plan | *No team seats left for this organisation: 1 seat on its plan…* — existing members and pending invitations both use a seat. Upgrade the plan or ask a Layercake admin to add a seat override. |
+
+Invitations expire after **7 days** — send a new one if needed.
+
+---
+
+## Messaging
+
+Messaging is set up in two places:
+
+- **Organisation level — the Messaging page** (`/client/email`) holds your **sending profiles**: the address messages come *from*, and the domain that proves you own it. It also has a **Sent messages** log.
+- **Per map and per directory — each one's own Messaging settings** choose which profile to use, switch messaging on, set test mode, and write the message text.
+
+Nothing is sent from a map or directory until a sending profile has been chosen for it.
+
+Messaging requires the **Professional plan or above**. On the Basic plan the screens show a note to upgrade; contact Layercake to change your plan.
+
+### Sending profiles
+
+Open **Messaging** (`/client/email`). The **Sending profiles** tab lists every profile with its From address, domain status, and the maps and directories using it.
+
+Create as many profiles as you need — for example one for events and one for membership — each with its own address and domain.
+
+1. Click **New profile**. Enter a **profile name** (only used to tell profiles apart), an optional **display name**, and the **email address** messages should come from. Click **Create profile**.
+2. Under **Domain & DNS**, click **Set up domain**. Resend registers your domain and generates DNS records. If something goes wrong, a message appears directly under the button.
+3. **Add the DNS records** shown to your DNS provider (where you registered or host your domain — often Cloudflare, GoDaddy, Namecheap, etc.):
+   - Use the **copy button** next to each value to avoid transcription errors.
+   - DNS propagation can take up to 48 hours, though it’s usually minutes.
+4. Click **Verify DNS settings**. When the status badge turns green ("Verified"), messages using this profile send from your address.
+
+If someone else manages your DNS (IT support, web agency, etc.), click **Setup instructions** (shown while verification is pending) to copy a ready-made email with all required DNS records.
+
+**DMARC (recommended):** For the strongest deliverability, also add a `TXT` record at `_dmarc` with value `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. DMARC is not required for verification but protects your domain from spoofing.
+
+Until a profile’s domain is verified, messages send from the platform email address, shown with the profile’s **display name**.
+
+Two profiles on the same domain (for example `info@` and `events@yourcompany.com`) share one verification — verifying one verifies both.
+
+**Changing or deleting a profile:** changing a profile’s email address to a different domain detaches the old domain, so run **Set up domain** again. **Delete profile** asks you to confirm; any map or directory using it stops sending messages until you choose another profile for it.
+
+### Messaging settings on a map
+
+Open the map, then **Messaging** in the Map Settings list. (Directories: **Email** tab — see [Directory email](#directory-email).)
+
+- **Sending profile** — choose which profile messages from this map are sent from. Until one is chosen, the enable switch is locked and messaging is off. If the profile’s domain isn’t verified yet you’ll see a note that messages use the platform address for now.
+- **Enable messaging** — **Off (default):** the "Send message" button is hidden on this map. **On:** it appears on listings that have an email address. Each map has its own switch; turning it on for one map doesn’t affect your others.
+- **Test mode** — **On (default):** the Send message form shows a test banner and sends to the **test recipient** you enter, not the listing’s address. **Off:** messages go to each listing’s email address. Turn it off when you are ready to go live.
+- **Message text** — the **prompt message** (shown above the contact form; required when messaging is on, e.g. *"Complete the form below and we’ll pass your message on."*), the **email subject** (required when messaging is on; use `{listing}` for the listing name), and an optional **email opening message** shown at the top of the email above the visitor’s details (also supports `{listing}`).
+
+Click **Save messaging settings**. Changes to a map apply on the published map immediately — you do not need to republish.
+
+### Sent messages
+
+Open the **Sent messages** tab to review contact form submissions from all your maps, newest first. Each row shows when the message was sent, which map and listing it relates to, the visitor’s details, the listing email it was sent to, and delivery status.
+
+Click a message preview to expand the full text. If email delivery failed, the row is marked **Send failed** and you can view the error detail.
+
+See also: [RESEND_EMAIL.md](./RESEND_EMAIL.md).
+
+---
+
+## Domains
+
+The **Domains** page (`/client/domains`) lets you register your own domain or subdomain and publish a map or a directory to it. Once verified: the root of your domain shows the published entity's landing page — for a map, that's the SEO-friendly listing page, with `/map` showing the full interactive map (also usable as an iframe source elsewhere); for a directory, that's the directory's own landing page. Either way, each listing/entry gets its own page at the root.
+
+Custom domains for **maps** require the **Professional plan or above** — on the Basic plan, that option is unavailable and the section shows a note to upgrade. Custom domains for **directories** are included with early access to the Directories beta — no separate upgrade needed while that feature is in beta.
+
+### Add a domain
+
+1. Choose which **map or directory** this domain will publish, from the **Publishes** dropdown (each domain publishes exactly one map or directory — register a second domain if you want a different address for another one).
+2. Enter the **domain or subdomain** you own, e.g. `directory.yourcompany.com` or a root domain like `yourcompany.com`. Don't include `https://` or a trailing path.
+3. Click **Add domain**. Two DNS records appear — a `TXT` record (proves you own the domain) and a routing record. **A root/apex domain** (e.g. `yourcompany.com`) gets an `A` record; **a subdomain** (e.g. `directory.yourcompany.com`) gets a `CNAME` record — DNS doesn't allow a literal CNAME on a root domain, so the record type differs depending on which you use.
+
+### Verify a domain
+
+1. Add both records shown to your DNS provider (wherever you manage DNS for that domain — often Cloudflare, GoDaddy, Namecheap, your IT team, etc.). Use the **copy button** next to each value to avoid transcription errors. **If your provider offers a "proxy" toggle for the routing record (Cloudflare calls this the orange cloud), turn it off** — set it to "DNS only." A proxied record hides the real destination from our verification check and it will never succeed.
+2. Click **Verify DNS settings**. This checks DNS ownership immediately, then connects the domain to hosting — that second part can take a minute or two the first time. DNS propagation itself can take anywhere from a few minutes to 48 hours depending on your provider.
+3. When the status badge turns green ("Active"), your domain is live.
+
+### Remove a domain
+
+Click **Remove** on a domain's card. This can't be undone — you'd need to add it again and re-verify from scratch.
+
+---
+
+## Quick reference
+
+| Action | Where |
+|--------|--------|
+| Sign up / Sign in | `/signup`, `/login` |
+| View your maps | `/client` |
+| Create a map | My Maps → New map |
+| Add a map description | Map → Design → General → Description |
+| Upload search-panel logo & style it (incl. font colour) | Map → Design → Search |
+| Create a custom filter field | Map → Design → Filters → New filter field |
+| Show a filter field in the search bar | Map → Design → Filters → Show in search bar |
+| Colour pins by a category instead of Group | Map → Design → Filters → Colour pins by |
+| Tag a listing's filter values | Map → Data → Manual entry → edit listing → Filters |
+| Bulk-tag filter values | Map → Data → Manual entry → select rows → Bulk edit filters |
+| Search manual listings | Map → Data → Manual entry → Filter by name or address |
+| Import CSV / Sheets | Map → Data |
+| Publish & embed URL | Map → Publish Map panel |
+| View analytics | Map → Stats |
+| Review sent contact messages | `/client/email` → Sent messages |
+| Create a sending profile (From address) | `/client/email` → Sending profiles → New profile |
+| Enable messaging on a map | Map → Messaging → choose a sending profile → Enable messaging → Save |
+| Customise contact email subject and opening line | Map or directory → Messaging settings → Message text → Save |
+| Turn test mode off for live contact emails | Map or directory → Messaging settings → Test mode → Save |
+| Set a directory enquiry inbox | Directory → Email → Contact email → Save contact email, then Publish |
+| Show Make an Enquiry on entry pages | Directory → Email → contact email set, sending profile chosen, messaging on, then Publish |
+| Configure custom sending domain | `/client/email` → Sending profiles → open a profile → Domain & DNS |
+| Copy DNS setup email for IT supplier | `/client/email` → Sending profiles → open a profile → Domain & DNS → Setup instructions |
+| Add a custom domain for a map or directory | `/client/domains` → Add domain |
+| Verify a custom domain | `/client/domains` → Verify DNS settings |
+| Add or reorder directory content pages | Directory → Pages |
+| Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
+| Set the directory header logo height | Directory → Branding → Logo height |
+| Set the published directory favicon | Directory → Branding → Favicon |
+| Set a full-width hero banner | Directory → Branding → Hero banner |
+| Set the published site's Home nav label | Directory → Settings → Home navigation label |
+| Connect GA4 or GTM to a directory | Directory → Settings → Analytics & Tracking |
+| Turn on location search | Directory → Settings → Search → Location search, then Publish |
+| Read a published directory's AI overview | `llms.txt` on the public site (updates when you Publish) |
+| Filter a published directory by distance | Published homepage → Distance from |
+| Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |
+| Invite team member | `/client/team` → Send invitation email |
+| Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
+
+---
+
+## Admin users
+
+Users with **admin** access use `/admin` to manage customers and their maps. Each customer is managed from the admin customer pages (`/admin/clients/:id`), which mirror the client portal (maps, directories, categorisations, users, messaging, domains).
+
+**Navigation:** The dark top bar is platform admin only (Customers, Maps, Admin Users, Leads, Logs, and so on). **Logs** is a dropdown containing **User activity**, **Error log**, and **Sync log**. **Leads** lists founding-partner enquiries submitted via the public landing page (name, email, organisation, submission date), newest first; admins can update each lead's status inline (**To be actioned**, **In progress**, **Successful**, **Lost**). When you open a customer (`/admin/clients/:id`), a second strip shows **Maps**, **Customer details**, **Users**, and **Messaging**. When you edit one of that customer’s maps (`/admin/clients/:id/maps/:mapId`), a map sub-nav appears below the breadcrumb trail — **Design**, **Data**, **Stats**, and **Publish Map** — matching the client portal layout.
+
+When an admin creates a customer in `/admin/clients/new`, they only need:
+
+- Customer name
+- Customer slug (or leave blank to auto-suggest)
+
+On a customer’s **Messaging** tab (`/admin/clients/:id`), admins have the same controls as the client portal: **Sending profiles** (create profiles, From address, DNS) and **Sent messages** (contact form log for that organisation). Enabling messaging, test mode and message text are on each map’s **Messaging** setting and each directory’s **Email** tab, in both the admin and client views.
+
+On a customer's **Maps** tab, **New map** now matches the client-portal create-map form exactly (map name, web address/slug, a place search that sets the default centre/zoom, fine-tune lat/lng/zoom, list panel and clustering options). If the customer is already at their plan's map limit, clicking **New map** shows a closeable "Plan limit reached" dialog instead of opening the form — the admin isn't taken to the create-map page at all in that case.
+
+From a customer’s **Users** tab, admins can add a user by entering:
+
+- Email
+- Name (required)
+- Optional permissions (Manage maps, Manage users)
+
+On submit, Directory Maps sends an invitation email that opens a create-account / set-password screen. The contact is linked to the customer after the invitee completes signup.
+
+The invitation is refused up front if the customer has no free team seats (members plus pending invitations versus the plan's seat limit, including any seat override). Fix it by changing the plan or adding a `maps.seats` override on the **Entitlements** tab, then add the user again.
+
+Admins can also remove users (including primary contacts) from the same list using the trash icon. Deleting requires typing `delete` to confirm.
+If a user is associated with another customer, deletion is blocked and a warning above the table lists those customers.
+
+In **Admin users** (`/admin/users`), open an admin user to see:
+
+- **Details** tab (account and linked contacts)
+- **Activities** tab (audit log events performed by that user)
+
+Admins can also reset their own password from the **Admin sign-in** screen:
+
+- Enter your admin email
+- Click **Forgot password?**
+- Use the reset email link to open `/reset-password` and set a new password
+
+---
+
+## Need help?
+
+Contact your administrator or Layercake support. Ops: [DEPLOY.md](./DEPLOY.md), [RESEND_EMAIL.md](./RESEND_EMAIL.md).

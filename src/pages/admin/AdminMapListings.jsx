@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 
 /** Geocode via Supabase Edge Function. No auth header: deploy with --no-verify-jwt (see scripts/test-geocode.md). */
@@ -216,13 +215,8 @@ export default function AdminMapListings() {
         { label: map?.name ?? "Map", path: `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}` },
         { label: "Listings" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
             <div style={{ fontSize: 12, opacity: 0.75 }}>
@@ -230,19 +224,19 @@ export default function AdminMapListings() {
                 ← Back to map dashboard
               </Link>
             </div>
-            <h2 style={{ margin: "8px 0 0 0" }}>Listings</h2>
+            <p className="card-title" style={{ marginTop: 8 }}>Listings</p>
             <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6 }}>
               Showing <strong>{filtered.length}</strong> of <strong>{rows.length}</strong>
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="btn" type="button" onClick={load}>
+            <button className="shell-btn" type="button" onClick={load}>
               Refresh
             </button>
 
             <button
-              className="btn"
+              className="shell-btn"
               type="button"
               onClick={geocodeMissingCoords}
               disabled={loading || geocodingMissing}
@@ -251,7 +245,7 @@ export default function AdminMapListings() {
             </button>
 
             {/* next: create listing form */}
-            <button className="btn btn-primary" type="button" disabled>
+            <button className="shell-btn shell-btn--primary" type="button" disabled>
               New listing (next)
             </button>
           </div>

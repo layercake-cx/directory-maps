@@ -1,0 +1,859 @@
+# Directory Maps — feature inventory
+
+This document describes **all major features** in the application: what they do, who can use them, and where they live in the codebase. Use it for onboarding, beta planning, and support.
+
+**Related:** [USER_GUIDE.md](./USER_GUIDE.md) (client how-to) · [BETA_READINESS.md](./BETA_READINESS.md) (launch gaps) · specialist docs linked per section.
+
+---
+
+## 1. Architecture overview
+
+```mermaid
+flowchart LR
+  subgraph public [Public]
+    Home[Marketing]
+    Embed[Embed map]
+    Pricing[Pricing page]
+  end
+  subgraph client [Client portal]
+    Maps[Map editor]
+    Data[CSV / Sheets]
+    Stats[Analytics]
+    Team[Team]
+  end
+  subgraph admin [Admin]
+    Clients[Customers]
+  end
+  subgraph backend [Supabase]
+    DB[(Postgres + RLS)]
+    EF[Edge functions]
+  end
+  Home --> client
+  client --> DB
+  client --> EF
+  Embed --> DB
+  Embed --> EF
+  admin --> DB
+  EF --> Google[Google APIs]
+  EF --> Resend[Resend]
+  EF --> Stripe[Stripe]
+```
+
+**Tenancy model**
+
+- **Organisation** = row in `clients` (name, slug, subscription flags, optional Resend domain).
+- **User** = Supabase Auth account, linked via `contacts` (`client_id`, `role`, permissions).
+- **Platform admin** = `profiles.role = 'admin'` (cross-tenant access via the admin portal).
+- **Map** = belongs to one client; **listings** and **groups** belong to a map.
+
+---
+
+## 2. Public & marketing
+
+| Feature | Route | Description | Key files |
+|---------|-------|-------------|-----------|
+| Landing page | `/` | Product overview, links to signup and admin | `src/pages/PublicMap.jsx` |
+| Marketing pricing | `/pricing` | Static plan cards (Starter / Pro / Agency, GBP monthly) | `src/pages/Pricing.jsx` |
+| Terms & conditions | `/terms` | Renders legal markdown | `src/pages/Terms.jsx`, `docs/MARKDOWN/...` |
+| Privacy notice | `/privacy` | Renders legal markdown | `src/pages/Privacy.jsx`, `docs/MARKDOWN/...` |
+| Site chrome | — | Header nav, footer, brand | `src/components/SiteHeader.jsx`, `SiteFooter.jsx` |
+| Global error boundary | — | Catches uncaught React errors | `src/components/ErrorBoundary.jsx` |
+
+**Note:** Marketing pricing (`Pricing.jsx`) is **not** the same as checkout plans in the publish flow (`PricingPlans.jsx` — Standard / Premium / Unlimited, yearly GBP). Align copy and plan IDs before public launch.
+
+---
+
+## 3. Authentication & account lifecycle
+
+| Feature | Route | Description | Key files |
+|---------|-------|-------------|-----------|
+| Sign in | `/login` | Email/password; redirect after login; banners for verification / unlinked account | `src/pages/Login.jsx`, `AuthForm.jsx` |
+| Sign up | `/signup` | Organisation name, auto slug, email/password; provisions `clients` + `contacts` | `src/pages/SignUp.jsx`, `provisionClientSignup.js` |
+| Team invite signup | `/signup?invite=<uuid>` | Join existing org (no new org); email prefilled; password + verification | `inviteHelpers.js`, RPC `get_team_invitation_preview` |
+| Team invite login | `/login?invite=<uuid>` | Existing users accept invite with password | `Login.jsx`, `acceptPendingInvitation` |
+| Slug availability | — | RPC `is_client_slug_available` (timeout-tolerant) | `src/lib/authHelpers.js` |
+| Forgot / reset password | `/forgot-password`, `/reset-password` | Supabase password recovery | respective pages |
+| Email verification gate | `/client/*` | Portal blocked until `email_confirmed_at` | `src/components/ClientGate.jsx` |
+| Session & admin role | — | Auth context, token refresh, signup provisioning mutex | `src/context/AuthContext.jsx`, `src/lib/auth.js` |
+| Auth error redirect | — | Handles Supabase auth-error redirects (clean-path) | `src/Root.jsx` |
+
+**Post-signup provisioning:** `provisionClientSignup` creates the organisation and primary contact from `user_metadata` (organisation name, slug). Skipped for team-invite signups (no `signup_org_*` metadata). **Team accept:** `acceptPendingInvitation` runs on every login before provisioning.
+
+**Auth model:** Email + password everywhere. Email verification and password-reset use one-time links; there is no passwordless magic-link login.
+
+---
+
+## 4. Client portal
+
+**Base route:** `/client` · **Gate:** signed-in user with verified email and linked `contacts` row.
+
+### 4.1 Navigation & layout
+
+Since the admin shell redesign (2026-09-29, Phase 1), both the client portal and the admin
+console share one nav shell: a top bar (logo, workspace switcher, search, support, account menu)
+and a dark icon rail for the current context's sections — replacing the old `client-nav` text bar
+and the admin-only `ADMIN_NAV` header bar respectively. Shared components:
+`src/components/shell/{AppShell,TopBar,Rail,WorkspaceSwitcher,FeaturePanel,AvatarMenu}.jsx`,
+config in `src/config/navConfig.js`, tokens/classes in `src/styles/admin-shell-tokens.css` and
+`src/styles/admin-shell.css`. `FeaturePanel` (the third nav layer, feature-level navigation) exists
+but isn't wired into any page yet — see `BACKLOG.md` and `docs/design/admin-shell/BUILD_BRIEF.md`
+for the remaining phases (directory tab restructuring, staff/platform workspace switching, new
+dashboard pages).
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Home | `/client` | Organisation dashboard (Phase 4) — see §4.2 |
+| My Maps | `/client/maps` | Dashboard grid of maps, data-source badges, links to stats |
+| Team | `/client/team` | Manage organisation contacts (requires `can_manage_users` or primary) |
+| Messaging | `/client/email` | **Sending profiles** tab: create/edit/delete sending identities (From name/address + Resend domain + DNS verification). Enable, test mode and message text are per map/directory, not here. **Sent messages** tab: paginated log of `map_contact_submissions` for the org (requires map-management permission) |
+| Map sub-nav | `/client/maps/:id/*` | Design · Data · Stats |
+
+Layout: `src/pages/client/ClientLayout.jsx` (renders `AppShell context="client"`) ·
+Context: `ClientContext`, `getClientAndContact.js`.
+
+Admin console shares the same shell (`AppShell context="platform"`) via
+`src/pages/admin/AdminLayout.jsx`, which every admin page still wraps its content in — no admin
+route restructuring was needed to introduce it (see the Phase 1 plan for why).
+
+### 4.2 Maps — create & list
+
+| Feature | Description |
+|---------|-------------|
+| Organisation home (`/client`, Phase 4 admin shell redesign) | Real stat tiles (maps/directories/team/enquiries-30d, each a real query, no fabricated numbers) + a "Needs attention" list (failed data syncs, directories with entries missing SEO metadata). No activity feed — `admin_events` has no client-scoped RLS policy yet, see `BACKLOG.md` |
+| New map | Name, slug, default center/zoom, list panel, clustering |
+| Map list (now `/client/maps`, was `/client`) | All maps for the organisation; open design, data, or stats |
+
+Files: `ClientHome.jsx` (new), `ClientDashboard.jsx`, `ClientMapNew.jsx`, `MapsView.jsx`.
+
+### 4.3 Map design & publish
+
+The map editor (`ClientMapDashboard.jsx` / `AdminMapDashboard.jsx`) is a **live preview** with overlay panels. Design screens pass `showZoomSlider={false}` so the custom zoom/fullscreen control doesn’t cover the right-hand settings panel; published embeds keep the control. Bottom-left zoom indicator remains for setting default zoom.
+
+| Panel | Purpose |
+|-------|---------|
+| **General** | Name, slug, **description** (long text, shown in the search panel), default lat/lng/zoom, list panel, clustering (auto-saved draft) |
+| **Pin Design** | Marker style (pin/rounded pin/dot/custom icon), size, colour, border, favicon overlay, drop shadow; previews rendered at true map proportions. Custom icon (uploaded SVG/PNG) renders as-is — colour/border/shadow don't apply to it |
+| **Panels** | Listing panel layout and content options |
+| **Groups** | Group definitions and per-group theme JSON |
+| **Map Style** | Presets + base type, colours, detail sliders, and overlay toggles |
+| **Filters** | Define custom filter fields (single-select / multi-select / **Yes/No toggle** / text), manage options + colours, and configure display (`show_in_filter_bar`, `display_control`, order). Definitions/options save immediately; display config is part of the draft→publish snapshot. Shared `FilterFieldsPanel.jsx`. **Categories V2, "Colour pins by"**: a selector (single-select/boolean fields only) sets `maps.color_filter_field_id` — which field's option colours drive pin colour, in place of Group's own colour. Changing it saves immediately and previews live in the dashboard's own preview; the public embed picks it up on next Publish (baked into the publication snapshot, same as other filter field config). `null` (every map's default) keeps colouring by Group exactly as before |
+| **Publish Map** | Publish snapshot, version history, rollback, embed URL, subscription gate |
+| **Search** | Search-panel logo upload + styling (panel background colour/transparency, **font colour** for title/description/labels/tabs/Key — not listing card text; listing background, border, transparency) + **Display options** (continent filter on/off, Key on/off); stored in `theme_json`, auto-saved draft. Includes a read-only summary of custom filter fields with a link to the **Filters** panel |
+
+**Custom filter fields**
+
+- Defined per map in the **Filters** panel (`FilterFieldsPanel.jsx`, shared by client + admin dashboards). Three field types: `single_select`, `multi_select`, `text`. Select types have colour-coded options.
+- Values are tagged per listing (EAV rows in `listing_filter_values`) via the manual listing editor (`ListingFilterValuesEditor.jsx`), bulk edit (`BulkFilterEditModal.jsx`), CSV, or Google Sheets (`filter_<key>` columns).
+- **Options auto-create on ingest:** CSV import (`ensureImportOptions` in `filterFields.js`) and Sheets sync (`sync_sheet_listings`) add any option value not already defined, so clients don't have to pre-enter categories. The viewer hides options with zero tagged listings (and select fields with no populated options).
+- Display config (which fields show in the search bar, control type, order) flows through `buildPublicationConfig` and the CDN snapshot; matching is OR within a field, AND across fields (mirrors groups/continents).
+- Data access + helpers: `src/lib/filterFields.js`. Admin events: `map_design_filter_field_*`, `data_filter_values_bulk_tagged`.
+
+**Publication system**
+
+- **Publish** calls RPC `publish_map` → stores versioned config in `map_publications`, sets `maps.published_at` and `published_config`.
+- **Rollback** via `rollback_map_to` and publication list (`list_map_publications`).
+- **Draft state** warns on navigation when unsaved; publish panel open state persists per map in `sessionStorage`.
+
+Files: `mapPublication.js`, `MapDraftContext.js`, `publishPanelStorage.js`.
+
+**Subscription gate (publish / embed):** `hasSubscriptionAccess` in `subscriptionAccess.js` — true if `clients.subscription_active_override`, or user email domain contains `layercake`. Stripe subscription status is **not** checked yet; checkout UI exists via `PricingPlans.jsx` + `create_checkout_session` edge function.
+
+### 4.4 Data — listings
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Data hub | `/client/maps/:id/data` | CSV import, Google Sheets connect, sync schedule; **Manual entry** and **Map data** tabs filter by name/address; Manual entry re-geocodes lat/lng when the address changes |
+| Listings table | `/client/maps/:id/listings` | Search/filter listings; batch geocode |
+
+**CSV import**
+
+- Template download; columns include `name`, `address`, `postcode`, `country`, `lat`, `lng`, `website_url`, `email`, `phone`, `logo_url`, `notes_html`, `group_name`, `is_active`, etc.
+- If the map has active filter fields, the template adds a `filter_<key>` column per field (multi-select accepts pipe-`|`-delimited values); values not yet defined as options are auto-created on import.
+- Optional **geocode rows missing lat/lng** (edge function `geocode_listings` / `geocode_address`).
+
+**Google Sheets sync**
+
+- OAuth via edge functions (`google_oauth_start`, `google_oauth_callback`).
+- Pick sheet, validate columns (`validate_sheet_source`, which also reports `filter_<key>` header presence), sync rows (`sync_sheet_listings`, which resolves `filter_<key>` cells into `listing_filter_values`).
+- Optional daily `pg_cron` schedule per map with selectable hour (displayed in local time, stored as UTC; Off / Daily in Data → Google Drive; see [GOOGLE_SHEETS_SYNC.md](./GOOGLE_SHEETS_SYNC.md)).
+
+**Coming soon (UI only):** OneDrive / iCloud badges on data page.
+
+**Sync history logging**
+
+Every Google Sheets sync attempt is recorded in the `sync_logs` table (status: `running` → `success` / `warning` / `error`, row counts, error codes). A **Sync History** tab appears on the Data page when at least one log exists. The client dashboard shows a red **Sync errors detected** alert linking to the relevant map's Sync History tab when any error-status sync is present for the org.
+
+Files: `ClientMapData.jsx`, `ClientMapListings.jsx`, `src/components/SyncHistoryTable.jsx`.
+
+### 4.4a Directories (new, DIR-E1 core)
+
+> **Visibility:** Directories and Categorisations are gated behind the `directories` **feature flag** (see §4.4c). They're hidden from customers by default; visible to platform admins, `@layercake-cx.biz` users, and any organisation an admin has granted early access. The nav items and the `/client/directories*` and `/client/categorisations` routes are both gated (`FeatureGate`).
+
+A directory is the peer of a map — a browsable, structured list of entries not tied to a map. See `docs/DIRECTORIES.md` for the full product spec; only core CRUD (epic DIR-E1) plus categorisations (DIR-E5, see §4.4b) are built so far. Publishing, branding/custom domain, the entry layout designer, faceted filtering, and Help me choose (§4.4h) are built (see below). Map↔directory association (DIR-E4) is now built end-to-end: `directory_map_associations`, `attach_directory_to_map()`/`detach_directory_from_map()`, a "Directories" tab on the map's Data panel, and the live map embed (`EmbedMap.jsx`) reading pins from `public_directory_entries` at render time (no sync/copy job — freshness tracks the directory's last publish) when a directory is linked, falling back to the map's own `listings` otherwise. Directory entries have their own equivalent taxonomy — categorisations (§4.4b), not `map_filter_fields` directly — and a directory-sourced map's embed already renders those as filter chips (wired via `categorisationsAsFilterFields()`/`loadCategorisationFiltersForEntries`, the 2026-08-29 "unify map filters and categories" work). Since 20260917210000, `create_directory_from_map()` also carries a map's own active `map_filter_fields` (single-select/multi-select/boolean; free-text has no category equivalent and is skipped) across as categorisations attached to the newly-created directory, so building a directory from a map no longer silently drops its filter data. The directory's own published homepage (`generate_directory_site`) also uses this same association in reverse for display purposes only: if a map already has this directory as its DIR-E4 datasource, the homepage embeds that map's real, full-featured embed — this is not the abandoned DIR-E8 "directory links to a map" feature, since it only ever surfaces a map that has already chosen this directory as its datasource, not an independent linking mechanism. **Decision (2026-08-28):** the homepage no longer has a homegrown pins-only map fallback for directories with no attached map — that mechanism (`/directory-embed`, `DirectoryEmbedMap.jsx`, a static `entries.json` blob) has been removed entirely. Maps and Directories are two separate Layercake products that compose through the DIR-E4 attachment; a directory's homepage either shows the real attached Map product, or has no map section at all — never a second, independent map implementation. Entry tiles on the homepage also show each entry's `logo_url` when set.
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Directories list | `/client/directories` | List/create directories for the client |
+| Directory entries | `/client/directories/:directoryId` | Search, paginate, create/edit/delete entries; archive or permanently delete the directory; tag the directory and its entries with categorisation terms |
+| Directory entry editor | `/client/directories/:directoryId/entries/:entryId[/categories\|/content\|/seo\|/panel\|/preview]` | Full-page, tabbed entry editor (replaces the old edit modal — `DirectoryEntryEditor.jsx` + `entryEdit/Entry*Tab.jsx`, shared admin/client, mirrors the Map editor's route-per-tab convention). Basic Info/Categories/Content/Search & Metadata/Panel Style/Preview & Publish are all fully wired. Deliberately excludes lat/lng — coordinates are auto-geocoded, never hand-entered. Basic Info's logo field and Panel Style's panel image both support direct file upload (`lib/entryImages.js`, `directory-media` bucket, fixed upsertable paths `<entryId>/logo.<ext>` / `<entryId>/panel.<ext>`, PNG/JPEG/WebP ≤2MB) once the entry exists, alongside plain URL inputs. Content's notes field is a WYSIWYG editor (`entryEdit/RichTextEditor.jsx`, TipTap `StarterKit` + `Underline`/`Link`, deliberately configured to only expose formatting that `sanitizeNotesHtml` allows through — strike/code/codeBlock/horizontalRule are disabled since their tags get silently stripped on save otherwise). Search & Metadata's Social & AI section (`og_title`/`og_description`/`og_image_url`/`twitter_card_type`/`canonical_url`/`keywords`/`ai_summary`, migration `20260829150000_directory_entry_seo_social_ai_fields`) is schema+UI only — the static site generator doesn't read these yet. Panel Style (`panel_image_url`/`panel_background_color`, migration `20260829160000_directory_entry_panel_style_fields`) **is** read by `generate_directory_site`'s homepage card renderer — `panel_image_url ?? logo_url` for the image, `panel_background_color` as an inline `style` override on `.card-logo-box` (falls back to the directory theme's `surfaceAltColor` CSS var when unset) — so this one takes public effect once the directory is republished, after the Edge Function is redeployed. The tab's live preview reads the directory's `theme_json.surfaceAltColor` to approximate the real fallback background. Preview & Publish (`entryEdit/EntryPreviewPublishTab.jsx`) approximates the entry's homepage card (reusing the same `EntryCardPreview.jsx` as Panel Style) and its own entry page (reusing `EntryLayoutDesigner.jsx`'s block renderer, now extracted to `EntryPreviewBlock.jsx`, resolved against the entry's own group/category-term-targeted `entry_templates` row via a new client-side `resolveEntryLayout` in `lib/entryTemplates.js` — a hand-kept-in-sync mirror of `generate_directory_site`'s server-side `resolveLayout`, same pattern as `IMPLICIT_DEFAULT_LAYOUT`), plus the directory's own `DirectoryPublishPanel` embedded directly — publishing is always directory-wide; single-entry publish was considered and dropped once the publish-perf fix (below) made a full republish fast enough. |
+
+- Entry fields mirror the `listings` seed schema: name, address, postcode, country, city, lat/lng, website_url, email, phone, logo_url, notes_html, allow_html, group, is_active. `notes_html` is sanitised (DOMPurify, `src/lib/sanitizeHtml.js`) on every write path regardless of `allow_html`. lat/lng remain real columns (populated by geocoding) but have no editing UI.
+- **Directory groups** are a simple single-value grouping per directory (peer of `groups`) — distinct from the richer, client-wide categorisation model (§4.4b).
+- Entry deletion (and directory deletion) require typing `DELETE` to confirm — a deliberate departure from the plain `window.confirm()` used for `listings`, given the larger blast radius of losing directory content.
+- **CSV import** (confirm dialog to add-to-existing or replace-all, upsert-by-`id` either way) and **bulk actions** (archive/restore, bulk categorisation tagging) are now built — see `DirectoryEntriesPanel.jsx`. XLSX import remains a fast-follow.
+- **CSV export** (DIR-E1-S8) is also built: an **Export CSV** button downloads every entry (including inactive ones), fetched live, in exactly the same column order the import/template expect — including `id`, so the file round-trips back through Import CSV to update those entries rather than duplicate them. The column set was extended in the same change (`show_phone`/`show_email`/`show_website`/`show_address`, `slug`, SEO/social fields, panel-style fields) — see `docs/DIRECTORIES.md` (DIR-E1-S8) and `AGENTS.md`'s "Directory entries CSV import/export contract" note.
+- **Member-level access** is enforced via `contact_directory_permissions` (Owner/Manager always have full access; a Member needs an explicit grant, managed from the client Team page's "Directory access" column, mirroring "Map access"). This is UI-level enforcement — RLS on `directories`/`directory_entries` does not check this table, matching how `contact_map_permissions` works for maps today.
+- A top-level, cross-client admin list exists at `/admin/directories` (`AdminDirectories.jsx`), alongside the existing per-customer tab.
+- **Directories dashboard, Overview, and Gaps/category filters (Phase 4, admin shell redesign, 2026-09-29):** the directories list (`/client/directories` and admin's "Directories" tab) is now a shared `DirectoriesDashboard.jsx` component with Published/Not yet published/Archived views, a plan box (plan name + features needing a higher plan — real entitlements data; "directories used of allowance" omitted, no `max_directories` entitlement exists, see `BACKLOG.md`), and a card preview image (repurposes `seo_og_image_url`). The directory's **Overview** route is now real (entries changed since publish, gap counts, last-published info, claims by status, enquiries in 30 days, visitor-feature summary, generated file links — see `DirectoryOverviewRoute.jsx`). The Entries table has a real Gaps filter (no logo/content/SEO/not geocoded) and a generic categorisation filter (`listDirectoryEntries()`'s `gap`/`categoryTermId` options).
+
+Tables: `directories`, `directory_groups`, `directory_entries`, `contact_directory_permissions` (`20260714120000_create_directories.sql`). RLS mirrors `maps`/`groups`/`listings` (`_admin_all` + `_own_client`); no anon-read policy yet since there is no publish concept until DIR-E2.
+
+Files: `src/lib/directories.js`, `src/lib/sanitizeHtml.js`, `src/components/directories/DirectoryEntriesPanel.jsx`, `src/components/directories/DirectoryEntryEditor.jsx`, `src/components/directories/entryEdit/*.jsx`, `src/components/directories/BulkCategoryEditModal.jsx`, `ClientDirectories.jsx`, `ClientDirectoryNew.jsx`, `ClientDirectoryEntries.jsx`, `ClientDirectoryEntryEdit.jsx`, `ClientTeam.jsx` (client); `AdminDirectories.jsx`, `AdminDirectoryNew.jsx`, `AdminDirectoryEntries.jsx`, `AdminDirectoryEntryEdit.jsx`, and a "Directories" tab in `AdminClientDetail.jsx` (admin).
+
+### 4.4a-2 Directory entry extras — evidence, media, accreditations, prominent links, product tiles, contact display prefs (new)
+
+Six small, additive entities from the build-scope brief's data model (§5), reconciled against `docs/DIRECTORIES.md` (which doesn't cover them — they're new-to-both-specs scope, not part of the original DIR-E1–E7 epic numbering). Redirects (brief §5.11 / `docs/DIRECTORIES.md` §5.11) are deliberately **not** built yet — they need `directory_entries.slug`, which doesn't exist until DIR-E2's publish work.
+
+| Entity | Scope | Notes |
+|---|---|---|
+| Evidence items | entry | Claim, value, source URL, date checked, confidence (verified/unverified/disputed), note. Immediate-save list on the entry editor's Content tab. |
+| Media assets | entry | Gallery/hero images, uploaded to the new `directory-media` Storage bucket (PNG/JPEG/WebP, 5MB cap). `alt_text` required at the schema level. At most one `is_hero` per entry (partial unique index). Distinct from the existing `directory_entries.logo_url`. |
+| Accreditation schemes | directory | The directory defines the schemes (name, issuing body, badge image, description, verification note) — `AccreditationSchemesPanel.jsx`, modelled on the `directory_groups` inline-add pattern (per-directory, not client-wide like categorisations). |
+| Entry accreditations | entry | Which schemes an entry holds — `AccreditationsEditor.jsx`, an immediate-save checkbox picker (schemes are directory- not client-scoped). |
+| Prominent links | directory or entry (polymorphic) | One `prominent_links` table with a `directory_id`/`entry_id` exclusive-or check constraint, rather than two near-identical tables. `ProminentLinksEditor.jsx` is reused for both the directory homepage's links and an entry's own links. URL is checked http(s)-only at the schema level (`check (url ~* '^https?://')`); `rel="noopener"`/`"sponsored nofollow"` rendering is an app-layer concern for when these are actually rendered (a later phase). |
+| Product tiles | entry only | External booking cards (title, image, price, currency, rating, review count, provider, destination URL) — manual entry only; provider-API import is a separate, later decision. Inclusion/ranking must never depend on these (an app-layer rule, not schema-enforceable). |
+| Contact display prefs | entry | Four boolean columns on `directory_entries` (`show_phone`/`show_email`/`show_website`/`show_address`, default `true`) — which fields will be public once publishing exists. No public rendering path reads these yet, so they're currently a no-op. |
+
+All six new tables follow the exact `_admin_all` / `_own_client` RLS pattern already used by `categorisations`/`entry_category_terms` — no anon-read policy yet, consistent with there being no publish concept until DIR-E2.
+
+Tables: `entry_evidence_items`, `entry_media_assets`, `directory_accreditation_schemes`, `entry_accreditations`, `prominent_links`, `product_tiles`, plus 4 new columns on `directory_entries` (`20260826120000_create_directory_entry_extras.sql`). Storage: `directory-media` bucket (`20260826121000_create_directory_media_storage_bucket.sql`).
+
+Files: `src/lib/evidenceItems.js`, `src/lib/mediaAssets.js`, `src/lib/accreditations.js`, `src/lib/prominentLinks.js`, `src/lib/productTiles.js`; `src/components/directories/EvidenceItemsEditor.jsx`, `MediaAssetsEditor.jsx`, `AccreditationsEditor.jsx`, `AccreditationSchemesPanel.jsx`, `ProminentLinksEditor.jsx`, `ProductTilesEditor.jsx` — wired into `DirectoryEntriesPanel.jsx` (entry-level) and `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx` (directory-level).
+
+### 4.4a-3 Directory publish foundation — entry slugs, publications, redirects, contact submissions (new, DIR-E2 data layer)
+
+Phase 3a of the Directories build-out — the data model DIR-E2 (publish/SEO) needs, with no generator, routing, or UI built on top of it yet:
+
+- **`directory_entries.slug`** — url-safe, per-directory-unique, auto-generated on insert, backfilled. Exact mirror of `listings.slug`.
+- **SEO overrides** — `meta_title`/`meta_description`/`noindex`/`structured_data_type`/`sitemap_priority` per entry; `seo_defaults_json` per directory.
+- **`directory_publications`** + `publish_directory`/`rollback_directory_to`/`list_directory_publications` — exact mirror of `map_publications`' final, tenant-checked shape. The publish snapshot (`config jsonb`) covers directory settings + the categorisation taxonomy structure; entries and their live tag assignments are read live at generation time, not snapshotted (mirrors how `EmbedMap.jsx` reads `public_listings` live regardless of a map's publication version).
+- **`directory_redirects`** — records an entry's old slug whenever it changes (`AFTER UPDATE` trigger), so a renamed entry's old public URL keeps working. This was deferred out of Phase 2 because it needed `directory_entries.slug` to exist first.
+- **`directory_contact_submissions`** — visitor enquiry log (mirrors `map_contact_submissions`). The form and send path landed later: directory **Email** tab, **Make an Enquiry** on published entry pages, and `send_contact_message` (`20260922093000_directory_enquiry.sql`).
+
+**Not built yet (at the time):** the actual static generator, `middleware.js` routing for directory URLs, anon-read RLS/a `public_directory_entries`-style view, and any Publish UI. A pre-existing gap was noticed but not fixed here: `maps.slug` has no uniqueness constraint at all (not even per-client), so a directory slug could in principle collide with a map slug for the same client — resolved for routing purposes in Phase 3b below without needing that constraint (see the URL shape decision there).
+
+Tables: `directory_publications`, `directory_redirects`, `directory_contact_submissions`, plus new columns on `directories`/`directory_entries` (`20260827120000_directory_publish_foundation.sql`). Files: `src/lib/directoryPublications.js` (RPC wrappers, not yet called from any UI).
+
+### 4.4a-4 Directory publish pipeline — generator + middleware routing (new, DIR-E2 Phase 3b)
+
+The static generator and routing DIR-E2 needed on top of Phase 3a's data layer.
+
+- **`_shared/staticSiteRenderer.ts`** — the entity-agnostic pieces (`escapeHtml`/`escapeAttr`/`escapeXml`, `renderResearchAsHtml`, `uploadToBlob`, `pageShell`, `buildSitemapXml`) extracted verbatim out of `generate_directory_pages` (Epic 3, the shipped map feature) so the new Directory-entity generator can reuse them without duplicating or coupling to map-specific logic. `generate_directory_pages` now imports from here instead of defining them locally — no behaviour change, verified against real staging data.
+- **`generate_directory_site`** (new Edge Function) — the Directory entity's own generator: a landing page + one page per active entry + `sitemap.xml` (each `<url>` includes `<lastmod>` from that row's `updated_at`: directory homepage, entries, and content pages), each with schema.org JSON-LD. Renders the Phase 2 extras (evidence, media with hero image, accreditation badges, prominent links, product tiles) alongside the seed fields, plus the SEO overrides from Phase 3a (`meta_title`/`meta_description`/`noindex` → `<meta name="robots" content="noindex">` and excluded from the sitemap). Gated on the `directories` feature flag only (this entity has no separate paid entitlement yet, unlike `directory_pages`). Kept as a separate function from `generate_directory_pages` rather than a parameter on it — different gating, different data shape, and mixing them risked the exact map-vs-directory naming confusion already flagged elsewhere in this build. Entries and their live tag/extras assignments are read at generation time, never snapshotted. A later publish rewrites only what changed (shared `theme.css` for colours, type, logo, and banner; the homepage and indexes for search and filters; the edited entry or content page plus the homepage and indexes for an entry edit). The first publish, Restore, and changes to the site title, favicon, navigation, enquiry button, or analytics still rewrite the pages those strings are copied into. Child rows (evidence, media, tags, and the rest) are loaded in pages of 1,000, scoped to the directory, so a large directory is not requested as one giant entry-id URL.
+- **`middleware.js`** — new branch for `/directories/:clientSlug/:directorySlug[/:entrySlug]` on the branded domain, checked first, uploading to a distinct `directories/` (plural) Blob prefix so it can never collide with the map feature's `directory/` (singular) prefix.
+- **URL shape:** deliberately *not* the bare `/:clientSlug/:directorySlug` shape originally sketched — that's byte-identical in segment count to the existing, client-side-routed interactive map route, and disambiguating them would cost every map page load an extra DB lookup. Verified this directly rather than assuming it (a mocked-`fetch` test confirmed zero added fetch calls on the map route both before and after this change). The `/directories/...` prefix avoids the problem entirely, at zero cost to existing map traffic. Directory custom domains (clean root-level URLs, matching the build-scope brief) are Phase 4, not this.
+- **Not built (at the time of this phase):** Publish UI, robots.txt/llms.txt/Open Graph, redirect serving, category-or-location index pages, directory custom domains — see Phases 3c/3d immediately below for which of these have since landed.
+
+**Known limitation (pre-existing, not introduced here):** staging and production Supabase projects appear to share one Vercel Blob store (same `BLOB_READ_WRITE_TOKEN`), so a directory (or map) published from a *staging* admin session writes content that's immediately visible on the real production domain `maps.layercake-cx.biz` — confirmed empirically while testing this feature. Predates Directories (the map feature's `generate_directory_pages`/`generate_map_snapshot` already share this architecture). Logged as tech debt, not fixed here.
+
+Files: `supabase/functions/_shared/staticSiteRenderer.ts`, `supabase/functions/generate_directory_site/index.ts`, `middleware.js`.
+
+### 4.4a-5 Directory publish UI (new, DIR-E2 Phase 3c)
+
+The missing piece that finally makes Phases 3a/3b reachable: a **Publish** panel on the directory dashboard, modelled on `ClientMapDashboard.jsx`'s Publish tab but much simpler — a directory has no theme/branding to snapshot yet (that's Phase 4), so the config is just directory settings (name/description/`seo_defaults_json`) plus the categorisation taxonomy structure, matching the snapshot-vs-live split decided in Phase 3a.
+
+- Shows publish status (published/not, when, a link to the live page), a **Publish** button (owners/managers only — Members with directory access can view the panel but not publish, matching the persona table in `docs/DIRECTORIES.md` §2), and publish history with **Restore** per version.
+- Publishing calls `publish_directory` then fire-and-forget triggers `generate_directory_site`, mirroring `triggerDirectoryPagesRegeneration`'s retry-once shape for the map feature.
+- New admin events: `directory_publish_requested`, `directory_published`, `directory_publish_failed`, `directory_publish_rolled_back` — direct analogs of the existing `map_publish_*` category from `AGENTS.md`'s catalogue.
+- **Real bug found and fixed via a live test:** the server-side `directories` flag check doesn't grant internal-staff the same automatic bypass the client-side app does (deliberately — that bypass is for navigating an unreleased feature's UI, not for a client that was never actually granted the flag to get a real public site generated), so a staff member publishing for a client with no explicit override saw "success" with nothing actually generated. `triggerDirectorySiteRegeneration` now takes an `onResult` callback; the panel surfaces skipped/failed generation instead of reporting blanket success.
+
+Files: `src/components/directories/DirectoryPublishPanel.jsx`, `src/lib/directoryPublications.js` (extended with `buildDirectoryPublicationConfig`/`triggerDirectorySiteRegeneration`), wired into `ClientDirectoryEntries.jsx`/`AdminDirectoryEntries.jsx`. No new migration or Edge Function — pure frontend, calling the RPCs/function Phase 3a/3b already shipped.
+
+### 4.4a-6 Directory redirects + SEO completeness (new, DIR-E2 Phase 3d)
+
+Closes two gaps flagged, not fixed, in Phase 3b:
+
+- **Redirects, actually served.** `generate_directory_site` uploads `directories/<client>/<dir>/redirects.json` (old entry slug → current slug) alongside each generation; `middleware.js`, when an entry slug's `.html` isn't found, fetches this manifest and issues a real HTTP 301 if a match exists, else falls through as before. Only consulted on an already-missing-page path — no cost to the common case.
+- **Open Graph + Twitter Card tags** on entry and landing pages, via a new local `directoryPageShell()` in `generate_directory_site/index.ts` — deliberately not a change to the shared `pageShell()`, which stays byte-stable for the map feature.
+- **`llms.txt`** per `docs/DIRECTORIES.md` §4/DIR-E2-S4 — originally a name, description, entry count, and a link per entry. The current file is the llms.txt v2 overview in §4.4a-9.
+- Two small bugs fixed in passing: CSS classes (`.hero`/`.gallery`/`.badges`/`.link-tiles`/`.product-tiles`) referenced by the entry page markup since Phase 3b were never actually styled; a `noindex` meta tag was being string-prepended before `<!doctype html>` (invalid) instead of placed in `<head>`.
+- Verified against the user's own real, already-published directory (`l-cakez/uk-association-directory`) via a Vercel preview deploy — live Open Graph tags, live `llms.txt` with real entries, clean fallthrough for an unknown entry slug.
+- **Not built (at the time):** robots.txt (a domain-root file by web standard — a per-directory one wouldn't be honoured by real crawlers, same documented gap as the map feature), category/location index pages. Superseded by §4.4a-7 below once directory custom domains (§4.4f) gave a directory a real domain root to serve one from.
+
+Files: `supabase/functions/generate_directory_site/index.ts` (extended), `middleware.js` (extended).
+
+### 4.4a-7 Directory Settings tab: title + SEO settings, robots.txt (new)
+
+Adds the missing UI on top of `seo_defaults_json` (data-layer-only since Phase 3a/§4.4a-3) plus one new column, and finally resolves the robots.txt gap flagged in §4.4a-6.
+
+- **General settings**: directory title (`directories.name`, pre-existing column, previously only settable at creation).
+- **SEO settings**, both on the Directory Settings tab (admin + client portal): a single **"let search engines index this directory"** switch (`seo_defaults_json.default_noindex`, inverted) rather than separate robots.txt/sitemap toggles — one thing for a client to reason about, driving all three together: the landing page's own `noindex` meta tag, whether its URL appears in `sitemap.xml`, and robots.txt `Allow`/`Disallow`. Per-entry `noindex` stays independent. Also **default SEO title/description** (now actually consumed by `generate_directory_site`, previously unused) and a new **`directories.seo_og_image_url`** (`20260914210000_directory_seo_og_image.sql`) feeding the landing page's `og:image`/`twitter:image` and acting as a fallback for entries without their own.
+- **Analytics & Tracking** (same Settings tab): provider-agnostic `directories.analytics_json` destinations. MVP supports GA4 Measurement ID and GTM Container ID with independent enable flags. Takes effect on next Publish. Public pages record first-party events on `map_engagement_events` and, after cookie consent, load GA/GTM and forward the same event names to the data layer.
+- **robots.txt, for real this time**: §4.4a-6 explicitly didn't build one, correctly noting that a per-path file under the shared branded host is never fetched by a real crawler (crawlers only ever request a domain's own root `/robots.txt`). What changed: directory custom domains (§4.4f's `client_domains.directory_id`, shipped since 20260827130000) give a directory an actual domain root — `middleware.js`'s `handleCustomDomain` now serves the generated `robots.txt` at that root, which real crawlers do honour. The branded-host path (`/directories/:clientSlug/:directorySlug/robots.txt`) is also served, for manual inspection and forward-compatibility, but isn't itself crawler-honoured — same limitation as before, now stated rather than left implicit. `buildRobotsTxt()` lives in `_shared/staticSiteRenderer.ts` (entity-agnostic, unused by the map feature so far).
+- New admin event: `directory_settings_updated` (`meta`: `client_id`, `directory_id`, `changed_fields`).
+- Corrected two stale header comments discovered while making this change: `generate_directory_site/index.ts` and `middleware.js` both still said directory custom domains weren't built yet, though the code beneath them (and `DomainSettings.jsx`'s `targetType === "directory"` path) already fully handled them.
+
+Tables: `directories.seo_og_image_url` (`20260914210000_directory_seo_og_image.sql`); `directories.analytics_json` (`20260920090000_directory_engagement_analytics.sql`). Files: `DirectoryGeneralSettingsPanel.jsx`, `DirectoryAnalyticsPanel.jsx`, wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; `generate_directory_site/{index.ts,builders.ts}`.
+
+### 4.4a-8 robots.txt: explicit AI crawler allow rules (new)
+
+Phase 1 of the Directory Searchability & AI Metadata plan (2026-09-18). `buildRobotsTxt()` (`_shared/staticSiteRenderer.ts`) previously emitted only a blanket `User-agent: *` rule; it now also emits a matching block for four named AI crawlers — GPTBot, ClaudeBot, PerplexityBot, Google-Extended — mirroring whichever policy the directory's "let search engines index this directory" switch already sets, so AI search/citation tools are explicitly signalled rather than left to silent inclusion under the wildcard. Not yet client-configurable — same switch, same list for every directory. Also fixed in passing: the entry page's "Related entries" row logo (`builders.ts`) rendered with an empty `alt=""` instead of the `"{name} logo"` fallback used everywhere else.
+
+Files: `supabase/functions/_shared/staticSiteRenderer.ts`, `supabase/functions/generate_directory_site/builders.ts` (both extended).
+
+### 4.4a-9 AI / LLM Discoverability — `llms.txt` Generation (new, 2026-09-22)
+
+Part of the SEO / GEO discoverability work, alongside crawlable HTML, Schema.org JSON-LD, `sitemap.xml`, and `robots.txt`. `buildLlmsTxt()` (`generate_directory_site/builders.ts`) now writes an [llms.txt v2](https://llmstxt.org/) file at publish time: the directory name, a blockquote from the SEO description (otherwise the directory description, otherwise a one-line summary from the name, indexable listing count, and categorisation labels), prose for categorisations and the `/{entry-slug}` listing URL pattern, the organisation name when it differs from the directory title, then Markdown link lists for the homepage, in-navigation content pages, the sitemap, and (under Optional) published indexable pages hidden from navigation. `seo_defaults_json.llms_txt_extra` is still appended as prose when set; there is still no editor for it.
+
+It does not list every listing, and it does not emit category index URLs (those pages do not exist). Inactive entries and noindex entries or pages are omitted. Canonical links are the branded directory URLs; custom-domain middleware rewrites them to that domain, the same way it rewrites the sitemap. Each generated HTML page includes `<link rel="describedby">` pointing at `llms.txt`. The file is served as `text/markdown`. Already-published directories keep the previous file until the next publish that rebuilds indexes. No per-page `.md` twins.
+
+Files: `supabase/functions/generate_directory_site/builders.ts`, `supabase/functions/generate_directory_site/index.ts`, `middleware.js`.
+
+### 4.4b Categorisations (new, DIR-E5)
+
+Reusable, **client-wide** taxonomies (e.g. "Sector", "Region") that can be applied to whole directories, directory entries, or both — additive alongside directory groups, never a replacement (a categorisation can tag entries across every directory a client owns; a group is per-directory and single-value). Modelled directly on the existing `map_filter_fields`/`FilterFieldsPanel` pattern: `applies_to` is immutable after creation (delete and recreate to change it), archive vs. typed-`DELETE`-confirmation permanent delete (showing a live usage count across directories + entries).
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Categorisations | `/client/categorisations` (owners/managers) | Create/edit/archive/delete categorisations and their terms |
+| Admin "Categorisations" tab | `/admin/clients/:clientId` | Same management UI, for Layercake staff |
+| Entry tagging | Entry editor's Categories tab | Checkbox picker per applicable categorisation, auto-saves on change |
+| Directory tagging | On a directory's entries page, above the entries table | Checkbox picker, auto-saves on change |
+
+Tables: `categorisations`, `category_terms`, `directory_category_terms`, `entry_category_terms` (`20260714130000_create_categorisations.sql`). RLS mirrors `directories`/`directory_entries` (`_admin_all` + `_own_client`, client-scoped via `categorisations.client_id` directly or a join); no anon-read policy yet.
+
+Not built yet: public/published-site filtering by categorisation term (DIR-E5-S4) — requires directory publishing (DIR-E2), which doesn't exist yet.
+
+Files: `src/lib/categorisations.js`, `src/components/directories/CategorisationsPanel.jsx`, `src/components/directories/CategoryTagPicker.jsx`, `ClientCategorisations.jsx` (client); a "Categorisations" tab in `AdminClientDetail.jsx` (admin).
+
+### 4.4c Feature flags (new)
+
+A generic feature-flag layer so in-development features can be tested in production and pre-released to named customers before general availability. Directories/Categorisations (§4.4a/§4.4b) is its first consumer.
+
+| Concept | Where | Notes |
+|---------|-------|-------|
+| Flag registry | `feature_flags` table | One row per flag: `default_enabled` (global default), `internal_enabled` (auto-on for `@layercake-cx.biz`) |
+| Per-org overrides | `feature_flag_overrides` table | One row grants/denies a flag for a single client — how a customer is let into a beta |
+| Resolution | `get_my_feature_flags()` RPC (security definer) | Precedence: admin → internal (`@layercake-cx.biz` + `internal_enabled`) → per-org override → default |
+| Admin control | Customer detail → **Feature access (beta)** | Toggle grants/clears the per-org override; emits `ops_feature_flag_changed` |
+
+Resolution is **UI/route gating for unreleased features, not a security boundary** — the underlying tables keep their own tenant-scoped RLS. Flags fail closed: if the RPC errors, features stay hidden.
+
+Files: `src/lib/featureFlags.js`, `src/context/featureFlagsContext.js`, `src/context/FeatureFlagsProvider.jsx`, `src/hooks/useFeatureFlags.js`, `src/components/FeatureGate.jsx`; provider mounted in `Root.jsx`; nav gating in `ClientLayout.jsx`; route gating in `App.jsx`; admin toggle in `AdminClientDetail.jsx`. Migration `20260805120000_create_feature_flags.sql`.
+
+### 4.4d AI search enrichment — removed (2026-09)
+
+Built 2026-08-21/22, removed 2026-09-06. This was the foundational enrichment pipeline for Epic 2 (Intent-Based AI Search): a per-map admin prompt (`maps.ai_search_enrichment_prompt`), an insert-triggered job queue (`listing_enrichment_jobs`) drained by a 2-minute `pg_cron` dispatch to `process_listing_enrichment` (Claude Haiku 4.5, writing structured JSON to `listing_research`), and a visitor-facing "Ask AI" chat (`search_listings_by_intent`) that read that data. Always admin-only/beta-flagged (`ai_search`), never released to customers. Removed in full — schema, both Edge Functions, the chat UI, and the feature flag/entitlement — and superseded by directory-level AI content generation (§4.4g), which reshapes the same idea (admin prompt → Claude-written content) around directory entries instead: one prompt per directory, writing straight into the entry's real page content rather than a separate research blob, and reachable by an explicit per-entry or directory-wide trigger rather than a silent background job. `generate_directory_pages` (§4.4e), the other former consumer of `listing_research`, now renders `notes_html` only.
+
+### 4.4e Directory & LLM/search discoverability (Epic 3, new, in development)
+
+> **Visibility:** gated behind a new `directory_pages` beta feature flag (same "Feature access (beta)" toggle pattern) plus a dedicated commercial entitlement `features.maps.directory_pages` (Professional plan and above, or Founding Partner).
+
+Prompted by testing Epic 2 with an external LLM: the app is a pure client-rendered SPA, so a normal web crawl (or an LLM's URL-fetch tool) sees only a loading shell — no real listing content, no structured data. This epic makes published maps crawlable without adding server-side rendering to the app itself.
+
+- New canonical public URLs per map: `/:clientSlug/:mapSlug/directory` (landing page) and `/:clientSlug/:mapSlug/directory/:listingSlug` (per listing) — required adding a `listings.slug` column (url-safe, unique per map, auto-generated from name on insert via a DB trigger regardless of which pathway creates the listing — manual entry, CSV import, Sheets sync — and backfilled for existing listings).
+- **Generation**: a new `generate_directory_pages` Edge Function (same fire-on-publish + nightly-cron trigger pattern as `generate_map_snapshot`) builds real static HTML — a directory landing page (full-width embedded interactive map, thin header with logo + title, listings + group/filter badges below) and one page per listing (schema.org `LocalBusiness` JSON-LD, content from `notes_html`) — plus a per-map `sitemap.xml`.
+- **Serving**: `middleware.js` (repo root) — the first Vercel Edge Middleware this app has used. Intercepts exactly `/:clientSlug/:mapSlug/directory[/:listingSlug]`, fetches the pre-generated HTML from the same Vercel Blob store `generate_map_snapshot` already uses, and returns it directly — before the request ever reaches `vercel.json`'s SPA rewrite to `index.html`. Every other path (including the plain interactive `/:clientSlug/:mapSlug` route) is untouched. Same content to every visitor and every crawler — no user-agent sniffing/cloaking.
+- Deliberately scoped to a **per-map** `sitemap.xml`, not one root-level sitemap aggregating every client — safely merging concurrent publishes from different maps into one shared file was judged not worth the complexity for v1.
+
+Not built yet: root-level combined sitemap.
+
+Tables/functions: `listings.slug` + `generate_unique_listing_slug()` + insert trigger (`20260822200000_add_listings_slug.sql`); `directory_pages` flag seed (`20260822210000_seed_directory_pages_feature_flag.sql`); `features.maps.directory_pages` + `resolve_directory_pages_entitlement()` (`20260822220000_gate_directory_pages_entitlement.sql`).
+
+Files: `supabase/functions/generate_directory_pages/index.ts`, `middleware.js`; publish wiring (`triggerDirectoryPagesRegeneration`) in `src/lib/mapPublication.js`, `AdminMapDashboard.jsx`, `ClientMapDashboard.jsx`.
+
+### 4.4f Custom domains — "Bring Your Own Domain" (Epic 4, new, in development)
+
+> **Visibility:** gated behind a new `custom_domain` beta feature flag (same "Feature access (beta)" toggle pattern) plus a dedicated commercial entitlement `features.maps.custom_domain` (Professional plan and above, or Founding Partner). Favicon config and baseline SEO metadata quality (later phases of this epic) are deliberately **not** tier-gated — only the custom domain itself and its attached Google Analytics config are.
+
+Lets a client point a domain or subdomain they own at one of their maps, verify it, and publish to it — verified end-to-end against a real domain on staging.
+
+- **Data model** (Phase 0): `client_domains` table — one domain maps to exactly one map (`map_id` not null); a client may register several domains, and more than one may point at the same map. `status` lifecycle: `pending` → `verifying`/`active`/`failed`. `dns_records` jsonb holds the required TXT (ownership) + routing (A or CNAME) records, mirroring the shape of `clients.email_dns_records` for Resend. `ga_measurement_id` is per-domain, for a later phase.
+- **Verification & Vercel attachment** (Phases 1–2, `manage_client_domain` Edge Function): a client adds a hostname (validated format, uniqueness, chosen map ownership); the function generates a TXT ownership-proof record plus a routing record — **A record → `76.76.21.21` for an apex/root domain, CNAME → `cname.vercel-dns.com` for a subdomain** (apex domains can't legally carry a CNAME — DNS spec, not a Vercel quirk). Our own TXT check runs via **Cloudflare's public DNS-over-HTTPS API** (no credential needed); once that passes, the domain is added to the Vercel project via the Domains API, then checked against **Vercel's own authoritative `GET /v6/domains/{domain}/config` (`misconfigured`)** rather than re-resolving DNS ourselves — that endpoint correctly handles apex-domain CNAME-flattening (a plain A/CNAME re-lookup does not: verified in testing that a Cloudflare-flattened apex CNAME resolves to different, but equally valid, Vercel IPs than a fresh lookup of the routing target, which would have failed a naive equality check). Both TXT-verified and Vercel-configured moves status to `active`.
+- **Host-based routing** (Phase 2, `middleware.js`): branches on the request's `Host` header. Branded domain (`maps.layercake-cx.biz`, `*.vercel.app`) — unchanged since Epic 3. Any other host — resolved via a new `resolve_custom_domain(hostname)` RPC (security definer, returns only client/map slugs + status; deliberately **not** solved by granting `anon` select on `clients`, which has picked up sensitive columns — `plan_key`, `email_domain_status` — since `maps`/`groups`/`listings` got their anon-read policies) — then routed per the decided scheme: `/` → directory landing (same Vercel Blob content Epic 3 generates), `/:listingSlug` → listing page, `/map` → falls through to the SPA, where a new `/map` route (`CustomDomainMap.jsx`) resolves the map by hostname and renders the existing `/embed` view — so the URL doubles as a real iframe source. An unresolvable or not-yet-active domain gets an honest static response, not the branded domain's own content.
+- Client portal: `/client/domains` (`ClientDomains.jsx` → shared `DomainSettings.jsx`, same client/admin-parity pattern as Messaging). Admin: a "Domains" tab on `AdminClientDetail.jsx` using the same shared component.
+- Full epic scope (per-domain Google Analytics, generalized SEO metadata, favicon config) and the phase breakdown live in the epic planning doc (Monday: "Bring Your Own Domain (Epic 4)").
+
+Not built yet: generalized SEO metadata/canonical-URL resolution per custom domain (Phase 3), favicon config (Phase 4), Google Analytics injection (Phase 5). Phases 0–2 are deployed to both staging and production, and one real production client is now using it live. `middleware.js` currently patches links/canonical/JSON-LD at serve time for custom-domain requests (`rewriteForCustomDomain()`) since `generate_directory_pages` still bakes them for the branded domain's own URL shape — a stopgap ahead of Phase 3's proper per-domain content generation, not a replacement for it.
+
+Tables/functions: `client_domains` (`20260824120000_create_client_domains.sql`); `maps.favicon_url` (`20260824121000_add_maps_favicon_url.sql`, unused until Phase 4); `custom_domain` flag seed (`20260824122000_seed_custom_domain_feature_flag.sql`); `features.maps.custom_domain` + `resolve_custom_domain_entitlement()` (`20260824123000_gate_custom_domain_entitlement.sql`); `resolve_custom_domain()` (`20260824130000_add_resolve_custom_domain_rpc.sql`).
+
+Files: `supabase/functions/manage_client_domain/index.ts`, `supabase/functions/_shared/dns.ts`, `supabase/functions/_shared/vercel.ts`; `middleware.js`; `src/pages/CustomDomainMap.jsx`, `src/components/DomainSettings.jsx`, `src/pages/client/ClientDomains.jsx`, `src/lib/clientDomains.js`.
+
+### 4.4g Directory AI content generation (new, in development)
+
+The directory-entry successor to the removed map-level AI search enrichment feature (§4.4d) — same core idea (admin prompt → Claude writes something per-row), reshaped around directory entries: one prompt per directory, and the output writes straight into the entry's real page content (`notes_html`) rather than a separate research blob. No feature flag/entitlement gating — a real, permanent capability available to any Owner/Manager (or admin), same as branding or the entry layout designer.
+
+- **Directory-level prompt**: a free-text field (`directories.ai_content_prompt`) on the directory's own settings page (admin + client portal, "AI content generation" panel, next to Branding), describing the page content Claude should write per entry. Blank = feature off for that directory.
+- **Automatic, on empty entries only**: an `AFTER INSERT` trigger on `directory_entries` enqueues an async job (`entry_content_jobs`, `requested_by = 'auto'`) only when the new entry has no `notes_html` yet **and** the directory has a prompt configured — the token-saving rule agreed with the client: never silently regenerate content that already exists. A `pg_cron` job (`process-entry-content-dispatch`, every 2 minutes) claims a small batch via `claim_pending_entry_content_jobs()` and dispatches to the `process_entry_content_jobs` Edge Function (Claude Haiku 4.5).
+- **Manual, per entry, always**: a "Generate with AI" button on the entry's Content tab calls `generate_entry_content` directly (synchronous — no queue, no 2-minute wait) and bypasses the empty-content rule, since the explicit click is itself the "user asked" condition. Prompts a confirm if the entry already has content, since this overwrites it.
+- **Bulk, whole directory, type-to-confirm**: "Generate all entry content" on the directory settings page queues a `bulk` job for **every** active entry (not just empty ones) via the `enqueue_directory_entry_content_jobs` RPC — deliberately a full overwrite, gated behind typing `CREATE` into a confirm modal rather than a plain click-through, since it can replace hand-written content across the whole directory. Progress (`processed`/`total`) is polled from persistent status columns on `directories` (`ai_content_generation_status`/`_total`/`_processed`/`_error`), the same pattern `DirectoryPublishPanel.jsx` already uses for site-generation status.
+- **Version history**: every save to an entry's `notes_html` — manual or AI-written, single-entry or bulk — gets an append-only row in `directory_entry_versions` (`source`: `manual` / `ai_manual` / `ai_auto` / `ai_bulk`). The Content tab shows a version list with a "Restore" action per row that loads that version into the (unsaved) editor for review; nothing is ever silently lost, which is what makes the type-to-confirm bulk action survivable if run by mistake.
+- Both Edge Functions share one implementation (`_shared/entryContentGeneration.ts`): the same Claude tool-call pattern as the removed map feature (grounded to only the entry's existing data — instructed to write around gaps rather than invent facts), plus a defense-in-depth HTML allowlist sanitizer on the model's output (Deno has no DOMPurify equivalent, so this is a second, independent implementation of `src/lib/sanitizeHtml.js`'s same tag/attribute allowlist).
+- Authorization for the user-invoked single-entry path (`generate_entry_content`) uses a new `requireDirectoryAccess()` helper (`_shared/supabase.ts`), mirroring `requireMapAccess` — admin, or a contact who's owner/manager/primary, or holds an explicit `contact_directory_permissions.can_edit_entries` grant.
+
+Tables/functions: `directories.ai_content_prompt` + 6 bulk-run status columns, `directory_entries.ai_content_generated_at`, `entry_content_jobs`, `directory_entry_versions`, `enqueue_entry_content_job()` trigger (`20260906120000_create_directory_ai_content_generation.sql`); `claim_pending_entry_content_jobs()` + cron dispatch + `enqueue_directory_entry_content_jobs()` (`20260906130000_entry_content_generation_worker_cron.sql`).
+
+Files: `supabase/functions/generate_entry_content/index.ts`, `supabase/functions/process_entry_content_jobs/index.ts`, `supabase/functions/_shared/entryContentGeneration.ts`; `src/components/directories/DirectoryAiContentPanel.jsx`; prompt/bulk-run UI wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; "Generate with AI" + version history in `src/components/directories/entryEdit/EntryContentTab.jsx`; data access in `src/lib/directories.js`.
+
+### 4.4h Directory AI Help me choose (new, 2026-09-18; split from search 2026-09-21)
+
+The directory-entry successor to the removed map-level "Ask AI" search (§4.4d), and the resolution of the DIR-E7-S1 natural-language discovery requirement (`docs/DIRECTORIES.md`). Originally wired into the published search box; as of 2026-09-21 the search box is fast full-listing keyword matching again, and this AI path is a separate **Help me choose** dialogue. No feature flag/entitlement gating — a per-directory opt-in prompt is the only gate, plus a request-count rate limit on the public endpoint.
+
+- **Directory-level prompt**: a free-text field (`directories.ai_search_prompt`) on the directory's **AI** tab (admin + client portal), describing how Help me choose should interpret a visitor's circumstances. Blank = feature off; the published site then has keyword search only and no Help me choose control.
+- **Optional web search opt-in**: a separate switch (`directories.ai_search_web_enabled`, default off) lets Claude use Anthropic's server-side web-search tool for outside context. Hard-constrained, in both the system prompt and a server-side id-validation pass, to never surface an entry that isn't genuinely in the directory.
+- **Public Edge Function**: `directory_ai_search` — anonymous, CORS-enabled. Accepts a conversation (`messages`) and optional `candidate_entry_ids` (to narrow an existing keyword/filter result). Claude may `ask_follow_up` or `select_matching_entries` (ids, optional grounded reasons, optional `based_on` labels). Every returned id is re-validated against the real corpus.
+- **Published-site integration**: keyword search never calls this function. Help me choose opens a dialogue; selected ids become the same visible listing set used by the list, result count, facets, and map pins (`visibleEntryIds` postMessage). Visitors can Refine with AI or Clear.
+- **Location search** (separate from Help me choose): `directories.location_search_enabled`, default off, on the directory **Settings** tab (admin and client). After republish, the homepage filter rail gains **Distance from** (place, 5/10/25/50 miles, Use my location). The search box can fill that filter from “near Stroud”, a postcode, or “near me”. Known UK towns resolve in the page; other places go to `resolve_directory_place` (cached Google Geocoding). The map camera follows via `focus` on the existing `directory-filter-change` message.
+- **Rate limiting**: `directory_ai_search_requests` logs one row per real Claude call; over the per-directory minute threshold the function returns `disabled: true` rather than erroring.
+
+Tables/functions: `directories.ai_search_prompt`, `directories.ai_search_web_enabled`, `directory_ai_search_requests` (`20260918120000_create_directory_ai_search.sql`).
+
+Files: `supabase/functions/directory_ai_search/index.ts`; `src/components/directories/DirectoryAiSearchPanel.jsx`; wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`'s AI tab; search-script changes in `supabase/functions/generate_directory_site/builders.ts` (`buildFilterAndSearchScript`, `buildDirectoryLandingPage`) and `index.ts`; map sync in `EmbedMap.jsx` / `PublishedMapView.jsx`; data access in `src/lib/directories.js`.
+
+### 4.4i AI-generated SEO/social metadata drafts (new, 2026-09-18)
+
+Phase 2 of the Directory Searchability & AI Metadata plan. Distinct from §4.4g (which writes an entry's page body, `notes_html`): this drafts the short SEO/social text fields `EntrySeoTab.jsx`/`DirectoryGeneralSettingsPanel.jsx` already exposed with no AI action. No directory-level prompt/opt-in required — unlike §4.4g and §4.4h, generation here has a fixed built-in system prompt (grounded to the entry's/directory's own data, explicitly told to avoid placeholder/demo language like "Sample") rather than an editor-configured one, since there's no per-directory tone decision to make for meta tags.
+
+- **Entry-level**: "Generate with AI" on the Search & Metadata tab calls `generate_entry_seo_metadata` and drafts all six text fields at once — `meta_title`, `meta_description`, `keywords`, `og_title`, `og_description`, `ai_summary`.
+- **Directory-level**: "Generate with AI" on the Directory Settings tab's SEO settings section calls `generate_directory_seo_metadata` and drafts `meta_title_template`/`meta_description` from the directory's own entry count and attached categorisation labels (`categorisation_attachments`), in the style of the plan's own example copy.
+- **Never persisted by the Edge Function** — both return a draft only; it lands in the form's existing (unsaved) state, and the editor's pre-existing Save button is what actually writes it. Same "generate then editor decides" contract as §4.4g, reusing its `directory_ai_content_requested`/`_generated`/`_failed` event types with a new `target` meta field (`entry_seo_metadata` / `directory_seo_metadata`) rather than minting new event names, per AGENTS.md's admin-event conventions.
+- Shares one Claude-calling core, `_shared/seoMetadataGeneration.ts` — a separate implementation from `_shared/entryContentGeneration.ts` (different tool schemas, no HTML output/sanitisation needed since these are all plain-text fields).
+
+Files: `supabase/functions/generate_entry_seo_metadata/index.ts`, `supabase/functions/generate_directory_seo_metadata/index.ts`, `supabase/functions/_shared/seoMetadataGeneration.ts`; `src/components/directories/entryEdit/EntrySeoTab.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx` (both extended); data access in `src/lib/directories.js`.
+
+### 4.4i-2 Non-destructive SEO metadata backfill — directory-level, on build (new, 2026-09-19, revised same day)
+
+Phase 3 of the Directory Searchability & AI Metadata plan. §4.4i's "Generate with AI" is an explicit editor action; this is its unattended counterpart for the directory homepage's own `meta_title_template`/`meta_description` — filled automatically on `generate_directory_site` using the directory's real entry count and attached categorisation labels, skipped entirely once both fields are already set. The rule is presence, not authorship: a field with content, however it got there, is never touched.
+
+**Entry-level backfill originally lived here too** (inline, capped at 20 entries per publish) but was replaced the same day by §4.4i-3's async queue, per direct user feedback that the cap was arbitrary and that AI generation cost shouldn't be coupled to the publish action at all. The directory-level piece above is unaffected — it's at most one extra Claude call per publish and self-limiting, so it never had the cost/time problem the entry-level cap was working around.
+
+- **AI-drafted flag**: `directory_entries.seo_metadata_ai_generated_at` — set only by an unattended backfill (this one, or §4.4i-3's queue), never by §4.4i's editor-triggered button — answers the product doc's "should AI-generated fields carry a visible flag?" open question for the one path where an editor might not know a field was ever touched. `EntrySeoTab.jsx` shows a small banner when it's set.
+- **Never fails the publish** — a missing `ANTHROPIC_API_KEY` or an Anthropic error logs to `error_logs` and is skipped; the pages themselves still generate and upload normally.
+
+Tables: `directory_entries.seo_metadata_ai_generated_at` (`20260919120000_directory_entry_seo_metadata_ai_flag.sql`).
+
+Files: `supabase/functions/_shared/seoMetadataBackfill.ts` (`backfillDirectorySeoMetadata`); `supabase/functions/generate_directory_site/index.ts` (extended); `src/components/directories/entryEdit/EntrySeoTab.jsx` (AI-drafted banner); `src/lib/directories.js` (`getDirectoryEntry` extended, schema-drift fallback updated).
+
+### 4.4i-3 SEO metadata backfill queue + AI tab "Backfill missing metadata" (new, 2026-09-19)
+
+The entry-level half of Phase 3, redesigned per user feedback the same day it first shipped: rather than an inline, capped, per-publish loop, entry SEO/social metadata backfill is now its own async queue — architecturally identical to §4.4g's content-generation queue, just for a different set of fields and with no directory-level prompt to opt into (there's nothing to configure; it always runs).
+
+- **Automatic, on empty entries only**: an `AFTER INSERT` trigger on `directory_entries` (`enqueue_entry_seo_metadata_job()`) enqueues an `'auto'` job whenever a new entry is missing any of the six drafted fields (`meta_title`, `meta_description`, `keywords`, `og_title`, `og_description`, `ai_summary`) — no per-directory opt-in needed, unlike content generation. A `pg_cron` job (`process-entry-seo-metadata-dispatch`, every 2 minutes) claims a small batch via `claim_pending_entry_seo_metadata_jobs()` and dispatches to `process_entry_seo_metadata_jobs`.
+- **Manual, whole directory, no confirm needed**: a "Backfill missing metadata" button on the AI tab (`DirectoryAiSeoMetadataPanel.jsx`) calls `enqueue_directory_entry_seo_metadata_jobs`, which queues a `'bulk'` job for every active entry actually missing a field — deliberately **not** every entry (contrast with §4.4g's "Generate all entry content", which queues everything and is gated behind typing `CREATE` since it overwrites). This action can never overwrite existing data, so there's no destructive case to gate against.
+- **Missing-entries count**: `count_entries_missing_seo_metadata(p_directory_id)`, a plain SQL function with no elevated privilege (relies on the caller's own `directory_entries` RLS access) — shown on the panel before the button is even clicked, and re-checked once a run finishes.
+- **Progress**: `directories.seo_metadata_backfill_status/_total/_processed` (same shape as `ai_content_generation_*`), polled by the panel every 3s while a run is in progress.
+- **Non-destructive at every layer**: the worker only ever writes the fields that were actually empty on each entry (`computeSeoMetadataUpdate()` in `_shared/seoMetadataBackfill.ts`), sets `seo_metadata_ai_generated_at`, and never fails a whole run over one bad entry — same as the content-generation worker's per-job error handling.
+- Reuses `directory_ai_content_bulk_requested`/`_bulk_completed` event types with `target: "seo_metadata"` in `meta`, rather than minting new event names, per AGENTS.md's admin-event conventions (same pattern as §4.4i's single-entry events).
+
+Tables/functions: `entry_seo_metadata_jobs`, `directories.seo_metadata_backfill_status` + 5 sibling columns, `enqueue_entry_seo_metadata_job()` trigger, `claim_pending_entry_seo_metadata_jobs()`, `count_entries_missing_seo_metadata()`, `enqueue_directory_entry_seo_metadata_jobs()`, `process-entry-seo-metadata-dispatch` cron job (`20260919130000_directory_seo_metadata_backfill_queue.sql`).
+
+Files: `supabase/functions/process_entry_seo_metadata_jobs/index.ts` (new); `supabase/functions/_shared/seoMetadataBackfill.ts` (`computeSeoMetadataUpdate`, `missingAnySeoField`); `src/components/directories/DirectoryAiSeoMetadataPanel.jsx` (new), wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`'s AI tab; data access in `src/lib/directories.js`.
+
+### 4.4j AI-generated image alt text (Feature 5, new, 2026-09-19)
+
+Feature 5 of the Directory Searchability & AI Metadata plan — the only AI feature in this codebase that sends Claude an actual image (vision), not text, since a genuinely descriptive caption needs to describe what a photo actually shows. Scoped narrowly after research found most of the doc's stated ask already done: entry logos already get a synthesized `"{name} logo"` alt fallback at publish time (`generate_directory_site/builders.ts`, fixed for the one gap — the "related entries" row — in Phase 1), and `panel_image_url` already follows the same pattern. The one real, substantive gap was `entry_media_assets.alt_text` (gallery/hero photos): a required (`not null`) column that `MediaAssetsEditor.jsx` made editors type by hand with no assistance, and — being `not null` — has no "missing" state a backfill could ever target, so this is upload-time-only, not a queue.
+
+- **`generate_media_alt_text`**: new Edge Function, sends the actual image bytes (base64, client-side `FileReader`) plus the entry's name as context to Claude via its vision API, returns a suggested caption. Nothing is persisted by the function itself — same review-before-save contract as every other "Generate with AI" action here.
+- **`MediaAssetsEditor.jsx` reworked**: picking a file no longer uploads immediately — it now shows a preview first, with an alt text field and a **Generate with AI** button next to it, and an explicit **Upload** step. Alt text is still required before upload (unchanged constraint), but typing it by hand is no longer the only option.
+- Capped at the same 5MB the upload itself already enforces (`src/lib/mediaAssets.js`'s `MAX_BYTES`) — checked again server-side on the base64 payload size.
+
+Files: `supabase/functions/generate_media_alt_text/index.ts` (new), `supabase/functions/_shared/imageAltTextGeneration.ts` (new); `src/lib/mediaAssets.js` (`generateMediaAltText`, new); `src/components/directories/MediaAssetsEditor.jsx` (reworked upload flow).
+
+### 4.4k Directory content pages (Feature 6, 2026-09-19; hierarchy & nav 2026-09-20)
+
+Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pages alongside a directory's entries ("About", "How to join", a sector guide). Pages form a **two-level site** beneath the directory home: one source of truth (`parent_page_id` + `position`) drives header navigation, the mobile hamburger, breadcrumbs, nested URLs, footer columns, and sitemap entries. Published pages also keep their own metadata, a `WebPage` schema.org block, and a `BreadcrumbList` JSON-LD graph.
+
+- **Two-level hierarchy, nested URLs**: a page is either top-level (`/directories/:client/:dir/:slug`) or the child of a top-level page (`/directories/:client/:dir/:parent/:child`). A depth trigger plus the Pages tab UI prevent a third level and prevent a page that already has children from becoming a child. Slugs stay unique per directory (same namespace as entries for top-level pages). This **reverses** the 2026-09-19 "flat URLs on purpose" decision — `middleware.js` now serves a fifth branded-domain segment and a two-segment custom-domain path.
+- **Nav fields**: `nav_label` (optional shorter header wording; blank uses `title`), `show_in_navigation` (published but hidden pages stay at their URL and can still appear in breadcrumbs), `is_active` (unpublished pages are not generated). `directories.home_nav_label` labels the landing-page item (blank → "Home").
+- **Pages tab** (`DirectoryContentPagesPanel.jsx`, admin + client portal, owner/manager only): create with a title, then edit. The left-hand tree is drag-and-drop (HTML5, same pattern as map-group reorder) — reorder siblings, nest under a top-level page, or promote a child. Numeric `position` is no longer edited by hand. Deleting a parent requires an explicit choice: promote children, reparent them, or delete them too (`ON DELETE RESTRICT`).
+- **`generate_content_page_draft`**: unchanged — outline in, HTML into the unsaved editor.
+- **Publish integration** (`generate_directory_site`): one `SiteNav` tree is passed into `siteHeader` / `siteFooter` / `buildContentPage`. Desktop dropdowns are CSS `:hover`/`:focus-within` with real `<a href>`s always in the DOM; mobile uses `<details>`/`<summary>` so the menu works without JavaScript. Footer columns replace the old homepage-only link strip. Child blob paths are `${base}/${parent}/${child}.html`.
+- **Redirects**: `directory_redirects` now has a nullable `page_id` (exactly one of `entry_id` / `page_id`). Triggers record slug and parent changes, including every child's previous nested path when a parent slug changes. `redirects.json` keys are relative paths. The first nested-URL publish also emits 301s from each child's old flat slug (`/why-join` → `/membership/why-join`) unless that slug is already a live one-segment URL.
+- Admin events: existing `directory_content_page_*` plus **`directory_content_pages_reordered`** (`directory_id`, `page_ids`). Home label save uses `directory_settings_updated`.
+
+Tables: `directory_content_pages` (`20260919150000`, columns extended `20260920060000_directory_page_hierarchy_nav.sql`); `directories.home_nav_label`; `directory_redirects.page_id`.
+
+Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPagesPanel.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx`; `supabase/functions/generate_directory_site/builders.ts` + `index.ts`; `middleware.js`.
+
+### 4.4l Directory enquiries (2026-09-22)
+
+Make an Enquiry on a published directory, using organisation sending profiles with per-directory settings.
+
+- **Contact email** (`directories.enquiry_email`) on the directory **Email** tab. Blank hides the button. The address is not written into the public HTML — `send_contact_message` looks it up when the visitor submits.
+- **Per-directory messaging settings** — sending profile, enable switch, test mode + recipient, prompt, subject and opening line live on the directory itself (`directories.messaging_profile_id` etc.), edited from the directory Email tab. Sending profiles (`messaging_profiles`) are organisation-level and shared with maps. Messaging is blocked until a profile is chosen.
+- **Published entry page** — when the contact email is set and messaging is enabled, **Make an Enquiry** sits beside **Visit website**. It opens a side drawer (name, email, phone, message). The visitor is CC'd. Test mode redirects to the directory's test recipient. Takes effect on the next Publish.
+- **Log** — `directory_contact_submissions`, shown as Recent enquiries on the Email tab. Admin event `directory_enquiry_settings_updated` on contact-email save (no raw address). Public events `listing_enquiry_open` (button) and `listing_enquiry_sent` (successful send).
+
+Files: `src/components/directories/DirectoryEnquiryPanel.jsx`, `MessagingSettings.jsx`; `supabase/functions/send_contact_message/index.ts`; `generate_directory_site/builders.ts` + `index.ts`. Migration: `20260922093000_directory_enquiry.sql`.
+
+### 4.4m Claimed Directory Listings (Epic)
+
+Lets an organisation represented in a directory claim, verify, and manage its own listing without becoming a directory administrator — a claim grants rights to one directory item, never the directory. 10-phase build (Monday: "Claimed Directory Listings (Epic)"); all 10 phases now complete. Payment is deliberately deferred to a separate follow-up epic ("Claim Payments (Stripe)") — claims reach `active` today via an admin manually recording payment status, or (Phase 7) self-service on email/domain verification alone, no payment step, until that epic lands.
+
+> **Visibility:** gated behind a new `claims` beta feature flag plus a dedicated commercial entitlement `features.maps.claims` (Professional plan and above, or Founding Partner) — same two-layer pattern as `custom_domain`.
+
+- **Domain schema** (Phase 1): `directory_claim_settings` (per-directory config), `claims` (one row per historical claim attempt — a revoked claim stays revoked forever, `directory_entries.current_claim_id` tracks current claimability separately), `claim_payments` (1:1, provider-neutral), `claim_users` (owner/editor per claim), `directory_entry_team_members` (net new — no per-entry team-member concept existed before this). RLS follows the `_admin_all`/`_own_client` pattern; claim-user-facing policies are a later phase (the auth model doesn't exist yet).
+- **Admin/client Claims tab** (Phase 2): Overview / Claims / Settings sub-tabs on a directory's page (owners/managers only), gated by the `claims` entitlement via `EntitlementGate`. Settings tab: enable/disable, price, currency, payment type, intro HTML (reuses the existing `RichTextEditor`/`sanitizeNotesHtml`). Admin event `directory_claim_settings_updated` on save.
+- **Manual claim lifecycle + magic-link auth** (Phase 3): the Claims sub-tab is now real. **Create claim** — pick an unclaimed listing, enter owner name/email, verify (domain-email auto-check via a new `derive_domain_from_url()`/`is_generic_email_domain()` pair, or admin override with a required note) — all in one atomic RPC (`create_manual_claim`), which sets `directory_entries.current_claim_id` so the listing stops being claimable elsewhere. Per-claim actions: send/resend a magic-link invitation (`supabase.auth.signInWithOtp`), record a manual/offline payment status (`admin_set_claim_payment_status`, `payment_provider='manual'`), and Activate/Suspend/Reactivate/Revoke (`admin_activate_claim` etc.) — revoke clears `current_claim_id` in the same transaction so the item becomes claimable again while the historical row stays `revoked` forever. Every mutating RPC is `security definer` and explicitly checks the caller is a platform admin or a contact of the claim's client (`can_manage_client()`, the exact permission-check pattern `publish_directory()` already used) — RLS doesn't apply inside `security definer` functions, so this check *is* the enforcement.
+- **New claim-user auth surface** (Phase 3): genuinely separate from the existing password-based admin/client-portal auth. `/claim/login` — enter email, get a magic link, no password. On first login, `link_claim_user_by_email()` (callable by any authenticated user — a brand-new claim user has no `profiles`/`contacts` row for RLS to key off) matches the JWT's email against an unlinked `claim_users` row and sets `user_id`, so later lookups key off `auth.uid()` rather than a mutable email. `get_my_claim_context()` returns the signed-in user's own linked claims; the login page shows them in a plain list today — the restricted Listing Manager UI that replaces that list is Phase 4.
+- **Listing Manager shell** (Phase 4): after signing in at `/claim/login`, one linked claim goes straight in, more than one shows a picker. The restricted UI (`ClaimManager.jsx`, route `/claim/manage/:claimId`) has Listing / SEO / Contact details / Team / Users tabs — the first four are read-only previews of what's actually published (`get_claimed_listing()`/`get_claim_team_members()`, both re-checking the caller is linked to that specific claim); editing them is Phase 5, reusing these same reads. **Users is real**: any linked user sees who else has access; the owner can invite an editor (`claim_invite_user` + an immediate `signInWithOtp` to the new editor) and remove one (`claim_remove_user` — the owner can't be removed this way, only via a later ownership-transfer phase). Preview/Publish buttons are visible but disabled (Phase 6 builds isolated publishing). Two new item-scoped permission helpers, `can_access_claim()`/`is_claim_owner()`, mirror Phase 3's `can_manage_client()` — again, the enforcement, not the UI, since these are all `security definer`.
+- **Editable content + team members** (Phase 5): the Listing/SEO/Contact details tabs are now genuinely editable — three new RPCs (`update_claimed_listing_contact/seo/body`) share a `require_active_claim_editor()` precondition (linked to the claim AND the claim is `active` — a merely-verified claim can view but not edit) and stamp provenance on every write (`content_managed_by='claimed_org'`, `content_last_edited_by_claim_user_id`, `content_last_edited_at`), shown back to the claimant as "Source: Claimed organisation · Last edited …". Team members are now editable too, by owner or editor (`add_claim_team_member`/`update_claim_team_member`/`remove_claim_team_member` — any linked role, unlike the owner-only Users tab). **Client/admin parity**: the same `directory_entry_team_members` table now also has an admin/client-portal editor (`TeamMembersEditor.jsx`, new events `directory_entry_team_member_added`/`_removed`), slotted into the entry's existing Content tab alongside Evidence/Media — RLS already covered this (`detm_admin_all`/`detm_own_client` from Phase 1), no new RPC needed for that side.
+- **Item-only publishing isolation** (Phase 6, the epic's highest-risk phase): `generate_directory_site` gains a new `scope: "claim_item"` that touches **only** the target entry's own page blob — `work.homepage`/`work.indexes` are hard-set `false` for this scope regardless of manifest state, so the directory homepage, sitemap/robots/llms/redirects, and every other entry are never rewritten. New `requireDirectoryItemPublishAccess()` (`_shared/supabase.ts`) is the real enforcement: admin/directory-contact OR the entry's active claim's owner/editor, checked server-side — `directory_id` is derived from the entry itself, never trusted from the caller. New `publishDirectoryItem()` (`src/lib/claimManager.js`) wires the Listing Manager's Publish button to this scope; Preview stays disabled.
+  - **Bug fix found while building this, affecting every existing scope, not just the new one**: `site_generation_manifest` was unconditionally rebuilt from *all* entries/pages on every run, regardless of what `work` actually rebuilt — so a narrow-scope publish (the already-shipped `entries`/`features` scopes included) could silently mark an *unrelated* entry's pending, unpublished edit as "already published" in the manifest, purely because its `updated_at` had changed in the DB, without its page ever actually being rebuilt. Fixed by merging the manifest (only touched entries/pages update their tracked timestamp; untouched ones keep their prior value; removed entries/pages are still pruned unconditionally, which is always safe).
+  - **Known, disclosed gap found in passing, deliberately not fixed here**: `generate_directory_site` has no caller-authorization check at all for its pre-existing scopes (`full`/`style`/`features`/`entries`/`auto`) — any signed-in user can force-publish any `directory_id`, unlike five sibling functions that already call `requireDirectoryAccess`. Left alone in this phase (fixing it broadly risks regressing the working admin Publish flow with no way to click-test the fix this session); flagged as a separate follow-up task rather than bundled in.
+  - No live acceptance test could be run this session (no way to obtain a real signed-in user session or service-role key from this environment) — verified via `deno check` (type-checks cleanly) and a live anonymous-caller smoke test against the deployed staging function (rejected before reaching any of this code, confirming the platform itself blocks unauthenticated calls). The claim-user and admin authorization branches themselves have **not** been exercised against real data — recommend the user (or a future session with real credentials) run the full loop before relying on this for a real customer: publish an active claim's listing, and confirm no other entry's page, the homepage, or sitemap.xml changed.
+- **Self-service claim flow** (Phase 7): the public "Claim this listing" button is live — on the individual entry page only, only when `directory_claim_settings.enabled` AND the client's `maps.claims` entitlement both resolve true (checked live at publish time, `resolve_claims_entitlement()`) AND the entry has no `current_claim_id`. Clicking it opens a modal (cloned from the existing enquiry drawer's exact pattern) showing the directory's intro HTML + price, then a work-email form. New `start_self_service_claim()` RPC — callable by `anon`, the one deliberate public entry point into the whole claims system — re-derives the listing's domain and re-runs the *exact same* verification rules `create_manual_claim()` (Phase 3) already uses (reject generic providers, require a domain match), creates the claim already `verified`, and sets `current_claim_id` immediately (which is what actually removes the button from the next publish). The page's own JS then calls Supabase Auth's OTP endpoint directly (no new Edge Function) and fires `listing_claim_start` (now actually emitted, reserved since Phase 0) on success. A second RPC, `activate_self_service_claim()`, runs once after the claimant's first magic-link login (`ClaimLogin.jsx`, alongside the existing `link_claim_user_by_email()`) and advances the claim straight from `verified` to `active` — **no payment step in this epic**; that only exists via manual admin claims until the separate Stripe follow-up epic. This RPC fires `listing_claim_complete` server-side (not client-side — the caller is authenticated by then and `map_engagement_events`' insert policy is anon-only, so a client-side insert would be silently rejected by RLS) plus the existing `claim_activated` admin event (`activation_reason: "no_payment_required"`) client-side, for parity with the admin-manual activation path.
+  - Verified live against the deployed staging function (not just `deno check`): calling `start_self_service_claim` via a bogus entry id, using only the public anon/publishable key (no session), correctly returned "Listing not found"; calling `activate_self_service_claim` the same way correctly returned a permission-denied error, confirming its `authenticated`-only grant. The actual happy path (a real listing, matching email domain, real magic-link click) still hasn't been exercised against real data — no test credentials this session.
+- **Ownership transfer** (Phase 8): both the claim owner (Listing Manager Users tab) and a platform admin/directory contact (admin Claims tab) can hand ownership of an active claim to someone else, via one RPC (`transfer_claim_ownership`) shared by both surfaces — same "admin uses the identical underlying model" rule every other admin-vs-self-service action already follows. Target is looked up by email against that claim's `claim_users` rows: if they're an existing editor who has already logged in at least once (`user_id` set), the transfer **completes immediately** — no further verification needed, since they already proved control of that email address via their own earlier magic-link login. Otherwise (a brand-new email, or an invited editor who never actually accepted) the transfer goes **pending** and a magic-link invitation is sent; ownership only actually moves once that person accepts it (`complete_pending_ownership_transfer()`, called speculatively from `ClaimLogin.jsx` right after every login, alongside the existing Phase 7 self-service-activation check — same safe-to-no-op pattern). The previous owner is always demoted to editor, never removed, matching the epic's non-negotiable rule. New `claim_users.owner_transfer_pending` column marks at most one row per claim as the pending target; starting a new transfer always clears any earlier stale pending flag first, so re-inviting (or changing your mind about) a not-yet-accepted transfer can't leave two rows pending at once. Fires `claim_ownership_transfer_started` always, and `claim_ownership_transferred` when the transfer actually lands (immediately for an already-logged-in editor, or later on the accepting login for a pending one).
+  - Not yet exercised against real data this session (no test login credentials) — verified the migration's own post-migration checks pass on staging (including the fail-safe: an unknown claim id returns `false`, not an error) and that `npm run build` compiles cleanly with both UI surfaces wired in. Recommend the user run the full loop before relying on it for a real customer: transfer to an already-logged-in editor (should complete instantly) and transfer to a brand-new email (should stay pending until that person accepts their invitation).
+- **Docs & acceptance pass** (Phase 9): closes out the epic — no new schema or RPCs. Fixed two small instrumentation gaps found while reviewing the `claim_*` event catalogue against what actually fires: the claim-user's own Listing Manager Users tab (`ClaimManager.jsx`) invited and removed editors silently, without the already-reserved `claim_user_invited`/`claim_user_removed` events (the admin-side equivalent already fired them) — now fixed to match. `claim_email_verification_sent` and `claim_user_activated` stay reserved-but-unemitted: the shipped flow collapsed domain verification and magic-link sign-in into one step, so there's no separate moment for either (documented in `AGENTS.md` rather than forced in for the sake of it). See the acceptance-pass checklist below for the full pass against the original spec.
+- **Post-epic bug fix** (2026-09-27): a live client (Founding Partner, fully entitled, claims enabled) reported no "Claim this listing" button anywhere on their already-published directory. Root cause: `directory_claim_settings` was never included in either of `generate_directory_site`'s incremental-publish content hashes, so enabling/configuring claims on a directory that had already been published once registered as no change at all — the ordinary Publish button silently rebuilt nothing, on any directory, forever, until some unrelated change happened to force a full rebuild. Fixed by adding claim config to `chromeHash` (the hash that already correctly forces a full rebuild for enquiry/analytics changes) — the client's next Publish click self-heals automatically, no manual intervention needed per directory.
+- **Auto-publish on activation** (2026-09-27): the moment a claim reaches `active` — self-service (`ClaimLogin.jsx`, right after the claimant's first magic-link login) or admin-manual (`DirectoryClaimsPanel.jsx`'s Activate button) — that one entry is republished automatically (`publishDirectoryItem`, the same isolated `claim_item` scope the claim owner's own Publish button uses), firing `claimed_listing_published` with `trigger: "auto_on_activation"`. Best-effort: a failed publish never blocks activation itself, and the claim owner's own Publish button still works as a fallback. Before this, none of the claim lifecycle RPCs triggered a publish at all — they only updated the database, so a newly-activated (even fully-paid-in-the-manual-admin-sense) listing kept showing its old public page and the claim button until *someone* separately remembered to click Publish.
+- **Known, deliberately-not-yet-fixed asymmetry:** revoke doesn't get the same auto-publish treatment — a revoked claim clears `current_claim_id` in the database immediately (so the listing becomes claimable again), but the *public* page keeps showing claimed-organisation content and no claim button until someone manually republishes. Flagged rather than silently fixed alongside activation, since revoke is a distinct, less time-sensitive scenario and wasn't part of what was asked for here.
+- No online payment yet — that's the separate "Claim Payments (Stripe)" follow-up epic.
+- No interactive click-through of the authenticated flow this session (no test login credentials) — `/claim/login` and the unauthenticated redirect from `/claim/manage/:id` were smoke-tested live; recommend the user verify the full Listing Manager (as a signed-in claim user), the Publish button, the admin/client Team editor, the self-service claim flow, and ownership transfer (both surfaces) directly before relying on any of it for a real customer.
+
+#### Acceptance pass (Phase 9)
+
+Against the original spec's "Key Acceptance Statement" (§21):
+
+**An organisation can:**
+
+| # | Statement | Status |
+|---|-----------|--------|
+| 1 | Open its individual listing | ✅ pre-existing |
+| 2 | See **Claim this listing** only while `UNCLAIMED` | ✅ Phase 7 |
+| 3 | Verify its relationship via email/domain | ✅ Phase 3 (admin) / Phase 7 (self-service) |
+| 4 | Complete the configured payment | ⏸ **Deferred** to the "Claim Payments (Stripe)" follow-up epic — self-service activates on verification alone, no payment step, by explicit product decision made at the start of this epic |
+| 5 | Authenticate using magic links | ✅ Phase 3 |
+| 6 | Manage authorised colleagues | ✅ Phase 4/5, event-instrumented Phase 9 |
+| 7 | Transfer claim ownership | ✅ Phase 8 |
+| 8 | Edit the permitted fields of its listing | ✅ Phase 5 |
+| 9 | Publish those changes in isolation | ✅ Phase 6 |
+
+**A directory administrator can:**
+
+| # | Statement | Status |
+|---|-----------|--------|
+| 1 | Configure claims where the entitlement permits it | ✅ Phase 0/2 |
+| 2 | Configure price, currency, payment type, provider, intro HTML | ✅ Phase 2 (provider is stored provider-neutral, defaulting to `stripe`; no UI picker yet since only one provider exists) |
+| 3 | See listings and their domains alongside claim state | ✅ Phase 3 |
+| 4 | Identify the owner and other authorised users | ✅ Phase 3/4 |
+| 5 | Manually create and manage claims | ✅ Phase 3 |
+| 6 | Override verification where appropriate | ✅ Phase 3 |
+| 7 | Manage ownership and users | ✅ Phase 3 (users) / Phase 8 (ownership) |
+| 8 | Inspect payment/subscription state | ✅ Phase 3 (manual status only — no live subscription state exists yet, matching the payment deferral above) |
+| 9 | Suspend, reactivate, or revoke claims | ✅ Phase 3 |
+| 10 | Rely on all relevant claim activity being captured through the event model | ✅ Phase 0 catalogue, emission verified/completed Phase 9 (see above) |
+
+**Non-negotiable architectural rules (§22):** all nine hold — Pro-level entitlement gate (#1), one directory item per claim (#2), public CTA only on the unclaimed individual listing page (#3), magic-link auth (#4), exactly one owner with transfer support (#5), the domain model (not the UI) supports both one-off and annual payment types and a provider-neutral `payment_provider` column (#6/#7), item-only publish isolation (#8), and manual admin claims sharing the exact same tables/RPCs/permission helpers as self-service claims throughout, including the Phase 8 ownership-transfer RPC (#9).
+
+Files: `src/components/directories/DirectoryClaimsPanel.jsx`, `src/lib/directoryClaimSettings.js`, `src/lib/claims.js`, `src/lib/claimManager.js`, `src/lib/directoryEntryTeamMembers.js`, `src/pages/claim/ClaimLogin.jsx`, `src/pages/claim/ClaimManager.jsx`, `src/components/directories/TeamMembersEditor.jsx`, `src/lib/entitlementMessages.js` (`claims` key), `supabase/functions/generate_directory_site/index.ts`, `supabase/functions/generate_directory_site/builders.ts`, `supabase/functions/_shared/supabase.ts`. Migrations: `20260923120000_seed_claims_feature_flag.sql`, `20260923121000_gate_claims_entitlement.sql`, `20260923130000_create_claims_schema.sql`, `20260923140000_claims_lifecycle_rpcs.sql`, `20260923150000_claim_manager_shell_rpcs.sql`, `20260923160000_claimed_listing_editing_rpcs.sql`, `20260926120000_self_service_claim_rpcs.sql` (Phase 6 needed no new migration), `20260927120000_claim_ownership_transfer_rpcs.sql`.
+
+### 4.5 Analytics (engagement)
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Map stats | `/client/maps/:id/stats` | Sessions, funnel, charts, search terms, date range |
+| Listing stats | `.../stats/listings/:listingId` | Per-listing engagement breakdown |
+| Directory tracking config | Directory → Settings → Integrations | Per-directory GA4 / GTM destinations (`directories.analytics_json`); baked on publish. `DirectoryAnalyticsPanel.jsx` — not to be confused with the dashboard below. |
+| Directory Insights › Analytics (new, 2026-09-29) | Directory → Insights → Analytics | Real visitor-engagement dashboard: views over time, activity-by-type donut, a directory→entry→enquiry-opened→enquiry-sent funnel, top search terms, top entries. Reuses the map-side dashboard's generic aggregation helpers and chart/table components — only `deriveDirectoryMetrics()`/`deriveTopDirectoryEntries()` (`engagementAnalytics.js`) and `useDirectoryEngagement.js`/`DirectoryAnalyticsRoute.jsx` are new. One gotcha handled: a "Visit website" click inserts both `listing_website_click` and a duplicate `listing_cta_click` row — the dashboard counts only the latter to avoid double-counting. |
+| Directory enquiries | Directory → Engagement → Enquiries | Contact inbox plus the shared messaging settings. **Make an Enquiry** on published entry pages after Publish. |
+
+Data source: `map_engagement_events` (public embed **and** published directory HTML) — RLS already lets a directory owner/manager (or a contact with a `contact_directory_permissions` grant) query their own directory's rows directly, same as the map side. See [MAP_ENGAGEMENT.md](./MAP_ENGAGEMENT.md).
+
+Files: `MapStats.jsx`, `ListingStats.jsx`, `DirectoryAnalyticsRoute.jsx` (new), `src/hooks/useListingEngagement.js`, `src/hooks/useDirectoryEngagement.js` (new), `src/components/engagement/*`, `src/lib/engagementAnalytics.js`, `src/lib/mapEngagement.js`, `DirectoryAnalyticsPanel.jsx`, `generate_directory_site/builders.ts`.
+
+Migration: `20260920090000_directory_engagement_analytics.sql` (nullable `map_id`, `directory_id`, relaxed listing subject id, directory event types, `analytics_json`).
+
+### 4.6 Team & permissions
+
+**Route:** `ClientTeam.jsx` at `/client/team` (owners/managers via `canManageOrg`).
+
+| Capability | Description |
+|------------|-------------|
+| List team | Contacts with roles (owner / manager / member) |
+| Invite | Edge `send_team_invitation` — validates 1:1 account rule, emails signup link (Resend) |
+| Member map access | Per-map checkboxes; stored in `contact_map_permissions` |
+| Accept invite | Invitee signs up/logs in with password; RPC `accept_team_invitation` on session |
+
+Legacy `ClientUsers.jsx` (manual contact insert only) remains in the repo but is not routed.
+
+**Permission model (coexisting)**
+
+- Legacy: `is_primary`, `can_manage_maps`, `can_manage_users` on `contacts`.
+- New: `role` (`owner` | `manager` | `member`) + `contact_map_permissions` for member map scope.
+
+### 4.7 Custom email (Resend)
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Domain setup | `/client/email` | Add DNS records, verify domain, set from-address; **Setup instructions** copies email text for DNS suppliers |
+
+Edge function: `manage_client_email`. See [RESEND_EMAIL.md](./RESEND_EMAIL.md).
+
+---
+
+## 5. Public embed (visitor experience)
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Embed map | `/embed?map=<MAP_ID>` | Full-screen published map; requires `published_at` |
+| Search panel | — | Flush top-left, full-height panel: logo, title, description, search box, group **filter lozenges**, colour key, and an alphabetical listings list (logo, name, city/country, group label) |
+| Search | — | Places + listing search; engagement events logged |
+| Group filtering | — | Lozenge tags filter listings + markers by group (multi-select); colour key legend |
+| Continent filtering | — | Optional continent chips (derived from listing country) filter listings + markers; combines with group filters |
+| Custom filter fields | — | Per-map configurable filters (dropdown / checkbox lozenges / typeahead) shown when `show_in_filter_bar`; OR within a field, AND across fields; logged as `directory_custom_filter` |
+| Listing detail | — | Panel from marker, list, or search |
+| Contact visitor | — | “Send message” → `map_contact_submissions` + email via Resend |
+| Marker clustering | — | Configurable cluster radius; same-address clusters auto-spiderfy (fan out) on click |
+
+Files: `EmbedMap.jsx`, `PublishedMapView.jsx`, `DirectoryMap.jsx`, `contactMessage.js`, `mapEngagement.js`.
+
+**Engagement:** Anonymous insert-only RLS on `map_engagement_events` for published maps and directories. Failures are non-blocking (`console.warn`).
+
+---
+
+## 6. Admin console
+
+**Base route:** `/admin` · **Gate:** `profiles.role = 'admin'`.
+
+Since the admin shell redesign's Phase 3 (2026-09-29), `/admin/clients/:clientId/...` pages render
+inside the same client-context (teal) shell as the real client portal, with a "Staff view" chip
+and a staff-only "Customer account" rail item — see `docs/design/admin-shell/INFORMATION_ARCHITECTURE.md`
+§4. `AdminClientDetail.jsx`'s 8 tabs (Maps, Directories, Categorisations, Entitlements, Customer
+details, Users, Messaging, Domains) are now route-driven (`/admin/clients/:clientId/:tab`) instead
+of local component state, so each is directly linkable/bookmarkable; the bare `/admin/clients/:id`
+URL is still the "Maps" default. All other `/admin/*` routes (Customers, All maps, Logs, etc.)
+render in the platform (ink) context, unchanged.
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Customers | `/admin/clients` | Search, create, delete clients; `FeaturePanel` with Views (All/plan/"with beta access") and Recently viewed |
+| Customer detail | `/admin/clients/:id[/:tab]` | Edit org, contacts, maps; `subscription_active_override`; tabs: `maps` (default) · `directories` · `categorisations` · `entitlements` · `details` · `users` · `messaging` · `domains` — each its own URL |
+| Customer account panel | `/admin/clients/:id/details`, `/admin/clients/:id/entitlements` | Staff-only `FeaturePanel` (Customer details, Entitlements) shown automatically on those two routes |
+| New customer | `/admin/clients/new` | Create organisation (name + slug) |
+| Add customer user | `/admin/clients/:id/users` | Send invite to create account/set password; contact links after invite acceptance |
+| Contact detail | `/admin/clients/:id/contacts/:contactId` | Per-contact admin view |
+| All maps | `/admin/maps` | Cross-tenant map search |
+| Per-client maps | `/admin/clients/:id/maps/...` | Same tools as client portal (design, data, stats, listings) |
+| Legacy listings | `/admin/listings` | Global listing browser (limit 1000) |
+| Admin users | `/admin/users` | List admin users; open profile with Details and Activities tabs |
+| Leads | `/admin/leads` | **Deprecated (2026-07-07):** the public landing page form now submits to HubSpot, so this page only shows historical enquiries captured in `beta_signups` before the switch — no new rows arrive. Name, email, organisation, submission date; admin-editable status (To be actioned / In progress / Successful / Lost) |
+| Logs ▾ User activity | `/admin/user-activity` | Filterable audit log (`admin_events`: type, subtype, client, map); `FeaturePanel` links the three Logs pages together |
+| Logs ▾ Error log | `/admin/error-log` | Client-reported errors in `error_logs` |
+| Logs ▾ Sync log | `/admin/sync-log` | Google Sheets/Drive sync run history |
+| Deployments | `/admin/deployments` | Trigger Vercel deploy hooks or copy shell commands |
+
+Admins manage each customer through the admin pages (`/admin/clients/:id`), which mirror the client portal views (maps, directories, categorisations, users, messaging). Client impersonation was removed on 2026-08-05 and the workspace switcher (top bar) is the only route between platform and a customer's workspace — see `src/components/shell/WorkspaceSwitcher.jsx` (now with a "Recently viewed" section, `src/lib/recentCustomers.js`).
+
+Files: `src/pages/admin/*`, `AdminGate.jsx`, `clientAuth.js`, `src/components/shell/{CustomerAccountFeaturePanel,CustomersFeaturePanel,LogsFeaturePanel}.jsx`.
+
+---
+
+## 7. Backend (Supabase)
+
+### 7.1 Core tables
+
+| Table | Purpose |
+|-------|---------|
+| `clients` | Organisations (slug, subscription override, Resend fields) |
+| `contacts` | Users linked to clients (role, permissions) |
+| `profiles` | Auth user metadata; `role = admin` for platform admins |
+| `maps` | Map config, publish timestamps, theme, pins, clustering |
+| `groups` | Listing groups + theme JSON |
+| `listings` | Locations / directory entries (geocode status, `geocoded_at`) |
+| `map_filter_fields` | Custom filter field definitions per map (type, display config, order) |
+| `map_filter_field_options` | Options (value/label/colour) for select-type filter fields |
+| `listing_filter_values` | EAV tags linking listings to filter options / text values |
+| `map_data_sources` | Google Sheet binding + sync schedule |
+| `map_publications` | Versioned publish snapshots |
+| `map_engagement_events` | Embed + published directory analytics |
+| `map_contact_submissions` | Visitor contact form archive |
+| `invitations` | Pending team invites |
+| `contact_map_permissions` | Member → map access |
+| `directories` | New Directories feature (peer of `maps`) — DIR-E1 core only |
+| `directory_groups` | Simple single-value grouping per directory (peer of `groups`) |
+| `directory_entries` | Directory entries (peer of `listings`) |
+| `contact_directory_permissions` | Member → directory access (peer of `contact_map_permissions`, not yet RLS-enforced — mirrors current `contact_map_permissions` behaviour) |
+| `categorisations` | Client-wide taxonomy definitions (key, label, `applies_to`) |
+| `category_terms` | Term list per categorisation (peer of `map_filter_field_options`) |
+| `directory_category_terms` | Tags a whole directory with a term |
+| `entry_category_terms` | Tags a directory entry with a term (peer of `listing_filter_values`, pure many-to-many) |
+| `entry_evidence_items` | Per-claim evidence backing an entry (build-scope §5.5) |
+| `entry_media_assets` | Gallery/hero images for an entry (build-scope §5.6), stored in the `directory-media` bucket |
+| `directory_accreditation_schemes` | Accreditation scheme definitions, per directory (build-scope §5.7) |
+| `entry_accreditations` | Tags an entry with a scheme it holds |
+| `prominent_links` | Link tiles, directory- or entry-scoped (exclusive-or, build-scope §5.8) |
+| `product_tiles` | External booking/product cards on an entry (build-scope §5.9) |
+| `directory_publications` | Versioned publish snapshots for a directory (peer of `map_publications`) |
+| `directory_redirects` | Previous public path (`old_slug`, relative to the directory root) → current entry or content page, recorded automatically on rename / parent change |
+| `directory_content_pages` | Editor-built content pages (two-level hierarchy, nested public URLs) |
+| `directory_contact_submissions` | Visitor enquiry submissions from a published directory (peer of `map_contact_submissions`) |
+| `feature_flags` | Feature-flag registry (`default_enabled`, `internal_enabled`); resolved by `get_my_feature_flags()` |
+| `feature_flag_overrides` | Per-organisation flag grants/denials (pre-release a beta to specific customers) |
+| `error_logs` | Client-side error reports |
+
+View: `public_listings` for anon-safe listing reads on embed.
+
+### 7.2 Security (RLS)
+
+| Migration | Purpose |
+|-----------|---------|
+| `20260315100000_enable_rls_policies.sql` | Initial RLS |
+| `20260520100000_tenant_scoped_rls.sql` | **Tenant-scoped** policies via `current_user_client_id()` |
+| `20260521100000_fix_profiles_rls_recursion.sql` | `is_admin()` security definer helper |
+| `20260522100000_data_api_grants.sql` | Explicit API grants; RLS remains enforcement |
+
+**Pre-launch:** Ensure tenant-scoped RLS and profile recursion fix are applied on **production** Supabase (migrations may exist only locally until pushed).
+
+### 7.3 RPCs
+
+| Function | Purpose |
+|----------|---------|
+| `is_client_slug_available` | Signup slug check |
+| `get_team_invitation_preview` | Public invite details for signup/login pages (anon) |
+| `create_team_invitation` | Owner/manager creates pending invite |
+| `accept_team_invitation` | Links logged-in user to org from pending invite |
+| `current_user_client_id` | RLS helper |
+| `is_admin` | RLS helper |
+| `publish_map` | Create publication + update published config |
+| `rollback_map_to` | Restore a prior publication |
+| `list_map_publications` | Version history for UI |
+
+### 7.4 Edge functions
+
+| Function | Purpose |
+|----------|---------|
+| `geocode_address` | Single-address geocode |
+| `geocode_listings` | Batch geocode for a map |
+| `google_oauth_start` / `google_oauth_callback` | Sheets OAuth |
+| `google_get_access_token` | Token refresh for sync + short-lived token for Google Picker |
+| `google_set_sheet_file` | Save the file picked via Google Picker |
+| `google_list_sheets` | Deprecated — superseded by Google Picker |
+| `validate_sheet_source` | Column validation |
+| `sync_sheet_listings` | Import + geocode from sheet |
+| `send_contact_message` | Resend email from embed form |
+| `manage_client_email` | Resend domain CRUD |
+| `create_checkout_session` | Stripe Checkout |
+| `admin_create_client_user` | Admin user invite: create invitation + onboarding email to signup flow |
+| `admin_delete_client_user` | Admin user removal: delete contact + auth user (blocked if linked to other clients) |
+
+Shared utilities: `supabase/functions/_shared/`.
+
+---
+
+## 8. Integrations summary
+
+| Service | Used for | Config |
+|---------|----------|--------|
+| **Google Maps JS** | Map display, embed | `VITE_GOOGLE_MAPS_API_KEY` |
+| **Google Geocoding** | CSV/Sheets/listings | `GOOGLE_GEOCODING_API_KEY` (edge) |
+| **Google Drive/Sheets** | Live data sync | OAuth secrets on edge functions |
+| **Supabase** | Auth, DB, functions | `VITE_SUPABASE_*` |
+| **Resend** | Contact emails, custom domains | `RESEND_API_KEY`, per-client domain |
+| **Stripe** | Checkout sessions | Stripe secrets on `create_checkout_session` |
+| **Vercel** | Hosting, deploy hooks | `vercel.json`, optional hook env vars |
+
+---
+
+## 9. Operational & developer features
+
+| Feature | Description |
+|---------|-------------|
+| Client error logging | `errorLogger.js` → `error_logs` (global handlers, recursion guard) |
+| Deploy scripts | `npm run deploy:test`, `deploy:live` |
+| Geocode test script | `scripts/test-geocode.mjs` |
+| Environments | [ENVIRONMENTS_SETUP.md](./ENVIRONMENTS_SETUP.md) |
+| Deploy guide | [DEPLOY.md](./DEPLOY.md) |
+
+---
+
+## 10. Feature maturity matrix
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Map design & publish | **Production-ready** | Versioned publications, rollback |
+| Custom filter fields | **Beta** | Schema + admin panel + viewer + CSV/Sheets tagging shipped; staging-first migrations pending production apply |
+| CSV import & geocode | **Production-ready** | Depends on edge deploy + API keys |
+| Google Sheets sync | **Production-ready** | Documented; cron optional |
+| Public embed | **Production-ready** | Requires publish + keys |
+| Engagement recording | **Production-ready** | Best-effort inserts |
+| Engagement dashboards | **Production-ready** | Client portal Stats routes |
+| Team (invitations + roles) | **Production-ready** | `ClientTeam` + `acceptPendingInvitation` on login |
+| Stripe subscription enforcement | **Incomplete** | Checkout exists; `hasSubscriptionAccess` ignores Stripe |
+| Marketing vs checkout pricing | **Misaligned** | Two plan catalogs |
+| Admin user management | **Stub** | Page is placeholder |
+| OneDrive / iCloud | **Not started** | UI placeholders only |
+| Tenant RLS migrations | **Deployed** | Production + test; smoke-test cross-tenant access |
+| Directories (DIR-E1 core) | **Beta (flagged), in production** | Directory + entry CRUD, sanitisation, real Member permissions, bulk actions, CSV import deployed to production 2026-08-27; hidden behind the `directories` feature flag (default off); no publish/branding/search/map-linking yet (see `docs/DIRECTORIES.md`) |
+| Categorisations (DIR-E5) | **Beta (flagged), in production** | Taxonomy management + directory/entry tagging deployed to production 2026-08-27; hidden behind the `directories` feature flag; no published-site filtering yet (depends on DIR-E2 publishing) |
+| Directory entry extras (evidence, media, accreditations, prominent links, product tiles, contact prefs) | **Beta (flagged), in production** | Deployed to production 2026-08-27 behind the `directories` feature flag; no public rendering yet (depends on DIR-E2 publishing); Redirects deferred (needs `directory_entries.slug`, DIR-E2) |
+| Directory publish foundation (DIR-E2 data layer) | **In production, unreachable without a Publish UI** | `directory_publications`/publish/rollback RPCs, entry slugs, SEO override columns, redirects, contact submissions table deployed to production 2026-08-27; no generator UI trigger — nothing calls `publish_directory` yet |
+| Directory publish pipeline (DIR-E2 generator + routing) | **In production** | `generate_directory_site` + `/directories/...` middleware routing, including redirects/Open Graph/`llms.txt`, in production 2026-08-27 — verified live (unauthenticated) against `https://maps.layercake-cx.biz/directories/l-cakez/uk-association-directory` |
+| Directory publish UI | **In production** | Publish panel + history/restore on the directory dashboard; confirmed working end-to-end by the user against a real published directory |
+| Directory branding (DIR-E3) | **Deployed to staging + production 2026-08-27** | `DirectoryBrandingPanel.jsx` (client + admin) now has 5 named theme presets (Natural/Midnight/Coastal/Heritage/Slate — `src/lib/directoryThemePresets.js`) that bulk-fill a full colour + font-pairing token set (11 colours + heading/body fonts), with every field individually overridable afterward. `generate_directory_site` resolves the theme (falling back to Natural's values when unset) and injects it as CSS custom properties matching the design canvas's own token names (`--primary`, `--accent`, `--sage`, etc.), plus a dynamically-built Google Fonts `<link>` for whichever fonts are actually in use. All colour and font values are validated against an allowlist (strict hex pattern for colours, a fixed font catalogue for fonts) before interpolation into the generated `<style>`/`<link>` tags — verified via a standalone script covering injection attempts across multiple fields. Corner radius from the original brief isn't built yet. **Update 2026-09-20:** the site title field has an On/Off toggle (`theme_json.showHeaderTitle`). Off omits the title from the published header — clearing the text is not enough, because a blank title still falls back to the directory name when the toggle is On. **Update 2026-09-21:** Branding's advanced body colours use page-location labels (cards and panels, logo areas/tags/hover, and so on). Unused `goldColor`/`tealColor` tokens were removed from the editor, presets, and published CSS. **Update 2026-09-21 (favicon):** Branding has a favicon upload under the logo (`theme_json.faviconUrl`). `generate_directory_site` emits `<link rel="icon">` and `<link rel="apple-touch-icon">` on every published page. Unset directories keep the host default. Save branding then republish, same as the logo. **Update 2026-09-21 (hero banner):** Branding has a **Hero banner** section (`theme_json.heroBannerUrl` + `heroBannerHeight`). When set, `generate_directory_site` paints a full-width image behind the header and top of every page, fading into the page background colour. The image extends 100px past the configured height, and header background colours are rendered at 40% transparency so the photograph shows through. Directories with no banner are unchanged. **Update 2026-09-21 (logo height):** header logo height is configurable 24–240px (slider + number; width auto). Unset default is 84px (twice the original 42). Previously saved heights are kept; publish clamp is 240px. |
+| Directory visual design system (DIR-E3, homepage + listing page) | **Deployed to staging + production 2026-08-27** | `generate_directory_site` rebuilt to match the "Ethical Elephant Directory" companion design canvas (read directly from its Claude Design artifact this session — see docs/DEPLOYMENTS.md for how) rather than a generic template of the agent's own invention. Verified end-to-end against a real staging directory (13 entries regenerated successfully); the real production `elephants` directory hasn't been republished with it yet — pending the user doing that themselves. New shared `siteHeader()`/`siteFooter()` (full-bleed background, centered `.wrap` content — the "100% width header" the user specifically flagged as missing) used on every page. Homepage: hero, a real keyword search (client-side, filters the rendered result cards — no new backend), a pins-only map (new `/directory-embed` SPA route + `DirectoryEmbedMap.jsx`, fed by a new static `entries.json` blob mirroring `EmbedMap.jsx`'s own `snapshot.json` pattern rather than adding new anon RLS), and a real results grid. Listing/entry pages: breadcrumb + on-brand per-block styling (hero, quick-facts tag chips, Viator-style product tiles, a bordered contact card) — DIR-E6's full-page block reordering is kept as-is rather than hard-coding the mockup's fixed 2-column sticky-aside layout, a deliberate simplification (every block reorderable, single column, not literally sticky). Filtering/results page and the standalone map embed's bespoke floating chrome are a deferred, separate phase — not built here. This phase does **not** hold the "zero behaviour change" bar every prior phase did: a directory that has never touched `theme_json` now renders with the Natural preset's colours/fonts by default, not the old plain style. |
+| Directory entry layout designer (DIR-E6) | **Deployed to staging + production 2026-08-27** | `entry_templates` (new table, docs/DIRECTORIES.md §4.4) holds an ordered `layout_json` block list per directory, with multi-template support from v1 (a template can target a specific group or category term, resolved term > group > default). `EntryLayoutDesigner.jsx` (client + admin) — native HTML5 drag-and-drop block reordering (no new dependency added), live preview against a real entry, block palette extended beyond the original 6-block spec to cover every entry-extras content type Phase 2 added (evidence/media/accreditations/links/tiles), plus a `logo` block that renders `directory_entries.logo_url` for the first time (that field existed but was never rendered anywhere before this). `generate_directory_site` resolves and renders the applicable template per entry; a directory with no `entry_templates` rows renders with the exact pre-existing block order (verified via a standalone resolution-order test) — content and order are unchanged for every directory that hasn't opened the designer, though incidental HTML whitespace inside the merged contact-details block differs in some cases (no visual or functional effect). Categorisation-tag blocks link to `?<key>=<slug>` on the directory index in preparation for DIR-E7's faceted filtering, which doesn't read that parameter yet. No per-entry interactive map embed (`address_map` renders text only, same as before). |
+| Directory browse/entry redesign (Claude Design concept, layout only) | **Deployed to staging + production 2026-09-14** — no live client directories exist yet to verify against | Rebuilds the directory homepage/entry page layout to a new design concept — colour/font/radius tokens untouched (all 5 branding presets keep their look), only structure changes. **Phase 0** (categorisation facet kinds): `categorisations.field_type` (multi_select/single_select/boolean) + `categorisation_attachments.sort_order`, admin UI updated, applied to staging. **Phases 1–2** (landing page + list/map toggle, built together): the single keyword-search + card-grid homepage from the DIR-E3 visual rebuild (row above) is replaced by a filter rail (tag/select/switch controls per categorisation), a result toolbar (exact count-line copy, removable filter chips, Clear all, List/Map toggle), row-based results, and a ported intent-search/scoring algorithm (replacing plain substring search). The Map option swaps the results column for the existing map `<iframe>` at full width (no map-component changes) with a floating count chip; the rail persists across both views. Shareable/bookmarkable filtered URLs (closes DIR-E7-S3). **Phase 3** (entry page): a fixed header band (logo/name/description/tags/actions, pulled out of the reorderable DIR-E6 block list), a sticky jump-chip bar driven by an optional per-block section label (new in `layout_json`), and an automatic right aside — Location (optional Google Static Maps thumbnail + link to the attached map), Directory attributes (every attached single-select/boolean categorisation, including "—"/"No" rows), a chip block per multi-select categorisation the entry holds, and up to 4 Related entries ranked by shared categorisation terms. Caught and fixed a real duplicate-heading bug (the `evidence` block's own hardcoded `<h2>`) via the preview script before it reached any real directory. **Phase 4** (final): at ≤640px the filter rail becomes a bottom-sheet drawer (same convention as `PublishedMapView.jsx`'s mobile sheet) with a "Filters (n)" trigger, sticky Filters/Clear/Show N header, live count; global `:focus-visible` outline added on every interactive element. All phases verified via a local preview script (`supabase/functions/generate_directory_site/preview.ts`, `deno run`) at desktop/tablet/mobile widths — no Supabase project needed to iterate on this Edge Function's HTML output. Deployed to staging then, with explicit user sign-off ("no live client directories yet"), to production on 2026-09-14 — the migration and Edge Function are both live; nothing has exercised the new layout against a real directory yet since none exist. **Update 2026-09-18**: replaced the mutually-exclusive List/Map toggle with a permanent side-by-side layout on desktop (≥901px) — `.dir-results`/`.dir-map-pane` now render together via the existing `.dir-body` flex row, with the List/Map toggle retained but scoped to ≤900px only (CSS-gated, no JS branching). The embedded map iframe also gets a new `hideListPanel=1` flag (`EmbedMap.jsx`) that forces `showListPanel` off regardless of the map's own `show_list_panel` setting, so the map no longer renders its own duplicate search box/filter chips/results list inside the directory embed — only its native controls (zoom, clustering) remain, correctly repositioned via `PublishedMapView.jsx`'s existing `showListPanel`-driven control offset. Filter-to-pin sync (`postMessage`) was already working and is unchanged. **Update 2026-09-18 (2)**: on desktop (≥901px), the filter rail no longer sits as a fixed 250px column beside results and map — it's now a full-width, wrapping horizontal bar above them, and results/map (wrapped in a new `.dir-content-row`) split two-thirds/one-third instead of the previous even 50/50, so results aren't squeezed as narrow. Tablet (641–900px) and mobile (≤640px) — stacked rail, List/Map toggle, and the mobile drawer — are unchanged; no JS changes were needed. Verified via the same local preview script at desktop/tablet/mobile widths, not yet deployed. **Update 2026-09-21**: homepage result rows drop the third (address/category) column. Address and single-choice category sit under the description; the logo cell is a full-height column whose panel background fills the cell (208px wide on desktop, 64px below that) with the mark centred. **Update 2026-09-28 (entry page redesign)**: rebuilt the fixed entry-page chrome from Phase 3 per a new design brief fixing four named problems (narrow square logo, cramped H1, contact info buried below the map, duplicated actions). Logo tile is now landscape (360×160 desktop, full-width 140px on mobile, initials fallback when no logo). Hero adds a one-line summary (meta description, or the first sentence of the entry's notes) and a chip rail (one per single-select/true-boolean categorisation the entry holds) — additive to, not replacing, the existing "Directory attributes" table. Breadcrumb upgraded from a plain back-link to Directory → category → name, with matching `BreadcrumbList` JSON-LD. All header action buttons (Visit website, Make an Enquiry, Show on map, Claim this listing) moved into a new sidebar Contact & address panel (website + domain + address + enquiry) above the map card, so each action appears exactly once; Claim this listing is now a quiet text link under the map. Related entries moved from a compact aside list to a full-width 4-up card section below the two-column layout. The map card embeds the directory's attached interactive map focused on that entry's own pin (new `focus=<entry.id>` param on `EmbedMap.jsx`, reusing its existing internal `centerOnListingId` pan/zoom/select mechanism — zoom defaults to 15, `gestureHandling="cooperative"` was already the embed's default) when one is attached, falling back to the pre-existing static thumbnail otherwise. `logo`/`heading`/`address_map`/`contact_details` are now all no-op block types in the designer (previously only `logo`/`heading` were). Because none of this is a data change, `chromeHash` (`generate_directory_site/index.ts`) gained a `templateVersion` field (`builders.ts`'s `ENTRY_TEMPLATE_VERSION`) so an already-published directory's next ordinary Publish picks up the new template — without it, a directory whose entries/categorisations/settings hadn't otherwise changed would have kept serving the old layout indefinitely. Verified via the local preview script at desktop/mobile widths; not yet exercised against a real staging directory's attached map. |
+| Feature flags | **Deployed** | Registry + per-org overrides + `get_my_feature_flags()` resolver; admin toggle on customer detail; used to gate Directories/Categorisations |
+| Entitlements (plans/features/overrides) | **Deployed** | `products`/`plans`/`features`/`plan_features`/`client_overrides` + `get_my_entitlements()`/`get_client_entitlements()` resolvers; server-side enforcement (triggers on `maps`/`contacts`/`listings`, view-level gate for messaging); admin Entitlements tab for plan assignment + per-client overrides; shared `EntitlementGate`/`EntitlementUsageHint` UI kit. Catalog so far: `max_maps`, `messaging`, `seats`, `data_rows` |
+| Add-ons (buy more seats/rows/etc.) | **Not started** | Planned: let customers purchase additional seats, data rows, etc. beyond their plan's included amount. The `client_overrides` mechanism can already represent "this client gets more than their plan default" (that's how admin-granted grants and messaging grandfathering work today) — an add-ons feature would need a self-serve purchase flow (Stripe) that creates/extends the right override automatically, plus a way to distinguish a *purchased* add-on from an *admin-granted* one (billing implications, renewal/expiry, invoicing) |
+| Intent-Based AI Search (Epic 2) | **Removed (2026-09-06)** | Was deployed to staging + production, hidden behind the `ai_search` feature flag, never released to customers. Removed in full (schema, both Edge Functions, chat UI, flag/entitlement) — superseded by directory-level AI content generation (§4.4g). See §4.4d. |
+| Directory AI content generation (§4.4g) | **In development** | Per-directory admin prompt; Claude writes an entry's page content (`notes_html`) — auto on insert if empty, on-demand per entry, or a directory-wide regenerate-all with a type-to-confirm guard. Full version history for every save. |
+| Directory AI Help me choose (§4.4h, DIR-E7-S1) | **Updated, 2026-09-21** | Per-directory admin prompt plus optional web-search opt-in. The published search box is fast full-listing keyword matching (no LLM). Help me choose is a separate dialogue that reuses `directory_ai_search` (conversation, follow-ups, listing ids, optional grounded reasons) and writes the same list/map result set. |
+| Directory & LLM/Search Discoverability (Epic 3) | **Deployed (flagged)** | Crawlable per-listing + directory landing pages (schema.org JSON-LD, embedded interactive map, sitemap.xml) via a new Vercel Edge Middleware + `generate_directory_pages` Edge Function, deployed to staging + production; hidden behind the `directory_pages` feature flag + its own `maps.directory_pages` entitlement. No root-level combined sitemap, no curated (vs. fully generic) research rendering yet |
+| Bring Your Own Domain (Epic 4) | **Deployed to staging + production (flagged), Phases 0–2 of 6; Phases 4a–4c (directory generalization + branding) deployed to production 2026-08-27** | Domain registration, DNS verification, Vercel domain attachment, and host-based routing (`middleware.js` + `resolve_custom_domain()` RPC), behind the `custom_domain` feature flag (off by default) + `maps.custom_domain` entitlement. Verified end-to-end against a real domain on staging; verified via real Vercel edge routing on production. No production client has used this yet — the flag is off for everyone by default. SEO metadata generalization, favicon, and Google Analytics are Phases 3–5, not started. Separately: `client_domains`/`resolve_custom_domain()`/`middleware.js` generalized to be entity-polymorphic (map or directory) — in production, confirmed live against the one real customer domain (`ethical-elephant-sanctuaries.com` resolves via the new shape through the real Vercel edge network, zero regression). `DomainSettings.jsx`/`manage_client_domain` (Phase 4b) also generalized and in production — a client can pick a map or a directory in the "Publishes" dropdown; directory domains gate on the `directories` feature flag (no separate entitlement), map domains keep the existing `maps.custom_domain` entitlement gate unchanged. No interactive click-through of the new UI yet (no test credentials available this session) — recommend the user verify directly. |
+| Claimed Directory Listings (§4.4m) | **Deployed to production (flagged), all 10 phases complete** | Lets an organisation claim, verify, and manage one directory item without becoming a directory administrator. Behind the `claims` feature flag (off by default) + `maps.claims` entitlement (Professional+). Phase 0–1 landed the entitlement, event taxonomy, and full domain schema. Phase 2 added the admin/client Claims tab. Phase 3 made the Claims sub-tab real (admin create/verify/activate/suspend/revoke, manual payment status, `/claim/login` magic-link auth). Phase 4 built the claim-user **Listing Manager** shell. Phase 5 made Listing/SEO/Contact details/Team genuinely editable, plus an admin/client Team editor for parity. Phase 6 (the epic's highest-risk phase) added a genuinely isolated **Publish** for a claimed listing (`generate_directory_site`'s `claim_item` scope), plus fixed a real pre-existing manifest bug found along the way and flagged (not fixed) a broader pre-existing caller-authorization gap on the function's other scopes. Phase 7 made the public **"Claim this listing"** button real — self-service, gated on the directory's settings + the client's entitlement + the item being unclaimed, verified via the same domain-check rules the admin flow already uses, activating straight to `active` with no payment step (a manual admin claim is still the only path to `active` that involves recording payment today). Phase 8 added **ownership transfer** on both the claim-user Listing Manager and the admin Claims tab, sharing one RPC pair — instant for an already-logged-in editor, pending (magic-link invitation) for anyone else, with the previous owner always demoted to editor rather than removed. **Phase 9 (this deploy, epic complete)** is the docs & acceptance pass: fixed two small event-instrumentation gaps (claim-user-side invite/remove of an editor wasn't firing `claim_user_invited`/`claim_user_removed`), documented two reserved-but-intentionally-unemitted events, added the new claim-applicant data flow to `docs/DATA_AND_PRIVACY.md`, and ran a full pass against the original spec's acceptance checklist (see §4.4m) — every statement holds except online payment, explicitly deferred to the separate Stripe follow-up epic. The actual happy-path click-throughs (self-service claim, ownership transfer, both branches) are still unverified against real data — no test login credentials were available this session; recommend a real end-to-end test before this goes live for a customer. |
+
+---
+
+## 11. Route reference
+
+| Path | Component |
+|------|-----------|
+| `/` | `PublicMap` |
+| `/pricing` | `Pricing` |
+| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Auth pages |
+| `/terms` | `Terms` |
+| `/privacy` | `Privacy` |
+| `/embed` | `EmbedMap` |
+| `/map` | `CustomDomainMap` (resolves the map by request hostname; only meaningful on a verified custom domain) |
+| `/client` | `ClientHome` |
+| `/client/maps` | `ClientDashboard` |
+| `/client/team` | `ClientTeam` |
+| `/client/email` | `ClientEmail` |
+| `/client/domains` | `ClientDomains` (flagged: `custom_domain`) |
+| `/client/maps/new` | `ClientMapNew` |
+| `/client/maps/:mapId` | `ClientMapDashboard` |
+| `/client/maps/:mapId/data` | `ClientMapData` |
+| `/client/maps/:mapId/listings` | `ClientMapListings` |
+| `/client/maps/:mapId/stats` | `MapStats` |
+| `/client/maps/:mapId/stats/listings/:listingId` | `ListingStats` |
+| `/client/directories` | `ClientDirectories` |
+| `/client/directories/new` | `ClientDirectoryNew` |
+| `/client/directories/:directoryId` (+ nested `entries`, `pages`, `categories`, `accreditations`, `design`, `search`, `claims`, `enquiries`, `analytics`, `settings`, `seo`, `publishing`, `integrations`) | see `src/components/directoryPanel/*Route.jsx` (admin shell redesign, Phase 2) |
+| `/client/categorisations` | `ClientCategorisations` |
+| `/admin/clients` | `AdminClients` |
+| `/admin/maps` | `AdminMaps` |
+| `/admin/clients/:clientId/maps/:mapId` | `AdminMapDashboard` |
+| `/admin/clients/:clientId/maps/:mapId/stats` | `AdminMapStats` |
+| `/admin/clients/:clientId/maps/:mapId/stats/listings/:listingId` | `AdminListingStats` |
+| `/admin/clients/:clientId/directories/new` | `AdminDirectoryNew` |
+| `/admin/clients/:clientId/directories/:directoryId` (same nested children as above) | `AdminDirectoryPanelLayout` + the same shared `directoryPanel/*Route.jsx` components |
+| `/admin/user-activity` | `AdminUserActivity` |
+| `/admin/error-log` | `AdminErrorLogs` |
+| `/admin/deployments` | `AdminDeployments` |
+
+Full route tree: `src/App.jsx`.
+
+
+## Messaging profiles and per-map/directory messaging (2026-10-03)
+
+Messaging was one set of settings per organisation on `clients`. It is now:
+
+- **`messaging_profiles`** — organisation-level sending identities (From name/address, Resend domain, status, DNS records). Many per organisation, managed at `/client/email` (`MessagingProfiles.jsx` / `MessagingProfileEditor.jsx`) and the admin customer Messaging tab. Profiles on the same domain share verification state.
+- **Per map and per directory** — `messaging_profile_id`, `messaging_enabled`, `email_test_mode` (default on), `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro`. Edited by `EntityMessagingSettings.jsx` (Messaging tab on map dashboards, directory Email tab).
+- **Readiness** — messaging is effective only when the toggle is on, a profile is chosen and the `messaging` entitlement resolves true. Enforced in `map_messaging_settings` / `directory_messaging_settings` (anon-readable views) and re-checked in `send_contact_message`. There is no fallback for "no profile".
+- The old `clients.messaging_*`, `email_*` columns and the `client_messaging_settings` view are left in place (legacy, no longer read) pending a separate cleanup migration.

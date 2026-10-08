@@ -1,10 +1,10 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import AdminGate from "./components/AdminGate.jsx";
 import ClientGate from "./components/ClientGate.jsx";
 import FeatureGate from "./components/FeatureGate.jsx";
-import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG } from "./lib/featureFlags.js";
+import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG, INTEGRATIONS_FLAG } from "./lib/featureFlags.js";
 
 import PublicMap from "./pages/PublicMap.jsx";
 import SlugMap from "./pages/SlugMap.jsx";
@@ -18,6 +18,8 @@ import Privacy from "./pages/Privacy.jsx";
 import EmbedMap from "./pages/EmbedMap.jsx";
 import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
+import ClaimLogin from "./pages/claim/ClaimLogin.jsx";
+import ClaimManager from "./pages/claim/ClaimManager.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
@@ -41,14 +43,16 @@ import AdminSyncLog from "./pages/admin/AdminSyncLog.jsx";
 import AdminLeads from "./pages/admin/AdminLeads.jsx";
 import AdminDirectories from "./pages/admin/AdminDirectories.jsx";
 import AdminDirectoryNew from "./pages/admin/AdminDirectoryNew.jsx";
-import AdminDirectoryEntries from "./pages/admin/AdminDirectoryEntries.jsx";
+import AdminDirectoryPanelLayout from "./pages/admin/AdminDirectoryPanelLayout.jsx";
 import AdminDirectoryEntryEdit from "./pages/admin/AdminDirectoryEntryEdit.jsx";
 
 import ClientLayout from "./pages/client/ClientLayout.jsx";
 import ClientDashboard from "./pages/client/ClientDashboard.jsx";
+import ClientHome from "./pages/client/ClientHome.jsx";
 import ClientTeam from "./pages/client/ClientTeam.jsx";
 import ClientEmail from "./pages/client/ClientEmail.jsx";
 import ClientDomains from "./pages/client/ClientDomains.jsx";
+import ClientIntegrations from "./pages/client/ClientIntegrations.jsx";
 import ClientMapNew from "./pages/client/ClientMapNew.jsx";
 import ClientMapDashboard from "./pages/client/ClientMapDashboard.jsx";
 import ClientMapData from "./pages/client/ClientMapData.jsx";
@@ -57,9 +61,26 @@ import MapStats from "./pages/client/MapStats.jsx";
 import ListingStats from "./pages/client/ListingStats.jsx";
 import ClientDirectories from "./pages/client/ClientDirectories.jsx";
 import ClientDirectoryNew from "./pages/client/ClientDirectoryNew.jsx";
-import ClientDirectoryEntries from "./pages/client/ClientDirectoryEntries.jsx";
 import ClientDirectoryEntryEdit from "./pages/client/ClientDirectoryEntryEdit.jsx";
 import ClientCategorisations from "./pages/client/ClientCategorisations.jsx";
+
+import DirectoryOverviewRoute from "./components/directoryPanel/DirectoryOverviewRoute.jsx";
+import DirectoryEntriesRoute from "./components/directoryPanel/DirectoryEntriesRoute.jsx";
+import DirectoryAiEnrichmentRoute from "./components/directoryPanel/DirectoryAiEnrichmentRoute.jsx";
+import DirectoryPagesRoute from "./components/directoryPanel/DirectoryPagesRoute.jsx";
+import DirectoryCategoriesRoute from "./components/directoryPanel/DirectoryCategoriesRoute.jsx";
+import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryAccreditationsRoute.jsx";
+import DirectoryDesignRoute from "./components/directoryPanel/DirectoryDesignRoute.jsx";
+import DirectorySearchRoute from "./components/directoryPanel/DirectorySearchRoute.jsx";
+import DirectoryClaimsRoute from "./components/directoryPanel/DirectoryClaimsRoute.jsx";
+import DirectoryEnquiriesRoute from "./components/directoryPanel/DirectoryEnquiriesRoute.jsx";
+import DirectoryAnalyticsRoute from "./components/directoryPanel/DirectoryAnalyticsRoute.jsx";
+import DirectorySettingsGeneralRoute from "./components/directoryPanel/DirectorySettingsGeneralRoute.jsx";
+import DirectorySettingsSeoRoute from "./components/directoryPanel/DirectorySettingsSeoRoute.jsx";
+import DirectoryPublishingRoute from "./components/directoryPanel/DirectoryPublishingRoute.jsx";
+import DirectoryDomainRoute from "./components/directoryPanel/DirectoryDomainRoute.jsx";
+import DirectoryIntegrationsRoute from "./components/directoryPanel/DirectoryIntegrationsRoute.jsx";
+import DirectoryAccessGuard from "./components/shell/DirectoryAccessGuard.jsx";
 
 export default function App() {
   return (
@@ -76,6 +97,8 @@ export default function App() {
       <Route path="/embed" element={<EmbedMap />} />
       <Route path="/map" element={<CustomDomainMap />} />
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
+      <Route path="/claim/login" element={<ClaimLogin />} />
+      <Route path="/claim/manage/:claimId" element={<ClaimManager />} />
 
       {/* Client portal */}
       <Route
@@ -86,10 +109,12 @@ export default function App() {
           </ClientGate>
         }
       >
-        <Route index element={<ClientDashboard />} />
+        <Route index element={<ClientHome />} />
+        <Route path="maps" element={<ClientDashboard />} />
         <Route path="team" element={<ClientTeam />} />
         <Route path="email" element={<ClientEmail />} />
         <Route path="domains" element={<FeatureGate flag={CUSTOM_DOMAIN_FLAG}><ClientDomains /></FeatureGate>} />
+        <Route path="integrations" element={<FeatureGate flag={INTEGRATIONS_FLAG}><ClientIntegrations /></FeatureGate>} />
         <Route path="maps/new" element={<ClientMapNew />} />
         <Route path="maps/:mapId" element={<ClientMapDashboard />} />
         <Route path="maps/:mapId/data" element={<ClientMapData />} />
@@ -98,13 +123,39 @@ export default function App() {
         <Route path="maps/:mapId/stats/listings/:listingId" element={<ListingStats />} />
         <Route path="directories" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectories /></FeatureGate>} />
         <Route path="directories/new" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryNew /></FeatureGate>} />
-        <Route path="directories/:directoryId" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntries /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="basic" /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId/categories" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="categories" /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId/content" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="content" /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId/seo" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="seo" /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId/panel" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="panel" /></FeatureGate>} />
-        <Route path="directories/:directoryId/entries/:entryId/preview" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientDirectoryEntryEdit tab="preview" /></FeatureGate>} />
+        <Route
+          path="directories/:directoryId"
+          element={<FeatureGate flag={DIRECTORIES_FLAG}><DirectoryAccessGuard><Outlet /></DirectoryAccessGuard></FeatureGate>}
+        >
+          <Route index element={<DirectoryOverviewRoute />} />
+          <Route path="entries" element={<DirectoryEntriesRoute />} />
+          <Route path="pages" element={<DirectoryPagesRoute />} />
+          <Route path="categories" element={<DirectoryCategoriesRoute />} />
+          <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
+          <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
+          <Route path="design" element={<DirectoryDesignRoute />} />
+          <Route path="search" element={<DirectorySearchRoute />} />
+          <Route path="claims" element={<DirectoryClaimsRoute />} />
+          <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
+          <Route path="email-log" element={<DirectoryEnquiriesRoute section="log" />} />
+          {/* Old URLs, before Emails became its own nav category */}
+          <Route path="email-sending" element={<Navigate to="../email-settings" replace />} />
+          <Route path="enquiries" element={<Navigate to="../email-settings" replace />} />
+          <Route path="insights" element={<DirectoryAnalyticsRoute />} />
+          <Route path="analytics" element={<Navigate to="../insights" replace />} />
+          <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
+          <Route path="seo" element={<DirectorySettingsSeoRoute />} />
+          <Route path="publishing" element={<DirectoryPublishingRoute />} />
+        <Route path="domain" element={<DirectoryDomainRoute />} />
+          <Route path="domain" element={<DirectoryDomainRoute />} />
+          <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
+          <Route path="entries/:entryId" element={<ClientDirectoryEntryEdit tab="basic" />} />
+          <Route path="entries/:entryId/categories" element={<ClientDirectoryEntryEdit tab="categories" />} />
+          <Route path="entries/:entryId/content" element={<ClientDirectoryEntryEdit tab="content" />} />
+          <Route path="entries/:entryId/seo" element={<ClientDirectoryEntryEdit tab="seo" />} />
+          <Route path="entries/:entryId/panel" element={<ClientDirectoryEntryEdit tab="panel" />} />
+          <Route path="entries/:entryId/preview" element={<ClientDirectoryEntryEdit tab="preview" />} />
+        </Route>
         <Route path="categorisations" element={<FeatureGate flag={DIRECTORIES_FLAG}><ClientCategorisations /></FeatureGate>} />
       </Route>
 
@@ -162,6 +213,14 @@ export default function App() {
 
       <Route
         path="/admin/clients/:clientId"
+        element={
+          <AdminGate>
+            <AdminClientDetail />
+          </AdminGate>
+        }
+      />
+      <Route
+        path="/admin/clients/:clientId/:tab"
         element={
           <AdminGate>
             <AdminClientDetail />
@@ -251,59 +310,37 @@ export default function App() {
         path="/admin/clients/:clientId/directories/:directoryId"
         element={
           <AdminGate>
-            <AdminDirectoryEntries />
+            <AdminDirectoryPanelLayout />
           </AdminGate>
         }
-      />
-
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="basic" />
-          </AdminGate>
-        }
-      />
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/categories"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="categories" />
-          </AdminGate>
-        }
-      />
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/content"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="content" />
-          </AdminGate>
-        }
-      />
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/seo"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="seo" />
-          </AdminGate>
-        }
-      />
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/panel"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="panel" />
-          </AdminGate>
-        }
-      />
-      <Route
-        path="/admin/clients/:clientId/directories/:directoryId/entries/:entryId/preview"
-        element={
-          <AdminGate>
-            <AdminDirectoryEntryEdit tab="preview" />
-          </AdminGate>
-        }
-      />
+      >
+        <Route index element={<DirectoryOverviewRoute />} />
+        <Route path="entries" element={<DirectoryEntriesRoute />} />
+        <Route path="pages" element={<DirectoryPagesRoute />} />
+        <Route path="categories" element={<DirectoryCategoriesRoute />} />
+        <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
+        <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
+        <Route path="design" element={<DirectoryDesignRoute />} />
+        <Route path="search" element={<DirectorySearchRoute />} />
+        <Route path="claims" element={<DirectoryClaimsRoute />} />
+        <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
+        <Route path="email-log" element={<DirectoryEnquiriesRoute section="log" />} />
+        {/* Old URLs, before Emails became its own nav category */}
+        <Route path="email-sending" element={<Navigate to="../email-settings" replace />} />
+        <Route path="enquiries" element={<Navigate to="../email-settings" replace />} />
+        <Route path="insights" element={<DirectoryAnalyticsRoute />} />
+        <Route path="analytics" element={<Navigate to="../insights" replace />} />
+        <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
+        <Route path="seo" element={<DirectorySettingsSeoRoute />} />
+        <Route path="publishing" element={<DirectoryPublishingRoute />} />
+        <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
+        <Route path="entries/:entryId" element={<AdminDirectoryEntryEdit tab="basic" />} />
+        <Route path="entries/:entryId/categories" element={<AdminDirectoryEntryEdit tab="categories" />} />
+        <Route path="entries/:entryId/content" element={<AdminDirectoryEntryEdit tab="content" />} />
+        <Route path="entries/:entryId/seo" element={<AdminDirectoryEntryEdit tab="seo" />} />
+        <Route path="entries/:entryId/panel" element={<AdminDirectoryEntryEdit tab="panel" />} />
+        <Route path="entries/:entryId/preview" element={<AdminDirectoryEntryEdit tab="preview" />} />
+      </Route>
 
       <Route
         path="/admin/users"

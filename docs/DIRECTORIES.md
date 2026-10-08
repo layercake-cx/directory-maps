@@ -46,7 +46,7 @@ Two generations of pattern exist for the map `listings` entity; this spec follow
   - Bulk actions: `selectedIds` as a `Set` in state, a "Bulk edit filters" button opening `src/components/BulkFilterEditModal.jsx`, which upserts into an EAV values table with an `onConflict` clause and an add-vs-replace mode toggle.
   - CSV import: **no interactive column-mapper** — a fixed-header-convention template (`downloadTemplate()` emits `id,name,address,postcode,country,lat,lng,website_url,email,phone,logo_url,notes_html,allow_html,group_name,is_active` plus one auto-appended `filter_<key>` column per active custom field), hand-rolled RFC4180 parser (`parseCSV`), Replace-vs-Add-to-existing choice, then `upsert(..., { onConflict: "id" })`. Directories' import/mapping requirement (scope item 1) is genuinely new UI if free-form column mapping is wanted — reusing the template-download convention is the lower-risk, pattern-consistent option (see DIR-E1-S6).
   - Delete/archive: `listings.is_active` is a soft **visibility** toggle (still shown in admin, hidden from the public map), not an audit-safe archive. Actual deletion is a hard `DELETE` behind a native `window.confirm()` — there is no Mantine confirm dialog anywhere in the codebase.
-  - Per-record custom fields: `map_filter_fields` / `map_filter_field_options` / `listing_filter_values` (`supabase/migrations/20260713120000_create_map_filter_fields.sql`) is a mature three-table EAV pattern (field defs → options → per-record values) with its own admin panel (`src/components/FilterFieldsPanel.jsx`) and CSV-import glue (`src/lib/filterFields.js`). This is the strongest existing precedent for the new Categorisation model in DIR-E5, and this spec explicitly reuses its shape rather than inventing a new one.
+  - Per-record custom fields: `map_filter_fields` / `map_filter_field_options` / `listing_filter_values` (`supabase/migrations/20260713120000_create_map_filter_fields.sql`) is a mature three-table EAV pattern (field defs → options → per-record values) with its own admin panel (`src/components/FilterFieldsPanel.jsx`) and CSV-import glue (`src/lib/filterFields.js`). This is the strongest existing precedent for the new Category model in DIR-E5, and this spec explicitly reuses its shape rather than inventing a new one.
 
 ### 3.3 Settings screens
 
@@ -61,6 +61,8 @@ This "individual columns for structure + one jsonb blob for cosmetic settings + 
 ### 3.4 Map embedding mechanism
 
 Embed code is generated in the Publish tab of `AdminMapDashboard.jsx` / `ClientMapDashboard.jsx`: an `embedSrc` (`https://<origin>/:clientSlug/:mapSlug`, or a legacy `/embed?map=<id>` fallback) wrapped in a small `<style>` + `<div>` + `<iframe>` snippet (`embedIframe`), shown with "Copy embed code" / "Launch map" actions. The iframe target is `src/pages/EmbedMap.jsx` (own anon-only Supabase client, tries a CDN JSON snapshot first, falls back to live reads of `maps`/`map_publications`/`public_listings`/`groups`), reached either via `/embed?map=` or via `/:clientSlug/:mapSlug` → `SlugMap.jsx` → `get_map_id_by_slugs` RPC → `EmbedMap`. If a published directory ever needs its own embed snippet (list UI on an external site), copy this same `embedSrc`/`embedIframe` convention — retargeted at the directory's public URL — as part of DIR-E2 publishing. Do **not** treat this as a reason to "link" or embed an existing map onto a directory page; the map↔directory product relationship is the other way around (DIR-E4: a map uses a directory as its pin datasource).
+
+`EmbedMap.jsx`'s query params, read alongside `map` (the map id): `hideFilterBar=1` and `hideListPanel=1` (both set by a directory's own iframe — landing page or entry page — since that page renders its own filter/results chrome and would otherwise duplicate the map's), and `focus=<directory_entries.id>` (2026-09-28 — entry page redesign, §4.7 — pans/zooms/selects that one pin on load, for the entry detail page's focused map card).
 
 **Correction to a common assumption:** the app does **not** use `HashRouter` today. `src/Root.jsx` uses `BrowserRouter`; `src/lib/hashSearchParams.js` contains an explicit comment confirming the migration away from hash routing, and `index.html` still carries a legacy `#/...` → clean-path redirect shim for old bookmarks. (The docs that previously described hash routes — `AGENTS.md`, `docs/README.md`, `docs/FEATURES.md`, `docs/DEPLOY.md`, and others — have since been corrected; see `docs/FRONTEND_ARCHITECTURE.md`.) This matters directly for the SEO/rendering NFRs below (§5).
 
@@ -159,9 +161,9 @@ Seed schema requested: `id, name, address, postcode, country, website_url, email
 
 Columns added by later migrations, not shown above: `show_phone`/`show_email`/`show_website`/`show_address` (contact-field visibility toggles, boolean default `true`), `slug` (`not null`, unique per directory, auto-derived from `name` on insert), `og_title`/`og_description`/`og_image_url`/`canonical_url`/`keywords`/`twitter_card_type` (social/SEO), `panel_image_url`/`panel_background_color` (homepage card styling). All of these except `slug`'s auto-derivation, plus everything above from `meta_title` down to `sitemap_priority`, are part of the CSV import/export contract as of DIR-E1-S8 — see that story and AGENTS.md's "Directory entries CSV import/export contract" note for which columns are (and deliberately aren't) included.
 
-**Reconciling `group_name` with the new Categorisation model (scope item 5):** `group_name` remains, unchanged, as the simple single-value grouping column used by CSV import today — `directory_groups` is a straight copy of the existing `groups` table, scoped to `directory_id` instead of `map_id`, for exactly this purpose, and the CSV template keeps a `group_name` column with the same auto-create-on-import behaviour as `groups` has today. The new, richer **Categorisation** model (§4.3) is additive and reusable *across directories* — e.g. a "Sector" categorisation shared by every directory a client owns — which `directory_groups` structurally cannot do (it is per-directory only, single-valued, exactly like `groups` is per-map only). Put simply: `directory_group_id` answers "which single group is this entry filed under" (cheap, familiar, matches existing import UX); `entry_category_terms` answers "which of any number of reusable, multi-directory taxonomy terms apply to this entry" (the new capability). Both coexist, exactly as `groups` and `map_filter_fields` already coexist for maps today (§3.2) — this is not a novel shape for this codebase, it's the same precedent applied to a new entity.
+**Reconciling `group_name` with the new Category model (scope item 5):** `group_name` remains, unchanged, as the simple single-value grouping column used by CSV import today — `directory_groups` is a straight copy of the existing `groups` table, scoped to `directory_id` instead of `map_id`, for exactly this purpose, and the CSV template keeps a `group_name` column with the same auto-create-on-import behaviour as `groups` has today. The new, richer **Category** model (§4.3) is additive and reusable *across directories* — e.g. a "Sector" categorisation shared by every directory a client owns — which `directory_groups` structurally cannot do (it is per-directory only, single-valued, exactly like `groups` is per-map only). Put simply: `directory_group_id` answers "which single group is this entry filed under" (cheap, familiar, matches existing import UX); `entry_category_terms` answers "which of any number of reusable, multi-directory taxonomy terms apply to this entry" (the new capability). Both coexist, exactly as `groups` and `map_filter_fields` already coexist for maps today (§3.2) — this is not a novel shape for this codebase, it's the same precedent applied to a new entity.
 
-### 4.3 Categorisations (taxonomies) — DIR-E5
+### 4.3 Categories (taxonomies) — DIR-E5
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -179,6 +181,8 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 | `entry_templates` | `id uuid pk`, `directory_id → directories.id`, `name text`, `is_default boolean`, `applies_to_group_id text null → directory_groups.id`, `applies_to_term_id uuid null → category_terms.id`, `layout_json jsonb`, `created_at`, `updated_at` | `layout_json` is an ordered array of block descriptors, e.g. `[{type:"logo"},{type:"heading",field:"name"},{type:"address_map"},{type:"contact_details",fields:["phone","email","website_url"]},{type:"notes_html"},{type:"categorisation",key:"sector"}]`. A single jsonb blob for a designer's output matches the existing `theme_json`/`mapStyleSettings` precedent — no new persistence pattern is introduced. |
 
 **Decision (2026-07-14): multiple templates are supported in v1**, not deferred. A directory can have several named `entry_templates` rows. Exactly one has `is_default = true` (the fallback used when nothing more specific matches). Any other template may optionally target a specific `directory_group_id` or `category_term_id` (mutually exclusive — a template targets a group *or* a term, not both) to override the default for just that slice of entries. Resolution order per entry, most specific first: (1) a template whose `applies_to_term_id` matches one of the entry's `entry_category_terms`, (2) a template whose `applies_to_group_id` matches the entry's `directory_group_id`, (3) the directory's default template. If more than one term-targeted template matches an entry (it has several tags with distinct templates assigned), the tie-break is the term's `category_terms.sort_order`. Deleting a non-default template that is still targeted simply falls back that slice of entries to the default — it does not delete entries or their data.
+
+**Update (2026-09-28 — entry page redesign):** `logo`, `heading`, `address_map` and `contact_details` are now all no-op block types on the published page (previously only `logo`/`heading` were, per §4.1's original "not rendered until DIR-E6" note above). The entry's logo, name, address, and every contact detail (website button, domain, address text, plus Make an Enquiry) now live in a fixed hero band and a fixed sidebar Contact & address panel that render on every entry regardless of `layout_json` — see `docs/USER_GUIDE.md`'s "Entry layout" section for the current page structure. All four block types stay in the designer's palette and in `IMPLICIT_DEFAULT_LAYOUT` only so an existing directory's saved layout doesn't error; adding one back in the designer has no visible effect. The sidebar also gained a hero chip rail (one chip per single-select/true-boolean categorisation the entry holds, under the H1) — additive to, not a replacement for, the existing "Directory attributes" table described in §4.4's block palette above. "Related entries" moved from a compact sidebar list to a full-width 4-up section below the two-column layout, and "Claim this listing" moved from a header button to a quiet text link under the sidebar map card.
 
 ### 4.5 Publishing snapshot — DIR-E2
 
@@ -199,6 +203,8 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 - **Resolved at read time, not sync time:** when a map has a `directory_map_associations` row, its public/embedded rendering path (`EmbedMap.jsx` → `PublishedMapView.jsx`) sources pins from a new `public_directory_entries` view (mirrors the existing `public_listings` view shape/columns exactly — `name`, `lat`, `lng`, `logo_url`, etc. — but reads from `directory_entries` scoped to `directory_id`, filtered to `is_active = true` and to the directory's `current_publication_id` being non-null) **instead of** from `public_listings`. There is no `map_data_sources` row, no `sync_logs` entry, and no "Sync now" action for this provider — the map is always exactly as current as the directory's last publish, by construction, with no separate stale/fresh state to reason about.
 - Because there's no sync step, the map's own Manual entry / Upload CSV / Sync data tabs are **disabled** for a map in this mode (same "tab disabled with a reason" convention already used to mutually-exclude Manual/CSV while a Google Sheets sync is linked, §3.1) — a map is either self-authored (manual/CSV/Sheets, using `listings`) or directory-sourced (using the associated directory's entries), never both, for v1.
 - `contact_directory_permissions`: `contact_id → contacts.id`, `directory_id → directories.id`, `can_edit_entries boolean`, mirroring `contact_map_permissions` exactly, for Member-level per-directory scoping (§2) — unrelated to map datasource linking; lives with DIR-E1.
+
+**Update (2026-09-28 — entry page redesign):** the entry detail page's sidebar map card now embeds this same datasource-backed map (via `attachedMapEmbedSrc`, above), focused on that one entry's own pin, rather than only linking out to it. `EmbedMap.jsx` reads a new `focus=<directory_entries.id>` query param (the same id `public_directory_entries.id` exposes verbatim) and, once listings are loaded, calls the existing `setCenterOnListingId(focus)` — the same pan/zoom/select path the map's own list-panel click already used internally, never previously exposed via URL. This pans to `selectZoom` (15 on desktop, matching this feature's requirement; 17 on the mobile bottom-sheet layout) and auto-opens that pin's detail card, with no changes to `DirectoryMap.jsx`/`PublishedMapView.jsx`. `gestureHandling="cooperative"` (no one-finger/mousewheel zoom) was already the embed's default end-to-end. `generate_directory_site` builds this focused src per entry by appending `focus=<entry.id>&hideFilterBar=1&hideListPanel=1` to `attachedMapEmbedSrc` (same param names the landing page's own iframe already used). When the directory has no attached map, the entry page falls back to the pre-existing static Google Maps thumbnail for entries with coordinates.
 
 ### 4.8 AI content generation
 
@@ -238,7 +244,7 @@ The directory-entry successor to the removed map-level AI search enrichment feat
 | **DIR-E2** | Publishing as an SEO/AI-discoverable website | A directory can be published as a crawlable public site with full SEO metadata, sitemap, and structured data. | Publish snapshot model, public rendering path, per-directory/per-entry SEO settings. |
 | **DIR-E3** | White-labelling & branding | A client can brand their directory's public site and serve it from their own domain. | `theme_json` branding UI + preview, custom domain mapping + DNS/TLS verification. |
 | **DIR-E4** | Directory as a map datasource | An existing map can use a directory's published entries as its live pin data — no sync/copy step. | New "Directories" tab in the map Data panel (built on a newly-extracted shared tab component, §3.1); `directory_map_associations` (map → directory) + `public_directory_entries` view (§4.7); explicitly does **not** touch `map_data_sources`/`listings`. |
-| **DIR-E5** | Categorisations | Reusable, client-wide taxonomies can be applied to directories and entries, driving filtering/navigation. | `categorisations`/`category_terms` model + management UI; reconciles with `group_name`. |
+| **DIR-E5** | Categories | Reusable, client-wide taxonomies can be applied to directories and entries, driving filtering/navigation. | `categorisations`/`category_terms` model + management UI; reconciles with `group_name`. |
 | **DIR-E6** | Entry page layout designer | A client can arrange the blocks on an entry's page and save one or more reusable templates, optionally targeted to a group or category term. | Drag-and-drop block editor + live preview, `entry_templates` (multi-template supported from v1, §4.4). |
 | **DIR-E7** | Natural-language search + faceted filtering | Visitors (and portal users) can search entries in plain language or by structured filters. | LLM-backed NL query parsing to structured predicates (new Edge Function, §5), published-site and in-app filter UI. |
 
@@ -580,7 +586,7 @@ Then the map continues showing the previous published state (the old location, o
 
 ---
 
-### DIR-E5 — Categorisations
+### DIR-E5 — Categories
 
 **DIR-E5-S1 — Create a categorisation and its terms**
 As a **Client Owner/Manager**, I want to define a reusable categorisation (e.g. "Sector") with a set of terms, so that I can consistently tag directories and entries across my organisation.
@@ -619,7 +625,7 @@ As a **Client Owner/Manager**, I want the existing "Group" field (from CSV impor
 ```gherkin
 Given directory "Accredited Suppliers" already has entries with a group_name-based group assigned (directory_group_id)
 When I additionally define and apply a "Sector" categorisation
-Then both the entry's group and its categorisation terms are visible and independently editable on the entry's edit form, in clearly separate sections labelled "Group" and "Categorisations"
+Then both the entry's group and its categorisation terms are visible and independently editable on the entry's edit form, in clearly separate sections labelled "Group" and "Categories"
 
 Given I export or view the CSV import template for this directory
 Then it still contains a single group_name column (unchanged, backward-compatible) plus one additional column per active categorisation
@@ -665,6 +671,8 @@ Then subsequent entry pages omit that section, even though the underlying notes_
 ```
 *Tech guardrails:* Persist as a single ordered `layout_json` array (§4.4) — no new persistence pattern versus the existing `theme_json`/`mapStyleSettings` jsonb-blob convention. No existing drag-and-drop library is used anywhere in this codebase today — this is genuinely new UI, not a reuse of an existing pattern (call this out rather than imply an existing drag-and-drop component is being extended).
 
+**Update (2026-09-28 — entry page redesign):** `logo`, `heading`, and `contact details` (alongside `address + map`, already noted as text-only above) are now all no-op on the published page — see §4.4's 2026-09-28 update for what replaced them (fixed hero band + sidebar Contact & address panel).
+
 **DIR-E6-S2 — Live preview while designing**
 As a **Client Owner/Manager**, I want to see a live preview of a real entry using my in-progress layout, so that I can judge the result before saving.
 
@@ -674,12 +682,12 @@ When I look at the preview pane
 Then it renders using a real entry from this directory (or a placeholder if the directory has none yet) reflecting the current unsaved block order
 ```
 
-**DIR-E6-S3 — Categorisation-driven block**
+**DIR-E6-S3 — Category-driven block**
 As a **Client Owner/Manager**, I want to include a specific categorisation's tags as a block on the entry page, so that visitors can see (and click through to) an entry's category memberships.
 
 ```gherkin
 Given categorisation "Sector" applies_to "entry"
-When I add a "Categorisation: Sector" block to the layout
+When I add a "Category: Sector" block to the layout
 Then published entry pages render that entry's Sector terms as clickable chips linking to the filtered directory index (DIR-E5-S4)
 
 Given I try to add a block for a categorisation with applies_to "directory"

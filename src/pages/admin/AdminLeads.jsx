@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { signOut } from "../../lib/auth";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
@@ -72,23 +71,19 @@ export default function AdminLeads() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Leads" }]}
+      subtitle={
+        <>
+          Founding-partner enquiries submitted via the public landing page (newest first, up to {PAGE_SIZE} rows).
+          Apply the <code>beta_signups_status</code> migration if this list is empty or errors.
+        </>
+      }
       rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
+        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
         </button>
       }
     >
-      <div className="admin-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Leads</h2>
-          <button type="button" className="btn" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 16 }}>
-          Founding-partner enquiries submitted via the public landing page (newest first, up to {PAGE_SIZE} rows).
-          Apply the <code>beta_signups_status</code> migration if this list is empty or errors.
-        </p>
+      <div className="card card-pad">
 
         <p
           style={{

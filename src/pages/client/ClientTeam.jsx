@@ -253,7 +253,7 @@ export default function ClientTeam() {
           return next;
         });
       } else {
-        // Explicit grants imply edit access (see ClientDirectoryEntries.jsx) — there's
+        // Explicit grants imply edit access (see DirectoryContext.jsx's canEditEntries) — there's
         // no separate view-only tier yet, matching how Map access works today.
         await supabase
           .from("contact_directory_permissions")
@@ -278,30 +278,32 @@ export default function ClientTeam() {
     });
   }
 
-  if (loading) return <div className="page-main"><p>Loading…</p></div>;
+  if (loading) return <p>Loading…</p>;
 
   const hasRows = teamRows.length > 0;
 
   return (
-    <div className="page-main">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+    <>
+      <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 style={{ margin: "0 0 4px 0" }}>Team — {client?.name}</h1>
-          <div style={{ fontSize: 13, opacity: 0.75 }}>Manage team members and their map access</div>
+          <h1 className="page-title">Team</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
+            Manage team members and their map access
+          </p>
         </div>
-        <button type="button" className="btn" onClick={() => navigate("/client")}>
+        <button type="button" className="shell-btn" onClick={() => navigate("/client")}>
           ← Back
         </button>
-      </header>
+      </div>
 
       {msg.text ? (
-        <p style={{ color: msg.error ? "var(--color-error, #c00)" : "inherit", marginBottom: 12 }}>
+        <p style={{ color: msg.error ? "var(--shell-danger)" : "inherit", marginBottom: 12 }}>
           {msg.text}
         </p>
       ) : null}
 
-      <div className="admin-card" style={{ marginBottom: 24 }}>
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Team members</h2>
+      <div className="card card-pad" style={{ marginBottom: 24 }}>
+        <p className="card-title">Team members</p>
         {!hasRows ? (
           <p style={{ margin: 0, opacity: 0.8 }}>No team members yet.</p>
         ) : (
@@ -437,8 +439,7 @@ export default function ClientTeam() {
                           {isPending ? (
                             <button
                               type="button"
-                              className="btn"
-                              style={{ fontSize: 12, padding: "2px 8px" }}
+                              className="shell-btn shell-btn--sm"
                               onClick={() => handleCancelInvite(row.row_id)}
                             >
                               Cancel invite
@@ -446,8 +447,7 @@ export default function ClientTeam() {
                           ) : !isSelf && row.role !== "owner" ? (
                             <button
                               type="button"
-                              className="btn"
-                              style={{ fontSize: 12, padding: "2px 8px" }}
+                              className="shell-btn shell-btn--sm"
                               onClick={() => handleRemove(row.row_id)}
                             >
                               Remove
@@ -465,8 +465,8 @@ export default function ClientTeam() {
       </div>
 
       {isOwner && (
-        <div className="admin-card">
-          <h2 style={{ marginTop: 0, fontSize: 16 }}>Invite a team member</h2>
+        <div className="card card-pad">
+          <p className="card-title">Invite a team member</p>
           <p style={{ opacity: 0.8, marginTop: 0 }}>
             We&rsquo;ll email them a link to set a password and join your organisation. Each person can only belong to
             one organisation—if they already have an account, you&rsquo;ll see an error instead.
@@ -515,13 +515,13 @@ export default function ClientTeam() {
               </div>
             )}
             <div>
-              <button type="submit" className="btn btn-primary" disabled={inviting}>
+              <button type="submit" className="shell-btn shell-btn--primary" disabled={inviting}>
                 {inviting ? "Sending…" : "Send invitation email"}
               </button>
             </div>
           </form>
         </div>
       )}
-    </div>
+    </>
   );
 }

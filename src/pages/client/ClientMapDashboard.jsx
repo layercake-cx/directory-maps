@@ -19,6 +19,7 @@ import {
 } from "../../lib/mapPublication.js";
 import PricingPlans from "../../components/PricingPlans.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
+import EntityMessagingSettings from "../../components/EntityMessagingSettings.jsx";
 import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication, resolveColorForListing, setMapColorFilterFieldId } from "../../lib/filterFields.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { hasSubscriptionAccess } from "../../lib/subscriptionAccess.js";
@@ -32,7 +33,7 @@ import {
 import "../admin/admin.css";
 
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters"];
+const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters", "messaging"];
 const PAGE_SIZE = 100;
 const LOGO_BG_SWATCHES = [
   { label: "None", value: "" },
@@ -48,6 +49,7 @@ function tabLabel(t) {
   if (t === "mapstyle") return "Map Style";
   if (t === "publish") return "Publish Map";
   if (t === "filters") return "Filters";
+  if (t === "messaging") return "Messaging";
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 const MAP_TYPES = [
@@ -841,9 +843,9 @@ export default function ClientMapDashboard() {
           // Fetch messaging test mode settings fresh from the view so they
           // stay current even if the user changed them in the Messaging tab.
           supabase
-            .from("client_messaging_settings")
+            .from("map_messaging_settings")
             .select("email_test_mode,email_test_recipient")
-            .eq("client_id", currentClientId)
+            .eq("map_id", mapId)
             .single()
             .then(({ data: ms }) => {
               if (ms && !cancelled) {
@@ -2075,9 +2077,9 @@ export default function ClientMapDashboard() {
                 // made in the Messaging tab since this page loaded.
                 if (client?.id) {
                   supabase
-                    .from("client_messaging_settings")
-                    .select("email_test_mode,email_test_recipient")
-                    .eq("client_id", client.id)
+                    .from("map_messaging_settings")
+            .select("email_test_mode,email_test_recipient")
+            .eq("map_id", mapId)
                     .single()
                     .then(({ data: ms }) => {
                       if (ms) {
@@ -2313,7 +2315,7 @@ export default function ClientMapDashboard() {
           <div className="admin-map-page__controls">
             <h2 className="admin-map-page__controls-title">Map Settings</h2>
 
-            {(["detail", "search", "filters"]).map((t) => (
+            {(["detail", "search", "filters", "messaging"]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -3139,6 +3141,15 @@ export default function ClientMapDashboard() {
                   onChange={refreshFilterFields}
                   colorFieldId={colorFilterFieldId}
                   onColorFieldChange={updateColorFilterField}
+                />
+              )}
+
+              {overlayTab === "messaging" && (
+                <EntityMessagingSettings
+                  entity="map"
+                  entityId={mapId}
+                  clientId={client?.id}
+                  eventSource="client_portal"
                 />
               )}
 

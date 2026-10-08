@@ -15,6 +15,30 @@ import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
+/**
+ * Bump whenever a code-only change to the shared entry-page template/chrome
+ * (markup or the LAYOUT_STYLE/BASE_STYLE/EXTRA_STYLE CSS strings below) needs
+ * every already-published directory to pick it up on its next ordinary
+ * Publish. index.ts's incremental "auto" publish path only rebuilds an entry
+ * when *data* changed (chromeHash/featuresHash/templatesHash/entry
+ * updated_at) — none of those hash this file's own code, so a directory that
+ * publishes without any data change would otherwise keep serving the old
+ * template indefinitely. index.ts folds this into chromeHash, whose mismatch
+ * already forces a full rebuild (see docs/DEPLOYMENTS.md's 2026-09-27
+ * "claim settings weren't tracked by any publish hash" entry for the same
+ * category of bug this pre-empts).
+ *
+ * v2 -> v3 (2026-09-29) is the cautionary tale: a bug-fix deploy to this
+ * file (panel_background_color on the entry logo tile) shipped WITHOUT
+ * bumping this constant. The next ordinary Publish on an affected directory
+ * did an incremental rebuild (nothing else about it had changed), so the fix
+ * silently didn't reach any already-published entry — exactly the failure
+ * this constant exists to prevent, caused by forgetting to bump it. Bump it
+ * for every deploy that changes this file's HTML/CSS output, not just ones
+ * that "feel like" a template redesign.
+ */
+export const ENTRY_TEMPLATE_VERSION = 7;
+
 export type Entry = {
   id: string;
   name: string;
@@ -45,6 +69,8 @@ export type Entry = {
   panel_image_url: string | null;
   panel_background_color: string | null;
   updated_at?: string | null;
+  /** Claimed Directory Listings epic: null = open to a new claim. Gates whether "Claim this listing" renders. */
+  current_claim_id?: string | null;
 };
 
 // A region's background: either a flat colour, or a gradient built from 2+
@@ -319,13 +345,16 @@ export const EXTRA_STYLE = `
   .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
   .dir-nav-dropdown {
     display: none; position: absolute; top: 100%; right: 0; min-width: 220px; z-index: 8;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; margin: 0; list-style: none;
+    background: var(--bg); border: 1px solid color-mix(in srgb, var(--hdr-text) 20%, transparent); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; margin: 0; list-style: none; isolation: isolate;
   }
+  /* The header background can be translucent or a gradient, so it is painted
+     as an overlay on a solid page-colour base rather than used as the fill. */
+  .dir-nav-dropdown::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--hdr-bg); pointer-events: none; }
   .dir-nav-item--dropdown:hover .dir-nav-dropdown,
   .dir-nav-item--dropdown:focus-within .dir-nav-dropdown { display: block; }
   .dir-nav-dropdown a { display: block; padding: 10px 12px; border-radius: 8px; white-space: nowrap; }
-  .dir-nav-dropdown a:hover { background: var(--surface-2); }
+  .dir-nav-dropdown a:hover { color: var(--hdr-text); background: color-mix(in srgb, var(--hdr-text) 12%, transparent); }
   .dir-nav-mobile { display: none; position: relative; }
   .dir-nav-mobile > summary {
     list-style: none; cursor: pointer; min-width: 44px; min-height: 44px;
@@ -367,6 +396,30 @@ export const EXTRA_STYLE = `
   .dir-footer-col { display: flex; flex-direction: column; gap: 6px; }
   .dir-footer-col__title { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; color: var(--ftr-text); }
   .dir-footer-col a { font-size: 13.5px; }
+  .dir-footer__grid { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr) minmax(300px, 1.3fr); gap: 28px 40px; align-items: start; }
+  .dir-footer__grid--no-nav { grid-template-columns: minmax(160px, 1fr) minmax(300px, 1.3fr); }
+  .dir-footer__grid .dir-footer-nav { min-width: 0; }
+  .dir-platform-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; padding: 28px; border-radius: 14px; border: 1px solid var(--ftr-border); background: var(--ftr-panel-bg); }
+  .dir-platform-panel__eyebrow { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ftr-muted); }
+  .dir-platform-panel__logo { display: inline-block; line-height: 0; border-radius: 4px; }
+  .dir-platform-panel__logo img { height: 26px; width: auto; display: block; filter: var(--ftr-logo-filter); }
+  .dir-platform-panel__tagline { margin: 0; font-family: var(--font-heading); font-style: italic; font-size: 1.5rem; line-height: 1.2; color: var(--ftr-text); }
+  .dir-platform-panel__body { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ftr-text); }
+  .dir-platform-panel__btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 22px; border-radius: 999px; background: var(--ftr-btn-bg); color: var(--ftr-btn-text); border: 1px solid var(--ftr-border); font-weight: 600; font-size: 14.5px; }
+  .dir-platform-panel__btn:hover { background: var(--ftr-btn-hover); color: var(--ftr-btn-text); }
+  .dir-platform-panel__btn svg { flex: none; }
+  .dir-platform-panel a:focus-visible { outline: 2px solid var(--ftr-text); outline-offset: 3px; }
+  .dir-footer__bar { border-top: 1px solid var(--ftr-border); }
+  .dir-footer__bar-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; padding-top: 18px; padding-bottom: 22px; font-size: 12.5px; color: var(--ftr-muted); }
+  @media (max-width: 1000px) {
+    .dir-footer__grid, .dir-footer__grid--no-nav { grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr); }
+    .dir-footer__grid--no-nav { grid-template-columns: minmax(0, 1fr); }
+    .dir-platform-panel-wrap { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .dir-footer__grid { grid-template-columns: minmax(0, 1fr); }
+    .dir-footer__bar-inner { flex-direction: column; }
+  }
   .dm-consent { position: fixed; z-index: 40; left: 16px; right: 16px; bottom: 16px; max-width: 520px; margin: 0 auto; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 16px 18px; font-size: 13.5px; line-height: 1.5; }
   .dm-consent p { margin: 0 0 12px; }
   .dm-consent__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
@@ -522,13 +575,20 @@ const LAYOUT_STYLE = `
     outline: 2px solid var(--primary); outline-offset: 2px;
   }
 
-  .dir-entry-header { display: flex; gap: 24px; align-items: flex-start; padding: 32px 0 24px; flex-wrap: wrap; }
-  .dir-entry-header__logo { width: 96px; height: 96px; border-radius: 16px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .dir-entry-header__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
-  .dir-entry-header__body { flex: 1; min-width: 240px; }
-  .dir-entry-header__desc { font-size: 16px; color: var(--muted); line-height: 1.6; margin: 10px 0 14px; max-width: 64ch; }
-  .dir-entry-header__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-  .dir-entry-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* Hero band — landscape logo tile (fixes the old square/too-narrow tile),
+     full-size serif H1, one-line summary, categorisation chip rail. No
+     action buttons here — every action lives in the sidebar below, exactly
+     once (BUILD_BRIEF.md). */
+  .dir-entry-hero { display: flex; gap: 40px; align-items: center; padding: 32px 0 40px; flex-wrap: wrap; }
+  .dir-entry-logo { width: 360px; height: 160px; flex: none; padding: 28px 36px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dir-entry-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .dir-entry-logo--fallback span { font-family: var(--font-heading); font-size: 40px; font-weight: 600; color: var(--primary); }
+  .dir-entry-hero__body { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 14px; }
+  .dir-entry-hero__body h1 { line-height: 1.08; letter-spacing: -0.01em; }
+  .dir-entry-hero__summary { margin: 0; font-size: 17px; line-height: 1.5; color: var(--muted); max-width: 640px; }
+  .dir-entry-hero__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-hero { text-decoration: none; }
+  .chip-hero:hover { background: var(--surface-2); }
   .dir-enquiry { position: fixed; inset: 0; z-index: 40; }
   .dir-enquiry[hidden], .dir-enquiry__body[hidden], #dir-enquiry-success[hidden], .dir-enquiry__error[hidden] { display: none !important; }
   .dir-enquiry__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); border: 0; padding: 0; }
@@ -555,28 +615,59 @@ const LAYOUT_STYLE = `
   .dir-jumpchip:hover { background: var(--surface); }
   .dir-entry-section { scroll-margin-top: 62px; padding-top: 28px; }
   .dir-entry-section > h2 { font-size: calc(var(--fs-h2) * 0.6875); line-height: 1.25; margin: 0 0 18px; }
-  .dir-entry-body { display: flex; align-items: flex-start; gap: 32px; padding-top: 8px; padding-bottom: 48px; }
-  .dir-entry-main { flex: 1; min-width: 0; }
-  .dir-aside { width: 300px; flex: none; display: flex; flex-direction: column; gap: 24px; }
-  .dir-static-map { width: 100%; height: 160px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); display: block; margin-bottom: 8px; }
-  .dir-aside-location-text { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  /* Two-column layout via named grid areas (not flex) specifically so the
+     mobile breakpoint below can reorder aside-before-main — "contact panel
+     and map before body text on mobile" (BUILD_BRIEF.md) — without
+     touching the DOM order. */
+  .dir-entry-body { display: grid; grid-template-columns: minmax(0, 752px) minmax(0, 1fr); grid-template-areas: "main aside"; gap: 56px; align-items: start; padding-top: 8px; padding-bottom: 48px; }
+  .dir-entry-main { grid-area: main; min-width: 0; }
+  .dir-aside { grid-area: aside; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+
+  /* Sidebar panels — previously bare, unstyled wrapper divs (just a flex
+     gap between them); now real bordered cards, matching the reference
+     design's ".panel" and improving the content-page "On this topic" list
+     that shares this class for free. */
+  .dir-aside-block { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  .dir-rail__label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+  .dir-contact-panel { display: flex; flex-direction: column; gap: 14px; }
+  .dir-contact-panel .btn { width: 100%; justify-content: center; }
+  .dir-contact-row { margin: 0; font-size: 14px; line-height: 1.5; }
+  .dir-contact-row address { font-style: normal; }
+  .dir-contact-row__label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+
+  .dir-map-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .dir-static-map, .dir-map-embed { width: 100%; height: 260px; object-fit: cover; border: 0; display: block; }
+  .dir-map-card__link { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; border-top: 1px solid var(--line); }
+
+  .dir-claim-quiet { margin: 0; padding: 4px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+  .dir-claim-quiet button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--primary); text-decoration: underline; cursor: pointer; }
+
   .dir-attrs { display: flex; flex-direction: column; }
   .dir-attr-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
   .dir-attr-row:last-child { border-bottom: 0; }
   .dir-attr-row span:first-child { color: var(--muted); }
   .dir-attr-row span:last-child { font-weight: 600; text-align: right; }
-  .dir-related-list { display: flex; flex-direction: column; gap: 10px; }
-  .dir-related-row { display: flex; gap: 10px; align-items: center; text-decoration: none; color: inherit; }
-  .dir-related-row__logo { width: 36px; height: 36px; border-radius: 8px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .dir-related-row__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
-  .dir-related-row__body strong { display: block; font-size: 13px; }
-  .dir-related-row__body span { font-size: 12px; color: var(--muted); }
+
+  /* Related entries — a full-width 4-up section below the two-column
+     layout (BUILD_BRIEF.md), not the old compact aside list. */
+  .dir-related { padding-bottom: 64px; display: flex; flex-direction: column; gap: 20px; }
+  .dir-related-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .dir-related-card { padding: 20px; gap: 14px; text-decoration: none; color: inherit; justify-content: flex-start; }
+  .dir-related-card__logo { width: 40px; height: 40px; border-radius: 8px; background: var(--surface-2); flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .dir-related-card__logo img { max-width: 70%; max-height: 70%; object-fit: contain; }
+  .dir-related-card__body { display: flex; flex-direction: column; gap: 4px; }
+  .dir-related-card__body strong { font-size: 14.5px; }
+  .dir-related-card__body span { font-size: 12.5px; color: var(--muted); }
 
   @media (max-width: 900px) {
     .dir-body { flex-direction: column; }
     .dir-rail { width: 100%; }
-    .dir-entry-body { flex-direction: column; }
+    .dir-entry-hero { padding: 20px 0 28px; }
+    .dir-entry-logo { width: 100%; height: 140px; }
+    .dir-entry-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "aside" "main"; gap: 32px; }
     .dir-aside { width: 100%; }
+    .dir-related-grid { grid-template-columns: minmax(0, 1fr); }
     /* Below the side-by-side breakpoint, results/map fall back to the
        List/Map toggle (#dir-view-toggle) instead of stacking both in full. */
     .dir-pane-hidden { display: none; }
@@ -751,6 +842,36 @@ export function applyAlphaToCssColors(css: string, alpha: number): string {
     .replace(/\bhsla?\(\s*([\d.]+)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, h, s, l) => `hsla(${h}, ${s}, ${l}, ${a})`);
 }
 
+/** WCAG relative luminance of a #rgb / #rrggbb(aa) colour; null when unparseable. */
+function hexRelativeLuminance(hex: string): number | null {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+  if (h.length < 6) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  if (ch.some((n) => Number.isNaN(n))) return null;
+  const [r, g, b] = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Tokens for the "Built on Layercake Maps" footer panel. Every colour is
+ * derived from the footer/primary tokens (tints via color-mix, never a
+ * literal), so a theme change restyles the panel. Two values depend on
+ * contrast and so are computed here: the button label (white or near-black,
+ * whichever reads better on the primary fill) and the logo filter (the
+ * platform logo is white, so it is darkened when the footer text is dark,
+ * i.e. the footer surface is light). */
+function platformPanelVars(t: { primaryColor: string; footerText: string }): string {
+  const primaryLum = hexRelativeLuminance(t.primaryColor);
+  const textLum = hexRelativeLuminance(t.footerText);
+  const btnText = primaryLum !== null && primaryLum > 0.4 ? "var(--ink)" : "var(--surface)";
+  const logoFilter = textLum !== null && textLum < 0.4 ? "brightness(0)" : "none";
+  return `--ftr-muted: color-mix(in srgb, var(--ftr-text) 74%, transparent);
+    --ftr-panel-bg: color-mix(in srgb, var(--ftr-text) 7%, transparent);
+    --ftr-border: color-mix(in srgb, var(--ftr-text) 20%, transparent);
+    --ftr-btn-bg: var(--primary); --ftr-btn-text: ${btnText}; --ftr-btn-hover: var(--primary-2);
+    --ftr-logo-filter: ${logoFilter};`;
+}
+
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
   const banner = resolvedHeroBanner(theme);
@@ -774,6 +895,7 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --hdr-bg: ${headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
+    ${platformPanelVars(t)}
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
     --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
     --logo-display: ${showLogo ? "block" : "none"};
@@ -1037,21 +1159,40 @@ export function siteHeader(opts: {
 </header>`;
 }
 
-/** Full-bleed dark footer, identical on every page. Note the disclaimer
- * span keeps its own fixed muted teal rather than a theme token — it's
- * decorative platform copy, not part of the three-region model (dev
- * spec's non-goals §3: no per-component overrides beyond header/body/
- * footer). */
+export const PLATFORM_URL = "https://layercake-cx.biz/maps";
+export const PLATFORM_LOGO_URL = "https://maps.layercake-cx.biz/layercake-maps-white.png";
+
+/** The "Built on Layercake Maps" panel. Colours all come from --ftr-* tokens
+ * (see platformPanelVars). Both links record platform_footer_click. */
+export function platformPanel(): string {
+  return `<aside class="dir-platform-panel" aria-label="About Layercake Maps">
+  <p class="dir-platform-panel__eyebrow">Built on</p>
+  <a class="dir-platform-panel__logo" href="${PLATFORM_URL}" aria-label="Layercake Maps" data-dm-event="platform_footer_click" data-dm-cta="logo"><img src="${PLATFORM_LOGO_URL}" alt="" width="191" height="26" loading="lazy"></a>
+  <p class="dir-platform-panel__tagline">Finding your people</p>
+  <p class="dir-platform-panel__body">Layercake Maps powers searchable directories for membership bodies and sectors. Bring your own community onto the map.</p>
+  <a class="dir-platform-panel__btn" href="${PLATFORM_URL}" data-dm-event="platform_footer_click" data-dm-cta="button">Discover Layercake Maps <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</aside>`;
+}
+
+/** Full-bleed footer, identical on every page: brand column, footer nav, the
+ * "Built on Layercake Maps" panel, then a bottom bar with the copyright and
+ * editorial disclaimer. All colours come from --ftr-* tokens. */
 export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?: SiteNav | null }): string {
   const footerNav = opts.nav ? renderFooterNav(opts.nav) : "";
   return `<footer style="margin-top:56px;background:var(--ftr-bg);">
-  <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;">
+  <div class="wrap dir-footer__grid${footerNav ? "" : " dir-footer__grid--no-nav"}" style="padding-top:40px;padding-bottom:32px;">
     <div>
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
     </div>
     ${footerNav}
-    <span style="font-size:12.5px;color:#8FB4AD;">Powered by Layercake&nbsp;Maps · content is editorial, commercial links never affect inclusion.</span>
+    <div class="dir-platform-panel-wrap">${platformPanel()}</div>
+  </div>
+  <div class="dir-footer__bar">
+    <div class="wrap dir-footer__bar-inner">
+      <span>&copy; ${new Date().getFullYear()} ${escapeHtml(opts.directoryName)}</span>
+      <span>Content is editorial. Commercial links never affect inclusion.</span>
+    </div>
   </div>
 </footer>`;
 }
@@ -1101,7 +1242,32 @@ function sectionAnchorId(label: string, index: number): string {
   return `s${index}-${slug || "section"}`;
 }
 
-/** Baked into an entry page when the directory has a contact email and messaging is on. The inbox address stays on the server. */
+/** Entry-page hero "summary" fallback (BUILD_BRIEF.md field mapping): first
+ * sentence of the entry's own notes_html, tags stripped, trimmed to ~140
+ * chars on a word boundary. Only used when meta_description is unset. */
+function deriveSummary(html: string, maxLen = 140): string {
+  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentenceMatch = text.match(/^.*?[.!?](?=\s|$)/);
+  let candidate = sentenceMatch ? sentenceMatch[0] : text;
+  if (candidate.length > maxLen) {
+    const cut = candidate.slice(0, maxLen);
+    const lastSpace = cut.lastIndexOf(" ");
+    candidate = `${cut.slice(0, lastSpace > 0 ? lastSpace : maxLen)}…`;
+  }
+  return candidate.trim();
+}
+
+/** Website domain without protocol/www, for the contact panel's text row (BUILD_BRIEF.md: "Show the domain without the protocol or www."). */
+function formatDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  }
+}
+
+/** Baked into an entry page when the directory has messaging on (a sending profile chosen, switch on, plan allows). The recipient is the entry's own email, looked up on the server at send time -- it is never written into the page. */
 export type DirectoryEnquiry = {
   prompt: string | null;
   testMode: boolean;
@@ -1115,7 +1281,7 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
     ? `<p class="dir-enquiry__prompt">${escapeHtml(enquiry.prompt.trim())}</p>`
     : "";
   const testBanner = enquiry.testMode
-    ? `<p class="dir-enquiry__test"><strong>Test mode:</strong> This message goes to the organisation&apos;s test recipient, not the public contact address.</p>`
+    ? `<p class="dir-enquiry__test"><strong>Test mode:</strong> This message goes to the test recipient, not the listing&apos;s email address.</p>`
     : "";
   const cfg = embedJson({
     directoryId: enquiry.directoryId,
@@ -1127,11 +1293,11 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
   <button type="button" class="dir-enquiry__backdrop" data-dm-enquiry-close aria-label="Close"></button>
   <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-enquiry-title">
     <div class="dir-enquiry__header">
-      <h2 id="dir-enquiry-title">Make an Enquiry</h2>
+      <h2 id="dir-enquiry-title">Contact</h2>
       <button type="button" class="dir-enquiry__close" data-dm-enquiry-close aria-label="Close">&times;</button>
     </div>
     <div class="dir-enquiry__body">
-      <p class="dir-enquiry__to">About: ${escapeHtml(entry.name)}</p>
+      <p class="dir-enquiry__to">Message ${escapeHtml(entry.name)}</p>
       ${prompt}
       ${testBanner}
       <form id="dir-enquiry-form" class="dir-enquiry__body" style="padding:0;">
@@ -1200,8 +1366,7 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': cfg.anonKey,
-        'Authorization': 'Bearer ' + cfg.anonKey
+        'apikey': cfg.anonKey
       },
       body: JSON.stringify({
         directoryId: cfg.directoryId,
@@ -1238,6 +1403,144 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
 </script>`;
 }
 
+/**
+ * "Claim this listing" (Claimed Directory Listings epic, Phase 7). Baked
+ * into an entry page only when directory_claim_settings.enabled AND the
+ * client's maps.claims entitlement both resolve true AND the entry has no
+ * current_claim_id (index.ts checks all three before ever passing this
+ * non-null) -- never on the homepage, search results, cards, or map
+ * results, per the epic's non-negotiable rule. Once a claim is started for
+ * this item, index.ts stops passing this at all on the next publish (the
+ * item's own current_claim_id gets set immediately by
+ * start_self_service_claim), which is what actually removes the CTA --
+ * this file only renders what it's told.
+ */
+export type ClaimWidgetOptions = {
+  priceCents: number | null;
+  currency: string | null;
+  paymentType: string | null;
+  introHtml: string | null;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+};
+
+function formatClaimPrice(priceCents: number, currency: string): string {
+  const amount = (priceCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const symbol = currency === "GBP" ? "£" : currency === "USD" ? "$" : currency === "EUR" ? "€" : `${currency} `;
+  return `${symbol}${amount}`;
+}
+
+function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
+  const priceLine = claim.priceCents != null && claim.currency
+    ? `<p class="dir-claim__price">${escapeHtml(formatClaimPrice(claim.priceCents, claim.currency))}${claim.paymentType === "annual_recurring" ? " / year" : ""}</p>`
+    : "";
+  const intro = claim.introHtml?.trim()
+    ? claim.introHtml
+    : "<p>Are you part of this organisation? Claim this listing to verify your organisation and manage its details.</p>";
+  const cfg = embedJson({
+    entryId: entry.id,
+    supabaseUrl: claim.supabaseUrl.replace(/\/$/, ""),
+    anonKey: claim.supabaseAnonKey,
+    loginUrl: `${SITE_ORIGIN}/claim/login`,
+  });
+  return `<div id="dir-claim" class="dir-enquiry" hidden>
+  <button type="button" class="dir-enquiry__backdrop" data-dm-claim-close aria-label="Close"></button>
+  <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-claim-title">
+    <div class="dir-enquiry__header">
+      <h2 id="dir-claim-title">Claim this listing</h2>
+      <button type="button" class="dir-enquiry__close" data-dm-claim-close aria-label="Close">&times;</button>
+    </div>
+    <div class="dir-enquiry__body">
+      <p class="dir-enquiry__to">${escapeHtml(entry.name)}</p>
+      ${intro}
+      ${priceLine}
+      <form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+        <label class="dir-enquiry__label">Work email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
+        <p style="font-size:13px;opacity:0.7;margin:0 0 8px;">Use your organisation email address -- it must match this listing's website domain. We'll send you a sign-in link, no password needed.</p>
+        <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
+        <button type="submit" class="btn btn-primary" id="dir-claim-submit">Send sign-in link</button>
+      </form>
+      <div id="dir-claim-success" hidden>
+        <p class="dir-enquiry__success">Check your email for a sign-in link to finish claiming this listing.</p>
+        <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var cfg = ${cfg};
+  var root = document.getElementById('dir-claim');
+  var form = document.getElementById('dir-claim-form');
+  var errEl = document.getElementById('dir-claim-error');
+  var successEl = document.getElementById('dir-claim-success');
+  var submitBtn = document.getElementById('dir-claim-submit');
+  if (!root || !form) return;
+
+  function setOpen(open) {
+    root.hidden = !open;
+    if (open) {
+      var first = form.querySelector('input');
+      if (first) first.focus();
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[data-dm-claim-open]')) { setOpen(true); return; }
+    if (t.closest('[data-dm-claim-close]')) setOpen(false);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !root.hidden) setOpen(false);
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = new FormData(form);
+    var email = String(data.get('email') || '').trim();
+    errEl.hidden = true;
+    errEl.textContent = '';
+    if (!email) {
+      errEl.hidden = false;
+      errEl.textContent = 'Email is required.';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    fetch(cfg.supabaseUrl + '/rest/v1/rpc/start_self_service_claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+      body: JSON.stringify({ p_directory_item_id: cfg.entryId, p_email: email })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) throw new Error((body && body.message) || (body && body.error) || 'Could not start claim.');
+        return fetch(cfg.supabaseUrl + '/auth/v1/otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+          body: JSON.stringify({ email: email, create_user: true, options: { email_redirect_to: cfg.loginUrl } })
+        });
+      });
+    }).then(function (res) {
+      if (!res.ok) throw new Error('Could not send the sign-in link. Please try again.');
+      form.hidden = true;
+      successEl.hidden = false;
+      if (window.dmRecordEngagement) {
+        window.dmRecordEngagement('listing_claim_start', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
+      }
+    }).catch(function (err) {
+      errEl.hidden = false;
+      var raw = (err && err.message) || '';
+      errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send sign-in link';
+    });
+  });
+})();
+</script>`;
+}
+
 export function buildEntryPage(opts: {
   clientSlug: string;
   directorySlug: string;
@@ -1254,17 +1557,20 @@ export function buildEntryPage(opts: {
   categorisations: FilterBarCategorisation[];
   /** This entry's own held term ids. */
   entryTermIds: string[];
-  /** The directory's attached map, if any — for "Show on map" / "Open in directory map". Same source as buildDirectoryLandingPage's map pane (DIR-E4), not a second map implementation. */
+  /** Plain (unfocused) link to the directory's attached map, if any — used for the map card's "Open in directory map" link. Same source as buildDirectoryLandingPage's map pane (DIR-E4), not a second map implementation. */
   attachedMapEmbedSrc: string | null;
-  /** Google Static Maps API key for the Location aside's thumbnail. Omitted (block still renders, just without the image) if not configured — additive, never blocks generation. */
+  /** Same map, as an iframe src pre-focused on this entry's own pin (EmbedMap.jsx's `focus` param → existing centerOnListingId pan/zoom/select) — null when the directory has no attached map, in which case the map card falls back to the static thumbnail below. */
+  attachedMapFocusedEmbedSrc: string | null;
+  /** Google Static Maps API key for the map card's thumbnail fallback (no attached map, but the entry has coordinates). Omitted (falls back further, to no image) if not configured — additive, never blocks generation. */
   staticMapsApiKey: string | null;
   /** Up to 4 other entries sharing at least one categorisation term, already ranked by shared-term count — computed once per directory in generateForDirectoryInner (all the data it needs is already in memory there) rather than re-queried per entry. */
   related: Entry[];
   nav?: SiteNav | null;
   analytics?: SiteAnalytics | null;
   enquiry?: DirectoryEnquiry | null;
+  claim?: ClaimWidgetOptions | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, attachedMapFocusedEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -1291,53 +1597,89 @@ export function buildEntryPage(opts: {
     entryTermsByKey.set(t.catKey, list);
   }
 
-  // ---- Fixed header band (logo, name, description, tag row, actions) ----
-  // Deliberately NOT one of the reorderable DIR-E6 blocks below — the
-  // design's header is structurally fixed above the body, so `logo` and
-  // `heading` blocks (still valid entries in an existing directory's
-  // layout_json for backward compatibility) are simply not repeated here;
-  // admin-configured order continues to control everything else.
-  const headerTagLabels = heldTerms
-    .filter((t) => t.catFieldType !== "single_select")
-    .map((t) => (t.catFieldType === "boolean" ? t.catLabel : t.label))
-    .slice(0, 4);
-  const websiteButton = entry.show_website && entry.website_url
-    ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a>`
-    : "";
-  const enquiryButton = enquiry
-    ? `<button type="button" class="btn ${websiteButton ? "btn-ghost" : "btn-primary"}" data-dm-event="listing_enquiry_open" data-dm-cta="enquiry" data-dm-enquiry-open>Make an Enquiry</button>`
-    : "";
-  const showOnMapButton = attachedMapEmbedSrc
-    ? `<a class="btn btn-ghost" href="${escapeAttr(attachedMapEmbedSrc)}" data-dm-event="listing_cta_click" data-dm-cta="map">Show on map</a>`
-    : "";
+  // ---- Hero band (breadcrumb, logo tile, name, summary, categorisation
+  // chips) — redesigned per BUILD_BRIEF.md: the old cramped square logo +
+  // downscaled H1 + action-button row is replaced with a landscape logo
+  // tile, full-size serif H1, a one-line summary, and chips linking to the
+  // filtered directory. Every action button that used to live here (Visit
+  // website, Contact, Show on map, Claim this listing) has moved
+  // into the sidebar below so each appears exactly once on the page. ----
+  const initials = entry.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+  // Same panel_background_color the landing page's card grid already applies
+  // behind this entry's logo (`panelBoxStyle` below) — without it, a "light"
+  // logo variant (white/pale marks meant to sit on a dark backing, which is
+  // exactly what panel_background_color exists for) is invisible against
+  // this tile's plain white surface. The landing page and this tile should
+  // never disagree about what background a given logo needs. Only applied
+  // when there's a real logo image — it's configured for a specific image's
+  // contrast, not for the initials fallback's own (already-themed) look.
+  const logoBoxStyle = entry.logo_url && entry.panel_background_color ? ` style="background:${escapeAttr(entry.panel_background_color)};"` : "";
+  const logoTile = entry.logo_url
+    ? `<div class="dir-entry-logo"${logoBoxStyle}><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>`
+    : `<div class="dir-entry-logo dir-entry-logo--fallback"><span aria-hidden="true">${escapeHtml(initials)}</span></div>`;
 
-  const header = `<div class="dir-entry-header">
-  ${entry.logo_url ? `<div class="dir-entry-header__logo"><img src="${escapeAttr(entry.logo_url)}" alt="${escapeAttr(entry.name)} logo"></div>` : ""}
-  <div class="dir-entry-header__body">
-    <h1 style="font-size:calc(var(--fs-h1) * 0.85);line-height:1.1;">${escapeHtml(entry.name)}</h1>
-    ${entry.meta_description ? `<p class="dir-entry-header__desc">${escapeHtml(entry.meta_description)}</p>` : ""}
-    ${headerTagLabels.length ? `<div class="dir-entry-header__tags">${headerTagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
-    ${websiteButton || enquiryButton || showOnMapButton ? `<div class="dir-entry-header__actions">${websiteButton}${enquiryButton}${showOnMapButton}</div>` : ""}
+  const summaryText = entry.meta_description || deriveSummary(entry.notes_html || "");
+
+  // Hero chip rail: additive to (not a replacement for) the existing
+  // "Directory attributes" table below — that table stays so a directory
+  // relying on its "No"/"—" at-a-glance rows for every value doesn't lose
+  // them. Only categorisations this entry actually holds a value for render
+  // here, in categorisation order; multi_select categorisations keep their
+  // own tag-chip blocks in the aside, unchanged.
+  const heroChips = categorisations
+    .filter((c) => c.field_type !== "multi_select")
+    .map((c) => {
+      if (c.field_type === "boolean") {
+        const term = c.terms[0];
+        if (!term || !heldIds.has(term.id)) return "";
+        return `<a class="chip chip-hero" href="${escapeAttr(filterLink(c.key, term.slug))}">${escapeHtml(c.label)}</a>`;
+      }
+      const held = c.terms.find((t) => heldIds.has(t.id));
+      if (!held) return "";
+      return `<a class="chip chip-hero" href="${escapeAttr(filterLink(c.key, held.slug))}">${escapeHtml(held.label)}</a>`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  // Breadcrumb: Directory / {first single-select term this entry holds} /
+  // {name}. There's no plural-label field on categorisations/category_terms
+  // today, so the middle segment uses the term's existing singular label
+  // (e.g. "Professional Body", not "Professional bodies").
+  const breadcrumbTypeTerm = heldTerms.find((t) => t.catFieldType === "single_select");
+  const breadcrumbItems: { name: string; href?: string }[] = [
+    { name: directoryName, href: landingUrl },
+    ...(breadcrumbTypeTerm ? [{ name: breadcrumbTypeTerm.label, href: filterLink(breadcrumbTypeTerm.catKey, breadcrumbTypeTerm.slug) }] : []),
+    { name: entry.name },
+  ];
+  const breadcrumbJsonLdItems = [
+    { name: directoryName, url: `${SITE_ORIGIN}${landingUrl}` },
+    ...(breadcrumbTypeTerm ? [{ name: breadcrumbTypeTerm.label, url: `${SITE_ORIGIN}${filterLink(breadcrumbTypeTerm.catKey, breadcrumbTypeTerm.slug)}` }] : []),
+    { name: entry.name, url: canonicalUrl },
+  ];
+
+  const heroSection = `<div class="dir-entry-hero">
+  ${logoTile}
+  <div class="dir-entry-hero__body">
+    <h1>${escapeHtml(entry.name)}</h1>
+    ${summaryText ? `<p class="dir-entry-hero__summary">${escapeHtml(summaryText)}</p>` : ""}
+    ${heroChips ? `<div class="dir-entry-hero__chips">${heroChips}</div>` : ""}
   </div>
 </div>`;
 
   // ---- Body blocks (admin-ordered, DIR-E6 §4.4) ----
-  const contactParts = [
-    entry.show_phone && entry.phone ? `<p>Phone: ${escapeHtml(entry.phone)}</p>` : "",
-    entry.show_email && entry.email ? `<p>Email: <a href="mailto:${escapeAttr(entry.email)}" data-dm-event="listing_contact_click" data-dm-cta="email">${escapeHtml(entry.email)}</a></p>` : "",
-    entry.show_website && entry.website_url ? `<p><a href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a></p>` : "",
-  ].filter(Boolean);
-
-  // logo/heading render "" here — they're in the fixed header above, but
-  // stay valid block types so an existing directory's layout_json (which
-  // may still list them) doesn't error; harmless no-ops going forward.
+  // logo/heading/address_map/contact_details all render "" here — logo,
+  // heading, address and every contact detail now live in the fixed hero
+  // and the new sidebar Contact & address panel (below), so a body block
+  // repeating them would violate BUILD_BRIEF.md's "each action/detail
+  // appears exactly once" rule. All four stay valid block types so an
+  // existing directory's layout_json (which may still list them) doesn't
+  // error — harmless no-ops going forward, same precedent as logo/heading
+  // already were before this redesign.
   const blockHtml: Record<string, string> = {
     logo: "",
     heading: "",
-    address_map: location
-      ? `<p class="muted" style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;">${escapeHtml(location)}</p>`
-      : "",
-    contact_details: contactParts.length ? `<div class="contact-card">${contactParts.join("")}</div>` : "",
+    address_map: "",
+    contact_details: "",
     hero: hero ? `<img class="hero" src="${escapeAttr(hero.url)}" alt="${escapeAttr(hero.alt_text)}">` : "",
     gallery: gallery.length
       ? `<div class="gallery">${gallery.map((m) => `<img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.alt_text)}">`).join("")}</div>`
@@ -1399,6 +1741,48 @@ export function buildEntryPage(opts: {
     : "";
 
   // ---- Right aside ----
+  // Contact & address panel (new, fixed — not admin-orderable): Visit
+  // website appears here and only here (BUILD_BRIEF.md's "one place per
+  // action" rule); Contact (the message drawer) sits
+  // underneath it. Domain shown as plain text without protocol/www; address as
+  // real prose, already deduplicated since it's built from discrete
+  // columns rather than a repeated-lines array.
+  const websiteButton = entry.show_website && entry.website_url
+    ? `<a class="btn btn-primary" href="${escapeAttr(entry.website_url)}" rel="noopener noreferrer" data-dm-event="listing_website_click" data-dm-cta="website">Visit website</a>`
+    : "";
+  // "Contact" opens the side drawer; the message goes to the entry's own email
+  // (resolved server-side), so the button only exists when the entry has one.
+  // It does not depend on show_email: the visitor never sees the address.
+  const enquiryButton = enquiry && entry.email && entry.email.trim()
+    ? `<button type="button" class="btn ${websiteButton ? "btn-ghost" : "btn-primary"}" data-dm-event="listing_enquiry_open" data-dm-cta="enquiry" data-dm-enquiry-open>Contact</button>`
+    : "";
+  const domainRow = entry.show_website && entry.website_url
+    ? `<p class="dir-contact-row"><span class="dir-contact-row__label">Website</span>${escapeHtml(formatDomain(entry.website_url))}</p>`
+    : "";
+  const phoneRow = entry.show_phone && entry.phone
+    ? `<p class="dir-contact-row"><span class="dir-contact-row__label">Phone</span>${escapeHtml(entry.phone)}</p>`
+    : "";
+  const emailRow = entry.show_email && entry.email
+    ? `<p class="dir-contact-row"><span class="dir-contact-row__label">Email</span><a href="mailto:${escapeAttr(entry.email)}" data-dm-event="listing_contact_click" data-dm-cta="email">${escapeHtml(entry.email)}</a></p>`
+    : "";
+  const addressRow = location
+    ? `<p class="dir-contact-row"><span class="dir-contact-row__label">Address</span><address>${escapeHtml(location)}</address></p>`
+    : "";
+  const contactPanel = websiteButton || enquiryButton || domainRow || phoneRow || emailRow || addressRow
+    ? `<div class="dir-aside-block dir-contact-panel">
+  <span class="dir-rail__label">Contact &amp; address</span>
+  ${websiteButton}${enquiryButton}
+  ${domainRow}
+  ${phoneRow}
+  ${emailRow}
+  ${addressRow}
+</div>`
+    : "";
+
+  // Map card: a real interactive embed focused on this entry's pin (see
+  // EmbedMap.jsx's `focus` param) when the directory has an attached map;
+  // otherwise the existing static-image fallback for entries with
+  // coordinates but no attached map, rather than hiding the card outright.
   const primaryHex = resolvedTheme(theme).primaryColor.replace(/^#/, "");
   const staticMap =
     staticMapsApiKey && typeof entry.lat === "number" && typeof entry.lng === "number"
@@ -1406,13 +1790,21 @@ export function buildEntryPage(opts: {
           `https://maps.googleapis.com/maps/api/staticmap?center=${entry.lat},${entry.lng}&zoom=14&size=600x300&scale=2&markers=color:0x${primaryHex}%7C${entry.lat},${entry.lng}&key=${staticMapsApiKey}`,
         )}">`
       : "";
-  const locationBlock = location || attachedMapEmbedSrc
-    ? `<div class="dir-aside-block">
-  <span class="dir-rail__label">Location</span>
-  ${staticMap}
-  ${location ? `<div class="dir-aside-location-text">${escapeHtml(location)}</div>` : ""}
-  ${attachedMapEmbedSrc ? `<a href="${escapeAttr(attachedMapEmbedSrc)}">Open in directory map &rarr;</a>` : ""}
+  const mapMedia = attachedMapFocusedEmbedSrc
+    ? `<iframe class="dir-map-embed" allowfullscreen allow="fullscreen" src="${escapeAttr(attachedMapFocusedEmbedSrc)}" loading="lazy" title="Map showing ${escapeAttr(entry.city || entry.name)}"></iframe>`
+    : staticMap;
+  const mapCard = mapMedia || attachedMapEmbedSrc
+    ? `<div class="dir-aside-block dir-map-card">
+  ${mapMedia}
+  ${attachedMapEmbedSrc ? `<a class="dir-map-card__link" href="${escapeAttr(attachedMapEmbedSrc)}" data-dm-event="listing_cta_click" data-dm-cta="map">Open in directory map &rarr;</a>` : ""}
 </div>`
+    : "";
+
+  // Quiet claim link, directly under the map — no longer a header button,
+  // same gating (only rendered when the directory has claims configured
+  // and this entry is open to claim, per claimWidgetFor in index.ts).
+  const claimLink = claim
+    ? `<p class="dir-claim-quiet">Represent this organisation?<br><button type="button" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>Claim this listing</button></p>`
     : "";
 
   // Directory attributes: every single_select/boolean categorisation gets
@@ -1449,49 +1841,55 @@ export function buildEntryPage(opts: {
     })
     .join("");
 
-  const relatedBlock = related.length
-    ? `<div class="dir-aside-block">
-  <span class="dir-rail__label">Related entries</span>
-  <div class="dir-related-list">
+  // Related entries: a full-width 4-up section below the two-column
+  // layout (BUILD_BRIEF.md), not a compact aside list — same underlying
+  // `related` data (relatedEntries(), up to 4, ranked by shared terms).
+  const relatedSection = related.length
+    ? `<section class="wrap dir-related">
+  <h2>Related entries</h2>
+  <div class="dir-related-grid">
     ${related
       .map((r) => {
         const rLogo = r.panel_image_url || r.logo_url;
-        return `<a class="dir-related-row" href="${escapeAttr(entryUrl(r))}">
-      <div class="dir-related-row__logo">${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="${escapeAttr(r.name)} logo">` : ""}</div>
-      <div class="dir-related-row__body"><strong>${escapeHtml(r.name)}</strong>${r.city ? `<span>${escapeHtml(r.city)}</span>` : ""}</div>
+        const rLogoBoxStyle = rLogo && r.panel_background_color ? ` style="background:${escapeAttr(r.panel_background_color)};"` : "";
+        return `<a class="card dir-related-card" href="${escapeAttr(entryUrl(r))}">
+      <div class="dir-related-card__logo"${rLogoBoxStyle}>${rLogo ? `<img src="${escapeAttr(rLogo)}" alt="${escapeAttr(r.name)} logo">` : ""}</div>
+      <div class="dir-related-card__body"><strong>${escapeHtml(r.name)}</strong>${r.city ? `<span>${escapeHtml(r.city)}</span>` : ""}</div>
     </a>`;
       })
       .join("\n")}
   </div>
-</div>`
+</section>`
     : "";
 
-  const aside = [locationBlock, attrsBlock, tagBlocks, relatedBlock].filter(Boolean).join("\n");
+  const aside = [contactPanel, mapCard, claimLink, attrsBlock, tagBlocks].filter(Boolean).join("\n");
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
-  const breadcrumb = `<a href="${escapeAttr(landingUrl)}" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--muted);margin:20px 0;">&larr; All entries in ${escapeHtml(directoryName)}</a>`;
+  const breadcrumb = renderBreadcrumbTrail(breadcrumbItems);
 
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
 <div class="wrap">
 ${breadcrumb}
-${header}
+${heroSection}
 </div>
 ${jumpBar}
 <div class="wrap dir-entry-body">
   <div class="dir-entry-main">${sections}</div>
   ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
 </div>
+${relatedSection}
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
-${enquiry ? buildEnquiryDrawer(enquiry, entry) : ""}
+${enquiry && entry.email && entry.email.trim() ? buildEnquiryDrawer(enquiry, entry) : ""}
+${claim ? buildClaimWidget(claim, entry) : ""}
 `.trim();
 
   return directoryPageShell({
     title: entry.meta_title || `${entry.name} — ${directoryName}`,
     description,
     canonicalUrl,
-    jsonLd: entrySchemaOrg(entry, canonicalUrl),
+    jsonLd: [entrySchemaOrg(entry, canonicalUrl), breadcrumbListJsonLd(breadcrumbJsonLdItems)],
     body,
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
@@ -1969,7 +2367,6 @@ function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
         headers: {
           'Content-Type': 'application/json',
           'apikey': ANON_KEY,
-          'Authorization': 'Bearer ' + ANON_KEY,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(row)
@@ -2292,7 +2689,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     showHint('Finding ' + place + '\\u2026');
     fetch(RESOLVE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': RESOLVE_ANON_KEY, 'Authorization': 'Bearer ' + RESOLVE_ANON_KEY },
+      headers: { 'Content-Type': 'application/json', 'apikey': RESOLVE_ANON_KEY },
       body: JSON.stringify({ directory_id: RESOLVE_DIRECTORY_ID, place: place, region: PLACE_REGION })
     })
       .then(function (res) { return res.json(); })
@@ -2774,7 +3171,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (aiCandidateIds) payload.candidate_entry_ids = aiCandidateIds;
     fetch(AI_SEARCH_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY, 'Authorization': 'Bearer ' + AI_SEARCH_ANON_KEY },
+      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY },
       body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined
     })
@@ -3210,7 +3607,7 @@ export function buildDirectoryLandingPage(opts: {
   const mapPane = hasMap
     ? `<div id="dir-map-pane" class="dir-map-pane dir-pane-hidden">
     <span class="chip dir-map-count" id="dir-map-count"></span>
-    <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
+    <div id="dir-map-embed"><iframe src="${escapeAttr(mapEmbedSrcWithFlag!)}" allowfullscreen allow="fullscreen" loading="lazy" title="${escapeAttr(directoryName)} map" style="width:100%;height:640px;border:0;border-radius:18px;overflow:hidden;"></iframe></div>
   </div>`
     : "";
 

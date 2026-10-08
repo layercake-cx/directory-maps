@@ -118,16 +118,10 @@ a.btn-primary:hover {
   opacity: 0.92;
 }
 
-.admin-brand .brand-logo__word {
-  font-size: 16px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.admin-brand .brand-logo__by {
-  font-size: 16px;
-  font-weight: 400;
-  font-style: italic;
-  white-space: nowrap;
+.admin-brand__logo {
+  height: 28px;
+  width: auto;
+  display: block;
 }
 
 .admin-actions {
@@ -344,7 +338,9 @@ a.btn-primary:hover {
 .admin-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 18px 16px 40px;
+  padding: 8px 4px 32px; /* tightened 2026-09-29 — this sits inside the shell's own .main/.main--wide
+                            padding now (see admin-shell.css), so it no longer needs to add its own
+                            full top/left margin on top of that; was 18px 16px 40px */
 }
 
 :where(.admin-main) h1,
@@ -352,19 +348,35 @@ a.btn-primary:hover {
   color: var(--page-heading-color);
 }
 
+/* Map design page: fills the shell's <main> (viewport minus top bar and main padding). The page head and
+   map sub-nav keep their natural height; only the map area (.admin-map-page) stretches. */
 .admin-main--map-page {
   max-width: none;
   margin: 0;
   padding: 0;
-  height: calc(100vh - 130px); /* header + nav + breadcrumbs */
-  min-height: 0;
+  min-height: calc(100vh - var(--header-h, 52px));
   display: flex;
   flex-direction: column;
 }
 
+/* Edge-to-edge: drop the shell's main padding and the 1600px cap so the sub-nav and map meet the container edges */
+.shell .main:has(> .admin-main--map-page),
+.shell .main--wide:has(> .admin-main--map-page) {
+  padding: 0;
+}
+
+.shell .main > .admin-main--map-page,
+.shell .main--wide > .admin-main--map-page {
+  max-width: none;
+}
+
 .admin-main--map-page > * {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+}
+
+.admin-main--map-page > .admin-map-page {
+  flex: 1 1 auto;
+  min-height: 560px;
 }
 
 .admin-card {

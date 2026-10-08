@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -62,15 +61,9 @@ export default function AdminUsers() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Admin Users" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
+      subtitle="View admin user details and activity."
     >
-      <div className="admin-card">
-        <h2 style={{ marginTop: 0 }}>Admin Users</h2>
-        <p style={{ color: "var(--lc-muted)" }}>View admin user details and activity.</p>
+      <div className="card card-pad">
         {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
         {loading ? (
           <p>Loading…</p>

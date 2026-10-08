@@ -178,7 +178,7 @@ export default function MapStats() {
               ← {routes.backLabel}
             </Link>
           ) : null}
-          <h1 className={styles.title}>{map?.name || "Map"} — Stats</h1>
+          <h1 className={`page-title ${styles.title}`}>{map?.name || "Map"} — Stats</h1>
         </div>
         <div className={styles.headerActions}>
           <DateRangeSelect days={days} onChange={setDays} />

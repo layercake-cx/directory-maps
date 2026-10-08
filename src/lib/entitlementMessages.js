@@ -10,6 +10,9 @@ export const ENTITLEMENT_MESSAGES = {
   custom_domain: {
     blocked: "Custom domains require the Professional plan or above. Contact Layercake to upgrade.",
   },
+  claims: {
+    blocked: "Claimed listings require the Professional plan or above. Contact Layercake to upgrade.",
+  },
   max_maps: {
     label: "maps",
     limitReached: (used, limit) =>

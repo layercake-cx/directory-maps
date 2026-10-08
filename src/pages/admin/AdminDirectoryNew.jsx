@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 import { createDirectory, slugify } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
@@ -58,49 +57,41 @@ export default function AdminDirectoryNew() {
         { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
         { label: "New directory" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card" style={{ maxWidth: 760 }}>
+      <div className="card card-pad" style={{ maxWidth: 760 }}>
         <div style={{ marginBottom: 12 }}>
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
 
-        <h2 style={{ marginTop: 0 }}>
-          Create directory {client?.name ? <span style={{ opacity: 0.7 }}>for {client.name}</span> : null}
-        </h2>
-
         <form onSubmit={handleCreate}>
           <div style={{ display: "grid", gap: 14 }}>
             <Field label="Directory name">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
             </Field>
 
             <Field label="Slug">
               <input
+                className="input"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder={suggestedSlug || "e.g. accredited-suppliers"}
               />
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+              <div className="field-hint">
                 Unique within this customer. Suggested: <strong>{suggestedSlug || "—"}</strong>
               </div>
             </Field>
 
             <Field label="Description (optional)">
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+              <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </Field>
 
-            {err ? <p style={{ margin: 0, color: "#b91c1c" }}>{err}</p> : null}
+            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
 
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
+              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
                 {saving ? "Creating…" : "Create directory"}
               </button>
-              <Link className="btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
+              <Link className="shell-btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
                 Cancel
               </Link>
             </div>
@@ -113,11 +104,9 @@ export default function AdminDirectoryNew() {
 
 function Field({ label, children }) {
   return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>
-        {children}
-      </div>
+    <div className="field">
+      <label>{label}</label>
+      {children}
     </div>
   );
 }

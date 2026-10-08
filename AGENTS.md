@@ -34,6 +34,8 @@ git checkout -b feat/YYYY-MM-DD-short-description
 # e.g. feat/2026-06-01-logo-bg-toggle
 ```
 
+**Raise the Monday ticket at the same moment you create the branch** — not later, and not only when writing the deployment log. Follow "Feature ticket" under *Monday.com feature/deployment tracking* below: search the Tasks board for a matching open item, create one in `Product Backlog` if none exists, and set it to `Working on it`. Put the branch name in the ticket description (first update) so the two can be matched up. Skip only for work that genuinely has no ticket-worthy content (e.g. a one-line typo), and say so.
+
 Use the prefix that matches the work:
 - `feat/` — new user-facing feature
 - `fix/` — bug fix
@@ -119,7 +121,7 @@ Board reference (so you don't need to re-query it every session):
 - `project_status` (status column): `Not Started`, `Working on it`, `Testing`, `Stuck`, `Done`.
 - `project_owner` (people), `people` (collaborators), `status_1` (priority: `Critical ⚠`/`High`/`Medium`/`Low`).
 
-**1 — Feature ticket:** whenever the user requests a new feature, or a change to an existing feature, search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
+**1 — Feature ticket (raise it when you create the branch):** whenever the user requests a new feature, or a change to an existing feature — and in any case at the same time as `git checkout -b` — search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
 
 **2 — Deployment log → Monday comment:** every time you write a `docs/DEPLOYMENTS.md` entry (see below), also post that entry's content as an update (`create_update`) on the matching Monday item — same "what changed" text, environment, and rollback plan. Then:
 - Set `project_status` to `"Testing"` once staging is verified.
@@ -199,6 +201,8 @@ supabase functions deploy <function_name> --project-ref beqejxneehilplrtpntn
 supabase functions deploy <function_name> --project-ref gxixwdjfmegxcxfeflro
 ```
 
+**`generate_directory_site` specifically:** if your change touches `builders.ts`'s markup or CSS (`BASE_STYLE`/`EXTRA_STYLE`/`LAYOUT_STYLE`/`buildEntryPage`/`buildDirectoryLandingPage`/etc.) — even a small bug fix, not just a redesign — **bump `ENTRY_TEMPLATE_VERSION`** (top of `builders.ts`) in the same deploy. This repo's incremental "auto" publish path only rebuilds an entry when its *data* changed; it has no way to know this file's own code changed. Forgetting the bump means a directory's next ordinary Publish does an incremental rebuild and your change silently never reaches any already-published page — this happened for real on 2026-09-29 (a panel_background_color fix shipped without the bump, published, and visibly didn't take effect). If you deploy this function and don't remember bumping this constant, go back and check before telling the user it's live.
+
 ---
 
 ## Database migrations (required reading before touching the schema)
@@ -267,6 +271,8 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory AI search**: `directory_ai_search_*`
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
   - **Directory content pages**: `directory_content_page_*`
+  - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
+  - **AI model configuration**: `ai_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -372,7 +378,13 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`email_contact_message_failed`**
   - `meta`: `client_id`, `map_id`, `listing_id`, `error`
 - **`email_domain_setup_started` / `email_domain_verified` / `email_domain_verify_failed`**
-  - `meta`: `client_id`, `email_provider` (`resend`), `domain`, `error` (on fail)
+  - `meta`: `client_id`, `profile_id` (messaging profile), `email_provider` (`resend`), `domain`, `error` (on fail), `source`
+- **`email_profile_created` / `email_profile_updated` / `email_profile_deleted`**
+  - `meta`: `client_id`, `profile_id`, `email_provider` (`resend`), `source`; `changed_fields` (string[], updated); `maps_affected`, `directories_affected` (counts, deleted)
+  - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
+- **`email_map_settings_updated` / `email_directory_settings_updated`**
+  - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
+  - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Settings → Email sending page). Never store the test recipient or message text.
 
 #### Billing
 
@@ -440,9 +452,7 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`directory_theme_preset_deleted`**
   - `meta`: `client_id`, `preset_id`
   - Fired when an org-saved preset is deleted. Never fires for the 5 built-in presets (not deletable).
-- **`directory_enquiry_settings_updated`**
-  - `meta`: `client_id`, `directory_id`, `contact_email_set` (boolean), `changed_fields` (string[])
-  - Fired from the directory Email tab when the contact inbox is saved. Never store the address itself.
+- **`directory_enquiry_settings_updated`** — **retired (2026-10-04).** The directory-wide contact inbox was removed; the Contact button sends to each entry's own email. Settings changes now fire `email_directory_settings_updated`. Nothing emits this event any more.
   - The visitor events for the public button (`listing_enquiry_open`, `listing_enquiry_sent`) are engagement rows, not admin events — see `docs/MAP_ENGAGEMENT.md` and section 5 below.
 - **`directory_created`**
   - `meta`: `client_id`, `directory_id`, `name`, `slug`, `source_map_id` (present only for "Build a directory from this map"; `null` otherwise), `categorisations_migrated` (count of the source map's filter fields carried across as categorisations attached to the new directory, `null` if not applicable or the count couldn't be determined — see `create_directory_from_map()`)
@@ -463,6 +473,9 @@ that one file rather than split across two prefixes; retrofitted here as documen
   - `meta`: `directory_id`, `entry_id`, `name`
 - **`directory_entry_bulk_archived`**
   - `meta`: `directory_id`, `entry_count`, `is_active` (the target state applied to the selection)
+- **`directory_entry_team_member_added`** / **`directory_entry_team_member_removed`**
+  - `meta`: `directory_id`, `entry_id`, `team_member_id`
+  - Fired from `TeamMembersEditor.jsx` (Claimed Directory Listings epic §10/§11, admin/client-portal side — the claim-user side fires `claimed_listing_updated` instead, per the `claim_*` category below).
 
 #### Directory content pages
 
@@ -480,6 +493,9 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
 - **`directory_content_page_ai_draft_requested`** / **`_ai_draft_generated`** / **`_ai_draft_failed`**
   - `meta`: `directory_id`, `page_id`, `error` (on fail)
   - The editor supplies an outline; Claude drafts the page body. Never persisted by the Edge Function itself — lands in the (unsaved) rich text editor for review, same pattern as `directory_ai_content_*`.
+- **`directory_content_page_ai_seo_requested`** / **`_ai_seo_generated`** / **`_ai_seo_failed`**
+  - `meta`: `directory_id`, `page_id`, `error` (on fail)
+  - Separate "Generate SEO with AI" action: drafts the meta title and description only. Lands in the unsaved form, never persisted by the Edge Function.
 
 #### Directory AI content generation
 
@@ -494,7 +510,7 @@ Successor to the removed map-level "AI search enrichment" feature (`ai_search_*`
 - **`directory_ai_content_failed`**
   - `meta`: `client_id`, `directory_id`, `entry_id`, `error`
 - **`directory_ai_content_bulk_requested`**
-  - `meta`: `client_id`, `directory_id`, `entries_queued`
+  - `meta`: `client_id`, `directory_id`, `entries_queued`; `target` (`seo_metadata` for the SEO backfill); `retry` (`true` when it is a "Retry failed" re-queue rather than a new run)
 - **`directory_ai_content_bulk_completed`**
   - `meta`: `client_id`, `directory_id`, `entries_processed`, `entries_failed`
 - **`directory_entry_content_restored`**
@@ -510,6 +526,64 @@ Successor to the removed map-level "Ask AI" search (`search_listings_by_intent`)
 - **`directory_ai_search_web_toggled`**
   - `meta`: `client_id`, `directory_id`, `enabled` (boolean)
   - Fired only when the web-search opt-in's value actually changes on save, not on every unrelated prompt save.
+
+#### Integrations
+
+Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab.jsx`, shared by the client portal and the admin customer detail. Never put API keys, key fragments or provider error text in `meta`.
+
+- **`integration_connected`**
+  - `meta`: `client_id`, `provider` (`anthropic`/`openai`/`gemini`), `status`, `source` (`client_portal` / `admin_dashboard`)
+  - Fired after a key passes its connection test and is saved.
+- **`integration_credentials_replaced`**
+  - `meta`: `client_id`, `provider`, `status`, `source`
+- **`integration_tested`**
+  - `meta`: `client_id`, `provider`, `status` (`connected`/`error`), `ok` (boolean), `source`
+- **`integration_disconnected`**
+  - `meta`: `client_id`, `provider`, `source`
+- **`ai_model_config_updated`**
+  - `meta`: `client_id`, `product` (`directory_maps`, or null for the organisation default), `feature` (null for the organisation default), `provider` (null = automatic), `model` (null when using the recommended model), `use_recommended`, `source`
+  - Fired from `AiFeaturesConfig.jsx` on save. Never put prompts or keys in `meta`.
+
+#### Claims
+
+Claimed Directory Listings epic (Monday: "Claimed Directory Listings (Epic)"). Lets an organisation
+represented in a directory claim, verify, and manage its own `directory_entries` row without becoming
+a directory administrator — a claim grants rights to one directory item, never the directory. Gated by
+the `claims` feature flag + the `maps.claims` commercial entitlement (`resolve_claims_entitlement()`).
+These events were added to the catalogue in Phase 0, ahead of the tables/UI that emit them — Phases
+1–8 have since built and wired up the whole epic (bar the Stripe follow-up). `claim_email_verification_sent`
+and `claim_user_activated` are reserved but never emitted: the shipped flow collapsed domain verification
+and magic-link sign-in into a single step, so there's no separate "verification email sent" moment, and
+no distinct "first login" event beyond the already-emitted `claim_user_invited`/`claim_activated`. Fire
+them if a future change reintroduces a distinct verification-email step or a "first login" moment worth
+its own event — don't invent new names for either.
+
+- **`claim_started`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `created_by` (`self_service`/`admin`), `source`
+- **`claim_email_verification_sent`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
+- **`claim_email_verified`** / **`claim_verification_overridden`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `verification_method` (`domain_email`/`admin_override`)
+- **`claim_payment_started`** / **`claim_payment_completed`** / **`claim_payment_failed`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `payment_type`, `error` (on fail)
+  - Only emitted once the Claim Payments (Stripe) follow-up epic lands; the main epic's self-service flow activates without payment (see `claim_activated`'s `activation_reason`).
+- **`claim_activated`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `activation_reason` (`no_payment_required` / `payment_confirmed` / `admin_manual`)
+- **`claim_user_invited`** / **`claim_user_activated`** / **`claim_user_removed`**
+  - `meta`: `client_id`, `directory_id`, `claim_id`, `claim_user_id`, `role` (`owner`/`editor`)
+- **`claim_ownership_transfer_started`** / **`claim_ownership_transferred`**
+  - `meta`: `client_id`, `directory_id`, `claim_id`, `from_claim_user_id`, `to_claim_user_id`
+- **`claimed_listing_updated`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `changed_fields` (string[])
+- **`claimed_listing_published`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `trigger` (optional: `auto_on_activation` when fired automatically right after a claim goes active — self-service or admin-manual — rather than by someone clicking Publish themselves; absent for a manual click)
+  - Fired by `publish_directory_item()` (see §5's item-only publishing isolation requirement) — never the general `map_published`/directory publish events, since a claim publish must never touch unrelated directory content.
+  - Also fired automatically, best-effort, right after a claim reaches `active` (`ClaimLogin.jsx` for self-service, `DirectoryClaimsPanel.jsx`'s Activate button for admin) — so the public page (claim button gone, provenance switched) reflects reality immediately rather than waiting on a separate manual Publish. A failed auto-publish never blocks activation itself. **Revoke does not get the same treatment** (a revoked claim's entry stays looking claimed, and the claim button stays absent, until someone manually republishes) — a known, deliberately-not-yet-fixed asymmetry, flagged rather than silently left inconsistent.
+- **`claim_suspended`** / **`claim_reactivated`** / **`claim_revoked`**
+  - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `reason` (optional, `claim_revoked` only)
+- **`directory_claim_settings_updated`**
+  - `meta`: `client_id`, `directory_id`, `changed_fields` (string[])
+  - Fired from the directory admin's Claims → Settings sub-tab.
 
 ### 4) Rule for future features
 
@@ -529,4 +603,4 @@ Every new visitor action on a published directory site must record a row in `map
 - Do not put personal data in `meta` (no names, emails, message bodies, or phone numbers).
 - Configuration of that feature in the admin or client portal still needs an admin event from the catalogue above. A visitor action and the admin action that configures it are two different events.
 
-Directory enquiry is the reference: `listing_enquiry_open` when **Make an Enquiry** is clicked, `listing_enquiry_sent` when the email send succeeds, and `directory_enquiry_settings_updated` when the contact email is saved.
+Directory Contact is the reference: `listing_enquiry_open` when **Contact** is clicked, `listing_enquiry_sent` when the email send succeeds, and `email_directory_settings_updated` when its settings are saved.

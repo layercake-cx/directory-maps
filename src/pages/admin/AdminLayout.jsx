@@ -1,192 +1,99 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import BrandLogo from "../../components/BrandLogo.jsx";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
+import AppShell from "../../components/shell/AppShell.jsx";
+import { recordCustomerVisit } from "../../lib/recentCustomers.js";
 import "./admin.css";
-
-const ADMIN_NAV = [
-  { label: "Customers", path: "/admin/clients" },
-  { label: "Maps", path: "/admin/maps" },
-  { label: "Directories", path: "/admin/directories" },
-  { label: "Admin Users", path: "/admin/users" },
-  { label: "Leads", path: "/admin/leads" },
-  {
-    label: "Logs",
-    children: [
-      { label: "User activity", path: "/admin/user-activity" },
-      { label: "Error log", path: "/admin/error-log" },
-      { label: "Sync log", path: "/admin/sync-log" },
-    ],
-  },
-  { label: "Deployments", path: "/admin/deployments", superadmin: true },
-];
-
-function resolveHref(path) {
-  return path.startsWith("/") ? path : `/admin${path === "/" ? "" : path}`;
-}
-
-function isPathActive(pathname, href) {
-  return pathname === href || pathname.startsWith(href + "/");
-}
 
 /** Admin routes editing a specific client's map (Design / Data / Listings). */
 function isAdminClientMapRoute(pathname) {
   return /^\/admin\/clients\/[^/]+\/maps\/[^/]+/.test(pathname || "");
 }
 
+/** /admin/clients/:clientId(/...) — staff viewing one customer's workspace, per IA §4. */
+function clientWorkspaceIdFromPath(pathname) {
+  const match = (pathname || "").match(/^\/admin\/clients\/([^/]+)/);
+  return match && match[1] !== "new" ? match[1] : null;
+}
+
 /**
+ * Every admin page still imports and wraps its content in this component (there is no
+ * route-level admin layout yet — see BUILD plan §3 for why that restructuring was skipped
+ * in Phase 1). What changed: the old bespoke header + ADMIN_NAV bar is now the shared
+ * AppShell/TopBar/Rail (platform context — the brief's "staff client workspace renders
+ * inside the client shell" treatment for /admin/clients/:clientId/... is explicitly Phase 3
+ * work, not attempted here). A page under a client workspace that wants its own left-column
+ * sub-nav (matching the client portal's own pattern) passes `panel` — see
+ * CustomerWorkspaceFeaturePanel/DirectoryFeaturePanel — rather than a horizontal tab bar.
+ *
  * @param {{
  *   rightActions?: React.ReactNode,
+ *   subtitle?: React.ReactNode,
  *   children: React.ReactNode,
  *   mainClassName?: string,
  *   breadcrumbs?: {label: string, path?: string}[],
- *   clientNavItems?: {label: string, value: string}[],
- *   activeClientTab?: string,
- *   onClientTabChange?: (value: string) => void,
+ *   panel?: React.ReactNode,
  * }} props
  */
 export default function AdminLayout({
   rightActions,
+  subtitle,
   children,
   mainClassName = "",
   breadcrumbs = [],
-  clientNavItems,
-  activeClientTab,
-  onClientTabChange,
+  panel,
 }) {
   const location = useLocation();
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
-
-  const [openMenu, setOpenMenu] = useState(null);
-  const navRef = useRef(null);
-
-  useEffect(() => {
-    setOpenMenu(null);
-  }, [pathname]);
+  const clientWorkspaceId = clientWorkspaceIdFromPath(pathname);
+  // The map design page is edge-to-edge: no page title/padding; the sub-nav carries the actions instead.
+  const flush = showMapSubNav && mainClassName.includes("admin-main--map-page");
+  const context = clientWorkspaceId ? "client" : "platform";
 
   useEffect(() => {
-    function onDocClick(e) {
-      if (navRef.current && !navRef.current.contains(e.target)) setOpenMenu(null);
-    }
-    function onKeyDown(e) {
-      if (e.key === "Escape") setOpenMenu(null);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, []);
+    if (clientWorkspaceId) recordCustomerVisit(clientWorkspaceId);
+  }, [clientWorkspaceId]);
 
   return (
-    <div className="admin-shell">
-      <header className="admin-header">
-        <div className="admin-header__inner">
-          <BrandLogo to="/admin" className="admin-brand" />
-
-          <div className="admin-actions">
-            {rightActions}
-          </div>
-        </div>
-      </header>
-
-      <nav className="admin-nav" aria-label="Admin sections" ref={navRef}>
-        <div className="admin-nav__inner">
-          {ADMIN_NAV.map((item) => {
-            if (item.children) {
-              const isOpen = openMenu === item.label;
-              const isChildActive = item.children.some(({ path }) =>
-                isPathActive(pathname, resolveHref(path))
-              );
-              return (
-                <div className="admin-nav__dropdown" key={item.label}>
-                  <button
-                    type="button"
-                    className={`admin-nav__link admin-nav__link--dropdown ${isChildActive ? "admin-nav__link--active" : ""}`}
-                    aria-haspopup="true"
-                    aria-expanded={isOpen}
-                    onClick={() => setOpenMenu(isOpen ? null : item.label)}
-                  >
-                    {item.label}
-                    <span className="admin-nav__caret" aria-hidden="true">▾</span>
-                  </button>
-                  {isOpen && (
-                    <div className="admin-nav__menu" role="menu">
-                      {item.children.map(({ label, path }) => {
-                        const href = resolveHref(path);
-                        const isActive = isPathActive(pathname, href);
-                        return (
-                          <Link
-                            key={href}
-                            to={href}
-                            role="menuitem"
-                            className={`admin-nav__menu-item ${isActive ? "admin-nav__menu-item--active" : ""}`}
-                          >
-                            {label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+    <AppShell
+      context={context}
+      isStaff
+      homeHref={clientWorkspaceId ? `/admin/clients/${encodeURIComponent(clientWorkspaceId)}` : "/admin/clients"}
+      activeClientId={clientWorkspaceId}
+      panel={panel}
+    >
+      <div className={`admin-main ${mainClassName}`.trim()}>
+        {!flush && (breadcrumbs.length > 0 || rightActions) && (
+          <div className="page-head" style={{ marginBottom: 16 }}>
+            <div>
+              {breadcrumbs.length > 1 && (
+                <div style={{ fontSize: 13, color: "var(--shell-text-muted)", marginBottom: 4 }}>
+                  {breadcrumbs.slice(0, -1).map((item, i) => (
+                    <span key={i}>
+                      {i > 0 && <span aria-hidden style={{ margin: "0 6px" }}>/</span>}
+                      {item.path ? (
+                        <Link to={item.path} style={{ color: "inherit" }}>{item.label}</Link>
+                      ) : (
+                        item.label
+                      )}
+                    </span>
+                  ))}
                 </div>
-              );
-            }
-
-            const { label, path, superadmin } = item;
-            const href = resolveHref(path);
-            const isActive = isPathActive(pathname, href);
-            return (
-              <Link
-                key={href}
-                to={href}
-                className={`admin-nav__link ${isActive ? "admin-nav__link--active" : ""} ${superadmin ? "admin-nav__link--superadmin" : ""}`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {breadcrumbs.length > 0 && (
-        <div className="admin-breadcrumbs">
-          <div className="admin-breadcrumbs__inner">
-            {breadcrumbs.map((item, i) => (
-              <span key={i} className="admin-breadcrumbs__item">
-                {i > 0 && <span className="admin-breadcrumbs__sep" aria-hidden> / </span>}
-                {item.path ? (
-                  <Link to={item.path} className="admin-breadcrumbs__link">{item.label}</Link>
-                ) : (
-                  <span className="admin-breadcrumbs__current">{item.label}</span>
-                )}
-              </span>
-            ))}
+              )}
+              {breadcrumbs.length > 0 && (
+                <h1 className="page-title">{breadcrumbs[breadcrumbs.length - 1].label}</h1>
+              )}
+              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>{subtitle}</p>}
+            </div>
+            {rightActions && <div style={{ display: "flex", gap: 10, alignItems: "center" }}>{rightActions}</div>}
           </div>
-        </div>
-      )}
+        )}
 
-      {clientNavItems && clientNavItems.length > 0 && (
-        <nav className="admin-client-nav" aria-label="Client sections">
-          <div className="admin-client-nav__inner">
-            {clientNavItems.map(({ label, value }) => (
-              <button
-                key={value}
-                type="button"
-                className={`admin-client-nav__tab${activeClientTab === value ? " admin-client-nav__tab--active" : ""}`}
-                onClick={() => onClientTabChange?.(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </nav>
-      )}
+        {showMapSubNav && <MapEditSubNav standalone actions={flush ? rightActions : null} />}
 
-      {showMapSubNav && <MapEditSubNav standalone />}
-
-      <main className={`admin-main ${mainClassName}`.trim()}>{children}</main>
-    </div>
+        {children}
+      </div>
+    </AppShell>
   );
 }

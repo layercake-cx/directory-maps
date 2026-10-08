@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 
 export default function AdminContactDetail() {
@@ -112,13 +111,8 @@ export default function AdminContactDetail() {
         { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
         { label: "Contact" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>
           <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
         </div>
@@ -128,7 +122,6 @@ export default function AdminContactDetail() {
 
         {contact && client && !loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <h2 style={{ margin: "0 0 8px 0" }}>Edit contact</h2>
             <div style={{ fontSize: 13, marginBottom: 8 }}>
               <strong>Customer:</strong>{" "}
               <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
@@ -171,7 +164,7 @@ export default function AdminContactDetail() {
                   Manage users
                 </label>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button type="submit" className="shell-btn shell-btn--primary" disabled={saving}>
                 {saving ? "Saving…" : "Save changes"}
               </button>
             </form>

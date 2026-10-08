@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
+import AppShell from "../../components/shell/AppShell.jsx";
+import DirectoryFeaturePanel from "../../components/shell/DirectoryFeaturePanel.jsx";
 import { ClientProvider } from "../../context/ClientContext.jsx";
+import { DirectoryProvider } from "../../context/DirectoryContext.jsx";
 import { MapDraftContext } from "../../context/MapDraftContext.js";
 import { getClientAndContact } from "../../lib/getClientAndContact.js";
-import { canManageOrg } from "../../lib/clientAuth.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useFeatureFlags } from "../../hooks/useFeatureFlags.js";
-import { DIRECTORIES_FLAG, CUSTOM_DOMAIN_FLAG } from "../../lib/featureFlags.js";
 import { readHashSearchParams, replaceHashSearchParams } from "../../lib/hashSearchParams.js";
 import {
   markPublishPanelOpen,
@@ -16,15 +16,6 @@ import {
   isPublishPanelOpenInStorage,
 } from "../../lib/publishPanelStorage.js";
 import "../admin/admin.css";
-
-const CLIENT_NAV = [
-  { label: "My Maps", path: "/client" },
-  { label: "Directories", path: "/client/directories", requiresFlag: DIRECTORIES_FLAG },
-  { label: "Categorisations", path: "/client/categorisations", requiresManageOrg: true, requiresFlag: DIRECTORIES_FLAG },
-  { label: "Team", path: "/client/team", requiresManageOrg: true },
-  { label: "Messaging", path: "/client/email", requiresManageMaps: true },
-  { label: "Domains", path: "/client/domains", requiresManageMaps: true, requiresFlag: CUSTOM_DOMAIN_FLAG },
-];
 
 function isClientMapDesignPath(pathname) {
   return /^\/client\/maps\/[^/]+$/.test(pathname || "");
@@ -35,6 +26,8 @@ export default function ClientLayout() {
   const navigate = useNavigate();
   const pathname = location.pathname || "/";
   const mapIdFromPath = pathname.match(/^\/client\/maps\/([^/]+)/)?.[1] ?? null;
+  const directoryIdMatch = pathname.match(/^\/client\/directories\/([^/]+)/);
+  const directoryIdFromPath = directoryIdMatch && directoryIdMatch[1] !== "new" ? directoryIdMatch[1] : null;
 
   const [hasDraft, setHasDraft] = useState(false);
   const [publishPanelOpen, setPublishPanelOpenState] = useState(false);
@@ -44,7 +37,6 @@ export default function ClientLayout() {
   const restoredPublishRef = useRef(false);
   const lastMapIdRef = useRef(mapIdFromPath);
   const { isAdmin, roleLoading, signupProvisionError, clearSignupProvisionError, provisionVersion } = useAuth();
-  const { flags: featureFlags } = useFeatureFlags();
   const kickedUnlinkedRef = useRef(false);
   const clientLoadedRef = useRef(false);
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
@@ -243,64 +235,51 @@ export default function ClientLayout() {
       );
     }
   } else {
-    const canManageMaps = contact?.is_primary || contact?.can_manage_maps;
-    const navItems = CLIENT_NAV.filter((item) => {
-      if (item.requiresFlag && !featureFlags?.[item.requiresFlag]) return false;
-      if (item.requiresManageOrg) return canManageOrg(contact);
-      if (item.requiresManageMaps) return canManageMaps;
-      return true;
-    });
+    const verifiedBanner = showVerifiedBanner && (
+      <div
+        style={{
+          background: "#ecfdf5",
+          color: "#065f46",
+          padding: "12px 20px",
+          fontSize: 14,
+          fontWeight: 500,
+          textAlign: "center",
+          borderBottom: "1px solid #a7f3d0",
+        }}
+      >
+        Email verified successfully — your account is ready to go.
+      </div>
+    );
+
+    const shellBody = directoryIdFromPath ? (
+      <AppShell
+        context="client"
+        isStaff={isAdmin}
+        homeHref="/client"
+        orgName={client?.name}
+        contact={contact}
+        panel={<DirectoryFeaturePanel />}
+      >
+        {verifiedBanner}
+        <Outlet />
+      </AppShell>
+    ) : (
+      <AppShell context="client" isStaff={isAdmin} homeHref="/client" orgName={client?.name} contact={contact}>
+        {verifiedBanner}
+        {isMapDetailRoute && <MapEditSubNav standalone />}
+        {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
+      </AppShell>
+    );
 
     inner = (
       <ClientProvider client={client} contact={contact} loading={loading} error={err} refetch={load}>
-        <>
-          {showVerifiedBanner && (
-            <div
-              style={{
-                background: "#ecfdf5",
-                color: "#065f46",
-                padding: "12px 20px",
-                fontSize: 14,
-                fontWeight: 500,
-                textAlign: "center",
-                borderBottom: "1px solid #a7f3d0",
-              }}
-            >
-              Email verified successfully — your account is ready to go.
-            </div>
-          )}
-          <nav className="client-nav" aria-label="Client sections">
-            <div className="client-nav__inner">
-              {navItems.map(({ label, path }) => {
-                const isActive =
-                  path === "/client"
-                    ? pathname === "/client" ||
-                      pathname === "/client/" ||
-                      (pathname.startsWith("/client/") &&
-                        !pathname.startsWith("/client/team") &&
-                        !pathname.startsWith("/client/email") &&
-                        !pathname.startsWith("/client/domains") &&
-                        !pathname.startsWith("/client/maps/") &&
-                        !pathname.startsWith("/client/directories") &&
-                        !pathname.startsWith("/client/categorisations"))
-                    : pathname === path || pathname.startsWith(path + "/");
-                return (
-                  <Link
-                    key={path}
-                    to={path}
-                    className={`client-nav__link ${isActive ? "client-nav__link--active" : ""}`}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-
-          {isMapDetailRoute && <MapEditSubNav standalone />}
-
-          {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
-        </>
+        {directoryIdFromPath ? (
+          <DirectoryProvider directoryId={directoryIdFromPath} client={client} contact={contact}>
+            {shellBody}
+          </DirectoryProvider>
+        ) : (
+          shellBody
+        )}
       </ClientProvider>
     );
   }

@@ -8,7 +8,13 @@ function getEnv(name: string) {
 
 export function createAnonClient(req: Request) {
   const url = getEnv("SUPABASE_URL");
-  const anon = getEnv("SUPABASE_ANON_KEY");
+  // SB_PUBLISHABLE_KEY (not SUPABASE_ANON_KEY, which the platform reserves for
+  // the legacy anon key) -- the new publishable key, set as a function secret
+  // since Supabase does not auto-inject it. See docs/DEPLOYMENTS.md 2026-09-26
+  // for why: the legacy anon/service_role pair got exposed in an agent session
+  // and can only be invalidated by fully disabling legacy JWT-based API keys,
+  // so every caller of this function had to move off them first.
+  const anon = getEnv("SB_PUBLISHABLE_KEY");
   const authHeader = req.headers.get("Authorization") ?? "";
 
   return createClient(url, anon, {
@@ -20,7 +26,9 @@ export function createAnonClient(req: Request) {
 
 export function createServiceClient() {
   const url = getEnv("SUPABASE_URL");
-  const service = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  // SB_SECRET_KEY (not SUPABASE_SERVICE_ROLE_KEY) -- see createAnonClient's
+  // comment above for why.
+  const service = getEnv("SB_SECRET_KEY");
   return createClient(url, service, {
     auth: {
       // Disable session persistence and auto-refresh — not needed for server-side
@@ -111,5 +119,53 @@ export async function requireDirectoryAccess(req: Request, directoryId: string) 
     throw new Error("You need edit access to this directory");
   }
   return user;
+}
+
+/**
+ * Allows admins/directory contacts (via requireDirectoryAccess) OR the
+ * active claim's owner/editor for this specific directory_entries row
+ * (Claimed Directory Listings epic). This is the entry-grained check that
+ * generate_directory_site's "claim_item" scope depends on -- a claim user
+ * has no profiles/contacts row, so requireDirectoryAccess alone would
+ * always reject them; this adds the narrower, item-scoped fallback rather
+ * than widening directory-level trust.
+ */
+export async function requireDirectoryItemPublishAccess(req: Request, directoryItemId: string) {
+  const user = await requireUser(req);
+  const service = createServiceClient();
+
+  const { data: entry } = await service
+    .from("directory_entries")
+    .select("directory_id, current_claim_id")
+    .eq("id", directoryItemId)
+    .maybeSingle();
+  if (!entry) throw new Error("Directory item not found");
+
+  try {
+    await requireDirectoryAccess(req, entry.directory_id);
+    return { user, directoryId: entry.directory_id as string, viaClaim: false };
+  } catch {
+    // Not an admin/contact -- fall through to the claim-user path.
+  }
+
+  if (!entry.current_claim_id) throw new Error("Access denied");
+
+  const { data: claim } = await service
+    .from("claims")
+    .select("id, status")
+    .eq("id", entry.current_claim_id)
+    .maybeSingle();
+  if (!claim || claim.status !== "active") throw new Error("Access denied");
+
+  const { data: claimUser } = await service
+    .from("claim_users")
+    .select("id")
+    .eq("claim_id", claim.id)
+    .eq("user_id", user.id)
+    .is("removed_at", null)
+    .maybeSingle();
+  if (!claimUser) throw new Error("Access denied");
+
+  return { user, directoryId: entry.directory_id as string, viaClaim: true, claimId: claim.id as string };
 }
 

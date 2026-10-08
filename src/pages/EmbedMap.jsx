@@ -130,12 +130,14 @@ async function isSnapshotFresh(supabaseClient, mapId, snapshot) {
   }
 }
 
-async function fetchClientMessagingSettings(supabaseClient, clientId) {
-  if (!clientId) return null;
+// Per-map settings. messaging_enabled is the effective value: the map's toggle AND
+// a sending profile chosen AND the messaging entitlement (see map_messaging_settings).
+async function fetchMapMessagingSettings(supabaseClient, mapId) {
+  if (!mapId) return null;
   const { data } = await supabaseClient
-    .from("client_messaging_settings")
-    .select("messaging_enabled,messaging_prompt,email_test_mode,email_test_recipient")
-    .eq("client_id", clientId)
+    .from("map_messaging_settings")
+    .select("messaging_enabled,messaging_prompt:message_prompt,email_test_mode,email_test_recipient")
+    .eq("map_id", mapId)
     .maybeSingle();
   return data;
 }
@@ -157,6 +159,15 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
    * show_list_panel setting, so the directory doesn't get a duplicate list.
    */
   const hideListPanel = params.get("hideListPanel") === "1";
+  /**
+   * Set by a directory entry detail page (generate_directory_site) embedding
+   * this map focused on one pin — a `directory_entries.id` (verbatim the
+   * same id `public_directory_entries` exposes as `id`, see
+   * supabase/migrations/20260827150000_directory_map_datasource.sql).
+   * Applied below via the existing centerOnListingId mechanism once
+   * listings have loaded — no new pan/zoom/select logic needed.
+   */
+  const focusListingId = params.get("focus");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -168,7 +179,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   /** listingId -> [{ field_id, option_id, value_text }] for custom filter fields. */
   const [filterValuesByListing, setFilterValuesByListing] = useState({});
   /**
-   * Categorisation-derived filter fields + per-record values (see
+   * Category-derived filter fields + per-record values (see
    * src/lib/categorisations.js's loadCategorisationFiltersForEntries /
    * loadCategorisationFiltersForListings) — for a directory-sourced map,
    * sourced from categorisations attached to that directory (shared with
@@ -213,6 +224,18 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
+  const focusApplied = useRef(false);
+
+  // Directory entry detail page embed (?focus=<directory_entries.id>): apply
+  // once listings are in, via the same centerOnListingId pan/zoom/select path
+  // list-panel clicks already use — DirectoryMap.jsx pans to selectZoom
+  // (15 desktop) and opens the pin's detail card. Guarded to run once so a
+  // later listings refetch doesn't re-trigger the pan animation.
+  useEffect(() => {
+    if (!focusListingId || focusApplied.current || listings.length === 0) return;
+    focusApplied.current = true;
+    setCenterOnListingId(focusListingId);
+  }, [focusListingId, listings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -285,7 +308,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           }
 
           if (!cancelled) setClientId(m?.client_id ?? null);
-          const ms = await fetchClientMessagingSettings(supabase, m?.client_id);
+          const ms = await fetchMapMessagingSettings(supabase, mapId);
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
             setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -361,7 +384,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           const resolvedClientId =
             snapshot.config?.map?.client_id ?? (await resolveMapClientId(supabase, mapId));
           if (!cancelled) setClientId(resolvedClientId);
-          const ms = await fetchClientMessagingSettings(supabase, resolvedClientId);
+          const ms = await fetchMapMessagingSettings(supabase, mapId);
           if (ms && !cancelled) {
             setMessagingEnabled(!!ms.messaging_enabled);
             setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -431,7 +454,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
 
         // ── Fetch messaging settings for the embed gate ────────────────────
         if (!cancelled) setClientId(mapRow?.client_id ?? null);
-        const ms = await fetchClientMessagingSettings(supabase, mapRow?.client_id);
+        const ms = await fetchMapMessagingSettings(supabase, mapId);
         if (ms && !cancelled) {
           setMessagingEnabled(!!ms.messaging_enabled);
           setMessagingPrompt(ms.messaging_prompt ?? "");
@@ -837,6 +860,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
           showListPanel={effectiveDefaults.showListPanel}
+          showListPanelInFullscreen={hideListPanel}
           showSearch={parsedTheme.showSearch !== false}
           showGroupDropdowns={parsedTheme.showGroupDropdowns !== false}
           mapName={map?.name ?? ""}
@@ -881,7 +905,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
             setContactFormSent(false);
             setContactFormError("");
             if (clientId) {
-              fetchClientMessagingSettings(supabase, clientId).then((ms) => {
+              fetchMapMessagingSettings(supabase, mapId).then((ms) => {
                 if (!ms) return;
                 setMessagingTestMode(ms.email_test_mode !== false);
                 setMessagingTestRecipient(ms.email_test_recipient ?? "");

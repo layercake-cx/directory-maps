@@ -54,9 +54,11 @@ function DnsStatusIcon({ status }) {
 
 /**
  * Shared custom-domain settings for client portal and admin customer detail.
- * @param {{ clientId: string, clientName?: string, eventSource?: string }} props
+ * `directoryId` scopes it to one directory (the directory's own Domain page): only that
+ * directory's domains are listed and a new domain always publishes that directory.
+ * @param {{ clientId: string, clientName?: string, eventSource?: string, directoryId?: string }} props
  */
-export default function DomainSettings({ clientId, clientName = "", eventSource = "client_portal" }) {
+export default function DomainSettings({ clientId, clientName = "", eventSource = "client_portal", directoryId = null }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -123,10 +125,13 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       if (dErr) throw dErr;
       if (mErr) throw mErr;
       if (dirErr) throw dirErr;
-      setDomains(d ?? []);
-      setMaps(m ?? []);
-      setDirectories(dir ?? []);
-      if (!newTarget) {
+      const scopedDirs = directoryId ? (dir ?? []).filter((x) => x.id === directoryId) : (dir ?? []);
+      setDomains(directoryId ? (d ?? []).filter((x) => x.directory_id === directoryId) : (d ?? []));
+      setMaps(directoryId ? [] : (m ?? []));
+      setDirectories(scopedDirs);
+      if (directoryId) {
+        setNewTarget(`directory:${directoryId}`);
+      } else if (!newTarget) {
         if ((m ?? []).length > 0) setNewTarget(`map:${m[0].id}`);
         else if ((dir ?? []).length > 0) setNewTarget(`directory:${dir[0].id}`);
       }
@@ -136,7 +141,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [clientId, directoryId]);
 
   useEffect(() => {
     load();
@@ -272,6 +277,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       ) : (
         <EntitlementGate allowed={canPublishAnything} loading={gateLoading} message={getBlockedMessage("custom_domain")}>
           <form onSubmit={handleAddDomain} className={styles.addForm}>
+            {directoryId ? null : (
             <label className={`${emailStyles.field} ${styles.field}`}>
               <span>Publishes</span>
               <select value={newTarget} onChange={(e) => setNewTarget(e.target.value)}>
@@ -296,6 +302,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
                 ) : null}
               </select>
             </label>
+            )}
             <label className={`${emailStyles.field} ${styles.field}`}>
               <span>Domain or subdomain</span>
               <input

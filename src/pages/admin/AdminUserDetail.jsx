@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 
@@ -68,17 +67,11 @@ export default function AdminUserDetail() {
         { label: "Admin Users", path: "/admin/users" },
         { label: displayName || "User" },
       ]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div style={{ marginBottom: 12 }}>
           <Link to="/admin/users">← Back to admin users</Link>
         </div>
-        <h2 style={{ marginTop: 0 }}>{displayName}</h2>
         <div className="admin-map-tabs" style={{ marginBottom: 16 }}>
           <button
             type="button"

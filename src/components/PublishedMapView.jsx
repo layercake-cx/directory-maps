@@ -207,7 +207,9 @@ export default function PublishedMapView({
   groups = [],
   /** Published, filter-bar-visible custom filter fields (with options). Each listing carries `filterValues`. */
   filterFields = [],
-  showListPanel = true,
+  showListPanel: showListPanelProp = true,
+  /** Embedded in a directory page that hides the sidebar: still show it while the map is full screen, since the page's own filters aren't visible then. */
+  showListPanelInFullscreen = false,
   mapName = "",
   enableClustering = true,
   clusterRadius = 80,
@@ -318,6 +320,30 @@ export default function PublishedMapView({
   const lastSearchQueryLoggedRef = useRef("");
   /** Combined keyboard highlight: 0…places-1 = geocode rows, places… = directory listings (-1 = none) */
   const [searchHighlightIndex, setSearchHighlightIndex] = useState(-1);
+
+  const fullscreenRootRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const root = fullscreenRootRef.current;
+    if (!root || !showListPanelInFullscreen) return undefined;
+    const doc = root.ownerDocument;
+    const sync = () =>
+      setIsFullscreen(
+        !!(doc.fullscreenElement || doc.webkitFullscreenElement) ||
+          root.classList.contains("directory-map--pseudo-fullscreen")
+      );
+    doc.addEventListener("fullscreenchange", sync);
+    doc.addEventListener("webkitfullscreenchange", sync);
+    // Pseudo fullscreen (fallback when the browser blocks the real API) is a class toggle, not an event.
+    const mo = new MutationObserver(sync);
+    mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => {
+      doc.removeEventListener("fullscreenchange", sync);
+      doc.removeEventListener("webkitfullscreenchange", sync);
+      mo.disconnect();
+    };
+  }, [showListPanelInFullscreen]);
+  const showListPanel = showListPanelProp || (showListPanelInFullscreen && isFullscreen);
 
   const mapFitBoundsPadding = useMemo(
     () =>
@@ -969,6 +995,7 @@ export default function PublishedMapView({
 
   return (
     <div
+      ref={fullscreenRootRef}
       data-map-fullscreen-root
       style={{
         width: "100%",

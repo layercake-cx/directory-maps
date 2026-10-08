@@ -1,0 +1,72 @@
+/* Admin shell design tokens — ported from docs/design/admin-shell/tokens.css.
+   Two layers:
+   1. Brand/chrome tokens (--lc-*): Layercake's own colours. Fixed for every customer.
+   2. Content tokens: shared names with the directory entry page pack (--accent, --ground, --line...).
+      Kept as variables so a later decision to theme the admin per directory is a one-line change.
+   Custom properties are inert until referenced, so this file is safe to load globally — only
+   src/styles/admin-shell.css (scoped under .shell) actually consumes them. */
+:root {
+  /* Layercake brand (chrome only: header, rail, workspace switcher) */
+  --lc-teal: #1a9ead;
+  --lc-teal-dark: #0f6a73;
+  --lc-teal-tint: #e8f4f5;
+  --lc-ink: #14191c;
+  --lc-ink-raised: #232a2e;
+  --lc-ink-line: #3a4348;
+  --lc-on-ink: #ffffff;
+  --lc-on-ink-soft: #c9cfd2;
+
+  /* Working accent + surfaces */
+  --shell-accent: #0f5e63;
+  --shell-accent-hover: #0a4346;
+  --shell-accent-tint: #e6f0ef;
+  --shell-accent-tint-text: #0b4a4e;
+  --shell-ground: #f4f2ee;
+  --shell-surface: #ffffff;
+  --shell-line: #e3dfd8;
+  --shell-line-soft: #efece6;
+  --shell-chip-neutral: #efece6;
+  --shell-ink: #14191c;
+  --shell-text: #2c3338;
+  --shell-text-soft: #454d52;
+  --shell-text-muted: #5c6469;
+
+  /* Status */
+  --shell-warn-bg: #fbefd9;
+  --shell-warn-text: #7a4a06;
+  --shell-ok-bg: #e3f1e4;
+  --shell-ok-border: #b7d8ba;
+  --shell-ok-text: #1f5a28;
+  --shell-warn-border: #ecd2a0;
+  --shell-danger: #a3281c;
+
+  /* Type */
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-body: "Public Sans", system-ui, sans-serif;
+  --fs-h1: 40px;
+  --fs-h2: 22px;
+  --fs-panel-title: 24px;
+  --fs-stat: 34px;
+  --fs-body: 15px;
+  --fs-ui: 14px;
+  --fs-small: 13px;
+  --fs-label: 12px;
+  --tracking-label: 0.08em;
+
+  /* Layout */
+  --header-h: 52px;
+  --rail-w: 64px;
+  --panel-w: 272px;
+  --main-pad-x: 32px;   /* tightened 2026-09-29 — was 40px, too generous vs. reference apps like HubSpot */
+  --main-pad-top: 20px; /* was 28px */
+  --gap-section: 24px;
+
+  /* Shape */
+  --radius-panel: 16px;
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-item: 8px;
+  --control-h: 44px;
+  --nav-item-h: 36px;
+  --icon-stroke: 1.8;
+}

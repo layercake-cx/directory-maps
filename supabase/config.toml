@@ -3,3 +3,24 @@ verify_jwt = false
 
 [functions.resolve_directory_place]
 verify_jwt = false
+
+# sync_sheet_listings' fire-and-forget snapshot regen (2026-09-26 key
+# migration) calls this with the new SB_SECRET_KEY, which is an opaque
+# string, not a JWT -- the gateway's verify_jwt check can only validate
+# JWTs, so a non-JWT secret key always fails it. The function itself does
+# no further auth check of its own either way (same as before this change),
+# so this doesn't alter who could already reach it.
+[functions.generate_map_snapshot]
+verify_jwt = false
+
+# Called anonymously by visitors on published directory/entry pages (the
+# contact form and "Help me choose" search embedded in generated HTML/JS,
+# builders.ts) using only the publishable key on `apikey` -- never a user
+# JWT, so verify_jwt must be off for the same reason as generate_map_snapshot
+# above. Neither function does its own requireUser/requireAdmin check
+# either, so this doesn't remove any real authorization that existed before.
+[functions.send_contact_message]
+verify_jwt = false
+
+[functions.directory_ai_search]
+verify_jwt = false

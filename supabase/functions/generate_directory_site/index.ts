@@ -55,10 +55,26 @@
  * or a chrome change (nav, enquiry, analytics, favicon, site title) rebuilds
  * every page. "all" defaults to a full rebuild; pass scope "style" to refresh
  * theme.css only.
- * Auth: service-role only (called server-side).
+ *
+ * Auth: for every scope EXCEPT "claim_item", this function trusts whatever
+ * directory_id it's given with no caller-identity check at all (a pre-
+ * existing gap, not introduced here -- see requireDirectoryItemPublishAccess
+ * below, which is deliberately scoped to "claim_item" only rather than
+ * retrofitted onto the other scopes, to avoid changing already-relied-upon
+ * behaviour this session can't click-test). scope "claim_item" is the one
+ * entry point meant for a claim user's own "Publish" button (Claimed
+ * Directory Listings epic, Phase 6): it takes exactly one entry_ids value,
+ * derives directory_id itself from that entry (client-supplied directory_id
+ * is ignored for this scope), and requires the caller to be a platform
+ * admin/directory contact OR the active claim's owner/editor for that
+ * specific entry (requireDirectoryItemPublishAccess). It never sets
+ * work.homepage/work.indexes -- only that one entry's own page blob is
+ * written, never the homepage, sitemap/robots/llms/redirects, or any other
+ * entry, per the epic's non-negotiable publishing-isolation rule.
  */
 
-import { createServiceClient } from "../_shared/supabase.ts";
+import { errorMessage } from "../_shared/errors.ts";
+import { createServiceClient, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import { backfillDirectorySeoMetadata } from "../_shared/seoMetadataBackfill.ts";
 import {
@@ -72,6 +88,7 @@ import {
 
 import {
   SITE_ORIGIN,
+  ENTRY_TEMPLATE_VERSION,
   resolveLayout,
   buildEntryPage,
   buildDirectoryLandingPage,
@@ -98,12 +115,13 @@ import {
   type ContentPage,
   type SiteAnalytics,
   type DirectoryEnquiry,
+  type ClaimWidgetOptions,
   parseDirectoryDestinations,
 } from "./builders.ts";
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 type Db = ReturnType<typeof createServiceClient>;
-type GenerationScope = "auto" | "full" | "style" | "features" | "entries";
+type GenerationScope = "auto" | "full" | "style" | "features" | "entries" | "claim_item";
 type GenerationRequest = { scope: GenerationScope; entryIds?: string[] };
 type GenerationResult = { directory_id: string; skipped?: string; count?: number; scopes?: string[] };
 
@@ -243,7 +261,7 @@ async function generateForDirectory(directoryId: string, request: GenerationRequ
     }
     return result;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     await db.from("directories").update({ site_generation_status: "failed", site_generation_error: msg }).eq("id", directoryId);
     throw e;
   }
@@ -256,7 +274,7 @@ async function generateForDirectoryInner(
 ): Promise<GenerationResult> {
   const { data: directory, error: dirErr } = await db
     .from("directories")
-    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, enquiry_email, location_search_enabled, updated_at, site_generation_manifest")
+    .select("id, client_id, name, slug, description, current_publication_id, seo_defaults_json, seo_og_image_url, theme_json, ai_search_prompt, home_nav_label, analytics_json, location_search_enabled, updated_at, site_generation_manifest")
     .eq("id", directoryId)
     .single();
   if (dirErr) throw new Error(`Directory query failed: ${dirErr.message}`);
@@ -276,10 +294,9 @@ async function generateForDirectoryInner(
     meta_title_template?: string | null;
     meta_description?: string | null;
     default_noindex?: boolean | null;
+    bing_site_auth_xml?: string | null;
   };
   const directoryNoindex = !!seoDefaults.default_noindex;
-
-  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
   const { data: client, error: clientErr } = await db.from("clients").select("id, slug, name").eq("id", directory.client_id).single();
   if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`);
@@ -310,7 +327,7 @@ async function generateForDirectoryInner(
     db
       .from("directory_entries")
       .select(
-        "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at",
+        "id, name, slug, directory_group_id, address, postcode, country, city, phone, email, website_url, logo_url, notes_html, allow_html, lat, lng, show_phone, show_email, show_website, show_address, meta_title, meta_description, keywords, ai_summary, noindex, structured_data_type, panel_image_url, panel_background_color, updated_at, current_claim_id",
       )
       .eq("directory_id", directoryId)
       .eq("is_active", true)
@@ -450,12 +467,13 @@ async function generateForDirectoryInner(
   // Directory-homepage SEO metadata backfill — one-off, skipped entirely
   // once both fields are set. Stays inline here (unlike the entry-level
   // backfill, which moved to an async queue — see _shared/seoMetadataBackfill.ts's
-  // header) since it's at most one extra Claude call per publish.
+  // header) since it's at most one extra AI Gateway call per publish
+  // (skipped silently when the organisation has no AI provider connected).
   // filterBarCategorisations' labels double as the "categorised by X"
   // context, no separate lookup needed.
   const directorySeoBackfill = await backfillDirectorySeoMetadata(
     db,
-    anthropicApiKey,
+    client.id,
     directory.id,
     directory.name,
     directory.description,
@@ -487,6 +505,17 @@ async function generateForDirectoryInner(
       ? `${SITE_ORIGIN}/${client.slug}/${attachedMap.slug}`
       : `${SITE_ORIGIN}/embed?map=${encodeURIComponent(mapAssoc.map_id)}`;
   }
+  // Entry-page-only variant of the link above: an iframe embed focused on
+  // this one entry's pin (EmbedMap.jsx's `focus` param, wired to the
+  // existing centerOnListingId pan/zoom/select mechanism — see
+  // src/pages/EmbedMap.jsx) rather than a plain link to the unfocused map.
+  // hideFilterBar/hideListPanel match the landing page's own iframe (Phase
+  // 4 above) since this is a small sidebar card, not a full map view.
+  const focusedMapEmbedSrc = (entryId: string): string | null => {
+    if (!attachedMapEmbedSrc) return null;
+    const sep = attachedMapEmbedSrc.includes("?") ? "&" : "?";
+    return `${attachedMapEmbedSrc}${sep}focus=${encodeURIComponent(entryId)}&hideFilterBar=1&hideListPanel=1`;
+  };
 
   // Static Maps API key for each entry page's Location thumbnail (Phase 3)
   // — additive and optional: falls back to no image (never blocks
@@ -508,12 +537,12 @@ async function generateForDirectoryInner(
         directoryId: directory.id,
         enabled: true,
         supabaseUrl: Deno.env.get("SUPABASE_URL") ?? "",
-        supabaseAnonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        supabaseAnonKey: Deno.env.get("SB_PUBLISHABLE_KEY") ?? "",
       }
     : null;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const supabaseAnonKey = Deno.env.get("SB_PUBLISHABLE_KEY") ?? "";
   const siteAnalytics: SiteAnalytics | null =
     supabaseUrl && supabaseAnonKey
       ? {
@@ -524,25 +553,52 @@ async function generateForDirectoryInner(
         }
       : null;
 
-  const enquiryEmail = typeof (directory as { enquiry_email?: string | null }).enquiry_email === "string"
-    ? (directory as { enquiry_email: string }).enquiry_email.trim()
-    : "";
   let entryEnquiry: DirectoryEnquiry | null = null;
-  if (enquiryEmail && supabaseUrl && supabaseAnonKey) {
+  if (supabaseUrl && supabaseAnonKey) {
+    // Per-directory settings; messaging_enabled is already the effective value
+    // (toggle on AND a sending profile chosen AND the messaging entitlement).
     const { data: messaging } = await db
-      .from("client_messaging_settings")
-      .select("messaging_enabled, messaging_prompt, email_test_mode")
-      .eq("client_id", client.id)
+      .from("directory_messaging_settings")
+      .select("messaging_enabled, message_prompt, email_test_mode")
+      .eq("directory_id", directory.id)
       .maybeSingle();
     if (messaging?.messaging_enabled === true) {
       entryEnquiry = {
-        prompt: typeof messaging.messaging_prompt === "string" ? messaging.messaging_prompt : null,
+        prompt: typeof messaging.message_prompt === "string" ? messaging.message_prompt : null,
         testMode: messaging.email_test_mode !== false,
         directoryId: directory.id,
         supabaseUrl,
         supabaseAnonKey,
       };
     }
+  }
+
+  // Claimed Directory Listings epic, Phase 7: the "Claim this listing"
+  // widget is directory-wide config (price/currency/intro) but gated
+  // per-entry (only entries with no current_claim_id get it) -- both the
+  // directory's own enabled flag AND the client's maps.claims commercial
+  // entitlement must resolve true, since claiming is Pro-gated (the epic's
+  // non-negotiable rule #1). Reads live at generation time, same as every
+  // other directory-wide setting here.
+  let claimWidgetBase: Omit<ClaimWidgetOptions, "priceCents" | "currency" | "paymentType" | "introHtml"> | null = null;
+  let claimSettings: { price_cents: number | null; currency: string | null; payment_type: string | null; intro_html: string | null } | null = null;
+  if (supabaseUrl && supabaseAnonKey) {
+    const { data: dcs } = await db
+      .from("directory_claim_settings")
+      .select("enabled, price_cents, currency, payment_type, intro_html")
+      .eq("directory_id", directoryId)
+      .maybeSingle();
+    if (dcs?.enabled) {
+      const { data: claimsEntitled } = await db.rpc("resolve_claims_entitlement", { p_client_id: client.id });
+      if (claimsEntitled === true) {
+        claimWidgetBase = { supabaseUrl, supabaseAnonKey };
+        claimSettings = { price_cents: dcs.price_cents ?? null, currency: dcs.currency ?? null, payment_type: dcs.payment_type ?? null, intro_html: dcs.intro_html ?? null };
+      }
+    }
+  }
+  function claimWidgetFor(e: Entry): ClaimWidgetOptions | null {
+    if (!claimWidgetBase || !claimSettings || e.current_claim_id) return null;
+    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html };
   }
 
   const entrySlugSet = new Set(entries.map((e) => e.slug));
@@ -598,6 +654,22 @@ async function generateForDirectoryInner(
     })),
     enquiry: entryEnquiry ? { on: true, prompt: entryEnquiry.prompt, test: entryEnquiry.testMode } : { on: false },
     analytics: siteAnalytics?.destinations ?? null,
+    // Claimed Directory Listings epic: directory-wide claim availability
+    // (settings enabled + client entitlement) affects every entry page's
+    // "Claim this listing" button, exactly like enquiry/analytics above --
+    // include it here so enabling claims (or changing price/currency/intro)
+    // on an already-published directory forces the full rebuild that
+    // actually puts the button on every unclaimed entry, rather than
+    // silently no-op'ing because neither hash tracked it before.
+    claims: claimWidgetBase
+      ? { on: true, priceCents: claimSettings?.price_cents ?? null, currency: claimSettings?.currency ?? null, paymentType: claimSettings?.payment_type ?? null, introHtml: claimSettings?.intro_html ?? null }
+      : { on: false },
+    // Code-only template changes (builders.ts markup/CSS) aren't data, so
+    // nothing above changes when one ships — without this, an already-
+    // published directory that publishes without any data change would
+    // silently keep serving the old entry-page template forever. See
+    // ENTRY_TEMPLATE_VERSION's doc comment in builders.ts.
+    templateVersion: ENTRY_TEMPLATE_VERSION,
   });
   const llmsExtra = (directory.seo_defaults_json as { llms_txt_extra?: string } | null)?.llms_txt_extra ?? null;
   const featuresHash = await digest({
@@ -630,7 +702,17 @@ async function generateForDirectoryInner(
 
   const activeEntryIds = new Set(entries.map((e) => e.id));
   let work: Work;
-  if (!manifest || request.scope === "full") {
+  if (request.scope === "claim_item") {
+    // Isolated single-entry publish (Claimed Directory Listings epic).
+    // Deliberately never touches homepage/indexes, regardless of whether a
+    // manifest exists yet -- a claim user must never be able to trigger a
+    // directory-wide (re)build, even implicitly via the "no manifest yet"
+    // fallback every other scope gets.
+    const wanted = new Set(request.entryIds ?? []);
+    const ids = entries.filter((e) => wanted.has(e.id)).map((e) => e.id);
+    if (ids.length !== 1) throw new Error("claim_item scope requires exactly one matching, active entry_id");
+    work = { style: false, homepage: false, indexes: false, entryIds: ids, pageIds: [] };
+  } else if (!manifest || request.scope === "full") {
     work = FULL_WORK;
   } else if (request.scope === "features") {
     work = { style: false, homepage: true, indexes: true, entryIds: [], pageIds: [] };
@@ -783,11 +865,13 @@ async function generateForDirectoryInner(
       categorisations: filterBarCategorisations,
       entryTermIds: [...(entryTermIdsByEntry.get(entry.id) ?? [])],
       attachedMapEmbedSrc,
+      attachedMapFocusedEmbedSrc: focusedMapEmbedSrc(entry.id),
       staticMapsApiKey,
       related: relatedEntries(entry, entries, entryTermIdsByEntry),
       nav,
       analytics: siteAnalytics,
       enquiry: entryEnquiry,
+      claim: claimWidgetFor(entry),
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
@@ -890,6 +974,11 @@ async function generateForDirectoryInner(
   });
   await uploadToBlob(`${basePath}/llms.txt`, llmsTxt, "text/markdown; charset=utf-8");
 
+  // Bing Webmaster Tools verification file (BingSiteAuth.xml) — pasted into
+  // Settings › SEO. Always written (empty when cleared) so removing it
+  // overwrites a previously published copy; middleware.js 404s an empty body.
+  await uploadToBlob(`${basePath}/BingSiteAuth.xml`, seoDefaults.bing_site_auth_xml?.trim() ?? "", "application/xml; charset=utf-8");
+
   // Redirects (docs/DIRECTORIES.md §5.11): old slug -> current slug of
   // whichever entry now holds it, so a renamed entry's previous public URL
   // keeps working. Only entries generated above (active, in `entries`) are
@@ -926,13 +1015,52 @@ async function generateForDirectoryInner(
     await uploadToBlob(`${basePath}/theme.css`, buildThemeCss(theme), "text/css; charset=utf-8");
   }
 
+  // Merge, don't overwrite: a narrow-scope run (claim_item, entries,
+  // features -- anything where work.entryIds/pageIds isn't null) must only
+  // update the manifest bookkeeping for what it actually rebuilt. The old
+  // unconditional "recompute the whole manifest from current DB state every
+  // run" approach silently marked OTHER entries/pages as "clean" whenever
+  // their updated_at had already changed in the DB but their pages hadn't
+  // actually been rebuilt yet (e.g. an admin's in-progress, unpublished
+  // edit to entry B) -- exactly the "other unpublished ... changes" leak
+  // the Claimed Directory Listings epic's isolation rule forbids, just via
+  // manifest bookkeeping rather than a blob write. Removed entries/pages
+  // are still pruned unconditionally (safe: nothing depends on a manifest
+  // key for something that no longer exists, regardless of scope).
+  const mergedEntries: Record<string, string> = {};
+  for (const [id, ts] of Object.entries(manifest?.entries ?? {})) {
+    if (activeEntryIds.has(id)) mergedEntries[id] = ts;
+  }
+  if (work.entryIds === null) {
+    for (const e of entries) mergedEntries[e.id] = e.updated_at ?? "";
+  } else {
+    for (const id of work.entryIds) {
+      const e = entries.find((x) => x.id === id);
+      if (e) mergedEntries[id] = e.updated_at ?? "";
+    }
+  }
+
+  const activePageIds = new Set(contentPages.map((p) => p.id));
+  const mergedPages: Record<string, string> = {};
+  for (const [id, ts] of Object.entries(manifest?.pages ?? {})) {
+    if (activePageIds.has(id)) mergedPages[id] = ts;
+  }
+  if (work.pageIds === null) {
+    for (const p of contentPages) mergedPages[p.id] = p.updated_at ?? "";
+  } else {
+    for (const id of work.pageIds) {
+      const p = contentPages.find((x) => x.id === id);
+      if (p) mergedPages[id] = p.updated_at ?? "";
+    }
+  }
+
   const nextManifest: SiteManifest = {
-    style_hash: styleHash,
-    chrome_hash: chromeHash,
-    features_hash: featuresHash,
-    templates_hash: templatesHash,
-    entries: Object.fromEntries(entries.map((e) => [e.id, e.updated_at ?? ""])),
-    pages: Object.fromEntries(contentPages.map((p) => [p.id, p.updated_at ?? ""])),
+    style_hash: work.style ? styleHash : (manifest?.style_hash ?? styleHash),
+    chrome_hash: work.homepage ? chromeHash : (manifest?.chrome_hash ?? chromeHash),
+    features_hash: work.homepage ? featuresHash : (manifest?.features_hash ?? featuresHash),
+    templates_hash: work.entryIds === null ? templatesHash : (manifest?.templates_hash ?? templatesHash),
+    entries: mergedEntries,
+    pages: mergedPages,
   };
   await db.from("directories").update({ site_generation_manifest: nextManifest }).eq("id", directoryId);
 
@@ -961,9 +1089,27 @@ Deno.serve(async (req) => {
       entry_ids?: string[];
     };
     const request: GenerationRequest = {
-      scope: scope === "full" || scope === "style" || scope === "features" || scope === "entries" ? scope : "auto",
+      scope:
+        scope === "full" || scope === "style" || scope === "features" || scope === "entries" || scope === "claim_item"
+          ? scope
+          : "auto",
       entryIds: Array.isArray(entry_ids) ? entry_ids.filter((id) => typeof id === "string") : undefined,
     };
+
+    // "claim_item" is the one scope with a real caller-identity check (see
+    // requireDirectoryItemPublishAccess) -- it also derives directory_id
+    // itself from the entry rather than trusting whatever the client sent,
+    // since a claim user should never be able to point this at a directory
+    // other than the one their own claimed entry actually belongs to.
+    if (request.scope === "claim_item") {
+      const targetEntryId = request.entryIds?.[0];
+      if (!targetEntryId || request.entryIds?.length !== 1) {
+        return json({ error: "claim_item scope requires exactly one entry_ids value" }, 400);
+      }
+      const access = await requireDirectoryItemPublishAccess(req, targetEntryId);
+      const result = await generateForDirectory(access.directoryId, request);
+      return json({ ok: true, ...result });
+    }
 
     if (all) {
       const db = createServiceClient();
@@ -985,7 +1131,7 @@ Deno.serve(async (req) => {
     const result = await generateForDirectory(directory_id, request);
     return json({ ok: true, ...result });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     console.error("generate_directory_site error:", msg);
     return json({ error: msg }, 500);
   }

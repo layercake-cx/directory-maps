@@ -342,6 +342,7 @@ for (const entry of ENTRIES) {
     categorisations: CATEGORISATIONS,
     entryTermIds: [...(ENTRY_TERM_IDS.get(entry.id) ?? [])],
     attachedMapEmbedSrc: "https://example.com/preview-client/preview-map",
+    attachedMapFocusedEmbedSrc: `https://example.com/preview-client/preview-map?focus=${encodeURIComponent(entry.id)}&hideFilterBar=1&hideListPanel=1`,
     // No key configured in this local script — the Location block still
     // renders (address text + "Open in directory map"), just without the
     // static thumbnail. Pass a real Google Maps key here to preview that.
@@ -357,8 +358,8 @@ for (const entry of ENTRIES) {
       supabaseAnonKey: "preview-anon-key",
     },
   });
-  if (!html.includes("Make an Enquiry") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
-    throw new Error("entry page should include the Make an Enquiry drawer");
+  if (!html.includes(">Contact</button>") || !html.includes("listing_enquiry_open") || !html.includes("dir-enquiry")) {
+    throw new Error("entry page should include the Contact button and drawer");
   }
   await Deno.writeTextFile(new URL(`./entry-${entry.slug}.html`, outDir), useLocalCss(html, "theme.css"));
 }

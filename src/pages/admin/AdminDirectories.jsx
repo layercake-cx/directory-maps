@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
 
 /**
@@ -79,20 +78,15 @@ export default function AdminDirectories() {
   return (
     <AdminLayout
       breadcrumbs={[{ label: "Directories" }]}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
     >
-      <div className="admin-card">
+      <div className="card card-pad">
         <div className="admin-controls">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by directory name or customer name…"
           />
-          <button className="btn" onClick={load} type="button">
+          <button className="shell-btn" onClick={load} type="button">
             Refresh
           </button>
         </div>
@@ -139,7 +133,7 @@ export default function AdminDirectories() {
                   <td>{entryCount}</td>
                   <td>{d.is_active ? "Active" : "Archived"}</td>
                   <td>
-                    {adminUrl ? <Link className="btn" to={adminUrl}>Open</Link> : "—"}
+                    {adminUrl ? <Link className="shell-btn shell-btn--sm" to={adminUrl}>Open</Link> : "—"}
                   </td>
                 </tr>
               );

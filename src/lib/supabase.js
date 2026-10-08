@@ -35,11 +35,25 @@ export const hasSupabaseConfig = hasConfig;
  */
 export async function invokeFunction(name, options = {}) {
   const { data: { session } } = await supabaseInstance.auth.getSession();
-  return supabaseInstance.functions.invoke(name, {
+  const result = await supabaseInstance.functions.invoke(name, {
     ...options,
     headers: {
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...(options.headers ?? {}),
     },
   });
+  // supabase-js reports every non-2xx as the generic "Edge Function returned a non-2xx status
+  // code" and leaves the function's own message in the response body. Surface that message so
+  // callers (and users) see the real reason, e.g. "OpenAI API error 400: ...".
+  const ctx = result.error?.context;
+  if (ctx && typeof ctx.json === "function") {
+    try {
+      const body = await ctx.json();
+      const message = typeof body?.error === "string" ? body.error : typeof body?.message === "string" ? body.message : "";
+      if (message) result.error.message = message;
+    } catch {
+      /* body wasn't JSON; keep the generic message */
+    }
+  }
+  return result;
 }

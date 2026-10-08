@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 import { Alert, Badge, Button, Group, Loader, Select, Text } from "@mantine/core";
 
 const PAGE_SIZE = 100;
@@ -75,15 +75,11 @@ export default function AdminSyncLog() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Sync log" }]}
-      rightActions={<button onClick={signOut} type="button">Sign out</button>}
+      subtitle="Google Sheets sync history across all maps."
     >
       <div style={{ maxWidth: 1100 }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Sync log</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.65 }}>Google Sheets sync history across all maps.</p>
-        </div>
-
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
           <input
             type="text"

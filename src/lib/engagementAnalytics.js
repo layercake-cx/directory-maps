@@ -429,6 +429,176 @@ export function formatRelativeTime(iso) {
   });
 }
 
+const DIRECTORY_EVENT_TYPE_LABELS = {
+  views: "Views",
+  searches: "Searches",
+  filters: "Filters",
+  cta_clicks: "Website/CTA clicks",
+  email_clicks: "Email clicks",
+  enquiries: "Enquiries",
+  claims: "Claims",
+};
+
+/**
+ * @param {EngagementEvent[]} events directory-scoped map_engagement_events rows
+ *   (event_type in directory_view/listing_view/directory_search/directory_filter/
+ *   directory_distance_filter/listing_website_click/listing_contact_click/
+ *   listing_cta_click/listing_enquiry_open/listing_enquiry_sent/listing_claim_start/
+ *   listing_claim_complete — see docs/MAP_ENGAGEMENT.md).
+ * @param {number} days
+ */
+export function deriveDirectoryMetrics(events, days) {
+  const dayKeys = buildDayKeys(days);
+  const dailyBuckets = new Map(dayKeys.map((k) => [k, { events: 0, sessions: new Set() }]));
+  const sessions = new Set();
+
+  let directoryViews = 0;
+  let listingViews = 0;
+  let searches = 0;
+  let filters = 0;
+  let emailClicks = 0;
+  let enquiriesOpened = 0;
+  let enquiriesSent = 0;
+  let claimsStarted = 0;
+  let claimsCompleted = 0;
+  const ctaCounts = {}; // by meta.cta_type — listing_cta_click only (see note below)
+  const searchCountMap = new Map();
+  const entryCounts = new Map(); // listing_id -> {listing_view, listing_cta_click, listing_enquiry_open}
+
+  for (const e of events) {
+    const day = e.occurred_at ? localDateStr(new Date(e.occurred_at)) : null;
+    const isViewEvent = e.event_type === "directory_view" || e.event_type === "listing_view";
+    if (day && dailyBuckets.has(day) && isViewEvent) {
+      const b = dailyBuckets.get(day);
+      b.events += 1;
+      if (e.client_session_id) b.sessions.add(e.client_session_id);
+    }
+    if (e.client_session_id) sessions.add(e.client_session_id);
+
+    const m = metaObj(e.meta);
+    switch (e.event_type) {
+      case "directory_view":
+        directoryViews += 1;
+        break;
+      case "listing_view":
+        listingViews += 1;
+        if (e.listing_id) bump(entryCounts, e.listing_id, "listing_view");
+        break;
+      case "directory_search":
+        searches += 1;
+        {
+          const q = String(m.query || "").trim();
+          if (q) searchCountMap.set(q, (searchCountMap.get(q) || 0) + 1);
+        }
+        break;
+      case "directory_filter":
+      case "directory_distance_filter":
+        filters += 1;
+        break;
+      case "listing_contact_click":
+        emailClicks += 1;
+        break;
+      case "listing_cta_click":
+        // Deliberately the only source for CTA counts — listing_website_click is a duplicate
+        // insert for the same click (see docs/MAP_ENGAGEMENT.md and this dashboard's own research
+        // notes); counting both would double-count website clicks.
+        {
+          const type = String(m.cta_type || "other");
+          ctaCounts[type] = (ctaCounts[type] || 0) + 1;
+          if (e.listing_id) bump(entryCounts, e.listing_id, "listing_cta_click");
+        }
+        break;
+      case "listing_enquiry_open":
+        enquiriesOpened += 1;
+        if (e.listing_id) bump(entryCounts, e.listing_id, "listing_enquiry_open");
+        break;
+      case "listing_enquiry_sent":
+        enquiriesSent += 1;
+        break;
+      case "listing_claim_start":
+        claimsStarted += 1;
+        break;
+      case "listing_claim_complete":
+        claimsCompleted += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  const daily = dayKeys.map((date) => {
+    const b = dailyBuckets.get(date);
+    return { date, dateLabel: formatDayLabel(date), events: b.events, sessions: b.sessions.size };
+  });
+
+  const ctaClickTotal = Object.values(ctaCounts).reduce((sum, n) => sum + n, 0);
+  const typeCounts = {
+    views: directoryViews + listingViews,
+    searches,
+    filters,
+    cta_clicks: ctaClickTotal,
+    email_clicks: emailClicks,
+    enquiries: enquiriesOpened,
+    claims: claimsStarted,
+  };
+  const eventsByType = Object.entries(typeCounts)
+    .filter(([, value]) => value > 0)
+    .map(([type, value]) => ({ type, name: DIRECTORY_EVENT_TYPE_LABELS[type] || type, value }));
+
+  const funnelSteps = [
+    { key: "directory_view", label: "Directory views", count: directoryViews },
+    { key: "listing_view", label: "Entry views", count: listingViews },
+    { key: "listing_enquiry_open", label: "Enquiries opened", count: enquiriesOpened },
+    { key: "listing_enquiry_sent", label: "Enquiries sent", count: enquiriesSent },
+  ];
+  const funnel = funnelSteps.map((step, i) => ({
+    ...step,
+    rate: i === 0 ? null : funnelRate(step.count, funnelSteps[i - 1].count),
+  }));
+
+  const topSearchQueries = [...searchCountMap.entries()]
+    .map(([query, count]) => ({ query, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  return {
+    summary: {
+      directoryViews,
+      listingViews,
+      enquiriesOpened,
+      searches,
+      claimsStarted,
+      claimsCompleted,
+    },
+    daily,
+    eventsByType,
+    funnel,
+    topSearchQueries,
+    entryCounts, // Map<listingId, {listing_view, listing_cta_click, listing_enquiry_open}> — see deriveTopDirectoryEntries
+    hasData: events.length > 0,
+  };
+}
+
+function bump(map, key, field) {
+  if (!map.has(key)) map.set(key, { listing_view: 0, listing_cta_click: 0, listing_enquiry_open: 0 });
+  map.get(key)[field] += 1;
+}
+
+/**
+ * @param {Map<string, {listing_view:number, listing_cta_click:number, listing_enquiry_open:number}>} entryCounts
+ * @param {Record<string, string>} entryNameById
+ */
+export function deriveTopDirectoryEntries(entryCounts, entryNameById, limit = 25) {
+  return [...entryCounts.entries()]
+    .map(([listingId, counts]) => {
+      const total = counts.listing_view + counts.listing_cta_click + counts.listing_enquiry_open;
+      return { listingId, name: entryNameById[listingId] || "Unknown entry", ...counts, total };
+    })
+    .filter((row) => row.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+}
+
 export const CHART_COLORS = [
   "#378ADD",
   "#1D9E75",

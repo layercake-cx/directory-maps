@@ -4,14 +4,15 @@
 // directly by client code. Claims a small batch of pending
 // entry_seo_metadata_jobs (both 'auto', from the empty-on-insert trigger,
 // and 'bulk', from the AI tab's "Backfill missing metadata" action), asks
-// Claude Haiku 4.5 to draft each entry's SEO/social metadata, and writes
+// the AI Gateway's configured model to draft each entry's SEO/social metadata, and writes
 // only whichever of the six fields were actually empty — the same
 // non-destructive rule the single-entry "Generate with AI" button and the
 // (now-removed) inline per-publish backfill both followed.
 //
-// Platform: ANTHROPIC_API_KEY.
+// LLM calls go through the AI Gateway (_shared/ai/gateway.ts), metered per job.
 import { createServiceClient } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
+import { AiUnavailableError } from "../_shared/ai/gateway.ts";
 import { generateEntrySeoMetadataDraft } from "../_shared/seoMetadataGeneration.ts";
 import { computeSeoMetadataUpdate, type EntrySeoBackfillRow } from "../_shared/seoMetadataBackfill.ts";
 
@@ -38,7 +39,7 @@ type SeoMetadataJob = {
   attempt_count: number;
 };
 
-async function processJob(service: ReturnType<typeof createServiceClient>, apiKey: string, job: SeoMetadataJob) {
+async function processJob(service: ReturnType<typeof createServiceClient>, job: SeoMetadataJob) {
   const { data: entry, error: entryErr } = await service
     .from("directory_entries")
     .select("id, directory_id, name, address, postcode, country, city, website_url, notes_html, meta_title, meta_description, keywords, og_title, og_description, ai_summary")
@@ -49,12 +50,17 @@ async function processJob(service: ReturnType<typeof createServiceClient>, apiKe
 
   const { data: directory, error: dirErr } = await service
     .from("directories")
-    .select("name")
+    .select("name, client_id")
     .eq("id", job.directory_id)
     .maybeSingle();
   if (dirErr) throw dirErr;
+  if (!directory) throw new Error("Directory not found");
 
-  const draft = await generateEntrySeoMetadataDraft(apiKey, entry as unknown as EntrySeoBackfillRow, directory?.name ?? "this directory");
+  const draft = await generateEntrySeoMetadataDraft(
+    { db: service, clientId: directory.client_id, productInstanceId: job.directory_id, batchJobId: job.id },
+    entry as unknown as EntrySeoBackfillRow,
+    directory.name ?? "this directory",
+  );
   const update = computeSeoMetadataUpdate(entry as unknown as EntrySeoBackfillRow, draft);
 
   if (update) {
@@ -108,18 +114,39 @@ async function updateDirectoryProgress(service: ReturnType<typeof createServiceC
     .gte("created_at", startedAt)
     .eq("status", "failed");
 
+  // Surface WHY jobs failed (e.g. "AI provider not connected") rather than only a count.
+  let firstError: string | null = null;
+  if ((failed ?? 0) > 0) {
+    const { data: failedJob } = await service
+      .from("entry_seo_metadata_jobs")
+      .select("error")
+      .eq("directory_id", directoryId)
+      .eq("requested_by", "bulk")
+      .gte("created_at", startedAt)
+      .eq("status", "failed")
+      .not("error", "is", null)
+      .limit(1)
+      .maybeSingle();
+    firstError = failedJob?.error ? String(failedJob.error).slice(0, 200) : null;
+  }
+
   await service
     .from("directories")
     .update({
       seo_metadata_backfill_status: (failed ?? 0) > 0 ? "failed" : "succeeded",
-      seo_metadata_backfill_error: (failed ?? 0) > 0 ? `${failed} of the queued entries failed to generate` : null,
+      seo_metadata_backfill_error: (failed ?? 0) > 0 ? `${failed} of the queued entries failed to generate${firstError ? `: ${firstError}` : ""}` : null,
       seo_metadata_backfill_processed: processed,
       seo_metadata_backfill_completed_at: new Date().toISOString(),
     })
     .eq("id", directoryId);
 
-  await service.from("admin_events").insert({
+  // event_category is NOT NULL on admin_events; this insert used to omit it and was
+  // silently rejected. Mirrors src/lib/adminEvents.js parseAdminEventType().
+  const { error: eventErr } = await service.from("admin_events").insert({
     event_type: "directory_ai_content_bulk_completed",
+    event_category: "directory",
+    event_subtype: "ai_content_bulk_completed",
+    client_id: directory.client_id,
     meta: {
       client_id: directory.client_id,
       directory_id: directoryId,
@@ -128,19 +155,16 @@ async function updateDirectoryProgress(service: ReturnType<typeof createServiceC
       entries_failed: failed ?? 0,
       source: "edge_function",
     },
-  }).then(() => {});
+  });
+  if (eventErr) {
+    await logEdgeFunctionError({ fn: "process_entry_seo_metadata_jobs", message: `admin event insert failed: ${eventErr.message}`, context: { directory_id: directoryId } });
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   const service = createServiceClient();
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    await logEdgeFunctionError({ fn: "process_entry_seo_metadata_jobs", message: "Missing ANTHROPIC_API_KEY" });
-    return json({ error: "Missing ANTHROPIC_API_KEY" }, 500);
-  }
-
   let batchSize = DEFAULT_BATCH_SIZE;
   try {
     const body = await req.json().catch(() => ({}));
@@ -160,16 +184,19 @@ Deno.serve(async (req) => {
   const results = { processed: 0, failed: 0 };
   for (const job of (jobs ?? []) as SeoMetadataJob[]) {
     try {
-      await processJob(service, apiKey, job);
+      await processJob(service, job);
       results.processed += 1;
     } catch (err) {
       results.failed += 1;
       const message = err instanceof Error ? err.message : String(err);
-      await logEdgeFunctionError({
-        fn: "process_entry_seo_metadata_jobs",
-        message,
-        context: { entry_id: job.entry_id, directory_id: job.directory_id, job_id: job.id },
-      });
+      // "No AI provider connected" is a configuration state, not a fault worth alerting on.
+      if (!(err instanceof AiUnavailableError)) {
+        await logEdgeFunctionError({
+          fn: "process_entry_seo_metadata_jobs",
+          message,
+          context: { entry_id: job.entry_id, directory_id: job.directory_id, job_id: job.id },
+        });
+      }
       await service
         .from("entry_seo_metadata_jobs")
         .update({

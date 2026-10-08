@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import AdminLayout from "./AdminLayout.jsx";
+import CustomerWorkspaceFeaturePanel from "../../components/shell/CustomerWorkspaceFeaturePanel.jsx";
 import { createAdminClientUser, deleteAdminClientUser } from "../../lib/adminClientUsers.js";
 import MessagingPanel from "../../components/MessagingPanel.jsx";
+import IntegrationsPanel from "../../components/integrations/IntegrationsPanel.jsx";
 import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
+import DirectoriesDashboard from "../../components/directories/DirectoriesDashboard.jsx";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
 import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
 import EntitlementLimitModal from "../../components/admin/EntitlementLimitModal.jsx";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
+import PageHead from "../../components/shell/PageHead.jsx";
+import { DOMAINS_SUBTITLE } from "../../lib/clientDomains.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
   DIRECTORIES_FLAG,
@@ -41,7 +45,7 @@ const TRASH_ICON = (
 );
 
 export default function AdminClientDetail() {
-  const { clientId } = useParams();
+  const { clientId, tab } = useParams();
   const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
@@ -70,7 +74,9 @@ export default function AdminClientDetail() {
   const [addCanManageUsers, setAddCanManageUsers] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("maps");
+  // Route-driven (Phase 3): the URL is the source of truth, not local state — see App.jsx's
+  // /admin/clients/:clientId/:tab route. The bare clientId URL is the "maps" default.
+  const activeTab = tab || "maps";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -394,33 +400,9 @@ export default function AdminClientDetail() {
     }
   }
 
-  const CLIENT_NAV_ITEMS = [
-    { label: "Maps", value: "maps" },
-    { label: "Directories", value: "directories" },
-    { label: "Categorisations", value: "categorisations" },
-    { label: "Entitlements", value: "entitlements" },
-    { label: "Customer details", value: "details" },
-    { label: "Users", value: "users" },
-    { label: "Messaging", value: "messaging" },
-    { label: "Domains", value: "domains" },
-  ];
-
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-      ]}
-      clientNavItems={CLIENT_NAV_ITEMS}
-      activeClientTab={activeTab}
-      onClientTabChange={setActiveTab}
-      rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
-        </button>
-      }
-    >
-      <div className="admin-card">
+    <AdminLayout panel={<CustomerWorkspaceFeaturePanel clientId={clientId} clientName={client?.name} />}>
+      <div className="card card-pad">
         {loading ? (
           <p>Loading…</p>
         ) : (
@@ -431,11 +413,13 @@ export default function AdminClientDetail() {
 
             {activeTab === "maps" && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Maps</h3>
+                <PageHead
+                  title="Maps"
+                  subtitle="Interactive maps for this customer."
+                  actions={
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="shell-btn shell-btn--primary"
                     onClick={() => {
                       const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
                       if (atMapLimit) {
@@ -448,7 +432,8 @@ export default function AdminClientDetail() {
                   >
                     New map
                   </button>
-                </div>
+                  }
+                />
 
                 {maps.length === 0 ? (
                   err ? null : (
@@ -491,64 +476,31 @@ export default function AdminClientDetail() {
             )}
 
             {activeTab === "directories" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Directories</h3>
-                  <Link className="btn btn-primary" to={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}>
-                    New directory
-                  </Link>
-                </div>
-
-                {directories.length === 0 ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>No directories yet for this customer.</p>
-                ) : (
-                  <table className="admin-table" style={{ marginTop: 0 }}>
-                    <thead>
-                      <tr>
-                        {["Directory", "Slug", "Entries"].map((h) => (
-                          <th key={h}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {directories.map((d) => (
-                        <tr key={d.id}>
-                          <td>
-                            <Link to={`/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(d.id)}`}>
-                              {d.name}
-                            </Link>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{d.id}</div>
-                          </td>
-                          <td>{d.slug}</td>
-                          <td>{d.directory_entries?.[0]?.count ?? 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              <DirectoriesDashboard
+                clientId={clientId}
+                canManage
+                basePath={`/admin/clients/${encodeURIComponent(clientId)}/directories`}
+                newHref={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}
+              />
             )}
 
             {activeTab === "categorisations" && (
               <div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Categorisations</h3>
+                <PageHead title="Categories" subtitle="Reusable taxonomies applied across all of your directories." />
                 <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 
             {activeTab === "entitlements" && (
               <div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>Entitlements</h3>
+                <PageHead title="Entitlements" subtitle="Plan, feature access and limits for this customer." />
                 <EntitlementsPanel clientId={clientId} recordEvent={recordEvent} />
               </div>
             )}
 
             {activeTab === "details" && (
               <>
-                <div style={{ marginBottom: 20 }}>
-                  <h2 style={{ margin: "0 0 8px 0" }}>Customer details</h2>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>ID: {client?.id ?? "—"}</div>
-                </div>
+                <PageHead title="Customer details" subtitle={`ID: ${client?.id ?? "—"}`} />
 
                 {err ? <p style={{ margin: "0 0 12px 0" }}>{err}</p> : null}
                 {notice ? (
@@ -607,9 +559,9 @@ export default function AdminClientDetail() {
                       style={{ marginTop: 3 }}
                     />
                     <span>
-                      <strong>Directories &amp; Categorisations</strong>
+                      <strong>Directories &amp; Categories</strong>
                       <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Show the Directories and Categorisations sections in this customer&apos;s portal.
+                        Show the Directories and Categories sections in this customer&apos;s portal.
                         Saved immediately.
                       </span>
                     </span>
@@ -672,7 +624,7 @@ export default function AdminClientDetail() {
                   </Field>
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <button className="btn btn-primary" type="submit" disabled={saving}>
+                    <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
                       {saving ? "Saving…" : "Save changes"}
                     </button>
                   </div>
@@ -682,8 +634,8 @@ export default function AdminClientDetail() {
 
             {activeTab === "users" && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Users</h3>
+                <PageHead title="Users" subtitle="People who can sign in to this customer's workspace." />
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
                   <form onSubmit={handleAddUser} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     <input
                       type="email"
@@ -715,7 +667,7 @@ export default function AdminClientDetail() {
                       />
                       Manage users
                     </label>
-                    <button type="submit" className="btn btn-primary" disabled={adding}>
+                    <button type="submit" className="shell-btn shell-btn--primary" disabled={adding}>
                       {adding ? "Adding…" : "Add user"}
                     </button>
                   </form>
@@ -834,12 +786,22 @@ export default function AdminClientDetail() {
                 clientId={clientId}
                 clientName={client?.name}
                 eventSource="admin_dashboard"
-                showPageTitle={false}
               />
             )}
 
             {activeTab === "domains" && (
-              <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+              <>
+                <PageHead title="Domains" subtitle={DOMAINS_SUBTITLE} />
+                <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+              </>
+            )}
+
+            {activeTab === "integrations" && (
+              <IntegrationsPanel
+                clientId={clientId}
+                clientName={client?.name}
+                eventSource="admin_dashboard"
+              />
             )}
           </>
         )}

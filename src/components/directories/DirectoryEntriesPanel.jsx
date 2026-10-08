@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Badge, Button, Group, Loader, Text } from "@mantine/core";
 import {
   ENTRIES_PAGE_SIZE,
@@ -93,12 +93,13 @@ const inputStyle = {
  *
  * @param {string} directoryId
  * @param {string} directoryBasePath - this directory's own base route (e.g. `/client/directories/:id` or the admin equivalent) — entries are edited at `${directoryBasePath}/entries/:entryId`.
- * @param {string} [clientId] - required to show the Categorisations tag picker (DIR-E5-S2); omit to hide it.
+ * @param {string} [clientId] - required to show the Categories tag picker (DIR-E5-S2); omit to hide it.
  * @param {boolean} canEdit - Owner/Manager, or a Member explicitly granted access.
  * @param {(eventType: string, meta?: object) => void} [recordEvent] - admin-event emitter (see AGENTS.md), matches the recordFilterEvent convention used by FilterFieldsPanel.
  */
 export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, clientId, canEdit = true, recordEvent }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -106,6 +107,16 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  // Initial gap filter comes from ?gap= (Overview tiles link here); changing the dropdown keeps the URL in step.
+  const [gap, setGapState] = useState(() => {
+    const g = searchParams.get("gap");
+    return ["no_logo", "no_content", "no_seo", "not_geocoded"].includes(g) ? g : "";
+  });
+  const setGap = (value) => {
+    setGapState(value);
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); if (value) n.set("gap", value); else n.delete("gap"); return n; }, { replace: true });
+  };
+  const [categoryTermId, setCategoryTermId] = useState("");
 
   const [groups, setGroups] = useState([]);
 
@@ -138,7 +149,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     if (!directoryId) return;
     setLoading(true);
     try {
-      const { rows: r, count: c } = await listDirectoryEntries(directoryId, { search, page });
+      const { rows: r, count: c } = await listDirectoryEntries(directoryId, { search, page, gap: gap || null, categoryTermId: categoryTermId || null });
       setRows(r);
       setCount(c);
       setErr("");
@@ -147,7 +158,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     } finally {
       setLoading(false);
     }
-  }, [directoryId, search, page]);
+  }, [directoryId, search, page, gap, categoryTermId]);
 
   useEffect(() => {
     void refresh();
@@ -169,7 +180,12 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   // clear it whenever the underlying result set changes so stale ids can't linger.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [directoryId, search, page]);
+  }, [directoryId, search, page, gap, categoryTermId]);
+
+  // Gaps/categorisation filters (Phase 4, admin shell redesign) reset to page 0 like search does.
+  useEffect(() => {
+    setPage(0);
+  }, [gap, categoryTermId]);
 
   // Debounce search input so it doesn't fire a query per keystroke.
   const [searchInput, setSearchInput] = useState("");
@@ -393,7 +409,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
       // Resolve category_<key> columns against existing term slugs/labels.
       // Unknown tokens are reported as warnings, not auto-created — that's a
-      // taxonomy change and belongs in Categorisations, not a data import.
+      // taxonomy change and belongs in Categories, not a data import.
       const termLookupByCat = new Map();
       for (const cat of categorisations) {
         const m = new Map();
@@ -577,13 +593,34 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
       {geocodeMsg && <Alert color="green" variant="light">{geocodeMsg}</Alert>}
 
-      <input
-        type="text"
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        placeholder="Search by name or address…"
-        style={{ maxWidth: 380, ...inputStyle }}
-      />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name or address…"
+          style={{ maxWidth: 380, ...inputStyle }}
+        />
+        <select value={gap} onChange={(e) => setGap(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
+          <option value="">All entries</option>
+          <option value="no_logo">Gap: no logo</option>
+          <option value="no_content">Gap: no page content</option>
+          <option value="no_seo">Gap: no SEO metadata</option>
+          <option value="not_geocoded">Gap: not geocoded</option>
+        </select>
+        {categorisations.length > 0 && (
+          <select value={categoryTermId} onChange={(e) => setCategoryTermId(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
+            <option value="">All categories</option>
+            {categorisations.map((cat) => (
+              <optgroup key={cat.id} label={cat.label}>
+                {(cat.terms ?? []).map((term) => (
+                  <option key={term.id} value={term.id}>{term.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
+      </div>
 
       {canEdit && importOpen && (
         <div className="admin-card" style={{ padding: 16 }}>

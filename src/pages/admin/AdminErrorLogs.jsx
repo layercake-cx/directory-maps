@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { signOut } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
 
 const PAGE_SIZE = 100;
 
@@ -59,23 +59,20 @@ export default function AdminErrorLogs() {
 
   return (
     <AdminLayout
+      panel={<LogsFeaturePanel />}
       breadcrumbs={[{ label: "Error log" }]}
+      subtitle={
+        <>
+          Recent client-side errors (newest first, last {PAGE_SIZE} entries). Ensure the <code>error_logs</code> migration is applied.
+        </>
+      }
       rightActions={
-        <button onClick={signOut} type="button">
-          Sign out
+        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
         </button>
       }
     >
-      <div className="admin-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Error log</h2>
-          <button type="button" className="btn" onClick={load} disabled={loading}>
-            {loading ? "Loading…" : "Refresh"}
-          </button>
-        </div>
-        <p style={{ color: "var(--lc-muted)", marginBottom: 16 }}>
-          Recent client-side errors (newest first, last {PAGE_SIZE} entries). Ensure the <code>error_logs</code> migration is applied.
-        </p>
+      <div className="card card-pad">
 
         {err ? (
           <p style={{ color: "#b91c1c" }}>{err}</p>
@@ -115,7 +112,7 @@ export default function AdminErrorLogs() {
                       </td>
                       <td>{r.environment ?? "—"}</td>
                       <td>
-                        <button type="button" className="btn" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => toggle(r.id)}>
+                        <button type="button" className="shell-btn shell-btn--sm" onClick={() => toggle(r.id)}>
                           {expanded[r.id] ? "Hide" : "Details"}
                         </button>
                       </td>

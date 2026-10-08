@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
+export const DOMAINS_SUBTITLE = "Publish a map or directory on your own domain or subdomain.";
+
 export async function invokeManageClientDomain({ clientId, action, mapId, directoryId, hostname, domainId }) {
   return invokeEdgeFunction(
     "manage_client_domain",

@@ -117,3 +117,48 @@ export async function getDirectorySiteGenerationStatus(directoryId) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Lightweight "is the live site behind the draft?" check for the side panel's publish status.
+ * Baseline is when the public pages were last generated (falling back to published_at); anything
+ * edited after that — directory settings/branding, an active entry, a content page — counts as
+ * an unpublished change. Approximation: removing an entry isn't detected (nothing is stamped),
+ * and a narrow-scope claim publish also moves the baseline. Returns:
+ *   { state: "not_published" | "generating" | "failed" | "published" | "changes", publishedAt, changeCount, customHostname }
+ *
+ * customHostname: the directory's active custom domain (primary first), or null.
+ */
+export async function getDirectoryPublishState(directoryId) {
+  const { data: dir, error } = await supabase
+    .from("directories")
+    .select("published_at, updated_at, site_generated_at, site_generation_status")
+    .eq("id", directoryId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!dir?.published_at) return { state: "not_published", publishedAt: null, changeCount: 0 };
+  const { data: domains } = await supabase
+    .from("client_domains")
+    .select("hostname")
+    .eq("directory_id", directoryId)
+    .eq("status", "active")
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const customHostname = domains?.[0]?.hostname ?? null;
+  const base = { publishedAt: dir.published_at, changeCount: 0, customHostname };
+  if (dir.site_generation_status === "running") return { state: "generating", ...base };
+  if (dir.site_generation_status === "failed") return { state: "failed", ...base };
+
+  const baseline = dir.site_generated_at ?? dir.published_at;
+  const [entries, pages] = await Promise.all([
+    supabase.from("directory_entries").select("id", { count: "exact", head: true })
+      .eq("directory_id", directoryId).eq("is_active", true).gt("updated_at", baseline),
+    supabase.from("directory_content_pages").select("id", { count: "exact", head: true })
+      .eq("directory_id", directoryId).eq("is_active", true).gt("updated_at", baseline),
+  ]);
+  if (entries.error) throw entries.error;
+  if (pages.error) throw pages.error;
+  const settingsChanged = dir.updated_at && dir.updated_at > baseline ? 1 : 0;
+  const changeCount = (entries.count ?? 0) + (pages.count ?? 0) + settingsChanged;
+  return { state: changeCount > 0 ? "changes" : "published", ...base, changeCount };
+}

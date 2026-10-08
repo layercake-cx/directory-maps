@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
+import PageHead from "../../components/shell/PageHead.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
 import styles from "./MapsView.module.css";
 
@@ -25,8 +26,8 @@ const FilterIcon = () => (
 
 const MapPlusIcon = () => (
   <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-    <rect x="3" y="3" width="20" height="20" rx="4" fill="#B5D4F4" stroke="#378ADD" strokeWidth="0.8" />
-    <path d="M13 8v10M8 13h10" stroke="#185FA5" strokeWidth="1.8" strokeLinecap="round" />
+    <rect x="3" y="3" width="20" height="20" rx="4" fill="var(--shell-accent-tint, #e6f0ef)" stroke="var(--shell-accent, #0f5e63)" strokeWidth="0.8" />
+    <path d="M13 8v10M8 13h10" stroke="var(--shell-accent, #0f5e63)" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 
@@ -82,22 +83,22 @@ export default function MapsView({ maps = [], workspaceName, loading, error }) {
   return (
     <div className={styles.wrap}>
       {/* Top bar */}
-      <div className={styles.topbar}>
-        <div>
-          {workspaceName && <p className={styles.pageLabel}>{workspaceName}</p>}
-          <h1 className={styles.pageTitle}>My Maps</h1>
-        </div>
-        <div className={styles.topbarActions}>
-          <div className={styles.search}>
-            <SearchIcon />
-            <span>Search maps…</span>
+      <PageHead
+        title="Maps"
+        subtitle="Interactive maps your visitors can explore."
+        actions={
+          <div className={styles.topbarActions}>
+            <div className={styles.search}>
+              <SearchIcon />
+              <span>Search maps…</span>
+            </div>
+            <button className={styles.filterBtn}>
+              <FilterIcon />
+              Filter
+            </button>
           </div>
-          <button className={styles.filterBtn}>
-            <FilterIcon />
-            Filter
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
         <p style={{ color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>{error}</p>
