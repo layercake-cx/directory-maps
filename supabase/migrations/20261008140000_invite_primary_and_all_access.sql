@@ -6,7 +6,7 @@
 --   and map ids, so primary status and directory access were lost at signup.
 -- Affected tables: contacts, invitations (functions: create_team_invitation,
 --   accept_team_invitation)
--- Rollback: 20261008140000_invite_primary_and_all_access.rollback.sql
+-- Rollback: _20261008140000_invite_primary_and_all_access.rollback.sql
 -- Author: Claude
 -- Date: 2026-10-08
 -- ============================================================

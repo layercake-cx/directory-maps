@@ -27,7 +27,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `send_team_invitation`, `complete_invited_signup` — pending (staging first, `beqejxneehilplrtpntn`). Deploy after the migration, since the RPC signature changes.
 
 ### Rollback plan
-- Run `20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
+- Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
 
 ### Verified
 - [ ] Dry run and integrity counts (contacts, invitations, permissions) unchanged
