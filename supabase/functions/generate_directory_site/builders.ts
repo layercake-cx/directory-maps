@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 5;
+export const ENTRY_TEMPLATE_VERSION = 6;
 
 export type Entry = {
   id: string;
@@ -393,6 +393,30 @@ export const EXTRA_STYLE = `
   .dir-footer-col { display: flex; flex-direction: column; gap: 6px; }
   .dir-footer-col__title { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; color: var(--ftr-text); }
   .dir-footer-col a { font-size: 13.5px; }
+  .dir-footer__grid { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr) minmax(300px, 1.3fr); gap: 28px 40px; align-items: start; }
+  .dir-footer__grid--no-nav { grid-template-columns: minmax(160px, 1fr) minmax(300px, 1.3fr); }
+  .dir-footer__grid .dir-footer-nav { min-width: 0; }
+  .dir-platform-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; padding: 28px; border-radius: 14px; border: 1px solid var(--ftr-border); background: var(--ftr-panel-bg); }
+  .dir-platform-panel__eyebrow { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ftr-muted); }
+  .dir-platform-panel__logo { display: inline-block; line-height: 0; border-radius: 4px; }
+  .dir-platform-panel__logo img { height: 26px; width: auto; display: block; filter: var(--ftr-logo-filter); }
+  .dir-platform-panel__tagline { margin: 0; font-family: var(--font-heading); font-style: italic; font-size: 1.5rem; line-height: 1.2; color: var(--ftr-text); }
+  .dir-platform-panel__body { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ftr-text); }
+  .dir-platform-panel__btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 22px; border-radius: 999px; background: var(--ftr-btn-bg); color: var(--ftr-btn-text); border: 1px solid var(--ftr-border); font-weight: 600; font-size: 14.5px; }
+  .dir-platform-panel__btn:hover { background: var(--ftr-btn-hover); color: var(--ftr-btn-text); }
+  .dir-platform-panel__btn svg { flex: none; }
+  .dir-platform-panel a:focus-visible { outline: 2px solid var(--ftr-text); outline-offset: 3px; }
+  .dir-footer__bar { border-top: 1px solid var(--ftr-border); }
+  .dir-footer__bar-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; padding-top: 18px; padding-bottom: 22px; font-size: 12.5px; color: var(--ftr-muted); }
+  @media (max-width: 1000px) {
+    .dir-footer__grid, .dir-footer__grid--no-nav { grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr); }
+    .dir-footer__grid--no-nav { grid-template-columns: minmax(0, 1fr); }
+    .dir-platform-panel-wrap { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .dir-footer__grid { grid-template-columns: minmax(0, 1fr); }
+    .dir-footer__bar-inner { flex-direction: column; }
+  }
   .dm-consent { position: fixed; z-index: 40; left: 16px; right: 16px; bottom: 16px; max-width: 520px; margin: 0 auto; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 16px 18px; font-size: 13.5px; line-height: 1.5; }
   .dm-consent p { margin: 0 0 12px; }
   .dm-consent__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
@@ -815,6 +839,36 @@ export function applyAlphaToCssColors(css: string, alpha: number): string {
     .replace(/\bhsla?\(\s*([\d.]+)\s*,\s*([\d.]+%?)\s*,\s*([\d.]+%?)(?:\s*,\s*[\d.]+%?)?\s*\)/g, (_m, h, s, l) => `hsla(${h}, ${s}, ${l}, ${a})`);
 }
 
+/** WCAG relative luminance of a #rgb / #rrggbb(aa) colour; null when unparseable. */
+function hexRelativeLuminance(hex: string): number | null {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+  if (h.length < 6) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  if (ch.some((n) => Number.isNaN(n))) return null;
+  const [r, g, b] = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Tokens for the "Built on Layercake Maps" footer panel. Every colour is
+ * derived from the footer/primary tokens (tints via color-mix, never a
+ * literal), so a theme change restyles the panel. Two values depend on
+ * contrast and so are computed here: the button label (white or near-black,
+ * whichever reads better on the primary fill) and the logo filter (the
+ * platform logo is white, so it is darkened when the footer text is dark,
+ * i.e. the footer surface is light). */
+function platformPanelVars(t: { primaryColor: string; footerText: string }): string {
+  const primaryLum = hexRelativeLuminance(t.primaryColor);
+  const textLum = hexRelativeLuminance(t.footerText);
+  const btnText = primaryLum !== null && primaryLum > 0.4 ? "var(--ink)" : "var(--surface)";
+  const logoFilter = textLum !== null && textLum < 0.4 ? "brightness(0)" : "none";
+  return `--ftr-muted: color-mix(in srgb, var(--ftr-text) 74%, transparent);
+    --ftr-panel-bg: color-mix(in srgb, var(--ftr-text) 7%, transparent);
+    --ftr-border: color-mix(in srgb, var(--ftr-text) 20%, transparent);
+    --ftr-btn-bg: var(--primary); --ftr-btn-text: ${btnText}; --ftr-btn-hover: var(--primary-2);
+    --ftr-logo-filter: ${logoFilter};`;
+}
+
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
   const banner = resolvedHeroBanner(theme);
@@ -838,6 +892,7 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --hdr-bg: ${headerBackground}; --hdr-text: ${t.headerText};
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
+    ${platformPanelVars(t)}
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
     --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
     --logo-display: ${showLogo ? "block" : "none"};
@@ -1101,21 +1156,40 @@ export function siteHeader(opts: {
 </header>`;
 }
 
-/** Full-bleed dark footer, identical on every page. Note the disclaimer
- * span keeps its own fixed muted teal rather than a theme token — it's
- * decorative platform copy, not part of the three-region model (dev
- * spec's non-goals §3: no per-component overrides beyond header/body/
- * footer). */
+export const PLATFORM_URL = "https://layercake-cx.biz/maps";
+export const PLATFORM_LOGO_URL = "https://maps.layercake-cx.biz/layercake-maps-white.png";
+
+/** The "Built on Layercake Maps" panel. Colours all come from --ftr-* tokens
+ * (see platformPanelVars). Both links record platform_footer_click. */
+export function platformPanel(): string {
+  return `<aside class="dir-platform-panel" aria-label="About Layercake Maps">
+  <p class="dir-platform-panel__eyebrow">Built on</p>
+  <a class="dir-platform-panel__logo" href="${PLATFORM_URL}" aria-label="Layercake Maps" data-dm-event="platform_footer_click" data-dm-cta="logo"><img src="${PLATFORM_LOGO_URL}" alt="" width="191" height="26" loading="lazy"></a>
+  <p class="dir-platform-panel__tagline">Finding your people</p>
+  <p class="dir-platform-panel__body">Layercake Maps powers searchable directories for membership bodies and sectors. Bring your own community onto the map.</p>
+  <a class="dir-platform-panel__btn" href="${PLATFORM_URL}" data-dm-event="platform_footer_click" data-dm-cta="button">Discover Layercake Maps <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</aside>`;
+}
+
+/** Full-bleed footer, identical on every page: brand column, footer nav, the
+ * "Built on Layercake Maps" panel, then a bottom bar with the copyright and
+ * editorial disclaimer. All colours come from --ftr-* tokens. */
 export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?: SiteNav | null }): string {
   const footerNav = opts.nav ? renderFooterNav(opts.nav) : "";
   return `<footer style="margin-top:56px;background:var(--ftr-bg);">
-  <div class="wrap" style="padding-top:40px;padding-bottom:28px;display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;">
+  <div class="wrap dir-footer__grid${footerNav ? "" : " dir-footer__grid--no-nav"}" style="padding-top:40px;padding-bottom:32px;">
     <div>
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
     </div>
     ${footerNav}
-    <span style="font-size:12.5px;color:#8FB4AD;">Powered by Layercake&nbsp;Maps · content is editorial, commercial links never affect inclusion.</span>
+    <div class="dir-platform-panel-wrap">${platformPanel()}</div>
+  </div>
+  <div class="dir-footer__bar">
+    <div class="wrap dir-footer__bar-inner">
+      <span>&copy; ${new Date().getFullYear()} ${escapeHtml(opts.directoryName)}</span>
+      <span>Content is editorial. Commercial links never affect inclusion.</span>
+    </div>
   </div>
 </footer>`;
 }

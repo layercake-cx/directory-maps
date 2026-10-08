@@ -8,6 +8,37 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-08 — [Staging] "Built on Layercake Maps" footer panel
+
+**Branch/commit:** `feat/2026-10-08-built-on-layercake-footer`
+**Deployed by:** Claude Code — migration and function on staging 2026-10-08; production pending sign-off
+**Monday:** https://layercake-cx.monday.com/boards/5094351513/pulses/3269038439
+
+### What changed
+- Every published directory page footer now shows a "Built on Layercake Maps" panel (eyebrow, logo linking to layercake-cx.biz/maps, "Finding your people" tagline, a one-line pitch and a **Discover Layercake Maps** button) in the right-hand column, replacing the old "Powered by Layercake Maps" line.
+- The editorial disclaimer moved to a full-width bottom bar under a thin divider: "© year Directory name" on the left, "Content is editorial. Commercial links never affect inclusion." on the right.
+- Layout: four columns on desktop; two columns up to 1000px with the panel full-width below; one column up to 640px.
+- No hard-coded colours: the panel tints, border, muted text and button all derive from the existing footer and primary tokens (new `--ftr-*` variables). The button label and logo colour are chosen for contrast from the theme.
+- New visitor event `platform_footer_click` (logo and button), recorded in `map_engagement_events` and documented in `docs/MAP_ENGAGEMENT.md`.
+- Logo is `public/layercake-maps-white.png` (the admin header's white PNG; no SVG exists). It loads from `maps.layercake-cx.biz`, so it shows on live sites only after the Vercel frontend deploy.
+- `ENTRY_TEMPLATE_VERSION` bumped 5 → 6 so incremental publishes rebuild existing pages.
+- Not built, as briefed: an entitlement flag to hide or rebrand the panel for higher licence tiers.
+
+### Database migrations applied
+- `20261008120000_platform_footer_click_event.sql` — adds `platform_footer_click` to the `map_engagement_event_type` check (additive). Rollback: `_20261008120000_platform_footer_click_event.rollback.sql`.
+
+### Edge functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) first; production only after sign-off.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site` (bumping `ENTRY_TEMPLATE_VERSION` again so pages rebuild), then run the rollback migration (refuses if `platform_footer_click` rows exist).
+
+### Verified
+- [ ] Staging: migration applied, function deployed, a directory republished shows the panel and bottom bar
+- [ ] Logo and both links work; click recorded as `platform_footer_click`
+
+---
+
 ## 2026-10-07 — [Staging] Separate AI generation for content page SEO
 
 **Branch/commit:** `feat/2026-10-07-content-page-ai-seo-separate`

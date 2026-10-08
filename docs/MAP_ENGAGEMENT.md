@@ -102,6 +102,7 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 | `listing_enquiry_sent` | Contact message submitted and the email send succeeded | set | `cta_type`: `enquiry`, `path` |
 | `listing_claim_start` | Self-service claim work-email form submitted, domain verified, and the magic-link email send succeeded — fired client-side by the published page's own JS (Claimed Directory Listings epic, Phase 7) | set | `cta_type`: `claim`, `path` |
 | `listing_claim_complete` | Self-service claim activated (right after the claimant's first magic-link login) — fired server-side, inside `activate_self_service_claim()`, not client-side, since the caller is authenticated by that point and this table's anon-only insert policy doesn't cover `authenticated` callers | set | `{}` (empty; no `client_session_id` either, since it's inserted by an RPC, not the visitor's own browser session) |
+| `platform_footer_click` | Logo or **Discover Layercake Maps** button in the footer's "Built on Layercake Maps" panel clicked (every published directory page) | set on entry pages, otherwise — | `cta_type`: `logo` or `button`, `path` |
 
 Reserved (CHECK only; not emitted until those products exist): `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
 
