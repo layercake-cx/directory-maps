@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-08 — [Staging] Invitations carry primary status and all-access
 
 **Branch/commit:** `fix/2026-10-08-invite-permissions`
-**Deployed by:** not yet deployed
+**Deployed by:** Claude Code (staging, 2026-10-08); production pending sign-off
 
 ### What changed
 - An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
@@ -21,16 +21,17 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Multiple primaries are allowed; nothing assumes a single one.
 
 ### Database migrations applied
-- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — pending (staging first).
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: not applied.
 
 ### Edge functions deployed
-- `send_team_invitation`, `complete_invited_signup` — pending (staging first, `beqejxneehilplrtpntn`). Deploy after the migration, since the RPC signature changes.
+- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: not deployed.
 
 ### Rollback plan
 - Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
 
 ### Verified
-- [ ] Dry run and integrity counts (contacts, invitations, permissions) unchanged
+- [x] Migration applied; `VERIFY PASSED` (columns exist, one `create_team_invitation` overload, no existing contact has `has_all_access`)
+- [ ] Frontend not yet deployed to the Vercel preview (needs `npm run deploy:test`, which requires an authenticated Vercel CLI)
 - [ ] Invite as Member, Manager and Primary; sign up; contact has the right role, `is_primary` and `has_all_access`
 - [ ] A manager cannot invite a primary; Member sees all directories
 
