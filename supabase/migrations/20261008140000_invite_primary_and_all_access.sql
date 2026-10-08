@@ -212,3 +212,26 @@ $$;
 
 revoke all on function public.accept_team_invitation() from public;
 grant execute on function public.accept_team_invitation() to authenticated;
+
+-- ------------------------------------------------------------
+-- POST-MIGRATION VERIFICATION (aborts the migration if anything is off)
+-- ------------------------------------------------------------
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                 where table_schema='public' and table_name='contacts' and column_name='has_all_access') then
+    raise exception 'VERIFY FAILED: contacts.has_all_access missing';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                 where table_schema='public' and table_name='invitations' and column_name='is_primary') then
+    raise exception 'VERIFY FAILED: invitations.is_primary missing';
+  end if;
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname='create_team_invitation') <> 1 then
+    raise exception 'VERIFY FAILED: expected exactly one create_team_invitation overload';
+  end if;
+  if exists (select 1 from public.contacts where has_all_access) then
+    raise exception 'VERIFY FAILED: existing contacts should not have has_all_access set';
+  end if;
+  raise notice 'VERIFY PASSED: invite_primary_and_all_access';
+end $$;
