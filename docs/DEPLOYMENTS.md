@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-08 — [Staging] Header dropdown uses the header colours
+
+**Branch/commit:** `fix/2026-10-08-subnav-dropdown-header-colours`
+**Deployed by:** Claude Code (staging); production pending sign-off
+
+### What changed
+- The sub-navigation dropdown in a published directory's header was filled with the page surface colour and a fixed border, so it clashed with a themed header. It now uses the header background and header text colour from Branding. Because the header background can be translucent or a gradient, it is painted over a solid page-colour base so the menu never lets page content show through. Hover state is a tint of the header text colour.
+- The phone menu panel is unchanged.
+- `ENTRY_TEMPLATE_VERSION` bumped 6 → 7 so existing pages pick it up on the next publish.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`); production only after sign-off.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site` (bump `ENTRY_TEMPLATE_VERSION` again).
+
+### Verified
+- [ ] Staging: republish a directory with a dark or coloured header and open a dropdown on desktop
+
+---
+
 ## 2026-10-08 — [Staging] "Built on Layercake Maps" footer panel
 
 **Branch/commit:** `feat/2026-10-08-built-on-layercake-footer`

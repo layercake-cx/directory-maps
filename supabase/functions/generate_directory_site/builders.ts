@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 6;
+export const ENTRY_TEMPLATE_VERSION = 7;
 
 export type Entry = {
   id: string;
@@ -345,13 +345,16 @@ export const EXTRA_STYLE = `
   .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
   .dir-nav-dropdown {
     display: none; position: absolute; top: 100%; right: 0; min-width: 220px; z-index: 8;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; margin: 0; list-style: none;
+    background: var(--bg); border: 1px solid color-mix(in srgb, var(--hdr-text) 20%, transparent); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; margin: 0; list-style: none; isolation: isolate;
   }
+  /* The header background can be translucent or a gradient, so it is painted
+     as an overlay on a solid page-colour base rather than used as the fill. */
+  .dir-nav-dropdown::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--hdr-bg); pointer-events: none; }
   .dir-nav-item--dropdown:hover .dir-nav-dropdown,
   .dir-nav-item--dropdown:focus-within .dir-nav-dropdown { display: block; }
   .dir-nav-dropdown a { display: block; padding: 10px 12px; border-radius: 8px; white-space: nowrap; }
-  .dir-nav-dropdown a:hover { background: var(--surface-2); }
+  .dir-nav-dropdown a:hover { color: var(--hdr-text); background: color-mix(in srgb, var(--hdr-text) 12%, transparent); }
   .dir-nav-mobile { display: none; position: relative; }
   .dir-nav-mobile > summary {
     list-style: none; cursor: pointer; min-width: 44px; min-height: 44px;
