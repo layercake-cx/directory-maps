@@ -26,7 +26,7 @@ const COLUMNS = "id, directory_id, name, is_default, applies_to_group_id, applie
  * the designer will see it do nothing, same as `logo`/`heading` already did
  * before this redesign.
  *
- * A block descriptor is `{ type, key?, label? }` — `label` is optional and
+ * A block descriptor is `{ type, key?, label?, hidden? }` — `hidden: true` keeps the block saved but renders nothing on the page and preview (Show checkbox, Experience › Entry pages) — `label` is optional and
  * new (directory browse/entry redesign, 2026-09): when an admin sets one,
  * generate_directory_site wraps that block in an anchored `<section>` and
  * contributes one entry to the entry page's sticky jump-chip bar, titled

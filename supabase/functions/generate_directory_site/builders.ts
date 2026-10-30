@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 8;
+export const ENTRY_TEMPLATE_VERSION = 9;
 
 export type Entry = {
   id: string;
@@ -140,7 +140,9 @@ export type DirectoryTheme = {
   logoMaxHeight?: number;
 };
 
-export type BlockDescriptor = { type: string; key?: string; label?: string };
+// `hidden: true` keeps the block in the saved layout but renders nothing (no section, heading or
+// jump chip). Absent/false = shown, so every layout saved before this flag is unchanged.
+export type BlockDescriptor = { type: string; key?: string; label?: string; hidden?: boolean };
 export type EntryTemplateRow = {
   id: string;
   is_default: boolean;
@@ -1729,6 +1731,7 @@ export function buildEntryPage(opts: {
   // existing configured layouts are unaffected until an admin opts in.
   const jumpChips: string[] = [];
   const sections = layout.map((block, i) => {
+    if (block.hidden === true) return "";
     const content = renderBlockContent(block);
     if (!content) return "";
     if (!block.label) return content;

@@ -220,6 +220,18 @@ export default function EntryPagesPage() {
       }),
     );
 
+  /** Hidden blocks stay in the saved layout but render nothing; shown = no `hidden` key at all. */
+  const setShown = (i, shown) =>
+    setDraft((d) =>
+      d.map((b, bi) => {
+        if (bi !== i) return b;
+        const next = { ...b };
+        if (shown) delete next.hidden;
+        else next.hidden = true;
+        return next;
+      }),
+    );
+
   function chooseTemplate(id) {
     if (id === selectedId) return;
     if (changed > 0) setDialog({ kind: "switch", id });
@@ -320,6 +332,7 @@ export default function EntryPagesPage() {
               <span style={{ width: 28 }} />
               <span style={{ width: 160 }}>Section</span>
               <span style={{ flex: 1 }}>Heading on page</span>
+              <span style={{ width: 56, textAlign: "center" }}>Show</span>
               <span style={{ width: 88 }} />
             </div>
             {draft.map((block, i) => {
@@ -329,6 +342,7 @@ export default function EntryPagesPage() {
                   key={`${blockKey(block)}-${i}`}
                   className="xp-block"
                   data-dragging={String(dragIndex === i)}
+                  data-hidden={String(block.hidden === true)}
                   draggable
                   onDragStart={() => setDragIndex(i)}
                   onDragOver={(e) => e.preventDefault()}
@@ -355,6 +369,9 @@ export default function EntryPagesPage() {
                   </button>
                   <span className="xp-block-name">{name}</span>
                   <input className="xp-input xp-block-heading" aria-label={`Heading for ${name}`} value={block.label || ""} placeholder="No heading" onChange={(e) => setLabel(i, e.target.value)} />
+                  <span className="xp-block-show">
+                    <input type="checkbox" aria-label={`Show ${name}`} checked={block.hidden !== true} onChange={(e) => setShown(i, e.target.checked)} />
+                  </span>
                   <span className="xp-moves">
                     <button type="button" className="xp-iconbtn" style={{ height: 22, width: 32, fontSize: 12 }} aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>▲</button>
                     <button type="button" className="xp-iconbtn" style={{ height: 22, width: 32, fontSize: 12 }} aria-label={`Move ${name} down`} disabled={i === draft.length - 1} onClick={() => move(i, i + 1)}>▼</button>
