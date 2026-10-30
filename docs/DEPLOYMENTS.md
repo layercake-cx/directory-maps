@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-30 — [Staging] Relevance-ranked search on published directory pages
 
 **Branch/commit:** `feat/2026-10-30-relevance-directory-search`
-**Deployed by:** not yet deployed
+**Deployed by:** Claude Code (staging, 2026-10-30); production pending sign-off
 
 ### What changed
 - The search box on a published directory homepage used to show any listing containing at least one query word, with every field weighted equally. A search for "association" (a word removed from queries as a stopword) matched every listing while the count read "501 entries match association"; a multi-word search like "association of plumbers" ranked a listing mentioning only a common word the same as one that was actually about plumbers.
@@ -23,7 +23,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Edge functions deployed
-- `generate_directory_site` — pending (staging first, `beqejxneehilplrtpntn`). Already-published directories keep the old search until republished.
+- `generate_directory_site` — deployed to staging (`beqejxneehilplrtpntn`) 2026-10-30, from this branch (cut from `origin/main`). Production (`gxixwdjfmegxcxfeflro`) not deployed. Already-published directories keep the old search until republished.
 
 ### Rollback plan
 - Revert the PR and redeploy `generate_directory_site`; republish affected directories. The bump to `ENTRY_TEMPLATE_VERSION` 8 means a revert should bump it again (to 9) so published pages are rebuilt back to the old script.
