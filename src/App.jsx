@@ -70,7 +70,8 @@ import DirectoryAiEnrichmentRoute from "./components/directoryPanel/DirectoryAiE
 import DirectoryPagesRoute from "./components/directoryPanel/DirectoryPagesRoute.jsx";
 import DirectoryCategoriesRoute from "./components/directoryPanel/DirectoryCategoriesRoute.jsx";
 import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryAccreditationsRoute.jsx";
-import DirectoryDesignRoute from "./components/directoryPanel/DirectoryDesignRoute.jsx";
+import DirectoryLookAndFeelRoute from "./components/directoryPanel/DirectoryLookAndFeelRoute.jsx";
+import DirectoryEntryPagesRoute from "./components/directoryPanel/DirectoryEntryPagesRoute.jsx";
 import DirectorySearchRoute from "./components/directoryPanel/DirectorySearchRoute.jsx";
 import DirectoryClaimsRoute from "./components/directoryPanel/DirectoryClaimsRoute.jsx";
 import DirectoryEnquiriesRoute from "./components/directoryPanel/DirectoryEnquiriesRoute.jsx";
@@ -133,7 +134,10 @@ export default function App() {
           <Route path="categories" element={<DirectoryCategoriesRoute />} />
           <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
           <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
-          <Route path="design" element={<DirectoryDesignRoute />} />
+          <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
+          <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+          {/* Old URL, before Design split into Look & feel and Entry pages */}
+          <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
           <Route path="search" element={<DirectorySearchRoute />} />
           <Route path="claims" element={<DirectoryClaimsRoute />} />
           <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
@@ -320,7 +324,10 @@ export default function App() {
         <Route path="categories" element={<DirectoryCategoriesRoute />} />
         <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
         <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
-        <Route path="design" element={<DirectoryDesignRoute />} />
+        <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
+        <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+        {/* Old URL, before Design split into Look & feel and Entry pages */}
+        <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
         <Route path="search" element={<DirectorySearchRoute />} />
         <Route path="claims" element={<DirectoryClaimsRoute />} />
         <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />

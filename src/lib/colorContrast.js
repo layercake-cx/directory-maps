@@ -67,3 +67,15 @@ export function checkContrast(foregroundHex, background, opts) {
   const worst = Math.min(...ratios);
   return { ratio: worst, passesAA: meetsAA(worst, opts) };
 }
+
+/**
+ * Four-tier readability label for a contrast ratio (Experience › Look & feel badges).
+ * `tone` is "good" | "warn" | "bad" — the UI maps it to colour.
+ */
+export function contrastLevel(ratio) {
+  if (ratio == null) return null;
+  if (ratio >= 7) return { label: "Readable · AAA", tone: "good" };
+  if (ratio >= AA_NORMAL) return { label: "Readable · AA", tone: "good" };
+  if (ratio >= AA_LARGE) return { label: "Large text only", tone: "warn" };
+  return { label: "Hard to read", tone: "bad" };
+}

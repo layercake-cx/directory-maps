@@ -8,6 +8,36 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-30 — [Production] Experience: Look & feel and Entry pages
+
+**Branch/commit:** `feat/2026-10-30-experience-look-and-feel`
+**Deployed by:** frontend-only. Merged to `main` on explicit user instruction (2026-10-30), which deploys GitHub Pages automatically. The Vercel production deploy (`npm run deploy:live`, maps.layercake-cx.biz) needs the user's authenticated CLI session and is run by the user; until then the branded domain serves the old Design page.
+
+### What changed
+- The single **Experience › Design** page (a long Branding form plus an Entry layout section, with two unrelated save buttons) is replaced by two pages. **Look & feel** has seven deep-linkable ARIA tabs (Theme, Logo & identity, Colours, Typography, Header, Hero banner, Footer) over one shared draft, a live preview that outlines the region being edited, readability badges (AAA / AA / large text only / hard to read), and a single bottom save bar. **Entry pages** has a template selector that shows how many entries use each template, an inline "Heading on page" per section, keyboard and button reordering, and a preview with an entry picker.
+- Nav labels now match page titles. `/design` redirects to `/look-and-feel` (client and admin route trees). Old `DirectoryBrandingPanel`, `EntryLayoutDesigner` and `DirectoryDesignRoute` are removed; shared pieces live in `src/components/experience/` and `src/lib/directoryThemeDraft.js`.
+- There is no draft layer: Save writes straight to `directories.theme_json` / `entry_templates`, and the Publishing page regenerates the live site, as before. The bar offers Discard + Save and links to Publishing.
+- Header shows and site title are one three-way control writing `headerMode` and `showHeaderTitle` together, so they cannot contradict.
+- Applying the Natural preset now resets header/footer to defaults (it previously left them untouched, unlike the other four presets).
+- Data model: no migration. `theme_json` gains an optional UI-only `footerLinkedToHeader` flag (Match header); `generate_directory_site` ignores it.
+- Admin events unchanged (`directory_branding_updated`, `directory_theme_preset_*`, `directory_entry_layout_updated`, `directory_entry_template_*`). No visitor action added.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the PR and redeploy the frontend. Saved `theme_json` values stay valid (the extra flag is ignored).
+
+### Verified
+- [x] `vite build` passes; Vercel preview deploys succeeded
+- [ ] Not verified in a browser before merge (user chose to skip). Each tab, the redirect, save/discard, apply-theme confirmation, Match header, template counts and keyboard reorder checked in the browser at 1280px and phone width
+- [ ] Console clean on both pages
+
+---
+
 ## 2026-10-30 — [Staging + Production] Relevance-ranked search on published directory pages
 
 **Branch/commit:** `feat/2026-10-30-relevance-directory-search`
