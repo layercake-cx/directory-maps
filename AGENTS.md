@@ -70,6 +70,7 @@ gh pr create --title "…" --body "…"
 - **Never push directly to `main`** — always go through a PR.
 - The PR body should say what changed, why, and how to verify it.
 - Add a `docs/DEPLOYMENTS.md` entry (see below) in the same branch before opening the PR.
+- **One piece of work = one branch = one PR, including its deployment records.** Staging and production outcomes go in that same PR's `DEPLOYMENTS.md` entry (and Monday comment), not in a separate docs-only branch afterwards. See "Deploy before you merge" under *Deployment log*.
 - Leave the PR open for the user to review and merge. Do not merge it yourself unless the user explicitly asks.
 
 ### If you resumed a session from a summary and skipped the opening checks
@@ -149,6 +150,18 @@ Every time you implement a meaningful change — feature, fix, migration, config
 - Mark the verification checklist honestly — leave boxes unchecked if staging hasn't been tested yet; don't tick them speculatively.
 
 **Format:** newest entry at the top, use the template in `docs/DEPLOYMENTS.md`. Each entry is headed `## YYYY-MM-DD — [Staging | Production]`.
+
+### Deploy before you merge (so the log never needs a second branch)
+
+An Edge Function or migration deploy is not part of a merge, so if the production deploy happens *after* the PR merges, the log needs a follow-up edit, and that used to mean a second docs-only branch and PR for one paragraph. Don't do that. Order the work so the PR carries its own deployment record:
+
+1. Deploy to staging from the feature branch; write the `DEPLOYMENTS.md` entry (staging outcome, unchecked verification boxes) and commit it in the same branch.
+2. The user verifies staging and explicitly signs off on production (the production rules above are unchanged).
+3. **Before deploying to production from the branch, make sure the branch contains current `origin/main`** (merge or rebase). Deploying from a stale branch can silently roll back someone else's merged change to the same function. Check `git log origin/main..HEAD` and `git diff origin/main...HEAD` look like only your work.
+4. Deploy to production, then update the entry in the same branch (production version, time, outcome; tick only what was actually verified), push, and post the Monday comment.
+5. Only then does the user merge the PR. One branch, one PR, one merge, with the log already true.
+
+If the user merges *before* the production deploy, don't open a docs-only branch to record it. Tell the user the entry is stale, and fold the correction into the next PR's `DEPLOYMENTS.md` edit unless they ask for it sooner. For a deploy that has no feature branch of its own (e.g. redeploying an already-merged function), record it in the next PR the same way, or open a single `chore/` branch only if the user asks.
 
 ## Stack
 
