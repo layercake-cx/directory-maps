@@ -124,7 +124,8 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
     {
       label: "Experience",
       items: [
-        ...(canManage ? [{ id: "design", label: "Design", route: `${basePath}/design` }] : []),
+        ...(canManage ? [{ id: "look-and-feel", label: "Look & feel", route: `${basePath}/look-and-feel` }] : []),
+        ...(canManage ? [{ id: "entry-pages", label: "Entry pages", route: `${basePath}/entry-pages` }] : []),
         { id: "search", label: "Search & Discovery", route: `${basePath}/search` },
       ],
     },
