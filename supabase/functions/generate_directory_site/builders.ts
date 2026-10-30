@@ -37,7 +37,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 7;
+export const ENTRY_TEMPLATE_VERSION = 8;
 
 export type Entry = {
   id: string;
@@ -2167,15 +2167,26 @@ export function filterRail(categorisations: FilterBarCategorisation[], locationS
   return `<aside id="dir-filter-rail" class="dir-rail">${drawerHeader}${distanceGroup}${groups}</aside>`;
 }
 
-// Ported from the Claude Design concept's own logic class (design doc:
-// "the filter/search algorithms in it are directly portable") — tokenize,
-// drop stopwords, score by distinct-token presence, sort by score.
-const SEARCH_STOPWORDS = [
+// Search is relevance-ranked in the browser (see scoreRows() in
+// buildFilterAndSearchScript): words are weighted by how rare they are across
+// this directory's listings (IDF) and by which field they appear in, so a word
+// that is in nearly every listing ("association", in a directory of
+// associations) counts for almost nothing. Only filler words are dropped from
+// a query; generic words stay in and are down-weighted by their own frequency,
+// which also means a query made only of them ("association") still searches
+// for them instead of matching every listing.
+const SEARCH_FILLER_WORDS = [
   "find", "for", "an", "the", "and", "with", "who", "that", "are",
-  "association", "associations", "body", "bodies", "organisation", "organisations",
-  "working", "looking", "need", "want", "professionals", "professional",
-  "uk", "member", "members", "membership", "near", "me", "in", "of", "a",
+  "working", "looking", "need", "want", "near", "me", "in", "of", "a",
 ];
+
+/** Separates the per-field texts inside a row's data-search attribute. */
+const SEARCH_FIELD_SEP = "¦";
+
+/** Field order in data-search, with the weight a hit in each carries. Must
+ * stay in step with buildSearchFields() below. The last field is the free-text
+ * body, the only one the script discounts for ubiquitous words. */
+const SEARCH_FIELD_WEIGHTS = [5, 3, 2, 2, 1];
 
 const SEARCH_HAYSTACK_MAX = 8000;
 
@@ -2184,24 +2195,26 @@ function stripHtmlForSearch(html: string | null | undefined): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-/** Public listing text baked into each row's data-search attribute. */
-function buildSearchHaystack(e: Entry, termLabels: string[]): string {
+function searchField(parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(" ").split(SEARCH_FIELD_SEP).join(" ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Public listing text baked into each row's data-search attribute, as
+ * SEARCH_FIELD_SEP-separated fields in SEARCH_FIELD_WEIGHTS order:
+ * name, keywords + category labels, summary + meta description,
+ * location + website, notes body. The notes body is truncated so the whole
+ * attribute stays within SEARCH_HAYSTACK_MAX, as the single blob used to. */
+function buildSearchFields(e: Entry, termLabels: string[]): string {
   const street = e.show_address ? e.address : null;
-  const parts = [
-    e.name,
-    e.slug,
-    e.website_url,
-    street,
-    e.city,
-    e.postcode,
-    e.country,
-    e.meta_description,
-    e.keywords,
-    e.ai_summary,
-    stripHtmlForSearch(e.notes_html).slice(0, SEARCH_HAYSTACK_MAX),
-    ...termLabels,
+  const fields = [
+    searchField([e.name, e.slug]),
+    searchField([e.keywords, ...termLabels]),
+    searchField([e.ai_summary, e.meta_description]),
+    searchField([street, e.city, e.postcode, e.country, e.website_url]),
   ];
-  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim().toLowerCase().slice(0, SEARCH_HAYSTACK_MAX);
+  const used = fields.reduce((n, f) => n + f.length + 1, 0);
+  fields.push(searchField([stripHtmlForSearch(e.notes_html)]).slice(0, Math.max(0, SEARCH_HAYSTACK_MAX - used)));
+  return fields.join(SEARCH_FIELD_SEP);
 }
 
 /** Embeds a JSON value as a JS literal inside an inline <script> — escapes
@@ -2449,9 +2462,19 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 <script>
 (function () {
   var CATS = ${embedJson(catsMeta)};
-  var STOPWORDS = ${embedJson(SEARCH_STOPWORDS)};
-  var stopwordSet = {};
-  STOPWORDS.forEach(function (w) { stopwordSet[w] = true; });
+  var FILLER_WORDS = ${embedJson(SEARCH_FILLER_WORDS)};
+  var fillerSet = {};
+  FILLER_WORDS.forEach(function (w) { fillerSet[w] = true; });
+  var FIELD_SEP = ${embedJson(SEARCH_FIELD_SEP)};
+  var FIELD_WEIGHTS = ${embedJson(SEARCH_FIELD_WEIGHTS)};
+  // A word found in more than this share of listings is "ubiquitous": it only
+  // counts when it appears in a short field (name, keywords, categories...),
+  // not in free-text notes. Ignored below MIN_ROWS_FOR_UBIQUITY listings,
+  // where a share is meaningless.
+  var UBIQUITOUS_SHARE = 0.5;
+  var MIN_ROWS_FOR_UBIQUITY = 20;
+  // Results scoring under this share of the best score are dropped.
+  var SCORE_CUTOFF = 0.15;
 
   var LOCATION_SEARCH = ${embedJson(!!locationSearch)};
   var PLACES = ${embedJson(locationSearch?.places ?? {})};
@@ -2547,7 +2570,87 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
   function tokens(q) {
     var m = q.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
-    return m.filter(function (t) { return !stopwordSet[t]; });
+    return m.filter(function (t) { return !fillerSet[t]; });
+  }
+
+  // Relevance scoring. Fields are parsed once; each query word's document
+  // frequency (rows containing it) is cached, since the rows never change.
+  var rowFields = null;
+  var dfCache = {};
+  function fieldsOf() {
+    if (!rowFields) {
+      rowFields = rows.map(function (row) {
+        return (row.getAttribute('data-search') || '').split(FIELD_SEP);
+      });
+    }
+    return rowFields;
+  }
+  function docFreq(t) {
+    if (dfCache[t] === undefined) {
+      var n = 0;
+      fieldsOf().forEach(function (fs) {
+        for (var i = 0; i < fs.length; i++) { if (fs[i].indexOf(t) !== -1) { n++; break; } }
+      });
+      dfCache[t] = n;
+    }
+    return dfCache[t];
+  }
+  // Best field weight word t earns in one row (0 = absent). A ubiquitous word
+  // is ignored in the last (free-text notes) field unless relaxed.
+  function hitWeight(fs, t, skipNotes) {
+    var best = 0;
+    for (var i = 0; i < fs.length; i++) {
+      if (skipNotes && i === fs.length - 1) break;
+      if (fs[i].indexOf(t) !== -1 && (FIELD_WEIGHTS[i] || 1) > best) best = FIELD_WEIGHTS[i] || 1;
+    }
+    return best;
+  }
+  // Returns { entryId: score } for matching rows, or null when there is no
+  // keyword query. First pass needs every distinctive word (all words, if
+  // none is distinctive); if nothing matches, a second pass accepts any word
+  // anywhere. Rows far below the best score are dropped.
+  function scoreRows(toks) {
+    if (!toks.length) return null;
+    var all = fieldsOf();
+    var n = all.length;
+    var seen = {};
+    var uniq = toks.filter(function (t) { if (seen[t]) return false; seen[t] = true; return true; });
+    var info = uniq.map(function (t) {
+      var d = docFreq(t);
+      return {
+        t: t,
+        idf: Math.log(1 + (n - d + 0.5) / (d + 0.5)),
+        ubiquitous: n >= MIN_ROWS_FOR_UBIQUITY && d > n * UBIQUITOUS_SHARE,
+      };
+    });
+    function run(strict) {
+      var required = strict ? info.filter(function (w) { return !w.ubiquitous; }) : [];
+      if (strict && !required.length) required = info;
+      var out = {};
+      var best = 0;
+      var found = false;
+      rows.forEach(function (row, i) {
+        var fs = all[i];
+        var score = 0;
+        var any = false;
+        var weights = info.map(function (w) {
+          var hw = hitWeight(fs, w.t, strict && w.ubiquitous);
+          if (hw) { any = true; score += w.idf * hw; }
+          return hw;
+        });
+        var ok = strict
+          ? required.every(function (w) { return weights[info.indexOf(w)] > 0; })
+          : any;
+        if (!ok) return;
+        found = true;
+        out[row.getAttribute('data-entry-id')] = score;
+        if (score > best) best = score;
+      });
+      if (!found) return null;
+      Object.keys(out).forEach(function (id) { if (out[id] < best * SCORE_CUTOFF) delete out[id]; });
+      return out;
+    }
+    return run(true) || run(false) || {};
   }
 
   function placeKey(s) {
@@ -2902,6 +3005,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function apply() {
     var q = input ? input.value.trim() : '';
     var toks = tokens(keywordQuery());
+    var scored = scoreRows(toks);
     var shown = 0;
     var alsoCount = 0;
     var shownIds = [];
@@ -2921,12 +3025,10 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         var aiIdx = resultEntryIds.indexOf(entryId);
         searchMatch = aiIdx !== -1;
         order = aiIdx === -1 ? 0 : aiIdx;
-      } else if (toks.length) {
-        var hay = (row.getAttribute('data-search') || '');
-        var score = 0;
-        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
-        searchMatch = score > 0;
-        order = -score;
+      } else if (scored) {
+        var score = scored[entryId];
+        searchMatch = score !== undefined;
+        order = searchMatch ? -Math.round(score * 100) : 0;
       }
       var textMatch = searchMatch && categoryMatch;
       var lat = parseFloat(row.getAttribute('data-lat'));
@@ -3033,7 +3135,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function matchingIdsIgnoringAi() {
-    var toks = tokens(keywordQuery());
+    var scored = scoreRows(tokens(keywordQuery()));
     var ids = [];
     rows.forEach(function (row) {
       var terms = rowTermIds(row);
@@ -3043,12 +3145,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         return terms.some(function (t) { return selected.indexOf(t) !== -1; });
       });
       var searchMatch = true;
-      if (toks.length) {
-        var hay = (row.getAttribute('data-search') || '');
-        var score = 0;
-        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
-        searchMatch = score > 0;
-      }
+      if (scored) searchMatch = scored[row.getAttribute('data-entry-id')] !== undefined;
       var textMatch = searchMatch && categoryMatch;
       var lat = parseFloat(row.getAttribute('data-lat'));
       var lng = parseFloat(row.getAttribute('data-lng'));
@@ -3523,7 +3620,7 @@ export function buildDirectoryLandingPage(opts: {
         .slice(0, 3);
       const asideTerm = terms.find((t) => t.catFieldType === "single_select");
 
-      const searchHaystack = buildSearchHaystack(e, terms.map((t) => t.label));
+      const searchHaystack = buildSearchFields(e, terms.map((t) => t.label));
       const searchText = escapeAttr(searchHaystack);
       const termIdsAttr = escapeAttr(termIds.join(","));
       const coordAttr = locationSearch && typeof e.lat === "number" && typeof e.lng === "number" && Number.isFinite(e.lat) && Number.isFinite(e.lng)
