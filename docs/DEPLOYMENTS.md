@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-30 — [Not yet deployed] Experience: Look & feel and Entry pages
+## 2026-10-30 — [Production] Experience: Look & feel and Entry pages
 
 **Branch/commit:** `feat/2026-10-30-experience-look-and-feel`
-**Deployed by:** frontend-only; ships with the normal GitHub Pages deploy on merge, then `npm run deploy:live` for maps.layercake-cx.biz after sign-off
+**Deployed by:** frontend-only. Merged to `main` on explicit user instruction (2026-10-30), which deploys GitHub Pages automatically. The Vercel production deploy (`npm run deploy:live`, maps.layercake-cx.biz) needs the user's authenticated CLI session and is run by the user; until then the branded domain serves the old Design page.
 
 ### What changed
 - The single **Experience › Design** page (a long Branding form plus an Entry layout section, with two unrelated save buttons) is replaced by two pages. **Look & feel** has seven deep-linkable ARIA tabs (Theme, Logo & identity, Colours, Typography, Header, Hero banner, Footer) over one shared draft, a live preview that outlines the region being edited, readability badges (AAA / AA / large text only / hard to read), and a single bottom save bar. **Entry pages** has a template selector that shows how many entries use each template, an inline "Heading on page" per section, keyboard and button reordering, and a preview with an entry picker.
@@ -32,8 +32,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Revert the PR and redeploy the frontend. Saved `theme_json` values stay valid (the extra flag is ignored).
 
 ### Verified
-- [x] `vite build` passes
-- [ ] Each tab, the redirect, save/discard, apply-theme confirmation, Match header, template counts and keyboard reorder checked in the browser at 1280px and phone width
+- [x] `vite build` passes; Vercel preview deploys succeeded
+- [ ] Not verified in a browser before merge (user chose to skip). Each tab, the redirect, save/discard, apply-theme confirmation, Match header, template counts and keyboard reorder checked in the browser at 1280px and phone width
 - [ ] Console clean on both pages
 
 ---
