@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-30 — [Staging] Relevance-ranked search on published directory pages
+## 2026-10-30 — [Staging + Production] Relevance-ranked search on published directory pages
 
 **Branch/commit:** `feat/2026-10-30-relevance-directory-search`
-**Deployed by:** Claude Code (staging, 2026-10-30); production pending sign-off
+**Deployed by:** Claude Code (staging and production, 2026-10-30); production on explicit sign-off
 
 ### What changed
 - The search box on a published directory homepage used to show any listing containing at least one query word, with every field weighted equally. A search for "association" (a word removed from queries as a stopword) matched every listing while the count read "501 entries match association"; a multi-word search like "association of plumbers" ranked a listing mentioning only a common word the same as one that was actually about plumbers.
@@ -23,14 +23,14 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None.
 
 ### Edge functions deployed
-- `generate_directory_site` — deployed to staging (`beqejxneehilplrtpntn`) 2026-10-30, from this branch (cut from `origin/main`). Production (`gxixwdjfmegxcxfeflro`) not deployed. Already-published directories keep the old search until republished.
+- `generate_directory_site` — deployed to staging (`beqejxneehilplrtpntn`) 2026-10-30, from this branch (cut from `origin/main`). Then deployed to production (`gxixwdjfmegxcxfeflro`) the same day, 14:48 UTC (v56 to v57), from `main` at merge commit `c8f4bb2` (PR #308); it was the only change to the function since production's previous deploy on 2026-10-08. Already-published directories keep the old search until republished.
 
 ### Rollback plan
 - Revert the PR and redeploy `generate_directory_site`; republish affected directories. The bump to `ENTRY_TEMPLATE_VERSION` 8 means a revert should bump it again (to 9) so published pages are rebuilt back to the old script.
 
 ### Verified
 - [x] Locally, against a 64-listing fixture built with the real `builders.ts` and driven in a browser: "association" → 13 listings with the word in their name (not all 64); "association of plumbers" → 3 plumbers listings, best first; "find me plumbers" ignores the filler; a nonsense word → 0
-- [ ] On staging: publish a real directory, search with a generic word and a multi-word query, confirm ranking and that category filters, distance search, Help me choose and map pins still combine with it
+- [ ] On staging and on a live directory after republishing: publish a real directory, search with a generic word and a multi-word query, confirm ranking and that category filters, distance search, Help me choose and map pins still combine with it
 - [ ] Check the page size of the largest directory is acceptable (per-field separators add a few bytes per row; the 8000-character cap per row is unchanged)
 
 ---
