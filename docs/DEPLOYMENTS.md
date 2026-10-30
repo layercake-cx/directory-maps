@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-30 — [Staging] Relevance-ranked search on published directory pages
+
+**Branch/commit:** `feat/2026-10-30-relevance-directory-search`
+**Deployed by:** Claude Code (staging, 2026-10-30); production pending sign-off
+
+### What changed
+- The search box on a published directory homepage used to show any listing containing at least one query word, with every field weighted equally. A search for "association" (a word removed from queries as a stopword) matched every listing while the count read "501 entries match association"; a multi-word search like "association of plumbers" ranked a listing mentioning only a common word the same as one that was actually about plumbers.
+- Search now ranks by relevance, still entirely in the visitor's browser (no new endpoint or database change). Each listing's text is baked in as five weighted fields (name, keywords + tags, summary + description, location, body). Query words are weighted by how rare they are across the directory's listings, a listing must contain every distinctive word (falling back to any word if none does), words found in over half the listings only count outside the body text, and results under 15% of the best score are dropped. Only filler words ("find", "of", "the"…) are removed from queries; generic words like "association" are kept and weigh themselves down.
+- `ENTRY_TEMPLATE_VERSION` bumped 7 → 8 so every directory's next ordinary Publish rebuilds its pages with the new search script and attribute format.
+- No new visitor action (still the existing search), so no new engagement event. No admin workflow changed.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — deployed to staging (`beqejxneehilplrtpntn`) 2026-10-30, from this branch (cut from `origin/main`). Production (`gxixwdjfmegxcxfeflro`) not deployed. Already-published directories keep the old search until republished.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site`; republish affected directories. The bump to `ENTRY_TEMPLATE_VERSION` 8 means a revert should bump it again (to 9) so published pages are rebuilt back to the old script.
+
+### Verified
+- [x] Locally, against a 64-listing fixture built with the real `builders.ts` and driven in a browser: "association" → 13 listings with the word in their name (not all 64); "association of plumbers" → 3 plumbers listings, best first; "find me plumbers" ignores the filler; a nonsense word → 0
+- [ ] On staging: publish a real directory, search with a generic word and a multi-word query, confirm ranking and that category filters, distance search, Help me choose and map pins still combine with it
+- [ ] Check the page size of the largest directory is acceptable (per-field separators add a few bytes per row; the 8000-character cap per row is unchanged)
+
+---
+
 ## 2026-10-08 — [Staging] Bing verification file setting
 
 **Branch/commit:** `feat/2026-10-08-bing-site-auth-file`
