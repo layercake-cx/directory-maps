@@ -23,7 +23,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None (`layout_json` is jsonb).
 
 ### Edge functions deployed
-- `generate_directory_site`: staging (`beqejxneehilplrtpntn`), see Verified for version. Production not deployed.
+- `generate_directory_site`: staging (`beqejxneehilplrtpntn`) v70, 2026-10-30 15:19 UTC, from this branch (cut from `origin/main` after PR 311). Production not deployed.
 
 ### Rollback plan
 - Revert the PR and redeploy `generate_directory_site`, bumping `ENTRY_TEMPLATE_VERSION` again (to 10) so published pages rebuild. A stray `hidden` key left in `layout_json` is ignored by the old code.
