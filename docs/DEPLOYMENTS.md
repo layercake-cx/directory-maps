@@ -8,10 +8,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-30 — [Staging] Entry pages: Show / hide a section
+## 2026-10-30 — [Production] Entry pages: Show / hide a section
 
 **Branch/commit:** `feat/2026-10-30-entry-section-show-flag`
-**Deployed by:** Claude Code (staging, 2026-10-30); production only on explicit sign-off
+**Deployed by:** Claude Code (staging 2026-10-30 15:19 UTC; production 2026-10-30 16:48 UTC on the user's explicit "deploy and merge")
 
 ### What changed
 - Entry pages (Experience) gets a **Show** checkbox per section. Unticking it stores `hidden: true` on that block in `entry_templates.layout_json` (ticking removes the key), so the section keeps its place and settings but no longer appears on the published entry page, including its heading and "On this page" chip. Absent or false means shown, so every layout saved before this is unchanged.
@@ -23,7 +23,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - None (`layout_json` is jsonb).
 
 ### Edge functions deployed
-- `generate_directory_site`: staging (`beqejxneehilplrtpntn`) v70, 2026-10-30 15:19 UTC, from this branch (cut from `origin/main` after PR 311). Production not deployed.
+- `generate_directory_site`: staging (`beqejxneehilplrtpntn`) v70, 2026-10-30 15:19 UTC, from this branch (cut from `origin/main` after PR 311).
+- `generate_directory_site`: production (`gxixwdjfmegxcxfeflro`) v58, 2026-10-30 16:48 UTC, from this branch after confirming it contained current `origin/main` (nothing behind, only these two commits ahead). Existing published directories pick up the change on their next Publish (`ENTRY_TEMPLATE_VERSION` 9).
 
 ### Rollback plan
 - Revert the PR and redeploy `generate_directory_site`, bumping `ENTRY_TEMPLATE_VERSION` again (to 10) so published pages rebuild. A stray `hidden` key left in `layout_json` is ignored by the old code.
@@ -31,8 +32,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Verified
 - [x] Local `preview.ts` run with a hidden block: its heading and chip are absent from the generated entry page (baseline had both)
 - [x] `vite build` passes
-- [ ] On staging: hide a section on a real directory, save, publish, confirm it is gone from the live entry page and returns when shown again
-- [ ] Production deploy (needs explicit sign-off; branch must contain current `origin/main` first)
+- [ ] On staging: hide a section on a real directory, save, publish, confirm it is gone from the live entry page and returns when shown again (not confirmed by the user before production was deployed)
+- [x] Production deploy: branch contained current `origin/main`; function deployed and listed ACTIVE as v58
+- [ ] On production: hide a section, save, publish, confirm it is gone from the live entry page
 
 ---
 
