@@ -8,6 +8,44 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-10-31 — [Staging] Ask AI sidebar replaces Help me choose
+
+**Branch/commit:** `feat/2026-10-31-ask-ai-sidebar`
+**Deployed by:** not yet deployed. Code is committed on the branch; the staging migration and Edge Function deploy are pending (see Status).
+
+### What changed
+- On published directory sites, **Help me choose** is replaced by **Ask AI**, a chat sidebar docked beside the results (400px, expandable; a full-screen sheet below 900px). It pushes the page content, so the list and map stay usable. Entry points: a search-bar button, a "Describe your situation" line, a **Narrow these N with AI** chip beside the count, and a floating launcher. Why: the old modal did not read as an AI feature and sat apart from search.
+- The opening message is built in the browser. With no search it asks what the visitor is looking for and their profession or industry, using the directory's own *Industry sector* options. With a search it says what it sees and scopes every request to those results (`candidate_entry_ids`). Picks drive the same list, count and map as keyword search, with a **Picked by Ask AI** pill, reason strips, accent-coloured larger map pins, and **View entry** / **Show on map** cards.
+- Controls: New conversation, Expand, Minimise, Close, Send/Stop, Esc, retry on error, and a 60-second countdown when rate limited. Conversation, picks and panel state survive a reload (`sessionStorage`).
+- `directory_ai_search`: `ask_follow_up` can return up to five short answer `options` (sanitised: strings of 40 characters or fewer). Backward compatible.
+- **Look & feel** gains an **Ask AI** tab: ten optional colour tokens in `theme_json` (`aiAccent` and nine others) plus `aiShowLauncher`. Unset tokens follow the primary colour and are resolved to hex at publish time. Where white text on the primary would fail 4.5:1 (Midnight's blue), the default accent is darkened slightly. This is a deliberate departure from "default is the primary" so every preset passes the contrast check.
+- Map embed (`EmbedMap` / `PublishedMapView`): new `aiPicks` / `aiAccent` fields on `directory-filter-change` and a new `directory-focus-entry` message. These ship with the frontend, not the Edge Function.
+- Visitor events: six new `map_engagement_events` types (`ask_ai_open`, `ask_ai_message_sent`, `ask_ai_picks_applied`, `ask_ai_picks_cleared`, `ask_ai_feedback`, `ask_ai_rate_limited`), no message text. Documented in `docs/MAP_ENGAGEMENT.md`. Admin events unchanged: Look & feel saves already fire `directory_branding_updated`.
+- `ENTRY_TEMPLATE_VERSION` bumped 9 to 10 so each directory's next ordinary Publish rebuilds with the sidebar.
+- Not covered by an event, by choice: purely cosmetic panel controls (Expand, Minimise, Close, New conversation, Copy, View entry, Show on map). Say if you want any of them counted.
+
+### Database migrations applied
+- `20261031120000_ask_ai_events.sql` (rollback: `_20261031120000_ask_ai_events.rollback.sql`): swaps the `map_engagement_event_type` check to add the six types. Additive; no row changes. **Not yet applied to staging or production.** Pending migrations on staging were confirmed as exactly this one from an isolated worktree, because staging already holds `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`), which blocks `db push` from a checkout without that file. No migration history was repaired.
+- A real `BEGIN … ROLLBACK` dry run is not possible with CLI 2.75.0 (documented tooling gap); the migration's own pre/post-flight checks stand in for it.
+
+### Edge functions deployed
+- `generate_directory_site` and `directory_ai_search`: not yet deployed. Staging project is `beqejxneehilplrtpntn`; production is untouched.
+
+### Rollback plan
+- Migration: run `_20261031120000_ask_ai_events.rollback.sql` (it refuses while `ask_ai_*` rows exist, so delete those first).
+- Code: revert the PR and redeploy both functions, bumping `ENTRY_TEMPLATE_VERSION` again (to 11) so published pages rebuild. Stray `ai*` keys in `theme_json` are ignored by the old code.
+
+### Verified
+- [x] `deno check` on `builders.ts`; `askAiTheme_test.ts` passes (default text pairs reach 4.5:1 on all five presets; editor mirror matches the generator; invalid hex ignored)
+- [x] `vite build` passes
+- [x] Generated landing page, run in a browser against a local stub (no real Supabase, Anthropic or Google Maps): opening message with and without a search, chips, follow-up options, picks applied to heading/pill/reason strips, Clear picks, Stop, error and Retry, rate-limit countdown, context change while open, reload restore, Esc and focus return, Expand, Minimise to launcher, mobile sheet and bottom bar, all six events recorded with `surface: directory_site`, and the map message carrying `aiPicks`, `aiAccent` and the focus entry
+- [ ] Staging: migration applied; `generate_directory_site` and `directory_ai_search` deployed; a real directory republished and Ask AI tried with a real AI provider
+- [ ] Staging: real map shows accent-coloured larger pins for picks and **Show on map** pans to and opens the pin (not testable locally; needs the frontend deployed too)
+- [ ] Look & feel › Ask AI colours saved, published and visible on the live site
+- [ ] Production (separate sign-off): branch contains current `origin/main` before deploying
+
+---
+
 ## 2026-10-30 — [Production] Entry pages: Show / hide a section
 
 **Branch/commit:** `feat/2026-10-30-entry-section-show-flag`
