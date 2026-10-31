@@ -313,7 +313,7 @@ Depends on the SMTP configuration in Supabase Auth settings:
 
 ## 10. Anthropic (Claude API)
 
-**Role:** AI content generation for directory entries, and AI-powered Help me choose on published directories.
+**Role:** AI content generation for directory entries, and AI-powered Ask AI (previously "Help me choose") on published directories. The 2026-10-31 sidebar redesign sends the same data as before: the conversation, and the ids of the results being narrowed. Its visitor events record counts only, never message text.
 
 **What it is:** Server-side calls from Supabase Edge Functions (never called from the browser) to the Anthropic Messages API. Two separate features share this integration:
 

@@ -196,6 +196,11 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [externalActiveFilters, setExternalActiveFilters] = useState(null);
   /** Directory homepage shown-set (keyword + facets + Help me choose), posted with directory-filter-change. */
   const [externalVisibleEntryIds, setExternalVisibleEntryIds] = useState(null);
+  /** Ask AI picks are showing: pins render in the accent colour at a larger size. */
+  const [externalAiPicks, setExternalAiPicks] = useState(false);
+  const [externalAiAccent, setExternalAiAccent] = useState(null);
+  /** { id, n } — "Show on map" request from the directory page's Ask AI sidebar. */
+  const [externalFocusEntry, setExternalFocusEntry] = useState(null);
   /** Distance-from camera target from the directory homepage, or null. */
   const [externalFocus, setExternalFocus] = useState(null);
   /** Normalized publication snapshot (map + group styling); listings stay live. */
@@ -505,7 +510,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     function handleMessage(event) {
       if (event.source !== window.parent) return;
       const data = event.data;
-      if (!data || data.type !== "directory-filter-change") return;
+      if (!data) return;
+      if (data.type === "directory-focus-entry") {
+        // Ask AI "Show on map": select this entry's pin and pan to it.
+        if (typeof data.entryId === "string" && data.entryId) setExternalFocusEntry({ id: data.entryId, n: Date.now() });
+        return;
+      }
+      if (data.type !== "directory-filter-change") return;
+      setExternalAiPicks(data.aiPicks === true);
+      // The parent page is on another origin, so it sends its Ask AI accent; only a strict hex is trusted.
+      setExternalAiAccent(typeof data.aiAccent === "string" && /^#[0-9a-fA-F]{6}$/.test(data.aiAccent) ? data.aiAccent : null);
       setExternalActiveFilters(data.activeFilters && typeof data.activeFilters === "object" ? data.activeFilters : null);
       setExternalVisibleEntryIds(Array.isArray(data.visibleEntryIds) ? data.visibleEntryIds : null);
       const focus = data.focus;
@@ -856,6 +870,9 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           filterFields={filterFieldsForEmbed}
           externalActiveFilters={externalActiveFilters}
           externalVisibleEntryIds={externalVisibleEntryIds}
+          externalAiPicks={externalAiPicks}
+          externalAiAccent={externalAiAccent}
+          externalFocusEntry={externalFocusEntry}
           externalFocus={externalFocus}
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}
