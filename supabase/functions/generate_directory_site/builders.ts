@@ -138,6 +138,22 @@ export type DirectoryTheme = {
   showHeaderTitle?: boolean;
   siteTitle?: string;
   logoMaxHeight?: number;
+  // Ask AI sidebar tokens (docs/ASK_AI_SIDEBAR). Every one is optional: an
+  // unset token follows the theme's primary colour, resolved to a concrete
+  // hex at publish time by resolveAiTokens() below.
+  aiAccent?: string;
+  aiOnAccent?: string;
+  aiTint?: string;
+  aiTintText?: string;
+  aiBorder?: string;
+  aiPanelBg?: string;
+  aiUserBubble?: string;
+  aiUserBubbleText?: string;
+  aiLauncherBg?: string;
+  aiLauncherText?: string;
+  // false hides the floating "Ask AI" launcher (it still appears while the
+  // panel is minimised). Unset = shown.
+  aiShowLauncher?: boolean;
 };
 
 // `hidden: true` keeps the block in the saved layout but renders nothing (no section, heading or
@@ -747,6 +763,17 @@ export const NATURAL_DEFAULTS: Required<
     | "showHeaderTitle"
     | "siteTitle"
     | "logoMaxHeight"
+    | "aiAccent"
+    | "aiOnAccent"
+    | "aiTint"
+    | "aiTintText"
+    | "aiBorder"
+    | "aiPanelBg"
+    | "aiUserBubble"
+    | "aiUserBubbleText"
+    | "aiLauncherBg"
+    | "aiLauncherText"
+    | "aiShowLauncher"
   >
 > = {
   primaryColor: "#2E5A39",
@@ -855,6 +882,67 @@ function hexRelativeLuminance(hex: string): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** #rgb / #rrggbb(aa) -> [r,g,b] (alpha dropped); null when unparseable. */
+function hexToRgb(hex: string): [number, number, number] | null {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+  if (h.length < 6) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return ch.some((n) => Number.isNaN(n)) ? null : [ch[0], ch[1], ch[2]];
+}
+
+/** `pct`% of colour `a` mixed over colour `b`, as #rrggbb. */
+function mixHex(a: string, b: string, pct: number): string {
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
+  if (!ra || !rb) return a;
+  const k = pct / 100;
+  return "#" + ra.map((v, i) => Math.round(v * k + rb[i] * (1 - k)).toString(16).padStart(2, "0")).join("");
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = hexRelativeLuminance(a);
+  const lb = hexRelativeLuminance(b);
+  if (la === null || lb === null) return 21;
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Resolved Ask AI colours. Mirrors src/lib/askAiTheme.js (hand-synced across
+ * the Deno/JS boundary, like FONT_CATALOG). Every token is a concrete #rrggbb
+ * so the generated CSS needs no color-mix fallbacks. A token left unset (or
+ * failing the strict hex check) follows the theme's primary colour. */
+export function resolveAiTokens(theme: DirectoryTheme, base: { primaryColor: string; backgroundColor: string; inkColor: string }) {
+  const hex = (v: string | undefined) => (v && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null);
+  let accent = hex(theme.aiAccent) ?? base.primaryColor;
+  const darkText = (hexRelativeLuminance(base.inkColor) ?? 1) < 0.4 ? base.inkColor : "#111827";
+  if (!hex(theme.aiAccent)) {
+    // Default only: when neither white nor dark text reads on the primary (e.g. Midnight's light
+    // blue), darken it just enough for white text to reach 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio("#FFFFFF", accent) < 4.5 && contrastRatio(darkText, accent) < 4.5; i++) accent = mixHex(accent, "#000000", 92);
+  }
+  const onAccent = hex(theme.aiOnAccent) ?? (contrastRatio("#FFFFFF", accent) >= 4.5 || contrastRatio("#FFFFFF", accent) >= contrastRatio(darkText, accent) ? "#FFFFFF" : darkText);
+  const tint = hex(theme.aiTint) ?? mixHex(accent, "#FFFFFF", 8);
+  let tintText = hex(theme.aiTintText) ?? accent;
+  if (!hex(theme.aiTintText)) {
+    // Default only: darken the accent until it reads on the tint, so every preset passes 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio(tintText, tint) < 4.5; i++) tintText = mixHex(tintText, "#000000", 85);
+  }
+  return {
+    accent,
+    onAccent,
+    tint,
+    tintText,
+    border: hex(theme.aiBorder) ?? mixHex(accent, "#FFFFFF", 30),
+    panelBg: hex(theme.aiPanelBg) ?? mixHex(base.backgroundColor, "#000000", 99),
+    userBubble: hex(theme.aiUserBubble) ?? accent,
+    userBubbleText: hex(theme.aiUserBubbleText) ?? onAccent,
+    launcherBg: hex(theme.aiLauncherBg) ?? accent,
+    launcherText: hex(theme.aiLauncherText) ?? onAccent,
+    showLauncher: theme.aiShowLauncher !== false,
+  };
+}
+
 /** Tokens for the "Built on Layercake Maps" footer panel. Every colour is
  * derived from the footer/primary tokens (tints via color-mix, never a
  * literal), so a theme change restyles the panel. Two values depend on
@@ -876,6 +964,7 @@ function platformPanelVars(t: { primaryColor: string; footerText: string }): str
 
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
+  const ai = resolveAiTokens(theme, t);
   const banner = resolvedHeroBanner(theme);
   const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
   const logoUrl = sanitizeHttpUrl(theme.logoUrl);
@@ -898,6 +987,9 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     ${platformPanelVars(t)}
+    --ai-accent: ${ai.accent}; --ai-on-accent: ${ai.onAccent}; --ai-tint: ${ai.tint}; --ai-tint-text: ${ai.tintText};
+    --ai-border: ${ai.border}; --ai-panel-bg: ${ai.panelBg}; --ai-user-bubble: ${ai.userBubble}; --ai-user-bubble-text: ${ai.userBubbleText};
+    --ai-launcher-bg: ${ai.launcherBg}; --ai-launcher-text: ${ai.launcherText};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
     --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
     --logo-display: ${showLogo ? "block" : "none"};
