@@ -463,7 +463,12 @@ Deno.serve(async (req) => {
   } catch (err) {
     // Public endpoint: say nothing about the organisation's AI configuration to a visitor.
     if (err instanceof AiUnavailableError) return json({ entry_ids: null, follow_up: null, disabled: true, ai_unavailable: true });
-    const message = err instanceof Error ? err.message : String(err);
+    // PostgREST errors are plain objects, not Errors; String() would log "[object Object]".
+    const message = err instanceof Error
+      ? err.message
+      : typeof err === "object" && err !== null
+      ? JSON.stringify(err).slice(0, 500)
+      : String(err);
     await logEdgeFunctionError({ fn: "directory_ai_search", message, context: { directory_id: directoryId } });
     return json({ error: message }, 500);
   }
