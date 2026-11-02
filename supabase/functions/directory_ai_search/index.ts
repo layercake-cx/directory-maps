@@ -410,11 +410,16 @@ Deno.serve(async (req) => {
 
     const termsByEntry = new Map<string, string[]>();
     if (attachedCategorisationIds.size > 0) {
-      const { data: ectRows, error: ectErr } = await service
-        .from("entry_category_terms")
-        .select("entry_id, category_terms(label, categorisation_id, categorisations(label))")
-        .in("entry_id", entryIds);
-      if (ectErr) throw ectErr;
+      // Chunked: one .in() with every id of a large directory overflows the request URL limit.
+      const ectRows: unknown[] = [];
+      for (let i = 0; i < entryIds.length; i += 100) {
+        const { data: chunk, error: ectErr } = await service
+          .from("entry_category_terms")
+          .select("entry_id, category_terms(label, categorisation_id, categorisations(label))")
+          .in("entry_id", entryIds.slice(i, i + 100));
+        if (ectErr) throw ectErr;
+        ectRows.push(...(chunk ?? []));
+      }
       type TermEmbed = { label: string; categorisation_id: string; categorisations: { label: string } | { label: string }[] | null };
       for (const row of (ectRows ?? []) as unknown as { entry_id: string; category_terms: TermEmbed | TermEmbed[] | null }[]) {
         const term = Array.isArray(row.category_terms) ? row.category_terms[0] : row.category_terms;
