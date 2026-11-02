@@ -11,7 +11,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-10-31 — [Staging] Ask AI sidebar replaces Help me choose
 
 **Branch/commit:** `feat/2026-10-31-ask-ai-sidebar`
-**Deployed by:** not yet deployed. Code is committed on the branch; the staging migration and Edge Function deploy are pending (see Status).
+**Deployed by:** Claude Code, to staging only, 2026-11-02, on the user's explicit "Deploy staging". Production untouched.
 
 ### What changed
 - On published directory sites, **Help me choose** is replaced by **Ask AI**, a chat sidebar docked beside the results (400px, expandable; a full-screen sheet below 900px). It pushes the page content, so the list and map stay usable. Entry points: a search-bar button, a "Describe your situation" line, a **Narrow these N with AI** chip beside the count, and a floating launcher. Why: the old modal did not read as an AI feature and sat apart from search.
@@ -25,11 +25,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Not covered by an event, by choice: purely cosmetic panel controls (Expand, Minimise, Close, New conversation, Copy, View entry, Show on map). Say if you want any of them counted.
 
 ### Database migrations applied
-- `20261031120000_ask_ai_events.sql` (rollback: `_20261031120000_ask_ai_events.rollback.sql`): swaps the `map_engagement_event_type` check to add the six types. Additive; no row changes. **Not yet applied to staging or production.** Pending migrations on staging were confirmed as exactly this one from an isolated worktree, because staging already holds `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`), which blocks `db push` from a checkout without that file. No migration history was repaired.
+- `20261031120000_ask_ai_events.sql` (rollback: `_20261031120000_ask_ai_events.rollback.sql`): swaps the `map_engagement_event_type` check to add the six types. Additive; no row changes. **Applied to staging 2026-11-02** (its own VERIFY block passed: ask_ai events allowed); **not applied to production.** Pending migrations on staging were confirmed as exactly this one from an isolated worktree, because staging already holds `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`), which blocks `db push` from a checkout without that file. No migration history was repaired.
 - A real `BEGIN … ROLLBACK` dry run is not possible with CLI 2.75.0 (documented tooling gap); the migration's own pre/post-flight checks stand in for it.
 
 ### Edge functions deployed
-- `generate_directory_site` and `directory_ai_search`: not yet deployed. Staging project is `beqejxneehilplrtpntn`; production is untouched.
+- `generate_directory_site` and `directory_ai_search`: deployed to staging (`beqejxneehilplrtpntn`) 2026-11-02 from this branch (`5cedacd`). Production is untouched. The frontend (map pins, Look & feel tab) is not yet deployed to a preview.
 
 ### Rollback plan
 - Migration: run `_20261031120000_ask_ai_events.rollback.sql` (it refuses while `ask_ai_*` rows exist, so delete those first).
@@ -39,7 +39,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [x] `deno check` on `builders.ts`; `askAiTheme_test.ts` passes (default text pairs reach 4.5:1 on all five presets; editor mirror matches the generator; invalid hex ignored)
 - [x] `vite build` passes
 - [x] Generated landing page, run in a browser against a local stub (no real Supabase, Anthropic or Google Maps): opening message with and without a search, chips, follow-up options, picks applied to heading/pill/reason strips, Clear picks, Stop, error and Retry, rate-limit countdown, context change while open, reload restore, Esc and focus return, Expand, Minimise to launcher, mobile sheet and bottom bar, all six events recorded with `surface: directory_site`, and the map message carrying `aiPicks`, `aiAccent` and the focus entry
-- [ ] Staging: migration applied; `generate_directory_site` and `directory_ai_search` deployed; a real directory republished and Ask AI tried with a real AI provider
+- [x] Staging: migration applied; `generate_directory_site` and `directory_ai_search` deployed
+- [ ] Staging: a real directory republished and Ask AI tried with a real AI provider
 - [ ] Staging: real map shows accent-coloured larger pins for picks and **Show on map** pans to and opens the pin (not testable locally; needs the frontend deployed too)
 - [ ] Look & feel › Ask AI colours saved, published and visible on the live site
 - [ ] Production (separate sign-off): branch contains current `origin/main` before deploying
