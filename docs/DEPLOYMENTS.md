@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-02 — [Production] Ask AI: production deploy and large-directory fix
+
+**Branch/commit:** `fix/2026-11-02-ai-search-error-message`
+**Deployed by:** Claude Code, on the user's explicit instructions ("deploy the backend too", "Deploy to prod" twice)
+
+### What changed
+- Ask AI (PR 313) went to production: migrations `20261008120000_platform_footer_click_event` (a merged earlier change that was still pending on production; additive, and `20261031120000` includes it) and `20261031120000_ask_ai_events`, both with VERIFY blocks passed; `generate_directory_site` and `directory_ai_search` deployed from `main`; Vercel production deployed with `npm run deploy:live` (aliased to `uk-associations.com`).
+- Bug found after release: on UK Associations every Ask AI request failed with a 500. `directory_ai_search` fetched category terms with one `.in("entry_id", ...)` listing every entry id, which overflowed the request URL limit on a large directory. This predates PR 313. It is now fetched in chunks of 100.
+- The function also logged `[object Object]` for database errors; it now logs the JSON of the error.
+
+### Verification
+- [x] Production: direct call for UK Associations returns a follow-up question with options (HTTP 200)
+- [x] Production: Ask AI tried in the browser on the republished site (user confirmed working 2026-11-02)
+- [ ] Production: `ask_ai_*` rows seen in `map_engagement_events`
+- [ ] Look & feel Ask AI colours, map pins and Show on map checked on the live site
+
+### Rollback plan
+- Migrations: `_20261031120000_ask_ai_events.rollback.sql` then `_20261008120000_platform_footer_click_event.rollback.sql`.
+- Functions: revert the commits and redeploy `directory_ai_search` and `generate_directory_site` (bump `ENTRY_TEMPLATE_VERSION` to 11 for the latter).
+
 ## 2026-10-31 — [Staging] Ask AI sidebar replaces Help me choose
 
 **Branch/commit:** `feat/2026-10-31-ask-ai-sidebar`
