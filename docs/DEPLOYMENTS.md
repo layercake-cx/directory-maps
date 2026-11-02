@@ -20,7 +20,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Verification
 - [x] Production: direct call for UK Associations returns a follow-up question with options (HTTP 200)
-- [ ] Production: Ask AI tried in the browser on the republished site, `ask_ai_*` rows seen in `map_engagement_events`
+- [x] Production: Ask AI tried in the browser on the republished site (user confirmed working 2026-11-02)
+- [ ] Production: `ask_ai_*` rows seen in `map_engagement_events`
 - [ ] Look & feel Ask AI colours, map pins and Show on map checked on the live site
 
 ### Rollback plan
