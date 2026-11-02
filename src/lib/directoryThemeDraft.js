@@ -1,4 +1,5 @@
 import { NATURAL } from "./directoryThemePresets.js";
+import { AI_COLOUR_KEYS, isAiHex } from "./askAiTheme.js";
 
 /**
  * Theme draft helpers shared by the Look & feel page (Experience). Extracted from the old
@@ -73,6 +74,9 @@ export function themeFromDirectory(directory) {
   // UI-only link: while true the editor keeps footerBackground equal to headerBackground.
   // generate_directory_site ignores it (theme_json is jsonb, so no schema or function change).
   next.footerLinkedToHeader = t.footerLinkedToHeader === true;
+  // Ask AI tokens stay absent until set — an unset token follows the primary colour (askAiTheme.js).
+  for (const key of AI_COLOUR_KEYS) if (isAiHex(t[key])) next[key] = t[key];
+  if (t.aiShowLauncher === false) next.aiShowLauncher = false;
   return next;
 }
 
@@ -114,8 +118,11 @@ export function applyPresetValues(theme, values) {
 /** Normalises the draft into the object written to directories.theme_json. */
 export function serializeTheme(theme) {
   const showTitle = theme.showHeaderTitle !== false;
+  const base = withoutRetiredColours(theme);
+  for (const key of AI_COLOUR_KEYS) if (!isAiHex(base[key])) delete base[key];
+  if (base.aiShowLauncher !== false) delete base.aiShowLauncher;
   return {
-    ...withoutRetiredColours(theme),
+    ...base,
     siteTitle: (theme.siteTitle || "").trim(),
     showHeaderTitle: showTitle,
     headerMode: !showTitle ? (theme.headerMode === "text" ? "text" : "logo") : theme.headerMode === "logo" ? "logoText" : theme.headerMode,

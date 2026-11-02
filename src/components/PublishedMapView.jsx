@@ -266,6 +266,11 @@ export default function PublishedMapView({
    * externalActiveFilters. null = no extra id restriction.
    */
   externalVisibleEntryIds = null,
+  /** Ask AI picks showing on the directory page: accent-coloured, larger pins. */
+  externalAiPicks = false,
+  externalAiAccent = null,
+  /** { id, n } — select and pan to this entry's pin ("Show on map"). */
+  externalFocusEntry = null,
   /**
    * Directory homepage Distance from target. When set, pans the camera to
    * that point. null leaves the camera where it is.
@@ -496,6 +501,12 @@ export default function PublishedMapView({
     });
   }, [list, activeGroupIds, activeContinents, visibleFilterFields, effectiveActiveFilters, listingFilterIndex, visibleEntryIdSet]);
 
+  // Picked-by-AI pins: accent fill and a larger size, via the per-listing overrides the map already honours.
+  const mapListings = useMemo(() => {
+    if (!externalAiPicks) return effectiveListings;
+    return effectiveListings.map((l) => ({ ...l, ...(externalAiAccent ? { group_color: externalAiAccent } : {}), group_pin_size: "large" }));
+  }, [effectiveListings, externalAiPicks, externalAiAccent]);
+
   const groupNameById = useMemo(() => {
     const m = new Map();
     (groups || []).forEach((gr) => m.set(gr.id, gr.name || ""));
@@ -704,6 +715,13 @@ export default function PublishedMapView({
       setDragY(null);
     }
   }
+
+  useEffect(() => {
+    if (!externalFocusEntry?.id) return;
+    const target = (list || []).find((l) => l.id === externalFocusEntry.id);
+    if (target) selectFromList(target, "ask_ai", { skipSearchRecord: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalFocusEntry]);
 
   function handleDirectoryMapSelect(listing, point) {
     if (suppressListingOpenEngagementRef.current) {
@@ -1017,7 +1035,7 @@ export default function PublishedMapView({
         center={center}
         zoom={zoom}
         mapTypeId={mapTypeId}
-        listings={effectiveListings}
+        listings={mapListings}
         onSelect={handleDirectoryMapSelect}
         centerOnListingId={centerOnListingId}
         defaultMarkerColor={markerColor}

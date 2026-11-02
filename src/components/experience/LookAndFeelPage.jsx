@@ -28,9 +28,11 @@ import {
   themeFromDirectory,
   withoutRetiredColours,
 } from "../../lib/directoryThemeDraft.js";
+import { AI_COLOUR_KEYS, resolveAiTokens, withoutAiColours } from "../../lib/askAiTheme.js";
 import {
   ColourField,
   ConfirmDialog,
+  OptionalColourField,
   NameDialog,
   OverflowMenu,
   SaveBar,
@@ -46,11 +48,11 @@ import "./experience.css";
 const FONT_OPTIONS = Object.keys(FONT_CATALOG);
 
 const TAB_GROUPS = [
-  { label: "Whole site", tabs: [["theme", "Theme"], ["identity", "Logo & identity"], ["colours", "Colours"], ["typography", "Typography"]] },
+  { label: "Whole site", tabs: [["theme", "Theme"], ["identity", "Logo & identity"], ["colours", "Colours"], ["askai", "Ask AI"], ["typography", "Typography"]] },
   { label: "Page areas", tabs: [["header", "Header"], ["hero", "Hero banner"], ["footer", "Footer"]] },
 ];
 const TAB_IDS = TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t[0]));
-const HIGHLIGHT = { theme: null, identity: "header", colours: "body", typography: "body", header: "header", hero: "hero", footer: "footer" };
+const HIGHLIGHT = { theme: null, identity: "header", colours: "body", askai: "askai", typography: "body", header: "header", hero: "hero", footer: "footer" };
 
 /** Keys a theme "matches" on for the "In use" badge — palette, fonts and header/footer styling. */
 const MATCH_KEYS = [
@@ -134,6 +136,7 @@ export default function LookAndFeelPage() {
   const [orgPresets, setOrgPresets] = useState([]);
   const [presetBusy, setPresetBusy] = useState(false);
   const [dialog, setDialog] = useState(null); // {kind, ...}
+  const [aiToken, setAiToken] = useState(null); // token whose field is hovered/focused, outlined in the preview
 
   const logoInput = useRef(null);
   const faviconInput = useRef(null);
@@ -178,7 +181,7 @@ export default function LookAndFeelPage() {
     setErr("");
     try {
       setPresetBusy(true);
-      const saved = await saveThemePreset(clientId, name, withoutRetiredColours(theme));
+      const saved = await saveThemePreset(clientId, name, withoutAiColours(withoutRetiredColours(theme)));
       setOrgPresets((rows) => [saved, ...rows]);
       recordEvent?.("directory_theme_preset_saved", { client_id: clientId, preset_id: saved.id });
       setDialog(null);
@@ -258,6 +261,14 @@ export default function LookAndFeelPage() {
   if (!canManage) return <p className="xp-help">Only an Owner or Manager can change the look and feel.</p>;
 
   const bgHex = theme.backgroundColor;
+  const aiResolved = resolveAiTokens(theme);
+  const aiPromptSet = !!directory?.ai_search_prompt?.trim();
+  const aiAnySet = AI_COLOUR_KEYS.some((k) => theme[k]);
+  const aiField = (key, label, hint, contrast) => (
+    <div key={key} onMouseEnter={() => setAiToken(key)} onMouseLeave={() => setAiToken(null)} onFocus={() => setAiToken(key)} onBlur={() => setAiToken(null)}>
+      <OptionalColourField label={label} hint={hint} value={theme[key]} fallback={aiResolved[key]} onChange={(v) => set(key, v)} contrast={contrast} />
+    </div>
+  );
   const liveUrl = directory?.published_at && client?.slug && directory?.slug ? `https://maps.layercake-cx.biz/directories/${client.slug}/${directory.slug}` : null;
 
   return (
@@ -468,6 +479,39 @@ export default function LookAndFeelPage() {
             </div>
           )}
 
+          {tab === "askai" && (
+            <div className="xp-card">
+              <h2>Ask AI</h2>
+              {!aiPromptSet ? (
+                <p className="xp-help">Turn on Ask AI in the <Link to={`${basePath}/search`}>AI tab</Link> to style it.</p>
+              ) : (
+                <>
+                  <p className="xp-help">Colours for the Ask AI sidebar and its buttons on the published site. Anything left blank follows your Primary colour, so changing theme restyles Ask AI too. Hover a colour to see where it is used.</p>
+                  <div>
+                    {aiField("aiAccent", "Accent", "Panel avatar, Send button, pressed Ask AI button, “Picked by Ask AI” pill, picked map pins, View entry button")}
+                    {aiField("aiOnAccent", "Text on accent", "Text and icons on accent surfaces", contrastOf(aiResolved.aiOnAccent, aiResolved.aiAccent))}
+                    {aiField("aiTint", "Tint", "Ask AI button, “Narrow with AI” chip, assistant avatar, reason strips, context bar")}
+                    {aiField("aiTintText", "Text on tint", "Text and icons on tint surfaces, chip text", contrastOf(aiResolved.aiTintText, aiResolved.aiTint))}
+                    {aiField("aiBorder", "Border", "Chip borders, composer border, outline buttons")}
+                    {aiField("aiPanelBg", "Panel background", "Behind the conversation")}
+                    {aiField("aiUserBubble", "Your message bubble", "Visitor messages")}
+                    {aiField("aiUserBubbleText", "Your message text", "Text in visitor messages", contrastOf(aiResolved.aiUserBubbleText, aiResolved.aiUserBubble))}
+                    {aiField("aiLauncherBg", "Launcher", "The floating “Ask AI” button")}
+                    {aiField("aiLauncherText", "Launcher text", "Text and icon on the launcher", contrastOf(aiResolved.aiLauncherText, aiResolved.aiLauncherBg))}
+                  </div>
+                  <label className="xp-row" style={{ gap: 8, marginTop: 8, fontSize: 14 }}>
+                    <input type="checkbox" checked={theme.aiShowLauncher !== false} onChange={(e) => set("aiShowLauncher", e.target.checked ? undefined : false)} />
+                    Show the floating Ask AI button
+                  </label>
+                  <p className="xp-help">When off, the button only appears while the panel is minimised.</p>
+                  <div className="xp-row" style={{ marginTop: 8 }}>
+                    <button type="button" className="xp-btn" disabled={!aiAnySet} onClick={() => patch(Object.fromEntries(AI_COLOUR_KEYS.map((k) => [k, undefined])))}>Reset Ask AI colours</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {tab === "typography" && (
             <div className="xp-card">
               <h2>Typography</h2>
@@ -561,7 +605,7 @@ export default function LookAndFeelPage() {
         </div>
 
         <div className="xp-previewcol">
-          <SitePreview theme={theme} directoryName={directory?.name} highlight={HIGHLIGHT[tab]} />
+          <SitePreview theme={theme} directoryName={directory?.name} highlight={HIGHLIGHT[tab]} aiToken={aiToken} />
         </div>
       </div>
 

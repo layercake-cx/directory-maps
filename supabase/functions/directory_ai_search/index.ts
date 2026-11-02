@@ -89,7 +89,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type TurnResult =
   | { kind: "select"; ids: string[]; reasons: Record<string, string>; basedOn: string[] }
-  | { kind: "follow_up"; question: string };
+  | { kind: "follow_up"; question: string; options: string[] };
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
@@ -134,6 +134,7 @@ function buildSystemPrompt(directoryPrompt: string, webEnabled: boolean, narrowi
     "Only ever select from the entry ids listed below — never invent an id, and never describe or justify an entry that isn't in the list. " +
     "Use the given coordinates to reason about real geographic proximity when geography matters, rather than guessing from a place name alone. " +
     "Ask a follow-up question only when it would materially improve the result (profession or industry, career stage, type or size of business, individual vs organisational membership, goals such as training, qualifications, networking, representation, regulatory support or business development, or geography). " +
+    "When a follow-up question has a few natural short answers, also pass them as options (at most 5, each under 40 characters) so the visitor can tap one. " +
     "If the visitor has already given enough information to identify useful entries, select them now — do not ask unnecessary questions. " +
     "When you select entries, order them most relevant first. Return an empty list if nothing genuinely matches — do not force a match. " +
     "Any reason you give for an entry must be grounded only in that entry's own data below. Do not invent services, memberships, or facts. " +
@@ -193,6 +194,11 @@ const FOLLOW_UP_TOOL = {
         type: "string",
         description: "A single, specific question that would materially improve the result.",
       },
+      options: {
+        type: "array",
+        items: { type: "string" },
+        description: "Optional short answer chips the visitor can tap instead of typing (at most 5, each under 40 characters). Include them when the question has a few natural answers; omit for open questions.",
+      },
     },
     required: ["question"],
   },
@@ -223,9 +229,15 @@ function parseSelect(block: AiToolCall | null): TurnResult | null {
 }
 
 function parseFollowUp(block: AiToolCall | null): TurnResult | null {
-  const input = block?.input as { question?: unknown } | undefined;
+  const input = block?.input as { question?: unknown; options?: unknown } | undefined;
   if (!input || typeof input.question !== "string" || !input.question.trim()) return null;
-  return { kind: "follow_up", question: input.question.trim().slice(0, 500) };
+  const options = Array.isArray(input.options)
+    ? input.options
+        .filter((o): o is string => typeof o === "string" && !!o.trim() && o.trim().length <= 40)
+        .map((o) => o.trim())
+        .slice(0, 5)
+    : [];
+  return { kind: "follow_up", question: input.question.trim().slice(0, 500), options };
 }
 
 function parseTurn(resp: AiGenerateResult): TurnResult | null {
@@ -255,7 +267,7 @@ function toModelMessages(messages: ChatMessage[], userMessage: string): { role: 
   } else {
     out[out.length - 1].content = `${out[out.length - 1].content}\n\n${userMessage}`;
   }
-  if (out[0].role !== "user") out.unshift({ role: "user", content: "(The visitor opened Help me choose.)" });
+  if (out[0].role !== "user") out.unshift({ role: "user", content: "(The visitor opened Ask AI.)" });
   return out.slice(-MAX_MESSAGES);
 }
 
@@ -434,7 +446,7 @@ Deno.serve(async (req) => {
     await service.from("directory_ai_search_requests").insert({ directory_id: directoryId });
 
     if (turn.kind === "follow_up") {
-      return json({ entry_ids: null, follow_up: { question: turn.question } });
+      return json({ entry_ids: null, follow_up: { question: turn.question, options: turn.options } });
     }
 
     const safeIds = turn.ids.filter((id) => validIds.has(id));

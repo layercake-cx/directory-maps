@@ -11,6 +11,7 @@
  */
 
 import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
+import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
@@ -37,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 9;
+export const ENTRY_TEMPLATE_VERSION = 10;
 
 export type Entry = {
   id: string;
@@ -138,6 +139,22 @@ export type DirectoryTheme = {
   showHeaderTitle?: boolean;
   siteTitle?: string;
   logoMaxHeight?: number;
+  // Ask AI sidebar tokens (docs/ASK_AI_SIDEBAR). Every one is optional: an
+  // unset token follows the theme's primary colour, resolved to a concrete
+  // hex at publish time by resolveAiTokens() below.
+  aiAccent?: string;
+  aiOnAccent?: string;
+  aiTint?: string;
+  aiTintText?: string;
+  aiBorder?: string;
+  aiPanelBg?: string;
+  aiUserBubble?: string;
+  aiUserBubbleText?: string;
+  aiLauncherBg?: string;
+  aiLauncherText?: string;
+  // false hides the floating "Ask AI" launcher (it still appears while the
+  // panel is minimised). Unset = shown.
+  aiShowLauncher?: boolean;
 };
 
 // `hidden: true` keeps the block in the saved layout but renders nothing (no section, heading or
@@ -501,32 +518,6 @@ const LAYOUT_STYLE = `
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
   .dir-search-form { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px 10px 10px 18px; box-shadow: 0 12px 32px -18px rgba(0,0,0,.35); }
   .dir-search-form input { flex: 1 1 220px; min-width: 0; border: 0; outline: 0; font-size: 16px; font-family: inherit; background: transparent; color: var(--ink); }
-  .dir-hmc-btn { flex: none; }
-  .dir-ai-banner { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 14px; }
-  .dir-ai-banner[hidden] { display: none; }
-  .dir-ai-banner strong { font-family: var(--font-heading); }
-  .dir-ai-banner__based { color: var(--muted); font-size: 13px; }
-  .dir-ai-banner__actions { display: flex; gap: 12px; margin-left: auto; }
-  .dir-ai-banner__actions button { background: transparent; border: 0; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; }
-  .dir-row__why { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 8px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
-  .dir-row__why[hidden] { display: none; }
-  .dir-row__why strong { display: block; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-  .dir-hmc-backdrop { display: none; position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.4); align-items: flex-end; justify-content: center; padding: 16px; }
-  .dir-hmc-backdrop.dir-hmc-backdrop--open { display: flex; }
-  .dir-hmc-dialog { width: min(560px, 100%); max-height: min(82vh, 720px); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.22); display: flex; flex-direction: column; overflow: hidden; }
-  .dir-hmc-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .dir-hmc-dialog header h2 { margin: 0; font-family: var(--font-heading); font-size: 18px; }
-  .dir-hmc-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .dir-hmc-msg { font-size: 14.5px; line-height: 1.55; padding: 10px 12px; border-radius: 12px; max-width: 92%; white-space: pre-wrap; }
-  .dir-hmc-msg--assistant { background: var(--surface-2); align-self: flex-start; }
-  .dir-hmc-msg--user { background: var(--primary); color: #fff; align-self: flex-end; }
-  .dir-hmc-form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
-  .dir-hmc-form textarea { flex: 1; min-height: 44px; max-height: 120px; resize: vertical; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14.5px; }
-  .dir-hmc-error { color: #b91c1c; font-size: 13px; margin: 0 16px 12px; }
-  .dir-hmc-error[hidden] { display: none; }
-  @media (min-width: 641px) {
-    .dir-hmc-backdrop { align-items: center; }
-  }
 
   /* Desktop: results and map render permanently side by side (the List/Map
      segmented control is mobile-only, see below) — .dir-pane-hidden is only
@@ -747,6 +738,17 @@ export const NATURAL_DEFAULTS: Required<
     | "showHeaderTitle"
     | "siteTitle"
     | "logoMaxHeight"
+    | "aiAccent"
+    | "aiOnAccent"
+    | "aiTint"
+    | "aiTintText"
+    | "aiBorder"
+    | "aiPanelBg"
+    | "aiUserBubble"
+    | "aiUserBubbleText"
+    | "aiLauncherBg"
+    | "aiLauncherText"
+    | "aiShowLauncher"
   >
 > = {
   primaryColor: "#2E5A39",
@@ -855,6 +857,67 @@ function hexRelativeLuminance(hex: string): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** #rgb / #rrggbb(aa) -> [r,g,b] (alpha dropped); null when unparseable. */
+function hexToRgb(hex: string): [number, number, number] | null {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+  if (h.length < 6) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return ch.some((n) => Number.isNaN(n)) ? null : [ch[0], ch[1], ch[2]];
+}
+
+/** `pct`% of colour `a` mixed over colour `b`, as #rrggbb. */
+function mixHex(a: string, b: string, pct: number): string {
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
+  if (!ra || !rb) return a;
+  const k = pct / 100;
+  return "#" + ra.map((v, i) => Math.round(v * k + rb[i] * (1 - k)).toString(16).padStart(2, "0")).join("");
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = hexRelativeLuminance(a);
+  const lb = hexRelativeLuminance(b);
+  if (la === null || lb === null) return 21;
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Resolved Ask AI colours. Mirrors src/lib/askAiTheme.js (hand-synced across
+ * the Deno/JS boundary, like FONT_CATALOG). Every token is a concrete #rrggbb
+ * so the generated CSS needs no color-mix fallbacks. A token left unset (or
+ * failing the strict hex check) follows the theme's primary colour. */
+export function resolveAiTokens(theme: DirectoryTheme, base: { primaryColor: string; backgroundColor: string; inkColor: string }) {
+  const hex = (v: string | undefined) => (v && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null);
+  let accent = hex(theme.aiAccent) ?? base.primaryColor;
+  const darkText = (hexRelativeLuminance(base.inkColor) ?? 1) < 0.4 ? base.inkColor : "#111827";
+  if (!hex(theme.aiAccent)) {
+    // Default only: when neither white nor dark text reads on the primary (e.g. Midnight's light
+    // blue), darken it just enough for white text to reach 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio("#FFFFFF", accent) < 4.5 && contrastRatio(darkText, accent) < 4.5; i++) accent = mixHex(accent, "#000000", 92);
+  }
+  const onAccent = hex(theme.aiOnAccent) ?? (contrastRatio("#FFFFFF", accent) >= 4.5 || contrastRatio("#FFFFFF", accent) >= contrastRatio(darkText, accent) ? "#FFFFFF" : darkText);
+  const tint = hex(theme.aiTint) ?? mixHex(accent, "#FFFFFF", 8);
+  let tintText = hex(theme.aiTintText) ?? accent;
+  if (!hex(theme.aiTintText)) {
+    // Default only: darken the accent until it reads on the tint, so every preset passes 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio(tintText, tint) < 4.5; i++) tintText = mixHex(tintText, "#000000", 85);
+  }
+  return {
+    accent,
+    onAccent,
+    tint,
+    tintText,
+    border: hex(theme.aiBorder) ?? mixHex(accent, "#FFFFFF", 30),
+    panelBg: hex(theme.aiPanelBg) ?? mixHex(base.backgroundColor, "#000000", 99),
+    userBubble: hex(theme.aiUserBubble) ?? accent,
+    userBubbleText: hex(theme.aiUserBubbleText) ?? onAccent,
+    launcherBg: hex(theme.aiLauncherBg) ?? accent,
+    launcherText: hex(theme.aiLauncherText) ?? onAccent,
+    showLauncher: theme.aiShowLauncher !== false,
+  };
+}
+
 /** Tokens for the "Built on Layercake Maps" footer panel. Every colour is
  * derived from the footer/primary tokens (tints via color-mix, never a
  * literal), so a theme change restyles the panel. Two values depend on
@@ -876,6 +939,7 @@ function platformPanelVars(t: { primaryColor: string; footerText: string }): str
 
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
+  const ai = resolveAiTokens(theme, t);
   const banner = resolvedHeroBanner(theme);
   const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
   const logoUrl = sanitizeHttpUrl(theme.logoUrl);
@@ -898,6 +962,9 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     ${platformPanelVars(t)}
+    --ai-accent: ${ai.accent}; --ai-on-accent: ${ai.onAccent}; --ai-tint: ${ai.tint}; --ai-tint-text: ${ai.tintText};
+    --ai-border: ${ai.border}; --ai-panel-bg: ${ai.panelBg}; --ai-user-bubble: ${ai.userBubble}; --ai-user-bubble-text: ${ai.userBubbleText};
+    --ai-launcher-bg: ${ai.launcherBg}; --ai-launcher-text: ${ai.launcherText};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
     --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
     --logo-display: ${showLogo ? "block" : "none"};
@@ -921,7 +988,7 @@ export function fontImportRule(theme: DirectoryTheme): string {
  * colour, type, logo, or banner change does not rewrite every HTML page. */
 export function buildThemeCss(theme: DirectoryTheme): string {
   const font = fontImportRule(theme);
-  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n`;
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${ASK_AI_STYLE}\n`;
 }
 
 export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
@@ -2500,32 +2567,18 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var AI_SEARCH_DIRECTORY_ID = ${embedJson(aiSearch?.directoryId ?? null)};
   var AI_SEARCH_URL = ${embedJson(aiSearch ? aiSearch.supabaseUrl + "/functions/v1/directory_ai_search" : null)};
   var AI_SEARCH_ANON_KEY = ${embedJson(aiSearch?.supabaseAnonKey ?? null)};
-  var HMC_OPENING = ${embedJson("What would you like an association to help you with?\n\nTell me a little about your work, career or business and what you’d like support with.\n\nFor example: “I’ve recently started working in publishing and I’d like to develop my skills and meet people in the industry.”")};
-  var resultEntryIds = null; // null = keyword+facets; array = Help me choose allow-list
+  var resultEntryIds = null; // null = keyword+facets; array = Ask AI picks (shown in the AI's order)
   var aiReasons = {};
   var aiBasedOn = [];
   var aiMessages = [];
   var aiCandidateIds = null;
   var aiSearchToken = 0;
-  var hmcStorageKey = AI_SEARCH_DIRECTORY_ID ? ('dm-help-me-choose:' + AI_SEARCH_DIRECTORY_ID) : null;
 
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
   var rows = Array.prototype.slice.call(document.querySelectorAll('[data-search]'));
   var totalCount = rows.length;
   var countEl = document.getElementById('dir-result-count');
-  var toolbarHelpBtn = document.getElementById('dir-toolbar-hmc');
-  var aiBanner = document.getElementById('dir-ai-banner');
-  var aiBannerCount = document.getElementById('dir-ai-banner-count');
-  var aiBannerBased = document.getElementById('dir-ai-banner-based');
-  var hmcBackdrop = document.getElementById('dir-hmc-backdrop');
-  var hmcMessagesEl = document.getElementById('dir-hmc-messages');
-  var hmcForm = document.getElementById('dir-hmc-form');
-  var hmcInput = document.getElementById('dir-hmc-input');
-  var hmcError = document.getElementById('dir-hmc-error');
-  var hmcCloseBtn = document.getElementById('dir-hmc-close');
-  var hmcRefineBtn = document.getElementById('dir-ai-refine');
-  var hmcClearBtn = document.getElementById('dir-ai-clear');
   var chipsEl = document.getElementById('dir-active-chips');
   var clearAllBtn = document.getElementById('dir-clear-all');
   var emptyClearBtn = document.getElementById('dir-empty-clear');
@@ -3072,7 +3125,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         var reason = match && resultEntryIds && aiReasons[entryId] ? aiReasons[entryId] : '';
         if (reason) {
           whyEl.hidden = false;
-          whyEl.innerHTML = '<strong>Why this might suit you</strong>' + escapeWhy(reason);
+          whyEl.innerHTML = aiSvg('sparkle', 14) + '<span>' + escapeWhy(reason) + '</span>';
         } else {
           whyEl.hidden = true;
           whyEl.textContent = '';
@@ -3082,10 +3135,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
     if (countEl) {
       var line;
-      if (distanceOn) {
+      if (resultEntryIds) {
+        var scopeN = aiScoped && aiCandidateIds ? aiCandidateIds.length : 0;
+        line = scopeN
+          ? shown + ' of ' + scopeN + ' entries' + (aiScopeQuery ? ' for \\u201c' + aiScopeQuery + '\\u201d' : '')
+          : shown + (shown === 1 ? ' entry' : ' entries');
+      } else if (distanceOn) {
         line = shown + (shown === 1 ? ' entry' : ' entries') + ' within ' + distanceMiles + ' miles of ' + distanceLabel;
-      } else if (resultEntryIds) {
-        line = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
       } else if (q) {
         line = shown + (shown === 1 ? ' entry matches \\u201c' + q + '\\u201d' : ' entries match \\u201c' + q + '\\u201d');
       } else if (shown === totalCount) {
@@ -3095,7 +3151,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       }
       countEl.textContent = line;
     }
-    if (mapCountEl) mapCountEl.textContent = shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
+    if (mapCountEl) mapCountEl.textContent = resultEntryIds ? shown + (shown === 1 ? ' AI pick' : ' AI picks') : shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
     if (drawerCountEl) drawerCountEl.textContent = String(shown);
     if (rowsWrap) rowsWrap.hidden = shown === 0;
     if (alsoWrap) alsoWrap.hidden = alsoCount === 0;
@@ -3105,23 +3161,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         : 'Nothing matches these filters';
     }
     if (emptyEl) emptyEl.hidden = shown !== 0 || alsoCount !== 0;
-    if (toolbarHelpBtn) toolbarHelpBtn.hidden = !AI_SEARCH_ENABLED || !!resultEntryIds || shown === 0;
-
-    if (aiBanner) {
-      aiBanner.hidden = !resultEntryIds;
-      if (resultEntryIds && aiBannerCount) {
-        aiBannerCount.textContent = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
-      }
-      if (aiBannerBased) {
-        if (aiBasedOn.length) {
-          aiBannerBased.hidden = false;
-          aiBannerBased.textContent = 'Based on: ' + aiBasedOn.join(' · ');
-        } else {
-          aiBannerBased.hidden = true;
-          aiBannerBased.textContent = '';
-        }
-      }
-    }
+    aiAfterApply(shown);
 
     renderChips();
     syncUrl();
@@ -3164,7 +3204,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   ${hasMap ? `
   function postToMap(shownIds) {
     if (!mapFrame || !mapFrame.contentWindow) return;
-    var msg = { type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [] };
+    var msg = { type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [], aiPicks: !!resultEntryIds };
+    if (resultEntryIds) msg.aiAccent = getComputedStyle(document.documentElement).getPropertyValue('--ai-accent').trim();
     if (LOCATION_SEARCH && distanceOrigin) {
       msg.focus = { lat: distanceOrigin.lat, lng: distanceOrigin.lng, radiusMiles: distanceMiles };
     }
@@ -3172,139 +3213,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
   ` : ""}
 
-  function persistHmc() {
-    if (!hmcStorageKey || !window.sessionStorage) return;
-    try {
-      sessionStorage.setItem(hmcStorageKey, JSON.stringify({
-        messages: aiMessages,
-        resultEntryIds: resultEntryIds,
-        reasons: aiReasons,
-        basedOn: aiBasedOn,
-        candidateIds: aiCandidateIds
-      }));
-    } catch (err) {}
-  }
-  function restoreHmc() {
-    if (!hmcStorageKey || !window.sessionStorage) return;
-    try {
-      var raw = sessionStorage.getItem(hmcStorageKey);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && Array.isArray(data.messages)) aiMessages = data.messages;
-      if (data && Array.isArray(data.resultEntryIds)) resultEntryIds = data.resultEntryIds;
-      if (data && data.reasons && typeof data.reasons === 'object') aiReasons = data.reasons;
-      if (data && Array.isArray(data.basedOn)) aiBasedOn = data.basedOn;
-      if (data && Array.isArray(data.candidateIds)) aiCandidateIds = data.candidateIds;
-    } catch (err) {}
-  }
-  function renderHmcMessages() {
-    if (!hmcMessagesEl) return;
-    hmcMessagesEl.innerHTML = '';
-    function add(role, text) {
-      var el = document.createElement('div');
-      el.className = 'dir-hmc-msg dir-hmc-msg--' + role;
-      el.textContent = text;
-      hmcMessagesEl.appendChild(el);
-    }
-    if (!aiMessages.length) add('assistant', HMC_OPENING);
-    aiMessages.forEach(function (m) { add(m.role, m.content); });
-    hmcMessagesEl.scrollTop = hmcMessagesEl.scrollHeight;
-  }
-  function setHmcError(msg) {
-    if (!hmcError) return;
-    if (!msg) { hmcError.hidden = true; hmcError.textContent = ''; return; }
-    hmcError.hidden = false;
-    hmcError.textContent = msg;
-  }
-  function openHmc() {
-    if (!AI_SEARCH_ENABLED || !hmcBackdrop) return;
-    hmcBackdrop.classList.add('dir-hmc-backdrop--open');
-    document.body.style.overflow = 'hidden';
-    renderHmcMessages();
-    setHmcError('');
-    if (hmcInput) hmcInput.focus();
-  }
-  function closeHmc() {
-    if (!hmcBackdrop) return;
-    hmcBackdrop.classList.remove('dir-hmc-backdrop--open');
-    document.body.style.overflow = '';
-  }
-  function startHelpMeChoose() {
-    if (!AI_SEARCH_ENABLED) return;
-    var q = input ? input.value.trim() : '';
-    if (!aiMessages.length && !resultEntryIds) {
-      var ids = matchingIdsIgnoringAi();
-      aiCandidateIds = ids.length === totalCount ? null : ids;
-      if (q) {
-        aiMessages = [{ role: 'user', content: q.slice(0, 2000) }];
-        openHmc();
-        runHelpMeChooseTurn();
-        return;
-      }
-    }
-    openHmc();
-  }
-  function clearAiState() {
-    resultEntryIds = null;
-    aiReasons = {};
-    aiBasedOn = [];
-    aiMessages = [];
-    aiCandidateIds = null;
-    aiSearchToken++;
-    if (hmcStorageKey && window.sessionStorage) {
-      try { sessionStorage.removeItem(hmcStorageKey); } catch (err) {}
-    }
-    closeHmc();
-    apply();
-  }
-  function runHelpMeChooseTurn() {
-    if (!AI_SEARCH_URL || !aiMessages.length) return;
-    var token = ++aiSearchToken;
-    setHmcError('');
-    var hasAbort = typeof AbortController !== 'undefined';
-    var controller = hasAbort ? new AbortController() : null;
-    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-    var payload = {
-      directory_id: AI_SEARCH_DIRECTORY_ID,
-      messages: aiMessages
-    };
-    if (aiCandidateIds) payload.candidate_entry_ids = aiCandidateIds;
-    fetch(AI_SEARCH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY },
-      body: JSON.stringify(payload),
-      signal: controller ? controller.signal : undefined
-    })
-      .then(function (res) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (!res.ok) throw new Error('directory_ai_search returned ' + res.status);
-        return res.json();
-      })
-      .then(function (body) {
-        if (token !== aiSearchToken) return;
-        if (!body || body.disabled) throw new Error('Help me choose is not available right now.');
-        if (body.follow_up && body.follow_up.question) {
-          aiMessages.push({ role: 'assistant', content: body.follow_up.question });
-          persistHmc();
-          renderHmcMessages();
-          return;
-        }
-        if (!Array.isArray(body.entry_ids)) throw new Error('Unexpected Help me choose response.');
-        resultEntryIds = body.entry_ids;
-        aiReasons = body.reasons && typeof body.reasons === 'object' ? body.reasons : {};
-        aiBasedOn = Array.isArray(body.based_on) ? body.based_on : [];
-        persistHmc();
-        renderHmcMessages();
-        apply();
-        closeHmc();
-      })
-      .catch(function () {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (token !== aiSearchToken) return;
-        setHmcError('Something went wrong. Your current results are unchanged — try again.');
-        renderHmcMessages();
-      });
-  }
+${buildAskAiScript({ hasMap })}
 
   var searchLogTimer = null;
   function emitDirectorySearch(q) {
@@ -3316,12 +3225,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function scheduleSearch(immediate) {
     var q = input ? input.value.trim() : '';
     if (LOCATION_SEARCH) applyParsed(parseLocationQuery(q));
-    if (resultEntryIds) {
-      resultEntryIds = null;
-      aiReasons = {};
-      aiBasedOn = [];
-      persistHmc();
-    }
+    aiDropPicks('search_changed', true);
     if (immediate) emitDirectorySearch(q);
     apply();
     if (searchLogTimer) { clearTimeout(searchLogTimer); searchLogTimer = null; }
@@ -3360,7 +3264,6 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   if (drawerClearBtn) drawerClearBtn.addEventListener('click', clearAll);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && railEl && railEl.classList.contains('dir-rail--open')) closeDrawer();
-    if (e.key === 'Escape' && hmcBackdrop && hmcBackdrop.classList.contains('dir-hmc-backdrop--open')) closeHmc();
   });
 
   if (form && input) {
@@ -3409,28 +3312,6 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       }, 400);
     });
   }
-  document.querySelectorAll('[data-hmc-open]').forEach(function (btn) {
-    btn.addEventListener('click', function () { startHelpMeChoose(); });
-  });
-  if (hmcCloseBtn) hmcCloseBtn.addEventListener('click', closeHmc);
-  if (hmcBackdrop) hmcBackdrop.addEventListener('click', function (e) {
-    if (e.target === hmcBackdrop) closeHmc();
-  });
-  if (hmcRefineBtn) hmcRefineBtn.addEventListener('click', function () { openHmc(); });
-  if (hmcClearBtn) hmcClearBtn.addEventListener('click', clearAiState);
-  if (hmcForm) {
-    hmcForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var text = hmcInput ? hmcInput.value.trim() : '';
-      if (!text) return;
-      aiMessages.push({ role: 'user', content: text.slice(0, 2000) });
-      if (hmcInput) hmcInput.value = '';
-      persistHmc();
-      renderHmcMessages();
-      runHelpMeChooseTurn();
-    });
-  }
-
   document.querySelectorAll('.dir-msel__checkbox[data-cat-id][data-kind="multi_select"]').forEach(function (cb) {
     cb.addEventListener('change', function () {
       var catId = cb.getAttribute('data-cat-id');
@@ -3506,7 +3387,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     active = {};
     if (input) input.value = '';
     if (LOCATION_SEARCH) clearDistance(true);
-    clearAiState();
+    aiDropPicks('clear_all', true);
     setRowControlState();
     apply();
   }
@@ -3549,7 +3430,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (v === 'map' && mapPane) setView('map');
   })();
 
-  restoreHmc();
+  aiInit();
   apply();
   if (mapFrame) mapFrame.addEventListener('load', function () { apply(); });
 })();
@@ -3603,6 +3484,8 @@ export function buildDirectoryLandingPage(opts: {
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
+  // No per-directory noun setting yet; Ask AI copy uses the neutral plural.
+  const aiNounMany = "entries";
 
   const termMeta = buildTermMetaIndex(categorisations);
 
@@ -3713,6 +3596,7 @@ export function buildDirectoryLandingPage(opts: {
 
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
+${aiSearch?.enabled ? `<div class="dir-ai-shell" id="dir-ai-shell" data-show-launcher="${resolveAiTokens(theme, resolvedTheme(theme)).showLauncher ? "1" : "0"}"><div class="dir-ai-main">` : ""}
 <div class="dir-home-intro">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
@@ -3721,29 +3605,25 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
     <form id="dir-search-form" class="dir-search-form">
       <input id="dir-search-input" type="text" placeholder="Search by name, acronym, profession, industry, interest or keyword…" autocomplete="off">
       <button type="submit" class="btn btn-primary">Search</button>
-      ${aiSearch?.enabled ? `<button type="button" class="btn btn-ghost dir-hmc-btn" data-hmc-open>Help me choose</button>` : ""}
+      ${aiSearch?.enabled ? `<button type="button" class="dir-ai-btn" id="dir-ai-e1" data-ai-open="E1" aria-pressed="false">${askAiIcon("sparkle", 18)}Ask AI</button>` : ""}
     </form>
+    ${aiSearch?.enabled ? `<p class="dir-ai-helper" id="dir-ai-e2">Not sure what to search for? <button type="button" class="dir-ai-link" data-ai-open="E2">Describe your situation</button> and Ask AI will suggest ${aiNounMany}.</p>` : ""}
   </div>
 </div>
 <div class="wrap" style="padding-top:40px;padding-bottom:20px;">
   <div class="dir-toolbar">
     <div class="dir-toolbar__left">
       <h2 class="dir-count" id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</h2>
-      ${aiSearch?.enabled ? `<button type="button" class="dir-clear-all" id="dir-toolbar-hmc" data-hmc-open hidden>Help me choose</button>` : ""}
+      ${aiSearch?.enabled ? `<span class="dir-ai-pill" id="dir-ai-pill" hidden>${askAiIcon("sparkle", 14)}Picked by Ask AI<button type="button" aria-label="Clear AI picks"><span aria-hidden="true">\u00d7</span></button></span>
+      <button type="button" class="dir-clear-all" id="dir-ai-showall" hidden></button>
+      <button type="button" class="dir-ai-e3" id="dir-ai-e3" data-ai-open="E3" hidden>${askAiIcon("sparkle", 14)}<span></span></button>
+      <span class="dir-ai-e3 dir-ai-e3--static" id="dir-ai-e3-static" hidden>${askAiIcon("sparkle", 14)}<span></span></span>` : ""}
       <div id="dir-active-chips"></div>
       <button type="button" class="dir-clear-all" id="dir-clear-all" hidden>Clear all</button>
     </div>
     ${filtersTrigger}
     ${viewToggle}
   </div>
-  ${aiSearch?.enabled ? `<div id="dir-ai-banner" class="dir-ai-banner" hidden>
-    <strong id="dir-ai-banner-count"></strong>
-    <span class="dir-ai-banner__based" id="dir-ai-banner-based" hidden></span>
-    <div class="dir-ai-banner__actions">
-      <button type="button" id="dir-ai-refine">Refine with AI</button>
-      <button type="button" id="dir-ai-clear">Clear</button>
-    </div>
-  </div>` : ""}
   ${linkTiles(directoryLinks)}
   <div class="dir-body">
     ${rail}
@@ -3766,21 +3646,12 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
     </div>
   </div>
 </div>
-${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
-${aiSearch?.enabled ? `<div id="dir-hmc-backdrop" class="dir-hmc-backdrop">
-  <div class="dir-hmc-dialog" role="dialog" aria-modal="true" aria-labelledby="dir-hmc-title">
-    <header>
-      <h2 id="dir-hmc-title">Help me choose</h2>
-      <button type="button" class="btn btn-ghost" id="dir-hmc-close">Close</button>
-    </header>
-    <div class="dir-hmc-messages" id="dir-hmc-messages"></div>
-    <p class="dir-hmc-error" id="dir-hmc-error" hidden></p>
-    <form class="dir-hmc-form" id="dir-hmc-form">
-      <textarea id="dir-hmc-input" rows="2" placeholder="Describe what you’d like help with…"></textarea>
-      <button type="submit" class="btn btn-primary">Send</button>
-    </form>
-  </div>
+${aiSearch?.enabled ? `</div>
+${askAiPanelMarkup({ total: visibleEntries.length, nounMany: aiNounMany })}
 </div>` : ""}
+${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
+${aiSearch?.enabled ? `<div class="dir-ai-live" id="dir-ai-live" role="status" aria-live="polite"></div>
+${askAiFloatingMarkup()}` : ""}
 ${locationSearch ? "<!-- Place names: GeoNames (https://www.geonames.org/), CC-BY 4.0 -->" : ""}
 ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, locationSearch ?? null)}
 `.trim();

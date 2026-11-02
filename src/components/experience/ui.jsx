@@ -53,6 +53,34 @@ export function ColourField({ label, hint, value, onChange, contrast, base, disa
   );
 }
 
+/**
+ * Colour token that may be left unset. `value` is the stored hex (or undefined), `fallback` the colour used
+ * while unset. Typing only commits a valid #rrggbb; anything else shows an error and is never stored.
+ */
+export function OptionalColourField({ label, hint, value, fallback, onChange, contrast }) {
+  const id = useId();
+  const [text, setText] = useState(value || "");
+  useEffect(() => setText(value || ""), [value]);
+  const invalid = text !== "" && !/^#[0-9a-fA-F]{6}$/.test(text);
+  const commit = (next) => {
+    setText(next);
+    if (next === "") onChange(undefined);
+    else if (/^#[0-9a-fA-F]{6}$/.test(next)) onChange(next);
+  };
+  return (
+    <div className="xp-colour">
+      <input type="color" className="xp-swatch" aria-label={`${label} colour picker`} value={value || fallback} onChange={(e) => commit(e.target.value)} />
+      <div>
+        <label htmlFor={id} style={{ fontSize: 14, fontWeight: 600 }}>{label}</label>
+        {hint ? <p className="xp-help">{hint}</p> : null}
+        {invalid ? <p className="xp-help" role="alert" style={{ color: "#b91c1c" }}>Use a hex colour like #2E5A39. This value won&apos;t be saved.</p> : null}
+      </div>
+      <input id={id} className="xp-input" style={{ width: 110 }} value={text} placeholder={fallback} aria-invalid={invalid} onChange={(e) => commit(e.target.value)} />
+      <ContrastBadge contrast={contrast} />
+    </div>
+  );
+}
+
 /** Contrast of `fg` against a hex colour or RegionBackground (gradients: worst stop wins). */
 export function contrastOf(fg, bg, opts) {
   return checkContrast(fg, bg, opts);
