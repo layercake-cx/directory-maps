@@ -34,8 +34,6 @@ git checkout -b feat/YYYY-MM-DD-short-description
 # e.g. feat/2026-06-01-logo-bg-toggle
 ```
 
-**Raise the Monday ticket at the same moment you create the branch** — not later, and not only when writing the deployment log. Follow "Feature ticket" under *Monday.com feature/deployment tracking* below: search the Tasks board for a matching open item, create one in `Product Backlog` if none exists, and set it to `Working on it`. Put the branch name in the ticket description (first update) so the two can be matched up. Skip only for work that genuinely has no ticket-worthy content (e.g. a one-line typo), and say so.
-
 Use the prefix that matches the work:
 - `feat/` — new user-facing feature
 - `fix/` — bug fix
@@ -70,7 +68,7 @@ gh pr create --title "…" --body "…"
 - **Never push directly to `main`** — always go through a PR.
 - The PR body should say what changed, why, and how to verify it.
 - Add a `docs/DEPLOYMENTS.md` entry (see below) in the same branch before opening the PR.
-- **One piece of work = one branch = one PR, including its deployment records.** Staging and production outcomes go in that same PR's `DEPLOYMENTS.md` entry (and Monday comment), not in a separate docs-only branch afterwards. See "Deploy before you merge" under *Deployment log*.
+- **One piece of work = one branch = one PR, including its deployment records.** Staging and production outcomes go in that same PR's `DEPLOYMENTS.md` entry, not in a separate docs-only branch afterwards. See "Deploy before you merge" under *Deployment log*.
 - Leave the PR open for the user to review and merge. Do not merge it yourself unless the user explicitly asks.
 
 ### If you resumed a session from a summary and skipped the opening checks
@@ -113,25 +111,6 @@ See `.cursor/rules/user-guide-documentation.mdc` for full rules (Cursor applies 
 
 **Doc index:** `docs/README.md` · **Integrations & secrets:** `docs/INTEGRATION_ARCHITECTURE.md` · **Repo overview:** `README.md`
 
-## Monday.com feature/deployment tracking
-
-The monday.com MCP connection (Layercake's `layercake-cx.monday.com` account) is available in Claude Code sessions. Use it to keep the **"Tasks" board** (board id `5094351513`) in the **"Maps" workspace** (workspace id `6134662`) as the running record of Directory Maps feature work — this is the board Justyna already uses for this project, so reuse it rather than creating a new board.
-
-Board reference (so you don't need to re-query it every session):
-- Groups: `Product Backlog` (`group_mm5j96jb`) for incoming/unstarted requests, `Non-Functional Req` (`new_group29179`) for other work, `Client Tasks` (`new_group43041`).
-- `project_status` (status column): `Not Started`, `Working on it`, `Testing`, `Stuck`, `Done`.
-- `project_owner` (people), `people` (collaborators), `status_1` (priority: `Critical ⚠`/`High`/`Medium`/`Low`).
-
-**1 — Feature ticket (raise it when you create the branch):** whenever the user requests a new feature, or a change to an existing feature — and in any case at the same time as `git checkout -b` — search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
-
-**2 — Deployment log → Monday comment:** every time you write a `docs/DEPLOYMENTS.md` entry (see below), also post that entry's content as an update (`create_update`) on the matching Monday item — same "what changed" text, environment, and rollback plan. Then:
-- Set `project_status` to `"Testing"` once staging is verified.
-- Set `project_status` to `"Done"` once deployed to production and verified.
-
-If a deployment doesn't map to any specific feature ticket (e.g. a small fix bundled into other work), create a lightweight ticket for it too rather than skipping the log.
-
-**Never** put secrets, API keys, tokens, connection strings, or end-user/client personal data in a Monday ticket title, description, or comment — same rule as admin event `meta` fields below. Monday tickets are internal engineering notes (what/why/rollback), not data exports.
-
 ## Deployment log (write an entry for every meaningful change)
 
 Every time you implement a meaningful change — feature, fix, migration, configuration — add an entry to **`docs/DEPLOYMENTS.md`** before the work is considered done. This is the plain-English record of what this codebase has become and why.
@@ -158,7 +137,7 @@ An Edge Function or migration deploy is not part of a merge, so if the productio
 1. Deploy to staging from the feature branch; write the `DEPLOYMENTS.md` entry (staging outcome, unchecked verification boxes) and commit it in the same branch.
 2. The user verifies staging and explicitly signs off on production (the production rules above are unchanged).
 3. **Before deploying to production from the branch, make sure the branch contains current `origin/main`** (merge or rebase). Deploying from a stale branch can silently roll back someone else's merged change to the same function. Check `git log origin/main..HEAD` and `git diff origin/main...HEAD` look like only your work.
-4. Deploy to production, then update the entry in the same branch (production version, time, outcome; tick only what was actually verified), push, and post the Monday comment.
+4. Deploy to production, then update the entry in the same branch (production version, time, outcome; tick only what was actually verified), and push.
 5. Only then does the user merge the PR. One branch, one PR, one merge, with the log already true.
 
 If the user merges *before* the production deploy, don't open a docs-only branch to record it. Tell the user the entry is stale, and fold the correction into the next PR's `DEPLOYMENTS.md` edit unless they ask for it sooner. For a deploy that has no feature branch of its own (e.g. redeploying an already-merged function), record it in the next PR the same way, or open a single `chore/` branch only if the user asks.
@@ -559,7 +538,7 @@ Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab
 
 #### Claims
 
-Claimed Directory Listings epic (Monday: "Claimed Directory Listings (Epic)"). Lets an organisation
+Claimed Directory Listings epic. Lets an organisation
 represented in a directory claim, verify, and manage its own `directory_entries` row without becoming
 a directory administrator — a claim grants rights to one directory item, never the directory. Gated by
 the `claims` feature flag + the `maps.claims` commercial entitlement (`resolve_claims_entitlement()`).
