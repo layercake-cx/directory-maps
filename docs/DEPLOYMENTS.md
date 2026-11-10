@@ -8,6 +8,23 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Not deployed] Fullscreen directory map honours map sidebar settings
+
+**Branch:** `fix/2026-11-10-fullscreen-sidebar-settings`
+
+### What changed
+- A map embedded in a directory is told to hide its filter bar (the directory draws its own). In fullscreen that left the sidebar with no filters. The filter fields now show while fullscreen.
+- `PublishedMapView` never used the `showSearch` and `showGroupDropdowns` map settings, so the search box and group buttons always appeared. It now honours them (live embeds and both editor previews).
+- Frontend only; no migration or Edge Function change, so no directory republish is needed.
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Directory page: fullscreen shows filters; search/group buttons follow map settings
+- [ ] Staging / production frontend deploy
+
 ## 2026-11-02 — [Production] Ask AI: production deploy and large-directory fix
 
 **Branch/commit:** `fix/2026-11-02-ai-search-error-message`
