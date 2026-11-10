@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-10 — [Staging] Claim banner on unclaimed listing pages
+## 2026-11-10 — [Staging + Production backend] Claim banner on unclaimed listing pages
 
 **Branch:** `feat/2026-11-10-claim-banner`
 
@@ -23,6 +23,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; the migration's own post-check passed. Staging's history also holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, which blocks a plain `db push`; it was applied by placing that file locally (uncommitted, since removed) so only this migration was pushed. No history repair was done.
 - `generate_directory_site` deployed to staging. Production untouched.
 
+### Production outcome (2026-11-10)
+- Branch merged with current `origin/main` first (diff against `main` was only this work). CLI relinked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only this migration, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin form (Claims → Settings) is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the banner after their next Publish.
+
 ### Rollback plan
 Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (drops the banner columns and the two events; refuses if `claim_banner_*` rows exist); redeploy `generate_directory_site` from `main`; republish directories.
 
@@ -32,7 +38,8 @@ Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (dro
 - [ ] Edge Function deployed to staging; a test directory republished; banner shown on an unclaimed listing, absent on a claimed one
 - [ ] Claims → Settings saves and previews correctly
 - [ ] Banner at mobile width; keyboard order (link, then button)
-- [ ] Production (needs explicit sign-off)
+- [x] Production migration and function deployed (see above)
+- [ ] Frontend live on both hosts; a production directory republished and the banner seen
 
 ## 2026-11-10 — [Not deployed] Entry-page map: no zoom bar
 
