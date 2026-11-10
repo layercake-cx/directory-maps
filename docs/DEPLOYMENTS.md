@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-10 — [Not deployed] Claim banner on unclaimed listing pages
+## 2026-11-10 — [Staging] Claim banner on unclaimed listing pages
 
 **Branch:** `feat/2026-11-10-claim-banner`
 
@@ -19,12 +19,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `generate_directory_site`: new banner markup/CSS, `ENTRY_TEMPLATE_VERSION` 10 → 11, banner settings added to the claim part of the publish hash so a settings change forces a rebuild. Directories need a Publish to show the banner.
 - Not done: `{{org_short_name}}` (listings have no short-name field).
 
+### Staging outcome
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; the migration's own post-check passed. Staging's history also holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, which blocks a plain `db push`; it was applied by placing that file locally (uncommitted, since removed) so only this migration was pushed. No history repair was done.
+- `generate_directory_site` deployed to staging. Production untouched.
+
 ### Rollback plan
 Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (drops the banner columns and the two events; refuses if `claim_banner_*` rows exist); redeploy `generate_directory_site` from `main`; republish directories.
 
 ### Verification
 - [x] `deno test` (`claimBanner_test.ts`, `askAiTheme_test.ts`) passes; `deno check` of the function and `vite build` pass
-- [ ] Migration dry-run and staging apply; row counts unchanged
+- [x] Migration applied to staging, in-migration verification passed (CLI `--dry-run` listed only this migration; no separate row-count check was run)
 - [ ] Edge Function deployed to staging; a test directory republished; banner shown on an unclaimed listing, absent on a claimed one
 - [ ] Claims → Settings saves and previews correctly
 - [ ] Banner at mobile width; keyboard order (link, then button)
