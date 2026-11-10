@@ -150,7 +150,6 @@ export default function App() {
           <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
           <Route path="seo" element={<DirectorySettingsSeoRoute />} />
           <Route path="publishing" element={<DirectoryPublishingRoute />} />
-        <Route path="domain" element={<DirectoryDomainRoute />} />
           <Route path="domain" element={<DirectoryDomainRoute />} />
           <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
           <Route path="entries/:entryId" element={<ClientDirectoryEntryEdit tab="basic" />} />
@@ -340,6 +339,7 @@ export default function App() {
         <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
         <Route path="seo" element={<DirectorySettingsSeoRoute />} />
         <Route path="publishing" element={<DirectoryPublishingRoute />} />
+        <Route path="domain" element={<DirectoryDomainRoute />} />
         <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
         <Route path="entries/:entryId" element={<AdminDirectoryEntryEdit tab="basic" />} />
         <Route path="entries/:entryId/categories" element={<AdminDirectoryEntryEdit tab="categories" />} />
