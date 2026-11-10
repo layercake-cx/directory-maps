@@ -8,6 +8,20 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Not deployed] Admin directory Settings › Domain page
+
+**Branch:** `fix/2026-11-10-admin-domain-route`
+
+### What changed
+- In the admin view of a directory, clicking Settings › Domain did nothing useful and dropped you on the maps home page, because the admin route table had no `domain` route (only the client portal did). The route now exists, so admins see the directory's custom domain settings. Also removed an accidental duplicate `domain` route in the client portal. Frontend only.
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Admin › directory › Settings › Domain shows the domain settings (preview, then live)
+
 ## 2026-11-10 — [Staging + Production backend] Claim banner on unclaimed listing pages
 
 **Branch:** `feat/2026-11-10-claim-banner`
