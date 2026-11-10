@@ -210,6 +210,9 @@ export default function PublishedMapView({
   showListPanel: showListPanelProp = true,
   /** Embedded in a directory page that hides the sidebar: still show it while the map is full screen, since the page's own filters aren't visible then. */
   showListPanelInFullscreen = false,
+  /** Map settings: show the search box / group lozenges in the sidebar. */
+  showSearch = true,
+  showGroupDropdowns = true,
   mapName = "",
   enableClustering = true,
   clusterRadius = 80,
@@ -349,6 +352,9 @@ export default function PublishedMapView({
     };
   }, [showListPanelInFullscreen]);
   const showListPanel = showListPanelProp || (showListPanelInFullscreen && isFullscreen);
+  // A directory page hides the map's filter bar because it renders its own filters. In fullscreen
+  // those aren't visible, so the sidebar must show the map's configured filters after all.
+  const showFilterBar = !hideFilterBar || (showListPanelInFullscreen && isFullscreen);
 
   const mapFitBoundsPadding = useMemo(
     () =>
@@ -1117,6 +1123,7 @@ export default function PublishedMapView({
 
           <div className="embed-list-panel__filter">
             <div className="embed-list-panel__section-title">Search &amp; filter</div>
+          {showSearch && (
           <div className="embed-list-panel__search-wrap" ref={searchWrapRef}>
             <input
               type="text"
@@ -1230,8 +1237,9 @@ export default function PublishedMapView({
               </ul>
             )}
           </div>
+          )}
 
-            {(groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
+            {showGroupDropdowns && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
               <div className="embed-list-panel__lozenges">
                 {(groups || []).filter((gr) => groupIdsWithEntries.has(gr.id)).map((gr) => {
                   const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
@@ -1275,7 +1283,7 @@ export default function PublishedMapView({
                 })}
               </div>
             )}
-            {!hideFilterBar && visibleFilterFields.map((field) => {
+            {showFilterBar && visibleFilterFields.map((field) => {
               const selected = effectiveActiveFilters[field.id];
               const selectedSet = selected instanceof Set ? selected : null;
               const textValue = typeof selected === "string" ? selected : "";
