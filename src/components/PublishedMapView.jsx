@@ -211,6 +211,8 @@ export default function PublishedMapView({
   /** Embedded in a directory page that hides the sidebar: still show it while the map is full screen, since the page's own filters aren't visible then. */
   showListPanelInFullscreen = false,
   /** Map settings: show the search box / group lozenges in the sidebar. */
+  /** Directory entry page embed: show only this {lat,lng}, centred, with no pin detail card. */
+  singleFocus = null,
   showSearch = true,
   showGroupDropdowns = true,
   mapName = "",
@@ -585,6 +587,12 @@ export default function PublishedMapView({
   }, [searchQuery]);
 
   useEffect(() => {
+    if (!singleFocus) return;
+    cameraSeqRef.current += 1;
+    setCameraRequest({ id: cameraSeqRef.current, center: { lat: singleFocus.lat, lng: singleFocus.lng }, zoom: 15 });
+  }, [singleFocus?.lat, singleFocus?.lng]);
+
+  useEffect(() => {
     if (!externalFocus || typeof externalFocus.lat !== "number" || typeof externalFocus.lng !== "number") return;
     cameraSeqRef.current += 1;
     const miles = Number(externalFocus.radiusMiles) || 10;
@@ -730,6 +738,7 @@ export default function PublishedMapView({
   }, [externalFocusEntry]);
 
   function handleDirectoryMapSelect(listing, point) {
+    if (singleFocus) return;
     if (suppressListingOpenEngagementRef.current) {
       suppressListingOpenEngagementRef.current = false;
     } else if (recordEngagement && listing?.id) {

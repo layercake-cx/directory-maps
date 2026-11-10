@@ -229,18 +229,20 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
-  const focusApplied = useRef(false);
 
-  // Directory entry detail page embed (?focus=<directory_entries.id>): apply
-  // once listings are in, via the same centerOnListingId pan/zoom/select path
-  // list-panel clicks already use — DirectoryMap.jsx pans to selectZoom
-  // (15 desktop) and opens the pin's detail card. Guarded to run once so a
-  // later listings refetch doesn't re-trigger the pan animation.
-  useEffect(() => {
-    if (!focusListingId || focusApplied.current || listings.length === 0) return;
-    focusApplied.current = true;
-    setCenterOnListingId(focusListingId);
-  }, [focusListingId, listings]);
+  // Directory entry detail page embed (?focus=<directory_entries.id>): the map
+  // shows only that one listing's pin, centred. PublishedMapView does the
+  // centring (singleFocus) so there is no drawer pan offset or auto-opened card.
+  const focusedListing = useMemo(
+    () => (focusListingId ? listings.find((l) => String(l.id) === String(focusListingId)) ?? null : null),
+    [focusListingId, listings]
+  );
+  const singleFocus =
+    focusedListing && focusedListing.lat != null && focusedListing.lng != null
+      ? { lat: Number(focusedListing.lat), lng: Number(focusedListing.lng) }
+      : null;
+  const onlyFocused = (arr) =>
+    focusListingId && singleFocus ? (arr || []).filter((l) => String(l.id) === String(focusListingId)) : arr;
 
   useEffect(() => {
     let cancelled = false;
@@ -864,8 +866,9 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
-          listings={listings}
-          listingsWithColor={listingsForView}
+          listings={onlyFocused(listings)}
+          listingsWithColor={onlyFocused(listingsForView)}
+          singleFocus={singleFocus}
           groups={groupsForEmbed}
           filterFields={filterFieldsForEmbed}
           externalActiveFilters={externalActiveFilters}

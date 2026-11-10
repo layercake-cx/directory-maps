@@ -8,6 +8,22 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Not deployed] Entry-page map shows only the listing, centred
+
+**Branch:** `fix/2026-11-10-listing-map-single-pin`
+
+### What changed
+- The map card on an individual listing page loaded the whole directory map and then panned to the listing with a sideways offset meant for the pin detail drawer, so it looked off-centre and other pins showed. With `?focus=<entry id>` the embed now shows only that listing's pin, centred at zoom 15, and clicking the pin no longer opens a detail card.
+- Frontend only: no republish of directories needed (the iframe URL is unchanged).
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] A listing page's map shows one centred pin (preview, then live)
+- [ ] Earlier 2026-11-10 fullscreen fix: production deploy done by the user; record folded into this PR
+
 ## 2026-11-10 — [Not deployed] Fullscreen directory map honours map sidebar settings
 
 **Branch:** `fix/2026-11-10-fullscreen-sidebar-settings`
