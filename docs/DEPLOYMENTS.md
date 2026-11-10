@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Not deployed] Claim banner on unclaimed listing pages
+
+**Branch:** `feat/2026-11-10-claim-banner`
+
+### What changed
+- Unclaimed listing pages now show a full-width "Claim this listing" banner between the hero and the body, replacing the small "Represent this organisation?" link under the map. The button opens the same claim dialog as before.
+- Banner wording, an optional secondary link and four colours are set per directory in Claims → Settings, with a live preview, an Insert variable control (`{{org_name}}`) and contrast warnings. It follows the existing "Claims enabled" setting; there is no second switch.
+- Migration `20261110120000_claim_banner_settings.sql` adds `banner_*` columns (with defaults, so existing directories need no action) to `directory_claim_settings` and allows two new engagement events (`claim_banner_view`, `claim_banner_secondary_click`).
+- `generate_directory_site`: new banner markup/CSS, `ENTRY_TEMPLATE_VERSION` 10 → 11, banner settings added to the claim part of the publish hash so a settings change forces a rebuild. Directories need a Publish to show the banner.
+- Not done: `{{org_short_name}}` (listings have no short-name field).
+
+### Rollback plan
+Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (drops the banner columns and the two events; refuses if `claim_banner_*` rows exist); redeploy `generate_directory_site` from `main`; republish directories.
+
+### Verification
+- [x] `deno test` (`claimBanner_test.ts`, `askAiTheme_test.ts`) passes; `deno check` of the function and `vite build` pass
+- [ ] Migration dry-run and staging apply; row counts unchanged
+- [ ] Edge Function deployed to staging; a test directory republished; banner shown on an unclaimed listing, absent on a claimed one
+- [ ] Claims → Settings saves and previews correctly
+- [ ] Banner at mobile width; keyboard order (link, then button)
+- [ ] Production (needs explicit sign-off)
+
 ## 2026-11-10 — [Not deployed] Entry-page map: no zoom bar
 
 **Branch:** `fix/2026-11-10-listing-map-no-zoom-bar`

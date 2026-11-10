@@ -20,6 +20,8 @@ import { supabase } from "../../lib/supabase";
 import EntitlementGate from "../EntitlementGate.jsx";
 import MapDataTabs from "../MapDataTabs.jsx";
 import RichTextEditor from "./entryEdit/RichTextEditor.jsx";
+import ClaimBannerSettings from "./ClaimBannerSettings.jsx";
+import { bannerFromSettings, bannerToColumns, validateClaimBanner } from "../../lib/claimBanner.js";
 
 const CURRENCIES = ["GBP", "USD", "EUR"];
 
@@ -566,12 +568,14 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   const load = useCallback(async () => {
     if (!directoryId) return;
     setLoading(true);
     try {
-      setSettings(await getDirectoryClaimSettings(directoryId));
+      const row = await getDirectoryClaimSettings(directoryId);
+      setSettings({ ...row, banner: bannerFromSettings(row) });
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -588,6 +592,12 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
     if (!canManage || !settings) return;
     setErr("");
     setMsg("");
+    const { errors: bannerErrors } = validateClaimBanner(settings.banner, { enabled: !!settings.enabled });
+    if (Object.keys(bannerErrors).length) {
+      setShowErrors(true);
+      setErr("Fix the highlighted claim banner fields before saving.");
+      return;
+    }
     try {
       setSaving(true);
       await saveDirectoryClaimSettings(directoryId, {
@@ -597,10 +607,11 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
         payment_type: settings.payment_type,
         payment_provider: settings.payment_provider,
         intro_html: settings.intro_html,
+        ...bannerToColumns(settings.banner),
       });
       recordEvent?.("directory_claim_settings_updated", {
         directory_id: directoryId,
-        changed_fields: ["enabled", "price_cents", "currency", "payment_type", "intro_html"],
+        changed_fields: ["enabled", "price_cents", "currency", "payment_type", "intro_html", "banner"],
       });
       setMsg("Claim settings saved.");
       await load();
@@ -724,6 +735,15 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
           editable={canManage}
         />
       </div>
+
+      <ClaimBannerSettings
+        directoryId={directoryId}
+        banner={settings.banner}
+        onChange={(banner) => setSettings((s) => ({ ...s, banner }))}
+        disabled={disabled}
+        enabled={!!settings.enabled}
+        showErrors={showErrors}
+      />
 
       {!canManage && (
         <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can change claim settings.</p>

@@ -38,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 10;
+export const ENTRY_TEMPLATE_VERSION = 11;
 
 export type Entry = {
   id: string;
@@ -633,8 +633,29 @@ const LAYOUT_STYLE = `
   .dir-static-map, .dir-map-embed { width: 100%; height: 260px; object-fit: cover; border: 0; display: block; }
   .dir-map-card__link { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; border-top: 1px solid var(--line); }
 
-  .dir-claim-quiet { margin: 0; padding: 4px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
-  .dir-claim-quiet button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--primary); text-decoration: underline; cursor: pointer; }
+  /* Claim banner: colours arrive as --cb-* custom properties on the section (sanitised hex). */
+  .dir-claim-banner-wrap { padding-top: 32px; padding-bottom: 28px; }
+  .dir-claim-banner { display: flex; align-items: center; gap: 20px; padding: 20px 24px; background: var(--cb-bg); border: 1px solid var(--cb-border); border-radius: 12px; }
+  .dir-claim-banner__icon { flex: none; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--cb-border); border-radius: 12px; color: var(--cb-accent); }
+  .dir-claim-banner__text { flex: 1 1 auto; min-width: 0; }
+  .dir-claim-banner__text h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; line-height: 1.25; }
+  .dir-claim-banner__text p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .dir-claim-banner__actions { flex: none; display: flex; align-items: center; gap: 20px; }
+  .dir-claim-banner__secondary { font-size: 13px; font-weight: 600; color: var(--primary); text-decoration: none; }
+  .dir-claim-banner__secondary:hover, .dir-claim-banner__secondary:focus-visible { text-decoration: underline; }
+  .dir-claim-banner__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; padding: 13px 20px; font: inherit; font-size: 14px; font-weight: 700; background: var(--cb-accent); color: var(--cb-btn-text); cursor: pointer; }
+  .dir-claim-banner__btn:hover { filter: brightness(.92); }
+  .dir-claim-banner__btn:focus-visible, .dir-claim-banner__secondary:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: 2px; }
+  @media (max-width: 767px) {
+    .dir-claim-banner { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon heading" "body body" "actions actions"; gap: 12px 16px; align-items: center; }
+    .dir-claim-banner__icon { grid-area: icon; }
+    .dir-claim-banner__text { display: contents; }
+    .dir-claim-banner__text h2 { grid-area: heading; margin: 0; }
+    .dir-claim-banner__text p { grid-area: body; }
+    .dir-claim-banner__actions { grid-area: actions; flex-direction: column; align-items: stretch; gap: 4px; }
+    .dir-claim-banner__btn { order: 1; width: 100%; min-height: 44px; }
+    .dir-claim-banner__secondary { order: 2; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  }
 
   .dir-attrs { display: flex; flex-direction: column; }
   .dir-attr-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
@@ -1491,7 +1512,120 @@ export type ClaimWidgetOptions = {
   introHtml: string | null;
   supabaseUrl: string;
   supabaseAnonKey: string;
+  banner: ClaimBannerSettings;
 };
+
+/**
+ * Inline "Claim this listing" banner (sits between the hero and the body of an
+ * unclaimed entry page). Content and colours are per directory, stored on
+ * directory_claim_settings (banner_* columns) and edited in Claims > Settings.
+ * src/lib/claimBanner.js mirrors the defaults, limits and variable resolver for
+ * the admin preview; claimBanner_test.ts keeps the two in step.
+ */
+export type ClaimBannerSettings = {
+  heading: string;
+  body: string;
+  buttonLabel: string;
+  secondaryLabel: string;
+  secondaryUrl: string;
+  accentColour: string;
+  buttonTextColour: string;
+  backgroundColour: string;
+  borderColour: string;
+};
+
+export const CLAIM_BANNER_DEFAULTS: ClaimBannerSettings = {
+  heading: "Is this your organisation?",
+  body: "This listing hasn't been claimed. Claim it for free to update {{org_name}}'s details, description and logo.",
+  buttonLabel: "Claim this listing",
+  secondaryLabel: "How claiming works",
+  secondaryUrl: "",
+  accentColour: "#3F4C8A",
+  buttonTextColour: "#FFFFFF",
+  backgroundColour: "#ECEEFA",
+  borderColour: "#CFD4EA",
+};
+
+export const CLAIM_BANNER_LIMITS = { heading: 80, body: 240, buttonLabel: 30, secondaryLabel: 30, secondaryUrl: 500 } as const;
+
+/** Variables available in the banner heading, body and button label. Listings have no short-name field, so only org_name exists. */
+export const CLAIM_BANNER_VARIABLES = ["org_name"] as const;
+
+/** Resolves {{ name }} placeholders to PLAIN text (callers escape it). Unknown names become "". Single pass, so a value containing "{{x}}" is never re-expanded. */
+export function resolveClaimVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_m, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name) ? vars[name] : "");
+}
+
+/** Placeholder names used in `text` that are not in CLAIM_BANNER_VARIABLES (for the admin warning). */
+export function unknownClaimVars(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g)) {
+    if (!(CLAIM_BANNER_VARIABLES as readonly string[]).includes(m[1]) && !out.includes(m[1])) out.push(m[1]);
+  }
+  return out;
+}
+
+/** A relative path ("/how-claiming-works") or an https URL; anything else (javascript:, http:, //host) is rejected. */
+export function isValidClaimBannerUrl(url: string): boolean {
+  if (!url || url.length > CLAIM_BANNER_LIMITS.secondaryUrl) return false;
+  if (url.startsWith("/")) return !url.startsWith("//") && !/[\s\\]/.test(url);
+  if (!url.startsWith("https://")) return false;
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Builds publish-ready banner settings from a directory_claim_settings row, falling back to the defaults for anything missing or invalid. */
+export function normaliseClaimBanner(row: Record<string, unknown> | null | undefined): ClaimBannerSettings {
+  const d = CLAIM_BANNER_DEFAULTS;
+  const text = (v: unknown, fallback: string, max: number) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : fallback;
+  const optional = (v: unknown, fallback: string, max: number) =>
+    v === null ? "" : typeof v === "string" ? v.trim().slice(0, max) : fallback;
+  const hex = (v: unknown, fallback: string) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback);
+  const r = row ?? {};
+  const url = typeof r.banner_secondary_url === "string" ? r.banner_secondary_url.trim() : "";
+  return {
+    heading: text(r.banner_heading, d.heading, CLAIM_BANNER_LIMITS.heading),
+    body: text(r.banner_body, d.body, CLAIM_BANNER_LIMITS.body),
+    buttonLabel: text(r.banner_button_label, d.buttonLabel, CLAIM_BANNER_LIMITS.buttonLabel),
+    secondaryLabel: optional(r.banner_secondary_label, d.secondaryLabel, CLAIM_BANNER_LIMITS.secondaryLabel),
+    secondaryUrl: isValidClaimBannerUrl(url) ? url : "",
+    accentColour: hex(r.banner_accent_colour, d.accentColour),
+    buttonTextColour: hex(r.banner_button_text_colour, d.buttonTextColour),
+    backgroundColour: hex(r.banner_background_colour, d.backgroundColour),
+    borderColour: hex(r.banner_border_colour, d.borderColour),
+  };
+}
+
+/** The banner markup. Returns "" when claiming is off for this entry (the caller passes `claim` only for unclaimed entries of enabled, entitled directories). */
+export function buildClaimBanner(claim: ClaimWidgetOptions | null | undefined, entry: Pick<Entry, "id" | "name">): string {
+  if (!claim) return "";
+  const b = claim.banner ?? CLAIM_BANNER_DEFAULTS;
+  const vars = { org_name: entry.name };
+  const heading = escapeHtml(resolveClaimVars(b.heading, vars));
+  const body = escapeHtml(resolveClaimVars(b.body, vars));
+  const buttonLabel = escapeHtml(resolveClaimVars(b.buttonLabel, vars));
+  const secondary = b.secondaryLabel && b.secondaryUrl && isValidClaimBannerUrl(b.secondaryUrl)
+    ? `<a class="dir-claim-banner__secondary" href="${escapeAttr(b.secondaryUrl)}" data-dm-event="claim_banner_secondary_click" data-dm-cta="claim_secondary">${escapeHtml(b.secondaryLabel)}</a>`
+    : "";
+  const style = `--cb-accent:${sanitizeHexColor(b.accentColour, CLAIM_BANNER_DEFAULTS.accentColour)};--cb-btn-text:${sanitizeHexColor(b.buttonTextColour, CLAIM_BANNER_DEFAULTS.buttonTextColour)};--cb-bg:${sanitizeHexColor(b.backgroundColour, CLAIM_BANNER_DEFAULTS.backgroundColour)};--cb-border:${sanitizeHexColor(b.borderColour, CLAIM_BANNER_DEFAULTS.borderColour)}`;
+  const listingIdJs = JSON.stringify(entry.id).replace(/</g, "\\u003c");
+  return `<div class="wrap dir-claim-banner-wrap">
+<section class="dir-claim-banner" aria-label="Claim this listing" style="${style}">
+  <div class="dir-claim-banner__icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg></div>
+  <div class="dir-claim-banner__text"><h2>${heading}</h2><p>${body}</p></div>
+  <div class="dir-claim-banner__actions">
+    ${secondary}
+    <button type="button" class="dir-claim-banner__btn" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>${buttonLabel}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+</section>
+<script>(function(){function f(){if(window.dmRecordEngagement)window.dmRecordEngagement('claim_banner_view',{listingId:${listingIdJs},meta:{path:location.pathname}});}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',f);else f();})();</script>
+</div>`;
+}
 
 function formatClaimPrice(priceCents: number, currency: string): string {
   const amount = (priceCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1870,12 +2004,10 @@ export function buildEntryPage(opts: {
 </div>`
     : "";
 
-  // Quiet claim link, directly under the map — no longer a header button,
-  // same gating (only rendered when the directory has claims configured
-  // and this entry is open to claim, per claimWidgetFor in index.ts).
-  const claimLink = claim
-    ? `<p class="dir-claim-quiet">Represent this organisation?<br><button type="button" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>Claim this listing</button></p>`
-    : "";
+  // The claim call to action is the full-width banner between the hero and
+  // the body (buildClaimBanner), gated by claimWidgetFor in index.ts. It
+  // replaced the quiet link that used to sit under the map.
+  const claimBanner = buildClaimBanner(claim, entry);
 
   // Directory attributes: every single_select/boolean categorisation gets
   // a row, even ones this entry has no value for ("—" / "No") — a
@@ -1932,7 +2064,7 @@ export function buildEntryPage(opts: {
 </section>`
     : "";
 
-  const aside = [contactPanel, mapCard, claimLink, attrsBlock, tagBlocks].filter(Boolean).join("\n");
+  const aside = [contactPanel, mapCard, attrsBlock, tagBlocks].filter(Boolean).join("\n");
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
@@ -1945,6 +2077,7 @@ ${breadcrumb}
 ${heroSection}
 </div>
 ${jumpBar}
+${claimBanner}
 <div class="wrap dir-entry-body">
   <div class="dir-entry-main">${sections}</div>
   ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
