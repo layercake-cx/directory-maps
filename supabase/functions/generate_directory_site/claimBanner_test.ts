@@ -32,7 +32,7 @@ const entry = (over: Partial<Entry> = {}): Entry => ({
 });
 
 const claim = (banner = CLAIM_BANNER_DEFAULTS): ClaimWidgetOptions => ({
-  priceCents: null, currency: null, paymentType: null, introHtml: null, supabaseUrl: "https://x.supabase.co", supabaseAnonKey: "anon", banner,
+  priceCents: null, currency: null, paymentType: null, introHtml: null, supabaseUrl: "https://x.supabase.co", supabaseAnonKey: "anon", banner, mode: "auto", directoryId: "dir-1",
 });
 
 function page(c: ClaimWidgetOptions | null, e: Entry = entry()): string {
@@ -205,4 +205,21 @@ Deno.test("admin mirror matches the publish side", () => {
   for (const u of ["", "https://a.b/c", "http://a.b", "/x", "//x", "javascript:1"]) {
     assertEquals(mirror.isValidClaimBannerUrl(u), isValidClaimBannerUrl(u), u);
   }
+});
+
+// ---- manual claim mode ----
+
+Deno.test("manual mode renders the name/email/message form and posts to submit_claim_request", () => {
+  const html = page({ ...claim(), mode: "manual" });
+  assertStringIncludes(html, "Send request");
+  assertStringIncludes(html, 'name="message"');
+  assertStringIncludes(html, "submit_claim_request");
+  assertStringIncludes(html, "listing_claim_request_sent");
+  assertFalse(html.includes("Send sign-in link"));
+});
+
+Deno.test("auto mode keeps the sign-in link form", () => {
+  const html = page(claim());
+  assertStringIncludes(html, "Send sign-in link");
+  assertFalse(html.includes('name="website"'));
 });

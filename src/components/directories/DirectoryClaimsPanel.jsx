@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useEntitlement } from "../../hooks/useEntitlements.js";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getBlockedMessage } from "../../lib/entitlementMessages.js";
-import { getDirectoryClaimSettings, saveDirectoryClaimSettings } from "../../lib/directoryClaimSettings.js";
+import { getDirectoryClaimSettings, saveDirectoryClaimSettings, isValidClaimNotifyEmail } from "../../lib/directoryClaimSettings.js";
 import { publishDirectoryItem } from "../../lib/claimManager.js";
 import {
   activateClaim,
@@ -598,10 +598,16 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
       setErr("Fix the highlighted claim banner fields before saving.");
       return;
     }
+    if (settings.claim_mode === "manual" && !isValidClaimNotifyEmail(settings.claim_notify_email)) {
+      setErr("Enter a valid mailbox for manual claim requests.");
+      return;
+    }
     try {
       setSaving(true);
       await saveDirectoryClaimSettings(directoryId, {
         enabled: settings.enabled,
+        claim_mode: settings.claim_mode === "manual" ? "manual" : "auto",
+        claim_notify_email: settings.claim_mode === "manual" ? settings.claim_notify_email : settings.claim_notify_email || null,
         price_cents: settings.price_cents,
         currency: settings.currency,
         payment_type: settings.payment_type,
@@ -611,7 +617,7 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
       });
       recordEvent?.("directory_claim_settings_updated", {
         directory_id: directoryId,
-        changed_fields: ["enabled", "price_cents", "currency", "payment_type", "intro_html", "banner"],
+        changed_fields: ["enabled", "claim_mode", "claim_notify_email", "price_cents", "currency", "payment_type", "intro_html", "banner"],
       });
       setMsg("Claim settings saved.");
       await load();
@@ -653,6 +659,53 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
           </div>
         </span>
       </label>
+
+      <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }} disabled={disabled}>
+        <legend style={{ fontSize: 13, fontWeight: 500, padding: 0, marginBottom: 4 }}>How claims are handled</legend>
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+          <input
+            type="radio"
+            name="claim-mode"
+            checked={settings.claim_mode !== "manual"}
+            onChange={() => setSettings((s) => ({ ...s, claim_mode: "auto" }))}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            <strong>Automatic verification</strong>
+            <div style={{ opacity: 0.65, marginTop: 2 }}>The visitor enters a work email matching the listing's website and signs in with a link we email them.</div>
+          </span>
+        </label>
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+          <input
+            type="radio"
+            name="claim-mode"
+            checked={settings.claim_mode === "manual"}
+            onChange={() => setSettings((s) => ({ ...s, claim_mode: "manual" }))}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            <strong>Manual review</strong>
+            <div style={{ opacity: 0.65, marginTop: 2 }}>The visitor sends their name, email and a message to a mailbox you choose. You then create the claim yourself from the Claims tab.</div>
+          </span>
+        </label>
+        {settings.claim_mode === "manual" && (
+          <div style={{ marginLeft: 24 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }} htmlFor="claim-notify-email">Send requests to</label>
+            <input
+              id="claim-notify-email"
+              type="email"
+              value={settings.claim_notify_email || ""}
+              onChange={(e) => setSettings((s) => ({ ...s, claim_notify_email: e.target.value }))}
+              placeholder="claims@yourorganisation.com"
+              style={{ width: 320, maxWidth: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
+            />
+            <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.65 }}>
+              Sent using this directory's email sending settings (Settings → Email sending), so messaging must be enabled with a sending profile chosen.
+            </p>
+          </div>
+        )}
+        <p style={{ margin: 0, fontSize: 12, opacity: 0.65 }}>Changing this takes effect on listing pages after the directory is next published.</p>
+      </fieldset>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <div>

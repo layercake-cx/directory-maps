@@ -38,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 11;
+export const ENTRY_TEMPLATE_VERSION = 12;
 
 export type Entry = {
   id: string;
@@ -1513,6 +1513,9 @@ export type ClaimWidgetOptions = {
   supabaseUrl: string;
   supabaseAnonKey: string;
   banner: ClaimBannerSettings;
+  /** 'auto' = verified self-service claim; 'manual' = name/email/message sent to the directory's mailbox. */
+  mode: "auto" | "manual";
+  directoryId: string;
 };
 
 /**
@@ -1645,7 +1648,10 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
     supabaseUrl: claim.supabaseUrl.replace(/\/$/, ""),
     anonKey: claim.supabaseAnonKey,
     loginUrl: `${SITE_ORIGIN}/claim/login`,
+    directoryId: claim.directoryId,
+    manual: claim.mode === "manual",
   });
+  const manual = claim.mode === "manual";
   return `<div id="dir-claim" class="dir-enquiry" hidden>
   <button type="button" class="dir-enquiry__backdrop" data-dm-claim-close aria-label="Close"></button>
   <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-claim-title">
@@ -1657,7 +1663,18 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
       <p class="dir-enquiry__to">${escapeHtml(entry.name)}</p>
       ${intro}
       ${priceLine}
-      <form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+      ${manual ? `<form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+        <label class="dir-enquiry__label">Your name<input type="text" name="name" autocomplete="name" required maxlength="200"></label>
+        <label class="dir-enquiry__label">Email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
+        <label class="dir-enquiry__label">Message<textarea name="message" rows="4" maxlength="4000" placeholder="Tell us your role and how you're connected to this organisation."></textarea></label>
+        <div style="position:absolute;left:-9999px;" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
+        <button type="submit" class="btn btn-primary" id="dir-claim-submit">Send request</button>
+      </form>
+      <div id="dir-claim-success" hidden>
+        <p class="dir-enquiry__success">Thanks. Your request has been sent and the directory will be in touch.</p>
+        <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
+      </div>` : `<form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
         <label class="dir-enquiry__label">Work email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
         <p style="font-size:13px;opacity:0.7;margin:0 0 8px;">Use your organisation email address -- it must match this listing's website domain. We'll send you a sign-in link, no password needed.</p>
         <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
@@ -1666,7 +1683,7 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
       <div id="dir-claim-success" hidden>
         <p class="dir-enquiry__success">Check your email for a sign-in link to finish claiming this listing.</p>
         <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
-      </div>
+      </div>`}
     </div>
   </div>
 </div>
@@ -1698,6 +1715,48 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !root.hidden) setOpen(false);
   });
+
+  if (cfg.manual) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var data = new FormData(form);
+      var name = String(data.get('name') || '').trim();
+      var email = String(data.get('email') || '').trim();
+      errEl.hidden = true;
+      errEl.textContent = '';
+      if (!name || !email) {
+        errEl.hidden = false;
+        errEl.textContent = 'Name and email are required.';
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+      fetch(cfg.supabaseUrl + '/functions/v1/submit_claim_request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+        body: JSON.stringify({
+          directoryId: cfg.directoryId, entryId: cfg.entryId, name: name, email: email,
+          message: String(data.get('message') || '').trim(), website: String(data.get('website') || '')
+        })
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) throw new Error((body && body.error) || 'Could not send your request.');
+          form.hidden = true;
+          successEl.hidden = false;
+          if (window.dmRecordEngagement) {
+            window.dmRecordEngagement('listing_claim_request_sent', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
+          }
+        });
+      }).catch(function (err) {
+        errEl.hidden = false;
+        var raw = (err && err.message) || '';
+        errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send request';
+      });
+    });
+    return;
+  }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
