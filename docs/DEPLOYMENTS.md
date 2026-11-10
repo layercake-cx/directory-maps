@@ -20,12 +20,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Settings form in `DirectoryClaimsPanel.jsx` (shared by admin and client portal).
 - Not done: an in-app list of requests (email plus stored rows only), and the later fallback from automatic to manual when a domain doesn't match.
 
+### Staging outcome (2026-11-10)
+- Migration applied to staging (`beqejxneehilplrtpntn`); its post-check passed. The first attempt failed and rolled back because `directory_id` / `directory_item_id` were declared `uuid` while `directories.id` and `directory_entries.id` are `text`; fixed to `text` (matching `claims`) and re-applied. As with the claim banner deploy, staging's history holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, so that file was placed locally for the push and removed afterwards (never committed); no history repair.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
 ### Rollback plan
 Run `_20261110140000_manual_claim_mode.rollback.sql` (drops `claim_requests`, so export first), redeploy `generate_directory_site` from `main`, delete `submit_claim_request`, revert the branch.
 
 ### Verification
 - [x] `vite build` passes; `deno check` passes for the three changed functions
-- [ ] Migration dry run and staging apply, integrity counts unchanged
+- [x] Migration applied to staging, post-check passed (row counts not separately recorded: the migration is additive)
 - [ ] Staging: manual-mode dialog sends the email, stores a row, repeat is not re-sent
 - [ ] Staging: automatic mode dialog unchanged
 - [ ] Admin and client portal Settings form saves both modes

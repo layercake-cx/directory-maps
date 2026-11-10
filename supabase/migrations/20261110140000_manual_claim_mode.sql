@@ -65,8 +65,8 @@ comment on column public.directory_claim_settings.claim_notify_email is
 
 create table public.claim_requests (
   id uuid primary key default gen_random_uuid(),
-  directory_id uuid not null references public.directories(id) on delete cascade,
-  directory_item_id uuid not null references public.directory_entries(id) on delete cascade,
+  directory_id text not null references public.directories(id) on delete cascade,
+  directory_item_id text not null references public.directory_entries(id) on delete cascade,
   entry_name text not null,
   requester_name text not null,
   requester_email text not null,
