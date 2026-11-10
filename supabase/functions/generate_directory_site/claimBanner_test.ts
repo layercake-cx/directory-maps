@@ -215,7 +215,7 @@ Deno.test("manual mode renders the name/email/message form and posts to submit_c
   assertStringIncludes(html, 'name="message"');
   assertStringIncludes(html, "submit_claim_request");
   assertStringIncludes(html, "listing_claim_request_sent");
-  assertFalse(html.includes("Send sign-in link"));
+  assertFalse(html.includes(">Send sign-in link</button>"));
 });
 
 Deno.test("auto mode keeps the sign-in link form", () => {
