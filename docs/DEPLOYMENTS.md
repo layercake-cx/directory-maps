@@ -8,6 +8,21 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Not deployed] Entry-page map: no zoom bar
+
+**Branch:** `fix/2026-11-10-listing-map-no-zoom-bar`
+
+### What changed
+- The single-pin map on a listing page no longer shows the +/− zoom bar (which also holds the fullscreen button). Visitors can still zoom with Ctrl/⌘ + scroll or pinch, and "Open in directory map" opens the full map. Frontend only.
+- Production record: the fullscreen-sidebar fix and the single-pin listing map fix (PRs 315, 316) were deployed to production by the user on 2026-11-10 (Vercel, aliased to uk-associations.com).
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Listing page map has no zoom bar (preview, then live)
+
 ## 2026-11-10 — [Not deployed] Entry-page map shows only the listing, centred
 
 **Branch:** `fix/2026-11-10-listing-map-single-pin`

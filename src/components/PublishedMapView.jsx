@@ -1081,7 +1081,7 @@ export default function PublishedMapView({
         showTransitLayer={showTransitLayer}
         showBikeLayer={showBikeLayer}
         showZoomIndicator={showZoomIndicator}
-        showZoomSlider={showZoomSlider}
+        showZoomSlider={showZoomSlider && !singleFocus}
       />
 
       {showListPanel && (
