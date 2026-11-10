@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-10 — [Not deployed] Manual claim mode
+## 2026-11-10 — [Staging + Production backend] Manual claim mode
 
 **Branch:** `feat/2026-11-10-manual-claim`
 
@@ -23,6 +23,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Staging outcome (2026-11-10)
 - Migration applied to staging (`beqejxneehilplrtpntn`); its post-check passed. The first attempt failed and rolled back because `directory_id` / `directory_item_id` were declared `uuid` while `directories.id` and `directory_entries.id` are `text`; fixed to `text` (matching `claims`) and re-applied. As with the claim banner deploy, staging's history holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, so that file was placed locally for the push and removed afterwards (never committed); no history repair.
 - `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-10)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261110140000_manual_claim_mode.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the Settings form is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories use manual mode only after it is chosen and they are next published.
 
 ### Rollback plan
 Run `_20261110140000_manual_claim_mode.rollback.sql` (drops `claim_requests`, so export first), redeploy `generate_directory_site` from `main`, delete `submit_claim_request`, revert the branch.
