@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { sanitizeNotesHtml } from "./sanitizeHtml.js";
+import { CLAIM_BANNER_COLUMNS } from "./claimBanner.js";
 
 /**
  * Claimed Directory Listings epic — per-directory claim configuration
@@ -16,14 +17,17 @@ const DEFAULT_SETTINGS = {
   payment_type: null,
   payment_provider: "stripe",
   intro_html: "",
+  // banner_* columns are absent here on purpose: bannerFromSettings() fills defaults.
 };
+
+const BANNER_SELECT = Object.values(CLAIM_BANNER_COLUMNS).join(", ");
 
 /** @returns {Promise<typeof DEFAULT_SETTINGS>} defaults (not null) when no row exists yet. */
 export async function getDirectoryClaimSettings(directoryId) {
   if (!directoryId) return { ...DEFAULT_SETTINGS };
   const { data, error } = await supabase
     .from("directory_claim_settings")
-    .select("directory_id, enabled, price_cents, currency, payment_type, payment_provider, intro_html")
+    .select(`directory_id, enabled, price_cents, currency, payment_type, payment_provider, intro_html, ${BANNER_SELECT}`)
     .eq("directory_id", directoryId)
     .maybeSingle();
   if (error) throw error;

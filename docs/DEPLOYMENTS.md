@@ -8,6 +8,39 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Staging + Production backend] Claim banner on unclaimed listing pages
+
+**Branch:** `feat/2026-11-10-claim-banner`
+
+### What changed
+- Unclaimed listing pages now show a full-width "Claim this listing" banner between the hero and the body, replacing the small "Represent this organisation?" link under the map. The button opens the same claim dialog as before.
+- Banner wording, an optional secondary link and four colours are set per directory in Claims → Settings, with a live preview, an Insert variable control (`{{org_name}}`) and contrast warnings. It follows the existing "Claims enabled" setting; there is no second switch.
+- Migration `20261110120000_claim_banner_settings.sql` adds `banner_*` columns (with defaults, so existing directories need no action) to `directory_claim_settings` and allows two new engagement events (`claim_banner_view`, `claim_banner_secondary_click`).
+- `generate_directory_site`: new banner markup/CSS, `ENTRY_TEMPLATE_VERSION` 10 → 11, banner settings added to the claim part of the publish hash so a settings change forces a rebuild. Directories need a Publish to show the banner.
+- Not done: `{{org_short_name}}` (listings have no short-name field).
+
+### Staging outcome
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; the migration's own post-check passed. Staging's history also holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, which blocks a plain `db push`; it was applied by placing that file locally (uncommitted, since removed) so only this migration was pushed. No history repair was done.
+- `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-10)
+- Branch merged with current `origin/main` first (diff against `main` was only this work). CLI relinked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only this migration, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin form (Claims → Settings) is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the banner after their next Publish.
+
+### Rollback plan
+Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (drops the banner columns and the two events; refuses if `claim_banner_*` rows exist); redeploy `generate_directory_site` from `main`; republish directories.
+
+### Verification
+- [x] `deno test` (`claimBanner_test.ts`, `askAiTheme_test.ts`) passes; `deno check` of the function and `vite build` pass
+- [x] Migration applied to staging, in-migration verification passed (CLI `--dry-run` listed only this migration; no separate row-count check was run)
+- [ ] Edge Function deployed to staging; a test directory republished; banner shown on an unclaimed listing, absent on a claimed one
+- [ ] Claims → Settings saves and previews correctly
+- [ ] Banner at mobile width; keyboard order (link, then button)
+- [x] Production migration and function deployed (see above)
+- [ ] Frontend live on both hosts; a production directory republished and the banner seen
+
 ## 2026-11-10 — [Not deployed] Entry-page map: no zoom bar
 
 **Branch:** `fix/2026-11-10-listing-map-no-zoom-bar`
