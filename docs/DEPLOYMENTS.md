@@ -8,6 +8,20 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-11 — [Not deployed] Hide claim price in manual mode
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price`
+
+### What changed
+- In manual claim mode the claim dialog no longer shows the price line (a visitor sent "£0.00" next to a request form). Manual mode is a request to the directory, not a purchase. Automatic mode still shows the price. `generate_directory_site` only; `ENTRY_TEMPLATE_VERSION` 12 → 13 so already-published pages pick it up on the next Publish.
+
+### Rollback plan
+Revert the branch's commit and redeploy `generate_directory_site`.
+
+### Verification
+- [x] `claimBanner_test.ts` passes (price hidden in manual, shown in auto)
+- [ ] Staging: manual-mode dialog has no price line after a Publish
+
 ## 2026-11-10 — [Staging + Production backend] Manual claim mode
 
 **Branch:** `feat/2026-11-10-manual-claim`

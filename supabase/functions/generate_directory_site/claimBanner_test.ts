@@ -223,3 +223,9 @@ Deno.test("auto mode keeps the sign-in link form", () => {
   assertStringIncludes(html, "Send sign-in link");
   assertFalse(html.includes('name="website"'));
 });
+
+Deno.test("manual mode hides the price, auto mode shows it", () => {
+  const priced = { ...claim(), priceCents: 5000, currency: "GBP" };
+  assertFalse(page({ ...priced, mode: "manual" }).includes("dir-claim__price"));
+  assertStringIncludes(page(priced), "dir-claim__price");
+});

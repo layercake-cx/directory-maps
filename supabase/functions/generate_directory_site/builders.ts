@@ -38,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 12;
+export const ENTRY_TEMPLATE_VERSION = 13;
 
 export type Entry = {
   id: string;
@@ -1637,7 +1637,8 @@ function formatClaimPrice(priceCents: number, currency: string): string {
 }
 
 function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
-  const priceLine = claim.priceCents != null && claim.currency
+  // Manual mode is a request to the directory, not a purchase, so no price is shown.
+  const priceLine = claim.mode !== "manual" && claim.priceCents != null && claim.currency
     ? `<p class="dir-claim__price">${escapeHtml(formatClaimPrice(claim.priceCents, claim.currency))}${claim.paymentType === "annual_recurring" ? " / year" : ""}</p>`
     : "";
   const intro = claim.introHtml?.trim()
