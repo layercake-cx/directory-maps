@@ -1481,8 +1481,9 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
         }
       });
     }).catch(function (err) {
-      errEl.hidden = false;
       var raw = (err && err.message) || '';
+      if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+      errEl.hidden = false;
       errEl.textContent = (!raw || raw === 'Failed to fetch')
         ? 'The message could not be sent. Please try again.'
         : raw;
@@ -1618,7 +1619,9 @@ export function buildClaimBanner(claim: ClaimWidgetOptions | null | undefined, e
     : "";
   const style = `--cb-accent:${sanitizeHexColor(b.accentColour, CLAIM_BANNER_DEFAULTS.accentColour)};--cb-btn-text:${sanitizeHexColor(b.buttonTextColour, CLAIM_BANNER_DEFAULTS.buttonTextColour)};--cb-bg:${sanitizeHexColor(b.backgroundColour, CLAIM_BANNER_DEFAULTS.backgroundColour)};--cb-border:${sanitizeHexColor(b.borderColour, CLAIM_BANNER_DEFAULTS.borderColour)}`;
   const listingIdJs = JSON.stringify(entry.id).replace(/</g, "\\u003c");
-  return `<div class="wrap dir-claim-banner-wrap">
+  const supabaseUrlJs = JSON.stringify(claim.supabaseUrl.replace(/\/$/, "")).replace(/</g, "\\u003c");
+  const anonKeyJs = JSON.stringify(claim.supabaseAnonKey).replace(/</g, "\\u003c");
+  return `<div class="wrap dir-claim-banner-wrap" id="dir-claim-banner-wrap">
 <section class="dir-claim-banner" aria-label="Claim this listing" style="${style}">
   <div class="dir-claim-banner__icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg></div>
   <div class="dir-claim-banner__text"><h2>${heading}</h2><p>${body}</p></div>
@@ -1627,7 +1630,18 @@ export function buildClaimBanner(claim: ClaimWidgetOptions | null | undefined, e
     <button type="button" class="dir-claim-banner__btn" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>${buttonLabel}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </div>
 </section>
-<script>(function(){function f(){if(window.dmRecordEngagement)window.dmRecordEngagement('claim_banner_view',{listingId:${listingIdJs},meta:{path:location.pathname}});}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',f);else f();})();</script>
+<script>(function(){
+var id=${listingIdJs},base=${supabaseUrlJs},key=${anonKeyJs};
+window.dmClaimRetire=function(){var w=document.getElementById('dir-claim-banner-wrap');if(w&&w.parentNode)w.parentNode.removeChild(w);var d=document.getElementById('dir-claim');if(d&&d.parentNode)d.parentNode.removeChild(d);};
+function view(){if(window.dmRecordEngagement)window.dmRecordEngagement('claim_banner_view',{listingId:id,meta:{path:location.pathname}});}
+function run(){
+  fetch(base+'/rest/v1/rpc/is_listing_claimable',{method:'POST',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({p_directory_item_id:id})})
+    .then(function(r){return r.ok?r.json():true;})
+    .then(function(ok){if(ok===false)window.dmClaimRetire();else view();})
+    .catch(view);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+})();</script>
 </div>`;
 }
 
@@ -1750,8 +1764,9 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
           }
         });
       }).catch(function (err) {
-        errEl.hidden = false;
         var raw = (err && err.message) || '';
+        if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+        errEl.hidden = false;
         errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
         submitBtn.disabled = false;
         submitBtn.textContent = 'Send request';
@@ -1794,8 +1809,9 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
         window.dmRecordEngagement('listing_claim_start', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
       }
     }).catch(function (err) {
-      errEl.hidden = false;
       var raw = (err && err.message) || '';
+      if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+      errEl.hidden = false;
       errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send sign-in link';

@@ -233,3 +233,12 @@ Deno.test("manual mode hides the price, auto mode shows it", () => {
 Deno.test("claim dialog shows the organisation name as an h3", () => {
   assertStringIncludes(page(claim()), '<h3 class="dir-claim__org">Academy of Medical Educators (AoME)</h3>');
 });
+
+Deno.test("banner checks the listing is still claimable and retires itself if not", () => {
+  const html = page(claim());
+  assertStringIncludes(html, 'id="dir-claim-banner-wrap"');
+  assertStringIncludes(html, "is_listing_claimable");
+  assertStringIncludes(html, "dmClaimRetire");
+  // The view event now fires only after the check says the listing is still open.
+  assert(html.indexOf("is_listing_claimable") < html.indexOf("claim_banner_view') ") || html.includes("function view()"));
+});

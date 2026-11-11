@@ -41,6 +41,7 @@ $$;
 
 drop function if exists public.claim_status_is_approved(text);
 
+drop function if exists public.is_listing_claimable(text);
 drop function if exists public.admin_approve_manual_claim(uuid, text);
 drop function if exists public.create_manual_claim_request(text, text, text, text, text);
 drop index if exists public.idx_claim_requests_claim;

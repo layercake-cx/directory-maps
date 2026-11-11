@@ -17,6 +17,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - New **Approve request** action (`admin_approve_manual_claim()`): verifies the claim by admin override and adds the requester as owner. Reject = existing Revoke. No `claim_users` row exists before approval, so an unreviewed requester can never be linked at sign-in.
 - Hardening (applies to all claims): `link_claim_user_by_email`, `can_access_claim`, `is_claim_owner` and `get_my_claim_context` now require the claim to be approved (verified or later, not revoked). Previously access depended only on a `claim_users` row existing, whatever the claim status. Side effect: users of revoked claims lose their Listing Manager access.
 - Migration `20261111100000_manual_claim_review.sql` (+ rollback); `submit_claim_request` rewritten; admin Claims panel shows request details and the Approve button.
+- Published pages are static, so the claim banner and dialog now ask a new public RPC, `is_listing_claimable()`, on load and remove themselves if the listing has a claim (no pending message, nothing shown). A dialog submit that hits "already has a claim" removes them the same way. The banner-view event only fires if the listing is still open. Needs the migration applied before `generate_directory_site` is deployed (an unapplied RPC fails open: the banner just stays).
 - Note: an approved manual claim is `verified` + `self_service`, so the claimant's first sign-in activates it automatically, like any approved self-service claim.
 
 ### Rollback plan

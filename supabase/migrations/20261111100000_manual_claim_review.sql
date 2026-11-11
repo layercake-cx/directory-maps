@@ -11,6 +11,8 @@
 --              sign in to the listing. Also hardens claim access: link_claim_user_by_email,
 --              can_access_claim, is_claim_owner and get_my_claim_context now
 --              require the claim to be approved (verified or later, not revoked).
+--              Adds is_listing_claimable() (public yes/no) so static pages can hide
+--              the claim banner once a claim exists.
 -- Affected tables: claim_requests (new column), claims, claim_users,
 --                  directory_entries (current_claim_id)
 -- Rollback: _20261111100000_manual_claim_review.rollback.sql
@@ -178,6 +180,29 @@ comment on function public.admin_approve_manual_claim(uuid, text) is
 revoke all on function public.admin_approve_manual_claim(uuid, text) from public, anon;
 grant execute on function public.admin_approve_manual_claim(uuid, text) to authenticated;
 
+-- Published pages are static, so a listing can be claimed after its page was
+-- built. The banner asks this on load and removes itself (and the dialog) when
+-- the listing is no longer open to a claim, showing nothing at all. Returns only
+-- a boolean, nothing about who or what state the claim is in.
+create or replace function public.is_listing_claimable(p_directory_item_id text)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.directory_entries
+    where id = p_directory_item_id and is_active = true and current_claim_id is null
+  );
+$$;
+
+comment on function public.is_listing_claimable(text) is
+  'Public (anon) yes/no: is this listing active and currently open to a new claim? Used by the published claim banner to hide itself on stale static pages. Reveals no claim details.';
+
+revoke all on function public.is_listing_claimable(text) from public;
+grant execute on function public.is_listing_claimable(text) to anon, authenticated;
+
 -- ------------------------------------------------------------
 -- HARDENING: a claim user only gets access once their claim is APPROVED.
 -- Approved = verified (domain match, or admin approval/override) or any later
@@ -288,7 +313,8 @@ begin
     raise exception 'VERIFY FAILED: claim_requests.claim_id missing';
   end if;
   if to_regprocedure('public.create_manual_claim_request(text,text,text,text,text)') is null
-     or to_regprocedure('public.admin_approve_manual_claim(uuid,text)') is null then
+     or to_regprocedure('public.admin_approve_manual_claim(uuid,text)') is null
+     or to_regprocedure('public.is_listing_claimable(text)') is null then
     raise exception 'VERIFY FAILED: functions missing';
   end if;
   if public.claim_status_is_approved('claim_started') or public.claim_status_is_approved('revoked') or not public.claim_status_is_approved('verified') then
