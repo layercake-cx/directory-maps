@@ -582,25 +582,25 @@ async function generateForDirectoryInner(
   // entitlement must resolve true, since claiming is Pro-gated (the epic's
   // non-negotiable rule #1). Reads live at generation time, same as every
   // other directory-wide setting here.
-  let claimWidgetBase: Omit<ClaimWidgetOptions, "priceCents" | "currency" | "paymentType" | "introHtml" | "banner"> | null = null;
-  let claimSettings: { price_cents: number | null; currency: string | null; payment_type: string | null; intro_html: string | null; banner: ClaimBannerSettings } | null = null;
+  let claimWidgetBase: Omit<ClaimWidgetOptions, "priceCents" | "currency" | "paymentType" | "introHtml" | "banner" | "mode"> | null = null;
+  let claimSettings: { price_cents: number | null; currency: string | null; payment_type: string | null; intro_html: string | null; banner: ClaimBannerSettings; mode: "auto" | "manual" } | null = null;
   if (supabaseUrl && supabaseAnonKey) {
     const { data: dcs } = await db
       .from("directory_claim_settings")
-      .select("enabled, price_cents, currency, payment_type, intro_html, banner_heading, banner_body, banner_button_label, banner_secondary_label, banner_secondary_url, banner_accent_colour, banner_button_text_colour, banner_background_colour, banner_border_colour")
+      .select("enabled, claim_mode, claim_notify_email, price_cents, currency, payment_type, intro_html, banner_heading, banner_body, banner_button_label, banner_secondary_label, banner_secondary_url, banner_accent_colour, banner_button_text_colour, banner_background_colour, banner_border_colour")
       .eq("directory_id", directoryId)
       .maybeSingle();
     if (dcs?.enabled) {
       const { data: claimsEntitled } = await db.rpc("resolve_claims_entitlement", { p_client_id: client.id });
       if (claimsEntitled === true) {
-        claimWidgetBase = { supabaseUrl, supabaseAnonKey };
-        claimSettings = { price_cents: dcs.price_cents ?? null, currency: dcs.currency ?? null, payment_type: dcs.payment_type ?? null, intro_html: dcs.intro_html ?? null, banner: normaliseClaimBanner(dcs) };
+        claimWidgetBase = { supabaseUrl, supabaseAnonKey, directoryId };
+        claimSettings = { price_cents: dcs.price_cents ?? null, currency: dcs.currency ?? null, payment_type: dcs.payment_type ?? null, intro_html: dcs.intro_html ?? null, banner: normaliseClaimBanner(dcs), mode: dcs.claim_mode === "manual" && dcs.claim_notify_email ? "manual" : "auto" };
       }
     }
   }
   function claimWidgetFor(e: Entry): ClaimWidgetOptions | null {
     if (!claimWidgetBase || !claimSettings || e.current_claim_id) return null;
-    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html, banner: claimSettings.banner };
+    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html, banner: claimSettings.banner, mode: claimSettings.mode };
   }
 
   const entrySlugSet = new Set(entries.map((e) => e.slug));
@@ -664,7 +664,7 @@ async function generateForDirectoryInner(
     // actually puts the button on every unclaimed entry, rather than
     // silently no-op'ing because neither hash tracked it before.
     claims: claimWidgetBase
-      ? { on: true, priceCents: claimSettings?.price_cents ?? null, currency: claimSettings?.currency ?? null, paymentType: claimSettings?.payment_type ?? null, introHtml: claimSettings?.intro_html ?? null, banner: claimSettings?.banner ?? null }
+      ? { on: true, priceCents: claimSettings?.price_cents ?? null, currency: claimSettings?.currency ?? null, paymentType: claimSettings?.payment_type ?? null, introHtml: claimSettings?.intro_html ?? null, banner: claimSettings?.banner ?? null, mode: claimSettings?.mode ?? "auto" }
       : { on: false },
     // Code-only template changes (builders.ts markup/CSS) aren't data, so
     // nothing above changes when one ships — without this, an already-

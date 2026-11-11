@@ -287,9 +287,18 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
   2. Enter the owner's name and email.
   3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
   4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim. **Activating republishes that one listing automatically** — the public page updates within moments, without needing a separate Publish click (revoking doesn't do this yet — republish the directory manually afterwards if you need the claim button back immediately).
-- **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
+- **Settings** — turn claiming on or off for this directory, choose **how claims are handled** (below), set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
 Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
+
+#### Automatic or manual claims
+
+Under **Claims → Settings**, **How claims are handled** has two options:
+
+- **Automatic verification** (default): the visitor enters a work email that matches the listing's website and signs in with an emailed link (see *Claiming a listing yourself* below).
+- **Manual review**: the claim dialog asks for **Your name**, **Email** and a **Message**, and **Send request** emails them to the mailbox you enter under **Send requests to**. Nothing is verified automatically and no sign-in link is sent. Reply to the email to talk to the person (their address is the Reply-To), and when you're happy, create the claim yourself with **Create claim** above.
+
+Manual requests are sent with the directory's own email settings (Settings → Email sending): messaging must be enabled with a sending profile chosen, and in test mode the request goes to the test recipient instead of your mailbox. The same person asking about the same listing twice in a day is only emailed once. Each request is also stored for the record. Changing the mode takes effect on listing pages the next time the directory is published. Visitor activity is recorded as `listing_cta_click` (`cta_type: claim`) when the dialog opens and `listing_claim_request_sent` when a request is sent.
 
 #### Claim banner
 

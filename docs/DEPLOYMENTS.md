@@ -8,6 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-10 — [Staging + Production backend] Manual claim mode
+
+**Branch:** `feat/2026-11-10-manual-claim`
+
+### What changed
+- A directory can now handle claims manually. Claims → Settings has a new "How claims are handled" choice: Automatic verification (unchanged, the default) or Manual review. Manual shows name, email and message in the claim dialog and emails them to a mailbox set per directory; an admin then creates the claim by hand from the Claims tab.
+- Migration `20261110140000_manual_claim_mode.sql`: `claim_mode` and `claim_notify_email` on `directory_claim_settings`, a new `claim_requests` table (stored requests, RLS read-only for admins and the owning organisation), and the visitor event `listing_claim_request_sent`.
+- New Edge Function `submit_claim_request` (public, `verify_jwt = false`): checks claims are enabled, mode is manual, entitlement, listing unclaimed, and that the directory's messaging is ready; honeypot field; one email per person per listing per day. Uses the directory's messaging profile and test mode.
+- `generate_directory_site`: claim dialog renders the manual form when the mode is manual, mode added to the claims publish hash, `ENTRY_TEMPLATE_VERSION` 11 → 12. Directories need a Publish to pick up the change.
+- Settings form in `DirectoryClaimsPanel.jsx` (shared by admin and client portal).
+- Not done: an in-app list of requests (email plus stored rows only), and the later fallback from automatic to manual when a domain doesn't match.
+
+### Staging outcome (2026-11-10)
+- Migration applied to staging (`beqejxneehilplrtpntn`); its post-check passed. The first attempt failed and rolled back because `directory_id` / `directory_item_id` were declared `uuid` while `directories.id` and `directory_entries.id` are `text`; fixed to `text` (matching `claims`) and re-applied. As with the claim banner deploy, staging's history holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, so that file was placed locally for the push and removed afterwards (never committed); no history repair.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-10)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261110140000_manual_claim_mode.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the Settings form is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories use manual mode only after it is chosen and they are next published.
+
+### Rollback plan
+Run `_20261110140000_manual_claim_mode.rollback.sql` (drops `claim_requests`, so export first), redeploy `generate_directory_site` from `main`, delete `submit_claim_request`, revert the branch.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes for the three changed functions
+- [x] Migration applied to staging, post-check passed (row counts not separately recorded: the migration is additive)
+- [ ] Staging: manual-mode dialog sends the email, stores a row, repeat is not re-sent
+- [ ] Staging: automatic mode dialog unchanged
+- [ ] Admin and client portal Settings form saves both modes
+
 ## 2026-11-10 — [Not deployed] Admin directory Settings › Domain page
 
 **Branch:** `fix/2026-11-10-admin-domain-route`

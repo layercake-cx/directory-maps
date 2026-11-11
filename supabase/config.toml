@@ -24,3 +24,7 @@ verify_jwt = false
 
 [functions.directory_ai_search]
 verify_jwt = false
+
+# Manual-mode claim request form on published entry pages: anonymous, publishable key only.
+[functions.submit_claim_request]
+verify_jwt = false
