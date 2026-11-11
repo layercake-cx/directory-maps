@@ -554,7 +554,7 @@ its own event — don't invent new names for either.
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `created_by` (`self_service`/`admin`), `source`
 - **`claim_email_verification_sent`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
-- **`claim_email_verified`** / **`claim_verification_overridden`**
+- **`claim_email_verified`** / **`claim_verification_overridden`** (the latter also fires when an admin approves a manual claim request)
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `verification_method` (`domain_email`/`admin_override`)
 - **`claim_payment_started`** / **`claim_payment_completed`** / **`claim_payment_failed`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `payment_type`, `error` (on fail)

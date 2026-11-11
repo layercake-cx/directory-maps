@@ -223,3 +223,22 @@ Deno.test("auto mode keeps the sign-in link form", () => {
   assertStringIncludes(html, "Send sign-in link");
   assertFalse(html.includes('name="website"'));
 });
+
+Deno.test("manual mode hides the price, auto mode shows it", () => {
+  const priced = { ...claim(), priceCents: 5000, currency: "GBP" };
+  assertFalse(page({ ...priced, mode: "manual" }).includes("dir-claim__price"));
+  assertStringIncludes(page(priced), "dir-claim__price");
+});
+
+Deno.test("claim dialog shows the organisation name as an h3", () => {
+  assertStringIncludes(page(claim()), '<h3 class="dir-claim__org">Academy of Medical Educators (AoME)</h3>');
+});
+
+Deno.test("banner checks the listing is still claimable and retires itself if not", () => {
+  const html = page(claim());
+  assertStringIncludes(html, 'id="dir-claim-banner-wrap"');
+  assertStringIncludes(html, "is_listing_claimable");
+  assertStringIncludes(html, "dmClaimRetire");
+  // The view event now fires only after the check says the listing is still open.
+  assert(html.indexOf("is_listing_claimable") < html.indexOf("claim_banner_view') ") || html.includes("function view()"));
+});

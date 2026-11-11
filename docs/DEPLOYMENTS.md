@@ -8,6 +8,54 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-11 — [Staging + Production backend] Manual claim requests create a claim for review; approval-gated claim access
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
+
+### What changed
+- Submitting a manual claim request now also creates a real claim (`claim_started`, shown in Claims as **Awaiting review**) and reserves the listing, atomically (`create_manual_claim_request()`, service role only). The email is now just a notification; a request is recorded even if email isn't set up or fails.
+- New **Approve request** action (`admin_approve_manual_claim()`): verifies the claim by admin override and adds the requester as owner. Reject = existing Revoke. No `claim_users` row exists before approval, so an unreviewed requester can never be linked at sign-in.
+- Hardening (applies to all claims): `link_claim_user_by_email`, `can_access_claim`, `is_claim_owner` and `get_my_claim_context` now require the claim to be approved (verified or later, not revoked). Previously access depended only on a `claim_users` row existing, whatever the claim status. Side effect: users of revoked claims lose their Listing Manager access.
+- Migration `20261111100000_manual_claim_review.sql` (+ rollback); `submit_claim_request` rewritten; admin Claims panel shows request details and the Approve button.
+- Published pages are static, so the claim banner and dialog now ask a new public RPC, `is_listing_claimable()`, on load and remove themselves if the listing has a claim (no pending message, nothing shown). A dialog submit that hits "already has a claim" removes them the same way. The banner-view event only fires if the listing is still open. Needs the migration applied before `generate_directory_site` is deployed (an unapplied RPC fails open: the banner just stays).
+- Note: an approved manual claim is `verified` + `self_service`, so the claimant's first sign-in activates it automatically, like any approved self-service claim.
+
+### Staging outcome (2026-11-11)
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; its post-check passed. As before, `20261008140000` (from the unmerged branch `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-11)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261111100000_manual_claim_review.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production, migration first.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin Claims panel (request details, Approve request) is frontend code, live only after PR 322 merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the dialog/banner changes after their next Publish.
+
+### Rollback plan
+Run `_20261111100000_manual_claim_review.rollback.sql` (restores the old access functions; claims already created stay as `claim_started`, revoke them in the Claims tab), redeploy `submit_claim_request` from `main`.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes
+- [x] Migration applied to staging, post-check passed
+- [ ] Staging: submit a request, claim appears as Awaiting review, listing reserved
+- [ ] Staging: a sign-in link for that email gives no access before approval; works after Approve request
+- [ ] Staging: an existing active claim owner can still sign in and edit
+
+## 2026-11-11 — [Not deployed] Claim dialog: hide price in manual mode, org name as h3
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price`
+
+### What changed
+- In manual claim mode the claim dialog no longer shows the price line (a visitor sent "£0.00" next to a request form). Manual mode is a request to the directory, not a purchase. Automatic mode still shows the price. `generate_directory_site` only; `ENTRY_TEMPLATE_VERSION` 12 → 13 so already-published pages pick it up on the next Publish.
+
+- The organisation name at the top of the claim dialog is now an `h3` heading (larger, bolder) in both modes, instead of small grey text.
+
+### Rollback plan
+Revert the branch's commit and redeploy `generate_directory_site`.
+
+### Verification
+- [x] `claimBanner_test.ts` passes (price hidden in manual, shown in auto)
+- [ ] Staging: manual-mode dialog has no price line after a Publish
+
 ## 2026-11-10 — [Staging + Production backend] Manual claim mode
 
 **Branch:** `feat/2026-11-10-manual-claim`
