@@ -595,6 +595,7 @@ const LAYOUT_STYLE = `
   .dir-enquiry__close { border: 0; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; color: var(--ink); padding: 4px 8px; }
   .dir-enquiry__body { padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px; }
   .dir-enquiry__to, .dir-enquiry__prompt { margin: 0; font-size: 14px; color: var(--muted); }
+  .dir-claim__org { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; color: var(--text, inherit); }
   .dir-enquiry__test { margin: 0; font-size: 13px; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: 8px; }
   .dir-enquiry__label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
   .dir-enquiry__label input, .dir-enquiry__label textarea {
@@ -1661,7 +1662,7 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
       <button type="button" class="dir-enquiry__close" data-dm-claim-close aria-label="Close">&times;</button>
     </div>
     <div class="dir-enquiry__body">
-      <p class="dir-enquiry__to">${escapeHtml(entry.name)}</p>
+      <h3 class="dir-claim__org">${escapeHtml(entry.name)}</h3>
       ${intro}
       ${priceLine}
       ${manual ? `<form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">

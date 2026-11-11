@@ -229,3 +229,7 @@ Deno.test("manual mode hides the price, auto mode shows it", () => {
   assertFalse(page({ ...priced, mode: "manual" }).includes("dir-claim__price"));
   assertStringIncludes(page(priced), "dir-claim__price");
 });
+
+Deno.test("claim dialog shows the organisation name as an h3", () => {
+  assertStringIncludes(page(claim()), '<h3 class="dir-claim__org">Academy of Medical Educators (AoME)</h3>');
+});
