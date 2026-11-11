@@ -8,12 +8,14 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-11 — [Not deployed] Hide claim price in manual mode
+## 2026-11-11 — [Not deployed] Claim dialog: hide price in manual mode, org name as h3
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price`
 
 ### What changed
 - In manual claim mode the claim dialog no longer shows the price line (a visitor sent "£0.00" next to a request form). Manual mode is a request to the directory, not a purchase. Automatic mode still shows the price. `generate_directory_site` only; `ENTRY_TEMPLATE_VERSION` 12 → 13 so already-published pages pick it up on the next Publish.
+
+- The organisation name at the top of the claim dialog is now an `h3` heading (larger, bolder) in both modes, instead of small grey text.
 
 ### Rollback plan
 Revert the branch's commit and redeploy `generate_directory_site`.
