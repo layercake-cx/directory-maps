@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-11 — [Staging] Manual claim requests create a claim for review; approval-gated claim access
+## 2026-11-11 — [Staging + Production backend] Manual claim requests create a claim for review; approval-gated claim access
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
 
@@ -23,6 +23,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Staging outcome (2026-11-11)
 - Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; its post-check passed. As before, `20261008140000` (from the unmerged branch `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
 - `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-11)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261111100000_manual_claim_review.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production, migration first.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin Claims panel (request details, Approve request) is frontend code, live only after PR 322 merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the dialog/banner changes after their next Publish.
 
 ### Rollback plan
 Run `_20261111100000_manual_claim_review.rollback.sql` (restores the old access functions; claims already created stay as `claim_started`, revoke them in the Claims tab), redeploy `submit_claim_request` from `main`.
