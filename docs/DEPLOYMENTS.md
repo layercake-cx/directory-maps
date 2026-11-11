@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-11 — [Not deployed] Manual claim requests create a claim for review; approval-gated claim access
+## 2026-11-11 — [Staging] Manual claim requests create a claim for review; approval-gated claim access
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
 
@@ -20,12 +20,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Published pages are static, so the claim banner and dialog now ask a new public RPC, `is_listing_claimable()`, on load and remove themselves if the listing has a claim (no pending message, nothing shown). A dialog submit that hits "already has a claim" removes them the same way. The banner-view event only fires if the listing is still open. Needs the migration applied before `generate_directory_site` is deployed (an unapplied RPC fails open: the banner just stays).
 - Note: an approved manual claim is `verified` + `self_service`, so the claimant's first sign-in activates it automatically, like any approved self-service claim.
 
+### Staging outcome (2026-11-11)
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; its post-check passed. As before, `20261008140000` (from the unmerged branch `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
 ### Rollback plan
 Run `_20261111100000_manual_claim_review.rollback.sql` (restores the old access functions; claims already created stay as `claim_started`, revoke them in the Claims tab), redeploy `submit_claim_request` from `main`.
 
 ### Verification
 - [x] `vite build` passes; `deno check` passes
-- [ ] Migration dry run and staging apply (NOT yet run)
+- [x] Migration applied to staging, post-check passed
 - [ ] Staging: submit a request, claim appears as Awaiting review, listing reserved
 - [ ] Staging: a sign-in link for that email gives no access before approval; works after Approve request
 - [ ] Staging: an existing active claim owner can still sign in and edit
