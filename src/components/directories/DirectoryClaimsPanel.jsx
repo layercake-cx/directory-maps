@@ -6,6 +6,7 @@ import { getDirectoryClaimSettings, saveDirectoryClaimSettings, isValidClaimNoti
 import { publishDirectoryItem } from "../../lib/claimManager.js";
 import {
   activateClaim,
+  approveManualClaim,
   createManualClaim,
   listClaimsForDirectory,
   listUnclaimedEntries,
@@ -35,6 +36,12 @@ const STATUS_LABELS = {
   suspended: "Suspended",
   revoked: "Revoked",
 };
+
+/** A manual request that nobody has approved yet reads "Awaiting review" rather than "Claim started". */
+function statusLabel(claim) {
+  if (claim.status === "claim_started" && claim.request) return "Awaiting review";
+  return STATUS_LABELS[claim.status] ?? claim.status;
+}
 
 const STATUS_FILTERS = [
   { id: "all", label: "All" },
@@ -232,7 +239,7 @@ function ClaimsList({ directoryId, canManage, recordEvent }) {
                 >
                   <td style={{ padding: "8px 8px 8px 0" }}>{c.entry_name}</td>
                   <td style={{ padding: "8px" }}>{c.listing_domain ?? "—"}</td>
-                  <td style={{ padding: "8px" }}>{STATUS_LABELS[c.status] ?? c.status}</td>
+                  <td style={{ padding: "8px" }}>{statusLabel(c)}</td>
                   <td style={{ padding: "8px" }}>{c.owner?.name || c.owner?.email || "—"}</td>
                   <td style={{ padding: "8px", textAlign: "right" }}>{c.users.length}</td>
                   <td style={{ padding: "8px" }}>{c.payment?.payment_status ?? "—"}</td>
@@ -455,6 +462,13 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
     }, "claim_activated", { activation_reason: "admin_manual" });
   }
 
+  async function handleApproveRequest() {
+    // eslint-disable-next-line no-alert
+    const note = window.prompt(`Approve ${claim.request?.requester_name || "this person"} as owner of this listing? Add a note (optional):`, "");
+    if (note === null) return;
+    await run(() => approveManualClaim(claim.id, note), "claim_verification_overridden", { verification_method: "admin_override" });
+  }
+
   async function handleTransferOwnership() {
     // eslint-disable-next-line no-alert
     const email = window.prompt("New owner's email address:", "");
@@ -486,7 +500,18 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
       {msg && <p style={{ color: "#15803d", fontSize: 13 }}>{msg}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, fontSize: 13, marginBottom: 12 }}>
-        <div><strong>Verification</strong><div>{claim.verification_method === "admin_override" ? "Admin override" : "Domain email"} · {claim.claimant_email}</div></div>
+        <div>
+          <strong>Verification</strong>
+          <div>
+            {claim.verification_method === "admin_override" ? "Admin override" : claim.verification_method === "domain_email" ? "Domain email" : "Not verified"} · {claim.claimant_email}
+          </div>
+        </div>
+        {claim.request && (
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Manual request from {claim.request.requester_name}</strong>
+            <div style={{ whiteSpace: "pre-wrap", opacity: claim.request.message ? 1 : 0.6 }}>{claim.request.message || "No message."}</div>
+          </div>
+        )}
         <div><strong>Created by</strong><div>{claim.created_by === "admin" ? "Admin" : "Self-service"}</div></div>
         {claim.revoked_reason && <div><strong>Revoked reason</strong><div>{claim.revoked_reason}</div></div>}
         <div>
@@ -500,6 +525,11 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
           {claim.owner?.email && claim.status !== "revoked" && (
             <button type="button" className="btn" disabled={busy} onClick={handleInvite}>
               {claim.owner?.user_id ? "Resend invitation" : "Send invitation"}
+            </button>
+          )}
+          {claim.status === "claim_started" && claim.request && (
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={handleApproveRequest}>
+              Approve request
             </button>
           )}
           {(claim.status === "verified" || claim.status === "payment_pending") && (

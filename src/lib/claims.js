@@ -28,7 +28,8 @@ export async function listClaimsForDirectory(directoryId) {
       verification_method, created_by, started_at, verified_at, activated_at, suspended_at, revoked_at, revoked_reason,
       directory_entries!directory_item_id ( name ),
       claim_users ( id, name, email, role, user_id, removed_at ),
-      claim_payments ( payment_status, payment_type, payment_provider, amount_cents, currency )
+      claim_payments ( payment_status, payment_type, payment_provider, amount_cents, currency ),
+      claim_requests ( requester_name, requester_email, message, created_at )
     `)
     .eq("directory_id", directoryId)
     .order("started_at", { ascending: false });
@@ -39,6 +40,8 @@ export async function listClaimsForDirectory(directoryId) {
     users: (row.claim_users ?? []).filter((u) => !u.removed_at),
     owner: (row.claim_users ?? []).find((u) => u.role === "owner" && !u.removed_at) ?? null,
     payment: row.claim_payments ?? null,
+    // Set when this claim came from a manual-mode request on the published site.
+    request: (row.claim_requests ?? [])[0] ?? null,
   }));
 }
 
@@ -52,6 +55,12 @@ export async function createManualClaim({ directoryItemId, ownerName, ownerEmail
   });
   if (error) throw error;
   return data; // claim id
+}
+
+/** Approves a manual claim request: claim_started -> verified (admin override) and the requester becomes owner. */
+export async function approveManualClaim(claimId, note) {
+  const { error } = await supabase.rpc("admin_approve_manual_claim", { p_claim_id: claimId, p_note: note || null });
+  if (error) throw error;
 }
 
 export async function activateClaim(claimId) {

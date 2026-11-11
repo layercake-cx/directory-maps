@@ -69,26 +69,53 @@ async function handle(body: Record<string, unknown>): Promise<Response> {
     .eq("id", entryId)
     .maybeSingle();
   if (!entry || entry.directory_id !== directoryId) return json({ error: "Listing not found." }, 404);
-  if (entry.current_claim_id) return json({ error: "This listing already has a claim in progress or active." }, 409);
 
-  const blocked = await messagingBlockedReason(service, directory, "directory");
-  if (blocked) return json({ error: "Claim requests are not available for this directory." }, 403);
-  if (directory.testMode && !directory.testRecipient) {
-    return json({ error: "Claim requests are not available for this directory." }, 403);
-  }
-
-  // One request per person per listing per day: a repeat is acknowledged but not re-sent.
+  // One request per person per listing per day: a repeat is acknowledged but nothing new is created.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count } = await service
     .from("claim_requests")
     .select("id", { count: "exact", head: true })
     .eq("directory_item_id", entryId)
-    .ilike("requester_email", email)
+    .ilike("requester_email", email.replace(/[\\%_]/g, "\\$&"))
     .gte("created_at", since);
   if ((count ?? 0) > 0) return json({ ok: true, duplicate: true });
 
-  const listingName = (typeof entry.name === "string" && entry.name.trim()) || "the listing";
+  if (entry.current_claim_id) return json({ error: "This listing already has a claim in progress or active." }, 409);
+
+  // The email is a notification; the claim itself is what gets reviewed. So
+  // messaging problems never stop a request being recorded.
+  const blocked = await messagingBlockedReason(service, directory, "directory");
+  const testRecipientMissing = directory.testMode && !directory.testRecipient;
+  const emailable = !blocked && !testRecipientMissing;
   const toEmail = directory.testMode ? directory.testRecipient : notifyEmail;
+
+  // Claim + request + listing reservation in one transaction. No claim user is created until an admin approves.
+  const { data: created, error: createErr } = await service.rpc("create_manual_claim_request", {
+    p_directory_item_id: entryId,
+    p_name: name,
+    p_email: email,
+    p_message: message || null,
+    p_to_email: toEmail || notifyEmail,
+  });
+  if (createErr) {
+    const raced = /already has a claim|claims_one_active_per_item|duplicate key/i.test(createErr.message ?? "");
+    if (raced) return json({ error: "This listing already has a claim in progress or active." }, 409);
+    console.error(createErr);
+    return json({ error: "We couldn't record your request. Please try again later." }, 500);
+  }
+  const requestId = (created as { request_id?: string } | null)?.request_id;
+
+  const markEmail = async (sent: boolean, error?: string) => {
+    if (!requestId) return;
+    await service.from("claim_requests").update({ email_sent: sent, email_error: error ? error.slice(0, 500) : null }).eq("id", requestId);
+  };
+
+  if (!emailable) {
+    await markEmail(false, blocked ?? "Test mode is on but no test recipient is configured.");
+    return json({ ok: true, emailSent: false });
+  }
+
+  const listingName = (typeof entry.name === "string" && entry.name.trim()) || "the listing";
   const from = await resolveProfileFrom(service, directory.profileId!, directory.clientId);
   const subject = `Claim request for ${listingName}`.replace(/[\r\n]+/g, " ");
   const html = `
@@ -99,26 +126,17 @@ async function handle(body: Record<string, unknown>): Promise<Response> {
       <p><strong>Message:</strong></p>
       <p>${message ? escapeHtml(message).replace(/\n/g, "<br>") : "<em>No message.</em>"}</p>
       <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
-      <p style="color:#666;font-size:13px">Reply to this email to contact them. To approve, create the claim from the directory's Claims tab.</p>
+      <p style="color:#666;font-size:13px">This request is now in the directory's Claims tab, awaiting review. Reply to this email to contact them.</p>
     `;
-
-  const baseRow = {
-    directory_id: directoryId,
-    directory_item_id: entryId,
-    entry_name: listingName,
-    requester_name: name,
-    requester_email: email,
-    message: message || null,
-    to_email: toEmail,
-  };
 
   const sent = await resendSendEmail({ from, to: toEmail, replyTo: buildFromHeader(name, email), subject, html });
   if (!sent.ok) {
-    await service.from("claim_requests").insert({ ...baseRow, email_sent: false, email_error: String(sent.error ?? "Send failed").slice(0, 500) });
-    return json({ error: "We couldn't send your request. Please try again later." }, 500);
+    await markEmail(false, String(sent.error ?? "Send failed"));
+    // The request is recorded and reviewable, so the visitor is not told it failed.
+    return json({ ok: true, emailSent: false });
   }
-  await service.from("claim_requests").insert({ ...baseRow, email_sent: true });
-  return json({ ok: true });
+  await markEmail(true);
+  return json({ ok: true, emailSent: true });
 }
 
 Deno.serve(async (req) => {

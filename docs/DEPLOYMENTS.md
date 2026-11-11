@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-11 — [Not deployed] Manual claim requests create a claim for review; approval-gated claim access
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
+
+### What changed
+- Submitting a manual claim request now also creates a real claim (`claim_started`, shown in Claims as **Awaiting review**) and reserves the listing, atomically (`create_manual_claim_request()`, service role only). The email is now just a notification; a request is recorded even if email isn't set up or fails.
+- New **Approve request** action (`admin_approve_manual_claim()`): verifies the claim by admin override and adds the requester as owner. Reject = existing Revoke. No `claim_users` row exists before approval, so an unreviewed requester can never be linked at sign-in.
+- Hardening (applies to all claims): `link_claim_user_by_email`, `can_access_claim`, `is_claim_owner` and `get_my_claim_context` now require the claim to be approved (verified or later, not revoked). Previously access depended only on a `claim_users` row existing, whatever the claim status. Side effect: users of revoked claims lose their Listing Manager access.
+- Migration `20261111100000_manual_claim_review.sql` (+ rollback); `submit_claim_request` rewritten; admin Claims panel shows request details and the Approve button.
+- Note: an approved manual claim is `verified` + `self_service`, so the claimant's first sign-in activates it automatically, like any approved self-service claim.
+
+### Rollback plan
+Run `_20261111100000_manual_claim_review.rollback.sql` (restores the old access functions; claims already created stay as `claim_started`, revoke them in the Claims tab), redeploy `submit_claim_request` from `main`.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes
+- [ ] Migration dry run and staging apply (NOT yet run)
+- [ ] Staging: submit a request, claim appears as Awaiting review, listing reserved
+- [ ] Staging: a sign-in link for that email gives no access before approval; works after Approve request
+- [ ] Staging: an existing active claim owner can still sign in and edit
+
 ## 2026-11-11 — [Not deployed] Claim dialog: hide price in manual mode, org name as h3
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price`
