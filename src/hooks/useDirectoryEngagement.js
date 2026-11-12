@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchAllEngagementEvents } from "../lib/fetchEngagementEvents";
+import { supabase } from "../lib/supabase";
 import { deriveDirectoryMetrics, getStartDate } from "../lib/engagementAnalytics";
 
 /**
@@ -29,13 +29,16 @@ export function useDirectoryEngagement(directoryId, days) {
         setLoading(true);
         setError("");
         const startDate = getStartDate(days);
-        const data = await fetchAllEngagementEvents(
-          "occurred_at, event_type, listing_id, meta, client_session_id",
-          (q) => q.eq("directory_id", directoryId).gte("occurred_at", startDate.toISOString()),
-        );
+        const { data, error: fetchErr } = await supabase
+          .from("map_engagement_events")
+          .select("occurred_at, event_type, listing_id, meta, client_session_id")
+          .eq("directory_id", directoryId)
+          .gte("occurred_at", startDate.toISOString())
+          .order("occurred_at", { ascending: true });
 
         if (cancelled) return;
-        setEvents(data);
+        if (fetchErr) throw fetchErr;
+        setEvents(data ?? []);
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? String(e));

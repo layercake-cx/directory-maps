@@ -107,20 +107,6 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Size guess:** L
 - **Status:** To do
 
-### [INSIGHTS] Server-side aggregation for engagement Insights
-- **Origin:** 2026-11-12, UK-Associations showed no events since the start of November. The Insights hooks fetched every raw `map_engagement_events` row to the browser in one request and computed charts client-side; Supabase's 1,000-row response cap truncated busy directories to their oldest rows. Stopgap shipped: the hooks now page through all rows (`src/lib/fetchEngagementEvents.js`, 100,000-row safety cap).
-- **What's missing:** the stopgap still downloads every row on every page load, so load time and memory grow with traffic, and past the safety cap the newest days go missing again. The fix is to aggregate in Postgres and send the browser only summaries.
-- **Story:** as a client owner or manager viewing Insights for a directory, map or listing, I want the page to load fast and show complete numbers for the selected period, however much traffic there is.
-- **Proposed approach:**
-  - A `security invoker` function per scope (for example `directory_engagement_summary(directory_id, days)`) returning daily counts by `event_type`, unique sessions per day, and the top listings, search terms and filters. Invoker keeps the existing RLS rules for owners, managers and directory-permission members.
-  - Rework `deriveDirectoryMetrics` / `deriveMapMetrics` / `deriveListingMetrics` in `src/lib/engagementAnalytics.js` to consume the summary instead of raw events; keep the day-bucket and local-timezone behaviour. Decide whether days are bucketed in UTC or the viewer's timezone (today it is the viewer's).
-  - Do the directory first, then the map and listing views.
-  - Later, only if the summary query gets slow: a nightly rollup table.
-- **Existing pieces:** `useDirectoryEngagement` / `useMapEngagement` / `useListingEngagement`, `src/lib/engagementAnalytics.js`, index `idx_map_engagement_directory_time` (`20260920090000_directory_engagement_analytics.sql`), `docs/MAP_ENGAGEMENT.md`
-- **Rules:** a migration with a rollback file, staging first, production only with explicit sign-off (AGENTS.md).
-- **Size guess:** M (one migration, then the hook and metrics rework per scope)
-- **Status:** To do
-
 ## Tech debt
 
 Cleanup that is safe to defer but should not be forgotten. Entries are removed when the work lands.
