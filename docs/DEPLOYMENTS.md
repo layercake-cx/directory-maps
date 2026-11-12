@@ -8,6 +8,25 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-12 — [Frontend only] Insights no longer cut off busy directories at 1,000 events
+
+**Branch:** `fix/2026-11-12-insights-row-cap`
+
+### What changed
+- The directory, map and listing Insights pages fetched all raw events in a single request, oldest first. Supabase returns at most 1,000 rows per request, so a busy directory (reported on UK-Associations: nothing showing since the start of November) lost its newest events while the oldest ones filled the charts. The events were still being recorded.
+- The three hooks now read through `fetchAllEngagementEvents()` (`src/lib/fetchEngagementEvents.js`), which pages through the whole window with a stable `occurred_at, id` order and a 100,000-row safety cap.
+- This is a stopgap: it still downloads every row on each load. The proper fix (server-side summaries) is in `BACKLOG.md` as "Server-side aggregation for engagement Insights".
+- No database, Edge Function or recording changes. No user-facing behaviour change beyond the numbers being complete, so `USER_GUIDE.md` is unchanged.
+
+### Rollback plan
+Revert the commit; the hooks go back to a single request.
+
+### Verification
+- [ ] Insights for a directory with more than 1,000 events in 30 days shows November events (needs a production-like directory; unchecked until the frontend is deployed)
+- [ ] Map and listing Insights still load and match their previous numbers on a small map
+
+---
+
 ## 2026-11-11 — [Staging + Production backend] Manual claim requests create a claim for review; approval-gated claim access
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { fetchAllEngagementEvents } from "../lib/fetchEngagementEvents";
 import { deriveMapMetrics, getStartDate } from "../lib/engagementAnalytics";
 
 /**
@@ -25,16 +25,13 @@ export function useMapEngagement(mapId, days) {
         setLoading(true);
         setError("");
         const startDate = getStartDate(days);
-        const { data, error: fetchErr } = await supabase
-          .from("map_engagement_events")
-          .select("occurred_at, event_type, listing_id, meta, client_session_id")
-          .eq("map_id", mapId)
-          .gte("occurred_at", startDate.toISOString())
-          .order("occurred_at", { ascending: true });
+        const data = await fetchAllEngagementEvents(
+          "occurred_at, event_type, listing_id, meta, client_session_id",
+          (q) => q.eq("map_id", mapId).gte("occurred_at", startDate.toISOString()),
+        );
 
         if (cancelled) return;
-        if (fetchErr) throw fetchErr;
-        setEvents(data ?? []);
+        setEvents(data);
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? String(e));
