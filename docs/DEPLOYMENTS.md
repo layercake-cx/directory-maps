@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Staging] Listing login stays on the directory
+## 2026-11-13 — [Staging + Production] Listing login stays on the directory
 
 **Branch:** `feat/2026-11-13-listing-login-icon`
 
@@ -28,11 +28,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Production outcome (2026-11-13)
 - `send_claim_link`, `manage_client_domain` and `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`). No new migration. CLI left linked to staging.
 - Vercel production deploy `dpl_58SiVLu7kaQdAAi1T2qkqxivEdYf` is Ready and aliased to `maps.layercake-cx.biz`, `uk-associations.com`, `ethical-elephant-sanctuaries.com` and `directory-maps.vercel.app`. That build includes the claim login page accepting the magic-link session. A later production deploy (`dpl_9cudCKeAvjSaEi1K7x8Ye8GMmEhD`) stops the app treating a claim magic link (`type=magiclink`) as a password reset. `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps `/claim/*` on the directory host. `dpl_9j7MRWfAXXzqe6F67MAR6bnULR67` (2026-11-13) stops the published login page bouncing a magic link into the Layercake app: the link stays on the directory login page, and the Listing Manager on that domain uses the directory header. `dpl_6DbrJRmSkxdS5WtSi2RtBbh74oH3` turns the header person icon into an account menu when a listing session is already stored on that domain (logo or initials, edit, view, sign out). `generate_directory_site` was redeployed at 14:26 UTC with template version 21. Vercel `dpl_CdXjUmK3NJhhG4LcjrzQQ2QYbkrW` includes revoke republishing the listing.
+- Final Vercel production deploy from the committed branch (HEAD `bc293bb`, so production matches the merged code exactly): `dpl_Bqx15qaH1pU9hoPPe3efY6nrKgy7`, https://directory-maps-17a9d0kb4-layercake-apps.vercel.app, Ready in 21s, aliased to `uk-associations.com` (the deploy output listed only that alias).
 - `MANAGEMENT_API_TOKEN` is set on production (scoped to the production project). Do not set `DIRECTORY_APP_ORIGIN` on production; an unset value keeps the handoff on `maps.layercake-cx.biz`.
 - GitHub Pages is unchanged until this branch is merged. A directory shows the icon and `/login` page on its next Publish.
 - Vercel `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps the magic-link session on the directory domain. `https://uk-associations.com/login` no longer forwards to `maps.layercake-cx.biz`, and `https://uk-associations.com/claim/login` serves the Listing Manager. `generate_directory_site` was redeployed so the next Publish bakes the same handoff.
 - [x] Production: `MANAGEMENT_API_TOKEN` is set
-- [ ] Production: verify a directory domain and confirm `https://<domain>/login` is on the Auth redirect list
+- [x] Production: `https://<domain>/login` confirmed fine by the user
 
 ### Rollback plan
 Redeploy `generate_directory_site`, `send_claim_link` and `manage_client_domain` from `main` and republish. No new migration. A directory URL already added to the Auth allow list stays until it is removed by hand or by a later domain removal.
