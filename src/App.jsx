@@ -20,6 +20,7 @@ import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
 import ClaimLogin from "./pages/claim/ClaimLogin.jsx";
 import ClaimManager from "./pages/claim/ClaimManager.jsx";
+import DirectorySiteFrame from "./components/claim/DirectorySiteFrame.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
@@ -98,8 +99,8 @@ export default function App() {
       <Route path="/embed" element={<EmbedMap />} />
       <Route path="/map" element={<CustomDomainMap />} />
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
-      <Route path="/claim/login" element={<ClaimLogin />} />
-      <Route path="/claim/manage/:claimId" element={<ClaimManager />} />
+      <Route path="/claim/login" element={<DirectorySiteFrame><ClaimLogin /></DirectorySiteFrame>} />
+      <Route path="/claim/manage/:claimId" element={<DirectorySiteFrame><ClaimManager /></DirectorySiteFrame>} />
 
       {/* Client portal */}
       <Route
