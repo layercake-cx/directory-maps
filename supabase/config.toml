@@ -28,3 +28,8 @@ verify_jwt = false
 # Manual-mode claim request form on published entry pages: anonymous, publishable key only.
 [functions.submit_claim_request]
 verify_jwt = false
+
+# Claim sign-in link (branded). Called anonymously from the claim login page; the
+# "invite" kind authenticates the caller itself. See send_claim_link/index.ts.
+[functions.send_claim_link]
+verify_jwt = false

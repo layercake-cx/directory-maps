@@ -6,8 +6,9 @@
 // Public endpoint (verify_jwt = false in config.toml), so every check is server-side.
 import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
-import { buildFromHeader, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
-import { loadDirectoryMessaging, messagingBlockedReason, resolveProfileFrom } from "../_shared/messaging.ts";
+import { buildFromHeader, getResendApiKey } from "../_shared/resend.ts";
+import { loadDirectoryMessaging, messagingBlockedReason } from "../_shared/messaging.ts";
+import { sendSystemEmail } from "../_shared/systemEmail.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,10 +21,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function str(v: unknown, max: number): string {
@@ -116,22 +113,16 @@ async function handle(body: Record<string, unknown>): Promise<Response> {
   }
 
   const listingName = (typeof entry.name === "string" && entry.name.trim()) || "the listing";
-  const from = await resolveProfileFrom(service, directory.profileId!, directory.clientId);
-  const subject = `Claim request for ${listingName}`.replace(/[\r\n]+/g, " ");
-  const html = `
-      <p>Someone has asked to claim a listing in your directory.</p>
-      <p><strong>Listing:</strong> ${escapeHtml(listingName)}<br/>
-      <strong>Name:</strong> ${escapeHtml(name)}<br/>
-      <strong>Email:</strong> ${escapeHtml(email)}</p>
-      <p><strong>Message:</strong></p>
-      <p>${message ? escapeHtml(message).replace(/\n/g, "<br>") : "<em>No message.</em>"}</p>
-      <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
-      <p style="color:#666;font-size:13px">This request is now in the directory's Claims tab, awaiting review. Reply to this email to contact them.</p>
-    `;
-
-  const sent = await resendSendEmail({ from, to: toEmail, replyTo: buildFromHeader(name, email), subject, html });
+  // Branded with the directory's theme; text is editable under Email settings.
+  const sent = await sendSystemEmail(service, {
+    directoryId,
+    key: "claim_request_notification",
+    to: toEmail,
+    vars: { listing_name: listingName, requester_name: name, requester_email: email, message: message || "(No message.)" },
+    replyTo: buildFromHeader(name, email),
+  });
   if (!sent.ok) {
-    await markEmail(false, String(sent.error ?? "Send failed"));
+    await markEmail(false, sent.error);
     // The request is recorded and reviewable, so the visitor is not told it failed.
     return json({ ok: true, emailSent: false });
   }

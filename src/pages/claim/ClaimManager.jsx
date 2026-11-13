@@ -554,7 +554,7 @@ function UsersTab({ claimId, isOwner, directoryId, directoryItemId, recordEvent,
     try {
       setBusy(true);
       const newClaimUserId = await inviteClaimEditor(claimId, { email, name });
-      await sendClaimUserMagicLink(email.trim());
+      await sendClaimUserMagicLink(email.trim(), { claimId });
       recordEvent?.("claim_user_invited", { directory_id: directoryId, directory_item_id: directoryItemId, claim_id: claimId, claim_user_id: newClaimUserId, role: "editor" });
       setMsg(`Invitation sent to ${email}.`);
       setName("");
@@ -594,7 +594,7 @@ function UsersTab({ claimId, isOwner, directoryId, directoryItemId, recordEvent,
         setMsg(`${targetEmail} is now the owner.`);
         await onOwnershipChanged?.();
       } else {
-        await sendClaimUserMagicLink(targetEmail);
+        await sendClaimUserMagicLink(targetEmail, { claimId });
         setMsg(`Invitation sent to ${targetEmail}. Ownership transfers once they sign in.`);
       }
       setTransferEmail("");

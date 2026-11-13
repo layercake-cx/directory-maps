@@ -374,6 +374,9 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`email_profile_created` / `email_profile_updated` / `email_profile_deleted`**
   - `meta`: `client_id`, `profile_id`, `email_provider` (`resend`), `source`; `changed_fields` (string[], updated); `maps_affected`, `directories_affected` (counts, deleted)
   - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
+- **`email_directory_template_updated` / `email_directory_template_reset` / `email_directory_template_test_sent`**
+  - `meta`: `client_id`, `directory_id`, `template_key` (`claim_sign_in` / `claim_invite` / `claim_request_notification`), `source`; `changed_fields` (string[], updated only)
+  - Fired from `DirectoryEmailTemplatesEditor.jsx` (Email settings → System emails). Never store subject, heading or body text, or the test recipient.
 - **`email_map_settings_updated` / `email_directory_settings_updated`**
   - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
   - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Settings → Email sending page). Never store the test recipient or message text.

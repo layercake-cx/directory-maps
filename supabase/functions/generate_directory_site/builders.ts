@@ -38,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 13;
+export const ENTRY_TEMPLATE_VERSION = 14;
 
 export type Entry = {
   id: string;
@@ -1795,10 +1795,11 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) {
         if (!res.ok) throw new Error((body && body.message) || (body && body.error) || 'Could not start claim.');
-        return fetch(cfg.supabaseUrl + '/auth/v1/otp', {
+        // Branded sign-in email from this directory (send_claim_link), not Supabase Auth's generic one.
+        return fetch(cfg.supabaseUrl + '/functions/v1/send_claim_link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
-          body: JSON.stringify({ email: email, create_user: true, options: { email_redirect_to: cfg.loginUrl } })
+          body: JSON.stringify({ email: email, kind: 'sign_in', redirectTo: cfg.loginUrl })
         });
       });
     }).then(function (res) {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import EntityMessagingSettings from "../EntityMessagingSettings.jsx";
+import DirectoryEmailTemplatesEditor from "./DirectoryEmailTemplatesEditor.jsx";
 
 
 function formatWhen(iso) {
@@ -60,6 +61,7 @@ export default function DirectoryEnquiryPanel({ directoryId, clientId, canManage
       </div>
 
       {section === "settings" ? (
+        <>
           <EntityMessagingSettings
             entity="directory"
             entityId={directoryId}
@@ -68,6 +70,13 @@ export default function DirectoryEnquiryPanel({ directoryId, clientId, canManage
             canManage={canManage}
             onSaved={onSaved}
           />
+          <DirectoryEmailTemplatesEditor
+            directoryId={directoryId}
+            clientId={clientId}
+            canManage={canManage}
+            eventSource={eventSource}
+          />
+        </>
       ) : (
         <div className="admin-card">
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Recent messages</p>
