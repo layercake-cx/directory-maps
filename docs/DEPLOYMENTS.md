@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Staging] Claimant login link on published directory sites
+## 2026-11-13 — [Staging + Production] Claimant login link on published directory sites
 
 **Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`
 
@@ -23,8 +23,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `generate_directory_site` deployed to staging. Production untouched.
 - Not yet checked: republishing a test directory and inspecting the links, and a click recording a `claim_login_click` row.
 
-### Production outcome
-Not deployed yet.
+### Production outcome (2026-11-13)
+- Deployed on the user's explicit instruction. Branch already contained current `origin/main` (`git log HEAD..origin/main` empty).
+- CLI was already linked to production (`gxixwdjfmegxcxfeflro`). `db push --dry-run` listed only `20261113150000_claim_login_click_event.sql`, which was applied. The migration's own check printed VERIFY PASSED. CLI relinked to staging afterwards.
+- `generate_directory_site` deployed to production (`ENTRY_TEMPLATE_VERSION` 15, `builders.ts` included in the upload). Directories pick up the login link after their next Publish.
+- Staging checks below were still unticked at deploy time.
 
 ### Rollback plan
 Run `_20261113150000_claim_login_click_event.rollback.sql` (it refuses to run if `claim_login_click` rows exist). Redeploy `generate_directory_site` from `main` and republish; already-published pages keep the link until republished, which is harmless.
