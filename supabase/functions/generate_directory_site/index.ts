@@ -624,6 +624,7 @@ async function generateForDirectoryInner(
     directorySlug: directory.slug,
     homeNavLabel: (directory as { home_nav_label?: string | null }).home_nav_label,
     pages: allPages,
+    claimLoginUrl: claimWidgetBase ? `${SITE_ORIGIN}/claim/login` : null,
   });
   const childPagesByParent = new Map<string, ContentPage[]>();
   for (const p of contentPages) {

@@ -334,6 +334,10 @@ If your email domain doesn't match the listing's website (a common, legitimate s
 
 Once a claim has started on a listing (self-service or admin-created), the claim banner disappears from that listing's public page until the claim is revoked.
 
+#### Claimant login link
+
+While **Claims enabled** is on (and your plan includes claims), every page of your published directory shows a **Manage your listing** link in the header (and in the mobile menu) and a **Listing owner log in** link in the footer. Both go to the claimant sign-in page, where a claimant enters their email and gets a one-time sign-in link. There is no separate switch: turning claims off removes the links, but only after you **Publish** the directory again (a page already published keeps its links until then; the sign-in page itself keeps working for existing claimants). Clicks are counted in Insights as `claim_login_click`.
+
 **Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. The invitation and the sign-in link are branded emails from the directory (wording editable under [System emails](#system-emails-branded-editable)); a sign-in link is only sent if that email belongs to a live claim, and the page shows the same "check your email" message either way. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
 
 The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
