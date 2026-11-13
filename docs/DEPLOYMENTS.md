@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Staging] System emails use the directory's name
+## 2026-11-13 — [Staging + Production] System emails use the directory's name
 
 **Branch:** `fix/2026-11-13-system-email-directory-name`
 
@@ -19,6 +19,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Staging outcome (2026-11-13)
 - `send_claim_link`, `submit_claim_request` and `directory_email_preview` deployed to staging (`beqejxneehilplrtpntn`) from this branch merged with current `origin/main`. Production untouched.
+
+### Production outcome (2026-11-13)
+- Deployed on the user's instruction to production (`gxixwdjfmegxcxfeflro`) after confirming the branch contains current `origin/main`: `send_claim_link`, `submit_claim_request`, `directory_email_preview`. No frontend change, so no Vercel deploy was needed. Not yet checked: a test email from UK Associations.
 
 ### Rollback plan
 Revert the commit and redeploy those three functions.
