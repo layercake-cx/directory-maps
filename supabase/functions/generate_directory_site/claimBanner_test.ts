@@ -237,8 +237,16 @@ Deno.test("claim dialog shows the organisation name as an h3", () => {
 Deno.test("banner checks the listing is still claimable and retires itself if not", () => {
   const html = page(claim());
   assertStringIncludes(html, 'id="dir-claim-banner-wrap"');
+  assertFalse(html.includes('id="dir-claim-banner-wrap" hidden'));
   assertStringIncludes(html, "is_listing_claimable");
+  assertStringIncludes(html, "w.hidden=false");
   assertStringIncludes(html, "dmClaimRetire");
   // The view event now fires only after the check says the listing is still open.
   assert(html.indexOf("is_listing_claimable") < html.indexOf("claim_banner_view') ") || html.includes("function view()"));
+});
+
+Deno.test("a reserved listing keeps the banner hidden until the listing is claimable again", () => {
+  const html = buildClaimBanner({ ...claim(), reserved: true }, entry());
+  assertStringIncludes(html, 'id="dir-claim-banner-wrap" hidden');
+  assertStringIncludes(html, "is_listing_claimable");
 });

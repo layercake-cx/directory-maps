@@ -93,6 +93,7 @@ import {
   buildEntryPage,
   buildDirectoryLandingPage,
   buildContentPage,
+  buildOwnerLoginPage,
   buildLlmsTxt,
   type LlmsTxtPage,
   buildThemeCss,
@@ -575,13 +576,6 @@ async function generateForDirectoryInner(
     }
   }
 
-  // Claimed Directory Listings epic, Phase 7: the "Claim this listing"
-  // widget is directory-wide config (price/currency/intro) but gated
-  // per-entry (only entries with no current_claim_id get it) -- both the
-  // directory's own enabled flag AND the client's maps.claims commercial
-  // entitlement must resolve true, since claiming is Pro-gated (the epic's
-  // non-negotiable rule #1). Reads live at generation time, same as every
-  // other directory-wide setting here.
   let claimWidgetBase: Omit<ClaimWidgetOptions, "priceCents" | "currency" | "paymentType" | "introHtml" | "banner" | "mode"> | null = null;
   let claimSettings: { price_cents: number | null; currency: string | null; payment_type: string | null; intro_html: string | null; banner: ClaimBannerSettings; mode: "auto" | "manual" } | null = null;
   if (supabaseUrl && supabaseAnonKey) {
@@ -598,9 +592,13 @@ async function generateForDirectoryInner(
       }
     }
   }
+  // Claimed Directory Listings: directory-wide config, present on every
+  // entry page while claims are enabled. A listing that already has a claim
+  // still gets the banner, hidden, so revoking that claim can show it again
+  // from the page itself (is_listing_claimable) without another publish.
   function claimWidgetFor(e: Entry): ClaimWidgetOptions | null {
-    if (!claimWidgetBase || !claimSettings || e.current_claim_id) return null;
-    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html, banner: claimSettings.banner, mode: claimSettings.mode };
+    if (!claimWidgetBase || !claimSettings) return null;
+    return { ...claimWidgetBase, priceCents: claimSettings.price_cents, currency: claimSettings.currency, paymentType: claimSettings.payment_type, introHtml: claimSettings.intro_html, banner: claimSettings.banner, mode: claimSettings.mode, reserved: !!e.current_claim_id };
   }
 
   const entrySlugSet = new Set(entries.map((e) => e.slug));
@@ -624,7 +622,7 @@ async function generateForDirectoryInner(
     directorySlug: directory.slug,
     homeNavLabel: (directory as { home_nav_label?: string | null }).home_nav_label,
     pages: allPages,
-    claimLoginUrl: claimWidgetBase ? `${SITE_ORIGIN}/claim/login` : null,
+    claimLoginUrl: claimWidgetBase ? `/directories/${client.slug}/${directory.slug}/login` : null,
   });
   const childPagesByParent = new Map<string, ContentPage[]>();
   for (const p of contentPages) {
@@ -936,6 +934,28 @@ async function generateForDirectoryInner(
       analytics: siteAnalytics,
     });
     await uploadToBlob(`${basePath}/index.html`, landingHtml, "text/html; charset=utf-8");
+    if (claimWidgetBase && claimSettings && supabaseUrl && supabaseAnonKey) {
+      const contactPage = contentPages.find((p) => p.is_active !== false && /contact/i.test(p.slug));
+      const loginHtml = buildOwnerLoginPage({
+        clientSlug: client.slug,
+        directorySlug: directory.slug,
+        directoryName: directory.name,
+        theme,
+        nav,
+        analytics: siteAnalytics,
+        accentColour: claimSettings.banner.accentColour,
+        buttonTextColour: claimSettings.banner.buttonTextColour,
+        backgroundColour: claimSettings.banner.backgroundColour,
+        borderColour: claimSettings.banner.borderColour,
+        contactHref: contactPage
+          ? `/directories/${client.slug}/${directory.slug}/${contentPagePublicPath(contactPage, pagesById)}`
+          : null,
+        supabaseUrl,
+        supabaseAnonKey,
+        appOrigin: (Deno.env.get("DIRECTORY_APP_ORIGIN") || SITE_ORIGIN).replace(/\/$/, ""),
+      });
+      await uploadToBlob(`${basePath}/login.html`, loginHtml, "text/html; charset=utf-8");
+    }
   }
 
   if (work.indexes) {

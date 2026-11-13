@@ -13,6 +13,7 @@
 import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
 import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
+import { OWNER_ACCOUNT_STYLE } from "../../../ownerAccount.js";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -38,7 +39,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 15;
+export const ENTRY_TEMPLATE_VERSION = 21;
 
 export type Entry = {
   id: string;
@@ -360,7 +361,72 @@ export const EXTRA_STYLE = `
   .dir-nav-desktop { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   .dir-nav-desktop a { color: var(--hdr-text); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px; }
   .dir-nav-desktop a:hover { color: var(--primary); }
-  .dir-nav-desktop a.dir-nav-login { font-weight: 500; opacity: .85; }
+  .dir-nav-desktop a.dir-listing-login { padding: 0; }
+  .dir-nav-desktop a.dir-listing-login:hover { color: var(--hdr-text); }
+  .dir-header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+  .dir-listing-login-bar { display: none; }
+  .dir-listing-login {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 40px; height: 40px; margin-left: 8px; flex: none;
+    border-radius: 999px; text-decoration: none; color: var(--hdr-text); background: transparent;
+  }
+  .dir-listing-login__face {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 999px;
+    border: 1.5px solid color-mix(in srgb, var(--hdr-text) 70%, transparent);
+    background: color-mix(in srgb, var(--hdr-text) 12%, transparent);
+  }
+  .dir-listing-login:hover .dir-listing-login__face,
+  .dir-listing-login:focus-visible .dir-listing-login__face {
+    background: color-mix(in srgb, var(--hdr-text) 20%, transparent);
+  }
+  .dir-listing-login:focus-visible { outline: 2px solid var(--hdr-text); outline-offset: 3px; }
+  .dir-listing-login__icon { display: block; }
+  .dir-listing-login__tip {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 12;
+    padding: 6px 10px; border-radius: 999px; background: #1c1917; color: #fff;
+    font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+    pointer-events: none; opacity: 0; visibility: hidden;
+  }
+  .dir-listing-login:hover .dir-listing-login__tip,
+  .dir-listing-login:focus-visible .dir-listing-login__tip {
+    opacity: 1; visibility: visible;
+  }
+  .dir-owner-login { padding: 48px 0 72px; }
+  .dir-owner-login__title { margin: 0 0 12px; text-align: center; font-family: var(--font-heading); font-size: 40px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); }
+  .dir-owner-login__lead { max-width: 620px; margin: 0 auto 32px; text-align: center; font-size: 16px; line-height: 1.5; color: var(--muted); }
+  .dir-owner-login__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
+  .dir-owner-login__card { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 36px; }
+  .dir-owner-login__card--claim { background: var(--claim-bg, #ECEEFA); border-color: var(--claim-border, #CFD4EA); }
+  .dir-owner-login__card h2 { margin: 0 0 12px; font-family: var(--font-heading); font-size: 26px; letter-spacing: -0.02em; }
+  .dir-owner-login__card p { margin: 0 0 16px; font-size: 15px; line-height: 1.5; color: var(--ink); }
+  .dir-owner-login__label { display: block; margin: 0 0 6px; font-size: 14px; font-weight: 650; }
+  .dir-owner-login__input { width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; background: #fff; }
+  .dir-owner-login__help, .dir-owner-login__fine { margin: 8px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+  .dir-owner-login__error { margin: 8px 0 0; font-size: 13.5px; color: #b91c1c; }
+  .dir-owner-login__submit, .dir-owner-login__outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; min-height: 48px; margin-top: 16px; padding: 0 16px; border-radius: 10px;
+    font: inherit; font-size: 16px; font-weight: 650; cursor: pointer; text-decoration: none;
+  }
+  .dir-owner-login__submit { border: 0; background: var(--claim-accent, var(--primary)); color: var(--claim-btn-text, #fff); }
+  .dir-owner-login__submit:disabled { opacity: .65; cursor: default; }
+  .dir-owner-login__outline { margin-top: auto; background: #fff; color: var(--ink); border: 1.5px solid color-mix(in srgb, var(--claim-accent, var(--primary)) 55%, var(--line)); }
+  .dir-owner-login__steps { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 14px; }
+  .dir-owner-login__steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.45; }
+  .dir-owner-login__num { flex: none; width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--claim-accent, var(--primary)); color: var(--claim-btn-text, #fff); font-size: 13px; font-weight: 700; }
+  .dir-owner-login__sent { max-width: 560px; margin: 24px auto 0; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 40px 36px 28px; text-align: center; }
+  .dir-owner-login__mail { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: var(--claim-bg, #ECEEFA); color: var(--claim-accent, var(--primary)); }
+  .dir-owner-login__sent h1 { margin-bottom: 12px; }
+  .dir-owner-login__sent p { margin: 0 auto 14px; max-width: 440px; font-size: 15px; line-height: 1.5; }
+  .dir-owner-login__resend { margin-top: 8px; background: #fff; color: var(--claim-accent, var(--primary)); border: 1.5px solid var(--claim-accent, var(--primary)); }
+  .dir-owner-login__textbtn { display: inline-block; margin: 16px 0; background: none; border: 0; padding: 8px; color: var(--claim-accent, var(--primary)); font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
+  .dir-owner-login__sent-foot { margin: 8px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  @media (max-width: 800px) {
+    .dir-owner-login__grid { grid-template-columns: 1fr; }
+    .dir-owner-login__title { font-size: 32px; }
+    .dir-owner-login__card, .dir-owner-login__sent { padding: 24px 20px; }
+  }
   .dir-nav-item { position: relative; }
   .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
   .dir-nav-dropdown {
@@ -404,6 +470,8 @@ export const EXTRA_STYLE = `
   @media (max-width: 800px) {
     .dir-nav-desktop { display: none; }
     .dir-nav-mobile { display: block; }
+    .dir-listing-login-bar { display: flex; align-items: center; }
+    .dir-listing-login-bar .dir-listing-login { width: 44px; height: 44px; margin-left: 0; }
   }
   .dir-breadcrumb { margin: 20px 0; }
   .dir-breadcrumb ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13.5px; font-weight: 600; color: var(--muted); }
@@ -1011,7 +1079,7 @@ export function fontImportRule(theme: DirectoryTheme): string {
  * colour, type, logo, or banner change does not rewrite every HTML page. */
 export function buildThemeCss(theme: DirectoryTheme): string {
   const font = fontImportRule(theme);
-  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${ASK_AI_STYLE}\n`;
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${ASK_AI_STYLE}\n${OWNER_ACCOUNT_STYLE}\n`;
 }
 
 export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
@@ -1144,18 +1212,19 @@ export type SiteNav = {
   homeUrl: string;
   homeLabel: string;
   items: SiteNavItem[];
-  /** Claimant sign-in URL. Set only when claims are on for the directory
-   * (settings enabled AND maps.claims entitlement); null/absent renders no
-   * login link anywhere. */
+  /** On-directory listing-owner login page. Set only when claims are on
+   * (settings enabled AND maps.claims entitlement). Null renders no control. */
   claimLoginUrl?: string | null;
 };
 
-export const CLAIM_LOGIN_HEADER_LABEL = "Manage your listing";
-export const CLAIM_LOGIN_FOOTER_LABEL = "Listing owner log in";
+const LISTING_LOGIN_LABEL = "Listing login";
+const LISTING_LOGIN_ICON = `<svg class="dir-listing-login__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.2 19.5c.9-3.3 3.4-5 6.8-5s5.9 1.7 6.8 5"/></svg>`;
 
-function claimLoginLink(nav: SiteNav | null | undefined, cta: "header" | "footer", cls: string, label: string, style = ""): string {
+/** Icon-only "Listing login" control. Last item in the desktop nav, and a
+ * second copy in the mobile header bar (the desktop nav is hidden there). */
+function listingLoginControl(nav: SiteNav | null | undefined): string {
   if (!nav?.claimLoginUrl) return "";
-  return `<a class="${cls}" href="${escapeAttr(nav.claimLoginUrl)}" data-dm-event="claim_login_click" data-dm-cta="${cta}" rel="nofollow"${style ? ` style="${style}"` : ""}>${escapeHtml(label)}</a>`;
+  return `<a class="dir-listing-login" href="${escapeAttr(nav.claimLoginUrl)}" aria-label="${LISTING_LOGIN_LABEL}" data-dm-event="claim_login_click" data-dm-cta="nav" rel="nofollow"><span class="dir-listing-login__face">${LISTING_LOGIN_ICON}</span><span class="dir-listing-login__tip" role="tooltip">${LISTING_LOGIN_LABEL}</span></a>`;
 }
 
 function renderDesktopNav(nav: SiteNav): string {
@@ -1175,8 +1244,7 @@ function renderDesktopNav(nav: SiteNav): string {
 </div>`;
     })
     .join("\n");
-  const login = claimLoginLink(nav, "header", "dir-nav-login", CLAIM_LOGIN_HEADER_LABEL);
-  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}${login}</nav>`;
+  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}${listingLoginControl(nav)}</nav>`;
 }
 
 function renderMobileNav(nav: SiteNav): string {
@@ -1198,7 +1266,7 @@ function renderMobileNav(nav: SiteNav): string {
     .join("\n");
   return `<details class="dir-nav-mobile">
   <summary aria-label="Open menu">☰</summary>
-  <nav class="dir-nav-mobile__panel" aria-label="Primary">${home}${items}${claimLoginLink(nav, "header", "dir-nav-login", CLAIM_LOGIN_HEADER_LABEL)}</nav>
+  <nav class="dir-nav-mobile__panel" aria-label="Primary">${home}${items}</nav>
 </details>`;
 }
 
@@ -1252,7 +1320,9 @@ export function siteHeader(opts: {
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
       </div>`;
   const nav = opts.nav;
-  const navHtml = nav ? `${renderDesktopNav(nav)}${renderMobileNav(nav)}` : "";
+  const navHtml = nav
+    ? `<div class="dir-header-tools">${renderDesktopNav(nav)}<div class="dir-listing-login-bar">${listingLoginControl(nav)}</div>${renderMobileNav(nav)}</div>`
+    : "";
   return `<header class="dir-site-header">
   <div class="wrap dir-site-header__inner">
     <a class="dir-brand" href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}">
@@ -1289,7 +1359,6 @@ export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?:
     <div>
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
-      ${opts.nav?.claimLoginUrl ? `<div style="margin-top:6px;">${claimLoginLink(opts.nav, "footer", "dir-footer-link", CLAIM_LOGIN_FOOTER_LABEL, "font-size:13.5px;")}</div>` : ""}
     </div>
     ${footerNav}
     <div class="dir-platform-panel-wrap">${platformPanel()}</div>
@@ -1301,6 +1370,248 @@ export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?:
     </div>
   </div>
 </footer>`;
+}
+
+/** Supabase magic-link lifetime this page tells the visitor. The project default
+ * is 60 minutes; the design's "{X} minutes" is filled with that, not a shorter
+ * number the link would outlive. */
+export const OWNER_LOGIN_LINK_MINUTES = 60;
+
+const OWNER_LOGIN_MAIL_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg>`;
+
+/** Listing-owner login, published on the directory's own site (not the platform
+ * app). The form calls the existing send_claim_link function. The emailed link
+ * returns to this same page. */
+export function buildOwnerLoginPage(opts: {
+  clientSlug: string;
+  directorySlug: string;
+  directoryName: string;
+  theme: DirectoryTheme;
+  nav?: SiteNav | null;
+  analytics?: SiteAnalytics | null;
+  accentColour: string;
+  buttonTextColour: string;
+  backgroundColour: string;
+  borderColour: string;
+  contactHref?: string | null;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  /** App that can hold the claim session. Defaults to the live site. Staging publishes pass localhost. */
+  appOrigin?: string;
+}): string {
+  const homeUrl = `/directories/${opts.clientSlug}/${opts.directorySlug}`;
+  const canonicalUrl = `${SITE_ORIGIN}${homeUrl}/login`;
+  const appOrigin = (opts.appOrigin || SITE_ORIGIN).replace(/\/$/, "");
+  const claimLogin = `${appOrigin}/claim/login`;
+  const minutes = String(OWNER_LOGIN_LINK_MINUTES);
+  const contact = opts.contactHref
+    ? ` Can&rsquo;t get into that inbox? <a href="${escapeAttr(opts.contactHref)}">Contact us</a>`
+    : "";
+  const cfg = JSON.stringify({
+    supabaseUrl: opts.supabaseUrl,
+    anonKey: opts.supabaseAnonKey,
+    redirectTo: claimLogin,
+  }).replace(/</g, "\\u003c");
+  const claimStyle = `--claim-accent:${opts.accentColour};--claim-btn-text:${opts.buttonTextColour};--claim-bg:${opts.backgroundColour};--claim-border:${opts.borderColour}`;
+  const body = `
+${siteHeader({ directoryName: opts.directoryName, tagline: null, homeUrl, logoUrl: opts.theme.logoUrl, headerMode: opts.theme.headerMode, showHeaderTitle: opts.theme.showHeaderTitle, siteTitle: opts.theme.siteTitle, logoMaxHeight: opts.theme.logoMaxHeight, nav: opts.nav ?? null })}
+<main class="wrap dir-owner-login" style="${claimStyle}">
+  <div id="owner-login-request">
+    <h1 class="dir-owner-login__title">Listing owner login</h1>
+    <p class="dir-owner-login__lead">For organisations that have claimed their listing on ${escapeHtml(opts.directoryName)}. Log in to keep your organisation&rsquo;s details, description and logo up to date.</p>
+    <div class="dir-owner-login__grid">
+      <section class="dir-owner-login__card" aria-labelledby="owner-login-form-title">
+        <h2 id="owner-login-form-title">Log in with your email</h2>
+        <p>No password needed. We&rsquo;ll email you a secure link that logs you straight in.</p>
+        <form id="owner-login-form" novalidate>
+          <label class="dir-owner-login__label" for="owner-login-email">Email address</label>
+          <input class="dir-owner-login__input" id="owner-login-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@organisation.org" aria-describedby="owner-login-help owner-login-error">
+          <p class="dir-owner-login__help" id="owner-login-help">Use the email address you used to claim your listing.</p>
+          <p class="dir-owner-login__error" id="owner-login-error" hidden></p>
+          <button class="dir-owner-login__submit" type="submit">${OWNER_LOGIN_MAIL_ICON} Email me a login link</button>
+        </form>
+        <p class="dir-owner-login__fine">The link works once and expires after ${minutes} minutes.${contact}</p>
+      </section>
+      <section class="dir-owner-login__card dir-owner-login__card--claim" aria-labelledby="owner-login-claim-title">
+        <h2 id="owner-login-claim-title">Haven&rsquo;t claimed a listing yet?</h2>
+        <p>If you represent an organisation in the directory, you can claim its listing for free. Once your claim is approved, you can log in here.</p>
+        <ol class="dir-owner-login__steps">
+          <li><span class="dir-owner-login__num" aria-hidden="true">1</span><span><strong>Find your organisation</strong> in the directory.</span></li>
+          <li><span class="dir-owner-login__num" aria-hidden="true">2</span><span>Select <strong>Claim this listing</strong> on its page and tell us who you are.</span></li>
+          <li><span class="dir-owner-login__num" aria-hidden="true">3</span><span>We check your claim and <strong>email you</strong> when it&rsquo;s approved.</span></li>
+        </ol>
+        <a class="dir-owner-login__outline" href="${escapeAttr(homeUrl)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Find your organisation</a>
+      </section>
+    </div>
+  </div>
+  <div id="owner-login-done" hidden>
+    <h1 class="dir-owner-login__title">You&rsquo;re signed in</h1>
+    <p class="dir-owner-login__lead">You&rsquo;re signed in as <strong id="owner-login-done-email"></strong>. You can update your organisation&rsquo;s listing from here.</p>
+    <div class="dir-owner-login__grid" style="grid-template-columns:minmax(0,480px);justify-content:center;">
+      <section class="dir-owner-login__card">
+        <h2>Your listing</h2>
+        <p>Open the listing editor to change the description, contact details and logo. It stays on this website.</p>
+        <a class="dir-owner-login__submit" href="/claim/login" style="text-align:center;text-decoration:none;">Edit your listing</a>
+      </section>
+    </div>
+  </div>
+  <div id="owner-login-sent" hidden>
+    <section class="dir-owner-login__sent" aria-labelledby="owner-login-sent-title">
+      <div class="dir-owner-login__mail" aria-hidden="true">${OWNER_LOGIN_MAIL_ICON.replace('width="18" height="18"', 'width="28" height="28"')}</div>
+      <h1 class="dir-owner-login__title" id="owner-login-sent-title">Check your email</h1>
+      <p>If <strong id="owner-login-sent-email"></strong> is linked to a claimed listing, we&rsquo;ve sent it a login link. Open the email on this device and select the link to log in.</p>
+      <p class="dir-owner-login__fine">The link expires after ${minutes} minutes. Nothing there? Check your spam or junk folder.</p>
+      <button type="button" class="dir-owner-login__submit dir-owner-login__resend" id="owner-login-resend">Resend link</button>
+      <button type="button" class="dir-owner-login__textbtn" id="owner-login-reset">Use a different email address</button>
+      <p class="dir-owner-login__sent-foot">Not claimed your listing yet? <a href="${escapeAttr(homeUrl)}">Find your organisation</a> and select <strong>Claim this listing</strong>.</p>
+    </section>
+  </div>
+</main>
+${siteFooter({ directoryName: opts.directoryName, homeUrl, nav: opts.nav ?? null })}
+<script>
+(function () {
+  var cfg = ${cfg};
+  function storeReturnSession() {
+    var hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+    var access = hash.get('access_token');
+    var refresh = hash.get('refresh_token');
+    if (!access || !refresh) return null;
+    var user = {};
+    try {
+      var part = access.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (part.length % 4) part += '=';
+      var payload = JSON.parse(atob(part));
+      user = { id: payload.sub, aud: payload.aud, role: payload.role, email: payload.email || '', app_metadata: payload.app_metadata || {}, user_metadata: payload.user_metadata || {} };
+    } catch (e) {}
+    var refMatch = String(cfg.supabaseUrl || '').match(/https:\\/\\/([^.]+)/);
+    var ref = (refMatch && refMatch[1]) || 'auth';
+    var expiresIn = Number(hash.get('expires_in') || 3600);
+    var expiresAt = Number(hash.get('expires_at') || 0) || Math.floor(Date.now() / 1000) + expiresIn;
+    localStorage.setItem('sb-' + ref + '-auth-token', JSON.stringify({
+      access_token: access,
+      refresh_token: refresh,
+      expires_in: expiresIn,
+      expires_at: expiresAt,
+      token_type: 'bearer',
+      user: user
+    }));
+    return user;
+  }
+  if (location.hash && /access_token=/.test(location.hash)) {
+    var signedIn = storeReturnSession();
+    history.replaceState(null, '', location.pathname);
+    if (signedIn) {
+      requestEl = document.getElementById('owner-login-request');
+      sentEl = document.getElementById('owner-login-sent');
+      if (requestEl) requestEl.hidden = true;
+      if (sentEl) sentEl.hidden = true;
+      var done = document.getElementById('owner-login-done');
+      if (done) {
+        done.hidden = false;
+        var doneEmail = document.getElementById('owner-login-done-email');
+        if (doneEmail && signedIn.email) doneEmail.textContent = signedIn.email;
+      }
+      return;
+    }
+  }
+  var requestEl = document.getElementById('owner-login-request');
+  var sentEl = document.getElementById('owner-login-sent');
+  var form = document.getElementById('owner-login-form');
+  var input = document.getElementById('owner-login-email');
+  var errorEl = document.getElementById('owner-login-error');
+  var sentEmail = document.getElementById('owner-login-sent-email');
+  var resendBtn = document.getElementById('owner-login-resend');
+  var resetBtn = document.getElementById('owner-login-reset');
+  var emailRe = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  var stored = '';
+  var resendTimer = 0;
+
+  function showError(msg) {
+    errorEl.hidden = !msg;
+    errorEl.textContent = msg || '';
+    if (msg) input.focus();
+  }
+  function showSent(email) {
+    stored = email;
+    sentEmail.textContent = email;
+    requestEl.hidden = true;
+    sentEl.hidden = false;
+    armResend();
+  }
+  function showForm() {
+    stored = '';
+    sentEl.hidden = true;
+    requestEl.hidden = false;
+    input.value = '';
+    showError('');
+    input.focus();
+  }
+  function armResend() {
+    var left = 30;
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Resend in ' + left + 's';
+    clearInterval(resendTimer);
+    resendTimer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(resendTimer);
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend link';
+        return;
+      }
+      resendBtn.textContent = 'Resend in ' + left + 's';
+    }, 1000);
+  }
+  function requestLink(email) {
+    return fetch(cfg.supabaseUrl + '/functions/v1/send_claim_link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+      body: JSON.stringify({ email: email, kind: 'sign_in', redirectTo: cfg.redirectTo })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.status === 400) throw new Error((body && body.error) || 'Enter a valid email address.');
+        showSent(email);
+      });
+    }).catch(function (err) {
+      if (err && err.message && /valid email/i.test(err.message)) {
+        showError(err.message);
+        return;
+      }
+      showSent(email);
+    });
+  }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = String(input.value || '').trim().toLowerCase();
+    if (!emailRe.test(email)) {
+      showError('Enter the email address you used to claim your listing.');
+      return;
+    }
+    showError('');
+    var btn = form.querySelector('button');
+    btn.disabled = true;
+    requestLink(email).then(function () { btn.disabled = false; });
+  });
+  resendBtn.addEventListener('click', function () {
+    if (!stored || resendBtn.disabled) return;
+    resendBtn.disabled = true;
+    requestLink(stored);
+  });
+  resetBtn.addEventListener('click', showForm);
+})();
+</script>`.trim();
+
+  return directoryPageShell({
+    title: `Listing owner login — ${opts.directoryName}`,
+    description: `Log in to manage a claimed listing on ${opts.directoryName}.`,
+    canonicalUrl,
+    jsonLd: { "@context": "https://schema.org", "@type": "WebPage", name: "Listing owner login", url: canonicalUrl },
+    body,
+    noindex: true,
+    theme: opts.theme,
+    themeCssHref: themeStylesheetHref(opts.clientSlug, opts.directorySlug),
+    analytics: opts.analytics ? { ...opts.analytics, pageKind: "content" } : null,
+  });
 }
 
 export function linkTiles(links: EntryLink[]): string {
@@ -1516,11 +1827,9 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
  * client's maps.claims entitlement both resolve true AND the entry has no
  * current_claim_id (index.ts checks all three before ever passing this
  * non-null) -- never on the homepage, search results, cards, or map
- * results, per the epic's non-negotiable rule. Once a claim is started for
- * this item, index.ts stops passing this at all on the next publish (the
- * item's own current_claim_id gets set immediately by
- * start_self_service_claim), which is what actually removes the CTA --
- * this file only renders what it's told.
+ * results, per the epic's non-negotiable rule. A listing that already has a
+ * claim still gets the banner, hidden. The page shows it again when
+ * is_listing_claimable says the listing is open.
  */
 export type ClaimWidgetOptions = {
   priceCents: number | null;
@@ -1533,6 +1842,9 @@ export type ClaimWidgetOptions = {
   /** 'auto' = verified self-service claim; 'manual' = name/email/message sent to the directory's mailbox. */
   mode: "auto" | "manual";
   directoryId: string;
+  /** The entry already had a claim when this page was built. The banner stays
+   * in the HTML, hidden, and the page shows it again if that claim is revoked. */
+  reserved?: boolean;
 };
 
 /**
@@ -1636,7 +1948,8 @@ export function buildClaimBanner(claim: ClaimWidgetOptions | null | undefined, e
   const listingIdJs = JSON.stringify(entry.id).replace(/</g, "\\u003c");
   const supabaseUrlJs = JSON.stringify(claim.supabaseUrl.replace(/\/$/, "")).replace(/</g, "\\u003c");
   const anonKeyJs = JSON.stringify(claim.supabaseAnonKey).replace(/</g, "\\u003c");
-  return `<div class="wrap dir-claim-banner-wrap" id="dir-claim-banner-wrap">
+  const reserved = claim.reserved ? " hidden" : "";
+  return `<div class="wrap dir-claim-banner-wrap" id="dir-claim-banner-wrap"${reserved}>
 <section class="dir-claim-banner" aria-label="Claim this listing" style="${style}">
   <div class="dir-claim-banner__icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg></div>
   <div class="dir-claim-banner__text"><h2>${heading}</h2><p>${body}</p></div>
@@ -1652,8 +1965,13 @@ function view(){if(window.dmRecordEngagement)window.dmRecordEngagement('claim_ba
 function run(){
   fetch(base+'/rest/v1/rpc/is_listing_claimable',{method:'POST',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({p_directory_item_id:id})})
     .then(function(r){return r.ok?r.json():true;})
-    .then(function(ok){if(ok===false)window.dmClaimRetire();else view();})
-    .catch(view);
+    .then(function(ok){
+      var w=document.getElementById('dir-claim-banner-wrap');
+      if(ok===false){window.dmClaimRetire();return;}
+      if(w)w.hidden=false;
+      view();
+    })
+    .catch(function(){var w=document.getElementById('dir-claim-banner-wrap');if(w&&w.hidden)return;view();});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
 })();</script>

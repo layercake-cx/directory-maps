@@ -59,6 +59,7 @@ Supabase projects are hosted on **AWS**. The region is chosen at project creatio
 ### Legal basis & agreements
 
 - Supabase is a **data processor** on behalf of Layercake Maps.
+- When a directory custom domain becomes active, an Edge Function calls the Supabase Management API to add `https://<that-hostname>/login` to that project's Auth redirect allow list, and removes it when the domain is removed. The call sends the hostname only (no personal data). It uses the `MANAGEMENT_API_TOKEN` secret, an account access token that stays in the Edge Function environment. Edge Function secrets cannot use a `SUPABASE_` name. This is the same Supabase processor, not a new one.
 - Supabase provides a **Data Processing Agreement (DPA)** at [supabase.com/legal/dpa](https://supabase.com/legal/dpa).
 - Supabase is **SOC 2 Type II** certified.
 - Data in transit: TLS. Data at rest: AES-256 encryption.
@@ -469,4 +470,4 @@ Update this document when:
 
 ---
 
-*Last updated: 2026-09-27 (Claimed Directory Listings epic: new claim applicant/user data flow, stored in Supabase only — no new third party). Maintained by the Layercake Maps engineering and privacy team.*
+*Last updated: 2026-11-13 (directory custom domain: hostname only is sent to the Supabase Management API to allow `https://<hostname>/login` as an Auth redirect; same processor, secret `MANAGEMENT_API_TOKEN`). Maintained by the Layercake Maps engineering and privacy team.*

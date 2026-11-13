@@ -446,6 +446,23 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
     await run(() => setClaimPaymentStatus(claim.id, { paymentStatus, paymentType }));
   }
 
+  async function handleRevoke() {
+    // eslint-disable-next-line no-alert
+    const reason = window.prompt("Reason for revoking this claim (optional):", "");
+    if (reason === null) return;
+    await run(async () => {
+      await revokeClaim(claim.id, reason);
+      // Same as activation: rebuild this one listing so the public page
+      // shows Claim this listing again. Never blocks the revoke itself.
+      try {
+        await publishDirectoryItem(claim.directory_item_id);
+        recordEvent?.("claimed_listing_published", { ...meta, trigger: "auto_on_revoke" });
+      } catch {
+        // swallow -- the claim is already revoked; a directory Publish can rebuild the page
+      }
+    }, "claim_revoked", { reason: reason || undefined });
+  }
+
   async function handleActivate() {
     await run(async () => {
       await activateClaim(claim.id);
@@ -558,12 +575,7 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
               className="btn"
               style={{ color: "#b91c1c" }}
               disabled={busy}
-              onClick={() => {
-                // eslint-disable-next-line no-alert
-                const reason = window.prompt("Reason for revoking this claim (optional):", "");
-                if (reason === null) return;
-                run(() => revokeClaim(claim.id, reason), "claim_revoked", { reason: reason || undefined });
-              }}
+              onClick={handleRevoke}
             >
               Revoke
             </button>

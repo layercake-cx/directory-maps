@@ -222,6 +222,7 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
           directory_id: domain.directory_id,
           hostname: domain.hostname,
           source: eventSource,
+          ...(domain.directory_id ? { login_redirect_registered: active && !data.domain.auth_redirect_warning } : {}),
         },
       });
       let text = active
@@ -230,9 +231,12 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
       if (active && data.domain.vercel_attach_warning) {
         text += ` DNS is verified, but connecting it to hosting had a problem: ${data.domain.vercel_attach_warning}. Try verifying again in a few minutes.`;
       }
+      if (active && data.domain.auth_redirect_warning) {
+        text += " DNS is verified, but listing sign-in links are not allowed to open this domain yet. Verify again in a few minutes.";
+      }
       setFeedbackByDomain((prev) => ({
         ...prev,
-        [domain.id]: { ok: active && !data.domain.vercel_attach_warning, text },
+        [domain.id]: { ok: active && !data.domain.vercel_attach_warning && !data.domain.auth_redirect_warning, text },
       }));
     } catch (e) {
       setFeedbackByDomain((prev) => ({ ...prev, [domain.id]: { ok: false, text: e?.message ?? String(e) } }));

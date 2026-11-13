@@ -13,6 +13,7 @@ import { errorMessage } from "../_shared/errors.ts";
 import { createAnonClient, createServiceClient } from "../_shared/supabase.ts";
 import { getResendApiKey } from "../_shared/resend.ts";
 import { sendSystemEmail } from "../_shared/systemEmail.ts";
+import { directoryLoginAllowPattern, resolveClaimLoginRedirect, setAuthRedirectUrl } from "../_shared/authRedirects.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -47,11 +48,55 @@ function validRedirect(v: unknown): string | null {
   }
 }
 
+/** Where the magic link should land. The hostname comes from client_domains,
+ * never from the request. */
+async function loginRedirect(service: ReturnType<typeof createServiceClient>, directoryId: string, fallback: string): Promise<string> {
+  const { data } = await service
+    .from("client_domains")
+    .select("hostname")
+    .eq("directory_id", directoryId)
+    .eq("status", "active")
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return resolveClaimLoginRedirect(fallback, data?.hostname);
+}
+
+/** Make sure Auth will accept the directory login URL. Without this, Supabase
+ * ignores the directory address and sends the person to the platform home. */
+async function allowDirectoryRedirect(redirectTo: string): Promise<{ ok: boolean; error?: string }> {
+  if (!redirectTo.endsWith("/login") || redirectTo.includes("/claim/login")) return { ok: true };
+  let host = "";
+  try {
+    host = new URL(redirectTo).hostname;
+  } catch {
+    return { ok: false, error: "Could not allow the directory sign-in address." };
+  }
+  const pattern = await setAuthRedirectUrl(directoryLoginAllowPattern(host), true);
+  if (!pattern.ok) {
+    console.error("send_claim_link auth redirect:", pattern.error);
+    return pattern;
+  }
+  const exact = await setAuthRedirectUrl(redirectTo, true);
+  if (!exact.ok) console.error("send_claim_link auth redirect:", exact.error);
+  return exact;
+}
+
+/** generateLink bakes redirect_to when the link is created. If the directory
+ * address was not allowed yet, that baked value is the platform home. Put the
+ * directory address on the link the email actually sends. */
+function withDirectoryRedirect(actionLink: string, redirectTo: string): string {
+  const link = new URL(actionLink);
+  link.searchParams.set("redirect_to", redirectTo);
+  return link.toString();
+}
+
 async function magicLink(service: ReturnType<typeof createServiceClient>, email: string, redirectTo: string) {
   const { data, error } = await service.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo } });
   const link = data?.properties?.action_link;
   if (error || !link) throw new Error(error?.message ?? "Could not create sign-in link.");
-  return link;
+  return withDirectoryRedirect(link, redirectTo);
 }
 
 async function listingName(service: ReturnType<typeof createServiceClient>, entryId: string): Promise<string> {
@@ -85,7 +130,12 @@ async function handle(req: Request, body: Record<string, unknown>): Promise<Resp
     if (!usable) return json({ ok: true });
     const claim = usable.claims as unknown as { directory_id: string; directory_item_id: string };
     try {
-      const link = await magicLink(service, email, redirectTo);
+      const signInRedirect = await loginRedirect(service, claim.directory_id, redirectTo);
+      const allowed = await allowDirectoryRedirect(signInRedirect);
+      if (!allowed.ok) {
+        console.error("send_claim_link sign_in redirect:", allowed.error);
+      }
+      const link = await magicLink(service, email, signInRedirect);
       const sent = await sendSystemEmail(service, {
         directoryId: claim.directory_id,
         key: "claim_sign_in",
@@ -118,7 +168,10 @@ async function handle(req: Request, body: Record<string, unknown>): Promise<Resp
     .maybeSingle();
   if (!cu) return json({ error: "That email is not a user of this claim." }, 400);
 
-  const link = await magicLink(service, email, redirectTo);
+  const inviteRedirect = await loginRedirect(service, claim.directory_id as string, redirectTo);
+  const allowed = await allowDirectoryRedirect(inviteRedirect);
+  if (!allowed.ok) return json({ error: allowed.error ?? "Could not allow the directory sign-in address." }, 502);
+  const link = await magicLink(service, email, inviteRedirect);
   const sent = await sendSystemEmail(service, {
     directoryId: claim.directory_id as string,
     key: "claim_invite",
