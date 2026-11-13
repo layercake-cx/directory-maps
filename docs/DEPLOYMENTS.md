@@ -21,8 +21,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Behaviour changes to know about: a sign-in link is now only sent if the email belongs to a live (non-revoked) claim user, and the login page always says "check your email" so emails can't be probed. Supabase's own one-per-minute limit no longer applies, so there is a best-effort per-instance throttle instead. These emails ignore the messaging on/off switch and test mode.
 - Not covered: team invitations to staff (still platform-branded), password reset and email verification (Supabase Auth templates).
 
-### Staging outcome
-Not yet deployed.
+### Staging outcome (2026-11-13)
+- Migration `20261113120000` applied to staging (`beqejxneehilplrtpntn`) after a dry-run that listed only it. As before, `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `send_claim_link`, `directory_email_preview`, `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+- Smoke test with curl: unknown email on sign_in returns `{ok:true}` with no email, a non-`/claim/login` redirect returns 400, an unauthenticated invite returns 401.
+- Not yet checked: real branded emails arriving, the editor UI, and a republish of a test directory.
 
 ### Production outcome
 Not yet deployed.
@@ -32,8 +35,8 @@ Run `_20261113120000_directory_email_templates.rollback.sql` (custom wording is 
 
 ### Verification
 - [x] `vite build` passes; `deno check` passes on the three functions
-- [ ] Dry-run and apply migration on staging, row counts unchanged
-- [ ] Staging: deploy `send_claim_link`, `directory_email_preview`, `submit_claim_request`
+- [x] Dry-run and apply migration on staging (table created; additive only)
+- [x] Staging: deploy `send_claim_link`, `directory_email_preview`, `submit_claim_request`
 - [ ] Staging: `/claim/login` sign-in email arrives branded, link signs in and lands in Listing Manager
 - [ ] Staging: invitation (owner and editor) arrives branded
 - [ ] Staging: deploy `generate_directory_site`, republish a test directory, self-service claim email arrives branded
