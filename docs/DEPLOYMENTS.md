@@ -16,6 +16,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Listing owners and editors no longer see a **Team** tab in the Listing Manager. It sat next to **Users** and read as the same thing, and wasn't specced for now. The tab and its component are commented out in `ClaimManager.jsx`, not deleted, so restoring it is a two-line uncomment.
 - Nothing in the database changed. Team members already added still show on published listing pages, and admins can still manage them from the directory Entries editor.
 
+### Preview outcome (2026-11-13)
+- Vercel preview deployed from this branch: https://directory-maps-l8wlym4rs-layercake-apps.vercel.app. Production (`maps.layercake-cx.biz`) not yet deployed; waiting on sign-off.
+
 ### Rollback plan
 Revert this commit (or uncomment the two marked lines in `ClaimManager.jsx`).
 
