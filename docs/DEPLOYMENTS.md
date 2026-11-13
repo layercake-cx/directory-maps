@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Not yet deployed] One AI button everywhere + Listing Manager redesign
+## 2026-11-13 — [Staging] One AI button everywhere + Listing Manager redesign
 
 **Branch:** `feat/2026-11-13-ai-button`
 
@@ -20,7 +20,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Not built: "Improve current text" (hidden for v1), a Suggest button on the claim SEO tab (the draft endpoint writes body HTML, not SEO fields), and per-user rate limiting.
 
 ### Staging outcome
-- Not deployed. `claim_listing_ai` needs deploying to the test project (`beqejxneehilplrtpntn`) first; nothing is applied to production.
+- 2026-11-13: `claim_listing_ai` (new) deployed to the test project (`beqejxneehilplrtpntn`). Production (`gxixwdjfmegxcxfeflro`) not deployed; waiting on sign-off. No frontend deploy yet.
 
 ### Rollback plan
 Revert the branch's commits; undeploy `claim_listing_ai`. No migration.
