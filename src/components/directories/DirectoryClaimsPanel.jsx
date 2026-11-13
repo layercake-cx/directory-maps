@@ -430,7 +430,7 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
     setMsg("");
     try {
       setBusy(true);
-      await sendClaimUserMagicLink(claim.owner.email);
+      await sendClaimUserMagicLink(claim.owner.email, { claimId: claim.id });
       await supabase.from("claim_users").update({ invited_at: new Date().toISOString() }).eq("id", claim.owner.id);
       recordEvent?.("claim_user_invited", { ...meta, claim_user_id: claim.owner.id, role: "owner" });
       setMsg(`Invitation sent to ${claim.owner.email}.`);
@@ -483,7 +483,7 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
         recordEvent?.("claim_ownership_transferred", { ...meta, from_claim_user_id: claim.owner?.id, to_claim_user_id: claimUserId });
         setMsg(`Ownership transferred to ${email.trim()}.`);
       } else {
-        await sendClaimUserMagicLink(email.trim());
+        await sendClaimUserMagicLink(email.trim(), { claimId: claim.id });
         setMsg(`Invitation sent to ${email.trim()}. Ownership transfers once they sign in.`);
       }
       onChanged?.();

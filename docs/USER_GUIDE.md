@@ -169,6 +169,14 @@ On a directory's **Emails → Email settings** page (owners and managers only):
 
 Sent messages are listed on the separate **Emails → Email log** page (the latest 20).
 
+#### System emails (branded, editable)
+
+Below the messaging settings, **System emails** controls the emails the platform sends on the directory's behalf: **Claim sign-in link**, **Claim invitation** and **Claim request notification**. Every one uses the directory's own look from the **Look & feel** (Branding) tab — logo, heading and body fonts, header background and text colour, and the primary colour for the button — so a claimant sees your directory, not Layercake or a generic message.
+
+Pick an email, then edit its **Subject**, **Heading**, **Message** and **Button label**. Placeholders such as `{{directory_name}}`, `{{listing_name}}`, `{{requester_name}}`, `{{requester_email}}` and `{{message}}` are filled in when it is sent (each email lists the ones it supports). A blank line starts a new paragraph. The sign-in button and link are added automatically. The preview on the right updates as you type, using sample values. **Send test to me** emails a copy to your own address, **Save** keeps your wording, and **Reset to default** goes back to the built-in text. Changes apply to the next email sent; there is no need to Publish.
+
+These emails are sent from the directory's chosen sending profile (a verified custom domain sends from your own address); with no profile chosen they go from the platform address under the directory's name. Unlike the Contact button, they are not stopped by the messaging on/off switch or test mode, because a sign-in link has to reach its recipient.
+
 ### Publishing a directory
 
 > **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
@@ -326,7 +334,7 @@ If your email domain doesn't match the listing's website (a common, legitimate s
 
 Once a claim has started on a listing (self-service or admin-created), the claim banner disappears from that listing's public page until the claim is revoked.
 
-**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
+**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. The invitation and the sign-in link are branded emails from the directory (wording editable under [System emails](#system-emails-branded-editable)); a sign-in link is only sent if that email belongs to a live claim, and the page shows the same "check your email" message either way. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
 
 The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
 
