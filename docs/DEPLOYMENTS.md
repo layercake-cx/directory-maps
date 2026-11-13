@@ -8,6 +8,38 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Not deployed] Branded, editable system emails for claims
+
+**Branch:** `feat/2026-11-13-branded-system-emails`
+
+### What changed
+- Claim sign-in links and invitations were Supabase Auth's generic, unbranded email. They now go through a new `send_claim_link` Edge Function: it generates the one-time link with the admin API and sends it via Resend, from the directory's sending profile, in a simple email themed from the directory's Branding (logo, fonts, header colours, primary colour). The claim-request notification (`submit_claim_request`) uses the same template.
+- The public **Claim this listing** dialog (self-service mode) called Supabase's OTP endpoint straight from the published page, so that email was generic too. It now calls `send_claim_link` instead. This is a change to `builders.ts`, so `ENTRY_TEMPLATE_VERSION` is bumped 13 -> 14 and `generate_directory_site` must be deployed, then each directory republished, before the page uses it. Deploy `send_claim_link` first.
+- New `_shared/systemEmail.ts` (layout, defaults, branding, sending) and `directory_email_preview` Edge Function (live preview and "send test to me" for the editor).
+- New table `directory_email_templates` (migration `20261113120000`, + rollback): per-directory subject, heading, body and button label for `claim_sign_in`, `claim_invite`, `claim_request_notification`. Null/missing = default.
+- New **System emails** editor under Emails → Email settings (`DirectoryEmailTemplatesEditor.jsx`), with placeholders, preview, test send and reset. Admin events `email_directory_template_updated` / `_reset` / `_test_sent`.
+- Behaviour changes to know about: a sign-in link is now only sent if the email belongs to a live (non-revoked) claim user, and the login page always says "check your email" so emails can't be probed. Supabase's own one-per-minute limit no longer applies, so there is a best-effort per-instance throttle instead. These emails ignore the messaging on/off switch and test mode.
+- Not covered: team invitations to staff (still platform-branded), password reset and email verification (Supabase Auth templates).
+
+### Staging outcome
+Not yet deployed.
+
+### Production outcome
+Not yet deployed.
+
+### Rollback plan
+Run `_20261113120000_directory_email_templates.rollback.sql` (custom wording is lost). Redeploy `submit_claim_request` from `main` and revert the frontend commit so `sendClaimUserMagicLink` goes back to `supabase.auth.signInWithOtp`. Redeploy `generate_directory_site` from `main` (and republish) so the public dialog goes back to the OTP endpoint. Delete `send_claim_link` and `directory_email_preview`.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes on the three functions
+- [ ] Dry-run and apply migration on staging, row counts unchanged
+- [ ] Staging: deploy `send_claim_link`, `directory_email_preview`, `submit_claim_request`
+- [ ] Staging: `/claim/login` sign-in email arrives branded, link signs in and lands in Listing Manager
+- [ ] Staging: invitation (owner and editor) arrives branded
+- [ ] Staging: deploy `generate_directory_site`, republish a test directory, self-service claim email arrives branded
+- [ ] Staging: edit text in System emails, preview updates, test email matches, reset works
+- [ ] Redirect URL `https://<app>/claim/login` is in Supabase Auth's allowed redirect list (it already was for `signInWithOtp`)
+
 ## 2026-11-11 — [Staging + Production backend] Manual claim requests create a claim for review; approval-gated claim access
 
 **Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
