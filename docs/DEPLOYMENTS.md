@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Not yet deployed] One AI button everywhere + Listing Manager redesign
+
+**Branch:** `feat/2026-11-13-ai-button`
+
+### What changed
+- New shared `AIButton`, `AiProvenanceNote` and `DraftingPromptModal` (`src/components/ai/`). Every existing "Generate with AI" button (entry Content and SEO tabs, directory SEO settings, content pages, media alt text) and the two bulk-run buttons use them, so state, errors and screen-reader announcements behave the same, and each has a short note on what the AI does. Buttons that use a built-in prompt show the note without a "View drafting prompt" link; only the entry Content tab shows the admin prompt.
+- Listing Manager (`ClaimManager.jsx`) restyled to the handoff: breadcrumb, pills, underline tabs, two-column layout. The parked Team tab code is deleted (route and tab were already hidden).
+- Listing tab gets **Generate with AI** plus the read-only drafting prompt. New Edge Function `claim_listing_ai` (`prompt` and `draft` actions). It never saves; it returns 409 `no_web_address` when the entry has no website.
+- Fonts: Inter, Playfair Display and IBM Plex Mono added to the existing Google Fonts link in `index.html`.
+- Not built: "Improve current text" (hidden for v1), a Suggest button on the claim SEO tab (the draft endpoint writes body HTML, not SEO fields), and per-user rate limiting.
+
+### Staging outcome
+- Not deployed. `claim_listing_ai` needs deploying to the test project (`beqejxneehilplrtpntn`) first; nothing is applied to production.
+
+### Rollback plan
+Revert the branch's commits; undeploy `claim_listing_ai`. No migration.
+
+### Verification
+- [x] `npm run build` passes; `deno check` passes for `claim_listing_ai`.
+- [ ] Not yet tested in the running app (needs a signed-in claim user): Listing tab generate, disabled state with no web address, prompt modal, keyboard and focus, mobile width.
+- [ ] Other AI buttons not yet clicked through after the swap.
+
 ## 2026-11-13 — [Frontend only] Hide the Team tab in the Listing Manager
 
 **Branch:** `chore/2026-11-13-hide-listing-team-tab`

@@ -27,6 +27,7 @@ export default function AiProvenanceNote({
   id,
   onGenerateFromModal,
   canGenerate = true,
+  onViewPrompt,
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -40,15 +41,15 @@ export default function AiProvenanceNote({
               the directory&rsquo;s administrators. Nothing is saved or published until you choose to.
             </>
           )}
-          {loadPrompt && (
+          {(loadPrompt || onViewPrompt) && (
             <>
               {" "}
-              <button type="button" className="ai-note__link" onClick={() => setOpen(true)}>View drafting prompt</button>
+              <button type="button" className="ai-note__link" onClick={() => (onViewPrompt ? onViewPrompt() : setOpen(true))}>View drafting prompt</button>
             </>
           )}
         </p>
       </div>
-      {loadPrompt && (
+      {loadPrompt && !onViewPrompt && (
         <DraftingPromptModal
           opened={open}
           onClose={() => setOpen(false)}

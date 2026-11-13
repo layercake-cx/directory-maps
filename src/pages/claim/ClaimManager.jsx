@@ -3,22 +3,23 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { getMyClaimContext, sendClaimUserMagicLink, transferClaimOwnership } from "../../lib/claims.js";
 import {
-  addClaimTeamMember,
   getClaimedListing,
-  getClaimTeamMembers,
   getClaimUsers,
   inviteClaimEditor,
   publishDirectoryItem,
-  removeClaimTeamMember,
   removeClaimUser,
+  generateListingDraft,
+  getListingDraftingPrompt,
   updateClaimedListingBody,
   updateClaimedListingContact,
   updateClaimedListingSeo,
-  updateClaimTeamMember,
 } from "../../lib/claimManager.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
-import MapDataTabs from "../../components/MapDataTabs.jsx";
+import AIButton from "../../components/ai/AIButton.jsx";
+import AiProvenanceNote from "../../components/ai/AiProvenanceNote.jsx";
+import DraftingPromptModal from "../../components/ai/DraftingPromptModal.jsx";
+import "./listingManager.css";
 import RichTextEditor from "../../components/directories/entryEdit/RichTextEditor.jsx";
 
 const STATUS_LABELS = {
@@ -34,9 +35,9 @@ const STATUS_LABELS = {
 
 /**
  * The restricted "Listing Manager" a claim user lands on -- Phase 4 of the
- * Claimed Directory Listings epic. Listing/SEO/Contact details/Team are
+ * Claimed Directory Listings epic. Listing/SEO/Contact details are
  * read-only previews for now (Phase 5 adds editing, reusing the same
- * get_claimed_listing()/get_claim_team_members() reads). Users is real:
+ * get_claimed_listing() read). Users is real:
  * an owner can invite/remove an editor here today.
  */
 export default function ClaimManager() {
@@ -132,23 +133,39 @@ export default function ClaimManager() {
     );
   }
 
-  return (
-    <div className="page-main" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
-      {err ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p> : null}
+  const statusLabel = STATUS_LABELS[context.claim_status] ?? context.claim_status;
+  const isActive = context.claim_status === "active";
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5 }}>Listing Manager</p>
-          <h2 style={{ margin: "2px 0 0" }}>{context.entry_name}</h2>
-          <p style={{ margin: "2px 0 0", fontSize: 13, opacity: 0.7 }}>
-            Signed in as {user.email} · {context.role} · {STATUS_LABELS[context.claim_status] ?? context.claim_status}
-          </p>
-          {publishMsg ? <p style={{ margin: "4px 0 0", fontSize: 13, color: "#15803d" }}>{publishMsg}</p> : null}
+  return (
+    <div className="lm">
+      {err ? <p className="lm__error">{err}</p> : null}
+
+      <nav className="lm__crumbs" aria-label="Breadcrumb">
+        <span>Listing manager</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        <span aria-current="page">{context.entry_name}</span>
+      </nav>
+
+      <div className="lm__header">
+        <div className="lm__title-block">
+          <h1 className="lm__title">{context.entry_name}</h1>
+          <div className="lm__meta">
+            <span className={`lm__pill ${isActive ? "lm__pill--active" : "lm__pill--neutral"}`}>
+              {isActive && <span className="lm__dot" aria-hidden="true" />}
+              {statusLabel}
+            </span>
+            <span className="lm__pill lm__pill--role">{context.role === "owner" ? "Owner" : "Editor"}</span>
+            <span className="lm__signed">Signed in as {user.email}</span>
+          </div>
+          {publishMsg ? <p className="lm__ok" role="status">{publishMsg}</p> : null}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn" type="button" disabled title="Coming soon">Preview</button>
+        <div className="lm__actions">
+          <button className="lm__btn lm__btn--outline" type="button" disabled title="Coming soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+            Preview
+          </button>
           <button
-            className="btn btn-primary"
+            className="lm__btn lm__btn--primary"
             type="button"
             disabled={!canEdit || publishing}
             title={canEdit ? undefined : "Editing opens once your claim is active"}
@@ -159,21 +176,30 @@ export default function ClaimManager() {
         </div>
       </div>
 
-      <MapDataTabs
+      <ListingTabs
         tabs={[
-          { id: "listing", label: "Listing" },
-          { id: "seo", label: "SEO" },
-          { id: "contact", label: "Contact details" },
-          // Team tab parked 2026-11-13 (not needed yet). To restore, uncomment this and the render line below.
-          // { id: "team", label: "Team" },
-          { id: "users", label: "Users" },
+          { id: "listing", label: "Listing", icon: "M6 3h9l4 4v14H6z M9 11h7 M9 15h7" },
+          { id: "seo", label: "SEO", icon: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3" },
+          { id: "contact", label: "Contact details", icon: "M3 6h18v12H3z M3 7l9 6 9-6" },
+          { id: "users", label: "Users", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0" },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
       {activeTab === "listing" && (
-        <ListingTab claimId={claimId} listing={listing} canEdit={canEdit} recordEvent={recordEvent} onSaved={refreshListing} />
+        <div role="tabpanel" id="lm-panel-listing" aria-labelledby="lm-tab-listing">
+          <ListingTab
+            claimId={claimId}
+            entryId={context.directory_item_id}
+            directoryId={context.directory_id}
+            listing={listing}
+            canEdit={canEdit}
+            recordEvent={recordEvent}
+            onSaved={refreshListing}
+            onGoToContact={() => setActiveTab("contact")}
+          />
+        </div>
       )}
 
       {activeTab === "seo" && (
@@ -184,7 +210,6 @@ export default function ClaimManager() {
         <ContactTab claimId={claimId} listing={listing} canEdit={canEdit} recordEvent={recordEvent} onSaved={refreshListing} />
       )}
 
-      {/* {activeTab === "team" && <TeamTab claimId={claimId} canEdit={canEdit} recordEvent={recordEvent} />} */}
       {activeTab === "users" && (
         <UsersTab
           claimId={claimId}
@@ -217,13 +242,61 @@ function Provenance({ listing }) {
   );
 }
 
-function ListingTab({ claimId, listing, canEdit, recordEvent, onSaved }) {
+const TAB_ORDER_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
+
+/** WAI-ARIA tabs: roving tabindex, Left/Right/Home/End. Underline style, no outline box on the active tab. */
+function ListingTabs({ tabs, activeTab, onChange }) {
+  function onKeyDown(e, index) {
+    if (!TAB_ORDER_KEYS.includes(e.key)) return;
+    e.preventDefault();
+    let next = index;
+    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+    if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    if (e.key === "Home") next = 0;
+    if (e.key === "End") next = tabs.length - 1;
+    onChange(tabs[next].id);
+    document.getElementById(`lm-tab-${tabs[next].id}`)?.focus();
+  }
+  return (
+    <div className="lm__tabs" role="tablist" aria-label="Listing sections">
+      {tabs.map((t, i) => (
+        <button
+          key={t.id}
+          id={`lm-tab-${t.id}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === t.id}
+          aria-controls={`lm-panel-${t.id}`}
+          tabIndex={activeTab === t.id ? 0 : -1}
+          className={`lm__tab${activeTab === t.id ? " is-active" : ""}`}
+          onClick={() => onChange(t.id)}
+          onKeyDown={(e) => onKeyDown(e, i)}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.icon} /></svg>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEvent, onSaved, onGoToContact }) {
   const [html, setHtml] = useState(listing?.notes_html || "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const [promptOpen, setPromptOpen] = useState(false);
 
   useEffect(() => { setHtml(listing?.notes_html || ""); }, [listing?.notes_html]);
+
+  const hasWebAddress = !!listing?.website_url?.trim();
+  const aiDisabled = !canEdit || !hasWebAddress;
+  const loadPrompt = useCallback(() => getListingDraftingPrompt(entryId), [entryId]);
+
+  function openPrompt() {
+    setPromptOpen(true);
+    recordEvent?.("claimed_listing_ai_prompt_viewed", { directory_id: directoryId, directory_item_id: entryId, claim_id: claimId });
+  }
 
   async function handleSave() {
     setErr("");
@@ -241,21 +314,105 @@ function ListingTab({ claimId, listing, canEdit, recordEvent, onSaved }) {
     }
   }
 
+  /** Puts an AI draft in the (unsaved) editor. Never saves or publishes. Errors propagate to AIButton, which shows them inline. */
+  async function handleGenerate() {
+    const hasHandEdits = html.trim() && html !== (listing?.notes_html || "");
+    if (hasHandEdits && !window.confirm("Replace your current text with an AI draft? Your unsaved edits will be lost.")) return false;
+    setErr("");
+    setMsg("");
+    recordEvent?.("claimed_listing_ai_draft_requested", { directory_id: directoryId, directory_item_id: entryId, claim_id: claimId, mode: "draft" });
+    try {
+      const draft = await generateListingDraft(entryId);
+      setHtml(draft);
+      setMsg("Draft ready. Review it, then press Save listing content.");
+      recordEvent?.("claimed_listing_ai_draft_generated", { directory_id: directoryId, directory_item_id: entryId, claim_id: claimId, mode: "draft" });
+    } catch (e) {
+      recordEvent?.("claimed_listing_ai_draft_failed", { directory_id: directoryId, directory_item_id: entryId, claim_id: claimId, mode: "draft", error: e?.message ?? String(e) });
+      throw e;
+    }
+  }
+
+  const hintId = "lm-ai-disabled-hint";
+
   return (
-    <div className="admin-card">
-      <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Listing content</p>
-      {!canEdit && <EditNotice />}
-      {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 13 }}>{msg}</p>}
-      <RichTextEditor value={html} onChange={setHtml} editable={canEdit} />
-      <Provenance listing={listing} />
-      {canEdit && (
-        <div style={{ marginTop: 12 }}>
-          <button type="button" className="btn btn-primary" disabled={saving} onClick={handleSave}>
-            {saving ? "Saving…" : "Save listing content"}
-          </button>
+    <div className="lm__layout">
+      <div className="lm__card lm__main">
+        <div className="lm__card-head">
+          <div>
+            <h2 className="lm__card-title">Listing content</h2>
+            <p className="lm__card-sub">The main description visitors see on your public listing.</p>
+          </div>
+          {canEdit && (
+            <AIButton
+              onGenerate={handleGenerate}
+              disabled={aiDisabled}
+              disabledReason={!hasWebAddress ? "Add a web address in Contact details to use AI drafting." : undefined}
+              describedBy={aiDisabled && canEdit ? hintId : undefined}
+            />
+          )}
         </div>
-      )}
+        {!canEdit && <EditNotice />}
+        {canEdit && (
+          <AiProvenanceNote onViewPrompt={openPrompt} loadPrompt={loadPrompt}>
+            AI drafts this listing from the details we hold for it, including its web address, following a drafting prompt set by the directory&rsquo;s administrators. Check the draft before you save it.
+          </AiProvenanceNote>
+        )}
+        {canEdit && !hasWebAddress && (
+          <p className="ai-hint" id={hintId}>
+            Add a web address in{" "}
+            <button type="button" className="ai-note__link" onClick={onGoToContact}>Contact details</button>{" "}
+            to use AI drafting.
+          </p>
+        )}
+        {err && <p className="lm__error">{err}</p>}
+        {msg && <p className="lm__ok" role="status">{msg}</p>}
+        <div className="lm__editor">
+          <RichTextEditor value={html} onChange={setHtml} editable={canEdit} />
+        </div>
+        <div className="lm__card-foot">
+          <p className="lm__source">
+            Source
+            <span className="lm__chip">{listing?.content_managed_by === "claimed_org" ? "Claimed organisation" : "Platform"}</span>
+            {listing?.content_last_edited_at ? <span>Last edited {new Date(listing.content_last_edited_at).toLocaleDateString("en-GB")}</span> : null}
+          </p>
+          {canEdit && (
+            <button type="button" className="lm__btn lm__btn--primary" disabled={saving} onClick={handleSave}>
+              {saving ? "Saving…" : "Save listing content"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <aside className="lm__aside">
+        <div className="lm__card lm__side">
+          <div className="lm__side-head">
+            <span className="ai-modal__badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 3.5l1.8 4.9 4.9 1.8-4.9 1.8L11 16.9l-1.8-4.9-4.9-1.8 4.9-1.8z" /><path d="M18.5 14l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" /></svg>
+            </span>
+            <h3 className="lm__side-title">Write with AI</h3>
+          </div>
+          <p className="lm__side-text">
+            The AI uses the details we hold for this listing, including the website in Contact details, and writes to the directory&rsquo;s own drafting instructions, so every listing follows the same brief. Edit the draft into your own voice. Nothing goes live until you press Publish.
+          </p>
+          <button type="button" className="ai-note__link lm__prompt-link" onClick={openPrompt}>View drafting prompt</button>
+        </div>
+        <div className="lm__card lm__side">
+          <h3 className="lm__side-title">What makes a strong listing</h3>
+          <ul className="lm__side-text lm__tips">
+            <li>Say who you serve in the first sentence.</li>
+            <li>Name the practical help members get.</li>
+            <li>Keep the web address in Contact details current: AI drafts start from it.</li>
+          </ul>
+        </div>
+      </aside>
+
+      <DraftingPromptModal
+        opened={promptOpen}
+        onClose={() => setPromptOpen(false)}
+        loadPrompt={loadPrompt}
+        onGenerate={handleGenerate}
+        canGenerate={!aiDisabled}
+      />
     </div>
   );
 }
@@ -408,118 +565,6 @@ function ContactTab({ claimId, listing, canEdit, recordEvent, onSaved }) {
         </div>
       )}
     </form>
-  );
-}
-
-const emptyTeamMember = { name: "", role_title: "", photo_url: "", bio: "", is_visible: true };
-
-// Parked: not rendered while the Team tab is hidden (see tabs list above).
-// eslint-disable-next-line no-unused-vars
-function TeamTab({ claimId, canEdit, recordEvent }) {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState(emptyTeamMember);
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setMembers(await getClaimTeamMembers(claimId));
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [claimId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!form.name.trim()) { setErr("Name is required."); return; }
-    setErr("");
-    try {
-      setSaving(true);
-      const id = await addClaimTeamMember(claimId, form);
-      recordEvent?.("claimed_listing_updated", { claim_id: claimId, changed_fields: ["team_members"], team_member_id: id });
-      setForm(emptyTeamMember);
-      setAddOpen(false);
-      await load();
-    } catch (e2) {
-      setErr(e2?.message ?? String(e2));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleVisible(m) {
-    try {
-      await updateClaimTeamMember(claimId, m.id, { ...m, is_visible: !m.is_visible });
-      await load();
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    }
-  }
-
-  async function remove(m) {
-    try {
-      await removeClaimTeamMember(claimId, m.id);
-      recordEvent?.("claimed_listing_updated", { claim_id: claimId, changed_fields: ["team_members"], team_member_id: m.id });
-      await load();
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    }
-  }
-
-  return (
-    <div className="admin-card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Team</p>
-        {canEdit && (
-          <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-            {addOpen ? "Cancel" : "+ Add team member"}
-          </button>
-        )}
-      </div>
-      {!canEdit && <EditNotice />}
-      {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
-
-      {addOpen && canEdit && (
-        <form onSubmit={handleAdd} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Name" required style={{ padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-          <input value={form.role_title} onChange={(e) => setForm((f) => ({ ...f, role_title: e.target.value }))} placeholder="Role / title (optional)" style={{ padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-          <textarea value={form.bio} onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))} placeholder="Short bio (optional)" rows={2} style={{ padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13, resize: "vertical" }} />
-          <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px", justifySelf: "start" }} disabled={saving}>
-            {saving ? "Saving…" : "Add team member"}
-          </button>
-        </form>
-      )}
-
-      {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.7 }}>Loading…</p>
-      ) : members.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No team members yet.</p>
-      ) : (
-        <div style={{ display: "grid", gap: 6 }}>
-          {members.map((m) => (
-            <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7 }}>
-              <div style={{ fontSize: 12 }}>
-                <div style={{ fontWeight: 500 }}>{m.name}{!m.is_visible ? " (hidden)" : ""}</div>
-                {m.role_title && <div style={{ opacity: 0.8 }}>{m.role_title}</div>}
-              </div>
-              {canEdit && (
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => toggleVisible(m)}>{m.is_visible ? "Hide" : "Show"}</button>
-                  <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c" }} onClick={() => remove(m)}>Delete</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
