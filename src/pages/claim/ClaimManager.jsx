@@ -164,7 +164,8 @@ export default function ClaimManager() {
           { id: "listing", label: "Listing" },
           { id: "seo", label: "SEO" },
           { id: "contact", label: "Contact details" },
-          { id: "team", label: "Team" },
+          // Team tab parked 2026-11-13 (not needed yet). To restore, uncomment this and the render line below.
+          // { id: "team", label: "Team" },
           { id: "users", label: "Users" },
         ]}
         activeTab={activeTab}
@@ -183,7 +184,7 @@ export default function ClaimManager() {
         <ContactTab claimId={claimId} listing={listing} canEdit={canEdit} recordEvent={recordEvent} onSaved={refreshListing} />
       )}
 
-      {activeTab === "team" && <TeamTab claimId={claimId} canEdit={canEdit} recordEvent={recordEvent} />}
+      {/* {activeTab === "team" && <TeamTab claimId={claimId} canEdit={canEdit} recordEvent={recordEvent} />} */}
       {activeTab === "users" && (
         <UsersTab
           claimId={claimId}
@@ -412,6 +413,8 @@ function ContactTab({ claimId, listing, canEdit, recordEvent, onSaved }) {
 
 const emptyTeamMember = { name: "", role_title: "", photo_url: "", bio: "", is_visible: true };
 
+// Parked: not rendered while the Team tab is hidden (see tabs list above).
+// eslint-disable-next-line no-unused-vars
 function TeamTab({ claimId, canEdit, recordEvent }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
