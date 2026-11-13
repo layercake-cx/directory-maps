@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Staging + Production function] One AI button everywhere + Listing Manager redesign
+## 2026-11-13 — [Production] One AI button everywhere + Listing Manager redesign
 
 **Branch:** `feat/2026-11-13-ai-button`
 
@@ -23,7 +23,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - 2026-11-13: `claim_listing_ai` (new) deployed to the test project (`beqejxneehilplrtpntn`). 
 
 ### Production outcome
-- 2026-11-13: `claim_listing_ai` (new) deployed to production (`gxixwdjfmegxcxfeflro`) from this branch (contains current `origin/main`) on the user's explicit go-ahead. Not yet verified live. Frontend not yet deployed: `npm run deploy:live` (Vercel) is the user's step; GitHub Pages deploys on merge.
+- 2026-11-13: `claim_listing_ai` (new) deployed to production (`gxixwdjfmegxcxfeflro`) from this branch (contains current `origin/main`) on the user's explicit go-ahead. Not yet verified live. Frontend: deployed by the user with `npm run deploy:live` from this branch (Vercel production `directory-maps-1nygr4r9k-layercake-apps.vercel.app`, aliased to `https://uk-associations.com`, ready in 24s). GitHub Pages deploys on merge. Live behaviour not yet checked.
 
 ### Rollback plan
 Revert the branch's commits; undeploy `claim_listing_ai`. No migration.
