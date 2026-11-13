@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Not deployed] Branded, editable system emails for claims
+## 2026-11-13 — [Staging + Production] Branded, editable system emails for claims
 
 **Branch:** `feat/2026-11-13-branded-system-emails`
 
@@ -27,8 +27,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Smoke test with curl: unknown email on sign_in returns `{ok:true}` with no email, a non-`/claim/login` redirect returns 400, an unauthenticated invite returns 401.
 - Not yet checked: real branded emails arriving, the editor UI, and a republish of a test directory.
 
-### Production outcome
-Not yet deployed.
+### Production outcome (2026-11-13)
+- Deployed on the user's explicit instruction, before the staging checks below were ticked.
+- Branch already contained current `origin/main` (`git log HEAD..origin/main` empty; diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`); `db push --dry-run` listed only `20261113120000_directory_email_templates.sql`, which was applied. (Unlike staging, production has no `20261008140000`, so no placeholder file was needed.) CLI relinked to staging afterwards.
+- `send_claim_link`, `directory_email_preview`, `submit_claim_request` and `generate_directory_site` deployed to production, in that order, after the migration.
+- Curl smoke test on production: unknown email on sign_in returns `{ok:true}`; a bad redirect returns 400.
+- Not yet done: the frontend (System emails editor, `sendClaimUserMagicLink`) is live only after PR 325 merges (GitHub Pages) and `npm run deploy:live` (Vercel). Until then the app still uses Supabase's email for claim sign-in links. Directories pick up the branded claim dialog after their next Publish.
 
 ### Rollback plan
 Run `_20261113120000_directory_email_templates.rollback.sql` (custom wording is lost). Redeploy `submit_claim_request` from `main` and revert the frontend commit so `sendClaimUserMagicLink` goes back to `supabase.auth.signInWithOtp`. Redeploy `generate_directory_site` from `main` (and republish) so the public dialog goes back to the OTP endpoint. Delete `send_claim_link` and `directory_email_preview`.
