@@ -1,3 +1,5 @@
+import AIButton from "../ai/AIButton.jsx";
+import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
@@ -24,7 +26,6 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
   const [caption, setCaption] = useState("");
   const [credit, setCredit] = useState("");
   const [isHero, setIsHero] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -71,13 +72,11 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
     if (!pendingFile) return;
     setErr("");
     try {
-      setGenerating(true);
       const suggested = await generateMediaAltText(entryId, pendingFile, isHero ? "hero" : "gallery");
       setAltText(suggested);
     } catch (e) {
       setErr(e?.message ?? String(e));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
@@ -133,11 +132,10 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
               <div style={{ flex: 1, display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input value={altText} onChange={(e) => setAltText(e.target.value)} placeholder="Alt text (required before upload)" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" className="btn" style={{ fontSize: 11, padding: "5px 8px", whiteSpace: "nowrap" }} onClick={handleGenerateAltText} disabled={generating || !ai.available}>
-                    {generating ? "Generating…" : "Generate with AI"}
-                  </button>
+                  <AIButton compact variant="subtle" label="Suggest" onGenerate={handleGenerateAltText} disabled={!ai.available} />
                 </div>
                 {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ margin: 0 }} />}
+                <AiProvenanceNote entityName="image" compact>AI looks at the image and suggests alt text. Check it before you upload.</AiProvenanceNote>
                 <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption (optional)" style={inputStyle} />
                 <input value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Credit (optional)" style={inputStyle} />
                 <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>

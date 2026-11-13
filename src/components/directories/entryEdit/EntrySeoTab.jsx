@@ -1,3 +1,5 @@
+import AIButton from "../../ai/AIButton.jsx";
+import AiProvenanceNote from "../../ai/AiProvenanceNote.jsx";
 import React, { useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { useAiFeature } from "../../../hooks/useAiFeature.js";
@@ -54,7 +56,6 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
   const ai = useAiFeature("seo_metadata");
   const [form, setForm] = useState(() => buildForm(entry));
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [err, setErr] = useState("");
 
   function fSet(key, value) {
@@ -64,11 +65,10 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
   async function handleGenerate() {
     const hasExisting = AI_DRAFT_FIELDS.some((key) => form[key]?.trim());
     if (hasExisting && !window.confirm("This entry already has metadata in one or more of these fields — generating with AI will overwrite it here in the editor (nothing is saved until you click Save metadata). Continue?")) {
-      return;
+      return false;
     }
     setErr("");
     try {
-      setGenerating(true);
       recordEvent?.("directory_ai_content_requested", { directory_id: directoryId, entry_id: entryId, target: "entry_seo_metadata" });
       const draft = await generateEntrySeoMetadata(entryId);
       setForm((f) => ({ ...f, ...Object.fromEntries(AI_DRAFT_FIELDS.map((key) => [key, draft?.[key] ?? f[key]])) }));
@@ -76,8 +76,7 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
     } catch (e) {
       recordEvent?.("directory_ai_content_failed", { directory_id: directoryId, entry_id: entryId, target: "entry_seo_metadata", error: e?.message ?? String(e) });
       setErr(e?.message ?? String(e));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
@@ -116,11 +115,11 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
           <Group justify="space-between">
             <Text size="sm" fw={600}>Search engines</Text>
             {canEdit && (
-              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
+              <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
             )}
           </Group>
           {canEdit && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ marginTop: -8 }} />}
-          <Text size="xs" c="dimmed" mt={-8}>Drafts every field below (including Social &amp; AI) from this entry's own data. Lands here for review — nothing is saved until you click Save metadata.</Text>
+          <AiProvenanceNote entityName="entry" compact>Drafts every field below (including Social &amp; AI) from this entry's own data, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save metadata.</AiProvenanceNote>
           {entry?.seo_metadata_ai_generated_at && (
             <Alert color="blue" variant="light" py={6}>
               Some of these fields were auto-drafted by AI when this entry was published on {new Date(entry.seo_metadata_ai_generated_at).toLocaleDateString()} — worth checking over.
