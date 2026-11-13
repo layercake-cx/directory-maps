@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-13 — [Not yet deployed] Claimant login link on published directory sites
+## 2026-11-13 — [Staging] Claimant login link on published directory sites
 
 **Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`
 
@@ -18,8 +18,10 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Clicks record a new visitor event `claim_login_click` (`cta_type` header/footer) through the existing `data-dm-event` handler. Migration `20261113150000_claim_login_click_event` (+ rollback) widens the `map_engagement_event_type` check.
 - `builders.ts` markup changed, so `ENTRY_TEMPLATE_VERSION` is bumped 14 -> 15. `generate_directory_site` must be deployed, then each directory republished.
 
-### Staging outcome
-Not deployed yet.
+### Staging outcome (2026-11-13)
+- Migration `20261113150000` applied to staging (`beqejxneehilplrtpntn`); its own post-migration check printed VERIFY PASSED. Dry-run listed only this migration. As before, `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `generate_directory_site` deployed to staging. Production untouched.
+- Not yet checked: republishing a test directory and inspecting the links, and a click recording a `claim_login_click` row.
 
 ### Production outcome
 Not deployed yet.
