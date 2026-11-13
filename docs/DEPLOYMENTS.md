@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Frontend only] Hide the Team tab in the Listing Manager
+
+**Branch:** `chore/2026-11-13-hide-listing-team-tab`
+
+### What changed
+- Listing owners and editors no longer see a **Team** tab in the Listing Manager. It sat next to **Users** and read as the same thing, and wasn't specced for now. The tab and its component are commented out in `ClaimManager.jsx`, not deleted, so restoring it is a two-line uncomment.
+- Nothing in the database changed. Team members already added still show on published listing pages, and admins can still manage them from the directory Entries editor.
+
+### Preview outcome (2026-11-13)
+- Vercel preview deployed from this branch: https://directory-maps-l8wlym4rs-layercake-apps.vercel.app. Production (`maps.layercake-cx.biz`) not yet deployed; waiting on sign-off.
+
+### Production outcome (2026-11-13)
+- Deployed by the user with `npm run deploy:live` from this branch (Vercel production `directory-maps-ldpbbu1of-layercake-apps.vercel.app`, aliased to `https://uk-associations.com`). Ready in 24s. Not yet checked: Listing Manager tabs on the live site.
+
+### Rollback plan
+Revert this commit (or uncomment the two marked lines in `ClaimManager.jsx`).
+
+### Verification
+- [ ] Listing Manager shows Listing, SEO, Contact details, Users only. Not yet tested in the running app.
+
 ## 2026-11-13 — [Staging + Production] System emails use the directory's name
 
 **Branch:** `fix/2026-11-13-system-email-directory-name`

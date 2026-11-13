@@ -272,7 +272,7 @@ Open an existing entry (**Edit**) to see these below the main form — they're n
 
 - **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
 - **Media** — pick a gallery photo (PNG/JPG/WebP, max 5MB) to see a preview, then either type alt text or click **Generate with AI** to have Claude describe the actual image (not just guess from the entry's name) — alt text is required before you can upload. Mark one image as the **hero** image.
-- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed) — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
+- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed). Listing owners and editors don't see a Team tab in the Listing Manager for now (hidden 2026-11-13), so only admins and client staff manage these people — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
 - **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
 - **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
 - **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
@@ -340,12 +340,11 @@ While **Claims enabled** is on (and your plan includes claims), every page of yo
 
 **Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient opens the login page on the directory, enters their email, and gets a one-time sign-in link — no password. The invitation and the sign-in link are branded emails from the directory (wording editable under [System emails](#system-emails-branded-editable)); a sign-in link is only sent if that email belongs to a live claim, and the page shows the same "check your email" message either way. The link returns to that same login page. **Edit your listing** opens the Listing Manager. If they're linked to exactly one listing, that opens it straight away; linked to more than one, they choose which to open first.
 
-The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
+The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then four tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
 
 - **Listing** — the same rich-text editor used elsewhere in the app, for the listing's body content.
 - **SEO** — page title and meta description.
 - **Contact details** — website, email, phone, and address, each with its own "Show publicly" checkbox.
-- **Team** — add, hide/show, or delete the people shown publicly on the listing. Either the owner or an editor can do this.
 - **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here directly — use **Transfer ownership** below instead.
 
 Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
