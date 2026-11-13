@@ -38,7 +38,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 14;
+export const ENTRY_TEMPLATE_VERSION = 15;
 
 export type Entry = {
   id: string;
@@ -360,6 +360,7 @@ export const EXTRA_STYLE = `
   .dir-nav-desktop { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   .dir-nav-desktop a { color: var(--hdr-text); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px; }
   .dir-nav-desktop a:hover { color: var(--primary); }
+  .dir-nav-desktop a.dir-nav-login { font-weight: 500; opacity: .85; }
   .dir-nav-item { position: relative; }
   .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
   .dir-nav-dropdown {
@@ -1143,7 +1144,19 @@ export type SiteNav = {
   homeUrl: string;
   homeLabel: string;
   items: SiteNavItem[];
+  /** Claimant sign-in URL. Set only when claims are on for the directory
+   * (settings enabled AND maps.claims entitlement); null/absent renders no
+   * login link anywhere. */
+  claimLoginUrl?: string | null;
 };
+
+export const CLAIM_LOGIN_HEADER_LABEL = "Manage your listing";
+export const CLAIM_LOGIN_FOOTER_LABEL = "Listing owner log in";
+
+function claimLoginLink(nav: SiteNav | null | undefined, cta: "header" | "footer", cls: string, label: string, style = ""): string {
+  if (!nav?.claimLoginUrl) return "";
+  return `<a class="${cls}" href="${escapeAttr(nav.claimLoginUrl)}" data-dm-event="claim_login_click" data-dm-cta="${cta}" rel="nofollow"${style ? ` style="${style}"` : ""}>${escapeHtml(label)}</a>`;
+}
 
 function renderDesktopNav(nav: SiteNav): string {
   const home = `<a href="${escapeAttr(nav.homeUrl)}">${escapeHtml(nav.homeLabel)}</a>`;
@@ -1162,7 +1175,8 @@ function renderDesktopNav(nav: SiteNav): string {
 </div>`;
     })
     .join("\n");
-  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}</nav>`;
+  const login = claimLoginLink(nav, "header", "dir-nav-login", CLAIM_LOGIN_HEADER_LABEL);
+  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}${login}</nav>`;
 }
 
 function renderMobileNav(nav: SiteNav): string {
@@ -1184,7 +1198,7 @@ function renderMobileNav(nav: SiteNav): string {
     .join("\n");
   return `<details class="dir-nav-mobile">
   <summary aria-label="Open menu">☰</summary>
-  <nav class="dir-nav-mobile__panel" aria-label="Primary">${home}${items}</nav>
+  <nav class="dir-nav-mobile__panel" aria-label="Primary">${home}${items}${claimLoginLink(nav, "header", "dir-nav-login", CLAIM_LOGIN_HEADER_LABEL)}</nav>
 </details>`;
 }
 
@@ -1275,6 +1289,7 @@ export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?:
     <div>
       <div style="font-family:var(--font-heading);font-size:17px;font-weight:600;color:var(--ftr-text);">${escapeHtml(opts.directoryName)}</div>
       <a href="${escapeAttr(opts.homeUrl)}" class="dir-footer-link" style="font-size:13.5px;">Browse all entries</a>
+      ${opts.nav?.claimLoginUrl ? `<div style="margin-top:6px;">${claimLoginLink(opts.nav, "footer", "dir-footer-link", CLAIM_LOGIN_FOOTER_LABEL, "font-size:13.5px;")}</div>` : ""}
     </div>
     ${footerNav}
     <div class="dir-platform-panel-wrap">${platformPanel()}</div>
@@ -2225,6 +2240,7 @@ export function buildSiteNav(opts: {
   directorySlug: string;
   homeNavLabel?: string | null;
   pages: ContentPage[];
+  claimLoginUrl?: string | null;
 }): SiteNav {
   const homeUrl = `/directories/${opts.clientSlug}/${opts.directorySlug}`;
   const homeLabel = opts.homeNavLabel?.trim() || "Home";
@@ -2244,7 +2260,7 @@ export function buildSiteNav(opts: {
         href: `${homeUrl}/${contentPagePublicPath(c, byId)}`,
       })),
     }));
-  return { homeUrl, homeLabel, items };
+  return { homeUrl, homeLabel, items, claimLoginUrl: opts.claimLoginUrl ?? null };
 }
 
 export function breadcrumbListJsonLd(items: { name: string; url: string }[]): Record<string, unknown> {

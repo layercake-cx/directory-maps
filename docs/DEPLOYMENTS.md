@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Not yet deployed] Claimant login link on published directory sites
+
+**Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`
+
+### What changed
+- Claimants could only reach `/claim/login` from an email. Published directory pages now show **Manage your listing** in the header (and mobile menu) and **Listing owner log in** in the footer, linking to it.
+- The links render only when claims are on for the directory: `directory_claim_settings.enabled` and the `maps.claims` entitlement, the same check as the claim banner (`claimWidgetBase` in `generate_directory_site/index.ts`). With claims off there is no link and no markup. Turning claims off takes effect on the next Publish.
+- Clicks record a new visitor event `claim_login_click` (`cta_type` header/footer) through the existing `data-dm-event` handler. Migration `20261113150000_claim_login_click_event` (+ rollback) widens the `map_engagement_event_type` check.
+- `builders.ts` markup changed, so `ENTRY_TEMPLATE_VERSION` is bumped 14 -> 15. `generate_directory_site` must be deployed, then each directory republished.
+
+### Staging outcome
+Not deployed yet.
+
+### Production outcome
+Not deployed yet.
+
+### Rollback plan
+Run `_20261113150000_claim_login_click_event.rollback.sql` (it refuses to run if `claim_login_click` rows exist). Redeploy `generate_directory_site` from `main` and republish; already-published pages keep the link until republished, which is harmless.
+
+### Verification
+- [x] `deno check` on `generate_directory_site/index.ts`
+- [ ] Staging: migration applied, function deployed, directory republished with claims on, off, and entitlement removed
+- [ ] Link visible in header, mobile menu and footer on landing, content and entry pages only when claims are on
+- [ ] Click records one `claim_login_click` row with no personal data
+
+---
+
 ## 2026-11-13 — [Staging + Production] Branded, editable system emails for claims
 
 **Branch:** `feat/2026-11-13-branded-system-emails`
