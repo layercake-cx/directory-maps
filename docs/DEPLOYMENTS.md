@@ -8,6 +8,46 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Staging + Production] Listing login stays on the directory
+
+**Branch:** `feat/2026-11-13-listing-login-icon`
+
+### What changed
+- The header control is the person icon from the design brief (accessible name **Listing login**, tooltip on hover and focus). On a phone it sits beside the menu. The footer text link is gone.
+- The icon opens `/login` on the directory’s own address: the two-column “Listing owner login” page, then “Check your email” on that same page. Colours come from the claim banner. The form still uses `send_claim_link`. When the directory has an active custom domain, the sign-in and invitation emails open `https://<that-domain>/login`, and the Listing Manager (`/claim/login`) stays on that same domain. With no custom domain, the email opens the Listing Manager on the Layercake address. Verifying a directory domain adds `https://<that-domain>/login` to the project's Auth redirect allow list, and removing the domain takes it off. A sign-in or invitation email adds it too if it is missing. This uses the `MANAGEMENT_API_TOKEN` secret and the Supabase Management API. Edge secrets cannot be named `SUPABASE_*`.
+- `ENTRY_TEMPLATE_VERSION` is 21. A magic link that returns to the directory login page stays on that page. When a listing session is stored, the header person icon opens an account menu. Revoking a claim republishes that one listing so **Claim this listing** comes back. Entry pages also keep the banner, hidden, while a claim is active, and show it again when the listing is claimable.
+
+### Staging outcome (2026-11-13)
+- `generate_directory_site` and an earlier `send_claim_link` (directory redirect URL, no allow-list update) deployed to staging (`beqejxneehilplrtpntn`). Production untouched.
+- A directory picks up the icon and `/login` page on its next Publish.
+- `manage_client_domain`, `send_claim_link` and `generate_directory_site` redeployed to staging after the allow-list change. No new migration: dry-run reported the staging database already up to date (`20261113150000` is already applied). The temporary local copy of `20261008140000` was removed and not committed.
+- `MANAGEMENT_API_TOKEN` is set on staging. It is a scoped access token for the staging project only: Auth Config read-write and Project Settings read-write. Supabase rejects secrets whose names start with `SUPABASE_`, so it is stored under this name. A directory domain still has to be verified before `https://<domain>/login` is confirmed on the Auth redirect list.
+- A magic link from `generateLink` returns tokens in the URL hash. The app uses PKCE and was discarding that hash, so the link opened the login form again. The claim login page now stores that session. A link requested from localhost stays on localhost, because that is the staging app. `DIRECTORY_APP_ORIGIN` on staging is `http://localhost:5173`, used the next time a directory is published.
+- 2026-11-13 22:08 UTC: `send_claim_link` (version 8), `manage_client_domain` (version 15) and `generate_directory_site` (version 82, template 21) redeployed to staging so it matches production. That includes the directory magic-link address, the login page that stays on the directory, the signed-in account menu script, and the claim banner that returns after a revoke. No migration. `DIRECTORY_APP_ORIGIN` was left as `http://localhost:5173`. The staging app is still localhost for day-to-day work. A Vercel preview of this branch was then deployed: `dpl_BkeYvg1r4iT5ZRZRNCpUmWvTRcb7`, https://directory-maps-n5u4fqcw6-layercake-apps.vercel.app (Preview environment, Vercel authentication on). Production aliases were not changed.
+
+### Production outcome (2026-11-13)
+- `send_claim_link`, `manage_client_domain` and `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`). No new migration. CLI left linked to staging.
+- Vercel production deploy `dpl_58SiVLu7kaQdAAi1T2qkqxivEdYf` is Ready and aliased to `maps.layercake-cx.biz`, `uk-associations.com`, `ethical-elephant-sanctuaries.com` and `directory-maps.vercel.app`. That build includes the claim login page accepting the magic-link session. A later production deploy (`dpl_9cudCKeAvjSaEi1K7x8Ye8GMmEhD`) stops the app treating a claim magic link (`type=magiclink`) as a password reset. `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps `/claim/*` on the directory host. `dpl_9j7MRWfAXXzqe6F67MAR6bnULR67` (2026-11-13) stops the published login page bouncing a magic link into the Layercake app: the link stays on the directory login page, and the Listing Manager on that domain uses the directory header. `dpl_6DbrJRmSkxdS5WtSi2RtBbh74oH3` turns the header person icon into an account menu when a listing session is already stored on that domain (logo or initials, edit, view, sign out). `generate_directory_site` was redeployed at 14:26 UTC with template version 21. Vercel `dpl_CdXjUmK3NJhhG4LcjrzQQ2QYbkrW` includes revoke republishing the listing.
+- Final Vercel production deploy from the committed branch (HEAD `bc293bb`, so production matches the merged code exactly): `dpl_Bqx15qaH1pU9hoPPe3efY6nrKgy7`, https://directory-maps-17a9d0kb4-layercake-apps.vercel.app, Ready in 21s, aliased to `uk-associations.com` (the deploy output listed only that alias).
+- `MANAGEMENT_API_TOKEN` is set on production (scoped to the production project). Do not set `DIRECTORY_APP_ORIGIN` on production; an unset value keeps the handoff on `maps.layercake-cx.biz`.
+- GitHub Pages is unchanged until this branch is merged. A directory shows the icon and `/login` page on its next Publish.
+- Vercel `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps the magic-link session on the directory domain. `https://uk-associations.com/login` no longer forwards to `maps.layercake-cx.biz`, and `https://uk-associations.com/claim/login` serves the Listing Manager. `generate_directory_site` was redeployed so the next Publish bakes the same handoff.
+- [x] Production: `MANAGEMENT_API_TOKEN` is set
+- [x] Production: `https://<domain>/login` confirmed fine by the user
+
+### Rollback plan
+Redeploy `generate_directory_site`, `send_claim_link` and `manage_client_domain` from `main` and republish. No new migration. A directory URL already added to the Auth allow list stays until it is removed by hand or by a later domain removal.
+
+### Verification
+- [x] `deno test` on `listingLogin_test.ts`
+- [x] Staging: `generate_directory_site` and `send_claim_link` (redirect URL only) deployed
+- [x] Staging: `manage_client_domain`, `send_claim_link` and `generate_directory_site` deployed with the allow-list code
+- [x] Staging: `MANAGEMENT_API_TOKEN` is set (scoped to the staging project)
+- [ ] Staging: verify a directory domain and confirm `https://<domain>/login` is on the Auth redirect list
+- [ ] Staging: republish a directory on its own domain, confirm the icon stays on that domain and the login page matches the design
+- [ ] An approved claimant’s email shows “Check your email” and the message signs them into the Listing Manager
+- [ ] An unknown email shows the same “Check your email” card
+
 ## 2026-11-13 — [Staging + Production] Claimant login link on published directory sites
 
 **Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`

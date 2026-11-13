@@ -1,6 +1,8 @@
 # Spec — Claimant login entry point on published directory sites
 
-Status: draft for review · 2026-11-13
+Status: revised 2026-11-13 to follow the design brief (`owner-login-magic-link-spec`). The earlier choice of text links (“Manage your listing” / “Listing owner log in”) and a jump to `maps.layercake-cx.biz/claim/login` is withdrawn.
+
+The control is the chosen strip in that brief: a 40px person icon, accessible name **Listing login**, tooltip on hover and focus, last in the desktop nav and beside the menu on mobile. It links to `/login` on the directory’s own host. That page is the two-column “Listing owner login” layout, then the “Check your email” card, using the claim banner colours. With an active custom domain, the emailed magic link returns to `https://<that-domain>/login` and stays on that page. Once the session is stored on that domain, the icon shows the organisation logo or initials and opens the account menu (edit, view, sign out). Verifying the domain registers that URL with Supabase Auth and removing the domain withdraws it. With no custom domain the email opens the Listing Manager on the Layercake address.
 
 ## 1. Problem
 
