@@ -124,8 +124,8 @@ export async function loadBranding(service: ServiceClient, directoryId: string) 
     .maybeSingle();
   if (!data) return null;
   const theme = (data.theme_json ?? {}) as Record<string, unknown>;
-  const siteTitle = typeof theme.siteTitle === "string" && theme.siteTitle.trim() ? theme.siteTitle.trim() : "";
-  const name = siteTitle || (typeof data.name === "string" ? data.name : "Directory");
+  // {{directory_name}} is always the directory's own name, never the site title shown in the header.
+  const name = typeof data.name === "string" && data.name.trim() ? data.name.trim() : "Directory";
   return {
     clientId: String(data.client_id),
     profileId: typeof data.messaging_profile_id === "string" ? data.messaging_profile_id : null,
@@ -222,7 +222,7 @@ export async function resolveSystemFrom(service: ServiceClient, clientId: string
       .eq("client_id", clientId)
       .maybeSingle();
     if (profile?.email_domain_status === "verified" && typeof profile.email_from_address === "string" && profile.email_from_address.trim()) {
-      return buildFromHeader(profile.email_from_name, profile.email_from_address);
+      return buildFromHeader(profile.email_from_name?.trim() || directoryName, profile.email_from_address);
     }
     const n = (profile?.email_from_name as string | null | undefined)?.trim();
     if (n) return buildFromHeader(n, platformEmail);

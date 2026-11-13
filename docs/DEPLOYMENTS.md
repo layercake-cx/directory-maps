@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Staging + Production] System emails use the directory's name
+
+**Branch:** `fix/2026-11-13-system-email-directory-name`
+
+### What changed
+- `{{directory_name}}` in the three editable system emails (sign-in, invite, claim request) was the Look and Feel site title when set, otherwise the directory name. It is now always `directories.name`. UK Associations emails were printing "NA", which points to a bad site title.
+- The From name for these emails is the email profile's From name. A verified profile with a blank From name now falls back to the directory name instead of a bare address.
+- Only `_shared/systemEmail.ts` changed; `send_claim_link`, `submit_claim_request` and `directory_email_preview` need redeploying to pick it up.
+
+### Staging outcome (2026-11-13)
+- `send_claim_link`, `submit_claim_request` and `directory_email_preview` deployed to staging (`beqejxneehilplrtpntn`) from this branch merged with current `origin/main`. Production untouched.
+
+### Production outcome (2026-11-13)
+- Deployed on the user's instruction to production (`gxixwdjfmegxcxfeflro`) after confirming the branch contains current `origin/main`: `send_claim_link`, `submit_claim_request`, `directory_email_preview`. No frontend change, so no Vercel deploy was needed. Not yet checked: a test email from UK Associations.
+
+### Rollback plan
+Revert the commit and redeploy those three functions.
+
+### Verification
+- [x] `deno check` on `_shared/systemEmail.ts`
+- [ ] Staging: deploy the three functions, use "Send test to me" on UK Associations, confirm the name and From
+
+---
+---
+
 ## 2026-11-13 — [Staging + Production] Listing login stays on the directory
 
 **Branch:** `feat/2026-11-13-listing-login-icon`
