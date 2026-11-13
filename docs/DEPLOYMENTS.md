@@ -19,6 +19,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 ### Preview outcome (2026-11-13)
 - Vercel preview deployed from this branch: https://directory-maps-l8wlym4rs-layercake-apps.vercel.app. Production (`maps.layercake-cx.biz`) not yet deployed; waiting on sign-off.
 
+### Production outcome (2026-11-13)
+- Deployed by the user with `npm run deploy:live` from this branch (Vercel production `directory-maps-ldpbbu1of-layercake-apps.vercel.app`, aliased to `https://uk-associations.com`). Ready in 24s. Not yet checked: Listing Manager tabs on the live site.
+
 ### Rollback plan
 Revert this commit (or uncomment the two marked lines in `ClaimManager.jsx`).
 
