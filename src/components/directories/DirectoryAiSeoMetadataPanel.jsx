@@ -1,3 +1,4 @@
+import AIButton from "../ai/AIButton.jsx";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
@@ -165,15 +166,13 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
       )}
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button
-          type="button"
-          className="btn"
-          style={{ fontSize: 12, padding: "5px 12px" }}
-          onClick={handleBackfill}
+        <AIButton
+          compact
+          variant="secondary"
+          label="Backfill missing metadata"
+          onGenerate={async () => { await handleBackfill(); return false; }}
           disabled={queuing || running || !missingCount || !ai.available}
-        >
-          {queuing ? "Queuing…" : "Backfill missing metadata"}
-        </button>
+        />
         <button
           type="button"
           className="btn"

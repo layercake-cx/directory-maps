@@ -342,6 +342,14 @@ export async function isDirectoryAiContentEnabled(directoryId) {
   return !!data?.ai_content_prompt?.trim();
 }
 
+/** The directory's admin-configured entry drafting prompt, shown read-only next to AI buttons. */
+export async function getDirectoryAiContentPrompt(directoryId) {
+  if (!directoryId) return "";
+  const { data, error } = await supabase.from("directories").select("ai_content_prompt").eq("id", directoryId).maybeSingle();
+  if (error) throw error;
+  return data?.ai_content_prompt ?? "";
+}
+
 /** Synchronous single-entry generation — invoked by the "Generate with AI" button. */
 export async function generateEntryContent(entryId) {
   const { data, error } = await invokeFunction("generate_entry_content", { body: { entry_id: entryId } });

@@ -1,3 +1,5 @@
+import AIButton from "../ai/AIButton.jsx";
+import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
@@ -81,8 +83,6 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [generatingSeo, setGeneratingSeo] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [dragId, setDragId] = useState(null);
@@ -259,11 +259,10 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   async function handleGenerate() {
     if (!selectedPage || !outline.trim()) return;
     if (form.body_html?.trim() && !window.confirm("This page already has content — generating with AI will overwrite it here in the editor (nothing is saved until you click Save). Continue?")) {
-      return;
+      return false;
     }
     setErr("");
     try {
-      setGenerating(true);
       recordEvent?.("directory_content_page_ai_draft_requested", { directory_id: directoryId, page_id: selectedPage.id });
       const html = await generateContentPageDraft(selectedPage.id, outline.trim());
       fSet("body_html", html);
@@ -271,19 +270,17 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
     } catch (e) {
       recordEvent?.("directory_content_page_ai_draft_failed", { directory_id: directoryId, page_id: selectedPage.id, error: e?.message ?? String(e) });
       setErr(e?.message ?? String(e));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
   async function handleGenerateSeo() {
     if (!selectedPage || !form.body_html?.trim()) return;
     if ((form.meta_title?.trim() || form.meta_description?.trim()) && !window.confirm("This will replace the meta title and description here in the form (nothing is saved until you click Save). Continue?")) {
-      return;
+      return false;
     }
     setErr("");
     try {
-      setGeneratingSeo(true);
       recordEvent?.("directory_content_page_ai_seo_requested", { directory_id: directoryId, page_id: selectedPage.id });
       const seo = await generateContentPageSeo(selectedPage.id, form.body_html);
       setForm((f) => ({ ...f, meta_title: seo.meta_title || f.meta_title, meta_description: seo.meta_description || f.meta_description }));
@@ -291,8 +288,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
     } catch (e) {
       recordEvent?.("directory_content_page_ai_seo_failed", { directory_id: directoryId, page_id: selectedPage.id, error: e?.message ?? String(e) });
       setErr(e?.message ?? String(e));
-    } finally {
-      setGeneratingSeo(false);
+      return false;
     }
   }
 
@@ -551,6 +547,9 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
               <Text size="xs" c="dimmed" mb={6}>
                 Give the AI an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review. This only writes the page content; the SEO fields below are generated separately.
               </Text>
+              <AiProvenanceNote entityName="page" compact>
+                AI writes a draft from your outline, using a built-in drafting prompt. It lands in the editor above for review; nothing is saved until you click Save.
+              </AiProvenanceNote>
               <textarea
                 value={outline}
                 onChange={(e) => setOutline(e.target.value)}
@@ -559,9 +558,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                 style={{ ...inputStyle, resize: "vertical", marginBottom: 6 }}
               />
               {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
-              <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!outline.trim() || !ai.available}>
-                Generate content with AI
-              </Button>
+              <AIButton compact variant="secondary" label="Generate content with AI" onGenerate={handleGenerate} disabled={!outline.trim() || !ai.available} />
             </div>
 
             <Group justify="space-between" align="flex-end" mb={-6}>
@@ -574,9 +571,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                 </Text>
                 {!aiSeo.available && <AiUnavailableNotice message={aiSeo.message} href={aiSeo.integrationsHref} />}
               </div>
-              <Button size="xs" variant="light" onClick={handleGenerateSeo} loading={generatingSeo} disabled={!form.body_html?.trim() || !aiSeo.available}>
-                Generate SEO with AI
-              </Button>
+              <AIButton compact variant="subtle" label="Generate SEO with AI" onGenerate={handleGenerateSeo} disabled={!form.body_html?.trim() || !aiSeo.available} />
             </Group>
 
             <Group gap="sm" grow>

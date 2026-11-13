@@ -1,3 +1,5 @@
+import AIButton from "../../ai/AIButton.jsx";
+import AiProvenanceNote from "../../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Group, Text } from "@mantine/core";
 import { useAiFeature } from "../../../hooks/useAiFeature.js";
@@ -5,6 +7,7 @@ import AiUnavailableNotice from "../../../components/ai/AiUnavailableNotice.jsx"
 import {
   updateDirectoryEntry,
   generateEntryContent,
+  getDirectoryAiContentPrompt,
   listEntryContentVersions,
 } from "../../../lib/directories.js";
 import RichTextEditor from "./RichTextEditor.jsx";
@@ -36,9 +39,9 @@ const SOURCE_LABELS = {
  */
 export default function EntryContentTab({ directoryId, entryId, clientId, entry, canEdit, aiContentEnabled, recordEvent, onSaved }) {
   const ai = useAiFeature("content_generation");
+  const loadPrompt = useCallback(async () => ({ text: await getDirectoryAiContentPrompt(directoryId) }), [directoryId]);
   const [notesHtml, setNotesHtml] = useState(entry?.notes_html || "");
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [err, setErr] = useState("");
 
   const [versions, setVersions] = useState([]);
@@ -74,11 +77,10 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
 
   async function handleGenerate() {
     if (notesHtml.trim() && !window.confirm("This entry already has content — generating with AI will overwrite it. The current content stays recoverable in the version history below. Continue?")) {
-      return;
+      return false;
     }
     setErr("");
     try {
-      setGenerating(true);
       recordEvent?.("directory_ai_content_requested", { directory_id: directoryId, entry_id: entryId, source: clientId ? "client_portal" : "admin_dashboard" });
       const result = await generateEntryContent(entryId);
       setNotesHtml(result?.notes_html ?? "");
@@ -88,8 +90,7 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
     } catch (e) {
       recordEvent?.("directory_ai_content_failed", { directory_id: directoryId, entry_id: entryId, error: e?.message ?? String(e) });
       setErr(e?.message ?? String(e));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
@@ -104,9 +105,14 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
         <Group justify="space-between" mb={10}>
           <Text size="sm" fw={600}>Notes</Text>
           {canEdit && aiContentEnabled && (
-            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
+            <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
           )}
         </Group>
+        {canEdit && aiContentEnabled && (
+          <AiProvenanceNote entityName="entry" compact loadPrompt={loadPrompt} onGenerateFromModal={handleGenerate} canGenerate={ai.available}>
+            AI drafts this from the details held for this entry, following a drafting prompt set by the directory's administrators. Generating replaces the text below, and the previous version stays in the history.{" "}
+          </AiProvenanceNote>
+        )}
         {canEdit && aiContentEnabled && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
         <RichTextEditor value={notesHtml} onChange={setNotesHtml} editable={canEdit} />
         {err && <Alert color="red" variant="light" mt="xs">{err}</Alert>}

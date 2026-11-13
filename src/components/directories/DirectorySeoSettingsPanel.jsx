@@ -1,3 +1,5 @@
+import AIButton from "../ai/AIButton.jsx";
+import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useEffect, useState } from "react";
 import { Button } from "@mantine/core";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
@@ -38,7 +40,6 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
   const [seo, setSeo] = useState(() => seoDefaultsFromDirectory(directory));
   const [ogImageUrl, setOgImageUrl] = useState(directory?.seo_og_image_url || "");
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -54,12 +55,11 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
 
   async function handleGenerate() {
     if ((seo.meta_title_template.trim() || seo.meta_description.trim()) && !window.confirm("This directory already has an SEO title or description set — generating with AI will overwrite them here in the editor (nothing is saved until you click Save settings). Continue?")) {
-      return;
+      return false;
     }
     setErr("");
     setMsg("");
     try {
-      setGenerating(true);
       recordEvent?.("directory_ai_content_requested", { directory_id: directoryId, target: "directory_seo_metadata" });
       const draft = await generateDirectorySeoMetadata(directoryId);
       setSeo((s) => ({ ...s, meta_title_template: draft?.meta_title_template ?? s.meta_title_template, meta_description: draft?.meta_description ?? s.meta_description }));
@@ -67,8 +67,7 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
     } catch (e2) {
       recordEvent?.("directory_ai_content_failed", { directory_id: directoryId, target: "directory_seo_metadata", error: e2?.message ?? String(e2) });
       setErr(e2?.message ?? String(e2));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
@@ -121,13 +120,18 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <p style={{ ...sectionTitleStyle, marginBottom: 4 }}>SEO settings</p>
           {canManage && (
-            <Button size="xs" variant="light" onClick={handleGenerate} loading={generating} disabled={!ai.available}>Generate with AI</Button>
+            <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
           )}
         </div>
         {canManage && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
         <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.65 }}>
-          Controls how this directory's public pages appear in search results and when shared on social media. "Generate with AI" drafts the title and description below from this directory's own entry count and categorisation — lands here for review, nothing is saved until you click Save settings.
+          Controls how this directory's public pages appear in search results and when shared on social media.
         </p>
+        {canManage && (
+          <AiProvenanceNote entityName="directory" compact>
+            Drafts the title and description below from this directory&rsquo;s own entry count and categorisation, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save settings.
+          </AiProvenanceNote>
+        )}
 
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 6, cursor: disabled ? "default" : "pointer" }}>
           <input

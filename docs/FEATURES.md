@@ -396,7 +396,9 @@ The directory-entry successor to the removed map-level AI search enrichment feat
 
 Tables/functions: `directories.ai_content_prompt` + 6 bulk-run status columns, `directory_entries.ai_content_generated_at`, `entry_content_jobs`, `directory_entry_versions`, `enqueue_entry_content_job()` trigger (`20260906120000_create_directory_ai_content_generation.sql`); `claim_pending_entry_content_jobs()` + cron dispatch + `enqueue_directory_entry_content_jobs()` (`20260906130000_entry_content_generation_worker_cron.sql`).
 
-Files: `supabase/functions/generate_entry_content/index.ts`, `supabase/functions/process_entry_content_jobs/index.ts`, `supabase/functions/_shared/entryContentGeneration.ts`; `src/components/directories/DirectoryAiContentPanel.jsx`; prompt/bulk-run UI wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; "Generate with AI" + version history in `src/components/directories/entryEdit/EntryContentTab.jsx`; data access in `src/lib/directories.js`.
+Claimed owners/editors use `claim_listing_ai` (actions `prompt` and `draft`; auth via `requireDirectoryItemPublishAccess`; returns a draft and never saves; 409 `no_web_address` when the entry has no website). All AI buttons in the app share `src/components/ai/AIButton.jsx` (state machine, live region, inline errors), `AiProvenanceNote.jsx` and `DraftingPromptModal.jsx`.
+
+Files: `supabase/functions/generate_entry_content/index.ts`, `supabase/functions/claim_listing_ai/index.ts`, `supabase/functions/process_entry_content_jobs/index.ts`, `supabase/functions/_shared/entryContentGeneration.ts`; `src/components/directories/DirectoryAiContentPanel.jsx`; prompt/bulk-run UI wired into `AdminDirectoryEntries.jsx`/`ClientDirectoryEntries.jsx`; "Generate with AI" + version history in `src/components/directories/entryEdit/EntryContentTab.jsx`; data access in `src/lib/directories.js`.
 
 ### 4.4h Directory Ask AI sidebar (new, 2026-09-18 as Help me choose; split from search 2026-09-21; rebuilt as a sidebar 2026-10-31)
 

@@ -1,3 +1,4 @@
+import AIButton from "../ai/AIButton.jsx";
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase.js";
 import {
@@ -196,15 +197,13 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
       {statusLine}
       <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
       {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
-      <button
-        type="button"
-        className="btn"
-        style={{ fontSize: 12, padding: "5px 12px" }}
-        onClick={openConfirm}
+      <AIButton
+        compact
+        variant="secondary"
+        label="Generate all entry content"
+        onGenerate={() => { openConfirm(); return false; }}
         disabled={!directory?.ai_content_prompt?.trim() || status?.ai_content_generation_status === "running" || !ai.available}
-      >
-        Generate all entry content
-      </button>
+      />
       {!directory?.ai_content_prompt?.trim() && (
         <p style={{ fontSize: 12, opacity: 0.6, margin: "6px 0 0" }}>Save a content prompt above first.</p>
       )}

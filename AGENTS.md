@@ -574,6 +574,12 @@ its own event — don't invent new names for either.
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `trigger` (optional: `auto_on_activation` when fired automatically right after a claim goes active — self-service or admin-manual — rather than by someone clicking Publish themselves; absent for a manual click)
   - Fired by `publish_directory_item()` (see §5's item-only publishing isolation requirement) — never the general `map_published`/directory publish events, since a claim publish must never touch unrelated directory content.
   - Also fired automatically, best-effort, right after a claim reaches `active` (`ClaimLogin.jsx` for self-service, `DirectoryClaimsPanel.jsx`'s Activate button for admin) and right after **Revoke** (`trigger: auto_on_revoke`) — so the public page (claim button gone or back, provenance switched) reflects reality immediately rather than waiting on a separate manual Publish. A failed auto-publish never blocks activation or revoke itself.
+- **`claimed_listing_ai_draft_requested`** / **`_generated`** / **`_failed`**
+  - `meta`: `directory_id`, `directory_item_id`, `claim_id`, `mode` (`draft`), `error` (on fail)
+  - Fired from the Listing Manager's Generate with AI button (`claim_listing_ai`). The draft only lands in the unsaved editor; saving fires `claimed_listing_updated`.
+- **`claimed_listing_ai_prompt_viewed`**
+  - `meta`: `directory_id`, `directory_item_id`, `claim_id`
+  - Fired when a claim user opens the read-only drafting prompt.
 - **`claim_suspended`** / **`claim_reactivated`** / **`claim_revoked`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `reason` (optional, `claim_revoked` only)
 - **`directory_claim_settings_updated`**
