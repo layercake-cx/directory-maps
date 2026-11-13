@@ -8,6 +8,24 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-13 — [Not yet deployed] System emails use the directory's name
+
+**Branch:** `fix/2026-11-13-system-email-directory-name`
+
+### What changed
+- `{{directory_name}}` in the three editable system emails (sign-in, invite, claim request) was the Look and Feel site title when set, otherwise the directory name. It is now always `directories.name`. UK Associations emails were printing "NA", which points to a bad site title.
+- The From name for these emails is the email profile's From name. A verified profile with a blank From name now falls back to the directory name instead of a bare address.
+- Only `_shared/systemEmail.ts` changed; `send_claim_link`, `submit_claim_request` and `directory_email_preview` need redeploying to pick it up.
+
+### Rollback plan
+Revert the commit and redeploy those three functions.
+
+### Verification
+- [x] `deno check` on `_shared/systemEmail.ts`
+- [ ] Staging: deploy the three functions, use "Send test to me" on UK Associations, confirm the name and From
+
+---
+
 ## 2026-11-13 — [Staging + Production] Claimant login link on published directory sites
 
 **Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`
