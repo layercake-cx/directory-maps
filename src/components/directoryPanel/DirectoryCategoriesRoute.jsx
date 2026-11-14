@@ -1,17 +1,15 @@
 import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
-import CategoryTagPicker from "../directories/CategoryTagPicker.jsx";
 import CategorisationAttachmentPicker from "../directories/CategorisationAttachmentPicker.jsx";
-import { Section, SettingsLayout } from "../ui/index.js";
+import { SettingsLayout } from "../ui/index.js";
 
 /**
- * Content › Categories — CategoryTagPicker + CategorisationAttachmentPicker, relocated here from
- * inside the old "settings" tab (Phase 2; they had no real connection to the entries table
- * despite nav.config.json describing them as living "above the entries table" — see plan doc).
+ * Content › Categories — chooses which of the client's categories are available for use on this
+ * directory's entries (attachment + ordering). Terms are applied to individual entries from the
+ * entry editor's Categories tab or bulk tagging; the directory itself is not tagged with terms.
  */
 export default function DirectoryCategoriesRoute() {
-  const { directoryId, clientId, canManage, recordEvent, directoryTermIds, savingTerms, handleDirectoryTermsChange } =
-    useDirectory();
+  const { directoryId, clientId, canManage, recordEvent } = useDirectory();
 
   return (
     <SettingsLayout head={{ title: "Categories" }}>
@@ -22,14 +20,6 @@ export default function DirectoryCategoriesRoute() {
         recordEvent={recordEvent}
         canManage={canManage}
       />
-
-      <Section title="Directory categories" description={savingTerms ? "Saving…" : undefined}>
-        <CategoryTagPicker
-          directoryId={directoryId}
-          selectedTermIds={directoryTermIds}
-          onChange={canManage ? handleDirectoryTermsChange : () => {}}
-        />
-      </Section>
     </SettingsLayout>
   );
 }
