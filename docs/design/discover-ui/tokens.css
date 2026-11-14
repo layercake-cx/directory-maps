@@ -11,15 +11,16 @@
 
 :root {
   /* ---------- Type ---------- */
-  /* OVERRIDE: display face moves from Source Serif 4 to Bricolage Grotesque (approved 2026-11-14).
-     Load: https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&display=swap
+  /* OVERRIDE: display face is Schibsted Grotesk (chosen 2026-11-14 from three dialled-down options).
+     Load: https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap
      Remove the Source Serif 4 request once nothing references it. */
-  --font-display: 'Bricolage Grotesque', 'Public Sans', system-ui, sans-serif;
+  --font-display: 'Schibsted Grotesk', 'Public Sans', system-ui, sans-serif;
+  --font-display-settings: normal;    /* NEW: font-variation-settings hook; Schibsted needs none */
   --font-body: 'Public Sans', system-ui, sans-serif;           /* unchanged */
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; /* NEW: routes, codes, hex values */
   --fw-display: 700;            /* NEW: page titles, card titles, panel title */
   --fw-display-strong: 800;     /* NEW: stat numbers only */
-  --tracking-display: -0.02em;  /* NEW: Bricolage needs slight negative tracking at 22px+ */
+  --tracking-display: -0.015em; /* NEW: slight tightening at 22px+ */
 
   /* ---------- Status (shell) ---------- */
   /* Existing: --shell-ok-bg #e3f1e4, --shell-ok-border #b7d8ba, --shell-ok-text #1f5a28,

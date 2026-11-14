@@ -164,11 +164,14 @@ The client portal and staff admin are built on the **Discover UI** system (`docs
 | Shell chrome (top bar, rail, feature panel) | `src/styles/admin-shell.css` |
 | In-page class vocabulary (buttons, sections, tables, job cards, drawer ...) | `src/styles/discover-ui.css`, everything scoped under `.shell` |
 | Page-group extras | `src/styles/wave-a|b|c/*.css` (also `.shell`-scoped, tokens only) |
+| Brand assets (Discover by Layercake logo SVGs, icon) | `src/assets/brand/` (import through Vite; favicon and app icon live in `public/`) |
 | Component kit | `src/components/ui/`, imported from `components/ui/index.js` only |
 | Page templates | `PageLayout`, `SettingsLayout`, `RecordLayout` (`components/ui/layouts.jsx`) |
 | Long-running work | `src/components/jobs/` (`JobCard`, top-bar `TaskIndicator`, `KeepOpenBanner`, `useJob`) |
 | Assistant preview | `src/components/assistant/` (Ask Pip, UI mock, flag `assistant_preview`) |
 | Shared map pieces | `src/components/mapDashboard/`, `src/components/mapData/` (client and admin pages compose these) |
+
+**Type and brand.** Headings use `--font-display`, which is **Schibsted Grotesk** (loaded in `index.html`, 600/700/800); body text is Public Sans. The top bar, left to right: Menu button (below 1024px, when a panel exists), logo (on teal in the client context, reversed on ink in the platform context), divider, WorkspaceSwitcher, Staff view chip, spacer, TaskIndicator, AskPipButton, AvatarMenu. There is no global search or help link. Admin routes set the tab title with `useDocumentTitle` (`"{page} · Discover by Layercake"`).
 
 **Rules**
 
@@ -176,7 +179,7 @@ The client portal and staff admin are built on the **Discover UI** system (`docs
 - Pages import UI from `components/ui/index.js`. New code does not import `@mantine/core`; the only exception is `components/ui/mantine.js`, which exists for the claim pages' modal and the entry card preview (see BACKLOG.md).
 - Tokens only: no hard-coded colours, font sizes, radii or shadows in pages. Inline `style` only for genuinely dynamic values (a computed width, a user-chosen colour) with a comment saying why.
 - A page is a template plus `Section`s: `PageHead` first (via the layout's `head`), one primary action, `Field` for every input, `DataTable` for every list, `Pill` for status, `Callout` for messages, `EmptyState`/`ErrorState`/`Skeleton` for empty, failed and loading, `useConfirm`/`Dialog` for confirmations (never `window.confirm`), the processing pattern for work over about ten seconds. Behaviour rules are in `docs/design/discover-ui/PATTERNS.md` §3.
-- **Run `scripts/check-ui.sh`** (or `npm run check:ui`) before opening a PR. It fails on legacy buttons and containers, `xp-*` classes, Mantine imports outside `ui/`, native confirm/alert dialogs and emoji in UI, and reports inline-style and hex counts.
+- **Run `scripts/check-ui.sh`** (or `npm run check:ui`) before opening a PR. It fails on legacy buttons and containers, `xp-*` classes, Mantine imports outside `ui/`, native confirm/alert dialogs, emoji in UI, Bricolage, the removed top bar search/support link and "Layercake Maps" in admin files, and reports inline-style and hex counts.
 
 **Legacy that remains on purpose:** `src/style.css` (global brand variables and the public/marketing/auth styling), `src/pages/admin/admin.css` (the global `.btn` and `.admin-card` look used by auth, claim and embed pages, plus the map workspace layout classes), `components/ai/ai.css` (the `--uka-*` claim-page look), the `--lc-*` variables used across the app, and the CSS modules that out-of-scope or engagement components still import.
 
