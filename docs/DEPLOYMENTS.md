@@ -21,14 +21,14 @@ A plain-English record of every deployment to staging and production. Newest ent
 - No data fetching, route, permission, event or Edge Function changes. No migration.
 
 ### Production outcome
-- Not deployed yet. Staging (`npm run deploy:test`) first, then production only after sign-off.
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead, skipping a separate staging deploy (`directory-maps-g7a9vbt3x-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
 
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
 ### Verification
 - [x] `npm run build` passes; `scripts/check-ui.sh` passes with the new checks.
-- [ ] Not yet checked in a signed-in browser: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
+- [ ] Not yet checked in a signed-in browser on production: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
 
 ## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
 
