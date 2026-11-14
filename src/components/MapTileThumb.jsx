@@ -1,4 +1,5 @@
 import React from "react";
+import "../styles/wave-b/map-data.css";
 
 const TILE = 256;
 
@@ -17,15 +18,10 @@ export default function MapTileThumb({
 }) {
   const latNum = lat != null && lat !== "" ? Number(lat) : NaN;
   const lngNum = lng != null && lng !== "" ? Number(lng) : NaN;
+  const rootClass = ["map-tile-thumb", className].filter(Boolean).join(" ");
 
   if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-    return (
-      <div
-        className={className}
-        style={{ width: "100%", height: "100%", background: "#e8e6df", ...style }}
-        aria-hidden="true"
-      />
-    );
+    return <div className={rootClass} style={style} aria-hidden="true" />;
   }
 
   const z = Math.max(1, Math.min(18, Math.round(Number(zoom) || 12)));
@@ -52,25 +48,16 @@ export default function MapTileThumb({
   }
 
   return (
-    <div
-      className={className}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-        background: "#e8e0d8",
-        ...style,
-      }}
-    >
+    <div className={rootClass} style={style}>
       {tiles.map(({ tx, ty, left, top }) => (
         <img
           key={`${tx}-${ty}`}
+          className="map-tile-thumb-tile"
           src={`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`}
           width={TILE}
           height={TILE}
           alt=""
-          style={{ position: "absolute", left, top, display: "block", userSelect: "none" }}
+          style={{ left, top }} // dynamic: tile position from the map maths above
           draggable={false}
           loading="lazy"
         />

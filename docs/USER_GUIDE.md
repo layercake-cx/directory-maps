@@ -196,6 +196,16 @@ Every directory page now follows one layout: a page title, then stacked cards, w
 - **Deleting a directory or category** still asks you to type DELETE; the dialog now looks like the rest of the app.
 - Pages that had no heading (General, SEO, Search & Discovery, AI enrichment, Insights) now have one.
 
+### What changed on client pages (new look)
+
+Home, Team, Domains, Integrations, Email, the maps list, map Data, map Listings, map stats and the map design page now share the same layout as the directory pages: a page title, then cards. Things that moved:
+
+- **Map Data** shows its progress (Sheets sync, CSV import) first, above the tabs. Manual entries and the listings table are tables with an **Actions** menu per row; **Bulk edit filters** appears when rows are selected.
+- **Map settings** (design page): the tab strip is light with the active tab underlined; **Publish map** shows "Unpublished changes" on its tab when there are edits.
+- **Maps list:** the placeholder search box, Filter and Sort controls that didn't do anything are gone; map names are real links.
+- **Team:** Remove and Cancel invitation ask in a dialog.
+- **Email:** the sending-profile editor has separate cards for the profile, **Domain & DNS** (with Verified/Pending labels) and **Delete profile**; deleting asks first.
+
 ### Progress and background tasks
 
 Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.

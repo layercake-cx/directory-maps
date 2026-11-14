@@ -14,9 +14,9 @@ import {
   MetricCards,
   Panel,
 } from "../../components/engagement/EngagementShared.jsx";
-import styles from "./MapStats.module.css";
-import listingStyles from "./ListingStats.module.css";
+import { Button, Callout, EmptyState, Pill, StatGrid, StatTile, PageLayout } from "../../components/ui/index.js";
 import "../admin/admin.css";
+import "../../styles/wave-b/map-pages.css";
 
 function EventIcon({ eventType }) {
   const props = { size: 16, strokeWidth: 2, "aria-hidden": true };
@@ -107,7 +107,7 @@ export default function ListingStats() {
 
   const loading = pageLoading || engagementLoading;
   const statsBase = routes.statsBase;
-  const contentClass = isAdmin ? styles.page : `page-main ${styles.page}`;
+  const contentClass = isAdmin ? undefined : "page-main"; // client routes render without a page wrapper
 
   if (pageLoading) {
     return (
@@ -120,10 +120,12 @@ export default function ListingStats() {
   if (pageError) {
     return (
       <div className={contentClass}>
-        <p className={styles.error}>{pageError}</p>
-        <Link to={statsBase} className="btn">
-          Back to map stats
-        </Link>
+        <div className="mp-stack">
+          <Callout tone="danger">{pageError}</Callout>
+          <div>
+            <Button as={Link} to={statsBase}>Back to map stats</Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -139,86 +141,85 @@ export default function ListingStats() {
 
   return (
     <div className={contentClass}>
-      <header className={styles.header}>
-        <div className={styles.headerMain}>
-          <Link to={`${statsBase}?days=${days}`} className={styles.backLink}>
-            ← {mapName} stats
-          </Link>
-          <h1 className={`page-title ${styles.title}`}>{listing?.name || "Listing"}</h1>
-        </div>
-        <div className={styles.headerActions}>
-          <DateRangeSelect days={days} onChange={setDays} />
-        </div>
-      </header>
+      <PageLayout
+        head={{
+          title: listing?.name || "Listing",
+          breadcrumb: [{ label: `${mapName} stats`, to: `${statsBase}?days=${days}` }, { label: listing?.name || "Listing" }],
+          actions: <DateRangeSelect days={days} onChange={setDays} />,
+        }}
+      >
+        <div className="mp-stack">
+          {engagementError ? <Callout tone="danger">{engagementError}</Callout> : null}
 
-      {engagementError ? <p className={styles.error}>{engagementError}</p> : null}
+          {loading ? (
+            <LoadingState />
+          ) : !metrics.hasData ? (
+            <EmptyState
+              art="searching"
+              title="No engagement for this listing"
+              body="There is no recorded activity for this listing in the selected period."
+            />
+          ) : (
+            <>
+              <MetricCards items={summaryCards} />
 
-      {loading ? (
-        <LoadingState />
-      ) : !metrics.hasData ? (
-        <div className={styles.emptyPage}>
-          <h2>No engagement for this listing</h2>
-          <p>There is no recorded activity for this listing in the selected period.</p>
-        </div>
-      ) : (
-        <div className={styles.dashboard}>
-          <MetricCards items={summaryCards} />
+              <Panel title="Engagement over time">
+                <ListingTrendChart data={metrics.daily} />
+              </Panel>
 
-          <Panel title="Engagement over time">
-            <ListingTrendChart data={metrics.daily} />
-          </Panel>
+              <Panel title="Conversion funnel" subtitle="Step-to-step rate shown on the right">
+                <FunnelChart steps={metrics.funnel} />
+              </Panel>
 
-          <Panel title="Conversion funnel" subtitle="Step-to-step rate shown on the right">
-            <FunnelChart steps={metrics.funnel} />
-          </Panel>
-
-          <Panel title="How visitors found this listing">
-            <div className={listingStyles.sourceBars}>
-              {metrics.visitorsBySource.map((row) => (
-                <div key={row.source} className={listingStyles.sourceRow}>
-                  <div className={listingStyles.sourceLabelWrap}>
-                    <span className={listingStyles.sourceName}>{row.name}</span>
-                    <span className={listingStyles.sourceCount}>{row.count}</span>
+              <Panel title="How visitors found this listing">
+                <div className="mp-stack">
+                  <div className="mp-source-bars">
+                    {metrics.visitorsBySource.map((row) => (
+                      <div key={row.source} className="mp-source-row">
+                        <div className="mp-source-label">
+                          <span className="mp-source-name">{row.name}</span>
+                          <span className="mp-source-count">{row.count}</span>
+                        </div>
+                        <div className="mp-source-track">
+                          <div
+                            className="mp-source-fill"
+                            // dynamic: bar width is the source's share of the largest source
+                            style={{ width: `${Math.max(4, (row.count / sourceMax) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className={listingStyles.sourceTrack}>
-                    <div
-                      className={listingStyles.sourceFill}
-                      style={{ width: `${Math.max(4, (row.count / sourceMax) * 100)}%` }}
-                    />
-                  </div>
+                  <StatGrid compact>
+                    {metrics.visitorsBySource.map((row) => (
+                      <StatTile key={row.source} compact label={`${row.name} %`} value={`${row.pct}%`} />
+                    ))}
+                  </StatGrid>
                 </div>
-              ))}
-            </div>
-            <div className={listingStyles.sourcePctGrid}>
-              {metrics.visitorsBySource.map((row) => (
-                <div key={row.source} className={listingStyles.sourcePctCard}>
-                  <p className={listingStyles.sourcePctLabel}>{row.name} %</p>
-                  <p className={listingStyles.sourcePctValue}>{row.pct}%</p>
-                </div>
-              ))}
-            </div>
-          </Panel>
+              </Panel>
 
-          <Panel title="Recent activity" subtitle="Last 20 events">
-            <ul className={listingStyles.activityList}>
-              {metrics.recentActivity.map((item) => (
-                <li key={item.id} className={listingStyles.activityItem}>
-                  <span className={listingStyles.activityIcon}>
-                    <EventIcon eventType={item.eventType} />
-                  </span>
-                  <div className={listingStyles.activityBody}>
-                    <span className={listingStyles.activityLabel}>{item.label}</span>
-                    {item.badge ? <span className={listingStyles.activityBadge}>{item.badge}</span> : null}
-                  </div>
-                  <time className={listingStyles.activityTime} dateTime={item.occurredAt}>
-                    {formatRelativeTime(item.occurredAt)}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+              <Panel title="Recent activity" subtitle="Last 20 events">
+                <ul className="mp-activity">
+                  {metrics.recentActivity.map((item) => (
+                    <li key={item.id} className="mp-activity-item">
+                      <span className="mp-activity-icon">
+                        <EventIcon eventType={item.eventType} />
+                      </span>
+                      <div className="mp-activity-body">
+                        <span>{item.label}</span>
+                        {item.badge ? <Pill>{item.badge}</Pill> : null}
+                      </div>
+                      <time className="mp-activity-time" dateTime={item.occurredAt}>
+                        {formatRelativeTime(item.occurredAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            </>
+          )}
         </div>
-      )}
+      </PageLayout>
     </div>
   );
 }

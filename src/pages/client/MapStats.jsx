@@ -19,8 +19,9 @@ import {
   MetricCards,
   Panel,
 } from "../../components/engagement/EngagementShared.jsx";
-import styles from "./MapStats.module.css";
+import { Button, Callout, EmptyState, PageLayout } from "../../components/ui/index.js";
 import "../admin/admin.css";
+import "../../styles/wave-b/map-pages.css";
 
 export default function MapStats() {
   const { mapId, clientId: adminClientId } = useParams();
@@ -105,7 +106,7 @@ export default function MapStats() {
   }
 
   const loading = pageLoading || engagementLoading;
-  const contentClass = isAdmin ? styles.page : `page-main ${styles.page}`;
+  const contentClass = isAdmin ? undefined : "page-main"; // client routes render without a page wrapper
 
   if (pageLoading) {
     return (
@@ -118,10 +119,12 @@ export default function MapStats() {
   if (pageError) {
     return (
       <div className={contentClass}>
-        <p className={styles.error}>{pageError}</p>
-        <Link to={routes.backPath} className="btn">
-          Back to {routes.backLabel}
-        </Link>
+        <div className="mp-stack">
+          <Callout tone="danger">{pageError}</Callout>
+          <div>
+            <Button as={Link} to={routes.backPath}>Back to {routes.backLabel}</Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -145,7 +148,7 @@ export default function MapStats() {
       key: "name",
       label: "Listing",
       render: (row) => (
-        <Link to={routes.listingStatsPath(row.listingId)} className={styles.listingNameLink}>
+        <Link to={routes.listingStatsPath(row.listingId)} className="row-link">
           {row.name}
         </Link>
       ),
@@ -153,13 +156,13 @@ export default function MapStats() {
     ...LISTING_INTERACTION_COLUMNS.map((col) => ({
       key: col.key,
       label: col.label,
-      className: styles.numCell,
+      className: "mp-num",
       render: (row) => row[col.key].toLocaleString(),
     })),
     {
       key: "total",
       label: "Total",
-      className: styles.numCell,
+      className: "mp-num",
       render: (row) => <strong>{row.total.toLocaleString()}</strong>,
     },
   ];
@@ -171,86 +174,85 @@ export default function MapStats() {
 
   return (
     <div className={contentClass}>
-      <header className={styles.header}>
-        <div className={styles.headerMain}>
-          {!isAdmin ? (
-            <Link to={routes.backPath} className={styles.backLink}>
-              ← {routes.backLabel}
-            </Link>
-          ) : null}
-          <h1 className={`page-title ${styles.title}`}>{map?.name || "Map"} — Stats</h1>
-        </div>
-        <div className={styles.headerActions}>
-          <DateRangeSelect days={days} onChange={setDays} />
-          <ListingSearchDropdown
-            listings={listings}
-            mapId={mapId}
-            days={days}
-            listingStatsPath={routes.listingStatsPath}
-          />
-        </div>
-      </header>
-
-      {engagementError ? <p className={styles.error}>{engagementError}</p> : null}
-
-      {loading ? (
-        <LoadingState />
-      ) : !metrics.hasData ? (
-        <div className={styles.emptyPage}>
-          <h2>No engagement yet</h2>
-          <p>When visitors use your published embed, activity will appear here for the selected period.</p>
-        </div>
-      ) : (
-        <div className={styles.dashboard}>
-          <MetricCards items={summaryCards} />
-
-          <Panel title="Sessions and events per day" subtitle="Bars = events · Line = distinct sessions">
-            <DailyEventsChart data={metrics.daily} />
-          </Panel>
-
-          <div className={styles.grid2}>
-            <Panel title="Events by type">
-              <DonutChart data={metrics.eventsByType} emptyMessage="No typed events in this period." />
-            </Panel>
-            <Panel title="Listing panel open — by source">
-              <DonutChart data={metrics.panelOpenBySource} emptyMessage="No listing opens in this period." />
-            </Panel>
-          </div>
-
-          <Panel title="Conversion funnel" subtitle="Step-to-step rate shown on the right">
-            <FunnelChart steps={metrics.funnel} />
-          </Panel>
-
-          <div className={styles.topRow}>
-            <Panel
-              className={styles.topRowLeft}
-              title="Top listings"
-              subtitle="Listing interactions in this period · sorted by total"
-            >
-              <DataTable
-                columns={topListingColumns}
-                rows={topListingRows}
-                emptyMessage="No listing interactions in this period."
+      <PageLayout
+        head={{
+          title: `${map?.name || "Map"} — Stats`,
+          breadcrumb: isAdmin ? undefined : [{ label: routes.backLabel, to: routes.backPath }, { label: "Stats" }],
+          actions: (
+            <div className="mp-head-controls">
+              <DateRangeSelect days={days} onChange={setDays} />
+              <ListingSearchDropdown
+                listings={listings}
+                mapId={mapId}
+                days={days}
+                listingStatsPath={routes.listingStatsPath}
               />
-            </Panel>
-            <Panel
-              className={styles.topRowRight}
-              title="Top search queries"
-              subtitle="Submitted searches (Enter or selection)"
-            >
-              <DataTable
-                columns={[
-                  { key: "query", label: "Query" },
-                  { key: "count", label: "Count", className: styles.numCell },
-                  { key: "topResult", label: "Most common result" },
-                ]}
-                rows={searchRows}
-                emptyMessage="No submitted searches in this period."
-              />
-            </Panel>
-          </div>
+            </div>
+          ),
+        }}
+      >
+        <div className="mp-stack">
+          {engagementError ? <Callout tone="danger">{engagementError}</Callout> : null}
+
+          {loading ? (
+            <LoadingState />
+          ) : !metrics.hasData ? (
+            <EmptyState
+              art="searching"
+              title="No engagement yet"
+              body="When visitors use your published embed, activity will appear here for the selected period."
+            />
+          ) : (
+            <>
+              <MetricCards items={summaryCards} />
+
+              <Panel title="Sessions and events per day" subtitle="Bars = events · Line = distinct sessions">
+                <DailyEventsChart data={metrics.daily} />
+              </Panel>
+
+              <div className="mp-split">
+                <Panel title="Events by type">
+                  <DonutChart data={metrics.eventsByType} emptyMessage="No typed events in this period." />
+                </Panel>
+                <Panel title="Listing panel open — by source">
+                  <DonutChart data={metrics.panelOpenBySource} emptyMessage="No listing opens in this period." />
+                </Panel>
+              </div>
+
+              <Panel title="Conversion funnel" subtitle="Step-to-step rate shown on the right">
+                <FunnelChart steps={metrics.funnel} />
+              </Panel>
+
+              <div className="mp-split">
+                <Panel
+                  title="Top listings"
+                  subtitle="Listing interactions in this period · sorted by total"
+                >
+                  <DataTable
+                    columns={topListingColumns}
+                    rows={topListingRows}
+                    emptyMessage="No listing interactions in this period."
+                  />
+                </Panel>
+                <Panel
+                  title="Top search queries"
+                  subtitle="Submitted searches (Enter or selection)"
+                >
+                  <DataTable
+                    columns={[
+                      { key: "query", label: "Query" },
+                      { key: "count", label: "Count", className: "mp-num" },
+                      { key: "topResult", label: "Most common result" },
+                    ]}
+                    rows={searchRows}
+                    emptyMessage="No submitted searches in this period."
+                  />
+                </Panel>
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </PageLayout>
     </div>
   );
 }

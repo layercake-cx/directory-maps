@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Alert, Badge, Button, Loader, Text, Group } from "@mantine/core";
+import { Button, Callout, EmptyState, Pill, Skeleton } from "./ui/index.js";
+import "../styles/wave-b/map-data.css";
 
 const PAGE_SIZE = 100;
 
@@ -13,11 +14,11 @@ function formatDuration(startedAt, completedAt) {
   return `${m}m ${s}s`;
 }
 
-function StatusBadge({ status }) {
-  if (status === "success") return <Badge color="green" variant="light" size="xs">Success</Badge>;
-  if (status === "warning") return <Badge color="yellow" variant="light" size="xs">Warning</Badge>;
-  if (status === "error") return <Badge color="red" variant="light" size="xs">Error</Badge>;
-  return <Badge color="gray" variant="light" size="xs">Running</Badge>;
+function StatusPill({ status }) {
+  if (status === "success") return <Pill tone="ok">Success</Pill>;
+  if (status === "warning") return <Pill tone="warn">Warning</Pill>;
+  if (status === "error") return <Pill tone="danger">Error</Pill>;
+  return <Pill tone="neutral">Running</Pill>;
 }
 
 export default function SyncHistoryTable({ mapId }) {
@@ -58,101 +59,91 @@ export default function SyncHistoryTable({ mapId }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      {loading && (
-        <div style={{ padding: "32px 0", textAlign: "center", opacity: 0.5 }}>
-          <Loader size="sm" />
-        </div>
-      )}
+    <div className="md-stack">
+      {loading && <Skeleton variant="table" rows={4} label="Loading sync history" />}
 
-      {err && <Alert color="red" variant="light">{err}</Alert>}
+      {err && <Callout tone="danger">{err}</Callout>}
 
       {!loading && logs.length === 0 && !err && (
-        <Text size="sm" c="dimmed">No sync history yet.</Text>
+        <EmptyState art="none" title="No sync history yet" />
       )}
 
       {!loading && logs.length > 0 && (
-        <>
-          <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
-                  <th style={{ padding: "9px 12px" }}>Started</th>
-                  <th style={{ padding: "9px 12px" }}>Duration</th>
-                  <th style={{ padding: "9px 12px" }}>Status</th>
-                  <th style={{ padding: "9px 12px" }}>Provider</th>
-                  <th style={{ padding: "9px 12px" }}>Total rows</th>
-                  <th style={{ padding: "9px 12px" }}>Inserted</th>
-                  <th style={{ padding: "9px 12px" }}>Updated</th>
-                  <th style={{ padding: "9px 12px" }}>Deleted</th>
-                  <th style={{ padding: "9px 12px" }}>Error</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => {
-                  const isExpanded = expanded === log.id;
-                  const errTrunc = log.error_message
-                    ? log.error_message.length > 80
-                      ? log.error_message.slice(0, 80) + "…"
-                      : log.error_message
-                    : "—";
-                  return (
-                    <React.Fragment key={log.id}>
-                      <tr
-                        style={{ borderBottom: isExpanded ? "none" : "1px solid var(--lc-border)", cursor: log.error_message || log.error_code ? "pointer" : "default" }}
-                        onClick={() => setExpanded(isExpanded ? null : log.id)}
-                      >
-                        <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                          {new Date(log.started_at).toLocaleString()}
+        <div className="table-wrap">
+          <table className="table md-history-table">
+            <caption className="sr-only">Sync history</caption>
+            <thead>
+              <tr>
+                <th>Started</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Provider</th>
+                <th>Total rows</th>
+                <th>Inserted</th>
+                <th>Updated</th>
+                <th>Deleted</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => {
+                const isExpanded = expanded === log.id;
+                const hasError = !!(log.error_message || log.error_code);
+                const errTrunc = log.error_message
+                  ? log.error_message.length > 80
+                    ? log.error_message.slice(0, 80) + "…"
+                    : log.error_message
+                  : "—";
+                return (
+                  <React.Fragment key={log.id}>
+                    <tr
+                      className={`md-history-row ${hasError ? "is-clickable" : ""}`.trim()}
+                      onClick={() => setExpanded(isExpanded ? null : log.id)}
+                    >
+                      <td className="md-nowrap">
+                        <button
+                          type="button"
+                          className="md-linkbtn"
+                          aria-expanded={isExpanded}
+                          onClick={(e) => { e.stopPropagation(); setExpanded(isExpanded ? null : log.id); }}
+                        >
+                          {new Date(log.started_at).toLocaleString("en-GB")}
+                        </button>
+                      </td>
+                      <td className="md-nowrap">{formatDuration(log.started_at, log.completed_at)}</td>
+                      <td><StatusPill status={log.status} /></td>
+                      <td className="md-cell-muted">{log.provider ?? "—"}</td>
+                      <td>{log.total_rows ?? "—"}</td>
+                      <td>{log.inserted_count ?? "—"}</td>
+                      <td>{log.updated_count ?? "—"}</td>
+                      <td>{log.deleted_count ?? "—"}</td>
+                      <td className="md-cell-muted">{errTrunc}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="md-history-detail">
+                        <td colSpan={9}>
+                          {log.error_code && <p><strong>Error code:</strong> {log.error_code}</p>}
+                          {log.error_message && <p><strong>Message:</strong> {log.error_message}</p>}
+                          {log.error_detail && <pre>{log.error_detail}</pre>}
+                          {!log.error_code && !log.error_message && !log.error_detail && (
+                            <p className="md-muted">No detail available.</p>
+                          )}
                         </td>
-                        <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                          {formatDuration(log.started_at, log.completed_at)}
-                        </td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <StatusBadge status={log.status} />
-                        </td>
-                        <td style={{ padding: "8px 12px", opacity: 0.7 }}>{log.provider ?? "—"}</td>
-                        <td style={{ padding: "8px 12px" }}>{log.total_rows ?? "—"}</td>
-                        <td style={{ padding: "8px 12px" }}>{log.inserted_count ?? "—"}</td>
-                        <td style={{ padding: "8px 12px" }}>{log.updated_count ?? "—"}</td>
-                        <td style={{ padding: "8px 12px" }}>{log.deleted_count ?? "—"}</td>
-                        <td style={{ padding: "8px 12px", opacity: 0.7 }}>{errTrunc}</td>
                       </tr>
-                      {isExpanded && (
-                        <tr style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                          <td colSpan={9} style={{ padding: "8px 12px 12px", background: "rgba(0,0,0,0.02)" }}>
-                            {log.error_code && (
-                              <Text size="xs" mb={4}><strong>Error code:</strong> {log.error_code}</Text>
-                            )}
-                            {log.error_message && (
-                              <Text size="xs" mb={4}><strong>Message:</strong> {log.error_message}</Text>
-                            )}
-                            {log.error_detail && (
-                              <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "rgba(0,0,0,0.04)", padding: 8, borderRadius: 4 }}>
-                                {log.error_detail}
-                              </pre>
-                            )}
-                            {!log.error_code && !log.error_message && !log.error_detail && (
-                              <Text size="xs" c="dimmed">No detail available.</Text>
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="table-foot">
+            <span>Page {page + 1} of {totalPages}</span>
+            <span className="table-foot-actions">
+              <Button size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>Previous</Button>
+              <Button size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
+            </span>
           </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <Text size="xs" c="dimmed">Page {page + 1} of {totalPages}</Text>
-            <Group gap="xs">
-              <Button size="xs" variant="default" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>Prev</Button>
-              <Button size="xs" variant="default" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
-            </Group>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

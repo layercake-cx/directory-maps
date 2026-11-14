@@ -1,0 +1,95 @@
+/* Phase 6, Wave B (client workspace): maps list, create map, listings, map and listing stats,
+   map sub-nav, and the filter-field editors. Scoped under .shell, tokens only.
+   Classes are prefixed mp- so they cannot collide with the kit or other waves. */
+
+.shell .mp-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .mp-stack--tight { gap: 8px; }
+.shell .mp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.shell .mp-row--between { justify-content: space-between; }
+.shell .mp-row--end { align-items: flex-end; }
+.shell .mp-grow { flex: 1 1 240px; min-width: 0; }
+.shell .mp-push { margin-left: auto; }
+.shell .mp-muted { color: var(--shell-text-muted); font-size: var(--fs-small); }
+.shell .mp-note { margin: 0; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .mp-subhead { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--shell-ink); }
+.shell .mp-pre { margin: 0; white-space: pre-wrap; font-family: inherit; }
+.shell .mp-num { text-align: right; font-variant-numeric: tabular-nums; }
+.shell .mp-cell-sub { display: block; font-size: var(--fs-label); color: var(--shell-text-muted); }
+.shell .mp-list-plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- Create map ---- */
+.shell .mp-form { max-width: 680px; }
+.shell .mp-inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.shell .mp-inline-form .field { flex: 1 1 240px; }
+.shell .mp-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 720px) { .shell .mp-grid-3 { grid-template-columns: minmax(0, 1fr); } }
+.shell .mp-choice-row { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+
+/* ---- Maps list ---- */
+.shell .mp-map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.shell .mp-create-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.shell .mp-map-card { position: relative; display: flex; flex-direction: column; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-card); overflow: hidden; min-width: 0; }
+.shell .mp-map-card:hover { border-color: var(--shell-text-muted); }
+.shell .mp-map-card:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .mp-map-thumb { display: block; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: var(--shell-ground); }
+.shell .mp-map-meta { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; min-width: 0; }
+.shell .mp-map-name { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--shell-ink); overflow-wrap: anywhere; }
+.shell .mp-map-name a { color: inherit; text-decoration: none; }
+.shell .mp-map-name a:hover { text-decoration: underline; }
+/* The name link stretches over the whole card; secondary links sit above it. */
+.shell .mp-map-name a::after { content: ""; position: absolute; inset: 0; }
+.shell .mp-map-detail { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .mp-map-links { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--fs-small); }
+.shell .mp-map-links a { display: inline-flex; align-items: center; gap: 4px; color: var(--shell-accent); }
+.shell .mp-map-foot { font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---- Stats pages ---- */
+.shell .mp-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.shell .mp-split > * { min-width: 0; }
+@media (max-width: 960px) { .shell .mp-split { grid-template-columns: minmax(0, 1fr); } }
+.shell .mp-head-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+
+.shell .mp-source-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.shell .mp-source-row { display: grid; grid-template-columns: 1fr minmax(0, 2fr); gap: 10px; align-items: center; }
+.shell .mp-source-label { display: flex; flex-direction: column; gap: 2px; }
+.shell .mp-source-name { font-size: var(--fs-ui); color: var(--shell-ink); }
+.shell .mp-source-count { font-size: var(--fs-label); color: var(--shell-text-muted); font-variant-numeric: tabular-nums; }
+.shell .mp-source-track { height: 10px; background: var(--shell-chip-neutral); border-radius: 999px; overflow: hidden; }
+.shell .mp-source-fill { height: 100%; min-width: 4px; background: var(--shell-accent); border-radius: 999px; }
+
+.shell .mp-activity { list-style: none; margin: 0; padding: 0; }
+.shell .mp-activity-item { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--shell-line-soft); }
+.shell .mp-activity-item:last-child { border-bottom: 0; }
+.shell .mp-activity-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-item); background: var(--shell-accent-tint); color: var(--shell-accent-tint-text); flex-shrink: 0; }
+.shell .mp-activity-body { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-ui); color: var(--shell-ink); }
+.shell .mp-activity-time { font-size: var(--fs-small); color: var(--shell-text-muted); white-space: nowrap; }
+
+/* ---- Map sub-nav (design / data / stats / publish) ---- */
+.shell .mp-subnav { background: var(--shell-surface); border-bottom: 1px solid var(--shell-line); }
+.shell .mp-subnav-inner { max-width: 1230px; margin: 0 auto; padding: 0 var(--main-pad-x); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.shell .mp-subnav-inner--full { max-width: none; margin: 0; }
+.shell .mp-subnav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 0; }
+.shell .mp-subnav-back { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-item); color: var(--shell-text-soft); flex-shrink: 0; }
+.shell .mp-subnav-back:hover { background: var(--shell-ground); color: var(--shell-ink); }
+.shell .mp-subnav-name { font-size: var(--fs-ui); font-weight: 700; color: var(--shell-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell .mp-subnav-tabs { border-bottom: 0; gap: 20px; flex-wrap: wrap; align-items: center; }
+.shell .mp-subnav-tabs .tab { display: inline-flex; align-items: center; gap: 8px; padding: 14px 0; }
+.shell .mp-subnav-actions { display: flex; align-items: center; gap: 10px; }
+.shell .mp-subnav-sep { color: var(--shell-text-muted); user-select: none; }
+
+/* ---- Filter fields panel and editors ---- */
+.shell .mp-filter-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.shell .mp-filter-item { padding: 12px; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-control); display: flex; flex-direction: column; gap: 10px; }
+.shell .mp-filter-item--archived { background: var(--shell-ground); }
+.shell .mp-filter-main { display: flex; align-items: center; gap: 8px; }
+.shell .mp-filter-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shell .mp-filter-name { font-weight: 700; color: var(--shell-ink); }
+.shell .mp-filter-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--shell-line-soft); }
+.shell .mp-reorder { display: flex; flex-direction: column; gap: 2px; }
+.shell .mp-option-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.shell .mp-option-row .field { flex: 1 1 180px; }
+.shell .mp-option-row .colour-field { flex: 1 1 260px; }
+.shell .mp-type-hint { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); font-weight: 400; }
+.shell .mp-key-code { overflow-wrap: anywhere; }
+.shell .mp-colour { display: flex; align-items: center; gap: 8px; flex: 0 1 180px; }
+.shell .mp-colour .input { min-width: 0; }

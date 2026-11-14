@@ -1,31 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
-import ListingFilterValuesEditor from "../../components/ListingFilterValuesEditor.jsx";
 import BulkFilterEditModal from "../../components/BulkFilterEditModal.jsx";
 import { loadFilterFields, filterColumnName, buildImportFilterValueRows, applyImportedFilterValues, ensureImportOptions, isSelectType } from "../../lib/filterFields.js";
 import { listAttachedCategorisations, categoryColumnName, resolveImportedListingTerms, applyImportedListingTerms } from "../../lib/categorisations.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
-import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Select, Stack, Text, Group } from "@mantine/core";
-import { Download, FilePlus, FolderOpen, Pencil, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import { formatSheetSyncResult } from "../../lib/sheetSyncMessages.js";
 import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import SyncHistoryTable from "../../components/SyncHistoryTable.jsx";
-import PageHead from "../../components/shell/PageHead.jsx";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
 import { JobCard, KeepOpenBanner, useLocalJob, buildSheetSyncJob, buildBrowserJob } from "../../components/jobs/index.js";
-import { useUnsavedGuard } from "../../components/ui/index.js";
+import {
+  Button, Callout, Checkbox, Dialog, EmptyState, Field, PageLayout, Pill, PlusIcon, Section, Skeleton, TextInput, Toolbar, BulkBar, DataTable,
+  Select, useConfirm, useUnsavedGuard,
+} from "../../components/ui/index.js";
+import CsvPreviewTable from "../../components/mapData/CsvPreviewTable.jsx";
+import DriveSyncCards from "../../components/mapData/DriveSyncCards.jsx";
+import ListingLogoTable from "../../components/mapData/ListingLogoTable.jsx";
+import ManualListingDialog from "../../components/mapData/ManualListingDialog.jsx";
+import SourcePill from "../../components/mapData/SourcePill.jsx";
+import { parseSchedule, buildScheduleValue } from "../../components/mapData/schedule.js";
+import "../../styles/wave-b/map-data.css";
 import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap, createDirectoryFromMap } from "../../lib/directories.js";
 
 const PAGE_SIZE = 100;
-const LOGO_BG_SWATCHES = [
-  { label: "None", value: "" },
-  { label: "Light", value: "#d4d4d4" },
-  { label: "Mid", value: "#737373" },
-  { label: "Dark", value: "#1a1a1a" },
-];
 
 const MANUAL_FORM_EMPTY = {
   name: "", address: "", group_id: "", lat: "", lng: "",
@@ -75,55 +75,6 @@ async function geocodeViaServer(supabaseClient, address) {
   } catch (e) {
     return { ok: false, status: `ERROR:${e?.message ?? String(e)}`, lat: null, lng: null };
   }
-}
-
-// ─── Schedule helpers ────────────────────────────────────────────────────────
-
-function parseSchedule(raw) {
-  if (!raw || raw === "manual") return { freq: "manual", time: "02:00" };
-  // Legacy values (nightly / hourly) — migrated to daily:02:00 in DB
-  if (raw === "nightly" || raw === "hourly") return { freq: "daily", time: "02:00" };
-  if (raw.startsWith("daily:")) {
-    const hh = (raw.slice(6).split(":")[0] || "02").padStart(2, "0");
-    return { freq: "daily", time: `${hh}:00` };
-  }
-  return { freq: "manual", time: "02:00" };
-}
-
-function buildScheduleValue(freq, time) {
-  if (freq === "manual") return null;
-  // Cron dispatch matches on the hour, so snap to HH:00
-  const hh = String((time || "02:00").split(":")[0]).padStart(2, "0");
-  return `daily:${hh}:00`;
-}
-
-// Dropdown options: stored as UTC HH:00, displayed in the user's local time.
-const SCHEDULE_HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
-  const d = new Date();
-  d.setUTCHours(h, 0, 0, 0);
-  return {
-    value: `${String(h).padStart(2, "0")}:00`,
-    label: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    sort: d.getHours() * 60 + d.getMinutes(),
-  };
-}).sort((a, b) => a.sort - b.sort);
-
-function localScheduleLabel(utcTime) {
-  return SCHEDULE_HOUR_OPTIONS.find((o) => o.value === utcTime)?.label ?? `${utcTime} UTC`;
-}
-
-function describeSchedule(freq, time) {
-  if (freq === "manual") return "No automatic sync — run manually";
-  return `Syncs daily at ${localScheduleLabel(time || "02:00")} (your local time)`;
-}
-
-// ─── Source badge ────────────────────────────────────────────────────────────
-
-function SourceBadge({ source }) {
-  if (source === "integration") return <Badge size="xs" color="teal" variant="light">Integration</Badge>;
-  if (source === "csv") return <Badge size="xs" color="blue" variant="light">CSV</Badge>;
-  if (source === "manual") return <Badge size="xs" color="gray" variant="light">Manual</Badge>;
-  return <Badge size="xs" color="gray" variant="outline">Unknown</Badge>;
 }
 
 // ─── Stable hash ID for integration-sourced rows ─────────────────────────────
@@ -178,6 +129,7 @@ export default function ClientMapData() {
   const [importing, setImporting] = useState(false);
   // Processing pattern: Sheets sync is a JobCard; CSV import runs in the browser, so it gets a KeepOpenBanner and a leave guard.
   const { pathname } = useLocation();
+  const confirm = useConfirm();
   const sheetJob = useLocalJob(`sheet-sync:${mapId}`);
   const importJob = useLocalJob(`csv-import:${mapId}`);
   useUnsavedGuard(importing);
@@ -220,18 +172,13 @@ export default function ClientMapData() {
   }, [mapId]);
 
   const hasSelectFilterFields = filterFields.some((f) => f.is_active && isSelectType(f.field_type));
-  function toggleSelected(id) {
-    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  }
-  function toggleSelectAll(ids) {
-    setSelectedIds((prev) => (prev.size === ids.length ? new Set() : new Set(ids)));
-  }
   const [addGroupModal, setAddGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [savingGroup, setSavingGroup] = useState(false);
 
   // ── General UI ────────────────────────────────────────────────────────────
   const [msg, setMsg] = useState("");
+  const [msgTone, setMsgTone] = useState("ok"); // "ok" | "warn": import messages that carry warnings render as a warning Callout
   const [err, setErr] = useState("");
   const [clearing, setClearing] = useState(false);
   const [activeTab, setActiveTab] = useState(null); // null until load resolves mode
@@ -360,8 +307,6 @@ export default function ClientMapData() {
     [filteredListings, dataPage]
   );
   const totalFilteredListings = filteredListings.length;
-  const dataStart = totalFilteredListings ? dataPage * PAGE_SIZE + 1 : 0;
-  const dataEnd = totalFilteredListings ? Math.min((dataPage + 1) * PAGE_SIZE, totalFilteredListings) : 0;
 
   useEffect(() => {
     const maxPage = totalPages > 0 ? totalPages - 1 : 0;
@@ -512,7 +457,7 @@ export default function ClientMapData() {
   // ── CSV functions ─────────────────────────────────────────────────────────
 
   async function onPickFile(file) {
-    setFileErr(""); setErr(""); setMsg(""); setRows([]); setPreview([]);
+    setFileErr(""); setErr(""); setMsg(""); setMsgTone("ok"); setRows([]); setPreview([]);
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".csv")) { setFileErr("Upload CSV only (export from Excel as CSV)."); return; }
     const text = await file.text();
@@ -562,7 +507,7 @@ export default function ClientMapData() {
   }
 
   async function doImport(mode) {
-    setErr(""); setMsg("");
+    setErr(""); setMsg(""); setMsgTone("ok");
     if (!rows.length) { setErr("No rows loaded yet."); return; }
 
     const distinctGroups = new Map();
@@ -695,15 +640,17 @@ export default function ClientMapData() {
         }
       }
       const filterWarnSuffix = (filterCreatedSuffix ? filterCreatedSuffix : "") + (filterWarnings.length
-        ? ` ⚠ ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
+        ? ` ${filterWarnings.length} filter value issue${filterWarnings.length === 1 ? "" : "s"}: ${filterWarnings.slice(0, 5).join("; ")}${filterWarnings.length > 5 ? "…" : ""}`
         : "") + (categoryWarnings.length
-        ? ` ⚠ ${categoryWarnings.length} category issue${categoryWarnings.length === 1 ? "" : "s"}: ${categoryWarnings.slice(0, 5).join("; ")}${categoryWarnings.length > 5 ? "…" : ""}`
+        ? ` ${categoryWarnings.length} category issue${categoryWarnings.length === 1 ? "" : "s"}: ${categoryWarnings.slice(0, 5).join("; ")}${categoryWarnings.length > 5 ? "…" : ""}`
         : "");
+      const hasImportWarnings = filterWarnings.length > 0 || categoryWarnings.length > 0;
       if (geocodeMissing) {
         const { data: geoData, error: geoErr } = await invokeFunction("geocode_listings", { body: { mapId } });
-        if (geoErr || geoData?.error) setMsg(`Imported ${importCount} rows. ⚠ Geocoding could not be started: ${geoData?.error ?? geoErr?.message}${filterWarnSuffix}`);
-        else setMsg(`Imported ${importCount} rows. Geocoding ${geoData?.queued ?? 0} addresses in the background — pins will appear shortly.${filterWarnSuffix}`);
+        if (geoErr || geoData?.error) { setMsgTone("warn"); setMsg(`Imported ${importCount} rows. Geocoding could not be started: ${geoData?.error ?? geoErr?.message}${filterWarnSuffix}`); }
+        else { setMsgTone(hasImportWarnings ? "warn" : "ok"); setMsg(`Imported ${importCount} rows. Geocoding ${geoData?.queued ?? 0} addresses in the background — pins will appear shortly.${filterWarnSuffix}`); }
       } else {
+        setMsgTone(hasImportWarnings ? "warn" : "ok");
         setMsg(`Imported ${importCount} rows.${filterWarnSuffix}`);
       }
       importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "done", imported: importCount, total: cleaned.length, startedAt: importStartedAt, href: pathname }));
@@ -807,9 +754,9 @@ export default function ClientMapData() {
       mfSet("group_id", data.id);
       setAddGroupModal(false);
       setNewGroupName("");
-    } catch (err) {
-      // surface error in the group modal — keep it simple
-      alert(err?.message ?? "Failed to create group.");
+    } catch (e2) {
+      // surface the error in the entry dialog
+      setManualErr(e2?.message ?? "Failed to create group.");
     } finally {
       setSavingGroup(false);
     }
@@ -885,7 +832,8 @@ export default function ClientMapData() {
   }
 
   async function deleteManualEntry(listing) {
-    if (!confirm(`Delete "${listing.name}"? This cannot be undone.`)) return;
+    const ok = await confirm({ title: `Delete "${listing.name}"?`, body: "This cannot be undone.", confirmLabel: "Delete entry", tone: "danger" });
+    if (!ok) return;
     try {
       setDeletingId(listing.id);
       const { error } = await supabase.from("listings").delete().eq("id", listing.id);
@@ -955,9 +903,15 @@ export default function ClientMapData() {
   // ── Clear all data ────────────────────────────────────────────────────────
 
   async function clearMapData() {
-    if (!confirm("Clear all listing data and groups for this map? This cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Clear all listing data and groups for this map?",
+      body: "This cannot be undone.",
+      confirmLabel: "Clear all data",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
-      setClearing(true); setErr(""); setMsg("");
+      setClearing(true); setErr(""); setMsg(""); setMsgTone("ok");
       const { error: le } = await supabase.from("listings").delete().eq("map_id", mapId);
       if (le) throw le;
       const { error: ge } = await supabase.from("groups").delete().eq("map_id", mapId);
@@ -976,7 +930,7 @@ export default function ClientMapData() {
   function handleTabChange(tab) {
     if (integrationLinked && (tab === "manual" || tab === "spreadsheet")) return;
     if (directoryAssoc && (tab === "manual" || tab === "spreadsheet" || tab === "drive")) return;
-    setMsg(""); setErr(""); setSheetErr(""); setSheetMsg("");
+    setMsg(""); setMsgTone("ok"); setErr(""); setSheetErr(""); setSheetMsg("");
     setJustDisconnected(false);
     setActiveTab(tab);
   }
@@ -1086,497 +1040,324 @@ export default function ClientMapData() {
     ...(syncLogCount > 0 ? [{ id: "sync_history", label: "Sync History" }] : []),
   ];
 
-  return (
-    <div className="page-main" style={{ maxWidth: 960 }}>
+  const mapPath = `/client/maps/${encodeURIComponent(mapId)}`;
+  const head = {
+    breadcrumb: [{ label: map?.name ?? "Map", to: mapPath }, { label: "Map data" }],
+    title: "Map data",
+    subtitle: <>Manage the listings displayed on <strong>{map?.name ?? "this map"}</strong></>,
+    status: <Pill tone={listings.length ? "ok" : "neutral"}>{listings.length} {listings.length === 1 ? "listing" : "listings"}</Pill>,
+    actions: <Button onClick={downloadTemplate}>CSV template</Button>,
+  };
 
-      {/* ── Page header ── */}
-      <Link to={`/client/maps/${encodeURIComponent(mapId)}`} style={{ fontSize: 13, opacity: 0.65, textDecoration: "none" }}>
-        ← Back to map
-      </Link>
-      <PageHead
-        style={{ marginTop: 8 }}
-        title="Map data"
-        subtitle={
-          <>
-            Manage the listings displayed on <strong>{map?.name ?? "this map"}</strong>
-          </>
-        }
-        actions={
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Badge size="md" variant="light" color={listings.length ? "teal" : "gray"}>
-              {listings.length} {listings.length === 1 ? "listing" : "listings"}
-            </Badge>
-            <Button size="sm" variant="default" leftSection={<Download size={14} />} onClick={downloadTemplate}>
-              CSV template
-            </Button>
-          </div>
-        }
+  const manualColumns = [
+    { key: "name", label: "Name", render: (l) => <button type="button" className="md-linkbtn" onClick={() => openEditManual(l)}>{l.name || "—"}</button> },
+    { key: "address", label: "Address", render: (l) => <span className="md-cell-clip md-cell-muted" title={l.address || undefined}>{l.address || "—"}</span> },
+    { key: "group", label: "Group", render: (l) => <span className="md-cell-muted">{groupNameById.get(l.group_id) || "—"}</span> },
+    { key: "source", label: "Source", render: (l) => <SourcePill source={l.source || ingestionMethodMap.get(l.id) || "manual"} /> },
+  ];
+
+  const searchField = (
+    <Field label="Search" className="md-search">
+      <TextInput
+        type="search"
+        value={dataSearch}
+        onChange={(e) => { setDataSearch(e.target.value); setDataPage(0); }}
+        placeholder="Filter by name or address…"
       />
+    </Field>
+  );
 
-      {/* ── Tab bar ── */}
-      <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
-
-      {(importing || sheetJob.job || importJob.job) ? (
-        <div className="job-stack">
-          {importing ? <KeepOpenBanner title={`Importing ${rows.length} ${rows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." /> : null}
-          {sheetJob.job ? <JobCard job={sheetJob.job} onRetry={syncNow} onDismiss={sheetJob.dismiss} /> : null}
-          {!importing && importJob.job ? <JobCard job={importJob.job} onDismiss={importJob.dismiss} /> : null}
-        </div>
-      ) : null}
-
-      {justDisconnected && (
-        <Alert color="teal" variant="light" mb="md" withCloseButton onClose={() => setJustDisconnected(false)}>
-          Google Drive disconnected. You can now edit listings manually or upload a CSV.
-        </Alert>
-      )}
-
-      {activeTab === null && (
-        <div style={{ padding: "40px 0", textAlign: "center", opacity: 0.5 }}>
-          <Loader size="sm" />
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Integrations
-      ══════════════════════════════════════════════════════════════════════ */}
-
-      {activeTab === "drive" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.7, maxWidth: 560 }}>
-            Connect a cloud spreadsheet and keep your map data in sync automatically. Syncing will replace all existing listings on this map.
-          </p>
-
-          {listings.length > 0 && !integrationLinked && (
-            <Alert color="yellow" variant="light" title="Existing data will be replaced">
-              This map already has {listings.length} listing{listings.length !== 1 ? "s" : ""}. Connecting an integration and syncing will overwrite them.
-            </Alert>
-          )}
-
-          {/* Provider cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-
-            {/* Google Drive */}
-            <div className="admin-card" style={{ padding: 20, position: "relative", overflow: "hidden" }}>
-              <Stack gap="md">
-                <Group gap="sm" justify="space-between">
-                  <Group gap="sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" style={{ flexShrink: 0 }}>
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" fill="#EA4335"/>
-                    </svg>
-                    <div>
-                      <Text fw={600} size="sm">Google Drive</Text>
-                      <Text size="xs" c="dimmed">Sync from a Google Sheet</Text>
-                    </div>
-                  </Group>
-                  {sheetStatus?.connected && <Badge color="green" variant="light" size="sm">Connected</Badge>}
-                </Group>
-
-                {sheetStatus === null && <Text size="xs" c="dimmed">Checking connection…</Text>}
-
-                {sheetStatus !== null && !sheetStatus.connected && (
-                  <Button size="sm" onClick={connectGoogle} loading={connecting}>
-                    Connect Google Drive
-                  </Button>
-                )}
-
-                {sheetStatus?.connected && sheetStatus?.sheet?.spreadsheet_id && (
-                  <Stack gap="sm">
-                    <div style={{ padding: "8px 10px", background: "rgba(0,0,0,0.04)", borderRadius: 6 }}>
-                      <Text size="xs" c="dimmed" mb={2}>Connected file</Text>
-                      <Text size="sm" fw={500} style={{ wordBreak: "break-word" }}>
-                        {sheetStatus.sheet.sheet_name || "File connected"}
-                      </Text>
-                    </div>
-
-                    {/* Schedule */}
-                    <div>
-                      <Text size="xs" c="dimmed" mb={6} fw={500}>Auto-sync schedule</Text>
-                      <SegmentedControl
-                        size="xs"
-                        value={schedFreq}
-                        onChange={(v) => saveSchedule(v, schedTime)}
-                        disabled={savingSchedule}
-                        data={[
-                          { label: "Off", value: "manual" },
-                          { label: "Daily", value: "daily" },
-                        ]}
-                      />
-                      {schedFreq === "daily" && (
-                        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                          <Text size="xs" c="dimmed">Run at</Text>
-                          <select
-                            value={schedTime}
-                            onChange={(e) => saveSchedule("daily", e.target.value)}
-                            disabled={savingSchedule}
-                            style={{ fontSize: 13, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--lc-border)" }}
-                          >
-                            {SCHEDULE_HOUR_OPTIONS.map((o) => (
-                              <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                          </select>
-                          <Text size="xs" c="dimmed">local time</Text>
-                        </div>
-                      )}
-                      <Text size="xs" c="dimmed" mt={4}>{describeSchedule(schedFreq, schedTime)}</Text>
-                      {sheetStatus.last_synced_at && (
-                        <Text size="xs" c="dimmed" mt={2}>
-                          Last synced {new Date(sheetStatus.last_synced_at).toLocaleString()}
-                          {sheetStatus.last_sync_status === "WARNING" ? " (with warnings)" : ""}
-                        </Text>
-                      )}
-                      {sheetStatus.last_sync_error && <Text size="xs" c="orange" mt={2}>{sheetStatus.last_sync_error}</Text>}
-                      {sheetStatus.dataRowCount != null && (
-                        <Text size="xs" c="dimmed" mt={2}>
-                          File: {sheetStatus.dataRowCount} rows, {sheetStatus.rowsWithName} with a name
-                        </Text>
-                      )}
-                    </div>
-
-                    <Group gap="xs" wrap="wrap">
-                      <Button size="xs" leftSection={<RefreshCw size={13} />} onClick={syncNow} disabled={syncing || connecting || configuring} loading={syncing}>
-                        Sync now
-                      </Button>
-                      <Button size="xs" variant="default" leftSection={<FolderOpen size={13} />} onClick={openDrivePicker} disabled={syncing || connecting || configuring} loading={openingPicker}>
-                        Change file
-                      </Button>
-                      <Button size="xs" variant="subtle" color="red" leftSection={<Unlink size={13} />} onClick={disconnectGoogle} disabled={syncing || connecting || configuring} loading={connecting}>
-                        Disconnect
-                      </Button>
-                    </Group>
-                  </Stack>
-                )}
-
-                {sheetStatus?.connected && !sheetStatus?.sheet?.spreadsheet_id && (
-                  <Button size="sm" variant="default" leftSection={<FilePlus size={14} />} onClick={openDrivePicker} disabled={connecting || configuring} loading={openingPicker}>
-                    Choose a file from Google Drive
-                  </Button>
-                )}
-              </Stack>
+  return (
+    <>
+      <PageLayout head={head}>
+        <div className="md-stack">
+          {(importing || sheetJob.job || importJob.job) ? (
+            <div className="job-stack">
+              {importing ? <KeepOpenBanner title={`Importing ${rows.length} ${rows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." /> : null}
+              {sheetJob.job ? <JobCard job={sheetJob.job} onRetry={syncNow} onDismiss={sheetJob.dismiss} /> : null}
+              {!importing && importJob.job ? <JobCard job={importJob.job} onDismiss={importJob.dismiss} /> : null}
             </div>
-
-            {/* OneDrive — coming soon */}
-            <div className="admin-card" style={{ padding: 20, opacity: 0.4, pointerEvents: "none" }}>
-              <Stack gap="md">
-                <Group gap="sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" width="24" height="24" style={{ flexShrink: 0 }}>
-                    <rect width="10.5" height="10.5" fill="#F25022"/>
-                    <rect x="12.5" width="10.5" height="10.5" fill="#7FBA00"/>
-                    <rect y="12.5" width="10.5" height="10.5" fill="#00A4EF"/>
-                    <rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#FFB900"/>
-                  </svg>
-                  <div>
-                    <Text fw={600} size="sm">OneDrive</Text>
-                    <Text size="xs" c="dimmed">Microsoft 365 / Excel</Text>
-                  </div>
-                </Group>
-                <Badge variant="light" color="gray" size="sm" w="fit-content">Coming soon</Badge>
-              </Stack>
-            </div>
-
-            {/* iCloud — coming soon */}
-            <div className="admin-card" style={{ padding: 20, opacity: 0.4, pointerEvents: "none" }}>
-              <Stack gap="md">
-                <Group gap="sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 814 1000" width="20" height="24" style={{ flexShrink: 0 }}>
-                    <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-42.3-150.3-109.2c-58.6-81.5-109.5-209.2-109.5-330.4 0-168.8 111.1-258.1 220.2-258.1 81.3 0 148.6 53.4 198.4 53.4 50.2 0 128.7-56.5 219.1-56.5zm-204.7-96.1c37.5-44.4 64.2-105.9 64.2-167.5 0-8.8-.8-17.7-2.3-25.4-60.5 2.4-132.2 39.6-175.3 89.4-33.4 37.5-64.8 99.8-64.8 162.8 0 9.6 1.6 19.2 2.3 22.3 3.8.7 10 1.6 16.2 1.6 54.3 0 120.5-36.1 159.7-83.2z" fill="#555"/>
-                  </svg>
-                  <div>
-                    <Text fw={600} size="sm">iCloud Drive</Text>
-                    <Text size="xs" c="dimmed">Apple Numbers</Text>
-                  </div>
-                </Group>
-                <Badge variant="light" color="gray" size="sm" w="fit-content">Coming soon</Badge>
-              </Stack>
-            </div>
-          </div>
-
-          {sheetErr && <Alert color="red" variant="light">{sheetErr}</Alert>}
-          {sheetMsg && <Alert color="green" variant="light">{sheetMsg}</Alert>}
-          {sheetStatus?.issues?.length ? (
-            <Alert color="yellow" variant="light" title="Issues detected">
-              {sheetStatus.issues.map((x) => <div key={x}>{x}</div>)}
-            </Alert>
           ) : null}
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Directories (DIR-E4-S2)
-      ══════════════════════════════════════════════════════════════════════ */}
+          <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
 
-      {activeTab === "directories" && (
-        <div className="admin-card" style={{ padding: 20, display: "grid", gap: 16 }}>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.7, maxWidth: 560 }}>
-            Use one of your directories as this map's live pin datasource instead of its own listings.
-          </p>
-
-          {integrationLinked && !directoryAssoc && (
-            <Alert color="yellow" variant="light">
-              A Google Sheets sync is currently active on this map. Attaching a directory will disconnect it.
-            </Alert>
+          {justDisconnected && (
+            <Callout tone="ok" action={<Button variant="ghost" size="sm" onClick={() => setJustDisconnected(false)}>Dismiss</Button>}>
+              Google Drive disconnected. You can now edit listings manually or upload a CSV.
+            </Callout>
           )}
 
-          {directoriesError && <Alert color="red" variant="light">{directoriesError}</Alert>}
+          {activeTab === null && <Skeleton variant="list" rows={3} label="Loading map data" />}
 
-          {directoryAssoc ? (
-            <Stack gap="sm">
-              <div style={{ padding: "8px 10px", background: "rgba(0,0,0,0.04)", borderRadius: 6 }}>
-                <Text size="xs" c="dimmed" mb={2}>Linked directory</Text>
-                <Text size="sm" fw={500}>{linkedDirectory?.name ?? directoryAssoc.directory_id}</Text>
-              </div>
-              <Text size="xs" c="dimmed" maw={560}>
-                This map's pins are read live from the directory's published entries — no separate sync step. Edits only appear here once the directory is next published.
-              </Text>
-              <Group gap="xs">
-                <Button size="xs" variant="subtle" color="red" leftSection={<Unlink size={13} />} onClick={handleDetachDirectory} loading={detachingDirectory} disabled={detachingDirectory}>
-                  Disconnect
-                </Button>
-              </Group>
-            </Stack>
-          ) : (
-            <Stack gap="sm">
-              {directoriesLoading && <Text size="xs" c="dimmed">Loading directories…</Text>}
-              {!directoriesLoading && clientDirectories.length === 0 ? (
-                <Text size="xs" c="dimmed">No directories yet.</Text>
-              ) : (
-                !directoriesLoading && (
-                  <>
-                    <Select
-                      size="sm"
-                      placeholder="Choose a directory"
-                      value={selectedDirectoryId || null}
-                      onChange={(v) => setSelectedDirectoryId(v ?? "")}
-                      data={clientDirectories.map((d) => ({ value: d.id, label: d.name }))}
-                      style={{ maxWidth: 380 }}
-                    />
-                    <Group gap="xs">
-                      <Button size="sm" onClick={handleAttachDirectory} disabled={!selectedDirectoryId || attachingDirectory} loading={attachingDirectory}>
-                        Use this directory
-                      </Button>
-                    </Group>
-                  </>
-                )
-              )}
-
-              {!directoriesLoading && (
-                <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: 14, marginTop: 4 }}>
-                  <Text size="xs" c="dimmed" maw={560} mb={8}>
-                    Or copy this map's groups and listings into a brand-new directory. You'll review and publish it before it's linked back to this map.
-                  </Text>
-                  <Button size="sm" variant="default" leftSection={<FolderOpen size={14} />} onClick={handleBuildDirectoryFromMap} loading={buildingDirectory} disabled={buildingDirectory}>
-                    Build a directory from this map
-                  </Button>
-                </div>
-              )}
-            </Stack>
-          )}
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Upload CSV
-      ══════════════════════════════════════════════════════════════════════ */}
-
-      {activeTab === "spreadsheet" && (
-        <div className="admin-card" style={{ padding: 20, display: "grid", gap: 16 }}>
-          {integrationLinked && (
-            <Alert color="yellow" variant="light" title="Sync is active">
-              Disconnect Google Drive to upload a CSV file.
-            </Alert>
-          )}
-          <div>
-            <Text size="sm" fw={600} mb={2}>Upload a CSV file</Text>
-            <Text size="xs" c="dimmed" mb={12}>
-              Your CSV must have a <code>name</code> column. Download the template above for the full list of supported columns.
-              Importing will replace all existing data on this map.
-            </Text>
-
-            {(listings.length > 0 || integrationLinked) && (
-              <Alert color="yellow" variant="light" mb="md" title="This will overwrite existing data">
-                {integrationLinked
-                  ? "You have an active integration. Uploading a CSV will disconnect it and replace all synced listings."
-                  : `This map has ${listings.length} existing listing${listings.length !== 1 ? "s" : ""}. Importing will replace them.`}
-              </Alert>
-            )}
-
-            <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 500 }}>Choose file</label>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => onPickFile(e.target.files?.[0])}
-              style={{ fontSize: 13 }}
-            />
-            {fileErr && <Alert color="red" variant="light" mt="xs">{fileErr}</Alert>}
-          </div>
-
-          <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
-            <input type="checkbox" checked={geocodeMissing} onChange={(e) => setGeocodeMissing(e.target.checked)} />
-            Automatically geocode rows that are missing lat/lng coordinates
-          </label>
-
-          {msg && <Alert color="green" variant="light">{msg}</Alert>}
-          {err && <Alert color="red" variant="light"><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{err}</pre></Alert>}
-
-          <Group gap="xs" wrap="wrap">
-            <Button
-              size="sm"
-              onClick={() => rows.length && setImportChoiceOverlayOpen(true)}
-              disabled={importing || rows.length === 0}
-              loading={importing}
+          {/* TAB: Sync data (Google Sheets) */}
+          {activeTab === "drive" && (
+            <Section
+              title="Sync data"
+              description="Connect a cloud spreadsheet and keep your map data in sync automatically. Syncing will replace all existing listings on this map."
             >
-              {importing ? "Importing…" : `Import ${rows.length} row${rows.length !== 1 ? "s" : ""}`}
-            </Button>
-            <Button size="sm" variant="default" component={Link} to={`/client/maps/${encodeURIComponent(mapId)}`}>
-              Done
-            </Button>
-          </Group>
+              <div className="md-stack">
+                {listings.length > 0 && !integrationLinked && (
+                  <Callout tone="warn" title="Existing data will be replaced">
+                    This map already has {listings.length} listing{listings.length !== 1 ? "s" : ""}. Connecting an integration and syncing will overwrite them.
+                  </Callout>
+                )}
 
-          {/* CSV preview */}
-          {preview.length > 0 && (
-            <div>
-              <Text size="sm" fw={500} mb={8}>Preview — first {preview.length} rows</Text>
-              <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-                <table className="admin-table" style={{ marginTop: 0, fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      {["name","postcode","country","lat","lng","group_name"].map((h) => <th key={h}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.name}</td>
-                        <td>{r.postcode}</td>
-                        <td>{r.country}</td>
-                        <td>{r.lat || "—"}</td>
-                        <td>{r.lng || "—"}</td>
-                        <td>{r.group_name || r.group || r.category || r["group name"] || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DriveSyncCards
+                  sheetStatus={sheetStatus}
+                  schedFreq={schedFreq}
+                  schedTime={schedTime}
+                  savingSchedule={savingSchedule}
+                  syncing={syncing}
+                  connecting={connecting}
+                  configuring={configuring}
+                  openingPicker={openingPicker}
+                  onConnect={connectGoogle}
+                  onSync={syncNow}
+                  onChangeFile={openDrivePicker}
+                  onDisconnect={disconnectGoogle}
+                  onSaveSchedule={saveSchedule}
+                />
+
+                {sheetErr && <Callout tone="danger">{sheetErr}</Callout>}
+                {sheetMsg && <Callout tone="ok">{sheetMsg}</Callout>}
+                {sheetStatus?.issues?.length ? (
+                  <Callout tone="warn" title="Issues detected">
+                    {sheetStatus.issues.map((x) => <div key={x}>{x}</div>)}
+                  </Callout>
+                ) : null}
               </div>
-            </div>
+            </Section>
           )}
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Manual entries
-      ══════════════════════════════════════════════════════════════════════ */}
+          {/* TAB: Directories (DIR-E4-S2) */}
+          {activeTab === "directories" && (
+            <>
+              <Section
+                title="Directories"
+                description="Use one of your directories as this map's live pin datasource instead of its own listings."
+              >
+                <div className="md-stack">
+                  {integrationLinked && !directoryAssoc && (
+                    <Callout tone="warn">
+                      A Google Sheets sync is currently active on this map. Attaching a directory will disconnect it.
+                    </Callout>
+                  )}
 
-      {activeTab === "manual" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          {integrationLinked && (
-            <Alert color="yellow" variant="light" title="Sync is active">
-              Disconnect Google Drive to edit listings manually.
-            </Alert>
+                  {directoriesError && <Callout tone="danger">{directoriesError}</Callout>}
+
+                  {directoryAssoc ? (
+                    <>
+                      <div className="md-fact">
+                        <span className="md-fact-label">Linked directory</span>
+                        <span className="md-fact-value">{linkedDirectory?.name ?? directoryAssoc.directory_id}</span>
+                      </div>
+                      <p className="md-meta">
+                        This map's pins are read live from the directory's published entries — no separate sync step. Edits only appear here once the directory is next published.
+                      </p>
+                      <div className="md-actions">
+                        <Button variant="danger" size="sm" onClick={handleDetachDirectory} loading={detachingDirectory} loadingLabel="Disconnecting…" disabled={detachingDirectory}>
+                          Disconnect
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {directoriesLoading && <Skeleton variant="list" rows={2} label="Loading directories" />}
+                      {!directoriesLoading && clientDirectories.length === 0 ? (
+                        <EmptyState art="none" title="No directories yet" />
+                      ) : (
+                        !directoriesLoading && (
+                          <>
+                            <Field label="Directory" className="md-select-field">
+                              <Select value={selectedDirectoryId} onChange={(e) => setSelectedDirectoryId(e.target.value)}>
+                                <option value="">Choose a directory</option>
+                                {clientDirectories.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                              </Select>
+                            </Field>
+                            <div className="md-actions">
+                              <Button variant="primary" onClick={handleAttachDirectory} disabled={!selectedDirectoryId || attachingDirectory} loading={attachingDirectory} loadingLabel="Linking…">
+                                Use this directory
+                              </Button>
+                            </div>
+                          </>
+                        )
+                      )}
+                    </>
+                  )}
+                </div>
+              </Section>
+
+              {!directoryAssoc && !directoriesLoading && (
+                <Section
+                  title="Build a directory from this map"
+                  description="Or copy this map's groups and listings into a brand-new directory. You'll review and publish it before it's linked back to this map."
+                >
+                  <div className="md-actions">
+                    <Button onClick={handleBuildDirectoryFromMap} loading={buildingDirectory} loadingLabel="Building…" disabled={buildingDirectory}>
+                      Build a directory from this map
+                    </Button>
+                  </div>
+                </Section>
+              )}
+            </>
           )}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div>
-              <Text size="sm" fw={600}>Manual entries</Text>
-              <Text size="xs" c="dimmed">Add, edit, or remove individual listings by hand.</Text>
-            </div>
-            <Group gap="xs">
-              {hasSelectFilterFields && selectedIds.size > 0 && (
-                <Button size="sm" variant="light" onClick={() => setBulkModalOpen(true)}>
-                  Bulk edit filters ({selectedIds.size})
+
+          {/* TAB: Upload CSV */}
+          {activeTab === "spreadsheet" && (
+            <Section
+              title="Upload a CSV file"
+              description={(
+                <>
+                  Your CSV must have a <code>name</code> column. Download the template above for the full list of supported columns.
+                  Importing will replace all existing data on this map.
+                </>
+              )}
+            >
+              <div className="md-stack">
+                {integrationLinked && (
+                  <Callout tone="warn" title="Sync is active">
+                    Disconnect Google Drive to upload a CSV file.
+                  </Callout>
+                )}
+
+                {(listings.length > 0 || integrationLinked) && (
+                  <Callout tone="warn" title="This will overwrite existing data">
+                    {integrationLinked
+                      ? "You have an active integration. Uploading a CSV will disconnect it and replace all synced listings."
+                      : `This map has ${listings.length} existing listing${listings.length !== 1 ? "s" : ""}. Importing will replace them.`}
+                  </Callout>
+                )}
+
+                <Field label="Choose file" error={fileErr || undefined}>
+                  <TextInput type="file" accept=".csv" onChange={(e) => onPickFile(e.target.files?.[0])} />
+                </Field>
+
+                <Checkbox
+                  label="Automatically geocode rows that are missing lat/lng coordinates"
+                  checked={geocodeMissing}
+                  onChange={(e) => setGeocodeMissing(e.target.checked)}
+                />
+
+                {msg && <Callout tone={msgTone}>{msg}</Callout>}
+                {err && <Callout tone="danger"><pre className="md-pre">{err}</pre></Callout>}
+
+                <div className="md-actions">
+                  <Button
+                    variant="primary"
+                    onClick={() => rows.length && setImportChoiceOverlayOpen(true)}
+                    disabled={importing || rows.length === 0}
+                    loading={importing}
+                    loadingLabel="Importing…"
+                  >
+                    {`Import ${rows.length} row${rows.length !== 1 ? "s" : ""}`}
+                  </Button>
+                  <Button as={Link} to={mapPath}>Done</Button>
+                </div>
+
+                <CsvPreviewTable rows={preview} />
+              </div>
+            </Section>
+          )}
+
+          {/* TAB: Manual entry */}
+          {activeTab === "manual" && (
+            <Section
+              title="Manual entries"
+              description="Add, edit, or remove individual listings by hand."
+              actions={(
+                <Button variant="primary" size="sm" icon={<PlusIcon />} onClick={openNewManual} disabled={integrationLinked}>
+                  Add entry
                 </Button>
               )}
-              <Button size="sm" leftSection={<Plus size={14} />} onClick={openNewManual} disabled={integrationLinked}>
-                Add entry
-              </Button>
-            </Group>
-          </div>
+            >
+              <div className="md-stack">
+                {integrationLinked && (
+                  <Callout tone="warn" title="Sync is active">
+                    Disconnect Google Drive to edit listings manually.
+                  </Callout>
+                )}
 
-          {listings.length > 0 && (
-            <input
-              type="search"
-              value={dataSearch}
-              onChange={(e) => { setDataSearch(e.target.value); setDataPage(0); }}
-              placeholder="Filter by name or address…"
-              aria-label="Filter manual entries by name or address"
-              style={{ maxWidth: 380, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-            />
-          )}
+                {listings.length === 0 ? (
+                  <EmptyState
+                    art="welcome"
+                    title="No listings yet"
+                    actions={<Button variant="primary" icon={<PlusIcon />} onClick={openNewManual} disabled={integrationLinked}>Add first entry</Button>}
+                  />
+                ) : (
+                  <>
+                    <Toolbar>{searchField}</Toolbar>
 
-          {listings.length === 0 ? (
-            <div className="admin-card" style={{ padding: 32, textAlign: "center" }}>
-              <Text size="sm" c="dimmed" mb={12}>No listings yet. Add your first one above.</Text>
-              <Button size="sm" variant="light" leftSection={<Plus size={14} />} onClick={openNewManual}>
-                Add first entry
-              </Button>
-            </div>
-          ) : filteredListings.length === 0 ? (
-            <div className="admin-card" style={{ padding: 24, textAlign: "center" }}>
-              <Text size="sm" c="dimmed">No listings match your search.</Text>
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
-                <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
-                    {hasSelectFilterFields && (
-                      <th style={{ padding: "9px 12px", width: 32 }}>
-                        <input
-                          type="checkbox"
-                          aria-label="Select all"
-                          checked={filteredListings.length > 0 && filteredListings.every((l) => selectedIds.has(l.id))}
-                          onChange={() => toggleSelectAll(filteredListings.map((l) => l.id))}
-                        />
-                      </th>
+                    {hasSelectFilterFields && selectedIds.size > 0 && (
+                      <BulkBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+                        <Button size="sm" onClick={() => setBulkModalOpen(true)}>Bulk edit filters</Button>
+                      </BulkBar>
                     )}
-                    <th style={{ padding: "9px 12px" }}>Name</th>
-                    <th style={{ padding: "9px 12px" }}>Address</th>
-                    <th style={{ padding: "9px 12px" }}>Group</th>
-                    <th style={{ padding: "9px 12px" }}>Source</th>
-                    <th style={{ padding: "9px 12px", width: 100 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredListings.map((listing) => {
-                    const src = listing.source || ingestionMethodMap.get(listing.id) || "manual";
-                    return (
-                      <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                        {hasSelectFilterFields && (
-                          <td style={{ padding: "8px 12px" }}>
-                            <input type="checkbox" aria-label={`Select ${listing.name || "listing"}`} checked={selectedIds.has(listing.id)} onChange={() => toggleSelected(listing.id)} />
-                          </td>
-                        )}
-                        <td style={{ padding: "8px 12px", fontWeight: 500 }}>{listing.name || "—"}</td>
-                        <td style={{ padding: "8px 12px", opacity: 0.7, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{listing.address || "—"}</td>
-                        <td style={{ padding: "8px 12px", opacity: 0.7 }}>{groupNameById.get(listing.group_id) || "—"}</td>
-                        <td style={{ padding: "8px 12px" }}><SourceBadge source={src} /></td>
-                        <td style={{ padding: "8px 12px" }}>
-                          <Group gap={4} justify="flex-end">
-                            <Button size="xs" variant="subtle" leftSection={<Pencil size={12} />} onClick={() => openEditManual(listing)}>
-                              Edit
-                            </Button>
-                            <Button
-                              size="xs" variant="subtle" color="red"
-                              leftSection={<Trash2 size={12} />}
-                              onClick={() => deleteManualEntry(listing)}
-                              loading={deletingId === listing.id}
-                              disabled={!!deletingId}
-                            >
-                              Delete
-                            </Button>
-                          </Group>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+
+                    <DataTable
+                      caption="Manual entries"
+                      columns={manualColumns}
+                      rows={filteredListings}
+                      getRowId={(l) => l.id}
+                      getRowLabel={(l) => l.name || "listing"}
+                      selectable={hasSelectFilterFields}
+                      selected={[...selectedIds]}
+                      onSelectedChange={(ids) => setSelectedIds(new Set(ids))}
+                      rowMenu={(l) => [
+                        { label: "Edit", onSelect: () => openEditManual(l) },
+                        { label: "Delete", danger: true, disabled: !!deletingId, onSelect: () => deleteManualEntry(l) },
+                      ]}
+                      empty={<EmptyState art="searching" title="No listings match your search" />}
+                    />
+                  </>
+                )}
+
+                {err && <Callout tone="danger">{err}</Callout>}
+              </div>
+            </Section>
           )}
 
-          {err && <Alert color="red" variant="light">{err}</Alert>}
+          {/* TAB: Map data (view and edit all listings) */}
+          {activeTab === "branding" && (
+            <Section
+              title="All listings"
+              description="Edit logo backgrounds. Source column shows where each listing came from."
+              actions={(
+                <Button variant="danger" size="sm" onClick={clearMapData} loading={clearing} loadingLabel="Clearing…" disabled={clearing}>
+                  Clear all data
+                </Button>
+              )}
+            >
+              <div className="md-stack">
+                <Toolbar>{searchField}</Toolbar>
+
+                <ListingLogoTable
+                  listings={pageListings}
+                  groupNameById={groupNameById}
+                  ingestionMethodMap={ingestionMethodMap}
+                  logoUploadingId={logoUploadingId}
+                  onToggleActive={updateListingActive}
+                  onSetLogoBg={updateListingLogoBg}
+                  onUploadLogo={handleListingLogoFile}
+                  pagination={{ page: dataPage + 1, pageSize: PAGE_SIZE, total: totalFilteredListings, onPage: (p) => setDataPage(p - 1) }}
+                  empty={dataSearch
+                    ? <EmptyState art="searching" title="No listings match your search" />
+                    : <EmptyState art="none" title="No listings loaded yet" />}
+                />
+
+                {msg && <Callout tone={msgTone}>{msg}</Callout>}
+                {err && <Callout tone="danger">{err}</Callout>}
+              </div>
+            </Section>
+          )}
+
+          {/* TAB: Sync history */}
+          {activeTab === "sync_history" && (
+            <Section title="Sync history" description="A log of every Google Sheets sync attempt for this map.">
+              <SyncHistoryTable mapId={mapId} />
+            </Section>
+          )}
         </div>
-      )}
+      </PageLayout>
 
       {bulkModalOpen && (
         <BulkFilterEditModal
@@ -1586,335 +1367,57 @@ export default function ClientMapData() {
           clientId={null}
           recordEvent={(eventType, meta) => recordAdminEvent(supabase, { eventType, meta, source: "client_portal" })}
           onClose={() => setBulkModalOpen(false)}
-          onApplied={() => { setSelectedIds(new Set()); setMsg("Filter values updated."); }}
+          onApplied={() => { setSelectedIds(new Set()); setMsgTone("ok"); setMsg("Filter values updated."); }}
         />
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: View & edit data
-      ══════════════════════════════════════════════════════════════════════ */}
-
-      {activeTab === "branding" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
-            <div>
-              <Text size="sm" fw={600}>All listings</Text>
-              <Text size="xs" c="dimmed">Edit logo backgrounds. Source column shows where each listing came from.</Text>
-            </div>
-            <Button size="sm" variant="subtle" color="red" onClick={clearMapData} loading={clearing} disabled={clearing}>
-              Clear all data
-            </Button>
-          </div>
-
-          <input
-            type="text"
-            value={dataSearch}
-            onChange={(e) => { setDataSearch(e.target.value); setDataPage(0); }}
-            placeholder="Filter by name or address…"
-            style={{ maxWidth: 380, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          />
-
-          <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed", minWidth: 860 }}>
-              <colgroup>
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "2px" }} />
-                <col style={{ width: "8%" }} />
-                <col style={{ width: "2px" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "32%" }} />
-              </colgroup>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
-                  <th style={{ padding: "9px 10px" }}>Name</th>
-                  <th style={{ padding: "9px 10px" }}>Group</th>
-                  <th style={{ padding: "9px 10px" }}>Source</th>
-                  <th style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
-                  <th style={{ padding: "9px 10px" }}>Status</th>
-                  <th style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
-                  <th style={{ padding: "9px 10px" }}>Logo</th>
-                  <th style={{ padding: "9px 10px" }}>Logo background</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageListings.map((listing) => {
-                  const currentBg = listing.logo_bg || "";
-                  const src = listing.source || ingestionMethodMap.get(listing.id) || "manual";
-                  return (
-                    <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                      <td style={{ padding: "8px 10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={listing.name || "—"}>
-                        {listing.name || "—"}
-                      </td>
-                      <td style={{ padding: "8px 10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={groupNameById.get(listing.group_id) || "—"}>
-                        {groupNameById.get(listing.group_id) || "—"}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}><SourceBadge source={src} /></td>
-                      <td style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
-                      <td style={{ padding: "8px 10px" }}>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={listing.is_active !== false}
-                          title={listing.is_active !== false ? "Visible on map — click to hide" : "Hidden from map — click to show"}
-                          onClick={() => updateListingActive(listing.id, listing.is_active === false)}
-                          style={{
-                            display: "inline-flex", alignItems: "center", cursor: "pointer",
-                            width: 36, height: 20, borderRadius: 10, border: "none", padding: "0 2px",
-                            background: listing.is_active !== false ? "#22c55e" : "#d1d5db",
-                            transition: "background 150ms ease", flexShrink: 0,
-                          }}
-                        >
-                          <span style={{
-                            display: "block", width: 16, height: 16, borderRadius: "50%", background: "#fff",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                            transform: listing.is_active !== false ? "translateX(16px)" : "translateX(0)",
-                            transition: "transform 150ms ease",
-                          }} />
-                        </button>
-                      </td>
-                      <td style={{ padding: 0, background: "var(--lc-border)", width: 1 }} />
-                      <td style={{ padding: "8px 10px" }}>
-                        {listing.logo_url ? (
-                          <div
-                            title="Hover to preview"
-                            style={{ width: 68, height: 48, background: currentBg || "transparent", borderRadius: currentBg ? 6 : 2, padding: currentBg ? "5px 8px" : 0, border: "1px solid var(--lc-border)", display: "inline-flex", alignItems: "center", justifyContent: "center", overflow: "hidden", transition: "transform 120ms ease" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(2)"; e.currentTarget.style.transformOrigin = "left center"; e.currentTarget.style.zIndex = "5"; e.currentTarget.style.position = "relative"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.zIndex = "auto"; e.currentTarget.style.position = "static"; }}
-                          >
-                            <img src={listing.logo_url} alt={`${listing.name || "Listing"} logo`} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
-                          </div>
-                        ) : (
-                          <label
-                            title="Upload a logo (SVG, PNG, JPG or WebP, max 500 KB)"
-                            style={{
-                              display: "inline-flex", alignItems: "center", justifyContent: "center",
-                              width: 68, height: 48, borderRadius: 6, border: "1px dashed var(--lc-border)",
-                              fontSize: 11, opacity: logoUploadingId === listing.id ? 0.6 : 0.75,
-                              cursor: logoUploadingId === listing.id ? "default" : "pointer",
-                            }}
-                          >
-                            {logoUploadingId === listing.id ? "Uploading…" : "Upload"}
-                            <input
-                              type="file"
-                              accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
-                              disabled={logoUploadingId === listing.id}
-                              onChange={(e) => handleListingLogoFile(e, listing.id)}
-                              style={{ display: "none" }}
-                            />
-                          </label>
-                        )}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "nowrap" }}>
-                          {currentBg ? (
-                            <span title={currentBg} style={{ width: 12, height: 12, borderRadius: 2, background: currentBg, border: "1px solid rgba(0,0,0,0.2)", flexShrink: 0 }} />
-                          ) : (
-                            <span style={{ opacity: 0.5, fontSize: 11 }}>none</span>
-                          )}
-                          {LOGO_BG_SWATCHES.map((swatch) => {
-                            const selected = currentBg === swatch.value || (!currentBg && swatch.value === "");
-                            return (
-                              <button
-                                key={swatch.label} type="button"
-                                onClick={() => updateListingLogoBg(listing.id, swatch.value)}
-                                title={swatch.label}
-                                style={{ width: 20, height: 20, borderRadius: 4, border: selected ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.28)", padding: 0, background: swatch.value || "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                              >
-                                {!swatch.value ? <span style={{ fontSize: 10 }}>✕</span> : ""}
-                              </button>
-                            );
-                          })}
-                          <label title="Custom colour" style={{ width: 20, height: 20, borderRadius: 4, border: !LOGO_BG_SWATCHES.some((s) => s.value === currentBg) && currentBg ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.28)", overflow: "hidden", display: "inline-flex", alignItems: "center", justifyContent: "center", background: currentBg || "#fff", cursor: "pointer" }}>
-                            <input type="color" value={currentBg || "#d4d4d4"} onChange={(e) => updateListingLogoBg(listing.id, e.target.value)} style={{ width: 24, height: 24, border: "none", padding: 0, background: "transparent" }} aria-label={`Custom logo background for ${listing.name || "listing"}`} />
-                          </label>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {pageListings.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
-                      {dataSearch ? "No listings match your search." : "No listings loaded yet."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <Text size="xs" c="dimmed">
-              {totalFilteredListings ? `Showing ${dataStart}–${dataEnd} of ${totalFilteredListings}` : "No listings"}
-            </Text>
-            <Group gap="xs">
-              <Button size="xs" variant="default" onClick={() => setDataPage((p) => Math.max(0, p - 1))} disabled={dataPage <= 0}>Prev</Button>
-              <Button size="xs" variant="default" onClick={() => setDataPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))} disabled={dataPage >= Math.max(totalPages - 1, 0)}>Next</Button>
-            </Group>
-          </div>
-
-          {msg && <Alert color="green" variant="light">{msg}</Alert>}
-          {err && <Alert color="red" variant="light">{err}</Alert>}
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: Sync History
-      ══════════════════════════════════════════════════════════════════════ */}
-
-      {activeTab === "sync_history" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          <div>
-            <Text size="sm" fw={600}>Sync history</Text>
-            <Text size="xs" c="dimmed">A log of every Google Sheets sync attempt for this map.</Text>
-          </div>
-          <SyncHistoryTable mapId={mapId} />
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          OVERLAYS
-      ══════════════════════════════════════════════════════════════════════ */}
-
       {/* Import mode choice */}
       {importChoiceOverlayOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)" }} onClick={() => setImportChoiceOverlayOpen(false)}>
-          <div className="admin-card" style={{ padding: 24, maxWidth: 380, width: "100%", margin: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
-            <Text fw={600} size="md" mb={4}>How should this data be added?</Text>
-            <Text size="xs" c="dimmed" mb={16}>
-              You have {listings.length} existing listing{listings.length !== 1 ? "s" : ""}. Choose whether to replace them or add to them.
-            </Text>
-            <Stack gap="xs">
-              <Button fullWidth type="button" color="red" variant="light" onClick={() => doImport("overwrite")} disabled={importing} loading={importing}>
-                Replace all existing data
-              </Button>
-              <Button fullWidth variant="default" type="button" onClick={() => doImport("append")} disabled={importing}>
-                Add to existing data
-              </Button>
-              <Button fullWidth variant="subtle" color="gray" type="button" onClick={() => setImportChoiceOverlayOpen(false)}>
-                Cancel
-              </Button>
-            </Stack>
+        <Dialog title="How should this data be added?" onClose={() => setImportChoiceOverlayOpen(false)}>
+          <p className="md-dialog-note">
+            You have {listings.length} existing listing{listings.length !== 1 ? "s" : ""}. Choose whether to replace them or add to them.
+          </p>
+          <div className="md-dialog-actions">
+            <Button variant="danger" onClick={() => doImport("overwrite")} disabled={importing} loading={importing} loadingLabel="Importing…">
+              Replace all existing data
+            </Button>
+            <Button onClick={() => doImport("append")} disabled={importing}>
+              Add to existing data
+            </Button>
+            <Button variant="ghost" data-autofocus onClick={() => setImportChoiceOverlayOpen(false)}>
+              Cancel
+            </Button>
           </div>
-        </div>
+        </Dialog>
       )}
 
-
-      {/* Manual entry modal */}
+      {/* Manual entry dialog */}
       {manualModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", padding: 16 }} onClick={closeManual}>
-          <div className="admin-card" style={{ padding: 24, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
-            <Text fw={600} size="md" mb={16}>{manualModal === "new" ? "Add new entry" : `Edit: ${editingListing?.name || ""}`}</Text>
-            <form onSubmit={saveManualEntry}>
-              <Stack gap="sm">
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Name <span style={{ color: "red" }}>*</span></label>
-                  <input value={manualForm.name} onChange={(e) => mfSet("name", e.target.value)} required placeholder="e.g. Acme Ltd" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Address</label>
-                  <input
-                    value={manualForm.address}
-                    onChange={(e) => mfSet("address", e.target.value)}
-                    onBlur={onManualAddressBlur}
-                    placeholder="e.g. 1 Example Street, London"
-                    style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-                  />
-                </div>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <label style={{ fontSize: 13, fontWeight: 500 }}>Group</label>
-                    <button
-                      type="button"
-                      style={{ fontSize: 12, color: "var(--lc-brand, #4a9baa)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                      onClick={() => { setAddGroupModal(true); setNewGroupName(""); }}
-                    >
-                      + Add group
-                    </button>
-                  </div>
-                  <select value={manualForm.group_id} onChange={(e) => mfSet("group_id", e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}>
-                    <option value="">No group</option>
-                    {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-
-                  {addGroupModal && (
-                    <div style={{ marginTop: 8, padding: "12px 14px", background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>New group name</div>
-                      <form onSubmit={saveNewGroup} style={{ display: "flex", gap: 8 }}>
-                        <input
-                          autoFocus
-                          value={newGroupName}
-                          onChange={(e) => setNewGroupName(e.target.value)}
-                          placeholder="e.g. Cafés"
-                          style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 }}
-                          required
-                        />
-                        <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: "6px 14px" }} disabled={savingGroup}>
-                          {savingGroup ? "Saving…" : "Add"}
-                        </button>
-                        <button type="button" className="btn" style={{ fontSize: 13, padding: "6px 10px" }} onClick={() => setAddGroupModal(false)}>
-                          Cancel
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <Group gap="sm" grow>
-                    <div>
-                      <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Latitude</label>
-                      <input value={manualForm.lat} onChange={(e) => mfSet("lat", e.target.value)} placeholder="e.g. 51.5074" type="text" inputMode="decimal" disabled={geocodingAddress} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Longitude</label>
-                      <input value={manualForm.lng} onChange={(e) => mfSet("lng", e.target.value)} placeholder="e.g. -0.1278" type="text" inputMode="decimal" disabled={geocodingAddress} style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                    </div>
-                  </Group>
-                  <Text size="xs" c="dimmed" mt={6}>
-                    {geocodingAddress ? "Updating coordinates from address…" : "Coordinates update automatically when you change the address."}
-                  </Text>
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Website URL</label>
-                  <input value={manualForm.website_url} onChange={(e) => mfSet("website_url", e.target.value)} placeholder="https://…" type="url" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                </div>
-                <Group gap="sm" grow>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Email</label>
-                    <input value={manualForm.email} onChange={(e) => mfSet("email", e.target.value)} placeholder="hello@…" type="email" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Phone</label>
-                    <input value={manualForm.phone} onChange={(e) => mfSet("phone", e.target.value)} placeholder="+44…" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                  </div>
-                </Group>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Logo URL</label>
-                  <input value={manualForm.logo_url} onChange={(e) => mfSet("logo_url", e.target.value)} placeholder="https://…/logo.png" type="url" style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }} />
-                </div>
-                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
-                  <input type="checkbox" checked={manualForm.is_active} onChange={(e) => mfSet("is_active", e.target.checked)} />
-                  Active (visible on map)
-                </label>
-
-                <ListingFilterValuesEditor ref={filterEditorRef} mapId={mapId} listingId={editingListing?.id || null} />
-
-                {manualErr && <Alert color="red" variant="light">{manualErr}</Alert>}
-
-                <Group gap="xs" justify="flex-end" mt={4}>
-                  <Button variant="default" size="sm" type="button" onClick={closeManual}>Cancel</Button>
-                  <Button size="sm" type="submit" loading={savingManual}>
-                    {manualModal === "new" ? "Add entry" : "Save changes"}
-                  </Button>
-                </Group>
-              </Stack>
-            </form>
-          </div>
-        </div>
+        <ManualListingDialog
+          mode={manualModal}
+          listing={editingListing}
+          mapId={mapId}
+          form={manualForm}
+          onChange={mfSet}
+          groups={groups}
+          geocoding={geocodingAddress}
+          error={manualErr}
+          saving={savingManual}
+          onAddressBlur={onManualAddressBlur}
+          onSubmit={saveManualEntry}
+          onClose={closeManual}
+          filterEditorRef={filterEditorRef}
+          addGroup={{
+            open: addGroupModal,
+            name: newGroupName,
+            saving: savingGroup,
+            onOpen: () => { setAddGroupModal(true); setNewGroupName(""); },
+            onClose: () => setAddGroupModal(false),
+            onNameChange: setNewGroupName,
+            onSave: saveNewGroup,
+          }}
+        />
       )}
-
-    </div>
+    </>
   );
 }
