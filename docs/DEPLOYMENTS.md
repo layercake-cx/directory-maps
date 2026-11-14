@@ -21,6 +21,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - **Responsive shell:** below 1024px the feature panel is a drawer behind a Menu button in the top bar; below 640px the rail is a bottom bar. This didn't exist before.
 - No behaviour, data, route, event, migration or Edge Function changes.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-64x8skjy1-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
