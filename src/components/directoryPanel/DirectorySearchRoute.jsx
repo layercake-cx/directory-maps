@@ -2,6 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import DirectorySearchSettingsPanel from "../directories/DirectorySearchSettingsPanel.jsx";
 import DirectoryAiSearchPanel from "../directories/DirectoryAiSearchPanel.jsx";
+import { AskPipLink } from "../ui/index.js";
 
 /**
  * Experience › Search & Discovery — location-search toggle (visible to any user with access,
@@ -15,6 +16,7 @@ export default function DirectorySearchRoute() {
   return (
     <>
       <div className="card card-pad" style={{ marginBottom: 16 }}>
+        <AskPipLink question="How does plain-English search work?" context="Search" />
         <DirectorySearchSettingsPanel
           directory={directory}
           directoryId={directoryId}

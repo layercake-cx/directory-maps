@@ -146,6 +146,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
             job={job}
             onRetry={handleRegenerate}
             onDismiss={dismiss}
+            askPip={{ question: "Can I undo a publish?" }}
             primaryAction={publicUrl ? <Button as="a" href={publicUrl} target="_blank" rel="noopener noreferrer">View live site</Button> : null}
           />
         </div>

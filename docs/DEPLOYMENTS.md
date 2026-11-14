@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 5: Ask Pip preview
+
+**Branch:** `feat/2026-11-14-discover-ui-assistant-preview`
+
+### What changed
+- New **Ask Pip** drawer (`src/components/assistant/`): a UI preview with canned replies. It is **on for Layercake staff only** and invisible to customers. No AI, no network calls for content, nothing is ever written or published by it.
+- Triggers: **Ask Pip** button in the top bar, Cmd/Ctrl+J, and "Ask Pip about this" links on the directory Overview (Needs attention), Search, AI enrichment, an empty Entries table, and a failed publish card.
+- Drawer: preview notice on first open per session, context chip, welcome with three suggested questions per page, thinking state with Stop, sources as real links, Helpful/Not helpful/Copy (toast only), suggested-action cards (Apply shows a "Preview" toast and, for drafting actions, a clearly fake progress card; Show me where navigates), fallback reply, staff-only `/error` and `/unavailable`, conversation kept per workspace in sessionStorage.
+- Two **admin events**: `admin_assistant_opened` and `admin_assistant_prompt_selected` (route group and canned prompt id only; free text is never recorded). Added to the `AGENTS.md` catalogue. `admin_events` has no event-type constraint, so **no migration was needed**.
+- **Flag** `assistant_preview` (`ASSISTANT_PREVIEW_FLAG`): not in the `feature_flags` registry, so the default is on for staff and off for customers without a migration. Enabling it for customers later means adding a registry row (a migration), which I did not write.
+- No behaviour, data, route, permission or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-326vqgvok-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. The two event types simply stop being written; existing rows are harmless. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Exercised in a local harness (not committed) as staff: open from button, shortcut and links; focus lands in the composer; Esc/close returns focus to the trigger; suggested prompt gives a thinking state then a reply with real links; fallback, `/error`, `/unavailable`; New conversation clears sessionStorage; Apply toast and fake job card running to done; link pre-fills without sending. As non-staff: no button, no links, shortcut does nothing.
+- [x] The only network traffic is the two `admin_events` inserts (IDs, no text); no AI or content requests.
+- [ ] Not yet checked on real pages (needs a signed-in session): the five triggers in place, the drawer over real directory pages, and the admin event rows landing. Also not done: VoiceOver pass, 768-1279px scrim and mobile sheet on real pages.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 4: processing pattern
 
 **Branch:** `feat/2026-11-14-discover-ui-processing`

@@ -16,7 +16,7 @@ import {
 import { listAttachedCategorisations, listEntryTermIdsByEntry, setEntryTerms } from "../../lib/categorisations";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
 import { JobCard, KeepOpenBanner, useLocalJob, buildBrowserJob } from "../jobs/index.js";
-import { useUnsavedGuard } from "../ui/index.js";
+import { useUnsavedGuard, AskPipLink } from "../ui/index.js";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
 
@@ -755,6 +755,7 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
                   <tr>
                     <td colSpan={canEdit ? 7 : 6} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
                       {search ? "No entries match your search." : "No entries yet."}
+                      {!search ? <div><AskPipLink question="What columns does my import file need?" context="Entries" trigger="empty_state" /></div> : null}
                     </td>
                   </tr>
                 )}

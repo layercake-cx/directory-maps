@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { AskPipLink } from "../ui/index.js";
 import { Link } from "react-router-dom";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import { supabase } from "../../lib/supabase.js";
@@ -149,6 +150,10 @@ export default function DirectoryOverviewRoute() {
         <Tile label="Missing logo" {...gapTile("no_logo", missingLogo, "")} />
         <Tile label="Not geocoded" {...gapTile("not_geocoded", notGeocoded, "")} />
         <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} to={enquiries30d ? `${basePath}/email-log` : undefined} />
+      </div>
+
+      <div style={{ margin: "0 0 14px" }}>
+        <AskPipLink question="What should I fix first?" context="Needs attention" />
       </div>
 
       <div className="card-grid">

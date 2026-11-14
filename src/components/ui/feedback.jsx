@@ -121,7 +121,7 @@ export function EmptyState({ art = "welcome", title, body, actions, askPip, clas
       <h3 className="empty-state-title">{title}</h3>
       {body ? <p className="empty-state-body">{body}</p> : null}
       {actions ? <div className="empty-state-actions">{actions}</div> : null}
-      {askPip ? <AskPipLink question={askPip.question} context={title} /> : null}
+      {askPip ? <AskPipLink question={askPip.question} context={title} trigger="empty_state" /> : null}
     </div>
   );
 }
@@ -137,7 +137,7 @@ export function ErrorState({ title, body, onRetry, askPip, className = "", ...re
       <h3 className="empty-state-title">{title}</h3>
       {body ? <p className="empty-state-body">{body}</p> : null}
       {onRetry ? <div className="empty-state-actions"><Button onClick={onRetry}>Try again</Button></div> : null}
-      {askPip ? <AskPipLink question={askPip.question} context={title} /> : null}
+      {askPip ? <AskPipLink question={askPip.question} context={title} trigger="error_state" /> : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, SparkIcon, SpinnerIcon, CheckIcon, AlertIcon } from "../ui/index.js";
+import { Button, SparkIcon, SpinnerIcon, CheckIcon, AlertIcon, AskPipLink } from "../ui/index.js";
 import { formatElapsed, timeLeftLabel } from "./jobCopy.js";
 
 /** Ticks once a second while `active`, so elapsed time updates without re-polling. */
@@ -22,9 +22,10 @@ function percentOf(job) {
  * JobCard: the progress surface for long work. Place it first after PageHead on the owning page.
  * Running (determinate or indeterminate), done (green, outcome and next step) and failed (red, says what is
  * still live, technical error in <details>, Try again). Announces start, each 25% boundary and the end, never every poll.
- * @param {{ job: object, onRetry?: () => void, onDismiss?: () => void, primaryAction?: React.ReactNode, compact?: boolean }} props
+ * `askPip` ({question}) adds an "Ask Pip about this" link on a failed card (renders nothing when the assistant is off).
+ * @param {{ job: object, onRetry?: () => void, onDismiss?: () => void, primaryAction?: React.ReactNode, compact?: boolean, askPip?: {question: string} }} props
  */
-export default function JobCard({ job, onRetry, onDismiss, primaryAction, compact = false }) {
+export default function JobCard({ job, onRetry, onDismiss, primaryAction, compact = false, askPip }) {
   const running = job?.status === "running";
   const now = useNow(running);
   const [announce, setAnnounce] = useState("");
@@ -90,7 +91,7 @@ export default function JobCard({ job, onRetry, onDismiss, primaryAction, compac
           </div>
         </div>
       ) : null}
-      {running && percent != null ? (
+      {running && percent != null && !job.hideCounts ? (
         <div className="job-card-counts"><span>{job.processed ?? 0} of {job.total} entries done</span></div>
       ) : null}
 
@@ -106,11 +107,12 @@ export default function JobCard({ job, onRetry, onDismiss, primaryAction, compac
         </ol>
       ) : null}
 
-      {(done || failed) && (primaryAction || onRetry || onDismiss) ? (
+      {(done || failed) && (primaryAction || onRetry || onDismiss || (failed && askPip)) ? (
         <div className="job-card-actions">
           {done ? primaryAction : null}
           {failed && onRetry ? <Button variant="primary" onClick={onRetry}>Try again</Button> : null}
           {failed ? primaryAction : null}
+          {failed && askPip ? <AskPipLink question={askPip.question} context={job.title} trigger="error_state" /> : null}
           {onDismiss ? <Button variant="ghost" onClick={onDismiss}>Dismiss</Button> : null}
         </div>
       ) : null}
