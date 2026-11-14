@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<!-- Visual reference exported from the Layercake Discover design canvas. Inline styles mirror the canvas: build with tokens + classes, never by copying these styles. [N], [DATE], [NAME] are placeholders. -->
+<meta charset="utf-8">
+<title>Processing and progress pattern</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F5E63}a:hover{color:#0A4346}
+button,input{font-family:inherit}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#EFECE6;padding:1px 5px;border-radius:4px;color:#2C3338}
+@keyframes lc-stripes{from{background-position:0 0}to{background-position:28px 0}}
+@keyframes lc-indet{0%{left:-40%}100%{left:100%}}
+@keyframes lc-spin{to{transform:rotate(360deg)}}
+@keyframes lc-pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style>
+</head>
+<body>
+
+
+<div style="width: 1440px; min-height: 2620px; box-sizing: border-box; background: #F4F2EE; font-family: 'Public Sans', system-ui, sans-serif; color: #2C3338; padding: 64px 72px; display: flex; flex-direction: column; gap: 28px">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Pattern · background work</p>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 52px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">Processing and progress</h1>
+<p style="margin: 0; max-width: 900px; font-size: 17px; line-height: 1.55; color: #454D52">When the platform is working on something (publishing, generating pages, AI runs, syncs, imports), people should see it from across the room: what is happening, how far along it is, whether they can leave, and what happens next.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 16px; color: #14191C">1 · Big, not subtle</strong><span style="font-size: 14px; line-height: 1.5; color: #454D52">Running work gets its own card at the top of the page, a moving bar and a plain-English title. Never a 12px grey line or an emoji.</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 16px; color: #14191C">2 · Say if they can leave</strong><span style="font-size: 14px; line-height: 1.5; color: #454D52">Server jobs: "You can leave this page; we'll keep going." Work running in the browser: "Keep this tab open" plus a leave-page warning.</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 16px; color: #14191C">3 · Visible everywhere</strong><span style="font-size: 14px; line-height: 1.5; color: #454D52">The top bar shows a task indicator on every page until the job ends. Finishing while away raises a toast; failures stay until dismissed.</span></div>
+</div>
+
+<section style="display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 24px; align-items: start">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #A3281C">Before · Publishing today</span>
+<img src="../assets/before-publishing.png" alt="Current Publishing page: three small text lines say published, generating public pages with an hourglass emoji, and published generating public pages in green" style="width: 100%; border-radius: 14px; border: 1px solid #E3DFD8">
+<ul style="margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; color: #454D52"><li>Three lines say nearly the same thing; one is green so it reads as finished.</li><li>12px, 70% opacity, hourglass emoji: easy to miss.</li><li>"Publish update" stays active, inviting a second publish.</li><li>No sense of how long, or whether leaving is safe.</li></ul>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #0B4A4E">After · same moment</span>
+<div role="status" aria-live="polite" style="background: #FFFFFF; border: 2px solid #1A9EAD; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(26,158,173,0.12)">
+<div style="padding: 20px 24px; display: flex; gap: 16px; align-items: flex-start">
+<span aria-hidden="true" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #E8F4F5; display: grid; place-items: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="animation: lc-spin 0.9s linear infinite"><circle cx="12" cy="12" r="9" stroke="#1A9EAD" stroke-opacity="0.25" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="#0F6A73" stroke-width="3" stroke-linecap="round"></path></svg></span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">Publishing version 120</h3>
+<p style="margin: 0; font-size: 14px; color: #454D52">Generating your public pages. You can leave this page; we'll keep going.</p>
+</div>
+<span style="font-size: 13px; color: #5C6469; white-space: nowrap">Started 12:17 · 0:42</span>
+</div>
+<div style="padding: 0 24px"><div role="progressbar" aria-label="Publishing progress" aria-valuetext="Step 2 of 3, generating pages" style="height: 10px; border-radius: 999px; background: #D6ECEF; overflow: hidden; position: relative"><div style="position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 999px; background: #1A9EAD; animation: lc-indet 1.4s ease-in-out infinite"></div></div></div>
+<ol style="list-style: none; margin: 0; padding: 16px 24px 20px; display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px">
+<li style="display: flex; align-items: center; gap: 8px; color: #1F5A28"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 999px; background: #2F7A3A; color: #FFFFFF; display: grid; place-items: center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>Settings saved</li>
+<li style="display: flex; align-items: center; gap: 8px; color: #14191C; font-weight: 700"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 999px; border: 3px solid #1A9EAD; box-sizing: border-box; animation: lc-pulse 1.2s ease-in-out infinite"></span>Generating pages</li>
+<li style="display: flex; align-items: center; gap: 8px; color: #5C6469"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 999px; border: 2px solid #C8C2B8; box-sizing: border-box"></span>Live on uk-associations.com</li>
+</ol>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 20px 24px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+<div style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px"><label for="pr-n" style="font-size: 13px; font-weight: 600; color: #14191C">Note for this version (optional)</label><input id="pr-n" type="text" disabled style="height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #EFECE6; border-radius: 10px; font-size: 15px; background: #F4F2EE"></div>
+<button type="button" disabled style="height: 44px; padding: 0 18px; border: 1px solid #EFECE6; border-radius: 10px; background: #EFECE6; color: #5C6469; font-size: 14px; font-weight: 600">Publish update</button>
+<span style="flex-basis: 100%; font-size: 13px; color: #5C6469">Publishing is paused until version 120 is live.</span>
+</div>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 700; color: #14191C">JobCard states</h2><code>&lt;JobCard job title detail steps progress canLeave onRetry onDismiss /&gt;</code></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+
+<div role="status" style="border: 2px solid #1A9EAD; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 12px; align-items: center"><span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #FDF0E6; display: grid; place-items: center"><img src="../assets/spark.svg" alt="" style="width: 20px; height: 20px; animation: lc-spin 1.8s ease-in-out infinite"></span><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-size: 16px; color: #14191C">Drafting content with AI</strong><span style="font-size: 13px; color: #454D52">You can leave this page; we'll keep going.</span></span><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; color: #14191C">58%</strong></div>
+<div role="progressbar" aria-label="AI drafting progress" aria-valuemin="0" aria-valuemax="329" aria-valuenow="191" style="height: 10px; border-radius: 999px; background: #D6ECEF; overflow: hidden"><div style="width: 58%; height: 100%; border-radius: 999px; background-color: #1A9EAD; background-image: linear-gradient(45deg, rgba(255,255,255,0.25) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.25) 75%, transparent 75%); background-size: 28px 28px; animation: lc-stripes 1s linear infinite"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #5C6469"><span><strong style="color: #14191C">191 of 329</strong> entries done</span><span>About [N] min left</span></div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Running · known total (determinate)</span>
+</div>
+
+<div role="status" style="border: 2px solid #1A9EAD; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 12px; align-items: center"><span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #E8F4F5; display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="animation: lc-spin 0.9s linear infinite"><circle cx="12" cy="12" r="9" stroke="#1A9EAD" stroke-opacity="0.25" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="#0F6A73" stroke-width="3" stroke-linecap="round"></path></svg></span><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-size: 16px; color: #14191C">Syncing with Google Sheets</strong><span style="font-size: 13px; color: #454D52">Reading [sheet name]. This usually takes under a minute.</span></span><span style="font-size: 13px; color: #5C6469">0:18</span></div>
+<div role="progressbar" aria-label="Sync in progress" style="height: 10px; border-radius: 999px; background: #D6ECEF; overflow: hidden; position: relative"><div style="position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 999px; background: #1A9EAD; animation: lc-indet 1.4s ease-in-out infinite"></div></div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Running · unknown total (indeterminate) · elapsed timer always shown</span>
+</div>
+
+<div role="status" style="border: 2px solid #B7D8BA; background: #E3F1E4; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 12px; align-items: center"><span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #2F7A3A; color: #FFFFFF; display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-size: 16px; color: #1F5A28">Version 120 is live</strong><span style="font-size: 13px; color: #1F5A28">Public pages generated at 12:19 · took 1:52</span></span></div>
+<div style="display: flex; gap: 10px"><a href="#" style="height: 36px; padding: 0 12px; border-radius: 8px; background: #FFFFFF; border: 1px solid #B7D8BA; color: #14191C; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; text-decoration: none">View live site ↗</a><button type="button" style="height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #1F5A28; font-size: 13px; font-weight: 600">Dismiss</button></div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #1F5A28">Done · stays until dismissed or the user leaves</span>
+</div>
+
+<div role="alert" style="border: 2px solid #E8B9B2; background: #F8E3E0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 12px; align-items: center"><span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #A3281C; color: #FFFFFF; display: grid; place-items: center; font-weight: 800; font-size: 20px">!</span><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-size: 16px; color: #8A2318">Generating pages failed</strong><span style="font-size: 13px; color: #8A2318">The live site still shows version 119 (last generated [DATE]).</span></span></div>
+<details style="font-size: 13px; color: #8A2318"><summary style="cursor: pointer; font-weight: 600">Technical details</summary><code>[error message]</code></details>
+<div style="display: flex; gap: 10px"><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #A3281C; border-radius: 8px; background: #A3281C; color: #FFFFFF; font-size: 13px; font-weight: 600">Try again</button><a href="#" style="height: 36px; display: inline-flex; align-items: center; color: #8A2318; font-size: 13px; font-weight: 600">Contact support</a></div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8A2318">Failed · says what is still live, offers retry</span>
+</div>
+
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; color: #14191C">Top bar · TaskIndicator</h2>
+<div style="background: #1A9EAD; border-radius: 12px; padding: 10px 12px; display: flex; justify-content: flex-end; gap: 10px; align-items: center">
+<button type="button" aria-expanded="true" aria-label="1 task running" style="height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: #14191C; color: #FFFFFF; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" style="animation: lc-spin 0.9s linear infinite"><circle cx="12" cy="12" r="9" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="#5FC6D2" stroke-width="3" stroke-linecap="round"></path></svg>1 running</button>
+<span style="width: 32px; height: 32px; border-radius: 999px; background: #14191C; color: #FFFFFF; display: grid; place-items: center; font-size: 13px; font-weight: 600">D</span>
+</div>
+<div role="dialog" aria-label="Background tasks" style="border: 1px solid #E3DFD8; border-radius: 14px; box-shadow: 0 16px 40px rgba(20,25,28,0.14); overflow: hidden">
+<div style="padding: 12px 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469; border-bottom: 1px solid #E3DFD8">Background tasks</div>
+<a href="#" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; border-bottom: 1px solid #EFECE6"><span style="display: flex; justify-content: space-between; font-size: 14px"><strong style="color: #14191C">Publishing UK Associations</strong><span style="color: #5C6469">0:42</span></span><span style="height: 6px; border-radius: 999px; background: #D6ECEF; overflow: hidden; position: relative"><span style="position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 999px; background: #1A9EAD; animation: lc-indet 1.4s ease-in-out infinite"></span></span></a>
+<a href="#" style="padding: 12px 14px; display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit"><span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 999px; background: #2F7A3A; color: #FFFFFF; display: grid; place-items: center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 14px; color: #14191C">SEO metadata drafted · 48 entries</span><span style="font-size: 12px; color: #5C6469">12:03</span></a>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #5C6469">Shows on every page while any job runs for the current workspace. Each item links to the page that owns the job. Finished items stay for the session; failed ones turn red and stay.</p>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; color: #14191C">Side panel · PublishStatus</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid #A9D3D8; background: #E8F4F5">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #14191C"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" style="animation: lc-spin 0.9s linear infinite"><circle cx="12" cy="12" r="9" stroke="#1A9EAD" stroke-opacity="0.3" stroke-width="3.5"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="#0F6A73" stroke-width="3.5" stroke-linecap="round"></path></svg><strong>Publishing…</strong><span style="margin-left: auto; color: #5C6469">0:42</span></span>
+<span style="height: 4px; border-radius: 999px; background: #CFE6E9; overflow: hidden; position: relative; margin-top: 4px"><span style="position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 999px; background: #1A9EAD; animation: lc-indet 1.4s ease-in-out infinite"></span></span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ECD2A0; background: #FBEFD9; font-size: 13px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: #B26A00"></span><span><strong>Unpublished changes</strong> · [N]</span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid #B7D8BA; background: #E3F1E4; font-size: 13px"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: #2F7A3A"></span><span><strong>Live</strong> · published 12:19</span></div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #5C6469">The existing chip gains a spinner, elapsed time and a 4px moving bar while publishing, on shell tokens (no Tailwind blue). Keeps its link to Publishing.</p>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; color: #14191C">Browser work · KeepOpenBanner</h2>
+<div role="status" style="border-radius: 12px; background: #14191C; color: #FFFFFF; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 14px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" style="animation: lc-spin 0.9s linear infinite"><circle cx="12" cy="12" r="9" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="#5FC6D2" stroke-width="3" stroke-linecap="round"></path></svg><strong>Finding map locations · 37 of 120</strong></span>
+<span style="height: 8px; border-radius: 999px; background: rgba(255,255,255,0.18); overflow: hidden"><span style="display: block; width: 31%; height: 100%; border-radius: 999px; background: #5FC6D2"></span></span>
+<span style="font-size: 13px; color: #E6E9EB"><strong style="color: #FFFFFF">Keep this tab open.</strong> This runs in your browser and stops if you leave.</span>
+<button type="button" style="align-self: flex-start; height: 36px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 8px; background: transparent; color: #FFFFFF; font-size: 13px; font-weight: 600">Stop</button>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #5C6469">Sticky at the top of <code>.main</code> for client-side loops (geocoding, file parsing, CSV import). Pairs with a beforeunload and in-app leave guard. Dark so it can't be mistaken for a passing notice.</p>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px 28px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 700; color: #14191C">Where it applies today</h2>
+<div style="display: grid; grid-template-columns: 1.3fr 1.6fr 0.9fr 1.6fr; font-size: 13.5px; line-height: 1.45; border: 1px solid #E3DFD8; border-radius: 12px; overflow: hidden">
+<span style="padding: 10px 14px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Job</span><span style="padding: 10px 14px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Where in code</span><span style="padding: 10px 14px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Progress</span><span style="padding: 10px 14px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Pattern</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">Publish / restore / regenerate</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>DirectoryPublishPanel</code>, <code>DirectoryPublishStatus</code></span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">Steps, unknown total</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">JobCard with 3 steps + side-panel chip + TaskIndicator; publish disabled with reason</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">AI content bulk run</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>DirectoryAiContentPanel</code></span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">processed of total</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">JobCard determinate, spark icon; result opens AiBulkRunReport</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">SEO metadata backfill</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>DirectoryAiSeoMetadataPanel</code>, <code>DirectorySeoSettingsPanel</code></span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">processed of total</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">JobCard determinate, spark icon</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">Google Sheets sync</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>ClientMapData</code>, <code>AdminMapData</code> (syncNow)</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">Unknown</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">JobCard indeterminate + timer; success lists rows added / updated</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">CSV import, geocoding</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>ClientMapData</code> (doImport, geocode loop), <code>DirectoryEntriesPanel</code></span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">Count known</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">KeepOpenBanner + leave guard while in browser; JobCard summary when done</span>
+<strong style="padding: 10px 14px; border-top: 1px solid #EFECE6">Single AI draft, save, short actions</strong><span style="padding: 10px 14px; border-top: 1px solid #EFECE6"><code>AIButton</code>, every Save</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">Under ~10s</span><span style="padding: 10px 14px; border-top: 1px solid #EFECE6">Button loading state only; no JobCard</span>
+</div>
+</section>
+
+<section style="background: #14191C; border-radius: 16px; padding: 28px 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; color: #E6E9EB; font-size: 14px; line-height: 1.55">
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">Timing</strong><span>Under 1s: nothing. 1–10s: button loading label. Over 10s or unknown: JobCard + TaskIndicator. Show the elapsed timer from the start; add "about N min left" only when there is a real basis.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">State and polling</strong><span>One <code style="background: #232A2E; color: #E6E9EB">useJob(kind, id)</code> hook wraps today's per-panel polling (3s) and status fields. A JobsProvider in AppShell feeds the TaskIndicator. Status survives reload because it comes from the server.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">Accessibility and motion</strong><span>JobCard is role=status (alert when failed); announce start, every 25%, and finish, not each tick. Bars carry aria-valuenow or aria-valuetext. Reduced motion: no stripes, spin or slide; static bar plus text updates.</span></div>
+</section>
+
+</div>
+
+</body>
+</html>

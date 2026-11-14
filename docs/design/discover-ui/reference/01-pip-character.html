@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<!-- Visual reference exported from the Layercake Discover design canvas. Inline styles mirror the canvas: build with tokens + classes, never by copying these styles. [N], [DATE], [NAME] are placeholders. -->
+<meta charset="utf-8">
+<title>Pip character system</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F5E63}a:hover{color:#0A4346}
+</style>
+</head>
+<body>
+
+
+<div style="width: 1440px; height: 2160px; box-sizing: border-box; background: #FFFFFF; font-family: 'Public Sans', system-ui, sans-serif; color: #2C3338; padding: 64px 72px; display: flex; flex-direction: column; gap: 48px">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Character system</p>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 56px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">Pip, the discovery companion</h1>
+<p style="margin: 0; max-width: 780px; font-size: 17px; line-height: 1.55; color: #454D52">Curious, helpful and lightly mischievous. A stack of layers (different kinds of information, communities and opportunities) topped by the orange spark of finding something.</p>
+</div>
+
+<section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="border-radius: 20px; background: #F4EBDB; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center"><strong style="font-size: 16px; color: #14191C">Concept art · approved direction</strong><span style="padding: 4px 10px; border-radius: 999px; background: #E6F0EF; color: #0B4A4E; font-size: 12px; font-weight: 700">Used in the mockups</span></div>
+<div style="height: 380px; display: flex; align-items: center; justify-content: center"><img src="../assets/concept/pip-concept-hero-explore.png" alt="" style="height: 370px"></div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #454D52">Cut from the mid-century board with its printed paper kept. Always sits on a paper plate (#F4EBDB) so the texture blends. Raster only: fine for heroes and spots at 1x–2x, not for badges.</p>
+</div>
+<div style="border-radius: 20px; border: 1px solid #E3DFD8; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center"><strong style="font-size: 16px; color: #14191C">Vector draft v0.1 · editable master</strong><span style="padding: 4px 10px; border-radius: 999px; background: #FBEFD9; color: #7A4A06; font-size: 12px; font-weight: 700">Needs illustrator pass</span></div>
+<div style="height: 380px; display: flex; align-items: flex-end; justify-content: center; gap: 24px"><img src="../assets/pip/pip-neutral.svg" alt="" style="height: 300px"><img src="../assets/pip/pip-searching.svg" alt="" style="height: 220px"></div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #454D52">Same anatomy as clean SVG with separated layers (body, face, arms, legs, shoes, spark, props). Locks proportions and makes small sizes possible, but lacks the board's printed grain and wobble. Recommend an illustrator redraws over this skeleton.</p>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 40px; align-items: start">
+<div style="position: relative; height: 470px; border-radius: 20px; background: #F4F2EE; display: flex; align-items: center; justify-content: center">
+<div style="position: absolute; left: 70px; right: 70px; top: 40px; bottom: 40px; border: 1px dashed #9AA3A8"></div>
+<div style="position: absolute; left: 70px; right: 70px; bottom: 58px; border-top: 2px solid #A8440A"></div>
+<span style="position: absolute; right: 74px; bottom: 64px; font-size: 11px; font-weight: 700; color: #A8440A">baseline</span>
+<span style="position: absolute; left: 74px; top: 46px; font-size: 11px; font-weight: 700; color: #5C6469">bounding box 236 × 246 u</span>
+<img src="../assets/pip/pip-neutral.svg" alt="" style="height: 380px; position: relative"></div>
+<div style="display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; color: #14191C">Model sheet</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Layer stack, top to bottom</p>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 40px; height: 14px; background: #F7F0DE; box-shadow: inset 0 0 0 1.5px #10283B"></span><span style="font-size: 14px">1 · Map top, cream with leaf, water, sun patches</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 40px; height: 6px; background: #62965B"></span><span style="font-size: 14px">2 · Leaf rim · 8u</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 40px; height: 28px; background: #F7F0DE; box-shadow: inset 0 0 0 1.5px #10283B"></span><span style="font-size: 14px">3 · Face layer · 46u (always the tallest)</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 40px; height: 13px; background: #2E83A7"></span><span style="font-size: 14px">4 · Water · 20u</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 40px; height: 13px; background: #F47721"></span><span style="font-size: 14px">5 · Spark base · 20u</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Geometry</p>
+<span>Block ratio 1.2 : 1 (wide), seen from front-left with a 14u right side.</span>
+<span>Spark: centred over the top, 6u right of centre, gap above head ≈ ⅓ face height.</span>
+<span>Eyes on the face layer's upper half; mouth sits just above the water line.</span>
+<span>Arms leave from the water layer; legs from the ⅓ points of the base.</span>
+<span>Orange trainers with cream toe caps and soles. Limbs are always pip-ink.</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<div style="border-radius: 12px; background: #E6F0EF; padding: 14px 16px; font-size: 14px; line-height: 1.5; color: #0B4A4E"><strong>Never changes:</strong> layer order and relative thickness, cream map top, orange spark, face placement, trainers, dark limbs, proportions.</div>
+<div style="border-radius: 12px; background: #F4F2EE; padding: 14px 16px; font-size: 14px; line-height: 1.5; color: #2C3338"><strong>Can change:</strong> eyes, brows, mouth, arm gestures, stance, props (magnifier, tablet, map, briefcase, bubble, chart). Props are separate layers.</div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #A8440A; font-weight: 600">Still needed for sign-off: true side and back views, and a walk cycle turnaround.</p>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; color: #14191C">Expression set · vector</h2>
+<div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-neutral.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Neutral</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-welcome.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Welcome</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-curious.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Curious</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-searching.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Searching</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-aha.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Aha</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-celebrating.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Celebrating</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-pointing.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Pointing</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-thinking.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Thinking</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-encouraging.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">No results</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 12px; background: #F4F2EE"><img src="../assets/pip/pip-apology.svg" alt="" style="height: 110px"><span style="font-size: 12px; font-weight: 600">Apology</span></div>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; color: #14191C">Feature poses · concept art</h2>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-search.png" alt="" style="height: 120px"><strong style="font-size: 13px">Search</strong></div>
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-directories.png" alt="" style="height: 120px"><strong style="font-size: 13px">Directories</strong></div>
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-maps.png" alt="" style="height: 120px"><strong style="font-size: 13px">Maps</strong></div>
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-jobs.png" alt="" style="height: 120px"><strong style="font-size: 13px">Jobs</strong></div>
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-connect.png" alt="" style="height: 120px"><strong style="font-size: 13px">Connect</strong></div>
+<div style="border-radius: 12px; background: #F4EBDB; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px"><img src="../assets/concept/pip-concept-spot-grow.png" alt="" style="height: 120px"><strong style="font-size: 13px">Grow</strong></div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">The map pin in "Maps" is a prop, never a headpiece. Jobs is shown as a theme only; label it "coming soon" anywhere it is not live.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; color: #14191C">Small-size test</h2>
+<div style="display: flex; align-items: flex-end; gap: 18px; padding: 16px; border-radius: 12px; border: 1px solid #E3DFD8">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-mini.svg" alt="" style="width: 128px"><span style="font-size: 11px; color: #5C6469">128 full</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-mini.svg" alt="" style="width: 64px"><span style="font-size: 11px; color: #5C6469">64 mini</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 32px"><span style="font-size: 11px; color: #5C6469">32 face</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/spark.svg" alt="" style="width: 20px"><span style="font-size: 11px; color: #5C6469">20 spark</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/concept/pip-concept-spot-search.png" alt="" style="width: 32px"><span style="font-size: 11px; color: #A8440A; font-weight: 700">32 art ✕</span></div>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #5C6469">Below 64px, switch from full body to the face badge, then to the spark. The concept art turns to noise at 32px.</p>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; color: #14191C">Homepage loop · PipAnimated</h2><span style="font-size: 14px; color: #5C6469">Production: Rive state machine (hero) · CSS/SVG transforms (micro) · Lottie fallback</span></div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px">
+<div style="border-radius: 14px; background: #F4EBDB; padding: 12px; display: flex; flex-direction: column; gap: 8px"><img src="../assets/concept/pip-concept-story-1-walk.png" alt="" style="height: 150px; align-self: center"><strong style="font-size: 14px">1 · Walk in</strong><span style="font-size: 13px; color: #454D52">0–1.2s · translateX −40%→0 · ease-out · 4-step walk cycle</span></div>
+<div style="border-radius: 14px; background: #F4EBDB; padding: 12px; display: flex; flex-direction: column; gap: 8px"><img src="../assets/concept/pip-concept-story-2-look.png" alt="" style="height: 150px; align-self: center"><strong style="font-size: 14px">2 · Look around</strong><span style="font-size: 13px; color: #454D52">1.2–2.4s · magnifier sweeps L→R, eyes follow · ease-in-out</span></div>
+<div style="border-radius: 14px; background: #F4EBDB; padding: 12px; display: flex; flex-direction: column; gap: 8px"><img src="../assets/concept/pip-concept-story-3-spot.png" alt="" style="height: 150px; align-self: center"><strong style="font-size: 14px">3 · Spot a match</strong><span style="font-size: 13px; color: #454D52">2.4–2.9s · spark scale 1→1.25, rays fade in · back-out</span></div>
+<div style="border-radius: 14px; background: #F4EBDB; padding: 12px; display: flex; flex-direction: column; gap: 8px"><img src="../assets/concept/pip-concept-story-4-point.png" alt="" style="height: 150px; align-self: center"><strong style="font-size: 14px">4 · Bounce, point</strong><span style="font-size: 13px; color: #454D52">2.9–4.4s · 8px hop, squash 4% · point at search box</span></div>
+<div style="border-radius: 14px; background: #F4EBDB; padding: 12px; display: flex; flex-direction: column; gap: 8px"><img src="../assets/concept/pip-concept-story-5-loop.png" alt="" style="height: 150px; align-self: center"><strong style="font-size: 14px">5 · Rest loop</strong><span style="font-size: 13px; color: #454D52">4.4s→ · blink every 4–6s, spark breathes 1→1.06 over 3s</span></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; font-size: 13px; line-height: 1.5">
+<div style="padding: 12px; border-radius: 12px; border: 1px solid #E3DFD8"><strong>Idle blink</strong><br>Eyes scaleY 1→0.1→1, 140ms, every 4–6s random</div>
+<div style="padding: 12px; border-radius: 12px; border: 1px solid #E3DFD8"><strong>Search / loading</strong><br>Spark rotates 0→90°, 900ms ease-in-out, loops while busy</div>
+<div style="padding: 12px; border-radius: 12px; border: 1px solid #E3DFD8"><strong>Aha / success</strong><br>Spark pops 1→1.3→1, 280ms, rays once. Never loops</div>
+<div style="padding: 12px; border-radius: 12px; border: 1px solid #E3DFD8"><strong>No results</strong><br>Head tilt 0→6°→0, 600ms, once, with encouraging face</div>
+<div style="padding: 12px; border-radius: 12px; border: 1px solid #E3DFD8"><strong>Hover wave</strong><br>Arm −20° twice, 500ms total. Pointer devices only</div>
+</div>
+<p style="margin: 0; padding: 12px 16px; border-radius: 12px; background: #E6F0EF; color: #0B4A4E; font-size: 14px"><strong>prefers-reduced-motion:</strong> show frame 4 (pointing) as a still, no loop, no spark rotation; loading falls back to a text progress line. Loop pauses when off-screen or after 3 cycles.</p>
+</section>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<!-- Visual reference exported from the Layercake Discover design canvas. Inline styles mirror the canvas: build with tokens + classes, never by copying these styles. [N], [DATE], [NAME] are placeholders. -->
+<meta charset="utf-8">
+<title>Admin: organisation onboarding</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F5E63}a:hover{color:#0A4346}
+button,input{font-family:inherit}
+</style>
+</head>
+<body>
+
+
+<div style="min-height: 1040px; background: #F4F2EE; font-family: 'Public Sans', system-ui, sans-serif; color: #2C3338; display: flex; flex-direction: column">
+
+<header style="min-height: 52px; background: #1A9EAD; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 6px 16px 6px 14px; box-sizing: border-box">
+<a href="#" aria-label="Layercake Discover admin home" style="display: flex; align-items: center; gap: 8px; text-decoration: none"><img src="../assets/discover-app-icon-provisional.svg" alt="" style="width: 30px; height: 30px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; color: #FFFFFF">layercake <span style="font-weight: 600">discover</span></span></a>
+<span aria-hidden="true" style="width: 1px; height: 24px; background: rgba(255,255,255,0.45)"></span>
+<button type="button" style="height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; border-radius: 8px; background: #FFFFFF; color: #14191C; font-size: 14px; font-weight: 600"><span style="font-weight: 500; color: #5C6469">Organisation</span>[Organisation name]</button>
+<div style="flex-grow: 1"></div>
+<label for="ao-s" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search the admin</label>
+<input id="ao-s" type="search" placeholder="Search maps, directories, entries" style="width: 300px; max-width: 100%; height: 34px; box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 8px; font-size: 14px; color: #14191C; background: #FFFFFF">
+<a href="#" aria-label="Account" style="width: 32px; height: 32px; border-radius: 999px; background: #14191C; color: #FFFFFF; display: grid; place-items: center; font-size: 13px; font-weight: 600; text-decoration: none">D</a>
+</header>
+
+<div style="flex-grow: 1; display: flex; flex-wrap: wrap">
+<nav aria-label="Global" style="width: 64px; flex: 0 0 64px; background: #14191C; display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 8px; box-sizing: border-box">
+<a href="#" aria-label="Home" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: #1A9EAD; color: #14191C"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></a>
+<a href="#" aria-label="Directories" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #C9CFD2"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg></a>
+<a href="#" aria-label="Maps" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #C9CFD2"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14M15 6v14"></path></svg></a>
+<a href="#" aria-label="Team" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #C9CFD2"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><circle cx="17" cy="9" r="2.5"></circle></svg></a>
+<a href="#" aria-label="Messaging" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #C9CFD2"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"></path></svg></a>
+<a href="#" aria-label="Domains" style="width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #C9CFD2"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg></a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 36px 48px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Getting started</p>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 44px; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; color: #14191C">Welcome, [Organisation name]</h1>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<section aria-labelledby="ao-setup" style="flex: 999 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 24px 28px; background: #F4EBDB">
+<img src="../assets/pip/pip-welcome.svg" alt="" style="width: 104px; height: auto">
+<div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 8px">
+<h2 id="ao-setup" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Let's get your first directory live</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #2C3338">Six steps. You can leave and come back at any point; progress saves as you go.</p>
+<div style="display: flex; align-items: center; gap: 12px">
+<div role="progressbar" aria-valuenow="1" aria-valuemin="0" aria-valuemax="6" aria-label="Setup progress" style="flex: 1; max-width: 280px; height: 8px; border-radius: 999px; background: rgba(16,40,59,0.12); overflow: hidden"><div style="width: 17%; height: 100%; background: #0F5E63"></div></div>
+<span style="font-size: 13px; font-weight: 700; color: #14191C">1 of 6 done</span>
+</div>
+</div>
+</div>
+
+<ol style="list-style: none; margin: 0; padding: 0">
+<li style="display: flex; gap: 16px; align-items: center; padding: 16px 28px; border-top: 1px solid #E3DFD8">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; background: #0F5E63; color: #FFFFFF; display: grid; place-items: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600; color: #14191C">Purpose and audience</span><span style="font-size: 13px; color: #5C6469">Done · who the directory is for and what they should find</span></span>
+<a href="#" style="font-size: 14px; font-weight: 600">Edit</a>
+</li>
+
+<li style="padding: 20px 28px 24px; border-top: 1px solid #E3DFD8; background: #FCFBF9; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; gap: 16px; align-items: center">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; border: 2px solid #0F5E63; color: #0F5E63; display: grid; place-items: center; font-size: 13px; font-weight: 700; box-sizing: border-box">2</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; color: #14191C">Choose how listings get filled</span><span style="font-size: 13px; color: #5C6469">This shapes your import, claim emails and launch plan</span></span>
+</div>
+<fieldset style="margin: 0 0 0 44px; padding: 0; border: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px">
+<legend style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Data approach</legend>
+<label style="padding: 16px; border: 2px solid #0F5E63; border-radius: 12px; background: #E6F0EF; display: flex; flex-direction: column; gap: 6px; cursor: pointer"><span style="display: flex; align-items: center; gap: 8px"><input type="radio" name="ao-data" checked style="width: 18px; height: 18px; accent-color: #0F5E63; margin: 0"><strong style="font-size: 14px; color: #14191C">Bring existing data</strong></span><span style="font-size: 13px; line-height: 1.45; color: #2C3338">Import a CSV or Google Sheet you already keep.</span></label>
+<label style="padding: 16px; border: 1px solid #E3DFD8; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; cursor: pointer"><span style="display: flex; align-items: center; gap: 8px"><input type="radio" name="ao-data" style="width: 18px; height: 18px; accent-color: #0F5E63; margin: 0"><strong style="font-size: 14px; color: #14191C">Seed for owners to claim</strong></span><span style="font-size: 13px; line-height: 1.45; color: #2C3338">Add basic listings; organisations claim and complete them.</span></label>
+<label style="padding: 16px; border: 1px solid #E3DFD8; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; cursor: pointer"><span style="display: flex; align-items: center; gap: 8px"><input type="radio" name="ao-data" style="width: 18px; height: 18px; accent-color: #0F5E63; margin: 0"><strong style="font-size: 14px; color: #14191C">Owners add their own</strong></span><span style="font-size: 13px; line-height: 1.45; color: #2C3338">Open a sign-up form; you approve each listing.</span></label>
+</fieldset>
+<div style="margin-left: 44px; display: flex; gap: 12px; flex-wrap: wrap">
+<button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #0F5E63; color: #FFFFFF; font-size: 14px; font-weight: 600">Continue to import</button>
+<button type="button" style="height: 44px; padding: 0 18px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; color: #14191C; font-size: 14px; font-weight: 600">Not sure yet</button>
+</div>
+</li>
+
+<li style="display: flex; gap: 16px; align-items: center; padding: 16px 28px; border-top: 1px solid #E3DFD8">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; border: 1px solid #C8C2B8; color: #5C6469; display: grid; place-items: center; font-size: 13px; font-weight: 600; box-sizing: border-box">3</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600; color: #14191C">Add entries and categories</span><span style="font-size: 13px; color: #5C6469">Filters people will use to narrow results</span></span>
+</li>
+<li style="display: flex; gap: 16px; align-items: center; padding: 16px 28px; border-top: 1px solid #E3DFD8">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; border: 1px solid #C8C2B8; color: #5C6469; display: grid; place-items: center; font-size: 13px; font-weight: 600; box-sizing: border-box">4</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600; color: #14191C">Apply your brand</span><span style="font-size: 13px; color: #5C6469">Logo, colours and fonts. Your directory carries your brand, not ours</span></span>
+</li>
+<li style="display: flex; gap: 16px; align-items: center; padding: 16px 28px; border-top: 1px solid #E3DFD8">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; border: 1px solid #C8C2B8; color: #5C6469; display: grid; place-items: center; font-size: 13px; font-weight: 600; box-sizing: border-box">5</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600; color: #14191C">Connect domain, email and analytics</span><span style="font-size: 13px; color: #5C6469">Includes AI search settings and enquiry routing</span></span>
+</li>
+<li style="display: flex; gap: 16px; align-items: center; padding: 16px 28px; border-top: 1px solid #E3DFD8">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 999px; border: 1px solid #C8C2B8; color: #5C6469; display: grid; place-items: center; font-size: 13px; font-weight: 600; box-sizing: border-box">6</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600; color: #14191C">Publish and measure</span><span style="font-size: 13px; color: #5C6469">Go live, then track searches, views and enquiries</span></span>
+</li>
+</ol>
+</section>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 32px"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; color: #14191C">Ask Pip about setup</h2></div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #454D52">Questions about importing, claims or domains. Answers link to the guide they came from.</p>
+<label for="ao-ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Ask a setup question</label>
+<div style="display: flex; gap: 8px"><input id="ao-ask" type="text" placeholder="e.g. What columns does my CSV need?" style="flex: 1; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E3DFD8; border-radius: 10px; font-size: 14px"><button type="button" aria-label="Ask" style="width: 44px; height: 44px; border: 1px solid #14191C; border-radius: 10px; background: #FFFFFF; display: grid; place-items: center"><img src="../assets/spark.svg" alt="" style="width: 16px; height: 16px"></button></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; display: flex; flex-direction: column">
+<h2 style="margin: 0; padding: 20px 22px 10px; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; color: #14191C">Guides</h2>
+<a href="#" style="padding: 12px 22px; border-top: 1px solid #E3DFD8; font-size: 14px; font-weight: 600; text-decoration: none">Preparing your data for import</a>
+<a href="#" style="padding: 12px 22px; border-top: 1px solid #E3DFD8; font-size: 14px; font-weight: 600; text-decoration: none">How listing claims work</a>
+<a href="#" style="padding: 12px 22px 16px; border-top: 1px solid #E3DFD8; font-size: 14px; font-weight: 600; text-decoration: none">Connecting a custom domain</a>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #14191C">Talk to Layercake</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #454D52">Founding partners get a named contact for launch.</p>
+<a href="#" style="font-size: 14px; font-weight: 600">Book a launch call</a>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</div>
+
+</body>
+</html>
