@@ -18,6 +18,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Three small new write functions (`reorderAccreditationSchemes`, `reorderTeamMembers`, `reorderEvidenceItems`) update `sort_order` on existing tables; no schema or RLS change, no Edge Function, no migration. The six editor lists had no reorder UI before, so they gain one.
 - `scripts/check-ui.sh` now fails on `draggable` / `onDragStart`; `/admin/ui-kit` has a SortableList section; `USER_GUIDE.md` has a "Reordering lists" section. BACKLOG: per-category "Edit terms" route.
 
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch for a click-through (`directory-maps-jc6lk1ohl-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so reorders you make there are real.
+
 ### Production outcome
 - Not deployed yet.
 
