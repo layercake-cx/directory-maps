@@ -19,6 +19,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - `DraftingPromptModal` and `AiProvenanceNote` render the new look only inside the admin shell; claim pages (out of scope) are unchanged.
 - No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing counts of `recordEvent`/`recordAdminEvent` calls and Supabase/RPC/function calls in all 65 changed files against `main`: identical. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-dyrhhfj10-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
