@@ -259,54 +259,6 @@
 
 
 /* ==================================================================
-   DISCOVER-UI bridge: delete in phase 7
-   Points the legacy button/container/input classes at the shell tokens so
-   unmigrated pages look consistent. Scoped under `.shell` on purpose: the
-   same classes are used by out-of-scope pages (Login, claim, Privacy, Terms),
-   which must not change. `.shell .admin-controls ...` variants beat the
-   legacy `.admin-controls .btn*` rules in pages/admin/admin.css.
-   ================================================================== */
-.shell .btn, .shell a.btn, .shell .admin-controls .btn {
-  height: var(--control-h); padding: 0 18px; border-radius: var(--radius-control); gap: 8px;
-  font-family: var(--font-body); font-size: var(--fs-ui); font-weight: 600;
-  border: 1px solid var(--shell-line); background: var(--shell-surface); color: var(--shell-ink);
-}
-.shell .btn:hover:not(:disabled), .shell a.btn:hover { background: var(--shell-ground); border-color: var(--shell-line); }
-.shell .btn:disabled { opacity: 1; background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); }
-.shell .btn-primary, .shell a.btn-primary, .shell .admin-controls .btn-primary {
-  background: var(--shell-accent); border-color: var(--shell-accent); color: #fff;
-}
-.shell .btn-primary:hover:not(:disabled), .shell a.btn-primary:hover, .shell .admin-controls .btn-primary:hover {
-  background: var(--shell-accent-hover); border-color: var(--shell-accent-hover); color: #fff; filter: none;
-}
-.shell .btn-primary:disabled { background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); }
-.shell .btn-sm, .shell .admin-controls .btn-sm { height: 36px; padding: 0 12px; border-radius: var(--radius-item); font-size: var(--fs-small); }
-.shell .btn-danger { color: var(--shell-danger); border-color: var(--shell-danger-border); }
-.shell .btn-danger:hover:not(:disabled) { background: var(--shell-danger-bg); border-color: var(--shell-danger-border); }
-.shell .btn:focus-visible, .shell .xp-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-
-.shell .xp-btn {
-  min-height: var(--control-h); padding: 0 18px; border-radius: var(--radius-control);
-  border: 1px solid var(--shell-line); background: var(--shell-surface); color: var(--shell-ink);
-  font-family: var(--font-body); font-size: var(--fs-ui); font-weight: 600;
-}
-.shell .xp-btn-primary { background: var(--shell-accent); border-color: var(--shell-accent); color: #fff; }
-.shell .xp-btn-danger { color: var(--shell-danger); }
-.shell .xp-btn:disabled { opacity: 1; background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); }
-.shell .xp-input {
-  height: var(--control-h); padding: 0 12px; border-radius: var(--radius-control);
-  border: 1px solid var(--shell-line); font-family: var(--font-body); font-size: var(--fs-body); color: var(--shell-ink);
-}
-
-.shell .admin-card, .shell .panel-section, .shell .xp-card {
-  background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-panel); box-shadow: none;
-}
-.shell .admin-table th { font-family: var(--font-body); color: var(--shell-text-muted); border-bottom-color: var(--shell-line); }
-.shell .admin-table td { border-bottom-color: var(--shell-line-soft); }
-.shell .admin-table a { color: var(--shell-accent); }
-
-
-/* ==================================================================
    UI KIT additions (phase 2). Classes the kit components need that the
    reference CSS above doesn't define. Still scoped under .shell.
    ================================================================== */

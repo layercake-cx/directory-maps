@@ -1,0 +1,8 @@
+/* Rules the SitePreview component (out of scope: it previews a client's site) still needs, kept from the old experience.css. */
+.xp-help { margin: 0; font-size: 12px; color: #5b6470; line-height: 1.45; }
+.xp-sitepreview { border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; background: #fff; font-size: 12px; }
+.xp-sitepreview .xp-region { position: relative; }
+.xp-sitepreview .xp-region[data-hl="true"] { outline: 3px solid #12828a; outline-offset: -3px; }
+.xp-browserbar { background: #eceff1; padding: 6px 10px; display: flex; gap: 6px; align-items: center; }
+.xp-browserbar i { width: 8px; height: 8px; border-radius: 50%; background: #b5bcc4; display: block; }
+.xp-sitepreview [data-ai-hl="true"] { outline: 2px solid #12828a; outline-offset: 1px; }

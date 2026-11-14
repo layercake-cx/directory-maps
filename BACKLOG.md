@@ -187,3 +187,14 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
   - `OverflowMenu` internal `href` items now use the router; external links stay plain anchors.
   - Kit gaps still open: `DataTable` expandable rows and row className (log pages and Team use hand-built tables or workarounds), `rowMenu` hiding for a row, `PageHead` without a title, `Toolbar` + search `Field` combination, entitlement scrim token.
   - Dead code left in place on purpose: `saveMap`/`deleteMap`/`isProductionEnv`/`mapOptions*` in the map dashboards.
+
+### [DISCOVER-UI] Remove Mantine
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §7 item 3
+- What the design shows: the kit replaces Mantine everywhere in the shell.
+- Why not built now: two uses remain outside the shell, both via `src/components/ui/mantine.js`: the claim pages' drafting-prompt modal (`DraftingPromptModal` renders a Mantine `Modal` when it is not inside `.shell`) and `EntryCardPreview` (`Text`). `main.jsx` still mounts `MantineProvider` for them. The dependency was not removed.
+- Suggested next step: give the claim pages (they render in a client's own brand) their own plain modal and replace the `Text` in the card preview; then delete `ui/mantine.js`, `MantineProvider`, and `@mantine/core`/`@mantine/hooks` from `package.json`.
+
+### [DISCOVER-UI] Phase 7 leftovers
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §7
+- What remains on purpose: `src/style.css` and `admin.css` keep the global `.btn`/`.admin-card` look used by auth, claim, pricing and embed pages; `components/ai/ai.css` keeps `--uka-*` for the claim pages; the `--lc-card/--lc-border/--lc-muted` variables are still used in about 50 places (a token rename is a separate job); `RichTextEditor` still uses `window.prompt` for the link URL (the check script only fails on confirm/alert).
+- Suggested next step: when the claim pages are redesigned, delete `ai.css` variables and the `.btn` rules; add a kit `PromptDialog` and use it for the editor link.
