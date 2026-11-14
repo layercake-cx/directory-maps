@@ -18,6 +18,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Visible changes: map Data job cards now sit above the tabs; maps list lost its non-functional search, Filter and Sort controls and placeholder tiles; map settings strip is light with a "Unpublished changes" pill; Team, Email and map filter deletes use dialogs; many empty/error states reworded or added (see the PR report). `ClientMapListings` no longer renders a second shell inside the client shell.
 - No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage and `.from(` calls across all changed and new files against `main`: identical, except one `Array.from(` in removed placeholder tiles. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-e7k9g429o-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
