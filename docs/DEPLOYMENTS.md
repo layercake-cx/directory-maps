@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Directory Categories page only attaches categories
+
+**Branch:** `fix/2026-11-14-directory-categories-attach-only`
+
+### What changed
+- Content › Categories on a directory also showed a "Directory categories" picker that tagged the directory itself with category terms. That mixed up attaching available categories with tagging. The section is removed; the page now only attaches and orders the categories available to the directory. Terms are still applied to entries (entry editor Categories tab, bulk tag).
+- Removed the unused term state and save handler from `DirectoryContext`. The `directory_category_terms` table and its data are untouched (dropping it would be a separate migration). `USER_GUIDE.md` corrected.
+- No migration, no Edge Function.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` passes.
+- [ ] Not yet checked in the browser: open a directory's Content › Categories and confirm only the attach/order controls show.
+
+---
+
 ## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
 
 **Branch:** `feat/2026-11-14-ask-pip-all-users`
