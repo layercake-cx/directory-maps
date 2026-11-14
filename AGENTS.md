@@ -223,6 +223,7 @@ Migration files live in `supabase/migrations/` and are named `YYYYMMDDHHMMSS_sho
 - Minimize scope; match existing patterns in `src/`.
 - Do not commit unless the user asks.
 - Auth is **email + password** for signup/login; team invites use invitation links to signup/login, not magic-link OTP.
+- **UI:** build in-app (`/client`, `/admin`) screens with the kit in `src/components/ui/` and the layouts, not hand-rolled styles; check `/admin/ui-kit` first, and run `scripts/check-ui.sh` before opening a PR. See `docs/FRONTEND_ARCHITECTURE.md` §5.
 
 ## Directory entries CSV import/export contract
 

@@ -219,20 +219,6 @@
 .shell .breadcrumb a { color: var(--shell-text-muted); text-decoration: none; }
 .shell .breadcrumb [aria-current] { color: var(--shell-ink); }
 
-/* admin.css's .admin-actions (rightActions) was styled for a dark teal header; it now sits in
-   the light page body (see AdminLayout.jsx). Restyle only the plain, unclassed buttons/links it
-   contains — anything already using .btn/.btn-primary keeps its own existing look untouched. */
-.shell .admin-main .admin-actions > a:not(.btn),
-.shell .admin-main .admin-actions > button:not(.btn) {
-  border: 1px solid var(--shell-line);
-  background: var(--shell-surface);
-  color: var(--shell-ink);
-}
-.shell .admin-main .admin-actions > a:not(.btn):hover,
-.shell .admin-main .admin-actions > button:not(.btn):hover {
-  background: var(--shell-ground);
-}
-
 /* ---------- Page-body component vocabulary ----------
    Ported from docs/design/admin-shell/admin-shell.css's Buttons/Pills/Surfaces/Tabs/Forms/
    Toolbar+table sections (Phase 1 only ported the shell chrome itself — see BACKLOG.md "Page

@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 7: clean-up and enforcement
+
+**Branch:** `feat/2026-11-14-discover-ui-cleanup`
+
+### What changed
+- Deleted the phase 1 bridge CSS (the `.shell .btn*`, `.xp-*`, `.admin-card`, `.admin-table` look-alike rules), the `admin-actions` rule in `admin-shell.css`, `components/experience/experience.css` and the `components/experience/ui.jsx` re-exports. The few rules `SitePreview` still needs moved to `components/experience/site-preview.css`.
+- `src/pages/admin/admin.css` pruned from 1,736 to 310 lines with a script that removed every rule whose classes are referenced nowhere else in the app. What remains is the global `.btn`/`.admin-card` look used by the auth, claim, pricing and embed pages and the map workspace layout classes.
+- `@mantine/core` is now imported only through `src/components/ui/mantine.js` (claim-page modal and entry card preview); the dependency stays (BACKLOG proposes removing it).
+- Added `scripts/check-ui.sh` and `npm run check:ui`; one line added to `AGENTS.md` Conventions; `docs/FRONTEND_ARCHITECTURE.md` §5 rewritten as the UI system guide.
+- Renamed the tab/panel element ids from `xp-tab-*`/`xp-panel-*` to `ui-tab-*`/`ui-panel-*` (kit tab keyboard handling and Look & feel).
+- Result: in scope, legacy buttons 0, legacy containers 0, `xp-*` 0, Mantine outside `ui/` 0, native confirm/alert 0, inline styles 37 (all dynamic), from a baseline of 2047 inline styles and 276 legacy buttons.
+- No data fetching, route, permission, event or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-6wuysoviv-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes and fails correctly when a legacy class is added.
+- [x] Every class removed from `admin.css` was checked as unreferenced in `src`, `index.html` and `supabase/functions` (dynamic class names checked separately: only `ai-btn--*` and `shell-btn--*`, both kept).
+- [ ] **Not seen running.** This phase deletes CSS, so the main risk is a page that lost styling. Please click through one page of each kind: login and sign-up (should be unchanged), the claim Listing Manager, a published-map embed, pricing, then in-app: client home, a map design page, map Data, a directory (Entries, Look & feel), Email, staff Customers and Sync log. Look for missing spacing, unstyled buttons or lost colours.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave C: platform admin
 
 **Branch:** `feat/2026-11-14-discover-ui-wave-c-platform`

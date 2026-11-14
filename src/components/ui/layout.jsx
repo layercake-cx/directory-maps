@@ -21,7 +21,7 @@ export function AskPipLink({ question, context, trigger = "section" }) {
 }
 
 /**
- * Section: the single in-page container. Replaces .admin-card, .panel-section, .xp-card, engagement Panel.
+ * Section: the single in-page container (replaces the old hand-built cards, grey panels and engagement Panel).
  * @param {{ title?: string, description?: React.ReactNode, actions?: React.ReactNode,
  *   askPip?: {question: string}, footer?: React.ReactNode, tone?: "default"|"danger",
  *   flush?: boolean, as?: "h2"|"h3" }} props

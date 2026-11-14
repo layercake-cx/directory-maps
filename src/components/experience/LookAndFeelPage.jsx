@@ -52,8 +52,6 @@ import {
 import GradientBackgroundField, { RangeField } from "./GradientBackgroundField.jsx";
 import SitePreview from "./SitePreview.jsx";
 import "../../styles/wave-a/batch-4.css";
-// SitePreview (out of scope, previews the client's site) still depends on the xp-* rules in experience.css.
-import "./experience.css";
 
 const FONT_OPTIONS = Object.keys(FONT_CATALOG);
 
@@ -318,13 +316,13 @@ export default function LookAndFeelPage() {
               {g.tabs.map(([id, label]) => (
                 <button
                   key={id}
-                  id={`xp-tab-${id}`}
+                  id={`ui-tab-${id}`}
                   type="button"
                   role="tab"
                   className="tab"
                   aria-selected={tab === id}
                   aria-current={tab === id ? "page" : undefined}
-                  aria-controls={`xp-panel-${id}`}
+                  aria-controls={`ui-panel-${id}`}
                   tabIndex={tab === id ? 0 : -1}
                   onClick={() => setTab(id)}
                 >
@@ -336,7 +334,7 @@ export default function LookAndFeelPage() {
         ))}
       </div>
 
-      <div className="b4-panel" role="tabpanel" id={`xp-panel-${tab}`} aria-labelledby={`xp-tab-${tab}`} tabIndex={0}>
+      <div className="b4-panel" role="tabpanel" id={`ui-panel-${tab}`} aria-labelledby={`ui-tab-${tab}`} tabIndex={0}>
         {tab === "theme" && (
           <>
             <Section

@@ -152,17 +152,33 @@ There is no caching/dedup layer or normalized client-side store. Each page indep
 
 ---
 
-## 5. Styling
+## 5. Styling and the UI system
 
-Primary UI library is **Mantine** (`@mantine/core` v9 + `@mantine/hooks`), provided app-wide via `MantineProvider` in `main.jsx`. Beyond Mantine, styling is a hybrid:
+The client portal and staff admin are built on the **Discover UI** system (`docs/design/discover-ui/`). Everything inside the app shell (`/client/*`, `/admin/*`) uses it. Public and out-of-scope surfaces keep their own styling: published directory sites and maps (`PublishedMapView`, `DirectoryMap`, the generator), marketing and pricing pages, auth pages, claim pages (they render in a client's own brand) and previews of a client's site (`SitePreview`, `EntryPreviewBlock`, `EntryCardPreview`).
 
-- **`src/style.css`** (~1,900 lines) — global CSS custom properties for brand colors (`--brand-teal`, `--brand-coral`, etc.), resets, and the bulk of hand-written component/page CSS. This is the dominant styling mechanism for custom UI, not Mantine.
-- **CSS Modules** — used selectively for newer/self-contained pieces: `MapEditSubNav.module.css`, `EngagementShared.module.css`, `ListingSearchDropdown.module.css`, `PublicMap.module.css`, `MemcomMapsDemo.module.css`, `ClientEmail.module.css`, `ListingStats.module.css`, `MapStats.module.css`, `MapsView.module.css`.
-- **Page-specific plain CSS**, imported directly: `src/pages/admin/admin.css` (shared client + admin), `src/pages/auth-signup-split.css`, `src/pages/pricing.css`.
-- **Inline styles** appear in a few places (e.g. `AdminGate`'s sign-in form).
-- No Tailwind, no styled-components/emotion, no Sass/Less.
+**Where things live**
 
-New UI should default to Mantine primitives (`Group`, `Stack`, `Button`, `Alert`, `Badge`, `Loader`, `Text`) for layout/controls, and either extend `style.css` (for globally-shared look-and-feel) or add a co-located CSS Module (for a self-contained page/component) — match whichever pattern the surrounding code already uses.
+| What | Where |
+|---|---|
+| Design tokens (colour, type, radius, motion, z-index, layout) | `src/styles/admin-shell-tokens.css` (`:root`, inert until used) |
+| Shell chrome (top bar, rail, feature panel) | `src/styles/admin-shell.css` |
+| In-page class vocabulary (buttons, sections, tables, job cards, drawer ...) | `src/styles/discover-ui.css`, everything scoped under `.shell` |
+| Page-group extras | `src/styles/wave-a|b|c/*.css` (also `.shell`-scoped, tokens only) |
+| Component kit | `src/components/ui/`, imported from `components/ui/index.js` only |
+| Page templates | `PageLayout`, `SettingsLayout`, `RecordLayout` (`components/ui/layouts.jsx`) |
+| Long-running work | `src/components/jobs/` (`JobCard`, top-bar `TaskIndicator`, `KeepOpenBanner`, `useJob`) |
+| Assistant preview | `src/components/assistant/` (Ask Pip, UI mock, flag `assistant_preview`) |
+| Shared map pieces | `src/components/mapDashboard/`, `src/components/mapData/` (client and admin pages compose these) |
+
+**Rules**
+
+- **Use `/admin/ui-kit` before adding a component.** It renders every kit component in every state (staff only, not in the nav). If something is missing, add it to `components/ui/` and to that page, then use it.
+- Pages import UI from `components/ui/index.js`. New code does not import `@mantine/core`; the only exception is `components/ui/mantine.js`, which exists for the claim pages' modal and the entry card preview (see BACKLOG.md).
+- Tokens only: no hard-coded colours, font sizes, radii or shadows in pages. Inline `style` only for genuinely dynamic values (a computed width, a user-chosen colour) with a comment saying why.
+- A page is a template plus `Section`s: `PageHead` first (via the layout's `head`), one primary action, `Field` for every input, `DataTable` for every list, `Pill` for status, `Callout` for messages, `EmptyState`/`ErrorState`/`Skeleton` for empty, failed and loading, `useConfirm`/`Dialog` for confirmations (never `window.confirm`), the processing pattern for work over about ten seconds. Behaviour rules are in `docs/design/discover-ui/PATTERNS.md` §3.
+- **Run `scripts/check-ui.sh`** (or `npm run check:ui`) before opening a PR. It fails on legacy buttons and containers, `xp-*` classes, Mantine imports outside `ui/`, native confirm/alert dialogs and emoji in UI, and reports inline-style and hex counts.
+
+**Legacy that remains on purpose:** `src/style.css` (global brand variables and the public/marketing/auth styling), `src/pages/admin/admin.css` (the global `.btn` and `.admin-card` look used by auth, claim and embed pages, plus the map workspace layout classes), `components/ai/ai.css` (the `--uka-*` claim-page look), the `--lc-*` variables used across the app, and the CSS modules that out-of-scope or engagement components still import.
 
 ---
 

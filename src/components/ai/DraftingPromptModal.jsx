@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 // Mantine's Modal is kept ONLY for the claim pages, which render outside the admin shell in a client's brand.
-import { Modal } from "@mantine/core";
+import { Modal } from "../ui/mantine.js";
 import AIButton, { SparkleIcon } from "./AIButton.jsx";
 import { Button, Dialog, Pill } from "../ui/index.js";
 import "./ai.css";

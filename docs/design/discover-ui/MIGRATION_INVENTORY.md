@@ -4,7 +4,7 @@ Every file under `src/pages` and `src/components` with legacy styling, ordered i
 
 Columns: inline React style objects; `.btn` class uses; `xp-*` classes; `admin-card` / `panel-section` / `admin-table`; imports `@mantine/core`; hex colour literals; emoji used as status icons.
 
-Generated 2026-11-14 from src/. Waves A, B and C ticked 2026-11-14 (counts below are the original baseline; re-run the BUILD_BRIEF §9 greps for current numbers). In-scope totals: inline styles 1933, .btn 271, xp-* 183, legacy containers/tables 217, hex colours 524, emoji 9, files importing Mantine 15.
+Generated 2026-11-14 from src/. Waves A, B and C ticked and phase 7 clean-up done 2026-11-14 (run scripts/check-ui.sh for current numbers) (counts below are the original baseline; re-run the BUILD_BRIEF §9 greps for current numbers). In-scope totals: inline styles 1933, .btn 271, xp-* 183, legacy containers/tables 217, hex colours 524, emoji 9, files importing Mantine 15.
 
 | Scope | File | Inline styles | .btn | xp-* | admin-card / panel-section / admin-table | Mantine | Hex | Emoji | Done |
 |---|---|---|---|---|---|---|---|---|---|

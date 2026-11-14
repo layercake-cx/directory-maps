@@ -287,7 +287,7 @@ export function useTabKeys(ids, active, setActive) {
       if (next) {
         e.preventDefault();
         setActive(next);
-        requestAnimationFrame(() => document.getElementById(`xp-tab-${next}`)?.focus());
+        requestAnimationFrame(() => document.getElementById(`ui-tab-${next}`)?.focus());
       }
     },
     [ids, active, setActive],
