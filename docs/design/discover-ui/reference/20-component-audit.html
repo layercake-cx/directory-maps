@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <title>In-page component audit</title>
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700;800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
 a{color:#0F5E63}a:hover{color:#0A4346}
@@ -21,20 +21,20 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#EFECE6;
 <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 32px">
 <div style="display: flex; flex-direction: column; gap: 10px">
 <p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Audit of directory-maps/src · November 2026</p>
-<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 52px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">What's inside the pages today</h1>
+<h1 style="margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 52px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">What's inside the pages today</h1>
 <p style="margin: 0; max-width: 820px; font-size: 17px; line-height: 1.55; color: #454D52">The shell is consistent (one token file, <code>.shell-*</code> classes). The content inside it is not: four parallel styling systems, plus Mantine, plus inline styles. That's why pages drift.</p>
 </div>
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
-<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">2,137</span><span style="font-size: 14px; color: #454D52">inline React style objects in pages and components</span></div>
-<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">5</span><span style="font-size: 14px; color: #454D52">button systems: <code>.btn</code>, <code>.shell-btn</code>, <code>.xp-btn</code>, <code>.ai-btn</code>, Mantine</span></div>
-<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">4</span><span style="font-size: 14px; color: #454D52">token sets: <code>--shell-*</code>, <code>--lc-*</code>, <code>--uka-*</code>, hard-coded hex</span></div>
-<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">17</span><span style="font-size: 14px; color: #454D52">files importing Mantine (Alert, Button, Badge, Select, Modal, Loader)</span></div>
+<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Schibsted Grotesk', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">2,137</span><span style="font-size: 14px; color: #454D52">inline React style objects in pages and components</span></div>
+<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Schibsted Grotesk', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">5</span><span style="font-size: 14px; color: #454D52">button systems: <code>.btn</code>, <code>.shell-btn</code>, <code>.xp-btn</code>, <code>.ai-btn</code>, Mantine</span></div>
+<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Schibsted Grotesk', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">4</span><span style="font-size: 14px; color: #454D52">token sets: <code>--shell-*</code>, <code>--lc-*</code>, <code>--uka-*</code>, hard-coded hex</span></div>
+<div style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Schibsted Grotesk', sans-serif; font-size: 36px; font-weight: 800; color: #14191C">17</span><span style="font-size: 14px; color: #454D52">files importing Mantine (Alert, Button, Badge, Select, Modal, Loader)</span></div>
 </div>
 
 <section style="display: flex; flex-direction: column; gap: 14px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Primary button, five ways</h2>
+<h2 style="margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Primary button, five ways</h2>
 <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
 <div style="border: 1px solid #E3DFD8; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start"><button type="button" style="height: 36px; padding: 0 14px; border: 1px solid #111827; border-radius: 8px; background: #111827; color: #FFFFFF; font-size: 13px; font-weight: 600">Save</button><code>.btn.btn-primary</code><span style="font-size: 12.5px; color: #5C6469">admin.css · 36px · near-black #111827 · 213 uses of .btn</span></div>
 <div style="border: 2px solid #0F5E63; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start"><button type="button" style="height: 44px; padding: 0 18px; border: 1px solid #0F5E63; border-radius: 10px; background: #0F5E63; color: #FFFFFF; font-size: 14px; font-weight: 600">Save</button><code>.shell-btn--primary</code><span style="font-size: 12.5px; color: #0B4A4E; font-weight: 600">admin-shell.css · 44px · tokens · keep this</span></div>
@@ -46,16 +46,16 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#EFECE6;
 
 <section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
 <div style="display: flex; flex-direction: column; gap: 14px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Containers</h2>
+<h2 style="margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Containers</h2>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
 <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 6px"><code>.admin-card</code><span style="font-size: 12.5px; color: #5C6469">71 uses · grey line #e5e7eb · pad 14</span></div>
 <div style="background: rgba(0,0,0,0.025); border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #374151">Panel section</span><code>.panel-section</code><span style="font-size: 12.5px; color: #5C6469">71 uses · tinted · own title style</span></div>
-<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 0 0 2px #0F5E63"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; font-weight: 700; color: #14191C">Card title</span><code>.card .card-pad</code><span style="font-size: 12.5px; color: #0B4A4E; font-weight: 600">45 uses · tokens · keep</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 0 0 2px #0F5E63"><span style="font-family: 'Schibsted Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: #14191C">Card title</span><code>.card .card-pad</code><span style="font-size: 12.5px; color: #0B4A4E; font-weight: 600">45 uses · tokens · keep</span></div>
 <div style="background: #FFFFFF; border: 1px solid #C9CED4; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 6px"><code>.xp-card</code> · <code>Panel</code><span style="font-size: 12.5px; color: #5C6469">experience + engagement each roll their own</span></div>
 </div>
 </div>
 <div style="display: flex; flex-direction: column; gap: 14px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Inputs and status</h2>
+<h2 style="margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Inputs and status</h2>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
 <div style="display: flex; flex-direction: column; gap: 6px"><label for="au-1" style="font-size: 12px; font-weight: 600">.xp-input · 36px r6</label><input id="au-1" type="text" value="Text" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #C9CED4; border-radius: 6px; font-size: 14px"></div>
 <div style="display: flex; flex-direction: column; gap: 6px"><label for="au-2" style="font-size: 12px; font-weight: 600; color: #0B4A4E">.shell .input · 44px r10 · keep</label><input id="au-2" type="text" value="Text" style="height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E3DFD8; border-radius: 10px; font-size: 15px; box-shadow: 0 0 0 2px #0F5E63"></div>
@@ -66,7 +66,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#EFECE6;
 </section>
 
 <section style="display: flex; flex-direction: column; gap: 14px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Consolidation map</h2>
+<h2 style="margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: #14191C">Consolidation map</h2>
 <div style="display: grid; grid-template-columns: 1.1fr 1.4fr 1fr 1.6fr; font-size: 13.5px; line-height: 1.45; border: 1px solid #E3DFD8; border-radius: 14px; overflow: hidden">
 <span style="padding: 10px 16px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Component</span><span style="padding: 10px 16px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Today</span><span style="padding: 10px 16px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Standard</span><span style="padding: 10px 16px; background: #F4F2EE; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Migration note</span>
 <strong style="padding: 10px 16px; border-top: 1px solid #EFECE6">Button</strong><span style="padding: 10px 16px; border-top: 1px solid #EFECE6">.btn, .xp-btn, Mantine Button, lm__btn</span><span style="padding: 10px 16px; border-top: 1px solid #EFECE6"><code>&lt;Button&gt;</code> → .shell-btn</span><span style="padding: 10px 16px; border-top: 1px solid #EFECE6">One React wrapper; variants primary, secondary, ghost, danger, icon; sizes md 44 / sm 36</span>

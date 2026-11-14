@@ -84,13 +84,13 @@ export function buildDnsSetupEmailText({
   const recordsSection =
     recordBlocks.length > 0
       ? recordBlocks.join("\n\n")
-      : "(No DNS records are available yet — set up the domain in Layercake Maps first, then open Setup instructions again.)";
+      : "(No DNS records are available yet — set up the domain in Discover first, then open Setup instructions again.)";
 
   return `Subject: ${subject}
 
 Hi,
 
-We are setting up email for our Layercake Maps directory (contact form messages on our online map). Please add the following DNS records for ${domain} exactly as shown.
+We are setting up email for our Discover by Layercake directory (contact form messages on our online map). Please add the following DNS records for ${domain} exactly as shown.
 
 Purpose: These records allow our email provider to send mail from ${from} on our behalf.
 

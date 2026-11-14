@@ -93,12 +93,12 @@
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Type */
-  --font-display: "Bricolage Grotesque", "Public Sans", system-ui, sans-serif; /* was Source Serif 4 (changed 2026-11-14) */
+  --font-display: "Schibsted Grotesk", "Public Sans", system-ui, sans-serif; /* changed 2026-11-14 */
   --font-body: "Public Sans", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* routes, codes, hex values */
   --fw-display: 700;            /* page titles, card titles, panel title */
   --fw-display-strong: 800;     /* stat numbers only */
-  --tracking-display: -0.02em;  /* Bricolage needs slight negative tracking at 22px+ */
+  --tracking-display: -0.015em; /* slight tightening at 22px+ */
   --fs-h1: 40px;
   --fs-h2: 22px;
   --fs-panel-title: 24px;

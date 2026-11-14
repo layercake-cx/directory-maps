@@ -29,6 +29,31 @@ Revert the commit and redeploy the frontend.
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover by Layercake rebrand (admin), Schibsted Grotesk headings, top bar clean-up
+
+**Branch:** `feat/2026-11-14-discover-rebrand` (brief: `docs/design/discover-ui/REBRAND_BRIEF.md`)
+
+### What changed
+- The admin and client portal are now branded **Discover by Layercake**: new logo in the top bar (on teal in the client context, reversed on ink in the platform context), new favicon and app icon, and the product name in admin copy (DNS setup instructions). Admin tabs read "{page} · Discover by Layercake"; public routes keep their title.
+- Heading font is now Schibsted Grotesk (was Bricolage Grotesque).
+- The top bar no longer has the disabled search box or the help icon (it linked nowhere). No replacement help item until there is a real help URL.
+- `scripts/check-ui.sh` has three new must-be-zero checks (Bricolage, top bar search/support, "Layercake Maps" in admin files).
+- Deliberately unchanged (see BACKLOG): sign-up, login and marketing pages, the outgoing email sender name, the "Built on Layercake Maps" panel on published sites (`public/layercake-maps-white.png` is kept for it), the custom-domain "not connected" page.
+- Addendum A (same day, after review of the live top bar): the client-context logo is now white on teal (`discover-by-layercake-white-on-teal.svg`) and the logo is larger in both contexts: 40px, or 32px below 640px.
+- 2026-11-14: Addendum A frontend redeployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-22ax80964-layercake-apps.vercel.app`).
+- No data fetching, route, permission, event or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead, skipping a separate staging deploy (`directory-maps-g7a9vbt3x-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes with the new checks.
+- [x] Damian checked the first deploy on live (2026-11-14), which led to Addendum A.
+- [x] Damian re-checked Addendum A on live (2026-11-14): looks good. Not independently checked by the agent: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
+
 ## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
 
 **Branch:** `feat/2026-11-14-ask-pip-all-users`

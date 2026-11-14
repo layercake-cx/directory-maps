@@ -1,5 +1,7 @@
 # Discover UI rollout: build brief for Claude Code
 
+> **Status: complete (merged up to PR #341).** Follow-up decisions on the heading font, top bar and admin rebrand are in `REBRAND_BRIEF.md`, which overrides this file where they differ.
+
 Apply the Layercake Discover UI system to every screen of the admin application: the **client portal** (`/client/*`) and the **staff admin** (`/admin/*`). This is a large, multi-phase job. Work in the phases below, one branch and one PR per phase, and **stop for review at the end of each phase**.
 
 Read this whole brief before writing any code. Then read, in this order: `README.md` (decisions), `COMPONENTS.md`, `PATTERNS.md`, `tokens.css`, `discover-ui.css`, `MIGRATION_INVENTORY.md`, and open the HTML files in `reference/` in a browser. The earlier shell brief in `docs/design/admin-shell/` still describes the shell structure; this brief builds on it and wins where they differ.
@@ -18,7 +20,7 @@ These apply to every phase. If any instruction below seems to conflict with one 
 6. **Tokens only.** No hard-coded colours, font sizes, radii or shadows in pages. Inline styles only for genuinely dynamic values (a computed width, a user-chosen colour swatch, a map position).
 7. **Don't invent features.** Where a reference shows something that isn't built (e.g. "Getting started" checklist, "Search & AI" rename, time-left estimates without data), don't build it: add a `BACKLOG.md` entry (format below).
 8. **Labels stay as they are** in `src/config/navConfig.js` and on pages, unless this brief names a change. Proposed renames go to BACKLOG.
-9. **Brand chrome is unchanged**: keep the Layercake Maps logo and product name in the top bar and page titles. The reference files show a provisional "layercake discover" wordmark: ignore it. Pip appears only as the assistant and in empty/error states.
+9. **Brand chrome is unchanged**: keep the Layercake Maps logo and product name in the top bar and page titles. The reference files show a provisional "layercake discover" wordmark, and `assets/logo/` holds the proposed "Discover by Layercake" logo: use neither until the rebrand is approved. Pip appears only as the assistant and in empty/error states.
 10. **Out of scope** (do not restyle): published directory sites and their generator (`supabase/functions/generate_directory_site`), embedded/public maps (`PublicMap`, `EmbedMap`, `CustomDomainMap`, `SlugMap`, `PublishedMapView`, `DirectoryMap`), marketing/legal pages (`Pricing`, `Terms`, `Privacy`, `MemcomMapsDemo`, `PricingPlans`, `SiteHeader`, `SiteFooter`), auth pages (`Login`, `SignUp`, `ForgotPassword`, `ResetPassword`, `AuthForm`), claimant pages (`pages/claim/*`, `components/claim/*`, which render in the client's own directory brand), and anything that previews a client's site in their theme (`experience/SitePreview`, `EntryPreviewBlock`, `EntryCardPreview` contents). Restyle the admin chrome around those previews, not the previews. `MIGRATION_INVENTORY.md` marks these `out`.
 
 ### BACKLOG.md entries
@@ -44,13 +46,13 @@ Post in the PR description and in chat: files changed (grouped), components adde
 Branch: `feat/<date>-discover-ui-tokens`
 
 1. Merge `tokens.css` into `src/styles/admin-shell-tokens.css`. Overrides replace existing values; new tokens are added in the matching group. Keep the file's two-layer comment structure.
-2. Fonts: add Bricolage Grotesque (opsz 12..96, weights 600/700/800) to the Google Fonts request the shell uses; set `--font-display` to Bricolage. Remove Source Serif 4 from the request once no shell style references it. Do not change fonts on out-of-scope pages.
-3. Typography rules from `discover-ui.css` "Typography in the shell": `.page-title`, `.card-title`, `.panel-title` use `--fw-display` (700) and `--tracking-display`; `.stat-value` uses 800. Check that titles still fit the panel width (`--panel-w` 272px): truncate long directory names with ellipsis and a `title` attribute.
+2. Fonts: the heading face is **Schibsted Grotesk** (700 for titles, 800 for stat numbers, tracking -0.015em; chosen 2026-11-14, see `reference/05-heading-font-options.html`). Add it to the Google Fonts request the shell uses and set `--font-display` as in `tokens.css`. Ignore Bricolage Grotesque wherever an older note mentions it. Remove Source Serif 4 from the request once no shell style references it. Do not change fonts on out-of-scope pages.
+3. Typography rules from `discover-ui.css` "Typography in the shell": `.page-title`, `.card-title`, `.panel-title` use `--fw-display`, `--tracking-display` and `--font-display-settings`; `.stat-value` uses `--fw-display-strong`. Check that titles still fit the panel width (`--panel-w` 272px): truncate long directory names with ellipsis and a `title` attribute.
 4. Port `discover-ui.css` into `src/styles/admin-shell.css` (or `src/styles/discover-ui.css` imported by `AppShell.jsx` after admin-shell.css). Keep the `.shell` scoping so nothing leaks onto public pages.
 5. Mantine theme in `src/main.jsx`: replace `primaryColor: "dark"` with a custom 10-shade palette generated from `--shell-accent` (#0f5e63) with shade 6 = #0f5e63; `defaultRadius` 10px; `fontFamily` `var(--font-body)`; `headings.fontFamily` `var(--font-display)`; Button default height 44; Input radius 10 and border `#e3dfd8`. This makes unmigrated Mantine pieces look closer immediately; it doesn't replace migrating them.
 6. Remove the global `.btn-primary` near-black (#111827) look by pointing `.btn`, `.btn-primary`, `.btn-sm`, `.btn-danger` in `pages/admin/admin.css` at the shell tokens (teal primary, 44px, radius 10) **as a temporary bridge**, so pages are visually consistent while they wait for migration. Leave a `/* DISCOVER-UI bridge: delete in phase 7 */` comment. Do the same for `.xp-btn*`, `.xp-input`, `.admin-card`, `.panel-section` and `.admin-table` (map to `.shell-btn`, `.input`, `.section`, `.table` looks).
 
-Done when: the app builds, every in-scope page renders with Bricolage titles and teal primaries, no public page changed (spot-check `PublicMap`, a generated directory preview and `Login`), screenshots attached.
+Done when: the app builds, every in-scope page renders with Schibsted Grotesk titles and teal primaries, no public page changed (spot-check `PublicMap`, a generated directory preview and `Login`), screenshots attached.
 
 ---
 
@@ -78,9 +80,9 @@ Branch: `feat/<date>-discover-ui-shell`
 
 Reference: `reference/10-…` to `13-…` (templates). They reproduce today's `AppShell`, `TopBar`, `Rail`, `FeaturePanel` and `PageHead`, plus the new top-bar slots.
 
-1. **TopBar**: add, in order after the search field: `TaskIndicator` slot (renders nothing until Phase 4), `AskPipButton` slot (renders nothing until Phase 5, and only when the assistant flag is on), support link, avatar. Keep logo, switcher and Staff view chip as they are.
+1. **TopBar**: **remove the global search field** (`.topbar-search`, a disabled placeholder today) **and the support/help link** (`.topbar-icon` "Support and documentation"), and delete their CSS. This overrides the earlier admin-shell brief. New order: logo, divider, WorkspaceSwitcher, Staff view chip (staff in client context), spacer, `TaskIndicator` slot (renders nothing until Phase 4), `AskPipButton` slot (renders nothing until Phase 5, and only when the assistant flag is on), avatar menu. If a help/docs link is still needed, add it as an item in the avatar menu ("Help and guides"), not the bar. Update `docs/USER_GUIDE.md` where it mentions the search box or help icon.
 2. **PageHead**: add `eyebrow`, `breadcrumb`, `status`, `size` props per COMPONENTS.md. Don't change existing call sites' output except fonts.
-3. **FeaturePanel**: Bricolage panel title; truncate long titles; AI items (`ai-enrichment`, `search`) get a 12px spark after the label (`navConfig` gets an optional `ai: true` flag on those two items). No other nav changes.
+3. **FeaturePanel**: Schibsted Grotesk panel title; truncate long titles; AI items (`ai-enrichment`, `search`) get a 12px spark after the label (`navConfig` gets an optional `ai: true` flag on those two items). No other nav changes.
 4. **DirectoryPublishStatus**: restyle per `discover-ui.css` (`publish-status` overrides). Keep logic.
 5. **Templates**: introduce layout helpers so pages stop hand-rolling page structure:
    - `PageLayout` (Template 1: optional `summary`, `aside`; aside 320px, stacks below 1100px),
