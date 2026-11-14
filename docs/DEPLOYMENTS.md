@@ -19,11 +19,15 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Feature panel titles truncate with an ellipsis and a `title` tooltip.
 - No behaviour, data, route, event, migration or Edge Function changes.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-heevrh0jv-layercake-apps.vercel.app`). `maps.layercake-cx.biz` serves the new Bricolage font link. GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
-Revert the branch's commits. No migration, no Edge Function.
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
 ### Verification
 - [x] `npm run build` passes.
+- [x] Live `maps.layercake-cx.biz` index serves the Bricolage font request.
 - [x] Login page unchanged (button still 36px, near-black, 8px radius).
 - [x] A `.shell` test fragment on the dev server computes teal 44px primaries, 36px small, Bricolage 700 titles, ellipsis panel titles, 800 stat values, 16px card radius.
 - [ ] Not yet checked on real signed-in pages (needs a signed-in session): client and platform contexts at 1440px and 390px.
