@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Reordering marks a directory as having unpublished changes
+
+**Branch:** `feat/2026-11-14-reorder-marks-unpublished`
+
+### What changed
+- The publish status chip compares `updated_at` on the directory, its entries and its pages with the last publish. Reordering attached categories, an entry's links/tiles/media/team/evidence, directory accreditation schemes and entry page layouts (plus attaching/detaching a category) didn't touch any of those timestamps, so the chip stayed green even though the live site's order had changed.
+- New `markDirectoryContentChanged` (`src/lib/directoryPublications.js`) bumps the entry's `updated_at` (entry-level lists) or the directory's (everything else). It is called after each of those saves, from `categorisations.js` (directory targets only; map attachments are unaffected), `entryTemplates.js` (layout save/create/update/delete) and the six editor lists. It also fires a `directory:content-changed` event so the side-panel chip re-checks immediately instead of on the next navigation.
+- Directory pages already bumped their own timestamps. No migration, no schema, no Edge Function.
+
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch (`directory-maps-1jy0gzo9p-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so edits there are real.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-7w6vl3nhi-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the commit and redeploy the frontend. The bumped `updated_at` values are harmless.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked against a published directory: reorder a category or an entry's links and confirm the chip turns amber at once, then Publish and confirm it returns to green.
+
+---
+
 ## 2026-11-14 — [Frontend only] Drag-to-reorder everywhere lists have an order
 
 **Branch:** `feat/2026-11-14-drag-to-reorder`

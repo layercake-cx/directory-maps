@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { createTeamMember, deleteTeamMember, listTeamMembers, reorderTeamMembers, updateTeamMember } from "../../lib/directoryEntryTeamMembers";
 import { Button, Callout, Checkbox, EmptyState, Field, Skeleton, SortableList, SortableRow, Textarea, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
@@ -51,6 +52,7 @@ export default function TeamMembersEditor({ directoryId, entryId, recordEvent })
 
   async function handleReorder(next) {
     await reorderTeamMembers(next.map((m) => m.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
     setItems(next);
   }
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { CONFIDENCE_OPTIONS, createEvidenceItem, deleteEvidenceItem, listEvidenceItems, reorderEvidenceItems } from "../../lib/evidenceItems";
 import { Button, Callout, EmptyState, Field, FieldGrid, Select, Skeleton, SortableList, SortableRow, Textarea, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
@@ -51,6 +52,7 @@ export default function EvidenceItemsEditor({ directoryId, entryId, recordEvent 
 
   async function handleReorder(next) {
     await reorderEvidenceItems(next.map((i) => i.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
     setItems(next);
   }
 

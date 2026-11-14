@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { createProductTile, deleteProductTile, listProductTiles, reorderProductTiles } from "../../lib/productTiles";
 import { Button, Callout, EmptyState, Field, FieldGrid, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
@@ -50,6 +51,7 @@ export default function ProductTilesEditor({ directoryId, entryId, recordEvent }
 
   async function handleReorder(next) {
     await reorderProductTiles(next.map((t) => t.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
     setTiles(next);
   }
 
