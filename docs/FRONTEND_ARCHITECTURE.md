@@ -171,7 +171,7 @@ The client portal and staff admin are built on the **Discover UI** system (`docs
 | Assistant preview | `src/components/assistant/` (Ask Pip, UI mock, flag `assistant_preview`) |
 | Shared map pieces | `src/components/mapDashboard/`, `src/components/mapData/` (client and admin pages compose these) |
 
-**Type and brand.** Headings use `--font-display`, which is **Schibsted Grotesk** (loaded in `index.html`, 600/700/800); body text is Public Sans. The top bar, left to right: Menu button (below 1024px, when a panel exists), logo (on teal in the client context, reversed on ink in the platform context), divider, WorkspaceSwitcher, Staff view chip, spacer, TaskIndicator, AskPipButton, AvatarMenu. There is no global search or help link. Admin routes set the tab title with `useDocumentTitle` (`"{page} · Discover by Layercake"`).
+**Type and brand.** Headings use `--font-display`, which is **Schibsted Grotesk** (loaded in `index.html`, 600/700/800); body text is Public Sans. The top bar, left to right: Menu button (below 1024px, when a panel exists), logo (white on teal in the client context, 40px high, 32px below 640px; reversed on ink in the platform context), divider, WorkspaceSwitcher, Staff view chip, spacer, TaskIndicator, AskPipButton, AvatarMenu. There is no global search or help link. Admin routes set the tab title with `useDocumentTitle` (`"{page} · Discover by Layercake"`).
 
 **Rules**
 

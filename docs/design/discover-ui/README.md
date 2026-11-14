@@ -41,7 +41,7 @@ Still open (do not decide in code; add to BACKLOG if you hit them): official Dis
 | `assistant-mock.json` | Route groups, suggested prompts, canned replies, sources and actions for the Ask Pip preview |
 | `MIGRATION_INVENTORY.md` | Every in-scope file with its count of inline styles, legacy classes, Mantine imports, hex colours and emoji. The phase 6 checklist |
 | `reference/*.html` | Static pages exported from the canvas. Open in a browser. Inline styles are canvas output: build with tokens and classes, not by copying them |
-| `assets/` | `spark.svg` (AI glyph), `pip/*.svg` (vector Pip expressions and badges for empty states and the assistant), `concept/*.png` (approved concept art, for marketing only, not the admin), `before-publishing.png` (the problem the processing pattern fixes), `logo/*.svg` (Discover by Layercake logo and icon, approved for the admin), `logo/favicon/` (favicon SVG/PNGs and apple-touch icon), `discover-app-icon-provisional.svg` (superseded) |
+| `assets/` | `spark.svg` (AI glyph), `pip/*.svg` (vector Pip expressions and badges for empty states and the assistant), `concept/*.png` (approved concept art, for marketing only, not the admin), `before-publishing.png` (the problem the processing pattern fixes), `logo/*.svg` (Discover by Layercake logo and icon, approved for the admin; the teal top bar uses `discover-by-layercake-white-on-teal.svg` at 40px), `logo/favicon/` (favicon SVG/PNGs and apple-touch icon), `discover-app-icon-provisional.svg` (superseded) |
 
 ### Reference pages
 

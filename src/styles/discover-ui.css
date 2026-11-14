@@ -468,5 +468,5 @@
 @media (max-width: 767px) { .shell .ask-pip-btn span:nth-child(2) { display: none; } }
 .shell .ask-pip-btn, .shell .staff-chip { white-space: nowrap; }
 @media (max-width: 639px) {
-  .shell .topbar-logo img { height: 28px; }
+  .shell .topbar-logo img { height: 32px; }
 }

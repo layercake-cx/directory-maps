@@ -18,6 +18,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - The top bar no longer has the disabled search box or the help icon (it linked nowhere). No replacement help item until there is a real help URL.
 - `scripts/check-ui.sh` has three new must-be-zero checks (Bricolage, top bar search/support, "Layercake Maps" in admin files).
 - Deliberately unchanged (see BACKLOG): sign-up, login and marketing pages, the outgoing email sender name, the "Built on Layercake Maps" panel on published sites (`public/layercake-maps-white.png` is kept for it), the custom-domain "not connected" page.
+- Addendum A (same day, after review of the live top bar): the client-context logo is now white on teal (`discover-by-layercake-white-on-teal.svg`) and the logo is larger in both contexts: 40px, or 32px below 640px.
 - No data fetching, route, permission, event or Edge Function changes. No migration.
 
 ### Production outcome
@@ -28,7 +29,8 @@ Revert the branch's commits and redeploy with `npm run deploy:live`. No migratio
 
 ### Verification
 - [x] `npm run build` passes; `scripts/check-ui.sh` passes with the new checks.
-- [ ] Not yet checked in a signed-in browser on production: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
+- [x] Damian checked the first deploy on live (2026-11-14), which led to Addendum A.
+- [ ] Addendum A not yet deployed or re-checked on live: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
 
 ## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
 

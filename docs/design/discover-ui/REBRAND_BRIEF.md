@@ -150,3 +150,19 @@ Use the existing format (`### [DISCOVER-UI] …`, Source, What the design shows,
 - All headings, panel titles, stat numbers and JobCard titles render in Schibsted Grotesk (check DevTools computed font, not just the CSS); nothing overflows at the widths in §1.5.
 - `grep -rn "Layercake Maps" src` shows only the files deliberately left for BACKLOG.
 - PR description: before/after screenshots (§0.3 set), files changed, BACKLOG entries added, check-ui output, and anything you need a decision on.
+
+---
+
+## Addendum A (2026-11-14, after review of the live top bar): white logo on teal, a tad larger
+
+Damian reviewed the deployed top bar: the ink-on-teal logo isn't distinctive enough. Change it to **white on teal** and make it **slightly larger**.
+
+**Branch:** amend the existing `feat/2026-11-14-discover-rebrand` branch and its PR if it isn't merged yet (one piece of work, one PR). If it has been merged, open `feat/<date>-discover-logo-white` instead. Follow AGENTS.md either way, including redeploying and updating the `docs/DEPLOYMENTS.md` entry in the same branch.
+
+1. **New asset.** Copy `docs/design/discover-ui/assets/logo/discover-by-layercake-white-on-teal.svg` to `src/assets/brand/`. It has white "discover", the orange spark and white "by Layercake". Don't edit the SVG.
+2. **TopBar.jsx.** In client context (teal bar), use the white-on-teal logo instead of `discover-by-layercake-on-teal.svg`. Platform context (ink bar) keeps `discover-by-layercake-reversed.svg`. Remove the `on-teal` import, and delete `src/assets/brand/discover-by-layercake-on-teal.svg` if nothing else uses it (keep the design copy in `docs/`).
+3. **Size.** `.shell .topbar-logo img { height: 40px; }` (was 32px), in both contexts. Keep the 52px top bar height; the logo is centred vertically. Below 640px use 32px (was 28px) in `discover-ui.css`. The logo link keeps a focus ring that fits inside the bar.
+4. **Check** at 1440, 1024, 768 and 390px: the switcher, Ask Pip and avatar still fit on one line; the Menu button (below 1024px) still fits before the logo; the divider keeps its 20px gap. At 390px, if the switcher and logo collide, truncate the organisation name in the switcher. Don't shrink the logo below 32px.
+5. **Screenshots** in the PR: top bar before and after, in client and platform context, at 1440px and 390px.
+
+Reference: the templates `reference/10-…` to `13-…` and `reference/04-…` now show the white logo at 40px.

@@ -33,7 +33,7 @@
   background: var(--lc-ink); box-shadow: inset 0 -3px 0 var(--lc-teal);
 }
 .shell .topbar-logo { display: flex; align-items: center; height: 44px; }
-.shell .topbar-logo img { height: 32px; width: auto; display: block; }
+.shell .topbar-logo img { height: 40px; width: auto; display: block; }
 .shell .topbar-divider { width: 1px; height: 24px; background: rgba(255, 255, 255, 0.45); }
 .shell[data-context="platform"] .topbar-divider { background: var(--lc-ink-line); }
 .shell .topbar-spacer { flex: 1; }
