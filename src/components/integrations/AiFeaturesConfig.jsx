@@ -9,7 +9,8 @@ import {
   modelAdvisory,
 } from "../../lib/clientIntegrations.js";
 import { invalidateAiRoutePreview, useAiRoutePreview } from "../../hooks/useAiRoutePreview.js";
-import styles from "../../pages/client/ClientEmail.module.css";
+import { Button, Callout, Field, Pill, Section, Select, Skeleton } from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 const providerLabel = (id) => AI_PROVIDERS.find((p) => p.id === id)?.label ?? id;
 const providerPricing = (id) => AI_PROVIDERS.find((p) => p.id === id)?.pricingUrl;
@@ -112,28 +113,27 @@ export default function AiFeaturesConfig({ clientId, eventSource = "client_porta
   }, [data]);
 
   return (
-    <section className={`${styles.panelBox} ${styles.panelBoxFull}`} style={{ marginTop: 16 }}>
-      <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>AI features</h2>
-      </div>
-      <p className={styles.hint}>
-        <strong>Most Layercake AI tasks don&apos;t require the most powerful AI models.</strong> Tasks such as SEO
-        metadata generation, classification and search interpretation can usually be handled well by smaller,
-        significantly cheaper models. Layercake recommends a suitable model for each task to help keep your AI costs
-        low. You can choose a different provider or model if you have your own policies or agreements.
-      </p>
-
-      {err ? <p className={styles.error}>{err}</p> : null}
-      {msg ? <p className={styles.success}>{msg}</p> : null}
-      {error ? <p className={styles.error}>{error}</p> : null}
-      {loading && !data ? <p>Loading…</p> : null}
+    <Section
+      title="AI features"
+      description={
+        <>
+          <strong>Most Layercake AI tasks don&apos;t require the most powerful AI models.</strong> Tasks such as SEO
+          metadata generation, classification and search interpretation can usually be handled well by smaller,
+          significantly cheaper models. Layercake recommends a suitable model for each task to help keep your AI costs
+          low. You can choose a different provider or model if you have your own policies or agreements.
+        </>
+      }
+    >
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
+      {error ? <Callout tone="danger">{error}</Callout> : null}
+      {loading && !data ? <Skeleton variant="form" rows={2} label="Loading AI features" /> : null}
 
       {data ? (
         <>
-          <div className={styles.panelSubsection}>
-            <label className={styles.field}>
-              <span>Default AI provider</span>
-              <select
+          <div className="b4-stack">
+            <Field label="Default AI provider" hint="Used for every feature below unless it has its own provider.">
+              <Select
                 value={drafts.default?.provider ?? ""}
                 onChange={(e) => setDraft("default", { provider: e.target.value })}
               >
@@ -141,14 +141,13 @@ export default function AiFeaturesConfig({ clientId, eventSource = "client_porta
                 {connected.map((p) => (
                   <option key={p} value={p}>{providerLabel(p)}</option>
                 ))}
-              </select>
-            </label>
-            <p className={styles.fieldHint}>Used for every feature below unless it has its own provider.</p>
+              </Select>
+            </Field>
             {!same(drafts.default, baseline.default) ? (
-              <div className={styles.actions}>
-                <button type="button" className="btn btn-primary" disabled={busy === "default"} onClick={() => save("default")}>
-                  {busy === "default" ? "Saving…" : "Save default"}
-                </button>
+              <div className="b4-actions">
+                <Button variant="primary" loading={busy === "default"} loadingLabel="Saving…" onClick={() => save("default")}>
+                  Save default
+                </Button>
               </div>
             ) : null}
           </div>
@@ -163,70 +162,70 @@ export default function AiFeaturesConfig({ clientId, eventSource = "client_porta
             const dirty = !same(draft, baseline[f.key]);
             const running = catalogue.find((m) => m.provider === f.provider && m.model_id === f.model);
             return (
-              <div key={f.key} className={styles.panelSubsection} style={{ borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
-                <div className={styles.sectionHeader}>
-                  <h3 style={{ margin: 0, fontSize: 15 }}>{f.label}</h3>
+              <div key={f.key} className="b4-feature">
+                <div className="b4-row b4-row--between">
+                  <h3 className="b4-subhead">{f.label}</h3>
                   {f.available ? (
-                    <span className={`${styles.badge} ${styles["badge--success"]}`}>
-                      {running?.label ?? f.model} · {providerLabel(f.provider)}
-                    </span>
+                    <Pill tone="live">{running?.label ?? f.model} · {providerLabel(f.provider)}</Pill>
                   ) : (
-                    <span className={`${styles.badge} ${styles["badge--warning"]}`}>Unavailable</span>
+                    <Pill tone="warn">Unavailable</Pill>
                   )}
                 </div>
-                <p className={styles.fieldHint}>{f.description}</p>
-                {!f.available ? <p className={styles.note}>{f.message}</p> : null}
+                <p className="field-hint">{f.description}</p>
+                {!f.available ? <Callout tone="warn">{f.message}</Callout> : null}
 
-                <div className={styles.fromAddressRow}>
-                  <label className={styles.field}>
-                    <span>Provider</span>
-                    <select
-                      value={draft.provider}
-                      onChange={(e) => setDraft(f.key, { provider: e.target.value, model: "" })}
-                    >
-                      <option value="">Default{connected.length ? ` (${providerLabel(drafts.default?.provider || connected[0])})` : ""}</option>
-                      {connected.map((p) => (
-                        <option key={p} value={p}>{providerLabel(p)}</option>
-                      ))}
-                    </select>
+                <Field label="Provider">
+                  <Select
+                    value={draft.provider}
+                    onChange={(e) => setDraft(f.key, { provider: e.target.value, model: "" })}
+                  >
+                    <option value="">Default{connected.length ? ` (${providerLabel(drafts.default?.provider || connected[0])})` : ""}</option>
+                    {connected.map((p) => (
+                      <option key={p} value={p}>{providerLabel(p)}</option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <fieldset className="choice-group">
+                  <legend className="field-label">Model choice for {f.label}</legend>
+                  <label className="check">
+                    <input
+                      type="radio"
+                      name={`mode-${f.key}`}
+                      checked={draft.useRecommended}
+                      onChange={() => setDraft(f.key, { useRecommended: true, model: "" })}
+                    />
+                    <span className="check-text">
+                      <span className="check-label">
+                        <strong>Use recommended model</strong>
+                        {rec ? <> — {rec.label} <span title={costTierLabel(rec.cost_tier)}>{costTierSymbol(rec.cost_tier)}</span></> : null}
+                      </span>
+                      <span className="field-hint">{rationale(effProvider, f.capability) ?? f.recommendation}</span>
+                    </span>
                   </label>
-                </div>
-
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0 4px", fontSize: 13 }}>
-                  <input
-                    type="radio"
-                    name={`mode-${f.key}`}
-                    checked={draft.useRecommended}
-                    onChange={() => setDraft(f.key, { useRecommended: true, model: "" })}
-                  />
-                  <span>
-                    <strong>Use recommended model</strong>
-                    {rec ? <> — {rec.label} <span title={costTierLabel(rec.cost_tier)}>{costTierSymbol(rec.cost_tier)}</span></> : null}
-                    <br />
-                    <span className={styles.fieldHint}>{rationale(effProvider, f.capability) ?? f.recommendation}</span>
-                  </span>
-                </label>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "4px 0", fontSize: 13 }}>
-                  <input
-                    type="radio"
-                    name={`mode-${f.key}`}
-                    checked={!draft.useRecommended}
-                    disabled={connected.length === 0}
-                    onChange={() =>
-                      setDraft(f.key, {
-                        useRecommended: false,
-                        provider: draft.provider || connected[0] || "",
-                        model: draft.model || rec?.model_id || manualModels[0]?.model_id || "",
-                      })
-                    }
-                  />
-                  <span><strong>Select model manually</strong></span>
-                </label>
+                  <label className="check">
+                    <input
+                      type="radio"
+                      name={`mode-${f.key}`}
+                      checked={!draft.useRecommended}
+                      disabled={connected.length === 0}
+                      onChange={() =>
+                        setDraft(f.key, {
+                          useRecommended: false,
+                          provider: draft.provider || connected[0] || "",
+                          model: draft.model || rec?.model_id || manualModels[0]?.model_id || "",
+                        })
+                      }
+                    />
+                    <span className="check-text">
+                      <span className="check-label"><strong>Select model manually</strong></span>
+                    </span>
+                  </label>
+                </fieldset>
 
                 {!draft.useRecommended ? (
-                  <label className={styles.field} style={{ marginLeft: 24 }}>
-                    <span>Model</span>
-                    <select value={draft.model} onChange={(e) => setDraft(f.key, { model: e.target.value })}>
+                  <Field label="Model" className="b4-indent">
+                    <Select value={draft.model} onChange={(e) => setDraft(f.key, { model: e.target.value })}>
                       {manualModels.map((m) => (
                         <option key={m.model_id} value={m.model_id}>
                           {m.label} — {costTierSymbol(m.cost_tier)} {costTierLabel(m.cost_tier)}
@@ -234,32 +233,33 @@ export default function AiFeaturesConfig({ clientId, eventSource = "client_porta
                           {m.model_id === rec?.model_id ? " — recommended" : ""}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                 ) : null}
-                {advisory ? <p className={styles.note} style={{ marginLeft: 24 }}>{advisory}</p> : null}
-                {chosen?.guidance ? <p className={styles.fieldHint} style={{ marginLeft: 24 }}>{chosen.guidance}</p> : null}
+                {advisory ? <Callout tone="info" className="b4-indent">{advisory}</Callout> : null}
+                {chosen?.guidance ? <p className="field-hint b4-indent">{chosen.guidance}</p> : null}
 
                 {dirty ? (
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={busy === f.key || (!draft.useRecommended && !draft.model)}
+                  <div className="b4-actions">
+                    <Button
+                      variant="primary"
+                      loading={busy === f.key}
+                      loadingLabel="Saving…"
+                      disabled={!draft.useRecommended && !draft.model}
                       onClick={() => save(f.key, f)}
                     >
-                      {busy === f.key ? "Saving…" : "Save"}
-                    </button>
-                    <button type="button" className="btn" disabled={busy === f.key} onClick={() => setDraft(f.key, baseline[f.key])}>
+                      Save
+                    </Button>
+                    <Button disabled={busy === f.key} onClick={() => setDraft(f.key, baseline[f.key])}>
                       Reset
-                    </button>
+                    </Button>
                   </div>
                 ) : null}
               </div>
             );
           })}
 
-          <p className={styles.fieldHint} style={{ marginTop: 12 }}>
+          <p className="field-hint">
             Cost symbols are a rough guide only (£ very low cost, ££ low, £££ higher, ££££ premium); providers change
             their prices often.{" "}
             {connected.map((p, i) => (
@@ -272,6 +272,6 @@ export default function AiFeaturesConfig({ clientId, eventSource = "client_porta
           </p>
         </>
       ) : null}
-    </section>
+    </Section>
   );
 }

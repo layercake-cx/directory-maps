@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button, Callout, Field, SegmentedControl, Section, Skeleton, TextInput, Textarea } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 import { supabase } from "../../lib/supabase";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import {
@@ -117,88 +119,71 @@ export default function DirectoryEmailTemplatesEditor({ directoryId, clientId, c
     });
 
   const field = (label, name, opts = {}) => (
-    <div style={{ marginBottom: 12 }}>
-      <label className="auth-form__label" htmlFor={`tpl-${name}`}>{label}</label>
+    <Field label={label}>
       {opts.multiline ? (
-        <textarea
-          id={`tpl-${name}`}
-          className="auth-form__input"
+        <Textarea
           rows={9}
           value={text[name]}
           disabled={!canManage}
           onChange={(e) => setText((t) => ({ ...t, [name]: e.target.value }))}
-          style={{ fontFamily: "inherit" }}
         />
       ) : (
-        <input
-          id={`tpl-${name}`}
-          className="auth-form__input"
+        <TextInput
           value={text[name]}
           disabled={!canManage}
           maxLength={opts.max ?? 200}
           onChange={(e) => setText((t) => ({ ...t, [name]: e.target.value }))}
         />
       )}
-    </div>
+    </Field>
   );
 
   return (
-    <div className="admin-card" style={{ marginTop: 16 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 16 }}>System emails</h2>
-      <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.75 }}>
-        Emails sent on this directory&rsquo;s behalf use its logo, fonts and header colours from the Branding tab. Edit the wording
-        here. Leave a field as it is to keep the default.
-      </p>
+    <Section
+      title="System emails"
+      description={<>Emails sent on this directory&rsquo;s behalf use its logo, fonts and header colours from the Branding tab. Edit the wording here. Leave a field as it is to keep the default.</>}
+    >
+      <SegmentedControl
+        label="System email"
+        value={activeKey}
+        onChange={setActiveKey}
+        options={SYSTEM_EMAILS.map((d) => ({ value: d.key, label: d.label }))}
+      />
+      <p>{def.when}</p>
 
-      <div role="tablist" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {SYSTEM_EMAILS.map((d) => (
-          <button
-            key={d.key}
-            type="button"
-            role="tab"
-            aria-selected={d.key === activeKey}
-            className={d.key === activeKey ? "btn btn-primary" : "btn"}
-            onClick={() => setActiveKey(d.key)}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
-      <p style={{ margin: "0 0 12px", fontSize: 13 }}>{def.when}</p>
-
-      {loading ? <p style={{ fontSize: 13, opacity: 0.7 }}>Loading…</p> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, alignItems: "start" }}>
-          <div>
+      {loading ? <Skeleton variant="form" rows={4} label="Loading email templates" /> : (
+        <div className="b1-split">
+          <div className="b1-split-col">
             {field("Subject", "subject")}
             {field("Heading", "heading")}
             {field("Message", "body", { multiline: true })}
             {def.hasButton ? field("Button label", "buttonLabel", { max: 60 }) : null}
-            <p style={{ fontSize: 12, opacity: 0.75, margin: "0 0 12px" }}>
-              Placeholders: {def.placeholders.map((p) => <code key={p} style={{ marginRight: 6 }}>{`{{${p}}}`}</code>)}
+            <p className="field-hint b1-placeholders">
+              Placeholders: {def.placeholders.map((p) => <code key={p}>{`{{${p}}}`}</code>)}
               Blank lines start a new paragraph.{def.hasButton ? " The sign-in button and link are added automatically." : ""}
             </p>
             {canManage ? (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" className="btn btn-primary" disabled={busy} onClick={save}>Save</button>
-                <button type="button" className="btn" disabled={busy} onClick={sendTest}>Send test to me</button>
-                <button type="button" className="btn" disabled={busy || !rows[activeKey]} onClick={reset}>Reset to default</button>
+              <div className="toolbar toolbar--wrap">
+                <Button variant="primary" disabled={busy} onClick={save}>Save</Button>
+                <Button disabled={busy} onClick={sendTest}>Send test to me</Button>
+                <Button disabled={busy || !rows[activeKey]} onClick={reset}>Reset to default</Button>
               </div>
             ) : null}
-            {msg ? <p style={{ color: "#15803d", fontSize: 13 }}>{msg}</p> : null}
-            {err ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p> : null}
+            {msg ? <Callout tone="ok">{msg}</Callout> : null}
+            {err ? <Callout tone="danger">{err}</Callout> : null}
           </div>
-          <div>
-            <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600 }}>Preview (sample values)</p>
-            {previewErr ? <p style={{ color: "#b91c1c", fontSize: 13 }}>{previewErr}</p> : null}
+          <div className="b1-split-col">
+            <h3 className="card-title">Preview (sample values)</h3>
+            {previewErr ? <Callout tone="danger">{previewErr}</Callout> : null}
             <iframe
               title="Email preview"
               sandbox=""
               srcDoc={html}
-              style={{ width: "100%", height: 560, border: "1px solid var(--lc-border)", borderRadius: 6, background: "#fff" }}
+              className="b1-email-preview"
             />
           </div>
         </div>
       )}
-    </div>
+    </Section>
   );
 }

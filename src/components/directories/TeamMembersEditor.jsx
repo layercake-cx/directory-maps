@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createTeamMember, deleteTeamMember, listTeamMembers, updateTeamMember } from "../../lib/directoryEntryTeamMembers";
+import { Button, Callout, Checkbox, EmptyState, Field, Skeleton, Textarea, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { name: "", role_title: "", photo_url: "", bio: "", is_visible: true };
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 /** People shown publicly on an entry (Claimed Directory Listings epic §10/§11). Saves immediately. */
 export default function TeamMembersEditor({ directoryId, entryId, recordEvent }) {
@@ -68,61 +69,64 @@ export default function TeamMembersEditor({ directoryId, entryId, recordEvent })
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Team</p>
-        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-          {addOpen ? "Cancel" : "+ Add team member"}
-        </button>
+    <div className="b3-stack">
+      <div className="b3-row b3-row--between">
+        <h3 className="b3-subhead">Team</h3>
+        <Button size="sm" onClick={() => setAddOpen((v) => !v)}>
+          {addOpen ? "Cancel" : "Add team member"}
+        </Button>
       </div>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
       {addOpen && (
-        <form onSubmit={save} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.name} onChange={(e) => fSet("name", e.target.value)} placeholder="Name" style={inputStyle} required />
-          <input value={form.role_title} onChange={(e) => fSet("role_title", e.target.value)} placeholder="Role / title (optional)" style={inputStyle} />
-          <input value={form.photo_url} onChange={(e) => fSet("photo_url", e.target.value)} placeholder="Photo URL (optional)" type="url" style={inputStyle} />
-          <textarea value={form.bio} onChange={(e) => fSet("bio", e.target.value)} placeholder="Short bio (optional)" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-            <input type="checkbox" checked={form.is_visible} onChange={(e) => fSet("is_visible", e.target.checked)} />
-            Show publicly
-          </label>
-          <div>
-            <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-              {saving ? "Saving…" : "Add team member"}
-            </button>
+        <form onSubmit={save} className="b3-form">
+          <Field label="Name" required>
+            <TextInput value={form.name} onChange={(e) => fSet("name", e.target.value)} />
+          </Field>
+          <Field label="Role or title" hint="Optional.">
+            <TextInput value={form.role_title} onChange={(e) => fSet("role_title", e.target.value)} />
+          </Field>
+          <Field label="Photo URL" hint="Optional.">
+            <TextInput type="url" value={form.photo_url} onChange={(e) => fSet("photo_url", e.target.value)} />
+          </Field>
+          <Field label="Short bio" hint="Optional.">
+            <Textarea rows={2} value={form.bio} onChange={(e) => fSet("bio", e.target.value)} />
+          </Field>
+          <Checkbox label="Show publicly" checked={form.is_visible} onChange={(e) => fSet("is_visible", e.target.checked)} />
+          <div className="b3-form-actions">
+            <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Add team member</Button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="list" rows={2} label="Loading team members" />
       ) : items.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No team members yet.</p>
+        <EmptyState art="none" title="No team members yet" body="Add the people you want shown publicly on this entry." />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
+        <ul className="b3-list">
           {items.map((item) => (
-            <div key={item.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7 }}>
-              <div style={{ fontSize: 12 }}>
-                <div style={{ fontWeight: 500 }}>
+            <li key={item.id} className="b3-list-item b3-list-item--top">
+              <div className="b3-list-main">
+                <div className="b3-list-title">
                   {item.name}
-                  {!item.is_visible && <span style={{ marginLeft: 6, opacity: 0.65, fontWeight: 400 }}>(hidden)</span>}
+                  {!item.is_visible && <span className="b3-muted">(hidden)</span>}
                 </div>
-                {item.role_title && <div style={{ opacity: 0.8 }}>{item.role_title}</div>}
-                {item.bio && <div style={{ opacity: 0.7, marginTop: 2 }}>{item.bio}</div>}
+                {item.role_title && <div className="b3-list-sub">{item.role_title}</div>}
+                {item.bio && <div className="b3-list-sub">{item.bio}</div>}
               </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => toggleVisible(item)}>
+              <div className="b3-list-actions">
+                <Button size="sm" onClick={() => toggleVisible(item)}>
                   {item.is_visible ? "Hide" : "Show"}
-                </button>
-                <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c" }} onClick={() => remove(item)}>
+                </Button>
+                <Button variant="danger" size="sm" aria-label={`Delete team member: ${item.name}`} onClick={() => remove(item)}>
                   Delete
-                </button>
+                </Button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, Badge, Button, Group, Loader, Text } from "@mantine/core";
 import {
   ENTRIES_PAGE_SIZE,
   bulkSetDirectoryEntriesActive,
@@ -16,7 +15,11 @@ import {
 import { listAttachedCategorisations, listEntryTermIdsByEntry, setEntryTerms } from "../../lib/categorisations";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
 import { JobCard, KeepOpenBanner, useLocalJob, buildBrowserJob } from "../jobs/index.js";
-import { useUnsavedGuard, AskPipLink } from "../ui/index.js";
+import {
+  AskPipLink, BulkBar, Button, Callout, DataTable, Dialog, EmptyState, Field, OverflowMenu, PageLayout, PlusIcon, Pill,
+  Section, Select, TextInput, Toolbar, useUnsavedGuard,
+} from "../ui/index.js";
+import "../../styles/wave-a/batch-2.css";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
 
@@ -80,15 +83,6 @@ function downloadCsv(filename, header, rows) {
   URL.revokeObjectURL(a.href);
 }
 
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--lc-border)",
-  fontSize: 13,
-};
-
 /**
  * Directory entries — search, paginate, create/edit, typed-confirm delete.
  * Shared between the client portal and the admin console (DIR-E1).
@@ -148,8 +142,6 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   const [geocodeMsg, setGeocodeMsg] = useState("");
 
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
-  const totalPages = Math.max(1, Math.ceil(count / ENTRIES_PAGE_SIZE));
-  const allOnPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
 
   const refresh = useCallback(async () => {
     if (!directoryId) return;
@@ -207,10 +199,6 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     navigate(`${directoryBasePath}/entries/new`);
   }
 
-  function goToEdit(entry) {
-    navigate(`${directoryBasePath}/entries/${encodeURIComponent(entry.id)}`);
-  }
-
   async function confirmDelete() {
     if (!deleteTarget || deleteText !== "DELETE") return;
     try {
@@ -228,23 +216,6 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   }
 
   // ── Bulk selection + actions (DIR-E1-S4) ──────────────────────────────────
-
-  function toggleSelected(id) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleSelectAllOnPage() {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allOnPageSelected) rows.forEach((r) => next.delete(r.id));
-      else rows.forEach((r) => next.add(r.id));
-      return next;
-    });
-  }
 
   async function bulkArchive(isActive) {
     const ids = [...selectedIds];
@@ -578,255 +549,230 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     }
   }
 
+  // Stable close handlers: Dialog re-runs its focus effect whenever onClose changes identity.
+  const closeDelete = useCallback(() => setDeleteTarget(null), []);
+  const closeImportChoice = useCallback(() => { if (!importing) setImportChoiceOpen(false); }, [importing]);
+  const closeBulkTag = useCallback(() => setBulkTagOpen(false), []);
+
+  const columns = [
+    { key: "name", label: "Name", render: (entry) => entry.name },
+    { key: "group", label: "Group", render: (entry) => groupNameById.get(entry.directory_group_id) || "—" },
+    { key: "address", label: "Address", render: (entry) => entry.address || "—" },
+    {
+      key: "pin",
+      label: "Pin",
+      render: (entry) => (entry.lat != null && entry.lng != null
+        ? <Pill tone="live">On map</Pill>
+        : <Pill tone="warn">No pin</Pill>),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (entry) => <Pill tone={entry.is_active ? "ok" : "neutral"}>{entry.is_active ? "Active" : "Hidden"}</Pill>,
+    },
+  ];
+
+  const moreActions = [
+    { label: exporting ? "Exporting…" : "Export CSV", onSelect: exportEntriesCsv, disabled: exporting },
+    { label: "Download CSV template", onSelect: downloadTemplate },
+    { label: importOpen ? "Cancel import" : "Import CSV", onSelect: () => setImportOpen((v) => !v) },
+    { label: geocoding ? "Geocoding…" : "Geocode missing coords", onSelect: handleGeocodeMissing, disabled: geocoding },
+  ];
+
+  const head = {
+    title: "Entries",
+    subtitle: `${count} ${count === 1 ? "entry" : "entries"} in this directory`,
+    actions: canEdit ? (
+      <>
+        <OverflowMenu label="More entry actions" items={moreActions} />
+        <Button variant="primary" icon={<PlusIcon />} onClick={goToCreate}>Add entry</Button>
+      </>
+    ) : null,
+  };
+
+  const summary = importing ? (
+    <KeepOpenBanner title={`Importing ${csvRows.length} ${csvRows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." />
+  ) : importJob.job ? (
+    <JobCard job={importJob.job} onDismiss={importJob.dismiss} />
+  ) : null;
+
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      {importing ? (
-        <KeepOpenBanner title={`Importing ${csvRows.length} ${csvRows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." />
-      ) : importJob.job ? (
-        <JobCard job={importJob.job} onDismiss={importJob.dismiss} />
-      ) : null}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
-        <div>
-          <Text size="sm" fw={600}>Entries</Text>
-          <Text size="xs" c="dimmed">{count} {count === 1 ? "entry" : "entries"} in this directory</Text>
-        </div>
-        {canEdit && (
-          <Group gap="xs">
-            <Button size="sm" variant="default" onClick={exportEntriesCsv} loading={exporting} disabled={exporting}>
-              {exporting ? "Exporting…" : "Export CSV"}
-            </Button>
-            <Button size="sm" variant="default" onClick={downloadTemplate}>Download CSV template</Button>
-            <Button size="sm" variant="default" onClick={() => setImportOpen((v) => !v)}>
-              {importOpen ? "Cancel import" : "Import CSV"}
-            </Button>
-            <Button size="sm" variant="default" onClick={handleGeocodeMissing} loading={geocoding} disabled={geocoding}>
-              {geocoding ? "Geocoding…" : "Geocode missing coords"}
-            </Button>
-            <Button size="sm" onClick={goToCreate}>+ Add entry</Button>
-          </Group>
-        )}
-      </div>
+    <PageLayout head={head} summary={summary}>
+      <div className="entries-stack">
+        {geocodeMsg && <Callout tone="ok">{geocodeMsg}</Callout>}
+        {(exporting || geocoding) && <Callout tone="info">{exporting ? "Exporting entries…" : "Geocoding entries…"}</Callout>}
 
-      {geocodeMsg && <Alert color="green" variant="light">{geocodeMsg}</Alert>}
-
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search by name or address…"
-          style={{ maxWidth: 380, ...inputStyle }}
-        />
-        <select value={gap} onChange={(e) => setGap(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
-          <option value="">All entries</option>
-          <option value="no_logo">Gap: no logo</option>
-          <option value="no_content">Gap: no page content</option>
-          <option value="no_seo">Gap: no SEO metadata</option>
-          <option value="not_geocoded">Gap: not geocoded</option>
-        </select>
-        {categorisations.length > 0 && (
-          <select value={categoryTermId} onChange={(e) => setCategoryTermId(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }}>
-            <option value="">All categories</option>
-            {categorisations.map((cat) => (
-              <optgroup key={cat.id} label={cat.label}>
-                {(cat.terms ?? []).map((term) => (
-                  <option key={term.id} value={term.id}>{term.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {canEdit && importOpen && (
-        <div className="admin-card" style={{ padding: 16 }}>
-          <Text size="sm" fw={600} mb={4}>Import entries from CSV</Text>
-          <Text size="xs" c="dimmed" mb={10}>
-            You'll be asked whether to replace all existing entries or add to them. Either way, rows with an <code>id</code> matching an existing entry update it in place — they don't create duplicates. Rows without an <code>id</code> (or with one that doesn't match) are created as new entries.
-          </Text>
-          <input type="file" accept=".csv" onChange={(e) => onPickCsvFile(e.target.files?.[0])} style={{ fontSize: 13 }} />
-          {csvFileErr && <Alert color="red" variant="light" mt="xs">{csvFileErr}</Alert>}
-          {csvMsg && <Alert color="green" variant="light" mt="xs">{csvMsg}</Alert>}
-
-          {csvPreview.length > 0 && (
-            <>
-              <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8, marginTop: 10 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      {["name", "postcode", "country", "lat", "lng", "group_name"].map((h) => (
-                        <th key={h} style={{ padding: "6px 8px", textAlign: "left" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csvPreview.map((r, i) => (
-                      <tr key={i}>
-                        <td style={{ padding: "6px 8px" }}>{r.name}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.postcode}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.country}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.lat || "—"}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.lng || "—"}</td>
-                        <td style={{ padding: "6px 8px" }}>{r.group_name || "—"}</td>
-                      </tr>
+        <Toolbar>
+          <Field label="Search" className="entries-search">
+            <TextInput
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by name or address…"
+            />
+          </Field>
+          <Field label="Show" className="entries-filter">
+            <Select value={gap} onChange={(e) => setGap(e.target.value)}>
+              <option value="">All entries</option>
+              <option value="no_logo">Gap: no logo</option>
+              <option value="no_content">Gap: no page content</option>
+              <option value="no_seo">Gap: no SEO metadata</option>
+              <option value="not_geocoded">Gap: not geocoded</option>
+            </Select>
+          </Field>
+          {categorisations.length > 0 && (
+            <Field label="Category" className="entries-filter">
+              <Select value={categoryTermId} onChange={(e) => setCategoryTermId(e.target.value)}>
+                <option value="">All categories</option>
+                {categorisations.map((cat) => (
+                  <optgroup key={cat.id} label={cat.label}>
+                    {(cat.terms ?? []).map((term) => (
+                      <option key={term.id} value={term.id}>{term.label}</option>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button size="sm" mt={10} onClick={() => setImportChoiceOpen(true)} loading={importing} disabled={importing}>
-                {importing ? "Importing…" : `Import ${csvRows.length} row${csvRows.length === 1 ? "" : "s"}`}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+          )}
+        </Toolbar>
+
+        {canEdit && importOpen && (
+          <Section
+            title="Import entries from CSV"
+            description={(
+              <>
+                You'll be asked whether to replace all existing entries or add to them. Either way, rows with an <code>id</code> matching an existing entry update it in place — they don't create duplicates. Rows without an <code>id</code> (or with one that doesn't match) are created as new entries.
+              </>
+            )}
+          >
+            <Field label="CSV file" error={csvFileErr || undefined}>
+              <TextInput type="file" accept=".csv" className="csv-file" onChange={(e) => onPickCsvFile(e.target.files?.[0])} />
+            </Field>
+            {csvMsg && <Callout tone="ok">{csvMsg}</Callout>}
+
+            {csvPreview.length > 0 && (
+              <>
+                <div className="table-wrap">
+                  <table className="table csv-preview-table">
+                    <caption className="sr-only">First rows of the CSV file</caption>
+                    <thead>
+                      <tr>
+                        {["name", "postcode", "country", "lat", "lng", "group_name"].map((h) => (
+                          <th key={h}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvPreview.map((r, i) => (
+                        <tr key={i}>
+                          <td>{r.name}</td>
+                          <td>{r.postcode}</td>
+                          <td>{r.country}</td>
+                          <td>{r.lat || "—"}</td>
+                          <td>{r.lng || "—"}</td>
+                          <td>{r.group_name || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div>
+                  <Button variant="primary" onClick={() => setImportChoiceOpen(true)} loading={importing} loadingLabel="Importing…">
+                    {`Import ${csvRows.length} row${csvRows.length === 1 ? "" : "s"}`}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Section>
+        )}
+
+        {canEdit && selectedIds.size > 0 && (
+          <BulkBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+            <Button size="sm" onClick={() => bulkArchive(false)} disabled={bulkBusy} loading={bulkBusy} loadingLabel="Archiving…">Archive</Button>
+            <Button size="sm" onClick={() => bulkArchive(true)} disabled={bulkBusy} loading={bulkBusy} loadingLabel="Restoring…">Restore</Button>
+            {clientId && (
+              <Button size="sm" onClick={() => setBulkTagOpen(true)} disabled={bulkBusy}>Bulk tag…</Button>
+            )}
+          </BulkBar>
+        )}
+
+        {err && <Callout tone="danger"><pre className="entries-pre">{err}</pre></Callout>}
+
+        <DataTable
+          caption="Directory entries"
+          columns={columns}
+          rows={rows}
+          loading={loading}
+          getRowId={(entry) => entry.id}
+          getRowLabel={(entry) => entry.name || "entry"}
+          rowLink={canEdit ? (entry) => `${directoryBasePath}/entries/${encodeURIComponent(entry.id)}` : undefined}
+          selectable={canEdit}
+          selected={[...selectedIds]}
+          onSelectedChange={(ids) => setSelectedIds(new Set(ids))}
+          rowMenu={canEdit ? (entry) => [
+            { label: "Edit", onSelect: () => navigate(`${directoryBasePath}/entries/${encodeURIComponent(entry.id)}`) },
+            { label: "Delete", danger: true, onSelect: () => { setDeleteTarget(entry); setDeleteText(""); } },
+          ] : undefined}
+          empty={search ? (
+            <EmptyState art="searching" title="No entries match your search" body="Try a different name or address." />
+          ) : (
+            <EmptyState
+              art="welcome"
+              title="No entries yet"
+              body="Add an entry, or import a CSV file."
+              actions={(
+                <>
+                  {canEdit ? <Button variant="primary" icon={<PlusIcon />} onClick={goToCreate}>Add entry</Button> : null}
+                  <AskPipLink question="What columns does my import file need?" context="Entries" trigger="empty_state" />
+                </>
+              )}
+            />
+          )}
+          pagination={{ page: page + 1, pageSize: ENTRIES_PAGE_SIZE, total: count, onPage: (p) => setPage(p - 1) }}
+        />
+      </div>
+
+      {deleteTarget && (
+        <Dialog
+          title={`Delete "${deleteTarget.name}" permanently?`}
+          onClose={closeDelete}
+          footer={(
+            <>
+              <Button onClick={closeDelete} disabled={deleting}>Cancel</Button>
+              <Button variant="danger-solid" onClick={confirmDelete} loading={deleting} loadingLabel="Deleting…" disabled={deleteText !== "DELETE"}>
+                Delete permanently
               </Button>
             </>
           )}
-        </div>
-      )}
-
-      {canEdit && selectedIds.size > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 12px", background: "rgba(74,155,170,0.08)", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <Text size="xs" fw={600}>{selectedIds.size} selected</Text>
-          <Button size="xs" variant="default" onClick={() => bulkArchive(false)} disabled={bulkBusy} loading={bulkBusy}>Archive</Button>
-          <Button size="xs" variant="default" onClick={() => bulkArchive(true)} disabled={bulkBusy} loading={bulkBusy}>Restore</Button>
-          {clientId && (
-            <Button size="xs" variant="default" onClick={() => setBulkTagOpen(true)} disabled={bulkBusy}>Bulk tag…</Button>
-          )}
-          <Button size="xs" variant="subtle" color="gray" onClick={() => setSelectedIds(new Set())}>Clear selection</Button>
-        </div>
-      )}
-
-      {err && <Alert color="red" variant="light"><pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{err}</pre></Alert>}
-
-      {loading ? (
-        <Loader size="sm" />
-      ) : (
-        <>
-          <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
-                  {canEdit && (
-                    <th style={{ padding: "9px 10px", width: 1 }}>
-                      <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAllOnPage} aria-label="Select all on page" />
-                    </th>
-                  )}
-                  <th style={{ padding: "9px 10px" }}>Name</th>
-                  <th style={{ padding: "9px 10px" }}>Group</th>
-                  <th style={{ padding: "9px 10px" }}>Address</th>
-                  <th style={{ padding: "9px 10px" }}>Pin</th>
-                  <th style={{ padding: "9px 10px" }}>Status</th>
-                  <th style={{ padding: "9px 10px" }} />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((entry) => (
-                  <tr key={entry.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                    {canEdit && (
-                      <td style={{ padding: "8px 10px" }}>
-                        <input type="checkbox" checked={selectedIds.has(entry.id)} onChange={() => toggleSelected(entry.id)} aria-label={`Select ${entry.name || "entry"}`} />
-                      </td>
-                    )}
-                    <td style={{ padding: "8px 10px" }}>{entry.name}</td>
-                    <td style={{ padding: "8px 10px" }}>{groupNameById.get(entry.directory_group_id) || "—"}</td>
-                    <td style={{ padding: "8px 10px", opacity: 0.85 }}>{entry.address || "—"}</td>
-                    <td style={{ padding: "8px 10px" }}>
-                      {entry.lat != null && entry.lng != null ? (
-                        <Badge color="green" variant="light" size="sm">On map</Badge>
-                      ) : (
-                        <Badge color="yellow" variant="light" size="sm">No pin</Badge>
-                      )}
-                    </td>
-                    <td style={{ padding: "8px 10px" }}>
-                      <Badge color={entry.is_active ? "green" : "gray"} variant="light" size="sm">
-                        {entry.is_active ? "Active" : "Hidden"}
-                      </Badge>
-                    </td>
-                    <td style={{ padding: "8px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
-                      {canEdit && (
-                        <Group gap="xs" justify="flex-end">
-                          <Button size="xs" variant="default" onClick={() => goToEdit(entry)}>Edit</Button>
-                          <Button size="xs" variant="subtle" color="red" onClick={() => { setDeleteTarget(entry); setDeleteText(""); }}>
-                            Delete
-                          </Button>
-                        </Group>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={canEdit ? 7 : 6} style={{ padding: "16px 10px", opacity: 0.6, textAlign: "center" }}>
-                      {search ? "No entries match your search." : "No entries yet."}
-                      {!search ? <div><AskPipLink question="What columns does my import file need?" context="Entries" trigger="empty_state" /></div> : null}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <Text size="xs" c="dimmed">
-              {count ? `Showing ${page * ENTRIES_PAGE_SIZE + 1}–${Math.min((page + 1) * ENTRIES_PAGE_SIZE, count)} of ${count}` : "No entries"}
-            </Text>
-            <Group gap="xs">
-              <Button size="xs" variant="default" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>Prev</Button>
-              <Button size="xs" variant="default" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
-            </Group>
-          </div>
-        </>
-      )}
-
-      {deleteTarget && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: 16 }}
-          onClick={() => setDeleteTarget(null)}
         >
-          <div className="panel-section admin-card" style={{ border: "1px solid #b91c1c", maxWidth: 440, width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <p className="panel-section__title" style={{ color: "#b91c1c" }}>Delete "{deleteTarget.name}" permanently?</p>
-            <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-              This removes the entry and its category tags. This can't be undone.
-            </p>
-            <p style={{ margin: "0 0 6px", fontSize: 13 }}>Type <strong>DELETE</strong> to confirm:</p>
-            <input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder="DELETE" style={inputStyle} />
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button type="button" className="btn" onClick={confirmDelete} disabled={deleting || deleteText !== "DELETE"} style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}>
-                {deleting ? "Deleting…" : "Delete permanently"}
-              </button>
-              <button type="button" className="btn" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</button>
-            </div>
-          </div>
-        </div>
+          <p className="dialog-note">This removes the entry and its category tags. This can't be undone.</p>
+          <Field label="Type DELETE to confirm">
+            <TextInput data-autofocus value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder="DELETE" />
+          </Field>
+        </Dialog>
       )}
 
       {importChoiceOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: 16 }}
-          onClick={() => !importing && setImportChoiceOpen(false)}
-        >
-          <div className="panel-section admin-card" style={{ maxWidth: 440, width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <p className="panel-section__title" style={{ margin: 0 }}>How should this data be added?</p>
-            <p style={{ margin: "8px 0 12px", fontSize: 13 }}>
-              This directory has {count} existing {count === 1 ? "entry" : "entries"}. Choose whether to replace them or add to them.
-              Either way, rows in the CSV with an <code>id</code> matching an existing entry update it rather than creating a duplicate.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => doImport("overwrite")}
-                disabled={importing}
-                style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}
-              >
-                {importing ? "Importing…" : "Replace all existing entries"}
-              </button>
-              <button type="button" className="btn" onClick={() => doImport("append")} disabled={importing}>
+        <Dialog
+          title="How should this data be added?"
+          onClose={closeImportChoice}
+          footer={(
+            <>
+              <Button onClick={() => setImportChoiceOpen(false)} disabled={importing}>Cancel</Button>
+              <Button onClick={() => doImport("append")} disabled={importing}>
                 {importing ? "Importing…" : "Add to existing entries"}
-              </button>
-              <button type="button" className="btn" onClick={() => setImportChoiceOpen(false)} disabled={importing}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+              <Button variant="danger-solid" onClick={() => doImport("overwrite")} disabled={importing}>
+                {importing ? "Importing…" : "Replace all existing entries"}
+              </Button>
+            </>
+          )}
+        >
+          <p className="dialog-note">
+            This directory has {count} existing {count === 1 ? "entry" : "entries"}. Choose whether to replace them or add to them.
+            Either way, rows in the CSV with an <code>id</code> matching an existing entry update it rather than creating a duplicate.
+          </p>
+        </Dialog>
       )}
 
       {bulkTagOpen && (
@@ -835,10 +781,10 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
           entryIds={[...selectedIds]}
           directoryId={directoryId}
           recordEvent={recordEvent}
-          onClose={() => setBulkTagOpen(false)}
+          onClose={closeBulkTag}
           onApplied={() => setSelectedIds(new Set())}
         />
       )}
-    </div>
+    </PageLayout>
   );
 }

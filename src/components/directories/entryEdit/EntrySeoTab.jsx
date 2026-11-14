@@ -1,20 +1,11 @@
 import AIButton from "../../ai/AIButton.jsx";
 import AiProvenanceNote from "../../ai/AiProvenanceNote.jsx";
 import React, { useState } from "react";
-import { Alert, Button, Group, Stack, Text } from "@mantine/core";
+import { Button, Callout, Checkbox, Field, FieldGrid, Section, Select, TextInput, Textarea, useConfirm } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 import { useAiFeature } from "../../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../../components/ai/AiUnavailableNotice.jsx";
 import { updateDirectoryEntry, generateEntrySeoMetadata } from "../../../lib/directories.js";
-
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--lc-border)",
-  fontSize: 13,
-};
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
 
 const STRUCTURED_DATA_TYPES = ["LocalBusiness", "Organization", "Person"];
 const TWITTER_CARD_TYPES = [
@@ -54,6 +45,7 @@ const AI_DRAFT_FIELDS = ["meta_title", "meta_description", "keywords", "og_title
  */
 export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, recordEvent, onSaved }) {
   const ai = useAiFeature("seo_metadata");
+  const confirm = useConfirm();
   const [form, setForm] = useState(() => buildForm(entry));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -64,7 +56,12 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
 
   async function handleGenerate() {
     const hasExisting = AI_DRAFT_FIELDS.some((key) => form[key]?.trim());
-    if (hasExisting && !window.confirm("This entry already has metadata in one or more of these fields — generating with AI will overwrite it here in the editor (nothing is saved until you click Save metadata). Continue?")) {
+    if (hasExisting && !(await confirm({
+      title: "Replace the current metadata?",
+      body: "This entry already has metadata in one or more of these fields. Generating with AI will overwrite it here in the editor. Nothing is saved until you click Save metadata.",
+      confirmLabel: "Generate and replace",
+      tone: "danger",
+    }))) {
       return false;
     }
     setErr("");
@@ -109,93 +106,68 @@ export default function EntrySeoTab({ directoryId, entryId, entry, canEdit, reco
   }
 
   return (
-    <form onSubmit={handleSave} style={{ display: "grid", gap: 20 }}>
-      <div className="admin-card" style={{ padding: 20, maxWidth: 560 }}>
-        <Stack gap="sm">
-          <Group justify="space-between">
-            <Text size="sm" fw={600}>Search engines</Text>
-            {canEdit && (
-              <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
-            )}
-          </Group>
-          {canEdit && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ marginTop: -8 }} />}
-          <AiProvenanceNote entityName="entry" compact>Drafts every field below (including Social &amp; AI) from this entry's own data, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save metadata.</AiProvenanceNote>
-          {entry?.seo_metadata_ai_generated_at && (
-            <Alert color="blue" variant="light" py={6}>
-              Some of these fields were auto-drafted by AI when this entry was published on {new Date(entry.seo_metadata_ai_generated_at).toLocaleDateString()} — worth checking over.
-            </Alert>
-          )}
-          <div>
-            <label style={labelStyle}>Meta title</label>
-            <input value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to entry name if left blank" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Meta description</label>
-            <textarea value={form.meta_description} onChange={(e) => fSet("meta_description", e.target.value)} disabled={!canEdit} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-          <div>
-            <label style={labelStyle}>Keywords</label>
-            <input value={form.keywords} onChange={(e) => fSet("keywords", e.target.value)} disabled={!canEdit} placeholder="comma, separated, terms" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Canonical URL</label>
-            <input value={form.canonical_url} onChange={(e) => fSet("canonical_url", e.target.value)} disabled={!canEdit} placeholder="Defaults to this entry's own page URL" type="url" style={inputStyle} />
-          </div>
-          <Group gap="sm" grow>
-            <div>
-              <label style={labelStyle}>Structured data type</label>
-              <select value={form.structured_data_type} onChange={(e) => fSet("structured_data_type", e.target.value)} disabled={!canEdit} style={inputStyle}>
-                <option value="">Default</option>
-                {STRUCTURED_DATA_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Sitemap priority (0–1)</label>
-              <input value={form.sitemap_priority} onChange={(e) => fSet("sitemap_priority", e.target.value)} disabled={!canEdit} type="number" min="0" max="1" step="0.1" style={inputStyle} />
-            </div>
-          </Group>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: canEdit ? "pointer" : "default" }}>
-            <input type="checkbox" checked={form.noindex} onChange={(e) => fSet("noindex", e.target.checked)} disabled={!canEdit} />
-            Hide from search engines (noindex)
-          </label>
-        </Stack>
-      </div>
+    <form onSubmit={handleSave} className="editor-form">
+      <Section
+        title="Search engines"
+        actions={canEdit ? <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} /> : null}
+      >
+        {canEdit && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
+        <AiProvenanceNote entityName="entry" compact>Drafts every field below (including Social &amp; AI) from this entry's own data, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save metadata.</AiProvenanceNote>
+        {entry?.seo_metadata_ai_generated_at && (
+          <Callout tone="info">
+            Some of these fields were auto-drafted by AI when this entry was published on {new Date(entry.seo_metadata_ai_generated_at).toLocaleDateString()} — worth checking over.
+          </Callout>
+        )}
+        <Field label="Meta title">
+          <TextInput value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to entry name if left blank" />
+        </Field>
+        <Field label="Meta description">
+          <Textarea value={form.meta_description} onChange={(e) => fSet("meta_description", e.target.value)} disabled={!canEdit} rows={3} />
+        </Field>
+        <Field label="Keywords">
+          <TextInput value={form.keywords} onChange={(e) => fSet("keywords", e.target.value)} disabled={!canEdit} placeholder="comma, separated, terms" />
+        </Field>
+        <Field label="Canonical URL">
+          <TextInput value={form.canonical_url} onChange={(e) => fSet("canonical_url", e.target.value)} disabled={!canEdit} placeholder="Defaults to this entry's own page URL" type="url" />
+        </Field>
+        <FieldGrid>
+          <Field label="Structured data type">
+            <Select value={form.structured_data_type} onChange={(e) => fSet("structured_data_type", e.target.value)} disabled={!canEdit}>
+              <option value="">Default</option>
+              {STRUCTURED_DATA_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </Field>
+          <Field label="Sitemap priority (0–1)">
+            <TextInput value={form.sitemap_priority} onChange={(e) => fSet("sitemap_priority", e.target.value)} disabled={!canEdit} type="number" min="0" max="1" step="0.1" />
+          </Field>
+        </FieldGrid>
+        <Checkbox label="Hide from search engines (noindex)" checked={form.noindex} onChange={(e) => fSet("noindex", e.target.checked)} disabled={!canEdit} />
+      </Section>
 
-      <div className="admin-card" style={{ padding: 20, maxWidth: 560 }}>
-        <Stack gap="sm">
-          <Text size="sm" fw={600}>Social & AI</Text>
-          <Text size="xs" c="dimmed">Shown when this entry's page is shared on social media, and as a summary for AI assistants/search.</Text>
-          <div>
-            <label style={labelStyle}>Social title</label>
-            <input value={form.og_title} onChange={(e) => fSet("og_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to meta title / entry name" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Social description</label>
-            <textarea value={form.og_description} onChange={(e) => fSet("og_description", e.target.value)} disabled={!canEdit} rows={2} placeholder="Defaults to meta description" style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-          <div>
-            <label style={labelStyle}>Social share image URL</label>
-            <input value={form.og_image_url} onChange={(e) => fSet("og_image_url", e.target.value)} disabled={!canEdit} placeholder="Defaults to logo" type="url" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Twitter card type</label>
-            <select value={form.twitter_card_type} onChange={(e) => fSet("twitter_card_type", e.target.value)} disabled={!canEdit} style={inputStyle}>
-              {TWITTER_CARD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>AI summary</label>
-            <textarea value={form.ai_summary} onChange={(e) => fSet("ai_summary", e.target.value)} disabled={!canEdit} rows={3} placeholder="A plain-language summary for AI assistants — separate from the human-facing meta description" style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-        </Stack>
-      </div>
+      <Section title="Social & AI" description="Shown when this entry's page is shared on social media, and as a summary for AI assistants/search.">
+        <Field label="Social title">
+          <TextInput value={form.og_title} onChange={(e) => fSet("og_title", e.target.value)} disabled={!canEdit} placeholder="Defaults to meta title / entry name" />
+        </Field>
+        <Field label="Social description">
+          <Textarea value={form.og_description} onChange={(e) => fSet("og_description", e.target.value)} disabled={!canEdit} rows={2} placeholder="Defaults to meta description" />
+        </Field>
+        <Field label="Social share image URL">
+          <TextInput value={form.og_image_url} onChange={(e) => fSet("og_image_url", e.target.value)} disabled={!canEdit} placeholder="Defaults to logo" type="url" />
+        </Field>
+        <Field label="Twitter card type">
+          <Select value={form.twitter_card_type} onChange={(e) => fSet("twitter_card_type", e.target.value)} disabled={!canEdit} options={TWITTER_CARD_TYPES} />
+        </Field>
+        <Field label="AI summary">
+          <Textarea value={form.ai_summary} onChange={(e) => fSet("ai_summary", e.target.value)} disabled={!canEdit} rows={3} placeholder="A plain-language summary for AI assistants — separate from the human-facing meta description" />
+        </Field>
+      </Section>
 
-      {err && <Alert color="red" variant="light" style={{ maxWidth: 560 }}>{err}</Alert>}
+      {err && <Callout tone="danger">{err}</Callout>}
 
       {canEdit && (
-        <Group justify="flex-end" style={{ maxWidth: 560 }}>
-          <Button size="sm" type="submit" loading={saving}>Save metadata</Button>
-        </Group>
+        <div className="editor-actions">
+          <Button variant="primary" type="submit" loading={saving} loadingLabel="Saving…">Save metadata</Button>
+        </div>
       )}
     </form>
   );

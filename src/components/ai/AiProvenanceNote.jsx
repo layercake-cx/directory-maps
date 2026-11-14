@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import DraftingPromptModal from "./DraftingPromptModal.jsx";
 import "./ai.css";
+import "../../styles/wave-a/batch-4.css";
 
 function InfoIcon() {
   return (
@@ -34,7 +35,7 @@ export default function AiProvenanceNote({
     <>
       <div className={`ai-note${compact ? " ai-note--compact" : ""}`} id={id}>
         <InfoIcon />
-        <p style={{ margin: 0 }}>
+        <p className="ai-note__text">
           {children ?? (
             <>
               AI drafts this from the details we hold for this {entityName}, including its web address, following a drafting prompt set by

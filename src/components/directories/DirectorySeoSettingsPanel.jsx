@@ -1,14 +1,11 @@
 import AIButton from "../ai/AIButton.jsx";
 import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
-import React, { useEffect, useState } from "react";
-import { Button } from "@mantine/core";
+import React, { useEffect, useId, useState } from "react";
+import { Button, Callout, Checkbox, Field, Section, TextInput, Textarea, useConfirm } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import { updateDirectory, generateDirectorySeoMetadata } from "../../lib/directories.js";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
-const sectionTitleStyle = { margin: "0 0 8px", fontSize: 13, fontWeight: 600 };
 
 function seoDefaultsFromDirectory(directory) {
   const s = directory?.seo_defaults_json && typeof directory.seo_defaults_json === "object" ? directory.seo_defaults_json : {};
@@ -37,6 +34,8 @@ function seoDefaultsFromDirectory(directory) {
  */
 export default function DirectorySeoSettingsPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
   const ai = useAiFeature("seo_metadata");
+  const formId = useId();
+  const confirm = useConfirm();
   const [seo, setSeo] = useState(() => seoDefaultsFromDirectory(directory));
   const [ogImageUrl, setOgImageUrl] = useState(directory?.seo_og_image_url || "");
   const [saving, setSaving] = useState(false);
@@ -54,8 +53,13 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
   }
 
   async function handleGenerate() {
-    if ((seo.meta_title_template.trim() || seo.meta_description.trim()) && !window.confirm("This directory already has an SEO title or description set — generating with AI will overwrite them here in the editor (nothing is saved until you click Save settings). Continue?")) {
-      return false;
+    if (seo.meta_title_template.trim() || seo.meta_description.trim()) {
+      const ok = await confirm({
+        title: "Overwrite the SEO title and description?",
+        body: "This directory already has an SEO title or description set. Generating with AI will overwrite them here in the editor. Nothing is saved until you click Save settings.",
+        confirmLabel: "Generate with AI",
+      });
+      if (!ok) return false;
     }
     setErr("");
     setMsg("");
@@ -115,98 +119,76 @@ export default function DirectorySeoSettingsPanel({ directory, directoryId, canM
   const disabled = !canManage;
 
   return (
-    <form onSubmit={handleSave} style={{ display: "grid", gap: 20 }}>
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <p style={{ ...sectionTitleStyle, marginBottom: 4 }}>SEO settings</p>
-          {canManage && (
-            <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
-          )}
-        </div>
-        {canManage && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
-        <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.65 }}>
-          Controls how this directory's public pages appear in search results and when shared on social media.
-        </p>
-        {canManage && (
-          <AiProvenanceNote entityName="directory" compact>
-            Drafts the title and description below from this directory&rsquo;s own entry count and categorisation, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save settings.
-          </AiProvenanceNote>
-        )}
+    <Section
+      title="SEO settings"
+      description="Controls how this directory's public pages appear in search results and when shared on social media."
+      actions={canManage ? <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} /> : null}
+      footer={canManage ? (
+        <Button type="submit" form={formId} variant="primary" loading={saving} loadingLabel="Saving…">Save settings</Button>
+      ) : null}
+    >
+      {canManage && !ai.available ? <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} /> : null}
+      {canManage ? (
+        <AiProvenanceNote entityName="directory" compact>
+          Drafts the title and description below from this directory&rsquo;s own entry count and categorisation, using a built-in drafting prompt. It lands here for review; nothing is saved until you click Save settings.
+        </AiProvenanceNote>
+      ) : null}
 
-        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 6, cursor: disabled ? "default" : "pointer" }}>
-          <input
-            type="checkbox"
-            checked={!seo.default_noindex}
-            onChange={(e) => setSeoField("default_noindex", !e.target.checked)}
-            disabled={disabled}
-          />
-          Let search engines index this directory
-        </label>
-        <p style={{ margin: "0 0 14px", fontSize: 11.5, opacity: 0.6 }}>
-          Always excludes/includes this directory from its own sitemap.xml and adds/removes a "noindex" tag. Also updates its robots.txt — enforced by real search engines once this directory has its own custom domain (set up on the customer's Domains page); on the shared layercake domain, robots.txt is reachable for review but crawlers won't fetch a per-directory one there.
-        </p>
+      <form id={formId} onSubmit={handleSave} className="b1-form">
+        <Checkbox
+          label="Let search engines index this directory"
+          hint="Always excludes/includes this directory from its own sitemap.xml and adds/removes a “noindex” tag. Also updates its robots.txt — enforced by real search engines once this directory has its own custom domain (set up on the customer's Domains page); on the shared layercake domain, robots.txt is reachable for review but crawlers won't fetch a per-directory one there."
+          checked={!seo.default_noindex}
+          onChange={(e) => setSeoField("default_noindex", !e.target.checked)}
+          disabled={disabled}
+        />
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Default SEO title</label>
-          <input
+        <Field label="Default SEO title">
+          <TextInput
             value={seo.meta_title_template}
             onChange={(e) => setSeoField("meta_title_template", e.target.value)}
             disabled={disabled}
             placeholder="Defaults to the directory title"
-            style={inputStyle}
           />
-        </div>
+        </Field>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Default SEO description</label>
-          <textarea
+        <Field label="Default SEO description">
+          <Textarea
             value={seo.meta_description}
             onChange={(e) => setSeoField("meta_description", e.target.value)}
             disabled={disabled}
             rows={3}
             placeholder="Defaults to the directory description"
-            style={{ ...inputStyle, resize: "vertical" }}
           />
-        </div>
+        </Field>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Social/SEO image URL</label>
-          <input
+        <Field label="Social/SEO image URL">
+          <TextInput
             type="url"
             value={ogImageUrl}
             onChange={(e) => { setOgImageUrl(e.target.value); setMsg(""); }}
             disabled={disabled}
             placeholder="https://yourcompany.com/directory-cover.jpg"
-            style={inputStyle}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label style={labelStyle}>Bing verification file (BingSiteAuth.xml)</label>
-          <textarea
+        <Field
+          label="Bing verification file (BingSiteAuth.xml)"
+          hint={<>Paste the contents of the XML file from Bing Webmaster Tools. After you Publish it is served at <code>/BingSiteAuth.xml</code> on this directory&apos;s custom domain (Bing only checks a domain&apos;s own root). Clear the box and publish to remove it.</>}
+        >
+          <Textarea
+            className="mono"
             value={seo.bing_site_auth_xml}
             onChange={(e) => setSeoField("bing_site_auth_xml", e.target.value)}
             disabled={disabled}
             rows={4}
             placeholder={'<?xml version="1.0"?>\n<users>\n\t<user>…</user>\n</users>'}
-            style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
           />
-          <p style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.6 }}>
-            Paste the contents of the XML file from Bing Webmaster Tools. After you Publish it is served at <code>/BingSiteAuth.xml</code> on this directory's custom domain (Bing only checks a domain's own root). Clear the box and publish to remove it.
-          </p>
-        </div>
-      </div>
+        </Field>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
-
-      {canManage && (
-        <div>
-          <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-            {saving ? "Saving…" : "Save settings"}
-          </button>
-        </div>
-      )}
-    </form>
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
+      </form>
+    </Section>
   );
 }

@@ -144,3 +144,21 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - What the design shows: a determinate import with a Stop button.
 - Why not built now: import is one upsert plus follow-up writes, not a row loop, so there is no progress to show and nothing safe to stop mid-way.
 - Suggested next step: if large imports become a problem, batch the upsert and report batches done.
+
+### [DISCOVER-UI] Kit gaps found while migrating the directory workspace (Wave A)
+- Source: docs/design/discover-ui/COMPONENTS.md (Tabs, RadioCards, SegmentedControl, ColourField, DataTable, Field)
+- What the design shows: a complete form/table kit.
+- Why not built now: Wave A worked around these locally; each needs a small kit addition: `Tabs`/`RecordLayout` disabled tab (new-entry page lost its greyed tabs); `RadioCards` and `SegmentedControl` per-option and group `disabled`; `ColourField` `error` prop; `DataTable` expandable rows (Claims detail sits below the table); a kit `PromptDialog` (text entry, promise-based, like `useConfirm`) to replace the local one in `DirectoryClaimsPanel`; a kit slider `RangeField` (local copy lives in `GradientBackgroundField.jsx`); a `Field` variant with a visually hidden label for row editors; token-based chart colours (Recharts and `CHART_COLORS` still use hex).
+- Suggested next step: add these to `components/ui/` and the `/admin/ui-kit` page in phase 7, then delete the local workarounds.
+
+### [DISCOVER-UI] Delete confirms in the entry sub-editors
+- Source: docs/design/discover-ui/PATTERNS.md (§3 Destructive)
+- What the design shows: deletes use a ConfirmDialog naming the item.
+- Why not built now: Evidence, Media, Product tiles, Links, Team and Accreditation scheme deletes act immediately today; adding a confirm is new behaviour, so it was left as is.
+- Suggested next step: product decision, then `useConfirm` on each.
+
+### [DISCOVER-UI] Entry editor "new group" form submits the outer form
+- Source: found in `entryEdit/EntryBasicInfoTab.jsx` during Wave A (pre-existing, not changed)
+- What the design shows: n/a. The new-group form is nested inside the entry form and its submit handler doesn't stop propagation, so submitting it may also trigger the entry save.
+- Why not built now: fixing it changes behaviour, outside this presentation-only phase.
+- Suggested next step: move the group form out of the entry form, or stop propagation.

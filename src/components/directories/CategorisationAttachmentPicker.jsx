@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Button, Callout, Field, Section, Select, Skeleton, EmptyState, ArrowUpIcon, ArrowDownIcon } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 import {
   listCategorisations,
   listAttachedCategorisations,
@@ -107,64 +109,72 @@ export default function CategorisationAttachmentPicker({ clientId, targetType, t
     }
   }
 
-  if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading categories…</p>;
+  if (loading) return <Section title="Categories"><Skeleton variant="list" rows={2} label="Loading categories" /></Section>;
 
   return (
-    <div className="panel-section">
-      <p className="panel-section__title">Categories</p>
-      <p style={{ margin: "0 0 8px", fontSize: 12, opacity: 0.75 }}>
-        Attach a category to use its terms as filters here. The same category can be attached to any number of maps
-        and directories independently.
-      </p>
-      {error && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 8px" }}>{error}</p>}
+    <Section
+      title="Categories"
+      description="Attach a category to use its terms as filters here. The same category can be attached to any number of maps and directories independently."
+      actions={canManage && available.length > 0 && !pickerOpen ? (
+        <Button size="sm" onClick={() => setPickerOpen(true)}>Attach a category</Button>
+      ) : null}
+    >
+      {error ? <Callout tone="danger">{error}</Callout> : null}
 
       {attached.length === 0 ? (
-        <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.7 }}>No categories attached yet.</p>
+        <EmptyState
+          art="none"
+          title="No categories attached yet"
+          body={canManage && available.length === 0 && allCats.length === 0
+            ? "No categories exist for this client yet. Create one in Categories."
+            : "Attach a category to use its terms as filters."}
+        />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+        <ul className="b3-list">
           {attached.map((c, i) => (
-            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <li key={c.id} className="b3-list-item">
               {canManage && (
-                <span style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <button type="button" className="btn" disabled={busy || i === 0} onClick={() => handleMove(i, -1)} aria-label={`Move ${c.label} up`} style={{ padding: "0 6px", lineHeight: 1, fontSize: 11 }}>▲</button>
-                  <button type="button" className="btn" disabled={busy || i === attached.length - 1} onClick={() => handleMove(i, 1)} aria-label={`Move ${c.label} down`} style={{ padding: "0 6px", lineHeight: 1, fontSize: 11 }}>▼</button>
+                <span className="b3-ordering">
+                  <Button variant="ghost" size="sm" iconOnly disabled={busy || i === 0} onClick={() => handleMove(i, -1)} aria-label={`Move ${c.label} up`}>
+                    <ArrowUpIcon />
+                  </Button>
+                  <Button variant="ghost" size="sm" iconOnly disabled={busy || i === attached.length - 1} onClick={() => handleMove(i, 1)} aria-label={`Move ${c.label} down`}>
+                    <ArrowDownIcon />
+                  </Button>
                 </span>
               )}
-              <span style={{ flex: 1, fontSize: 13, minWidth: 0 }}>
-                {c.label}
-                <span style={{ opacity: 0.6 }}> · {c.field_type !== "boolean" ? `${c.terms.length} term${c.terms.length === 1 ? "" : "s"}` : "Yes/No"}</span>
+              <span className="b3-list-main">
+                <span className="b3-list-title">{c.label}</span>
+                <span className="b3-list-sub">{c.field_type !== "boolean" ? `${c.terms.length} term${c.terms.length === 1 ? "" : "s"}` : "Yes/No"}</span>
               </span>
               {canManage && (
-                <button type="button" className="btn" disabled={busy} onClick={() => handleDetach(c.id)}>Detach</button>
+                <Button size="sm" disabled={busy} onClick={() => handleDetach(c.id)}>Detach</Button>
               )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {canManage && available.length > 0 && (
-        pickerOpen ? (
-          <div style={{ display: "flex", gap: 8 }}>
-            <select value={toAttach} onChange={(e) => setToAttach(e.target.value)} style={{ flex: 1 }}>
-              <option value="">Choose a category…</option>
-              {available.map((c) => (
-                <option key={c.id} value={c.id}>{c.label}</option>
-              ))}
-            </select>
-            <button type="button" className="btn btn-primary" disabled={busy || !toAttach} onClick={handleAttach}>
-              Attach
-            </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => { setPickerOpen(false); setToAttach(""); }}>
-              Cancel
-            </button>
+      {canManage && available.length > 0 && pickerOpen ? (
+        <div className="b3-row b3-row--end">
+          <div className="b3-grow">
+            <Field label="Category to attach">
+              <Select value={toAttach} onChange={(e) => setToAttach(e.target.value)}>
+                <option value="">Choose a category…</option>
+                {available.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </Select>
+            </Field>
           </div>
-        ) : (
-          <button type="button" className="btn" onClick={() => setPickerOpen(true)}>+ Attach a category</button>
-        )
-      )}
-      {canManage && available.length === 0 && allCats.length === 0 && (
-        <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>No categories exist for this client yet — create one in Categories.</p>
-      )}
-    </div>
+          <Button variant="primary" disabled={busy || !toAttach} onClick={handleAttach}>
+            Attach
+          </Button>
+          <Button disabled={busy} onClick={() => { setPickerOpen(false); setToAttach(""); }}>
+            Cancel
+          </Button>
+        </div>
+      ) : null}
+    </Section>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useEntitlement } from "../../hooks/useEntitlements.js";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getBlockedMessage } from "../../lib/entitlementMessages.js";
@@ -19,10 +19,14 @@ import {
 } from "../../lib/claims.js";
 import { supabase } from "../../lib/supabase";
 import EntitlementGate from "../EntitlementGate.jsx";
-import MapDataTabs from "../MapDataTabs.jsx";
 import RichTextEditor from "./entryEdit/RichTextEditor.jsx";
 import ClaimBannerSettings from "./ClaimBannerSettings.jsx";
 import { bannerFromSettings, bannerToColumns, validateClaimBanner } from "../../lib/claimBanner.js";
+import {
+  Button, Callout, Dialog, EmptyState, ErrorState, Field, FieldGrid, Pill, RadioCards, Section, SegmentedControl,
+  Select, SettingRow, Skeleton, Switch, Tabs, Textarea, TextInput, Toolbar, DataTable,
+} from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const CURRENCIES = ["GBP", "USD", "EUR"];
 
@@ -43,6 +47,20 @@ function statusLabel(claim) {
   return STATUS_LABELS[claim.status] ?? claim.status;
 }
 
+/** Pill tone per claim status (the label always carries the meaning). */
+function statusTone(claim) {
+  if (claim.status === "claim_started" && claim.request) return "warn";
+  switch (claim.status) {
+    case "active": return "live";
+    case "verified": return "info";
+    case "payment_failed": return "danger";
+    case "email_verification_pending":
+    case "payment_pending":
+    case "suspended": return "warn";
+    default: return "neutral";
+  }
+}
+
 const STATUS_FILTERS = [
   { id: "all", label: "All" },
   { id: "in_progress", label: "Claim in progress", statuses: ["claim_started", "email_verification_pending", "verified", "payment_pending"] },
@@ -51,6 +69,34 @@ const STATUS_FILTERS = [
   { id: "suspended", label: "Suspended", statuses: ["suspended"] },
   { id: "revoked", label: "Revoked", statuses: ["revoked"] },
 ];
+
+/**
+ * Small text-entry dialog that replaces window.prompt. Resolves through onSubmit(value) / onCancel().
+ * `required` blocks an empty value; the value is returned trimmed only when `trim` is set.
+ */
+function PromptDialog({ title, label, hint, initial = "", type = "text", required = false, confirmLabel = "Confirm", danger = false, onSubmit, onCancel }) {
+  const [value, setValue] = useState(initial);
+  const formId = useId();
+  const canSubmit = !required || value.trim().length > 0;
+  return (
+    <Dialog
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button type="submit" form={formId} variant={danger ? "danger-solid" : "primary"} disabled={!canSubmit}>{confirmLabel}</Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={(e) => { e.preventDefault(); if (canSubmit) onSubmit(value); }}>
+        <Field label={label} hint={hint} required={required}>
+          <TextInput type={type} value={value} onChange={(e) => setValue(e.target.value)} />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
 
 /**
  * Directory admin's Claims area (Claimed Directory Listings epic, Phase 2).
@@ -90,15 +136,16 @@ export default function DirectoryClaimsPanel({ directoryId, clientId, canManage,
   const gateLoading = isClientPortal ? myEntitlementLoading : adminClaimsEnabled === null;
 
   return (
-    <div>
-      <MapDataTabs
+    <div className="b3-stack">
+      <Tabs
+        label="Claims sections"
         tabs={[
-          { id: "overview", label: "Overview" },
-          { id: "claims", label: "Claims" },
-          { id: "settings", label: "Settings" },
+          { key: "overview", label: "Overview" },
+          { key: "claims", label: "Claims" },
+          { key: "settings", label: "Settings" },
         ]}
-        activeTab={subTab}
-        onChange={setSubTab}
+        current={subTab}
+        onSelect={setSubTab}
       />
 
       <EntitlementGate allowed={claimsAllowed} loading={gateLoading} message={getBlockedMessage("claims")}>
@@ -120,18 +167,17 @@ export default function DirectoryClaimsPanel({ directoryId, clientId, canManage,
 
 function ClaimsOverview() {
   return (
-    <div className="admin-card">
-      <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Overview</p>
-      <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>
+    <Section title="Overview">
+      <p className="b3-text">
         Claim activity and commercial analytics will appear here once organisations start claiming listings in this directory.
       </p>
-    </div>
+    </Section>
   );
 }
 
 function formatWhen(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function ClaimsList({ directoryId, canManage, recordEvent }) {
@@ -171,92 +217,98 @@ function ClaimsList({ directoryId, canManage, recordEvent }) {
     });
   }, [claims, search, statusFilter]);
 
+  const expandedClaim = expandedId ? claims.find((c) => c.id === expandedId) : null;
+
+  const columns = [
+    {
+      key: "entry_name",
+      label: "Listing",
+      render: (c) => (
+        <button type="button" className="b3-expand-btn" aria-expanded={expandedId === c.id} onClick={() => setExpandedId((id) => (id === c.id ? null : c.id))}>
+          {c.entry_name}
+        </button>
+      ),
+    },
+    { key: "listing_domain", label: "Domain", render: (c) => c.listing_domain ?? "—" },
+    { key: "status", label: "Claim status", render: (c) => <Pill tone={statusTone(c)}>{statusLabel(c)}</Pill> },
+    { key: "owner", label: "Owner", render: (c) => c.owner?.name || c.owner?.email || "—" },
+    { key: "users", label: "Users", align: "right", render: (c) => c.users.length },
+    { key: "payment", label: "Payment", render: (c) => c.payment?.payment_status ?? "—" },
+    { key: "started_at", label: "Claimed", render: (c) => formatWhen(c.started_at) },
+  ];
+
   return (
-    <div className="admin-card">
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <input
-          type="search"
-          placeholder="Search by listing, domain, or owner"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: "1 1 240px", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-        >
-          {STATUS_FILTERS.map((f) => (
-            <option key={f.id} value={f.id}>{f.label}</option>
-          ))}
-        </select>
-        {canManage && (
-          <button type="button" className="btn btn-primary" style={{ marginLeft: "auto" }} onClick={() => setShowCreate((s) => !s)}>
-            {showCreate ? "Cancel" : "Create claim"}
-          </button>
+    <div className="b3-stack">
+      <Section title="Claims">
+        <Toolbar>
+          <div className="b3-search">
+            <Field label="Search claims">
+              <TextInput
+                type="search"
+                placeholder="Search by listing, domain, or owner"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="Claim status">
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              {STATUS_FILTERS.map((f) => (
+                <option key={f.id} value={f.id}>{f.label}</option>
+              ))}
+            </Select>
+          </Field>
+          {canManage && (
+            <Button variant="primary" className="b3-push" onClick={() => setShowCreate((s) => !s)}>
+              {showCreate ? "Cancel" : "Create claim"}
+            </Button>
+          )}
+        </Toolbar>
+
+        {showCreate && canManage && (
+          <CreateClaimForm
+            directoryId={directoryId}
+            recordEvent={recordEvent}
+            onCreated={() => {
+              setShowCreate(false);
+              load();
+            }}
+            onCancel={() => setShowCreate(false)}
+          />
         )}
-      </div>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
+        {err ? (
+          <ErrorState title="Claims could not be loaded" body={`${err} Nothing has been lost.`} onRetry={load} />
+        ) : (
+          <DataTable
+            caption="Claims"
+            columns={columns}
+            rows={filtered}
+            getRowId={(c) => c.id}
+            getRowLabel={(c) => c.entry_name}
+            loading={loading}
+            empty={
+              <EmptyState
+                art={claims.length === 0 ? "encouraging" : "searching"}
+                title={claims.length === 0 ? "No claims yet" : "No claims match"}
+                body={claims.length === 0 ? "Claims appear here when an organisation claims a listing." : "Try a different search or status."}
+                actions={claims.length === 0 && canManage && !showCreate ? <Button variant="primary" onClick={() => setShowCreate(true)}>Create claim</Button> : null}
+              />
+            }
+          />
+        )}
+      </Section>
 
-      {showCreate && canManage && (
-        <CreateClaimForm
-          directoryId={directoryId}
-          recordEvent={recordEvent}
-          onCreated={() => {
-            setShowCreate(false);
-            load();
-          }}
-          onCancel={() => setShowCreate(false)}
-        />
+      {expandedClaim && (
+        <Section
+          title={expandedClaim.entry_name}
+          description="Claim details"
+          actions={<Button size="sm" onClick={() => setExpandedId(null)}>Close</Button>}
+          flush
+        >
+          <ClaimDetail key={expandedClaim.id} claim={expandedClaim} canManage={canManage} recordEvent={recordEvent} onChanged={load} />
+        </Section>
       )}
-
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ textAlign: "left", opacity: 0.7 }}>
-              <th style={{ padding: "6px 8px 6px 0", fontWeight: 600 }}>Listing</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Domain</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Claim status</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Owner</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600, textAlign: "right" }}>Users</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Payment</th>
-              <th style={{ padding: "6px 0 6px 8px", fontWeight: 600 }}>Claimed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={7} style={{ padding: "16px 0", textAlign: "center", opacity: 0.6 }}>Loading…</td></tr>
-            )}
-            {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: "16px 0", textAlign: "center", opacity: 0.6 }}>No claims yet.</td></tr>
-            )}
-            {!loading && filtered.map((c) => (
-              <React.Fragment key={c.id}>
-                <tr
-                  style={{ borderTop: "1px solid var(--lc-border)", cursor: "pointer" }}
-                  onClick={() => setExpandedId((id) => (id === c.id ? null : c.id))}
-                >
-                  <td style={{ padding: "8px 8px 8px 0" }}>{c.entry_name}</td>
-                  <td style={{ padding: "8px" }}>{c.listing_domain ?? "—"}</td>
-                  <td style={{ padding: "8px" }}>{statusLabel(c)}</td>
-                  <td style={{ padding: "8px" }}>{c.owner?.name || c.owner?.email || "—"}</td>
-                  <td style={{ padding: "8px", textAlign: "right" }}>{c.users.length}</td>
-                  <td style={{ padding: "8px" }}>{c.payment?.payment_status ?? "—"}</td>
-                  <td style={{ padding: "8px 0 8px 8px", whiteSpace: "nowrap" }}>{formatWhen(c.started_at)}</td>
-                </tr>
-                {expandedId === c.id && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: "0 0 12px" }}>
-                      <ClaimDetail claim={c} canManage={canManage} recordEvent={recordEvent} onChanged={load} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -322,79 +374,54 @@ function CreateClaimForm({ directoryId, recordEvent, onCreated, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="admin-card" style={{ marginBottom: 16, display: "grid", gap: 12 }}>
-      {err && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{err}</p>}
+    <form onSubmit={handleSubmit} className="b3-form">
+      <h3 className="b3-subhead">New claim</h3>
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
-      <div>
-        <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Listing</label>
-        {entriesLoading ? (
-          <p style={{ fontSize: 13, opacity: 0.7, margin: 0 }}>Loading listings…</p>
-        ) : entries.length === 0 ? (
-          <p style={{ fontSize: 13, opacity: 0.7, margin: 0 }}>Every active listing already has a claim in progress or active.</p>
-        ) : (
-          <select
-            value={directoryItemId}
-            onChange={(e) => setDirectoryItemId(e.target.value)}
-            style={{ width: "100%", maxWidth: 420, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          >
+      {entriesLoading ? (
+        <Skeleton variant="form" rows={1} label="Loading listings" />
+      ) : entries.length === 0 ? (
+        <Callout tone="info">Every active listing already has a claim in progress or active.</Callout>
+      ) : (
+        <Field label="Listing">
+          <Select value={directoryItemId} onChange={(e) => setDirectoryItemId(e.target.value)}>
             {entries.map((e) => (
               <option key={e.id} value={e.id}>{e.name}</option>
             ))}
-          </select>
-        )}
-      </div>
+          </Select>
+        </Field>
+      )}
 
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Owner name</label>
-          <input
-            type="text"
-            value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
-            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          />
-        </div>
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Owner email</label>
-          <input
-            type="email"
-            required
-            value={ownerEmail}
-            onChange={(e) => setOwnerEmail(e.target.value)}
-            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          />
-        </div>
-      </div>
+      <FieldGrid>
+        <Field label="Owner name">
+          <TextInput value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
+        </Field>
+        <Field label="Owner email" required>
+          <TextInput type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
+        </Field>
+      </FieldGrid>
 
-      <div>
-        <span style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Verification</span>
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-            <input type="radio" name="verification-method" checked={verificationMethod === "domain_email"} onChange={() => setVerificationMethod("domain_email")} />
-            Verify against listing domain{selectedEntry ? ` (${selectedEntry.website_url || "no website on file"})` : ""}
-          </label>
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-            <input type="radio" name="verification-method" checked={verificationMethod === "admin_override"} onChange={() => setVerificationMethod("admin_override")} />
-            Admin override
-          </label>
-        </div>
-        {verificationMethod === "admin_override" && (
-          <textarea
-            required
-            value={verificationNote}
-            onChange={(e) => setVerificationNote(e.target.value)}
-            placeholder="Why this claim is being verified without a matching email domain"
-            rows={2}
-            style={{ width: "100%", maxWidth: 500, marginTop: 8, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          />
-        )}
-      </div>
+      <RadioCards
+        legend="Verification"
+        name="verification-method"
+        value={verificationMethod}
+        onChange={setVerificationMethod}
+        options={[
+          { value: "domain_email", label: `Verify against listing domain${selectedEntry ? ` (${selectedEntry.website_url || "no website on file"})` : ""}` },
+          { value: "admin_override", label: "Admin override" },
+        ]}
+      />
+      {verificationMethod === "admin_override" && (
+        <Field label="Reason for override" hint="Why this claim is being verified without a matching email domain." required>
+          <Textarea rows={2} value={verificationNote} onChange={(e) => setVerificationNote(e.target.value)} />
+        </Field>
+      )}
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="btn btn-primary" disabled={saving || entries.length === 0}>
-          {saving ? "Creating…" : "Create claim"}
-        </button>
-        <button type="button" className="btn" onClick={onCancel} disabled={saving}>Cancel</button>
+      <div className="b3-form-actions">
+        <Button type="submit" variant="primary" loading={saving} loadingLabel="Creating…" disabled={entries.length === 0}>
+          Create claim
+        </Button>
+        <Button onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
     </form>
   );
@@ -406,8 +433,18 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
   const [msg, setMsg] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(claim.payment?.payment_status || "");
   const [paymentType, setPaymentType] = useState(claim.payment?.payment_type || "");
+  const [prompt, setPrompt] = useState(null);
 
   const meta = { directory_id: claim.directory_id, directory_item_id: claim.directory_item_id, claim_id: claim.id };
+
+  /** Resolves with the entered text, or null when the dialog is cancelled (same contract as window.prompt). */
+  function askText(opts) {
+    return new Promise((resolve) => setPrompt({ ...opts, resolve }));
+  }
+  function settlePrompt(value) {
+    prompt?.resolve(value);
+    setPrompt(null);
+  }
 
   async function run(action, eventType, eventMeta) {
     setErr("");
@@ -447,8 +484,13 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
   }
 
   async function handleRevoke() {
-    // eslint-disable-next-line no-alert
-    const reason = window.prompt("Reason for revoking this claim (optional):", "");
+    const reason = await askText({
+      title: "Revoke this claim?",
+      label: "Reason for revoking this claim",
+      hint: "Optional.",
+      confirmLabel: "Revoke claim",
+      danger: true,
+    });
     if (reason === null) return;
     await run(async () => {
       await revokeClaim(claim.id, reason);
@@ -480,15 +522,24 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
   }
 
   async function handleApproveRequest() {
-    // eslint-disable-next-line no-alert
-    const note = window.prompt(`Approve ${claim.request?.requester_name || "this person"} as owner of this listing? Add a note (optional):`, "");
+    const note = await askText({
+      title: `Approve ${claim.request?.requester_name || "this person"} as owner of this listing?`,
+      label: "Note",
+      hint: "Optional.",
+      confirmLabel: "Approve request",
+    });
     if (note === null) return;
     await run(() => approveManualClaim(claim.id, note), "claim_verification_overridden", { verification_method: "admin_override" });
   }
 
   async function handleTransferOwnership() {
-    // eslint-disable-next-line no-alert
-    const email = window.prompt("New owner's email address:", "");
+    const email = await askText({
+      title: "Transfer ownership",
+      label: "New owner's email address",
+      type: "email",
+      required: true,
+      confirmLabel: "Transfer ownership",
+    });
     if (email === null || !email.trim()) return;
     setErr("");
     setMsg("");
@@ -512,94 +563,108 @@ function ClaimDetail({ claim, canManage, recordEvent, onChanged }) {
   }
 
   return (
-    <div className="admin-card" style={{ margin: "0 8px", background: "#f9fafb" }}>
-      {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 13 }}>{msg}</p>}
+    <div className="b3-detail">
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, fontSize: 13, marginBottom: 12 }}>
+      <div className="b3-detail-grid">
         <div>
-          <strong>Verification</strong>
-          <div>
+          <p className="b3-detail-label">Verification</p>
+          <p className="b3-detail-value">
             {claim.verification_method === "admin_override" ? "Admin override" : claim.verification_method === "domain_email" ? "Domain email" : "Not verified"} · {claim.claimant_email}
-          </div>
+          </p>
         </div>
         {claim.request && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <strong>Manual request from {claim.request.requester_name}</strong>
-            <div style={{ whiteSpace: "pre-wrap", opacity: claim.request.message ? 1 : 0.6 }}>{claim.request.message || "No message."}</div>
+          <div className="b3-detail-wide">
+            <p className="b3-detail-label">Manual request from {claim.request.requester_name}</p>
+            <p className="b3-detail-value b3-pre">{claim.request.message || "No message."}</p>
           </div>
         )}
-        <div><strong>Created by</strong><div>{claim.created_by === "admin" ? "Admin" : "Self-service"}</div></div>
-        {claim.revoked_reason && <div><strong>Revoked reason</strong><div>{claim.revoked_reason}</div></div>}
         <div>
-          <strong>Users</strong>
-          <div>{claim.users.map((u) => `${u.name || u.email} (${u.role})`).join(", ") || "—"}</div>
+          <p className="b3-detail-label">Created by</p>
+          <p className="b3-detail-value">{claim.created_by === "admin" ? "Admin" : "Self-service"}</p>
+        </div>
+        {claim.revoked_reason && (
+          <div>
+            <p className="b3-detail-label">Revoked reason</p>
+            <p className="b3-detail-value">{claim.revoked_reason}</p>
+          </div>
+        )}
+        <div>
+          <p className="b3-detail-label">Users</p>
+          <p className="b3-detail-value">{claim.users.map((u) => `${u.name || u.email} (${u.role})`).join(", ") || "—"}</p>
         </div>
       </div>
 
       {canManage && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <div className="b3-row">
           {claim.owner?.email && claim.status !== "revoked" && (
-            <button type="button" className="btn" disabled={busy} onClick={handleInvite}>
+            <Button disabled={busy} onClick={handleInvite}>
               {claim.owner?.user_id ? "Resend invitation" : "Send invitation"}
-            </button>
+            </Button>
           )}
           {claim.status === "claim_started" && claim.request && (
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={handleApproveRequest}>
+            <Button variant="primary" disabled={busy} onClick={handleApproveRequest}>
               Approve request
-            </button>
+            </Button>
           )}
           {(claim.status === "verified" || claim.status === "payment_pending") && (
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={handleActivate}>
+            <Button variant="primary" disabled={busy} onClick={handleActivate}>
               Activate
-            </button>
+            </Button>
           )}
           {claim.status === "active" && (
-            <button type="button" className="btn" disabled={busy} onClick={() => run(() => suspendClaim(claim.id), "claim_suspended")}>
+            <Button disabled={busy} onClick={() => run(() => suspendClaim(claim.id), "claim_suspended")}>
               Suspend
-            </button>
+            </Button>
           )}
           {claim.status === "suspended" && (
-            <button type="button" className="btn" disabled={busy} onClick={() => run(() => reactivateClaim(claim.id), "claim_reactivated")}>
+            <Button disabled={busy} onClick={() => run(() => reactivateClaim(claim.id), "claim_reactivated")}>
               Reactivate
-            </button>
+            </Button>
           )}
           {claim.status === "active" && (
-            <button type="button" className="btn" disabled={busy} onClick={handleTransferOwnership}>
+            <Button disabled={busy} onClick={handleTransferOwnership}>
               Transfer ownership
-            </button>
+            </Button>
           )}
           {claim.status !== "revoked" && (
-            <button
-              type="button"
-              className="btn"
-              style={{ color: "#b91c1c" }}
-              disabled={busy}
-              onClick={handleRevoke}
-            >
+            <Button variant="danger" disabled={busy} onClick={handleRevoke}>
               Revoke
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {canManage && claim.status !== "revoked" && (
-        <form onSubmit={handleSavePayment} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div>
-            <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Payment status</label>
-            <input type="text" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} placeholder="e.g. paid, invoiced, complimentary" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--lc-border)", fontSize: 12 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>Payment type</label>
-            <select value={paymentType} onChange={(e) => setPaymentType(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--lc-border)", fontSize: 12 }}>
-              <option value="">—</option>
+        <form onSubmit={handleSavePayment} className="b3-row b3-row--end">
+          <Field label="Payment status" hint="For example paid, invoiced, complimentary.">
+            <TextInput value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} />
+          </Field>
+          <Field label="Payment type">
+            <Select value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
+              <option value="">Not set</option>
               <option value="one_off">One-off</option>
               <option value="annual_recurring">Annual recurring</option>
-            </select>
-          </div>
-          <button type="submit" className="btn" disabled={busy} style={{ fontSize: 12 }}>Save payment status</button>
+            </Select>
+          </Field>
+          <Button type="submit" disabled={busy}>Save payment status</Button>
         </form>
       )}
+
+      {prompt ? (
+        <PromptDialog
+          title={prompt.title}
+          label={prompt.label}
+          hint={prompt.hint}
+          type={prompt.type}
+          required={prompt.required}
+          confirmLabel={prompt.confirmLabel}
+          danger={prompt.danger}
+          onSubmit={settlePrompt}
+          onCancel={() => settlePrompt(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -670,11 +735,15 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
     }
   }
 
+  if (!settings && !loading && err) {
+    return <ErrorState title="Claim settings could not be loaded" body={`${err} Nothing has been lost.`} onRetry={() => { setErr(""); load(); }} />;
+  }
+
   if (loading || !settings) {
     return (
-      <div className="admin-card">
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>Loading…</p>
-      </div>
+      <Section title="Claim settings">
+        <Skeleton variant="form" rows={4} label="Loading claim settings" />
+      </Section>
     );
   }
 
@@ -682,154 +751,104 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
   const priceValue = settings.price_cents == null ? "" : (settings.price_cents / 100).toFixed(2);
 
   return (
-    <form className="admin-card" onSubmit={handleSave} style={{ display: "grid", gap: 16 }}>
-      {err && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 13, margin: 0 }}>{msg}</p>}
+    <form className="b3-stack" onSubmit={handleSave}>
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
+      {!canManage && <Callout tone="info">Only an Owner or Manager can change claim settings.</Callout>}
 
-      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, cursor: disabled ? "default" : "pointer" }}>
-        <input
-          type="checkbox"
-          checked={!!settings.enabled}
-          onChange={(e) => setSettings((s) => ({ ...s, enabled: e.target.checked }))}
-          disabled={disabled}
-          style={{ marginTop: 2 }}
+      <Section title="Claim settings" flush>
+        <SettingRow
+          label="Claims enabled"
+          description={<>When on, an unclaimed listing's public page shows a <strong>Claim this listing</strong> button.</>}
+          control={<Switch checked={!!settings.enabled} disabled={disabled} onChange={(next) => setSettings((s) => ({ ...s, enabled: next }))} />}
         />
-        <span>
-          <strong>Claims enabled</strong>
-          <div style={{ opacity: 0.65, marginTop: 2 }}>
-            When on, an unclaimed listing's public page shows a <strong>Claim this listing</strong> button.
-          </div>
-        </span>
-      </label>
+      </Section>
 
-      <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }} disabled={disabled}>
-        <legend style={{ fontSize: 13, fontWeight: 500, padding: 0, marginBottom: 4 }}>How claims are handled</legend>
-        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-          <input
-            type="radio"
+      <Section title="How claims are handled" description="Changing this takes effect on listing pages after the directory is next published.">
+        <fieldset className="choice-group" disabled={disabled}>
+          <RadioCards
+            legend="Claim mode"
             name="claim-mode"
-            checked={settings.claim_mode !== "manual"}
-            onChange={() => setSettings((s) => ({ ...s, claim_mode: "auto" }))}
-            style={{ marginTop: 2 }}
+            value={settings.claim_mode === "manual" ? "manual" : "auto"}
+            onChange={(v) => setSettings((s) => ({ ...s, claim_mode: v }))}
+            options={[
+              { value: "auto", label: "Automatic verification", description: "The visitor enters a work email matching the listing's website and signs in with a link we email them." },
+              { value: "manual", label: "Manual review", description: "The visitor sends their name, email and a message to a mailbox you choose. You then create the claim yourself from the Claims tab." },
+            ]}
           />
-          <span>
-            <strong>Automatic verification</strong>
-            <div style={{ opacity: 0.65, marginTop: 2 }}>The visitor enters a work email matching the listing's website and signs in with a link we email them.</div>
-          </span>
-        </label>
-        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-          <input
-            type="radio"
-            name="claim-mode"
-            checked={settings.claim_mode === "manual"}
-            onChange={() => setSettings((s) => ({ ...s, claim_mode: "manual" }))}
-            style={{ marginTop: 2 }}
-          />
-          <span>
-            <strong>Manual review</strong>
-            <div style={{ opacity: 0.65, marginTop: 2 }}>The visitor sends their name, email and a message to a mailbox you choose. You then create the claim yourself from the Claims tab.</div>
-          </span>
-        </label>
-        {settings.claim_mode === "manual" && (
-          <div style={{ marginLeft: 24 }}>
-            <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }} htmlFor="claim-notify-email">Send requests to</label>
-            <input
-              id="claim-notify-email"
-              type="email"
-              value={settings.claim_notify_email || ""}
-              onChange={(e) => setSettings((s) => ({ ...s, claim_notify_email: e.target.value }))}
-              placeholder="claims@yourorganisation.com"
-              style={{ width: 320, maxWidth: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
+          {settings.claim_mode === "manual" && (
+            <div className="b3-narrow-field">
+              <Field
+                label="Send requests to"
+                hint="Sent using this directory's email sending settings (Settings → Email sending), so messaging must be enabled with a sending profile chosen."
+              >
+                <TextInput
+                  id="claim-notify-email"
+                  type="email"
+                  value={settings.claim_notify_email || ""}
+                  onChange={(e) => setSettings((s) => ({ ...s, claim_notify_email: e.target.value }))}
+                  placeholder="claims@yourorganisation.com"
+                />
+              </Field>
+            </div>
+          )}
+        </fieldset>
+      </Section>
+
+      <Section title="Price and payment">
+        <FieldGrid>
+          <Field label="Price">
+            <TextInput
+              id="claim-price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={priceValue}
+              onChange={(e) => {
+                const n = e.target.value === "" ? null : Math.round(Number(e.target.value) * 100);
+                setSettings((s) => ({ ...s, price_cents: Number.isFinite(n) ? n : null }));
+              }}
+              disabled={disabled}
+              placeholder="0.00"
             />
-            <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.65 }}>
-              Sent using this directory's email sending settings (Settings → Email sending), so messaging must be enabled with a sending profile chosen.
-            </p>
-          </div>
-        )}
-        <p style={{ margin: 0, fontSize: 12, opacity: 0.65 }}>Changing this takes effect on listing pages after the directory is next published.</p>
-      </fieldset>
+          </Field>
+          <Field label="Currency">
+            <Select
+              id="claim-currency"
+              value={settings.currency ?? "GBP"}
+              onChange={(e) => setSettings((s) => ({ ...s, currency: e.target.value }))}
+              disabled={disabled}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+          <fieldset className="choice-group" disabled={disabled}>
+            <legend className="field-label">Payment type</legend>
+            <SegmentedControl
+              label="Payment type"
+              value={settings.payment_type}
+              onChange={(v) => setSettings((s) => ({ ...s, payment_type: v }))}
+              options={[
+                { value: "one_off", label: "One-off" },
+                { value: "annual_recurring", label: "Annual recurring" },
+              ]}
+            />
+          </fieldset>
+          <Field label="Payment provider">
+            <TextInput id="claim-provider" value="Stripe" disabled readOnly />
+          </Field>
+        </FieldGrid>
+      </Section>
 
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }} htmlFor="claim-price">Price</label>
-          <input
-            id="claim-price"
-            type="number"
-            min="0"
-            step="0.01"
-            value={priceValue}
-            onChange={(e) => {
-              const n = e.target.value === "" ? null : Math.round(Number(e.target.value) * 100);
-              setSettings((s) => ({ ...s, price_cents: Number.isFinite(n) ? n : null }));
-            }}
-            disabled={disabled}
-            placeholder="0.00"
-            style={{ width: 120, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          />
-        </div>
-
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }} htmlFor="claim-currency">Currency</label>
-          <select
-            id="claim-currency"
-            value={settings.currency ?? "GBP"}
-            onChange={(e) => setSettings((s) => ({ ...s, currency: e.target.value }))}
-            disabled={disabled}
-            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <span style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Payment type</span>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", height: 34 }}>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="claim-payment-type"
-                checked={settings.payment_type === "one_off"}
-                onChange={() => setSettings((s) => ({ ...s, payment_type: "one_off" }))}
-                disabled={disabled}
-              />
-              One-off
-            </label>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="claim-payment-type"
-                checked={settings.payment_type === "annual_recurring"}
-                onChange={() => setSettings((s) => ({ ...s, payment_type: "annual_recurring" }))}
-                disabled={disabled}
-              />
-              Annual recurring
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }} htmlFor="claim-provider">Payment provider</label>
-          <input
-            id="claim-provider"
-            type="text"
-            value="Stripe"
-            disabled
-            style={{ width: 100, padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13, opacity: 0.7 }}
-          />
-        </div>
-      </div>
-
-      <div>
-        <span style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Claim introduction</span>
-        <p style={{ margin: "0 0 8px", fontSize: 12, opacity: 0.65 }}>Shown to a visitor before they start claiming a listing — benefits, price, what happens next.</p>
+      <Section title="Claim introduction" description="Shown to a visitor before they start claiming a listing — benefits, price, what happens next.">
         <RichTextEditor
           value={settings.intro_html || ""}
           onChange={(html) => setSettings((s) => ({ ...s, intro_html: html }))}
           editable={canManage}
         />
-      </div>
+      </Section>
 
       <ClaimBannerSettings
         directoryId={directoryId}
@@ -840,15 +859,9 @@ function ClaimsSettingsForm({ directoryId, canManage, recordEvent }) {
         showErrors={showErrors}
       />
 
-      {!canManage && (
-        <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can change claim settings.</p>
-      )}
-
       {canManage && (
-        <div>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? "Saving…" : "Save claim settings"}
-          </button>
+        <div className="b3-form-actions">
+          <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Save claim settings</Button>
         </div>
       )}
     </form>

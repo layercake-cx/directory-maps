@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Text } from "@mantine/core";
 import { getDirectory } from "../../../lib/directories.js";
 import { supabase } from "../../../lib/supabase";
 import { loadEntryTermIds } from "../../../lib/categorisations.js";
@@ -12,6 +11,8 @@ import { listEntryTemplates, resolveEntryLayout } from "../../../lib/entryTempla
 import EntryCardPreview from "./EntryCardPreview.jsx";
 import PreviewBlock from "../EntryPreviewBlock.jsx";
 import DirectoryPublishPanel from "../DirectoryPublishPanel.jsx";
+import { Callout, Section, Skeleton } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 
 const DEFAULT_THEME_SURFACE_ALT = "#F1ECDF"; // matches generate_directory_site's NATURAL_DEFAULTS.surfaceAltColor
 
@@ -79,8 +80,8 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
     return () => { cancelled = true; };
   }, [directoryId, entryId, entry]);
 
-  if (loading) return <p>Loading…</p>;
-  if (err) return <p style={{ color: "#b91c1c" }}>{err}</p>;
+  if (loading) return <Skeleton variant="form" rows={4} label="Loading preview" />;
+  if (err) return <Callout tone="danger">{err}</Callout>;
 
   const previewImage = entry?.panel_image_url || entry?.logo_url || "";
   const previewBg = entry?.panel_background_color || themeSurfaceAlt;
@@ -89,20 +90,19 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
     : null;
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      <div className="admin-card" style={{ padding: 20 }}>
-        <Text size="sm" fw={600} mb={4}>Preview</Text>
-        <Text size="xs" c="dimmed" mb={14}>
-          Approximates how this entry appears live — not a byte-for-byte match, actual fonts/spacing/colours come from the directory's theme.
-        </Text>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+    <div className="editor-stack">
+      <Section
+        title="Preview"
+        description="Approximates how this entry appears live — not a byte-for-byte match, actual fonts/spacing/colours come from the directory's theme."
+      >
+        <div className="preview-split">
           <div>
-            <Text size="xs" fw={600} c="dimmed" mb={8}>Homepage card</Text>
+            <h3 className="preview-caption">Homepage card</h3>
             <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={previewBg} />
           </div>
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <Text size="xs" fw={600} c="dimmed" mb={8}>Entry page</Text>
-            <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, padding: 14, background: "#fff", maxHeight: 420, overflowY: "auto" }}>
+          <div className="preview-split-main">
+            <h3 className="preview-caption">Entry page</h3>
+            <div className="preview-frame">
               {(layout ?? []).map((block, i) => (
                 <PreviewBlock key={`${blockKey(block)}-${i}`} block={block} entry={entry} extras={extras} />
               ))}
@@ -110,23 +110,21 @@ export default function EntryPreviewPublishTab({ directoryId, entryId, entry, ca
           </div>
         </div>
         {entryUrl && (
-          <Text size="xs" mt={12}>
-            <a href={entryUrl} target="_blank" rel="noopener noreferrer">View live page →</a>
-          </Text>
+          <a className="link-out" href={entryUrl} target="_blank" rel="noopener noreferrer">View live page →</a>
         )}
-      </div>
+      </Section>
 
-      <div className="admin-card" style={{ padding: 20 }}>
+      <Section>
         <DirectoryPublishPanel
           directory={directory}
           clientSlug={clientSlug}
           canPublish={canEdit}
           recordEvent={recordEvent}
         />
-        <Text size="xs" c="dimmed" mt={10}>
+        <p className="entries-muted">
           Publishing goes live for the whole directory, not just this entry — publishing just this entry was considered and turned out not to be worth building once a full republish came down to a few seconds.
-        </Text>
-      </div>
+        </p>
+      </Section>
     </div>
   );
 }

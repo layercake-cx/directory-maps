@@ -1,5 +1,6 @@
 import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
+import { Callout } from "../ui/index.js";
 
 /**
  * These routes replace outer tabs that were hidden entirely from non-managers before Phase 2
@@ -9,6 +10,6 @@ import { useDirectory } from "../../hooks/useDirectory.js";
  */
 export default function RequireManage({ children }) {
   const { canManage } = useDirectory();
-  if (!canManage) return <p>Only an Owner or Manager can view this.</p>;
+  if (!canManage) return <Callout tone="info">Only an Owner or Manager can view this.</Callout>;
   return children;
 }

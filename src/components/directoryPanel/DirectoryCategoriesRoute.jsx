@@ -2,6 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import CategoryTagPicker from "../directories/CategoryTagPicker.jsx";
 import CategorisationAttachmentPicker from "../directories/CategorisationAttachmentPicker.jsx";
+import { Section, SettingsLayout } from "../ui/index.js";
 
 /**
  * Content › Categories — CategoryTagPicker + CategorisationAttachmentPicker, relocated here from
@@ -13,27 +14,22 @@ export default function DirectoryCategoriesRoute() {
     useDirectory();
 
   return (
-    <>
-      <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <CategorisationAttachmentPicker
-          clientId={clientId}
-          targetType="directory"
-          targetId={directoryId}
-          recordEvent={recordEvent}
-          canManage={canManage}
-        />
-      </div>
+    <SettingsLayout head={{ title: "Categories" }}>
+      <CategorisationAttachmentPicker
+        clientId={clientId}
+        targetType="directory"
+        targetId={directoryId}
+        recordEvent={recordEvent}
+        canManage={canManage}
+      />
 
-      <div className="card card-pad">
-        <p className="card-title">
-          Categories {savingTerms ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
-        </p>
+      <Section title="Directory categories" description={savingTerms ? "Saving…" : undefined}>
         <CategoryTagPicker
           directoryId={directoryId}
           selectedTermIds={directoryTermIds}
           onChange={canManage ? handleDirectoryTermsChange : () => {}}
         />
-      </div>
-    </>
+      </Section>
+    </SettingsLayout>
   );
 }

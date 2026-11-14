@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+// Mantine's Modal is kept ONLY for the claim pages, which render outside the admin shell in a client's brand.
 import { Modal } from "@mantine/core";
 import AIButton, { SparkleIcon } from "./AIButton.jsx";
+import { Button, Dialog, Pill } from "../ui/index.js";
 import "./ai.css";
+import "../../styles/wave-a/batch-4.css";
 
 /**
  * The prompt is admin-authored PLAIN TEXT. Split it on {variable} tokens and return React nodes —
@@ -49,57 +52,115 @@ export default function DraftingPromptModal({ opened, onClose, loadPrompt, onGen
 
   const updated = formatDate(state.updatedAt);
 
-  return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      withCloseButton
-      size={640}
-      radius={16}
-      centered
-      classNames={{ content: "ai-modal" }}
-      title={
-        <div className="ai-modal__head">
-          <span className="ai-modal__badge"><SparkleIcon /></span>
-          <div>
-            <h2 className="ai-modal__title" id="ai-prompt-title">Drafting prompt</h2>
-            <div className="ai-modal__meta">
-              <span className="ai-modal__lock">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
-                Set by directory administrators
-              </span>
+  // Inside the admin shell (.shell) render the kit Dialog; anywhere else (claim pages) keep the original Mantine modal.
+  const probe = useRef(null);
+  const [inShell, setInShell] = useState(null);
+  useLayoutEffect(() => {
+    setInShell(!!probe.current?.closest(".shell"));
+  }, []);
+
+  const promptText = (
+    <>
+      {state.status === "loading" && "Loading prompt…"}
+      {state.status === "error" && "The drafting prompt could not be loaded. Try again in a moment."}
+      {state.status === "ready" && (state.text ? renderPrompt(state.text) : "No drafting prompt has been set for this directory.")}
+    </>
+  );
+
+  if (inShell === null) return <span ref={probe} hidden />;
+
+  if (inShell) {
+    return (
+      <>
+        <span ref={probe} hidden />
+        {opened ? (
+          <Dialog
+            title="Drafting prompt"
+            wide
+            onClose={onClose}
+            footer={
+              <>
+                <p className="b4-prompt-foot-note">Want it changed? Contact your directory administrator.</p>
+                <Button data-autofocus onClick={onClose}>Close</Button>
+                {onGenerate && (
+                  <AIButton
+                    label="Generate with AI"
+                    disabled={!canGenerate}
+                    liveRegion={false}
+                    onGenerate={() => { onClose(); return onGenerate(); }}
+                  />
+                )}
+              </>
+            }
+          >
+            <div className="b4-prompt-meta">
+              <Pill tone="neutral">Set by directory administrators</Pill>
               <span>Read only{updated ? ` · Updated ${updated}` : ""}</span>
             </div>
+            <div className="b4-prompt-facts">
+              {factsWebAddress && <span>Researches the web address in Contact details</span>}
+              <span>Filled in from this {entityName}</span>
+            </div>
+            <div className="b4-prompt-box">
+              <div className="b4-prompt-bar"><span>PROMPT</span><span>Plain text</span></div>
+              <pre className="b4-prompt-body" tabIndex={0} aria-label="Drafting prompt text">{promptText}</pre>
+            </div>
+          </Dialog>
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span ref={probe} hidden />
+      <Modal
+        opened={opened}
+        onClose={onClose}
+        withCloseButton
+        size={640}
+        radius={16}
+        centered
+        classNames={{ content: "ai-modal" }}
+        title={
+          <div className="ai-modal__head">
+            <span className="ai-modal__badge"><SparkleIcon /></span>
+            <div>
+              <h2 className="ai-modal__title" id="ai-prompt-title">Drafting prompt</h2>
+              <div className="ai-modal__meta">
+                <span className="ai-modal__lock">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+                  Set by directory administrators
+                </span>
+                <span>Read only{updated ? ` · Updated ${updated}` : ""}</span>
+              </div>
+            </div>
+          </div>
+        }
+      >
+        <div className="ai-modal__facts">
+          {factsWebAddress && <span>Researches the web address in Contact details</span>}
+          <span><span className="ai-modal__chip">{"{ }"}</span> Filled in from this {entityName}</span>
+        </div>
+        <div className="ai-prompt">
+          <div className="ai-prompt__bar"><span>PROMPT</span><span>Plain text</span></div>
+          <pre className="ai-prompt__body" tabIndex={0} aria-label="Drafting prompt text">{promptText}</pre>
+        </div>
+        <div className="ai-modal__foot">
+          <p>Want it changed? Contact your directory administrator.</p>
+          <div className="ai-modal__actions">
+            <button type="button" className="ai-outline-btn" onClick={onClose}>Close</button>
+            {onGenerate && (
+              <AIButton
+                label="Generate with AI"
+                disabled={!canGenerate}
+                liveRegion={false}
+                onGenerate={() => { onClose(); return onGenerate(); }}
+              />
+            )}
           </div>
         </div>
-      }
-    >
-      <div className="ai-modal__facts">
-        {factsWebAddress && <span>Researches the web address in Contact details</span>}
-        <span><span className="ai-modal__chip">{"{ }"}</span> Filled in from this {entityName}</span>
-      </div>
-      <div className="ai-prompt">
-        <div className="ai-prompt__bar"><span>PROMPT</span><span>Plain text</span></div>
-        <pre className="ai-prompt__body" tabIndex={0} aria-label="Drafting prompt text">
-          {state.status === "loading" && "Loading prompt…"}
-          {state.status === "error" && "The drafting prompt could not be loaded. Try again in a moment."}
-          {state.status === "ready" && (state.text ? renderPrompt(state.text) : "No drafting prompt has been set for this directory.")}
-        </pre>
-      </div>
-      <div className="ai-modal__foot">
-        <p>Want it changed? Contact your directory administrator.</p>
-        <div className="ai-modal__actions">
-          <button type="button" className="ai-outline-btn" onClick={onClose}>Close</button>
-          {onGenerate && (
-            <AIButton
-              label="Generate with AI"
-              disabled={!canGenerate}
-              liveRegion={false}
-              onGenerate={() => { onClose(); return onGenerate(); }}
-            />
-          )}
-        </div>
-      </div>
-    </Modal>
+      </Modal>
+    </>
   );
 }

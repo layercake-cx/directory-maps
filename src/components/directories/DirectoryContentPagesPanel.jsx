@@ -1,7 +1,11 @@
 import AIButton from "../ai/AIButton.jsx";
 import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, Group, Stack, Text } from "@mantine/core";
+import {
+  Button, Callout, Checkbox, Dialog, EmptyState, Field, FieldGrid, RadioCards, Section, Select, Skeleton, Textarea,
+  TextInput, useConfirm,
+} from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import {
@@ -16,9 +20,6 @@ import {
   slugify,
 } from "../../lib/contentPages.js";
 import RichTextEditor from "./entryEdit/RichTextEditor.jsx";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
 
 function buildForm(page) {
   return {
@@ -91,6 +92,8 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const [deleteMode, setDeleteMode] = useState("promote");
   const [reparentTo, setReparentTo] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const confirm = useConfirm();
+  const closeDelete = useCallback(() => setDeleteTarget(null), []);
 
   const refresh = useCallback(async () => {
     if (!directoryId) return;
@@ -258,8 +261,13 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
 
   async function handleGenerate() {
     if (!selectedPage || !outline.trim()) return;
-    if (form.body_html?.trim() && !window.confirm("This page already has content — generating with AI will overwrite it here in the editor (nothing is saved until you click Save). Continue?")) {
-      return false;
+    if (form.body_html?.trim()) {
+      const ok = await confirm({
+        title: "Replace the page content?",
+        body: "This page already has content. Generating with AI will overwrite it here in the editor. Nothing is saved until you click Save.",
+        confirmLabel: "Replace content",
+      });
+      if (!ok) return false;
     }
     setErr("");
     try {
@@ -276,8 +284,13 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
 
   async function handleGenerateSeo() {
     if (!selectedPage || !form.body_html?.trim()) return;
-    if ((form.meta_title?.trim() || form.meta_description?.trim()) && !window.confirm("This will replace the meta title and description here in the form (nothing is saved until you click Save). Continue?")) {
-      return false;
+    if (form.meta_title?.trim() || form.meta_description?.trim()) {
+      const ok = await confirm({
+        title: "Replace the meta title and description?",
+        body: "This replaces them here in the form. Nothing is saved until you click Save.",
+        confirmLabel: "Replace meta fields",
+      });
+      if (!ok) return false;
     }
     setErr("");
     try {
@@ -293,7 +306,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   }
 
   if (!canManage) {
-    return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can manage content pages.</p>;
+    return <Callout tone="info">Only an Owner or Manager can manage content pages.</Callout>;
   }
 
   const eligibleParents = selectedPage
@@ -304,38 +317,31 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const reparentOptions = deleteTarget ? pages.filter((p) => !p.parent_page_id && p.id !== deleteTarget.id) : [];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, alignItems: "start" }}>
-      <div className="admin-card" style={{ padding: 16 }}>
-        <Text size="sm" fw={600} mb={4}>
-          Pages
-        </Text>
-        <Text size="xs" c="dimmed" mb={8}>
-          Drag to reorder. Drop onto a top-level page to nest (one level only).
-        </Text>
+    <div className="b3-pages">
+      <Section title="Pages" description="Drag to reorder. Drop onto a top-level page to nest (one level only).">
         {loading ? (
-          <Text size="xs" c="dimmed">
-            Loading…
-          </Text>
+          <Skeleton variant="list" rows={4} label="Loading pages" />
         ) : tree.length === 0 ? (
-          <Text size="xs" c="dimmed">
-            No pages yet.
-          </Text>
+          <EmptyState art="none" title="No pages yet" body="Add a page title below to create the first one." />
         ) : (
-          <div style={{ display: "grid", gap: 2, marginBottom: 12 }} onDragLeave={() => setDropHint(null)}>
+          <div className="b3-page-tree" onDragLeave={() => setDropHint(null)}>
             {tree.map(({ page, depth }) => {
               const hintHere = dropHint?.id === page.id;
-              const border =
-                hintHere && dropHint.placement === "before"
-                  ? "2px solid var(--lc-accent, #2563eb)"
-                  : hintHere && dropHint.placement === "after"
-                    ? "2px solid var(--lc-accent, #2563eb)"
-                    : hintHere && dropHint.placement === "child"
-                      ? "2px dashed var(--lc-accent, #2563eb)"
-                      : "2px solid transparent";
+              const rowClass = [
+                "b3-page-row",
+                page.id === selectedId && "is-selected",
+                dragId === page.id && "is-dragging",
+                !page.is_active && "is-inactive",
+                hintHere && dropHint.placement === "before" && "is-drop-before",
+                hintHere && dropHint.placement === "after" && "is-drop-after",
+                hintHere && dropHint.placement === "child" && "is-drop-child",
+              ].filter(Boolean).join(" ");
               return (
                 <div
                   key={page.id}
                   draggable
+                  className={rowClass}
+                  style={{ "--b3-depth": depth }} // dynamic: indent level of this page in the tree
                   onDragStart={(e) => handleDragStart(e, page.id)}
                   onDragOver={(e) => handleDragOver(e, page)}
                   onDrop={(e) => handleDrop(e, page)}
@@ -343,267 +349,200 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                     setDragId(null);
                     setDropHint(null);
                   }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    borderTop: hintHere && dropHint.placement === "before" ? border : "2px solid transparent",
-                    borderBottom: hintHere && dropHint.placement === "after" ? border : "2px solid transparent",
-                    outline: hintHere && dropHint.placement === "child" ? border : undefined,
-                    borderRadius: 6,
-                    paddingLeft: 4 + depth * 16,
-                    background: page.id === selectedId ? "var(--lc-border)" : dragId === page.id ? "var(--lc-border)" : "transparent",
-                    opacity: page.is_active ? 1 : 0.55,
-                  }}
                 >
-                  <span aria-hidden="true" style={{ cursor: "grab", color: "#9ca3af", fontSize: 14, padding: "0 2px", userSelect: "none" }} title="Drag to reorder">
-                    ☰
+                  <span aria-hidden="true" className="b3-page-handle" title="Drag to reorder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 8h14M5 12h14M5 16h14" /></svg>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(page.id)}
-                    style={{
-                      flex: 1,
-                      textAlign: "left",
-                      border: "none",
-                      background: "transparent",
-                      borderRadius: 6,
-                      padding: "6px 8px 6px 0",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      color: "inherit",
-                    }}
-                  >
-                    {depth > 0 ? "↳ " : ""}
+                  <button type="button" className="b3-page-btn" onClick={() => setSelectedId(page.id)} aria-current={page.id === selectedId ? "true" : undefined}>
+                    {depth > 0 ? <span className="sr-only">Child page: </span> : null}
                     {page.nav_label || page.title}
-                    {!page.show_in_navigation ? " · hidden" : ""}
-                    {!page.is_active ? " · unpublished" : ""}
+                    {!page.show_in_navigation ? <span className="b3-page-state"> · hidden</span> : null}
+                    {!page.is_active ? <span className="b3-page-state"> · unpublished</span> : null}
                   </button>
                 </div>
               );
             })}
           </div>
         )}
-        <Stack gap={6}>
-          <input
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="New page title"
-            style={inputStyle}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreate();
-            }}
-          />
-          <Button size="xs" onClick={handleCreate} loading={creating} disabled={!newTitle.trim()}>
-            + Add page
-          </Button>
-        </Stack>
-      </div>
+        <div className="b3-stack b3-stack--tight">
+          <Field label="New page title">
+            <TextInput
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreate();
+              }}
+            />
+          </Field>
+          <div>
+            <Button onClick={handleCreate} loading={creating} loadingLabel="Adding…" disabled={!newTitle.trim()}>
+              Add page
+            </Button>
+          </div>
+        </div>
+      </Section>
 
-      <div className="admin-card" style={{ padding: 20 }}>
-        {err && (
-          <Alert color="red" variant="light" mb="sm">
-            {err}
-          </Alert>
-        )}
-        {msg && (
-          <Alert color="green" variant="light" mb="sm">
-            {msg}
-          </Alert>
-        )}
+      <div className="b3-stack">
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
-        {deleteTarget ? (
-          <Stack gap="sm">
-            <Text size="sm" fw={600}>
-              Delete “{deleteTarget.title}”?
-            </Text>
-            {deleteChildren.length ? (
-              <>
-                <Text size="sm">This page has {deleteChildren.length} child page{deleteChildren.length === 1 ? "" : "s"}. Choose what happens to them:</Text>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-                  <input type="radio" name="delete-mode" checked={deleteMode === "promote"} onChange={() => setDeleteMode("promote")} />
-                  <span>Move them to the top level</span>
-                </label>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-                  <input type="radio" name="delete-mode" checked={deleteMode === "reparent"} onChange={() => setDeleteMode("reparent")} disabled={!reparentOptions.length} />
-                  <span>Move them under another page</span>
-                </label>
-                {deleteMode === "reparent" && (
-                  <select value={reparentTo} onChange={(e) => setReparentTo(e.target.value)} style={inputStyle}>
-                    {reparentOptions.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-                  <input type="radio" name="delete-mode" checked={deleteMode === "delete"} onChange={() => setDeleteMode("delete")} />
-                  <span>Delete the child pages too</span>
-                </label>
-              </>
-            ) : (
-              <Text size="sm">This can’t be undone.</Text>
-            )}
-            <Group justify="flex-end">
-              <Button size="xs" variant="default" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-                Cancel
-              </Button>
-              <Button size="xs" color="red" onClick={confirmDelete} loading={deleting} disabled={deleteMode === "reparent" && !reparentTo}>
-                Delete page
-              </Button>
-            </Group>
-          </Stack>
-        ) : !selectedPage ? (
-          <Text size="sm" c="dimmed">
-            Select a page on the left, or add a new one, to edit it.
-          </Text>
+        {!selectedPage ? (
+          <Section title="Edit page">
+            <EmptyState art="none" title="No page selected" body="Select a page on the left, or add a new one, to edit it." />
+          </Section>
         ) : (
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Text size="sm" fw={600}>
-                Edit page
-              </Text>
-              <Button size="xs" variant="subtle" color="red" onClick={() => openDelete(selectedPage)}>
-                Delete page
-              </Button>
-            </Group>
+          <Section
+            title="Edit page"
+            actions={<Button variant="danger" size="sm" onClick={() => openDelete(selectedPage)}>Delete page</Button>}
+            footer={<Button variant="primary" onClick={handleSave} loading={saving} loadingLabel="Saving…">Save</Button>}
+          >
+            <FieldGrid>
+              <Field label="Title">
+                <TextInput value={form.title} onChange={(e) => fSet("title", e.target.value)} />
+              </Field>
+              <Field label="URL slug">
+                <TextInput value={form.slug} onChange={(e) => fSet("slug", e.target.value)} />
+              </Field>
+            </FieldGrid>
 
-            <Group gap="sm" grow>
-              <div>
-                <label style={labelStyle}>Title</label>
-                <input value={form.title} onChange={(e) => fSet("title", e.target.value)} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>URL slug</label>
-                <input value={form.slug} onChange={(e) => fSet("slug", e.target.value)} style={inputStyle} />
-              </div>
-            </Group>
-
-            <div>
-              <label style={labelStyle}>Parent page</label>
-              <select
-                value={form.parent_page_id}
-                onChange={(e) => fSet("parent_page_id", e.target.value)}
-                style={inputStyle}
-                disabled={parentLocked}
-              >
+            <Field
+              label="Parent page"
+              hint={parentLocked
+                ? "This page has child pages, so it has to stay top-level. Move or delete the children first to nest it."
+                : "Changing the parent changes the published URL (old URLs redirect after the next publish)."}
+            >
+              <Select value={form.parent_page_id} onChange={(e) => fSet("parent_page_id", e.target.value)} disabled={parentLocked}>
                 <option value="">None (top-level)</option>
                 {eligibleParents.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
                   </option>
                 ))}
-              </select>
-              {parentLocked ? (
-                <Text size="xs" c="dimmed" mt={4}>
-                  This page has child pages, so it has to stay top-level. Move or delete the children first to nest it.
-                </Text>
-              ) : (
-                <Text size="xs" c="dimmed" mt={4}>
-                  Changing the parent changes the published URL (old URLs redirect after the next publish).
-                </Text>
-              )}
-            </div>
+              </Select>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Navigation label</label>
-              <input
+            <Field label="Navigation label" hint="Optional shorter wording for the header and footer. Leave blank to use the title.">
+              <TextInput
                 value={form.nav_label}
                 onChange={(e) => fSet("nav_label", e.target.value)}
                 placeholder={form.title || "Defaults to the page title"}
-                style={inputStyle}
               />
-              <Text size="xs" c="dimmed" mt={4}>
-                Optional shorter wording for the header and footer. Leave blank to use the title.
-              </Text>
-            </div>
+            </Field>
 
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-              <input type="checkbox" checked={form.show_in_navigation} onChange={(e) => fSet("show_in_navigation", e.target.checked)} />
-              Show in site navigation
-            </label>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-              <input type="checkbox" checked={form.is_active} onChange={(e) => fSet("is_active", e.target.checked)} />
-              Published
-            </label>
-            <Text size="xs" c="dimmed">
-              Unpublished pages are omitted from the live site (including navigation) until you publish them and republish the directory. A published page hidden from navigation stays reachable at its URL.
-            </Text>
+            <Checkbox label="Show in site navigation" checked={form.show_in_navigation} onChange={(e) => fSet("show_in_navigation", e.target.checked)} />
+            <Checkbox
+              label="Published"
+              hint="Unpublished pages are omitted from the live site (including navigation) until you publish them and republish the directory. A published page hidden from navigation stays reachable at its URL."
+              checked={form.is_active}
+              onChange={(e) => fSet("is_active", e.target.checked)}
+            />
 
-            <div>
-              <Group justify="space-between" mb={6}>
-                <Text size="xs" fw={600}>
-                  Content
-                </Text>
-              </Group>
+            <div className="b3-stack b3-stack--tight">
+              <h3 className="b3-subhead">Content</h3>
               <RichTextEditor value={form.body_html} onChange={(v) => fSet("body_html", v)} editable />
             </div>
 
-            <div className="admin-card" style={{ padding: 12, background: "#f9fafb" }}>
-              <Text size="xs" fw={600} mb={6}>
-                Generate page content with AI
-              </Text>
-              <Text size="xs" c="dimmed" mb={6}>
+            <div className="b3-stack b3-stack--tight">
+              <h3 className="b3-subhead">Generate page content with AI</h3>
+              <p className="b3-muted">
                 Give the AI an outline — headings, bullet points, or a short brief — and it writes a full draft into the editor above for you to review. This only writes the page content; the SEO fields below are generated separately.
-              </Text>
+              </p>
               <AiProvenanceNote entityName="page" compact>
                 AI writes a draft from your outline, using a built-in drafting prompt. It lands in the editor above for review; nothing is saved until you click Save.
               </AiProvenanceNote>
-              <textarea
-                value={outline}
-                onChange={(e) => setOutline(e.target.value)}
-                rows={3}
-                placeholder="e.g. Cover: what membership costs, the application process, and who to contact with questions."
-                style={{ ...inputStyle, resize: "vertical", marginBottom: 6 }}
-              />
+              <Field label="Outline">
+                <Textarea
+                  value={outline}
+                  onChange={(e) => setOutline(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Cover: what membership costs, the application process, and who to contact with questions."
+                />
+              </Field>
               {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
-              <AIButton compact variant="secondary" label="Generate content with AI" onGenerate={handleGenerate} disabled={!outline.trim() || !ai.available} />
+              <div>
+                <AIButton compact variant="secondary" label="Generate content with AI" onGenerate={handleGenerate} disabled={!outline.trim() || !ai.available} />
+              </div>
             </div>
 
-            <Group justify="space-between" align="flex-end" mb={-6}>
-              <div>
-                <Text size="xs" fw={600}>
-                  Search engine (SEO)
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Drafts a meta title and description from the page title and the content in the editor. Your content is not changed.
-                </Text>
-                {!aiSeo.available && <AiUnavailableNotice message={aiSeo.message} href={aiSeo.integrationsHref} />}
+            <div className="b3-stack b3-stack--tight">
+              <div className="b3-row b3-row--between">
+                <div className="b3-stack b3-stack--tight b3-grow">
+                  <h3 className="b3-subhead">Search engine (SEO)</h3>
+                  <p className="b3-muted">
+                    Drafts a meta title and description from the page title and the content in the editor. Your content is not changed.
+                  </p>
+                  {!aiSeo.available && <AiUnavailableNotice message={aiSeo.message} href={aiSeo.integrationsHref} />}
+                </div>
+                <AIButton compact variant="subtle" label="Generate SEO with AI" onGenerate={handleGenerateSeo} disabled={!form.body_html?.trim() || !aiSeo.available} />
               </div>
-              <AIButton compact variant="subtle" label="Generate SEO with AI" onGenerate={handleGenerateSeo} disabled={!form.body_html?.trim() || !aiSeo.available} />
-            </Group>
 
-            <Group gap="sm" grow>
-              <div>
-                <label style={labelStyle}>Meta title</label>
-                <input value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} placeholder="Defaults to page title" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Meta description</label>
-                <input value={form.meta_description} onChange={(e) => fSet("meta_description", e.target.value)} style={inputStyle} />
-              </div>
-            </Group>
+              <FieldGrid>
+                <Field label="Meta title">
+                  <TextInput value={form.meta_title} onChange={(e) => fSet("meta_title", e.target.value)} placeholder="Defaults to page title" />
+                </Field>
+                <Field label="Meta description">
+                  <TextInput value={form.meta_description} onChange={(e) => fSet("meta_description", e.target.value)} />
+                </Field>
+              </FieldGrid>
 
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-              <input type="checkbox" checked={form.noindex} onChange={(e) => fSet("noindex", e.target.checked)} />
-              Hide from search engines (noindex)
-            </label>
+              <Checkbox label="Hide from search engines (noindex)" checked={form.noindex} onChange={(e) => fSet("noindex", e.target.checked)} />
+            </div>
 
             {selectedChildren.length > 0 && (
-              <Text size="xs" c="dimmed">
+              <p className="b3-muted">
                 {selectedChildren.length} child page{selectedChildren.length === 1 ? "" : "s"} nest under this page in the live navigation.
-              </Text>
+              </p>
             )}
-
-            <Group justify="flex-end">
-              <Button size="sm" onClick={handleSave} loading={saving}>
-                Save
-              </Button>
-            </Group>
-          </Stack>
+          </Section>
         )}
       </div>
+
+      {deleteTarget ? (
+        <Dialog
+          title={`Delete “${deleteTarget.title}”?`}
+          onClose={closeDelete}
+          footer={
+            <>
+              <Button onClick={closeDelete} disabled={deleting}>Cancel</Button>
+              <Button variant="danger-solid" onClick={confirmDelete} loading={deleting} loadingLabel="Deleting…" disabled={deleteMode === "reparent" && !reparentTo}>
+                Delete page
+              </Button>
+            </>
+          }
+        >
+          <div className="b3-stack">
+            {deleteChildren.length ? (
+              <>
+                <p className="b3-text">This page has {deleteChildren.length} child page{deleteChildren.length === 1 ? "" : "s"}. Choose what happens to them:</p>
+                <RadioCards
+                  legend="Child pages"
+                  name="delete-mode"
+                  value={deleteMode}
+                  onChange={setDeleteMode}
+                  options={[
+                    { value: "promote", label: "Move them to the top level" },
+                    ...(reparentOptions.length ? [{ value: "reparent", label: "Move them under another page" }] : []),
+                    { value: "delete", label: "Delete the child pages too" },
+                  ]}
+                />
+                {deleteMode === "reparent" && (
+                  <Field label="Move child pages under">
+                    <Select value={reparentTo} onChange={(e) => setReparentTo(e.target.value)}>
+                      {reparentOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+              </>
+            ) : (
+              <p className="b3-text">This can’t be undone.</p>
+            )}
+          </div>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

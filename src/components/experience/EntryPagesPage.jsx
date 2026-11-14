@@ -20,8 +20,24 @@ import {
   deleteTargetedTemplate,
 } from "../../lib/entryTemplates.js";
 import PreviewBlock from "../directories/EntryPreviewBlock.jsx";
-import { ConfirmDialog, Dialog, SaveBar, useUnsavedGuard } from "./ui.jsx";
-import "./experience.css";
+import {
+  Button,
+  Callout,
+  ConfirmDialog,
+  Dialog,
+  Field,
+  RecordLayout,
+  Section,
+  Select,
+  Skeleton,
+  TextInput,
+  useUnsavedGuard,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  DotsIcon,
+  XIcon,
+} from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 const ENTRY_COLUMNS =
   "id, name, address, city, postcode, country, phone, email, website_url, logo_url, notes_html, allow_html, show_phone, show_email, show_website, show_address, directory_group_id";
@@ -32,24 +48,34 @@ function blockKey(block) {
 
 function NewTemplateDialog({ groups, categorisations, busy, onSubmit, onCancel }) {
   const id = useId();
+  const formId = useId();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   return (
-    <Dialog title="New template" labelledBy={id} onClose={onCancel}>
+    <Dialog
+      title="New template"
+      labelledBy={id}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button type="submit" form={formId} variant="primary" loading={busy} loadingLabel="Creating…" disabled={!name.trim() || !target}>Create template</Button>
+        </>
+      }
+    >
       <form
+        id={formId}
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit(name.trim(), target);
         }}
-        style={{ display: "grid", gap: 12 }}
+        className="b4-stack"
       >
-        <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-          Template name
-          <input className="xp-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Healthcare profile" required />
-        </label>
-        <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-          Applies to
-          <select className="xp-input" value={target} onChange={(e) => setTarget(e.target.value)} required>
+        <Field label="Template name" required>
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Healthcare profile" />
+        </Field>
+        <Field label="Applies to" required>
+          <Select value={target} onChange={(e) => setTarget(e.target.value)}>
             <option value="">Choose…</option>
             {groups.length > 0 && (
               <optgroup label="Group">
@@ -61,12 +87,8 @@ function NewTemplateDialog({ groups, categorisations, busy, onSubmit, onCancel }
                 {(c.terms ?? []).map((t) => <option key={t.id} value={`term:${t.id}`}>{t.label}</option>)}
               </optgroup>
             ))}
-          </select>
-        </label>
-        <div className="xp-row" style={{ justifyContent: "flex-end" }}>
-          <button type="button" className="xp-btn" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="xp-btn xp-btn-primary" disabled={busy || !name.trim() || !target}>{busy ? "Creating…" : "Create template"}</button>
-        </div>
+          </Select>
+        </Field>
       </form>
     </Dialog>
   );
@@ -301,144 +323,150 @@ export default function EntryPagesPage() {
     }
   }
 
-  if (!canManage) return <p className="xp-help">Only an Owner or Manager can change entry pages.</p>;
-  if (loading && templates.length === 0 && entries.length === 0) return <p className="xp-help">Loading…</p>;
+  if (!canManage) return <Callout tone="info">Only an Owner or Manager can change entry pages.</Callout>;
+  if (loading && templates.length === 0 && entries.length === 0) return <Skeleton variant="form" rows={3} label="Loading entry pages" />;
 
   const usedBy = (id) => usageCounts[id] ?? 0;
   const optLabel = (name, id) => `${name} · used by ${usedBy(id)} ${usedBy(id) === 1 ? "entry" : "entries"}`;
 
+  const preview = (
+    <Section
+      title="Preview"
+      as="h3"
+      actions={
+        entries.length > 0 ? (
+          <Field label="Preview entry">
+            <Select value={previewId} onChange={(e) => setPreviewId(e.target.value)} options={entries.map((en) => ({ value: en.id, label: en.name }))} />
+          </Field>
+        ) : null
+      }
+    >
+      <div className="b4-preview-scroll">
+        {entries.length === 0 && <p className="field-hint">Placeholder preview — this directory has no active entries yet.</p>}
+        {draft.map((block, i) => (
+          <PreviewBlock key={`${blockKey(block)}-${i}`} block={block} entry={previewEntry} extras={previewExtras} />
+        ))}
+      </div>
+    </Section>
+  );
+
   return (
-    <div className="xp-page">
-      <div>
-        <p className="xp-crumb">Experience / Entry pages</p>
-        <h1 className="page-title" style={{ margin: "4px 0 0" }}>Entry pages</h1>
-        <p className="xp-sub">Which sections appear on each organisation's page, and in what order.</p>
-      </div>
+    <RecordLayout
+      head={{
+        breadcrumb: [{ label: "Experience" }, { label: "Entry pages" }],
+        title: "Entry pages",
+        subtitle: "Which sections appear on each organisation's page, and in what order.",
+      }}
+      preview={preview}
+      saveBar={{
+        dirtyCount: changed,
+        saving,
+        error: err,
+        savedAt,
+        publishHref: `${basePath}/publishing`,
+        PublishLink: Link,
+        onDiscard: () => setDialog({ kind: "discard" }),
+        onSave: save,
+      }}
+    >
+      <Section
+        title="Template"
+        as="h3"
+        actions={
+          <>
+            <Button onClick={() => setDialog({ kind: "new" })}>New template</Button>
+            {selectedTemplate && <Button variant="danger" onClick={() => setDialog({ kind: "delete", template: selectedTemplate })}>Delete template</Button>}
+          </>
+        }
+      >
+        <Field label="Template">
+          <Select className="b4-select-wide" value={selectedId} onChange={(e) => chooseTemplate(e.target.value)}>
+            <option value="default">{optLabel("Default", "default")}</option>
+            {otherTemplates.map((t) => <option key={t.id} value={t.id}>{optLabel(t.name, t.id)}</option>)}
+          </Select>
+        </Field>
+      </Section>
 
-      <div className="xp-row">
-        <label htmlFor="xp-template" style={{ fontSize: 13, fontWeight: 600 }}>Template</label>
-        <select id="xp-template" className="xp-input" style={{ minWidth: 240 }} value={selectedId} onChange={(e) => chooseTemplate(e.target.value)}>
-          <option value="default">{optLabel("Default", "default")}</option>
-          {otherTemplates.map((t) => <option key={t.id} value={t.id}>{optLabel(t.name, t.id)}</option>)}
-        </select>
-        <button type="button" className="xp-btn" onClick={() => setDialog({ kind: "new" })}>+ New template</button>
-        {selectedTemplate && <button type="button" className="xp-btn xp-btn-danger" onClick={() => setDialog({ kind: "delete", template: selectedTemplate })}>Delete template</button>}
-      </div>
-
-      <div className="xp-body">
-        <section className="xp-editor" aria-label="Sections">
-          <div className="xp-blocks">
-            <div className="xp-blockhead" aria-hidden="true">
-              <span style={{ width: 28 }} />
-              <span style={{ width: 160 }}>Section</span>
-              <span style={{ flex: 1 }}>Heading on page</span>
-              <span style={{ width: 56, textAlign: "center" }}>Show</span>
-              <span style={{ width: 88 }} />
-            </div>
-            {draft.map((block, i) => {
-              const name = block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type);
-              return (
-                <div
-                  key={`${blockKey(block)}-${i}`}
-                  className="xp-block"
-                  data-dragging={String(dragIndex === i)}
-                  data-hidden={String(block.hidden === true)}
-                  draggable
-                  onDragStart={() => setDragIndex(i)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    if (dragIndex !== null) move(dragIndex, i);
-                    setDragIndex(null);
-                  }}
-                  onDragEnd={() => setDragIndex(null)}
-                >
-                  <button
-                    type="button"
-                    className="xp-grip"
-                    aria-label={`Reorder ${name}. Use Alt plus Up or Down arrow to move.`}
-                    onKeyDown={(e) => {
-                      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-                        e.preventDefault();
-                        const to = e.key === "ArrowUp" ? i - 1 : i + 1;
-                        move(i, to);
-                        requestAnimationFrame(() => document.querySelectorAll(".xp-grip")[Math.max(0, Math.min(draft.length - 1, to))]?.focus());
-                      }
-                    }}
-                  >
-                    ⋮⋮
-                  </button>
-                  <span className="xp-block-name">{name}</span>
-                  <input className="xp-input xp-block-heading" aria-label={`Heading for ${name}`} value={block.label || ""} placeholder="No heading" onChange={(e) => setLabel(i, e.target.value)} />
-                  <span className="xp-block-show">
-                    <input type="checkbox" aria-label={`Show ${name}`} checked={block.hidden !== true} onChange={(e) => setShown(i, e.target.checked)} />
-                  </span>
-                  <span className="xp-moves">
-                    <button type="button" className="xp-iconbtn" style={{ height: 22, width: 32, fontSize: 12 }} aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>▲</button>
-                    <button type="button" className="xp-iconbtn" style={{ height: 22, width: 32, fontSize: 12 }} aria-label={`Move ${name} down`} disabled={i === draft.length - 1} onClick={() => move(i, i + 1)}>▼</button>
-                  </span>
-                  <button type="button" className="xp-iconbtn" aria-label={`Remove ${name}`} onClick={() => setDraft((d) => d.filter((_, bi) => bi !== i))}>×</button>
-                </div>
-              );
-            })}
-            {draft.length === 0 && <p className="xp-help" style={{ padding: 16 }}>No sections — add one below.</p>}
-            <div className="xp-row" style={{ padding: "12px 16px", justifyContent: "space-between" }}>
-              {availableToAdd.standard.length > 0 || availableToAdd.cats.length > 0 ? (
-                <select
-                  className="xp-input"
-                  aria-label="Add section"
-                  value=""
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (!v) return;
-                    setDraft((d) => [...d, v.startsWith("cat:") ? { type: "categorisation", key: v.slice(4) } : { type: v }]);
+      <Section title="Sections" as="h3" flush>
+        <div className="b4-blocks">
+          <div className="b4-blockhead" aria-hidden="true">
+            <span className="b4-col-grip" />
+            <span className="b4-col-name">Section</span>
+            <span className="b4-col-heading">Heading on page</span>
+            <span className="b4-col-show">Show</span>
+            <span className="b4-col-actions" />
+          </div>
+          {draft.map((block, i) => {
+            const name = block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type);
+            return (
+              <div
+                key={`${blockKey(block)}-${i}`}
+                className="b4-block"
+                data-dragging={String(dragIndex === i)}
+                data-hidden={String(block.hidden === true)}
+                draggable
+                onDragStart={() => setDragIndex(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragIndex !== null) move(dragIndex, i);
+                  setDragIndex(null);
+                }}
+                onDragEnd={() => setDragIndex(null)}
+              >
+                <button
+                  type="button"
+                  className="b4-grip"
+                  aria-label={`Reorder ${name}. Use Alt plus Up or Down arrow to move.`}
+                  onKeyDown={(e) => {
+                    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                      e.preventDefault();
+                      const to = e.key === "ArrowUp" ? i - 1 : i + 1;
+                      move(i, to);
+                      requestAnimationFrame(() => document.querySelectorAll(".b4-grip")[Math.max(0, Math.min(draft.length - 1, to))]?.focus());
+                    }
                   }}
                 >
-                  <option value="">+ Add section</option>
-                  {availableToAdd.standard.map((b) => <option key={b.type} value={b.type}>{b.label}</option>)}
-                  {availableToAdd.cats.map((c) => <option key={c.key} value={`cat:${c.key}`}>Tags: {c.label}</option>)}
-                </select>
-              ) : <span />}
-              <span className="xp-help">Headings become jump links at the top of the page.</span>
-            </div>
+                  <DotsIcon />
+                </button>
+                <span className="b4-block-name">{name}</span>
+                <TextInput className="b4-block-heading" aria-label={`Heading for ${name}`} value={block.label || ""} placeholder="No heading" onChange={(e) => setLabel(i, e.target.value)} />
+                <span className="b4-block-show">
+                  <input type="checkbox" aria-label={`Show ${name}`} checked={block.hidden !== true} onChange={(e) => setShown(i, e.target.checked)} />
+                </span>
+                <span className="b4-moves">
+                  <Button variant="ghost" size="sm" iconOnly aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><ArrowUpIcon /></Button>
+                  <Button variant="ghost" size="sm" iconOnly aria-label={`Move ${name} down`} disabled={i === draft.length - 1} onClick={() => move(i, i + 1)}><ArrowDownIcon /></Button>
+                  <Button variant="ghost" size="sm" iconOnly aria-label={`Remove ${name}`} onClick={() => setDraft((d) => d.filter((_, bi) => bi !== i))}><XIcon /></Button>
+                </span>
+              </div>
+            );
+          })}
+          {draft.length === 0 && <p className="field-hint b4-blocks-foot">No sections — add one below.</p>}
+          <div className="b4-blocks-foot">
+            {availableToAdd.standard.length > 0 || availableToAdd.cats.length > 0 ? (
+              <Select
+                aria-label="Add section"
+                value=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setDraft((d) => [...d, v.startsWith("cat:") ? { type: "categorisation", key: v.slice(4) } : { type: v }]);
+                }}
+              >
+                <option value="">Add section</option>
+                {availableToAdd.standard.map((b) => <option key={b.type} value={b.type}>{b.label}</option>)}
+                {availableToAdd.cats.map((c) => <option key={c.key} value={`cat:${c.key}`}>Tags: {c.label}</option>)}
+              </Select>
+            ) : <span />}
+            <span className="field-hint">Headings become jump links at the top of the page.</span>
           </div>
-        </section>
-
-        <aside className="xp-previewcol" aria-label="Entry preview">
-          <div className="xp-row" style={{ justifyContent: "space-between" }}>
-            <span className="xp-tabgroup-label">Preview</span>
-            {entries.length > 0 && (
-              <label className="xp-help" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                Entry
-                <select className="xp-input" style={{ height: 30, fontSize: 12, maxWidth: 220 }} aria-label="Preview entry" value={previewId} onChange={(e) => setPreviewId(e.target.value)}>
-                  {entries.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-          <div className="xp-card" style={{ maxHeight: 520, overflowY: "auto" }}>
-            {entries.length === 0 && <p className="xp-help">Placeholder preview — this directory has no active entries yet.</p>}
-            {draft.map((block, i) => (
-              <PreviewBlock key={`${blockKey(block)}-${i}`} block={block} entry={previewEntry} extras={previewExtras} />
-            ))}
-          </div>
-        </aside>
-      </div>
-
-      <SaveBar
-        dirtyCount={changed}
-        saving={saving}
-        error={err}
-        savedAt={savedAt}
-        publishHref={`${basePath}/publishing`}
-        PublishLink={Link}
-        onDiscard={() => setDialog({ kind: "discard" })}
-        onSave={save}
-      />
+        </div>
+      </Section>
 
       {dialog?.kind === "new" && <NewTemplateDialog groups={groups} categorisations={categorisations} busy={saving} onSubmit={createTemplate} onCancel={() => setDialog(null)} />}
       {dialog?.kind === "delete" && <ConfirmDialog title="Delete template?" message={`Delete "${dialog.template.name}"? Entries it applied to will fall back to the default layout.`} confirmLabel="Delete" danger onConfirm={() => deleteTemplate(dialog.template)} onCancel={() => setDialog(null)} />}
       {dialog?.kind === "discard" && <ConfirmDialog title="Discard changes?" message="Revert this template to its last saved layout?" confirmLabel="Discard" danger onConfirm={() => { setDraft(savedLayout); setDialog(null); }} onCancel={() => setDialog(null)} />}
       {dialog?.kind === "switch" && <ConfirmDialog title="Switch template?" message="You have unsaved changes to this template. Switching will discard them." confirmLabel="Switch" danger onConfirm={() => { setSelectedId(dialog.id); setDialog(null); }} onCancel={() => setDialog(null)} />}
-    </div>
+    </RecordLayout>
   );
 }

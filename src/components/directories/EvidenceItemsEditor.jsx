@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { CONFIDENCE_OPTIONS, createEvidenceItem, deleteEvidenceItem, listEvidenceItems } from "../../lib/evidenceItems";
+import { Button, Callout, EmptyState, Field, FieldGrid, Select, Skeleton, Textarea, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { claim: "", value: "", source_url: "", checked_at: "", confidence: "", note: "" };
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 /** Per-claim evidence list on an entry (build-scope §5.5). Saves immediately. */
 export default function EvidenceItemsEditor({ directoryId, entryId, recordEvent }) {
@@ -59,64 +60,74 @@ export default function EvidenceItemsEditor({ directoryId, entryId, recordEvent 
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Evidence</p>
-        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-          {addOpen ? "Cancel" : "+ Add evidence"}
-        </button>
+    <div className="b3-stack">
+      <div className="b3-row b3-row--between">
+        <h3 className="b3-subhead">Evidence</h3>
+        <Button size="sm" onClick={() => setAddOpen((v) => !v)}>
+          {addOpen ? "Cancel" : "Add evidence"}
+        </Button>
       </div>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
       {addOpen && (
-        <form onSubmit={save} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.claim} onChange={(e) => fSet("claim", e.target.value)} placeholder="Claim / field, e.g. &quot;No riding&quot;" style={inputStyle} required />
-          <input value={form.value} onChange={(e) => fSet("value", e.target.value)} placeholder="Value (optional)" style={inputStyle} />
-          <input value={form.source_url} onChange={(e) => fSet("source_url", e.target.value)} placeholder="Source URL (optional)" type="url" style={inputStyle} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <input value={form.checked_at} onChange={(e) => fSet("checked_at", e.target.value)} type="date" style={inputStyle} />
-            <select value={form.confidence} onChange={(e) => fSet("confidence", e.target.value)} style={inputStyle}>
-              <option value="">Confidence…</option>
-              {CONFIDENCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <textarea value={form.note} onChange={(e) => fSet("note", e.target.value)} placeholder="Note (optional)" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
-          <div>
-            <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-              {saving ? "Saving…" : "Add evidence"}
-            </button>
+        <form onSubmit={save} className="b3-form">
+          <Field label="Claim or field" hint={'For example "No riding".'} required>
+            <TextInput value={form.claim} onChange={(e) => fSet("claim", e.target.value)} />
+          </Field>
+          <Field label="Value" hint="Optional.">
+            <TextInput value={form.value} onChange={(e) => fSet("value", e.target.value)} />
+          </Field>
+          <Field label="Source URL" hint="Optional.">
+            <TextInput type="url" value={form.source_url} onChange={(e) => fSet("source_url", e.target.value)} />
+          </Field>
+          <FieldGrid>
+            <Field label="Date checked">
+              <TextInput type="date" value={form.checked_at} onChange={(e) => fSet("checked_at", e.target.value)} />
+            </Field>
+            <Field label="Confidence">
+              <Select value={form.confidence} onChange={(e) => fSet("confidence", e.target.value)}>
+                <option value="">Choose confidence</option>
+                {CONFIDENCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </Select>
+            </Field>
+          </FieldGrid>
+          <Field label="Note" hint="Optional.">
+            <Textarea rows={2} value={form.note} onChange={(e) => fSet("note", e.target.value)} />
+          </Field>
+          <div className="b3-form-actions">
+            <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Add evidence</Button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="list" rows={2} label="Loading evidence" />
       ) : items.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No evidence recorded yet.</p>
+        <EmptyState art="none" title="No evidence recorded yet" body="Add the source for a claim so visitors can see how it was checked." />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
+        <ul className="b3-list">
           {items.map((item) => (
-            <div key={item.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7 }}>
-              <div style={{ fontSize: 12 }}>
-                <div style={{ fontWeight: 500 }}>
+            <li key={item.id} className="b3-list-item b3-list-item--top">
+              <div className="b3-list-main">
+                <div className="b3-list-title">
                   {item.claim}
                   {item.confidence && (
-                    <span style={{ marginLeft: 6, opacity: 0.65, fontWeight: 400 }}>
+                    <span className="b3-muted">
                       ({CONFIDENCE_OPTIONS.find((o) => o.value === item.confidence)?.label ?? item.confidence})
                     </span>
                   )}
                 </div>
-                {item.value && <div style={{ opacity: 0.8 }}>{item.value}</div>}
-                {item.source_url && <div><a href={item.source_url} target="_blank" rel="noopener noreferrer">source</a></div>}
-                {item.note && <div style={{ opacity: 0.7, marginTop: 2 }}>{item.note}</div>}
+                {item.value && <div className="b3-list-sub">{item.value}</div>}
+                {item.source_url && <div className="b3-list-sub"><a href={item.source_url} target="_blank" rel="noopener noreferrer">source</a></div>}
+                {item.note && <div className="b3-list-sub">{item.note}</div>}
               </div>
-              <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c", flexShrink: 0 }} onClick={() => remove(item)}>
+              <Button variant="danger" size="sm" aria-label={`Delete evidence: ${item.claim}`} onClick={() => remove(item)}>
                 Delete
-              </button>
-            </div>
+              </Button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
