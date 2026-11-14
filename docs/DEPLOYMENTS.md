@@ -19,6 +19,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Note: the assistant shows only inside the app shell. An admin who opens `/client` with no organisation of their own sees the "Admin account" card, which is outside the shell, so no Ask Pip there (use `/admin/clients`).
 - No data fetching, route, permission or Edge Function changes. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-bu3mxi4ey-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the commit and redeploy with `npm run deploy:live`, or set a `feature_flags` row `assistant_preview` to `false` (needs a migration or direct row insert). No Edge Function.
 
