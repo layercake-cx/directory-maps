@@ -21,7 +21,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - 2026-11-14: Vercel preview deployed from this branch (`directory-maps-1jy0gzo9p-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so edits there are real.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-7w6vl3nhi-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend. The bumped `updated_at` values are harmless.
