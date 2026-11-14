@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase, invokeFunction } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import { Alert, Badge, Button, Loader, Overlay, SegmentedControl, Select, Stack, Text, Group } from "@mantine/core";
@@ -15,6 +15,8 @@ import { logClientError } from "../../lib/errorLogger.js";
 import { openGoogleDrivePicker, preloadGoogleDrivePicker } from "../../lib/googleDrivePicker.js";
 import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
 import MapDataTabs from "../../components/MapDataTabs.jsx";
+import { JobCard, KeepOpenBanner, useLocalJob, buildSheetSyncJob, buildBrowserJob } from "../../components/jobs/index.js";
+import { useUnsavedGuard } from "../../components/ui/index.js";
 import { listDirectories, getMapDirectoryAssociation, attachDirectoryToMap, detachDirectoryFromMap, createDirectoryFromMap } from "../../lib/directories.js";
 
 const PAGE_SIZE = 100;
@@ -172,6 +174,11 @@ export default function AdminMapData() {
   const [preview, setPreview] = useState([]);
   const [geocodeMissing, setGeocodeMissing] = useState(true);
   const [importing, setImporting] = useState(false);
+  // Processing pattern: Sheets sync is a JobCard; CSV import runs in the browser, so it gets a KeepOpenBanner and a leave guard.
+  const { pathname } = useLocation();
+  const sheetJob = useLocalJob(`sheet-sync:${mapId}`);
+  const importJob = useLocalJob(`csv-import:${mapId}`);
+  useUnsavedGuard(importing);
   const [importChoiceOverlayOpen, setImportChoiceOverlayOpen] = useState(false);
 
   // ── Manual CRUD ───────────────────────────────────────────────────────────
@@ -407,8 +414,11 @@ export default function AdminMapData() {
   }
 
   async function syncNow() {
+    const jobId = `sheet-sync:${mapId}`;
+    const jobStartedAt = new Date().toISOString();
     try {
       setSyncing(true); setSheetErr(""); setSheetMsg("");
+      sheetJob.upsert(buildSheetSyncJob({ id: jobId, status: "running", sheetName: sheetStatus?.sheet?.sheet_name, startedAt: jobStartedAt, href: pathname }));
       const { data, error } = await invokeFunction("sync_sheet_listings", { body: { mapId } });
       if (error) {
         const body = await error.context?.json?.().catch(() => null);
@@ -417,11 +427,13 @@ export default function AdminMapData() {
       const formatted = formatSheetSyncResult(data, mapId);
       if (formatted.type === "error") throw new Error(formatted.message);
       if (formatted.type === "warning") { setSheetErr(formatted.message); setSheetMsg(""); }
-      else { setSheetErr(""); setSheetMsg(formatted.message); }
+      else { setSheetErr(""); setSheetMsg(""); }
+      sheetJob.upsert(buildSheetSyncJob({ id: jobId, status: "done", startedAt: jobStartedAt, counts: { rows: formatted.rows }, href: pathname }));
       const l = await fetchListings();
       setListings(l ?? []);
       await refreshSheetStatus();
     } catch (e) {
+      sheetJob.upsert(buildSheetSyncJob({ id: jobId, status: "failed", startedAt: jobStartedAt, error: e?.message ?? String(e), href: pathname }));
       setSheetErr(e?.message ?? String(e));
       logClientError({ type: "google_sync", message: e?.message ?? String(e), context: { map_id: mapId, fn: "syncNow" } });
     } finally {
@@ -596,8 +608,12 @@ export default function AdminMapData() {
 
     if (errors.length) { setErr(errors.slice(0, 40).join("\n") + (errors.length > 40 ? `\n… +${errors.length - 40} more` : "")); return; }
 
+    const importJobId = `csv-import:${mapId}`;
+    let importStartedAt = null;
     try {
       setImporting(true); setImportChoiceOverlayOpen(false);
+      importStartedAt = new Date().toISOString();
+      importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "running", total: cleaned.length, startedAt: importStartedAt, href: pathname }));
       if (mode === "overwrite") {
         const { error: delErr } = await supabase.from("listings").delete().eq("map_id", mapId);
         if (delErr) throw new Error(`Delete existing failed: ${delErr.message}`);
@@ -663,12 +679,14 @@ export default function AdminMapData() {
       } else {
         setMsg(`Imported ${importCount} rows.${filterWarnSuffix}`);
       }
+      importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "done", imported: importCount, total: cleaned.length, startedAt: importStartedAt, href: pathname }));
       const [{ data: g }, l] = await Promise.all([
         supabase.from("groups").select("id,name").eq("map_id", mapId).order("sort_order", { ascending: true }),
         fetchListings(),
       ]);
       setGroups(g ?? []); setListings(l ?? []);
     } catch (e) {
+      if (importStartedAt) importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "failed", processed: 0, total: cleaned?.length, startedAt: importStartedAt, error: e?.message ?? String(e), href: pathname }));
       setErr(e?.message ?? String(e));
     } finally {
       setImporting(false);
@@ -1016,6 +1034,14 @@ export default function AdminMapData() {
         {/* ── Tab bar ── */}
         <MapDataTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
 
+      {(importing || sheetJob.job || importJob.job) ? (
+        <div className="job-stack">
+          {importing ? <KeepOpenBanner title={`Importing ${rows.length} ${rows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." /> : null}
+          {sheetJob.job ? <JobCard job={sheetJob.job} onRetry={syncNow} onDismiss={sheetJob.dismiss} /> : null}
+          {!importing && importJob.job ? <JobCard job={importJob.job} onDismiss={importJob.dismiss} /> : null}
+        </div>
+      ) : null}
+
         {justDisconnected && (
           <Alert color="teal" variant="light" mb="md" withCloseButton onClose={() => setJustDisconnected(false)}>
             Google Drive disconnected. You can now edit listings manually or upload a CSV.
@@ -1048,14 +1074,6 @@ export default function AdminMapData() {
 
               {/* Google Drive */}
               <div className="admin-card" style={{ padding: 20, position: "relative", overflow: "hidden" }}>
-                {syncing && (
-                  <Overlay blur={3} backgroundOpacity={0.55} color="#fff" zIndex={10} radius="md">
-                    <Stack align="center" justify="center" style={{ height: "100%" }} gap="xs">
-                      <Loader size="sm" />
-                      <Text size="sm" fw={500} c="dimmed">Syncing…</Text>
-                    </Stack>
-                  </Overlay>
-                )}
                 <Stack gap="md">
                   <Group gap="sm" justify="space-between">
                     <Group gap="sm">
@@ -1643,15 +1661,6 @@ export default function AdminMapData() {
           </div>
         )}
 
-        {importing && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
-            <div className="admin-card" style={{ padding: 28, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}>
-              <Loader size="md" />
-              <Text size="sm" fw={500}>Importing data…</Text>
-              <Text size="xs" c="dimmed">This may take a moment.</Text>
-            </div>
-          </div>
-        )}
 
         {manualModal && (
           <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", padding: 16 }} onClick={closeManual}>

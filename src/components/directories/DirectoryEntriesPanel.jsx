@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Badge, Button, Group, Loader, Text } from "@mantine/core";
 import {
   ENTRIES_PAGE_SIZE,
@@ -15,6 +15,8 @@ import {
 } from "../../lib/directories";
 import { listAttachedCategorisations, listEntryTermIdsByEntry, setEntryTerms } from "../../lib/categorisations";
 import BulkCategoryEditModal from "./BulkCategoryEditModal.jsx";
+import { JobCard, KeepOpenBanner, useLocalJob, buildBrowserJob } from "../jobs/index.js";
+import { useUnsavedGuard } from "../ui/index.js";
 
 // ─── CSV helpers (mirrors ClientMapData.jsx's parseCSV convention) ──────────
 
@@ -135,6 +137,10 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
   const [csvFileErr, setCsvFileErr] = useState("");
   const [csvMsg, setCsvMsg] = useState("");
   const [importing, setImporting] = useState(false);
+  // CSV import runs in the browser: banner + leave guard while it runs, then a done/failed JobCard.
+  const { pathname } = useLocation();
+  const importJob = useLocalJob(`csv-import:${directoryId}`);
+  useUnsavedGuard(importing);
   const [importChoiceOpen, setImportChoiceOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -380,9 +386,12 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
     setErr(""); setCsvMsg("");
     if (!csvRows.length) { setErr("No rows loaded yet."); return; }
 
+    const importJobId = `csv-import:${directoryId}`;
+    const importStartedAt = new Date().toISOString();
     try {
       setImporting(true);
       setImportChoiceOpen(false);
+      importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "running", total: csvRows.length, startedAt: importStartedAt, href: pathname }));
 
       // Needed to preserve `slug` on blank cells for rows that update an
       // existing entry (slug is NOT NULL + unique, and only auto-fills on
@@ -555,12 +564,14 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
       const modeLabel = mode === "overwrite" ? "Replaced existing entries — imported" : "Imported";
       setCsvMsg(`${modeLabel} ${upserted.length} row${upserted.length === 1 ? "" : "s"}.${warnings.length ? ` ${warnings.length} term warning(s) below.` : ""}`);
+      importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "done", imported: upserted.length, total: csvRows.length, startedAt: importStartedAt, href: pathname }));
       setErr(warnings.length ? warnings.slice(0, 40).join("\n") : "");
       setCsvRows([]);
       setCsvPreview([]);
       setImportOpen(false);
       await refresh();
     } catch (e) {
+      importJob.upsert(buildBrowserJob({ id: importJobId, kind: "csv-import", status: "failed", processed: 0, total: csvRows.length, startedAt: importStartedAt, error: e?.message ?? String(e), href: pathname }));
       setErr(e?.message ?? String(e));
     } finally {
       setImporting(false);
@@ -569,6 +580,11 @@ export default function DirectoryEntriesPanel({ directoryId, directoryBasePath, 
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {importing ? (
+        <KeepOpenBanner title={`Importing ${csvRows.length} ${csvRows.length === 1 ? "row" : "rows"}`} detail="Importing runs in your browser and stops if you leave." />
+      ) : importJob.job ? (
+        <JobCard job={importJob.job} onDismiss={importJob.dismiss} />
+      ) : null}
       <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
         <div>
           <Text size="sm" fw={600}>Entries</Text>

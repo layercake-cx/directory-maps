@@ -6,6 +6,7 @@ import "../../styles/discover-ui.css";
 import TopBar from "./TopBar.jsx";
 import Rail from "./Rail.jsx";
 import { ToastProvider, ConfirmProvider } from "../ui/index.js";
+import { JobsProvider } from "../jobs/index.js";
 
 /**
  * Three-layer navigation shell: TopBar + icon Rail + optional FeaturePanel + <main>.
@@ -30,6 +31,7 @@ export default function AppShell({ context, isStaff, homeHref, orgName, activeCl
     <div className="shell" data-context={context} data-staff={isStaff ? "true" : "false"}>
       <ToastProvider>
         <ConfirmProvider>
+          <JobsProvider>
           <TopBar
             context={context}
             isStaff={isStaff}
@@ -50,6 +52,7 @@ export default function AppShell({ context, isStaff, homeHref, orgName, activeCl
             {panel && navOpen ? <div className="panel-scrim" onClick={() => setNavOpen(false)} aria-hidden="true" /> : null}
             <main className={panel ? "main" : "main main--wide"}>{children}</main>
           </div>
+          </JobsProvider>
         </ConfirmProvider>
       </ToastProvider>
     </div>

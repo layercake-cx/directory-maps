@@ -177,6 +177,15 @@ Pick an email, then edit its **Subject**, **Heading**, **Message** and **Button 
 
 These emails are sent from the directory's chosen sending profile (a verified custom domain sends from your own address); with no profile chosen they go from the platform address under the directory's name. Unlike the Contact button, they are not stopped by the messaging on/off switch or test mode, because a sign-in link has to reach its recipient.
 
+### Progress and background tasks
+
+Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.
+
+- **Work that runs on our servers** (publishing, Restore, regenerating pages, AI content drafting, SEO metadata backfill) keeps going if you leave the page. The card says so, shows elapsed time, and shows a percentage and "about N min left" only when there is real progress to base it on. If you reload mid-run, the card comes back. When a task finishes while you are on another page, you get a short message, and the directory's publish chip in the side panel shows the same running state.
+- **Work that runs in your browser** (CSV import, Google Sheets sync) needs the tab open. A banner says **Keep this tab open**, and leaving the page asks you to confirm first.
+- While a publish is running, **Publish** and **Restore** are paused with a short reason beside them. Editing other things stays available.
+- If something fails, the card turns red, says what is still live, and offers **Try again**. It stays until you dismiss it.
+
 ### Publishing a directory
 
 > **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
@@ -189,7 +198,7 @@ Publish rewrites only the pages affected by what changed since the last successf
 - **Search, filters, Ask AI, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
 - **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
 
-The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the Contact button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
+The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the Contact button, or analytics tags — those are copied into each page. **Restore** on an earlier version asks you to confirm, then publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
 
 Each publish also regenerates `sitemap.xml` and `llms.txt`. Every sitemap URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
 
@@ -363,7 +372,7 @@ On a directory's **Content › AI enrichment** page (owners and managers only), 
 1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
 2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.
 3. **One entry, any time** — on that entry's **Content** tab, click **Generate with AI**. This always runs immediately, even if the entry already has content (you'll be asked to confirm, since it overwrites what's there).
-4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; the panel shows a progress count while it runs.
+4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; a progress card shows how many entries are done while it runs, and you can leave the page.
 
 Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
 
@@ -372,7 +381,7 @@ Every save — whether you typed it or AI wrote it — is kept in that entry's *
 The next panel on the **AI** tab shows how many active entries are missing any of their SEO/social fields (meta title, meta description, keywords, social title, social description, AI summary) and lets you fill them all in one go:
 
 1. It tells you upfront how many entries are missing something, before you click anything.
-2. **Backfill missing metadata** queues a background job for exactly those entries — never entries that already have everything, so there's nothing to confirm or type first (unlike "Generate all entry content" above, this can't overwrite anything you've written). A progress count shows while it runs.
+2. **Backfill missing metadata** queues a background job for exactly those entries — never entries that already have everything, so there's nothing to confirm or type first (unlike "Generate all entry content" above, this can't overwrite anything you've written). A progress card shows how many entries are done while it runs, and you can leave the page.
 3. New entries missing any of these fields get them filled in automatically as they're created, without needing this button at all.
 4. Each field this fills in shows a small "auto-drafted by AI" note on that entry's own Search & Metadata tab, so you know it's worth a quick look — though there's no obligation to change anything.
 

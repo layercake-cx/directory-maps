@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 4: processing pattern
+
+**Branch:** `feat/2026-11-14-discover-ui-processing`
+
+### What changed
+- New `src/components/jobs/`: `JobsProvider`, `useJob`, `JobCard`, top-bar `TaskIndicator`, `KeepOpenBanner`, `DirectoryJobsWatcher`. Long work now shows a progress card on its page and a "N running" indicator in the top bar from any page, then a Toast and a green "Done" if it finishes while you are elsewhere, or a red card that stays until dismissed.
+- **Publishing:** the three stacked status lines and the hourglass are gone; a three-step card (Settings saved, Generating pages, Live) sits above the form. **Publish update** and **Restore** are disabled with a reason while a run is going. Restore asks through a dialog instead of `window.confirm`. The side-panel publish chip shows a spinner, elapsed time and a thin moving bar while generating.
+- **AI content and SEO backfill:** determinate cards with "x of y entries done", percentage and a time-left estimate only once there is a measured rate. On finish, the primary action jumps to the existing run report.
+- **Google Sheets sync:** indeterminate card with an elapsed timer replaces the blur overlay (client and admin map Data pages).
+- **CSV import** (map Data pages and directory Entries): a **Keep this tab open** banner and a leave guard replace the blocking overlay, then a done or failed card.
+- Server jobs keep polling after you leave the page and come back after a reload (including runs started in another tab).
+- **Deviations from the brief:** geocoding is a server-side queue here (no browser loop, no progress source), so it is unchanged and logged in `BACKLOG.md`; CSV import has no per-row progress or safe stop point, so it is indeterminate with no Stop button; no Contact support action yet (support link is a placeholder). No cancel flags were added anywhere, so no loop behaviour changed.
+- The "Last full run completed {date}" muted line on the AI panels is gone (the card replaces status lines; that date isn't shown until a run is watched).
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes; every `recordEvent` call is as it was. No migration.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Job surfaces driven in a local harness (not committed): determinate AI run (percentage, striped bar, counts, "Running for 26 s · about 1 min left"), done state with Review drafts, three-step indeterminate publish card with `aria-valuetext`, failed card (`role=alert`, technical details, Try again), top-bar indicator ("1 running", green Done, red "1 failed") and popover list.
+- [ ] Not yet checked against real server jobs (needs a signed-in session): publish, restore, AI content run, SEO backfill, Sheets sync, CSV import in both portals; reload mid-run; started-in-another-tab; reduced motion; VoiceOver.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 3: shell updates
 
 **Branch:** `feat/2026-11-14-discover-ui-shell`

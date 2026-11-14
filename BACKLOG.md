@@ -126,3 +126,21 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - **Fix:** resolve the map recipient server-side from `listingId` (the listing's own email, or `maps.email_test_recipient` when `email_test_mode` is on) instead of trusting `toEmail`. Needs a frontend change too: the embed would send `listingId` and stop sending an address.
 - **Size guess:** S-M
 - **Status:** To do
+
+### [DISCOVER-UI] Geocoding progress
+- Source: docs/design/discover-ui/PATTERNS.md (§1.3 job kinds, "Geocode" copy)
+- What the design shows: a determinate "Finding map locations · x of y" job with a Stop button, run in the browser.
+- Why not built now: geocoding is a server-side queue here (`geocode_listings`, `geocodeDirectoryEntries`), not a browser loop, and nothing exposes processed/total. There is nothing to stop and no progress to read without a new status source or a count poll.
+- Suggested next step: expose a processed/total count for the geocode queue (like the AI bulk runs have) so it can use `JobCard`.
+
+### [DISCOVER-UI] "Contact support" on failed jobs
+- Source: docs/design/discover-ui/PATTERNS.md (§1.4 JobCard failed state)
+- What the design shows: a Contact support action on a red job card.
+- Why not built now: the top-bar support link is still a placeholder (`href="#"`), so there is nowhere real to send people.
+- Suggested next step: decide the support destination, then add it to `JobCard` and the top bar together.
+
+### [DISCOVER-UI] CSV import progress and Stop
+- Source: docs/design/discover-ui/PATTERNS.md (§1.5 ClientMapData/AdminMapData/DirectoryEntriesPanel)
+- What the design shows: a determinate import with a Stop button.
+- Why not built now: import is one upsert plus follow-up writes, not a row loop, so there is no progress to show and nothing safe to stop mid-way.
+- Suggested next step: if large imports become a problem, batch the upsert and report batches done.
