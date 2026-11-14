@@ -21,6 +21,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Not built: a searchable-select wrapper (the spec makes it optional; native `Select` covers current needs).
 - No behaviour, data, route (other than `/admin/ui-kit`), event, migration or Edge Function changes.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-cieizefu9-layercake-apps.vercel.app`). `maps.layercake-cx.biz` serves the new bundle. GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
