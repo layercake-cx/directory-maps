@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { signOut } from "../../lib/auth";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
-import AdminLayout from "../admin/AdminLayout.jsx";
-import "../admin/admin.css";
+import {
+  Button, Callout, Checkbox, DataTable, EmptyState, Field, PageLayout, Pill, Section, Select, TextInput, Toolbar,
+} from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
 
 /** Geocode via Supabase Edge Function. No auth header: deploy with --no-verify-jwt (see scripts/test-geocode.md). */
 async function geocodeViaServer(supabaseClient, address) {
@@ -42,7 +43,6 @@ async function geocodeViaServer(supabaseClient, address) {
 
 export default function ClientMapListings() {
   const { mapId } = useParams();
-  const navigate = useNavigate();
 
   const [clientName, setClientName] = useState("");
   const [map, setMap] = useState(null);
@@ -209,98 +209,90 @@ export default function ClientMapListings() {
     });
   }, [rows, q, groupId, onlyActive, groupNameById]);
 
+  const columns = [
+    {
+      key: "name",
+      label: "Name",
+      render: (r) => (
+        <>
+          <strong>{r.name}</strong>
+          <span className="mp-cell-sub">{r.id}</span>
+        </>
+      ),
+    },
+    { key: "group", label: "Group", render: (r) => groupNameById.get(r.group_id) || "—" },
+    { key: "location", label: "Location", render: (r) => (r.postcode || "—") + (r.country ? ` · ${r.country}` : "") },
+    {
+      key: "coords",
+      label: "Coords",
+      render: (r) => (r.lat != null && r.lng != null
+        ? <Pill tone="ok">Geocoded</Pill>
+        : <Pill tone="warn">Not geocoded</Pill>),
+    },
+    { key: "active", label: "Active", render: (r) => (r.is_active ? <Pill tone="live">Yes</Pill> : <Pill>No</Pill>) },
+    { key: "updated", label: "Updated", render: (r) => (r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—") },
+  ];
+
   return (
-    <AdminLayout
-      title={`${clientName} · ${map?.name ?? "Map"} · Listings`}
-      backTo={`/client/maps/${encodeURIComponent(mapId)}`}
-      backLabel="Back to map"
-      rightActions={
-        <button
-          onClick={async () => {
-            try { await signOut(); } catch {}
-            navigate("/login", { replace: true });
-          }}
-          type="button"
-        >
-          Sign out
-        </button>
-      }
+    <PageLayout
+      head={{
+        title: "Listings",
+        subtitle: `${clientName} · ${map?.name ?? "Map"}`,
+        breadcrumb: [
+          { label: "Back to map", to: `/client/maps/${encodeURIComponent(mapId)}` },
+          { label: "Listings" },
+        ],
+        actions: (
+          <>
+            <Button onClick={load}>Refresh</Button>
+            <Button onClick={geocodeMissingCoords} loading={geocodingMissing} loadingLabel="Geocoding…" disabled={loading}>
+              Geocode missing coords
+            </Button>
+          </>
+        ),
+      }}
     >
-      <div className="card card-pad">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <div>
-            <p className="card-title">Listings</p>
-            <div style={{ fontSize: 13, opacity: 0.8 }}>
-              Showing <strong>{filtered.length}</strong> of <strong>{rows.length}</strong>
-            </div>
+      <div className="mp-stack">
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
+        {err ? <Callout tone="danger"><pre className="mp-pre">{err}</pre></Callout> : null}
+
+        <Section
+          title="Listings"
+          description={<>Showing <strong>{filtered.length}</strong> of <strong>{rows.length}</strong></>}
+        >
+          <div className="mp-stack">
+            <Toolbar>
+              <Field label="Search" className="mp-grow">
+                <TextInput
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search name, postcode, country, group…"
+                />
+              </Field>
+              <Field label="Group">
+                <Select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                  <option value="">All groups</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Checkbox label="Active only" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
+            </Toolbar>
+
+            <DataTable
+              columns={columns}
+              rows={filtered}
+              getRowId={(r) => r.id}
+              getRowLabel={(r) => r.name}
+              loading={loading}
+              caption="Listings"
+              empty={<EmptyState art="searching" title="No listings match" body="Try a different search or clear the filters." />}
+            />
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="shell-btn" type="button" onClick={load}>
-              Refresh
-            </button>
-            <button
-              className="shell-btn"
-              type="button"
-              onClick={geocodeMissingCoords}
-              disabled={loading || geocodingMissing}
-            >
-              {geocodingMissing ? "Geocoding…" : "Geocode missing coords"}
-            </button>
-          </div>
-        </div>
-
-        <div className="admin-controls" style={{ marginTop: 14 }}>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, postcode, country, group…"
-          />
-          <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All groups</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
-            <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-            Active only
-          </label>
-        </div>
-
-        {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
-        {msg ? <p style={{ marginTop: 12, color: msg.startsWith("Geocoded") ? "var(--lc-success, #0a0)" : undefined }}>{msg}</p> : null}
-        {err ? <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{err}</pre> : null}
-
-        <table className="admin-table" style={{ marginTop: 12 }}>
-          <thead>
-            <tr>
-              {["Name", "Group", "Location", "Coords", "Active", "Updated"].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => {
-              const hasCoords = r.lat != null && r.lng != null;
-              return (
-                <tr key={r.id}>
-                  <td>
-                    <strong>{r.name}</strong>
-                    <div style={{ fontSize: 11, opacity: 0.6 }}>{r.id}</div>
-                  </td>
-                  <td>{groupNameById.get(r.group_id) || "—"}</td>
-                  <td>{(r.postcode || "—") + (r.country ? ` · ${r.country}` : "")}</td>
-                  <td>{hasCoords ? "✓" : "—"}</td>
-                  <td>{r.is_active ? "Yes" : "No"}</td>
-                  <td>{r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        </Section>
       </div>
-    </AdminLayout>
+    </PageLayout>
   );
 }

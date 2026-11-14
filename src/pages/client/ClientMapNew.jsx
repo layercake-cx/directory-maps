@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button, Callout, Checkbox, Field, FieldGrid, Section, SettingsLayout, TextInput } from "../../components/ui/index.js";
 import { supabase } from "../../lib/supabase";
 import { getClientIdForCurrentUser } from "../../lib/clientAuth";
 import { useEntitlement } from "../../hooks/useEntitlements.js";
 import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
+import "../../styles/wave-b/map-pages.css";
 
 function slugify(input) {
   return (input || "")
@@ -171,123 +173,85 @@ export default function ClientMapNew() {
   }
 
   return (
-    <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <Link to="/client" style={{ fontSize: 13 }}>← Back to your maps</Link>
-          <h1 className="page-title" style={{ marginTop: 4 }}>Create map</h1>
-        </div>
-      </div>
-
+    <SettingsLayout
+      className="mp-form"
+      head={{
+        title: "Create map",
+        breadcrumb: [{ label: "Your maps", to: "/client" }, { label: "Create map" }],
+      }}
+    >
       <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
 
-      <div className="card card-pad" style={{ maxWidth: 680, marginTop: 16 }}>
-        <form onSubmit={createMap}>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div className="field-grid">
+      <form onSubmit={createMap}>
+        <Section
+          footer={
+            <div className="mp-row">
+              <Button variant="primary" type="submit" loading={saving} loadingLabel="Creating…" disabled={atMapLimit}>
+                Create map
+              </Button>
+              <Button as={Link} to="/client">Cancel</Button>
+            </div>
+          }
+        >
+          <div className="mp-stack">
+            <FieldGrid>
               <Field label="Map name">
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
+                <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
               </Field>
-              <Field label="Web address (short name)">
-                <input
-                  className="input"
+              <Field
+                label="Web address (short name)"
+                hint={<>This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong></>}
+              >
+                <TextInput
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder={suggestedSlug || "e.g. uk-directory"}
                 />
-                <div className="field-hint">
-                  This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
-                </div>
               </Field>
-            </div>
+            </FieldGrid>
 
-            <div style={{ marginTop: 8 }}>
-              <p className="card-title" style={{ fontSize: 15 }}>Where do you want to centre your map?</p>
-              <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.8 }}>
+            <div className="mp-stack mp-stack--tight">
+              <h2 className="mp-subhead">Where do you want to centre your map?</h2>
+              <p className="mp-note">
                 Search for a city or country and we’ll set the map centre and an appropriate zoom level.
               </p>
-              <Field label="Search for a place">
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    className="input"
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    placeholder="e.g. London, UK or Canada"
-                  />
-                  <button
-                    className="shell-btn"
-                    type="button"
-                    onClick={lookupLocation}
-                    disabled={geocoding}
-                  >
-                    {geocoding ? "Searching…" : "Search"}
-                  </button>
-                </div>
-              </Field>
+            </div>
 
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Fine-tune the start view (optional)</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                  <Field label="Latitude">
-                    <input className="input" value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
-                  </Field>
-                  <Field label="Longitude">
-                    <input className="input" value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
-                  </Field>
-                  <Field label="Zoom">
-                    <input className="input" value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
-                    <div className="field-hint">
-                      4–6: continent / global, 7–10: country / region, 11+ closer in.
-                    </div>
-                  </Field>
-                </div>
+            <div className="mp-inline-form">
+              <Field label="Search for a place">
+                <TextInput
+                  value={locationQuery}
+                  onChange={(e) => setLocationQuery(e.target.value)}
+                  placeholder="e.g. London, UK or Canada"
+                />
+              </Field>
+              <Button onClick={lookupLocation} loading={geocoding} loadingLabel="Searching…">Search</Button>
+            </div>
+
+            <div className="mp-stack mp-stack--tight">
+              <h3 className="mp-subhead">Fine-tune the start view (optional)</h3>
+              <div className="mp-grid-3">
+                <Field label="Latitude">
+                  <TextInput value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
+                </Field>
+                <Field label="Longitude">
+                  <TextInput value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
+                </Field>
+                <Field label="Zoom" hint="4–6: continent / global, 7–10: country / region, 11+ closer in.">
+                  <TextInput value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
+                </Field>
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={showListPanel}
-                  onChange={(e) => setShowListPanel(e.target.checked)}
-                />
-                Show list panel
-              </label>
-
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={enableClustering}
-                  onChange={(e) => setEnableClustering(e.target.checked)}
-                />
-                Enable clustering
-              </label>
+            <div className="mp-choice-row">
+              <Checkbox label="Show list panel" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+              <Checkbox label="Enable clustering" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
             </div>
 
-            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
-
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving || atMapLimit}>
-                {saving ? "Creating…" : "Create map"}
-              </button>
-
-              <Link className="shell-btn" to="/client">
-                Cancel
-              </Link>
-            </div>
+            {err ? <Callout tone="danger">{err}</Callout> : null}
           </div>
-        </form>
-      </div>
-    </>
+        </Section>
+      </form>
+    </SettingsLayout>
   );
 }
-
-function Field({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
-  );
-}
-

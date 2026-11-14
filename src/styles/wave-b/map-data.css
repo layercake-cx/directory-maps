@@ -1,0 +1,73 @@
+/* Phase 6, Wave B, agent 2: map Data page (ClientMapData), SyncHistoryTable, MapDataTabs, MapTileThumb,
+   the shared src/components/mapData/* pieces. Scoped under .shell, tokens only. */
+
+/* ---- Page structure ---- */
+.shell .md-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .md-pre { margin: 0; white-space: pre-wrap; font-family: inherit; }
+.shell .md-muted { color: var(--shell-text-muted); font-size: var(--fs-small); }
+.shell .md-search { flex: 1 1 260px; max-width: 380px; }
+.shell .md-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.shell .md-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.shell .md-time-field { max-width: 220px; }
+.shell .md-select-field { max-width: 380px; }
+.shell .md-cell-clip { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell .md-cell-muted { color: var(--shell-text-soft); }
+.shell .md-cell-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.shell .md-linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--shell-ink); cursor: pointer; text-align: left; }
+.shell .md-linkbtn:hover { text-decoration: underline; }
+.shell .md-preview-table { min-width: 480px; }
+.shell .md-preview-title { margin: 0 0 8px; font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); }
+.shell .md-dialog-form { display: flex; flex-direction: column; gap: 16px; }
+.shell .md-group-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 12px 14px; background: var(--shell-ground); border: 1px solid var(--shell-line); border-radius: var(--radius-control); }
+.shell .md-group-add .field { flex: 1 1 200px; }
+.shell .md-dialog-note { margin: 0 0 12px; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .md-dialog-actions { display: flex; flex-direction: column; gap: 8px; }
+.shell .md-dialog-actions .shell-btn { width: 100%; }
+
+.shell .md-nowrap { white-space: nowrap; }
+
+/* ---- Tabs (MapDataTabs) ---- */
+.shell .md-tabs { margin-bottom: 20px; overflow-x: auto; }
+.shell .md-tabs .tab { white-space: nowrap; }
+.shell .md-tabs .tab[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- Provider cards (DriveSyncCards) ---- */
+.shell .md-provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.shell .md-provider-body { display: flex; flex-direction: column; gap: 16px; }
+.shell .md-provider--soon { opacity: 0.55; }
+.shell .md-provider-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shell .md-provider-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.shell .md-provider-name { margin: 0; font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); }
+.shell .md-provider-sub { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .md-brand { flex: none; }
+.shell .md-fact { padding: 10px 12px; background: var(--shell-ground); border: 1px solid var(--shell-line-soft); border-radius: var(--radius-item); }
+.shell .md-fact-label { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .md-fact-value { display: block; font-size: var(--fs-ui); font-weight: 500; overflow-wrap: anywhere; }
+.shell .md-meta-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.shell .md-meta { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---- Listings table: logo and logo background ---- */
+.shell .md-logo-thumb { position: relative; width: 68px; height: 48px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--shell-line); border-radius: var(--radius-item); transition: transform var(--dur-fast) var(--ease-out); }
+.shell .md-logo-thumb.has-bg { padding: 5px 8px; }
+.shell .md-logo-thumb:hover { transform: scale(2); transform-origin: left center; z-index: var(--z-sticky); }
+.shell .md-logo-thumb img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.shell .md-logo-upload { display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 48px; border: 1px dashed var(--shell-line); border-radius: var(--radius-item); font-size: var(--fs-small); color: var(--shell-text-soft); cursor: pointer; }
+.shell .md-logo-upload:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .md-logo-upload[aria-disabled="true"] { cursor: default; opacity: 0.6; }
+.shell .md-bg-row { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.shell .md-bg-current { width: 14px; height: 14px; flex: none; border: 1px solid var(--shell-line); border-radius: var(--radius-item); }
+.shell .md-swatch { position: relative; width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-item); color: var(--shell-text-soft); cursor: pointer; flex: none; }
+.shell .md-swatch[aria-pressed="true"], .shell .md-swatch.is-selected { border: 2px solid var(--shell-accent); }
+.shell .md-swatch:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .md-swatch input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+
+/* ---- Sync history ---- */
+.shell .md-history-row.is-clickable { cursor: pointer; }
+.shell .md-history-detail td { background: var(--shell-ground); }
+.shell .md-history-detail p { margin: 0 0 4px; font-size: var(--fs-small); }
+.shell .md-history-detail pre { margin: 0; padding: 8px; font-family: var(--font-mono); font-size: var(--fs-small); white-space: pre-wrap; word-break: break-all; background: var(--shell-surface); border: 1px solid var(--shell-line-soft); border-radius: var(--radius-item); }
+.shell .md-history-table { min-width: 700px; }
+
+/* ---- Map tile thumbnail (MapTileThumb) ---- */
+.shell .map-tile-thumb { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shell-line-soft); }
+.shell .map-tile-thumb-tile { position: absolute; display: block; user-select: none; }

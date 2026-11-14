@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../hooks/useClient.js";
-import { Alert } from "@mantine/core";
+import { Callout } from "../../components/ui/index.js";
 import MapsView from "./MapsView.jsx";
+import "../../styles/wave-b/map-pages.css";
 
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -63,30 +64,26 @@ export default function ClientDashboard() {
     })();
   }, [client?.id]);
 
+  const syncNotice = failedSyncs.length > 0 ? (
+    <Callout tone="danger" title="Sync errors detected">
+      <ul className="mp-list-plain">
+        {failedSyncs.map((f) => (
+          <li key={f.map_id}>
+            <strong>{f.maps?.name ?? f.map_id}</strong> — last failed {relativeTime(f.started_at)}.{" "}
+            <Link to={`/client/maps/${encodeURIComponent(f.map_id)}/data`}>View sync history →</Link>
+          </li>
+        ))}
+      </ul>
+    </Callout>
+  ) : null;
+
   return (
-    <>
-      {failedSyncs.length > 0 && (
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 16px 0" }}>
-          <Alert color="red" title="Sync errors detected" mb="md">
-            <div style={{ display: "grid", gap: 4 }}>
-              {failedSyncs.map((f) => (
-                <div key={f.map_id} style={{ fontSize: 13 }}>
-                  <strong>{f.maps?.name ?? f.map_id}</strong> — last failed {relativeTime(f.started_at)}.{" "}
-                  <Link to={`/client/maps/${encodeURIComponent(f.map_id)}/data`} style={{ color: "inherit" }}>
-                    View sync history →
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </Alert>
-        </div>
-      )}
-      <MapsView
-        maps={maps}
-        workspaceName={client?.name}
-        loading={loading}
-        error={err}
-      />
-    </>
+    <MapsView
+      maps={maps}
+      workspaceName={client?.name}
+      loading={loading}
+      error={err}
+      notice={syncNotice}
+    />
   );
 }

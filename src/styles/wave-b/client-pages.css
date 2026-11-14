@@ -1,0 +1,23 @@
+/* Wave B, client workspace pages (Home, Team, Users, Layout gate screens). Tokens only. */
+
+.shell .cw-gate { align-items: stretch; }
+.shell .cw-gate .page-main { width: 100%; }
+.shell .cw-gate-card { max-width: 560px; }
+.shell .cw-gate-card p { margin: 0 0 12px; }
+.shell .cw-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.shell .cw-verified { margin-bottom: 16px; }
+
+.shell .cw-stack { display: flex; flex-direction: column; gap: 16px; }
+.shell .cw-muted { color: var(--shell-text-muted); font-size: var(--fs-small); }
+.shell .cw-nowrap { white-space: nowrap; }
+.shell .cw-cell-sub { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+.shell .cw-attention-mark { font-weight: 700; }
+.shell .cw-attention-sub { color: var(--shell-text-muted); }
+
+.shell .cw-check-list { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.shell .cw-role-select { width: auto; min-width: 120px; }
+.shell .cw-form { display: flex; flex-direction: column; gap: 16px; max-width: 480px; }
+.shell .cw-add-form { display: flex; flex-direction: column; gap: 16px; }
+.shell .cw-add-checks { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.shell .cw-table-section { margin-bottom: 16px; }

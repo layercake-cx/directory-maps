@@ -1,46 +1,9 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
-import PageHead from "../../components/shell/PageHead.jsx";
 import MapTileThumb from "../../components/MapTileThumb.jsx";
-import styles from "./MapsView.module.css";
-
-const PlusIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const SearchIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.2" />
-    <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-  </svg>
-);
-
-const FilterIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-    <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const MapPlusIcon = () => (
-  <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-    <rect x="3" y="3" width="20" height="20" rx="4" fill="var(--shell-accent-tint, #e6f0ef)" stroke="var(--shell-accent, #0f5e63)" strokeWidth="0.8" />
-    <path d="M13 8v10M8 13h10" stroke="var(--shell-accent, #0f5e63)" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-);
-
-function PlaceholderCard({ onClick }) {
-  return (
-    <button className={styles.placeholder} onClick={onClick} aria-label="Create new map">
-      <span className={styles.placeholderIcon}>
-        <PlusIcon />
-      </span>
-      <span className={styles.placeholderLabel}>New map</span>
-    </button>
-  );
-}
+import { Button, Callout, PageLayout, Pill, Section, Skeleton } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
 
 function formatEditedAt(updatedAt) {
   if (!updatedAt) return null;
@@ -52,8 +15,6 @@ function formatEditedAt(updatedAt) {
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-
-const GRID_SLOTS = 6;
 
 function getDataSource(map) {
   const src = map.map_data_sources?.[0];
@@ -68,144 +29,71 @@ function getDataSource(map) {
   return { label: "None", detail: "not configured" };
 }
 
-export default function MapsView({ maps = [], workspaceName, loading, error }) {
+/** `notice` is an optional node (e.g. a Callout) shown under the page heading. */
+export default function MapsView({ maps = [], workspaceName, loading, error, notice = null }) {
   const navigate = useNavigate();
-  const placeholderCount = Math.max(0, GRID_SLOTS - maps.length);
 
   function handleCreateMap() {
     navigate("/client/maps/new");
   }
 
-  function handleSelectMap(mapId) {
-    navigate(`/client/maps/${encodeURIComponent(mapId)}`);
-  }
-
   return (
-    <div className={styles.wrap}>
-      {/* Top bar */}
-      <PageHead
-        title="Maps"
-        subtitle="Interactive maps your visitors can explore."
-        actions={
-          <div className={styles.topbarActions}>
-            <div className={styles.search}>
-              <SearchIcon />
-              <span>Search maps…</span>
-            </div>
-            <button className={styles.filterBtn}>
-              <FilterIcon />
-              Filter
-            </button>
-          </div>
-        }
-      />
+    <PageLayout head={{ title: "Maps", subtitle: "Interactive maps your visitors can explore." }}>
+      <div className="mp-stack">
+        {notice}
 
-      {error ? (
-        <p style={{ color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>{error}</p>
-      ) : null}
+        {error ? <Callout tone="danger">{error}</Callout> : null}
 
-      {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
-      ) : (
-        <>
-          {/* Grid */}
-          <div className={styles.grid}>
-            {/* Create panel — spans 2 rows */}
-            <div
-              className={styles.createPanel}
-              onClick={handleCreateMap}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateMap()}
-            >
-              <div className={styles.createIconWrap}>
-                <MapPlusIcon />
-              </div>
-              <h2 className={styles.createTitle}>Create a new map</h2>
-              <p className={styles.createDesc}>
-                Start from scratch and visualise your data as an interactive map.
-              </p>
-              <button
-                className={styles.createBtn}
-                onClick={(e) => { e.stopPropagation(); handleCreateMap(); }}
-              >
-                + New map
-              </button>
-            </div>
-
-            {/* Existing map cards */}
-            {maps.map((map) => {
-              const editedAt = formatEditedAt(map.updated_at);
-              const isLive = !!map.published_at;
-              const ds = getDataSource(map);
-              return (
-                <div
-                  key={map.id}
-                  className={styles.mapCard}
-                  onClick={() => handleSelectMap(map.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && handleSelectMap(map.id)}
-                >
-                  <div className={styles.mapThumb}>
-                    <MapTileThumb lat={map.default_lat} lng={map.default_lng} zoom={map.default_zoom} />
-                  </div>
-                  <div className={styles.cardMeta}>
-                    <p className={styles.cardName}>{map.name}</p>
-                    <div className={styles.cardDetail}>
-                      <span className={styles.statusDot} style={{ background: isLive ? "#1D9E75" : "#888780" }} />
-                      <span>{isLive ? "Live" : "Draft"}</span>
-                      {editedAt ? (
-                        <>
-                          <span className={styles.separator}>·</span>
-                          <span>{editedAt}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className={styles.cardActions}>
-                      <Link
-                        to={`/client/maps/${encodeURIComponent(map.id)}/stats`}
-                        className={styles.cardActionLink}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <BarChart3 size={12} strokeWidth={2} aria-hidden />
-                        Map Stats
-                      </Link>
-                    </div>
-                    <div className={styles.cardDetail} style={{ marginTop: 3 }}>
-                      <Link
-                        to={`/client/maps/${map.id}/data`}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: 11, color: "var(--lc-muted)", textDecoration: "none" }}
-                      >
-                        {ds.label}{ds.detail ? ` · ${ds.detail}` : ""}
-                      </Link>
-                    </div>
+        {loading ? (
+          <Skeleton variant="tiles" rows={3} label="Loading maps" />
+        ) : (
+          <>
+            <div className="mp-map-grid">
+              <Section className="mp-create-tile" title="Create a new map" as="h2">
+                <div className="mp-stack mp-stack--tight">
+                  <p className="mp-note">Start from scratch and visualise your data as an interactive map.</p>
+                  <div>
+                    <Button variant="primary" onClick={handleCreateMap}>New map</Button>
                   </div>
                 </div>
-              );
-            })}
+              </Section>
 
-            {/* Placeholder slots */}
-            {Array.from({ length: placeholderCount }).map((_, i) => (
-              <PlaceholderCard key={`placeholder-${i}`} onClick={handleCreateMap} />
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div className={styles.footer}>
-            <span>{maps.length} {maps.length === 1 ? "map" : "maps"}</span>
-            <div className={styles.sortWrap}>
-              <span>Sort:</span>
-              <select className={styles.sortSelect}>
-                <option>Last edited</option>
-                <option>Name (A–Z)</option>
-                <option>Date created</option>
-              </select>
+              {maps.map((map) => {
+                const editedAt = formatEditedAt(map.updated_at);
+                const isLive = !!map.published_at;
+                const ds = getDataSource(map);
+                return (
+                  <article key={map.id} className="mp-map-card">
+                    <div className="mp-map-thumb">
+                      <MapTileThumb lat={map.default_lat} lng={map.default_lng} zoom={map.default_zoom} />
+                    </div>
+                    <div className="mp-map-meta">
+                      <h2 className="mp-map-name">
+                        <Link to={`/client/maps/${encodeURIComponent(map.id)}`}>{map.name}</Link>
+                      </h2>
+                      <div className="mp-map-detail">
+                        <Pill tone={isLive ? "live" : "neutral"}>{isLive ? "Live" : "Draft"}</Pill>
+                        {editedAt ? <span>{editedAt}</span> : null}
+                      </div>
+                      <div className="mp-map-links">
+                        <Link to={`/client/maps/${encodeURIComponent(map.id)}/stats`}>
+                          <BarChart3 size={12} strokeWidth={2} aria-hidden />
+                          Map stats
+                        </Link>
+                        <Link to={`/client/maps/${map.id}/data`}>
+                          {ds.label}{ds.detail ? ` · ${ds.detail}` : ""}
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          </div>
-        </>
-      )}
-    </div>
+
+            <p className="mp-map-foot">{maps.length} {maps.length === 1 ? "map" : "maps"}</p>
+          </>
+        )}
+      </div>
+    </PageLayout>
   );
 }

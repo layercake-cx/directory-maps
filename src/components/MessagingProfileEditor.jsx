@@ -8,7 +8,13 @@ import {
 } from "../lib/clientEmail.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { buildDnsSetupEmailText, resolveSenderFirstName } from "../lib/dnsSetupInstructions.js";
-import styles from "../pages/client/ClientEmail.module.css";
+import {
+  Button, Callout, DataTable, Dialog, Field, FieldGrid, Pill, Section, Textarea, TextInput, useConfirm,
+} from "./ui/index.js";
+import "../styles/wave-b/messaging.css";
+
+// emailDomainStatusTone (lib/clientEmail.js) -> Pill tone.
+const PILL_TONE = { success: "ok", warning: "warn", error: "danger", muted: "neutral" };
 
 function CopyButton({ value }) {
   const [copied, setCopied] = useState(false);
@@ -24,110 +30,26 @@ function CopyButton({ value }) {
   }
 
   return (
-    <button
-      type="button"
-      className={styles.copyBtn}
+    <Button
+      size="sm"
+      variant="ghost"
       onClick={handleCopy}
       title="Copy to clipboard"
-      aria-label="Copy value"
+      aria-label={copied ? "Copied" : "Copy value"}
     >
-      {copied ? (
-        <span className={styles.copyConfirm}>Copied</span>
-      ) : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-      )}
-    </button>
+      {copied ? "Copied" : "Copy"}
+    </Button>
   );
 }
 
-function domainVerifyButtonIconKind(status) {
-  if (status === "verified") return "success";
-  if (status === "failed" || status === "temporary_failure") return "error";
-  if (status === "pending" || status === "not_started" || status === "not_configured") return "warning";
-  return "warning";
-}
-
-function DomainVerifyButtonIcon({ status }) {
-  const kind = domainVerifyButtonIconKind(status);
-  const className = `${styles.verifyBtnIcon} ${styles[`verifyBtnIcon--${kind}`]}`;
-
-  if (kind === "success") {
-    return (
-      <span className={className} aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (kind === "warning") {
-    return (
-      <span className={className} aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      </span>
-    );
-  }
-
-  return (
-    <span className={className} aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-    </span>
-  );
-}
-
-function DnsStatusIcon({ status }) {
-  if (status === "verified") {
-    return (
-      <span className={styles.dnsStatusVerified} title="Verified">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Verified">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      </span>
-    );
-  }
-  if (status === "pending") {
-    return (
-      <span className={styles.dnsStatusPending} title="Pending">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Pending">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      </span>
-    );
-  }
-  return (
-    <span className={styles.dnsStatusNone} title="Not verified">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Not verified">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-    </span>
-  );
+function DnsStatusPill({ status }) {
+  if (status === "verified") return <Pill tone="ok">Verified</Pill>;
+  if (status === "pending") return <Pill tone="warn">Pending</Pill>;
+  return <Pill tone="danger">Not verified</Pill>;
 }
 
 function SetupInstructionsOverlay({ open, onClose, text }) {
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
 
   useEffect(() => {
     if (!open) setCopied(false);
@@ -146,48 +68,35 @@ function SetupInstructionsOverlay({ open, onClose, text }) {
   }
 
   return (
-    <div
-      className={styles.instructionsOverlay}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dns-setup-instructions-title"
-      onClick={onClose}
+    <Dialog
+      title="Setup instructions"
+      onClose={onClose}
+      wide
+      footer={(
+        <>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" onClick={handleCopy}>
+            {copied ? "Copied" : "Copy to clipboard"}
+          </Button>
+        </>
+      )}
     >
-      <div className={styles.instructionsModal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.instructionsHeader}>
-          <h3 id="dns-setup-instructions-title" className={styles.instructionsTitle}>
-            Setup instructions
-          </h3>
-          <button
-            type="button"
-            className={styles.instructionsClose}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        <p className={styles.instructionsLead}>
+      <div className="wb5-stack">
+        <p className="wb5-text">
           Copy the text below and paste it into an email to whoever manages your DNS (IT support,
           web agency, domain registrar, etc.).
         </p>
-        <textarea
-          className={styles.instructionsText}
-          readOnly
-          value={text}
-          aria-label="DNS setup instructions for email"
-          onFocus={(e) => e.target.select()}
-        />
-        <div className={styles.instructionsActions}>
-          <button type="button" className="btn btn-primary" onClick={handleCopy}>
-            {copied ? "Copied" : "Copy to clipboard"}
-          </button>
-          <button type="button" className="btn" onClick={onClose}>
-            Close
-          </button>
-        </div>
+        <Field label="DNS setup instructions for email">
+          <Textarea
+            className="wb5-instructions"
+            readOnly
+            value={text}
+            rows={14}
+            onFocus={(e) => e.target.select()}
+          />
+        </Field>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -215,7 +124,7 @@ export default function MessagingProfileEditor({
   const [setupFeedback, setSetupFeedback] = useState(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [senderFirstName, setSenderFirstName] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirm = useConfirm();
 
   const [name, setName] = useState(profile.name ?? "");
   const [fromName, setFromName] = useState(profile.email_from_name ?? "");
@@ -235,7 +144,6 @@ export default function MessagingProfileEditor({
     setMsg("");
     setVerifyFeedback(null);
     setSetupFeedback(null);
-    setConfirmDelete(false);
   }, [profile.id]);
 
   useEffect(() => {
@@ -366,6 +274,13 @@ export default function MessagingProfileEditor({
   }
 
   async function handleDelete() {
+    const ok = await confirm({
+      title: `Delete ${profile.name || "this profile"}?`,
+      body: "Any map or directory using this profile will stop sending messages until you choose another profile for it. This cannot be undone.",
+      confirmLabel: "Delete profile",
+      tone: "danger",
+    });
+    if (!ok) return;
     setErr("");
     setMsg("");
     setBusy("delete");
@@ -382,7 +297,7 @@ export default function MessagingProfileEditor({
     }
   }
 
-  const tone = emailDomainStatusTone(domainStatus);
+  const tone = PILL_TONE[emailDomainStatusTone(domainStatus)] || "neutral";
   const domainVerified = domainStatus === "verified";
   const platformDefaultFrom = getPlatformDefaultFromAddress();
   const setupInstructionsText = buildDnsSetupEmailText({
@@ -392,160 +307,183 @@ export default function MessagingProfileEditor({
     senderFirstName,
   });
 
+  const dmarcValue = emailDomain ? `v=DMARC1; p=none; rua=mailto:dmarc@${emailDomain}` : "";
+  const dnsRows = [
+    ...dnsRecords.map((row, i) => ({ ...row, _key: `${row.type}-${row.name}-${i}` })),
+    ...(emailDomain ? [{ _key: "dmarc", _dmarc: true }] : []),
+  ];
+  const dnsColumns = [
+    {
+      key: "type",
+      label: "Type",
+      render: (row) => (row._dmarc ? (
+        <>
+          <code>TXT</code>
+          <span className="wb5-dns-kind">DMARC</span>
+        </>
+      ) : (
+        <>
+          <code>{row.type || "—"}</code>
+          {row.record ? <span className="wb5-dns-kind">{row.record}</span> : null}
+        </>
+      )),
+    },
+    {
+      key: "name",
+      label: "Name / Host",
+      render: (row) => <code className="wb5-wrap">{row._dmarc ? `_dmarc.${emailDomain}` : row.name || "—"}</code>,
+    },
+    {
+      key: "value",
+      label: "Value",
+      render: (row) => {
+        const value = row._dmarc ? dmarcValue : row.value;
+        return (
+          <>
+            <div className="wb5-dns-value">
+              <code>{value || "—"}</code>
+              {value ? <CopyButton value={value} /> : null}
+            </div>
+            {row._dmarc ? <span className="wb5-dns-kind">Recommended</span> : null}
+          </>
+        );
+      },
+    },
+    {
+      key: "priority",
+      label: "Priority",
+      render: (row) => (!row._dmarc && row.priority != null && row.priority !== "" ? row.priority : "—"),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => (row._dmarc ? "—" : <DnsStatusPill status={row.status} />),
+    },
+  ];
+
   return (
     <>
-      <section className={`${styles.panelBox} ${styles.panelBoxFull}`}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{profile.name || "Sending profile"}</h2>
-          <button type="button" className="btn" onClick={onClose}>
-            Back to profiles
-          </button>
-        </div>
-        {err ? <p className={styles.error}>{err}</p> : null}
-        {msg ? <p className={styles.success}>{msg}</p> : null}
+      <div className="wb5-stack">
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
-        <form onSubmit={handleSave} className={styles.panelSubsection}>
-          <p className={styles.hint}>
-            A sending profile is who messages come <em>from</em>. Choose it on each map or directory under
-            its Messaging tab. Until the domain below is verified, messages send from the platform default,{" "}
-            <strong>{platformDefaultFrom}</strong>, using this profile&apos;s display name.
-          </p>
-          <label className={styles.field}>
-            <span>
-              Profile name <span className={styles.required}>*</span>
-            </span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Events team"
-              required
-            />
-            <span className={styles.fieldHint}>Only used to tell your profiles apart. Visitors never see it.</span>
-          </label>
-          <div className={styles.fromAddressRow}>
-            <label className={styles.field}>
-              <span>Display name</span>
-              <input
+        <Section
+          title={profile.name || "Sending profile"}
+          actions={<Button onClick={onClose}>Back to profiles</Button>}
+        >
+          <form onSubmit={handleSave} className="wb5-form">
+            <p className="wb5-text">
+              A sending profile is who messages come <em>from</em>. Choose it on each map or directory under
+              its Messaging tab. Until the domain below is verified, messages send from the platform default,{" "}
+              <strong>{platformDefaultFrom}</strong>, using this profile&apos;s display name.
+            </p>
+            <Field label="Profile name" required hint="Only used to tell your profiles apart. Visitors never see it.">
+              <TextInput
                 type="text"
-                value={fromName}
-                onChange={(e) => setFromName(e.target.value)}
-                placeholder={clientName || "Your organisation"}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Events team"
               />
-            </label>
-            <label className={styles.field}>
-              <span>Email address</span>
-              <input
-                type="email"
-                value={fromAddress}
-                onChange={(e) => setFromAddress(e.target.value)}
-                placeholder="hello@yourcompany.com"
-                required
-              />
-            </label>
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={busy === "save"}>
-            {busy === "save" ? "Saving…" : "Save"}
-          </button>
-        </form>
-
-        <hr className={styles.panelDivider} />
-
-
-            <div className={styles.panelSubsection}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Domain &amp; DNS</h2>
-              <span className={`${styles.badge} ${styles[`badge--${tone}`]}`}>
-                {emailDomainStatusLabel(domainStatus)}
-              </span>
+            </Field>
+            <FieldGrid>
+              <Field label="Display name">
+                <TextInput
+                  type="text"
+                  value={fromName}
+                  onChange={(e) => setFromName(e.target.value)}
+                  placeholder={clientName || "Your organisation"}
+                />
+              </Field>
+              <Field label="Email address">
+                <TextInput
+                  type="email"
+                  value={fromAddress}
+                  onChange={(e) => setFromAddress(e.target.value)}
+                  placeholder="hello@yourcompany.com"
+                  required
+                />
+              </Field>
+            </FieldGrid>
+            <div className="wb5-row">
+              <Button type="submit" variant="primary" loading={busy === "save"} loadingLabel="Saving…">
+                Save
+              </Button>
             </div>
+          </form>
+        </Section>
+
+        <Section
+          title="Domain & DNS"
+          actions={<Pill tone={tone}>{emailDomainStatusLabel(domainStatus)}</Pill>}
+        >
+          <div className="wb5-stack">
             {emailDomain ? (
-              <p className={styles.hint}>
+              <p className="wb5-text">
                 Domain: <strong>{emailDomain}</strong>
               </p>
             ) : null}
 
             {!fromAddress.trim() ? (
-              <p className={styles.disabledNote}>
+              <Callout tone="info">
                 Enter a from email address above before setting up the domain (Save is optional — Set up
                 domain saves it automatically).
-              </p>
+              </Callout>
             ) : null}
 
-            <div className={styles.actions}>
+            <div className="wb5-row">
               {!hasDomain || dnsRecords.length === 0 ? (
-                <button
-                  type="button"
-                  className="btn btn-primary"
+                <Button
+                  variant="primary"
                   onClick={handleSetupDomain}
-                  disabled={!fromAddress.trim() || busy === "setup"}
+                  disabled={!fromAddress.trim()}
+                  loading={busy === "setup"}
+                  loadingLabel="Working…"
                 >
-                  {busy === "setup" ? "Working…" : "Set up domain"}
-                </button>
+                  Set up domain
+                </Button>
               ) : null}
               {hasDomain ? (
                 <>
-                  <button
-                    type="button"
-                    className={`btn btn-primary ${styles.verifyBtn}`}
+                  <Button
+                    variant="primary"
                     onClick={handleVerify}
-                    disabled={busy === "verify"}
+                    loading={busy === "verify"}
+                    loadingLabel="Verifying…"
                   >
-                    {busy !== "verify" ? <DomainVerifyButtonIcon status={domainStatus} /> : null}
-                    {busy === "verify" ? "Verifying…" : "Verify DNS settings"}
-                  </button>
+                    Verify DNS settings
+                  </Button>
                   {domainStatus !== "verified" ? (
-                    <button
-                      type="button"
-                      className="btn"
+                    <Button
                       onClick={() => setInstructionsOpen(true)}
                       disabled={dnsRecords.length === 0}
                       title={dnsRecords.length === 0 ? "Set up the domain first to generate DNS records" : undefined}
                     >
                       Setup instructions
-                    </button>
+                    </Button>
                   ) : null}
                 </>
               ) : null}
             </div>
 
             {!busy && setupFeedback && !domainVerified ? (
-              <div className={`${styles.verifyBanner} ${setupFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
-                <span>{setupFeedback.text}</span>
-              </div>
+              <Callout tone={setupFeedback.ok ? "ok" : "warn"}>{setupFeedback.text}</Callout>
             ) : null}
 
-            {busy === "verify" && (
-              <p className={styles.verifyWaiting}>
+            {busy === "verify" ? (
+              <Callout tone="info">
                 Verifying your DNS records with Resend — this can take up to 20 seconds…
-              </p>
-            )}
+              </Callout>
+            ) : null}
 
-            {!busy && verifyFeedback && !domainVerified && (
-              <div className={`${styles.verifyBanner} ${verifyFeedback.ok ? styles.verifyBannerOk : styles.verifyBannerWarn}`}>
-                <span className={styles.verifyBannerIcon} aria-hidden>
-                  {verifyFeedback.ok ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                      <line x1="12" y1="9" x2="12" y2="13" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                  )}
-                </span>
-                <span>{verifyFeedback.text}</span>
-              </div>
-            )}
+            {!busy && verifyFeedback && !domainVerified ? (
+              <Callout tone={verifyFeedback.ok ? "ok" : "warn"}>{verifyFeedback.text}</Callout>
+            ) : null}
 
             {dnsRecords.length > 0 ? (
-              <div className={styles.dnsBlock}>
+              <>
                 {!domainVerified ? (
-                  <div className={styles.dnsGuide}>
-                    <h3 className={styles.dnsGuideTitle}>How to add these records</h3>
-                    <ol className={styles.dnsGuideSteps}>
+                  <Callout tone="info" title="How to add these records">
+                    <ol className="wb5-steps">
                       <li>
                         <strong>Find your DNS provider.</strong> This is usually where you registered your
                         domain (GoDaddy, Namecheap, 123-reg, etc.) or wherever you manage DNS — often
@@ -563,110 +501,41 @@ export default function MessagingProfileEditor({
                         DNS settings&rdquo; to confirm they&apos;re live.
                       </li>
                     </ol>
-                    <p className={styles.dnsGuideNote}>
+                    <p className="wb5-guide-note">
                       <strong>DMARC</strong> is included in the table below. It is not checked by our
                       verification step but is strongly recommended — it protects your domain from spoofing
                       and improves deliverability over time.
                     </p>
-                  </div>
+                  </Callout>
                 ) : null}
 
-                <table className={styles.dnsTable}>
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Name / Host</th>
-                      <th>Value</th>
-                      <th>Priority</th>
-                      <th className={styles.dnsStatusTh} title="Verification status">✓</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dnsRecords.map((row, i) => (
-                      <tr key={`${row.type}-${row.name}-${i}`}>
-                        <td>
-                          <code>{row.type || "—"}</code>
-                          {row.record ? (
-                            <span className={styles.recordKind}>{row.record}</span>
-                          ) : null}
-                        </td>
-                        <td>
-                          <code className={styles.dnsValue}>{row.name || "—"}</code>
-                        </td>
-                        <td>
-                          <div className={styles.dnsValueCell}>
-                            <code className={styles.dnsValue}>{row.value || "—"}</code>
-                            {row.value ? <CopyButton value={row.value} /> : null}
-                          </div>
-                        </td>
-                        <td>{row.priority != null && row.priority !== "" ? row.priority : "—"}</td>
-                        <td className={styles.dnsStatusCell}>
-                          <DnsStatusIcon status={row.status} />
-                        </td>
-                      </tr>
-                    ))}
-                    {emailDomain ? (() => {
-                      const dmarcValue = `v=DMARC1; p=none; rua=mailto:dmarc@${emailDomain}`;
-                      return (
-                        <tr className={styles.dnsRowDmarc}>
-                          <td>
-                            <code>TXT</code>
-                            <span className={styles.recordKind}>DMARC</span>
-                          </td>
-                          <td>
-                            <code className={styles.dnsValue}>_dmarc.{emailDomain}</code>
-                          </td>
-                          <td>
-                            <div className={styles.dnsValueCell}>
-                              <code className={styles.dnsValue}>{dmarcValue}</code>
-                              <CopyButton value={dmarcValue} />
-                            </div>
-                            <span className={styles.dmarcLabel}>Recommended</span>
-                          </td>
-                          <td>—</td>
-                          <td className={styles.dnsStatusCell}>—</td>
-                        </tr>
-                      );
-                    })() : null}
-                  </tbody>
-                </table>
-              </div>
+                <DataTable
+                  caption="DNS records"
+                  columns={dnsColumns}
+                  rows={dnsRows}
+                  getRowId={(row) => row._key}
+                  getRowLabel={(row) => (row._dmarc ? "DMARC record" : `${row.type || ""} record`)}
+                />
+              </>
             ) : null}
 
             {!domainVerified ? (
-              <p className={styles.note}>
+              <p className="wb5-note">
                 Until your domain is verified, messages use the platform default sender. Submissions are
                 always saved under Stats regardless of email delivery.
               </p>
             ) : null}
-            </div>
+          </div>
+        </Section>
 
-        <hr className={styles.panelDivider} />
-
-        <div className={styles.panelSubsection}>
-          <h2 className={styles.sectionTitle}>Delete profile</h2>
-          {confirmDelete ? (
-            <>
-              <p className={styles.hint}>
-                Any map or directory using this profile will stop sending messages until you choose another
-                profile for it. This cannot be undone.
-              </p>
-              <div className={styles.actions}>
-                <button type="button" className="btn btn-primary" onClick={handleDelete} disabled={busy === "delete"}>
-                  {busy === "delete" ? "Deleting…" : "Yes, delete this profile"}
-                </button>
-                <button type="button" className="btn" onClick={() => setConfirmDelete(false)} disabled={busy === "delete"}>
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>
+        <Section title="Delete profile" tone="danger">
+          <div className="wb5-row">
+            <Button variant="danger" onClick={handleDelete} loading={busy === "delete"} loadingLabel="Deleting…">
               Delete profile
-            </button>
-          )}
-        </div>
-      </section>
+            </Button>
+          </div>
+        </Section>
+      </div>
 
       <SetupInstructionsOverlay
         open={instructionsOpen}

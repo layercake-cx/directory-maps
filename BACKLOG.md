@@ -162,3 +162,15 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - What the design shows: n/a. The new-group form is nested inside the entry form and its submit handler doesn't stop propagation, so submitting it may also trigger the entry save.
 - Why not built now: fixing it changes behaviour, outside this presentation-only phase.
 - Suggested next step: move the group form out of the entry form, or stop propagation.
+
+### [DISCOVER-UI] Wave B follow-ups (client workspace)
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §6 Wave B; found while migrating
+- What the design shows: shared map dashboard and map data pages across client and admin, one kit.
+- Why not built now / open points:
+  - `AdminMapDashboard.jsx` and `AdminMapData.jsx` (Wave C) must adopt the new shared pieces in `src/components/mapDashboard/` and `src/components/mapData/` (props listed in the Wave B PR). `ClientMapDashboard.jsx` is still about 1,900 lines of state and handlers; hooks such as `useMapPublishing`, `useMapAssetUploads` and `useMapDraftSave` would shrink it but move Supabase calls, so they were left.
+  - Restoring an earlier map version has no confirm, and the connect/disconnect Google and "use this directory" flows have none either (as before). Product decision, then `useConfirm`.
+  - Map group reorder is mouse-only; needs up/down buttons.
+  - Kit gaps: `RadioCards` per-option `disabled` and click-on-selected; `Tabs` disabled tabs and an `onClick` hook; `SegmentedControl` `disabled`; `DataTable` row className and expandable rows; `Field` with a label-side action; a copy icon; number-with-unit and inline file-upload fields.
+  - `ClientMapListings.jsx` has a route (`/client/maps/:mapId/listings`) but nothing links to it; consider removing or linking it. It no longer wraps itself in `AdminLayout` (that rendered a second shell).
+  - The manual listing dialog still exposes lat/lng fields (unchanged); see the "No lat/lng in entry forms" rule for directory entries.
+  - `MapMessageDrawer` (the map preview's own drawer) keeps two legacy `btn` classes by design.

@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave B: client workspace
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-b-client`
+
+### What changed
+- 30 files changed, 22 added, 6 CSS modules deleted: `ClientMapDashboard` (3,298 to 1,942 lines; panels extracted to `src/components/mapDashboard/`), `ClientMapData` (shared pieces in `src/components/mapData/`), map pages (new, listings, stats, maps list), filters panel and sub-nav, Home, Team, Users, Domains, Integrations, Categories, Layout gate screens, Email and the messaging components (shared with admin customer pages and the directory/map email settings).
+- Whole-app counts: inline styles 1270 to 743, legacy buttons 169 to 87, legacy containers 189 to 99, `window.confirm` 11 to 6.
+- Visible changes: map Data job cards now sit above the tabs; maps list lost its non-functional search, Filter and Sort controls and placeholder tiles; map settings strip is light with a "Unpublished changes" pill; Team, Email and map filter deletes use dialogs; many empty/error states reworded or added (see the PR report). `ClientMapListings` no longer renders a second shell inside the client shell.
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage and `.from(` calls across all changed and new files against `main`: identical, except one `Array.from(` in removed placeholder tiles. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-e7k9g429o-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; call totals unchanged.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data. Please click through as a client owner/manager and a view-only user: Home, maps list, new map, map Data (Sheets sync, CSV import with a real file, manual add/edit, bulk edit, link to directory), map Listings, map and listing stats, map design page (every settings tab, drag groups, publish, restore, message drawer), Team (invite, remove, cancel), Users, Domains, Integrations, Email (profiles, DNS verify, sent messages, delete), Categories. Also the admin pages that render migrated components: `AdminClientDetail` (messaging, categories), `AdminMapDashboard`, `AdminMapData`, `AdminMapListings`.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave A: directory workspace
 
 **Branch:** `feat/2026-11-14-discover-ui-wave-a-directory`
