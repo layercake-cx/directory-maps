@@ -17,6 +17,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - New `markDirectoryContentChanged` (`src/lib/directoryPublications.js`) bumps the entry's `updated_at` (entry-level lists) or the directory's (everything else). It is called after each of those saves, from `categorisations.js` (directory targets only; map attachments are unaffected), `entryTemplates.js` (layout save/create/update/delete) and the six editor lists. It also fires a `directory:content-changed` event so the side-panel chip re-checks immediately instead of on the next navigation.
 - Directory pages already bumped their own timestamps. No migration, no schema, no Edge Function.
 
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch (`directory-maps-1jy0gzo9p-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so edits there are real.
+
 ### Production outcome
 - Not deployed yet.
 
