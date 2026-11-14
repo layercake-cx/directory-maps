@@ -2,7 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import DirectoryAiContentPanel from "../directories/DirectoryAiContentPanel.jsx";
 import RequireManage from "./RequireManage.jsx";
-import { AskPipLink } from "../ui/index.js";
+import { AskPipLink, SettingsLayout } from "../ui/index.js";
 
 /**
  * Content › AI enrichment. Claude-written entry content (prompt + bulk generate), split out of the
@@ -12,9 +12,12 @@ export default function DirectoryAiEnrichmentRoute() {
   const { directory, directoryId, canManage, recordEvent, refetch } = useDirectory();
   return (
     <RequireManage>
-      <div className="card card-pad">
-        <p className="card-title">AI enrichment</p>
-        <AskPipLink question="Can you write summaries for entries that don't have one?" context="AI enrichment" />
+      <SettingsLayout
+        head={{
+          title: "AI enrichment",
+          actions: <AskPipLink question="Can you write summaries for entries that don't have one?" context="AI enrichment" />,
+        }}
+      >
         <DirectoryAiContentPanel
           directory={directory}
           directoryId={directoryId}
@@ -22,7 +25,7 @@ export default function DirectoryAiEnrichmentRoute() {
           recordEvent={recordEvent}
           onSaved={refetch}
         />
-      </div>
+      </SettingsLayout>
     </RequireManage>
   );
 }

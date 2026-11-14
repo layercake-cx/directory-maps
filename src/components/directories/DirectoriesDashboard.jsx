@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Button, Callout, DataTable, EmptyState, PageLayout, Pill, Section, SegmentedControl, Toolbar } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 import { listDirectories, getMapsLinkedToDirectories } from "../../lib/directories.js";
 import { listPlans, fetchClientEntitlements, listFeatures, getClientPlanKey } from "../../lib/entitlements.js";
 
@@ -10,10 +12,10 @@ const VIEWS = [
   { key: "archived", label: "Archived" },
 ];
 
-function statusPillClass(directory) {
-  if (!directory.is_active) return "pill pill--neutral";
-  if (directory.published_at) return "pill pill--ok";
-  return "pill pill--warn";
+function statusTone(directory) {
+  if (!directory.is_active) return "neutral";
+  if (directory.published_at) return "live";
+  return "warn";
 }
 
 function statusLabel(directory) {
@@ -29,9 +31,7 @@ function statusLabel(directory) {
  * "directories used of allowance" is omitted, not faked: no max_directories entitlement exists
  * today (unlike the real seeded max_maps one) — see BACKLOG.md.
  *
- * Uses the shell's own page-body component vocabulary (.card/.pill/.stat-grid/.shell-btn — see
- * admin-shell.css) rather than the old admin.css/.admin-card patterns Phase 4 originally shipped
- * with — see BACKLOG.md "Page body content still uses the old design system".
+ * Built on the Discover UI kit (PageLayout, DataTable, Pill, Callout).
  */
 export default function DirectoriesDashboard({ clientId, canManage, basePath, newHref }) {
   const [directories, setDirectories] = useState([]);
@@ -94,89 +94,76 @@ export default function DirectoriesDashboard({ clientId, canManage, basePath, ne
     }
   }, [directories, view]);
 
+  const columns = [
+    {
+      key: "name",
+      label: "Directory",
+      render: (d) => (
+        <span className="b1-dir-name">
+          {d.seo_og_image_url ? <img className="b1-dir-thumb" src={d.seo_og_image_url} alt="" /> : null}
+          <span>
+            {d.name}
+            {(linkedMapsByDirectory[d.id] ?? []).length > 0 ? (
+              <span className="b1-cell-sub">Linked to {linkedMapsByDirectory[d.id].map((m) => m.name).join(", ")}</span>
+            ) : null}
+          </span>
+        </span>
+      ),
+    },
+    { key: "status", label: "Status", render: (d) => <Pill tone={statusTone(d)}>{statusLabel(d)}</Pill> },
+    { key: "entries", label: "Entries", align: "right", render: (d) => d.directory_entries?.[0]?.count ?? 0 },
+  ];
+
+  const emptyState = directories.length === 0 ? (
+    <EmptyState
+      title="No directories yet"
+      body="Create a browsable, publishable list of entries."
+      actions={canManage ? <Button as={Link} to={newHref} variant="primary">Create your first directory</Button> : null}
+    />
+  ) : (
+    <EmptyState art="searching" title="No directories in this view" />
+  );
+
   return (
-    <div>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">Directories</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
-            Browsable, publishable lists of entries — separate from your maps.
-          </p>
-        </div>
-        {canManage && (
-          <Link className="shell-btn shell-btn--primary" to={newHref}>
-            New directory
-          </Link>
-        )}
-      </div>
+    <PageLayout
+      head={{
+        title: "Directories",
+        subtitle: "Browsable, publishable lists of entries — separate from your maps.",
+        actions: canManage ? <Button as={Link} to={newHref} variant="primary">New directory</Button> : null,
+      }}
+    >
+      <Toolbar>
+        <SegmentedControl
+          label="Filter directories"
+          value={view}
+          onChange={setView}
+          options={VIEWS.map((v) => ({ value: v.key, label: `${v.label} (${counts[v.key]})` }))}
+        />
+      </Toolbar>
 
-      <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap" }}>
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            className={`shell-btn shell-btn--sm${view === v.key ? " shell-btn--primary" : ""}`}
-            onClick={() => setView(v.key)}
-          >
-            {v.label} ({counts[v.key]})
-          </button>
-        ))}
-      </div>
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
-      {err && <p style={{ color: "var(--shell-danger)" }}>{err}</p>}
+      <Section flush>
+        <DataTable
+          caption="Directories"
+          columns={columns}
+          rows={filtered}
+          getRowId={(d) => d.id}
+          getRowLabel={(d) => d.name}
+          rowLink={(d) => `${basePath}/${encodeURIComponent(d.id)}`}
+          loading={loading}
+          empty={emptyState}
+        />
+      </Section>
 
-      {loading ? (
-        <p>Loading…</p>
-      ) : filtered.length === 0 ? (
-        <div className="card card-pad">
-          <p style={{ margin: 0 }}>{directories.length === 0 ? "No directories yet." : "No directories in this view."}</p>
-          {canManage && directories.length === 0 && (
-            <Link className="shell-btn shell-btn--primary" to={newHref} style={{ alignSelf: "flex-start" }}>
-              Create your first directory
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-          {filtered.map((d) => {
-            const linkedMaps = linkedMapsByDirectory[d.id] ?? [];
-            return (
-              <Link key={d.id} to={`${basePath}/${encodeURIComponent(d.id)}`} className="card card-pad" style={{ textDecoration: "none", color: "inherit", display: "block", gap: 0 }}>
-                {d.seo_og_image_url && (
-                  <img
-                    src={d.seo_og_image_url}
-                    alt=""
-                    style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: "var(--radius-item)", marginBottom: 12 }}
-                  />
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <strong>{d.name}</strong>
-                  <span className={statusPillClass(d)} style={{ whiteSpace: "nowrap" }}>
-                    {statusLabel(d)}
-                  </span>
-                </div>
-                <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--shell-text-soft)" }}>{d.directory_entries?.[0]?.count ?? 0} entries</p>
-                {linkedMaps.length > 0 && (
-                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--shell-text-muted)" }}>
-                    Linked to {linkedMaps.map((m) => m.name).join(", ")}
-                  </p>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {(planName || lockedFeatureNames.length > 0) && (
-        <div className="card card-pad" style={{ marginTop: 20, maxWidth: 420 }}>
-          {planName && <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Plan: {planName}</p>}
-          {lockedFeatureNames.length > 0 && (
-            <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--shell-text-soft)" }}>
-              Needs a higher plan: {lockedFeatureNames.join(", ")}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+      {planName || lockedFeatureNames.length > 0 ? (
+        <Section title="Plan">
+          {planName ? <p className="setting-row-label">Plan: {planName}</p> : null}
+          {lockedFeatureNames.length > 0 ? (
+            <Callout tone="info">Needs a higher plan: {lockedFeatureNames.join(", ")}</Callout>
+          ) : null}
+        </Section>
+      ) : null}
+    </PageLayout>
   );
 }

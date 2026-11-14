@@ -1,0 +1,23 @@
+/* Wave A, batch 1: directory route wrappers and settings/AI/analytics panels. Tokens only. */
+
+.shell .b1-link-list { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-ui); }
+.shell .b1-link-list a { color: var(--shell-accent); }
+
+.shell .b1-cell-sub { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .b1-nowrap { white-space: nowrap; }
+
+.shell .b1-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 899px) { .shell .b1-pair { grid-template-columns: minmax(0, 1fr); } }
+
+.shell .b1-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: start; }
+.shell .b1-split-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .b1-email-preview { width: 100%; height: 560px; border: 1px solid var(--shell-line); border-radius: var(--radius-item); background: var(--shell-surface); }
+.shell .b1-placeholders code { margin-right: 6px; }
+
+.shell .b1-dir-thumb { display: block; width: 56px; height: 40px; object-fit: cover; border-radius: var(--radius-item); }
+.shell .b1-dir-name { display: flex; align-items: center; gap: 12px; }
+
+.shell .b1-dns-value { display: flex; align-items: center; gap: 8px; }
+.shell .b1-dns-value code { overflow-wrap: anywhere; }
+
+.shell .b1-form { display: flex; flex-direction: column; gap: 18px; }

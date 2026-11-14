@@ -5,9 +5,10 @@ import {
   listAccreditationSchemes,
   setAccreditationSchemeActive,
 } from "../../lib/accreditations";
+import { Button, Callout, EmptyState, Field, FieldGrid, Pill, Section, Skeleton, Textarea, TextInput, useConfirm } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { name: "", issuing_body: "", badge_image_url: "", description: "", verification_note: "" };
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 /**
  * Directory-level accreditation scheme definitions (build-scope §5.7) — "a
@@ -23,6 +24,7 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirm();
 
   const refresh = useCallback(async () => {
     if (!directoryId) return;
@@ -70,7 +72,13 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
   }
 
   async function remove(scheme) {
-    if (!window.confirm(`Delete accreditation scheme "${scheme.name}"? This removes it from every entry that holds it.`)) return;
+    const ok = await confirm({
+      title: `Delete accreditation scheme "${scheme.name}"?`,
+      body: "This removes it from every entry that holds it. You can't undo this. To keep it but stop using it, archive it instead.",
+      confirmLabel: "Delete scheme",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteAccreditationSchemePermanently(scheme.id);
       recordEvent?.("directory_accreditation_scheme_deleted", { directory_id: directoryId, scheme_id: scheme.id, name: scheme.name });
@@ -81,55 +89,70 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Accreditation schemes</p>
-        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-          {addOpen ? "Cancel" : "+ Add scheme"}
-        </button>
-      </div>
-
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+    <Section
+      title="Accreditation schemes"
+      actions={<Button size="sm" onClick={() => setAddOpen((v) => !v)}>{addOpen ? "Cancel" : "Add scheme"}</Button>}
+    >
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
       {addOpen && (
-        <form onSubmit={save} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.name} onChange={(e) => fSet("name", e.target.value)} placeholder="Scheme name" style={inputStyle} required />
-          <input value={form.issuing_body} onChange={(e) => fSet("issuing_body", e.target.value)} placeholder="Issuing body (optional)" style={inputStyle} />
-          <input value={form.badge_image_url} onChange={(e) => fSet("badge_image_url", e.target.value)} placeholder="Badge image URL (optional)" type="url" style={inputStyle} />
-          <textarea value={form.description} onChange={(e) => fSet("description", e.target.value)} placeholder="Description (optional)" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
-          <input value={form.verification_note} onChange={(e) => fSet("verification_note", e.target.value)} placeholder="Verification note (optional)" style={inputStyle} />
-          <div>
-            <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-              {saving ? "Saving…" : "Add scheme"}
-            </button>
+        <form onSubmit={save} className="b3-form">
+          <h3 className="b3-subhead">New scheme</h3>
+          <Field label="Scheme name" required>
+            <TextInput value={form.name} onChange={(e) => fSet("name", e.target.value)} />
+          </Field>
+          <FieldGrid>
+            <Field label="Issuing body" hint="Optional.">
+              <TextInput value={form.issuing_body} onChange={(e) => fSet("issuing_body", e.target.value)} />
+            </Field>
+            <Field label="Badge image URL" hint="Optional.">
+              <TextInput type="url" value={form.badge_image_url} onChange={(e) => fSet("badge_image_url", e.target.value)} />
+            </Field>
+          </FieldGrid>
+          <Field label="Description" hint="Optional.">
+            <Textarea rows={2} value={form.description} onChange={(e) => fSet("description", e.target.value)} />
+          </Field>
+          <Field label="Verification note" hint="Optional.">
+            <TextInput value={form.verification_note} onChange={(e) => fSet("verification_note", e.target.value)} />
+          </Field>
+          <div className="b3-form-actions">
+            <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Add scheme</Button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="list" rows={3} label="Loading accreditation schemes" />
       ) : schemes.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No accreditation schemes yet.</p>
+        <EmptyState
+          art="encouraging"
+          title="No accreditation schemes yet"
+          body="Add a scheme, then grant it to entries from the entry editor."
+          actions={!addOpen ? <Button variant="primary" onClick={() => setAddOpen(true)}>Add scheme</Button> : null}
+        />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
+        <ul className="b3-list">
           {schemes.map((s) => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7, opacity: s.is_active ? 1 : 0.55 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
-                {s.issuing_body && <div style={{ fontSize: 12, opacity: 0.7 }}>{s.issuing_body}</div>}
+            <li key={s.id} className={`b3-list-item ${s.is_active ? "" : "is-muted"}`.trim()}>
+              <div className="b3-list-main">
+                <div className="b3-list-title">
+                  {s.name}
+                  {!s.is_active && <Pill tone="neutral">Archived</Pill>}
+                </div>
+                {s.issuing_body && <div className="b3-list-sub">{s.issuing_body}</div>}
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => toggleActive(s)}>
+              <div className="b3-list-actions">
+                <Button size="sm" onClick={() => toggleActive(s)}>
                   {s.is_active ? "Archive" : "Restore"}
-                </button>
-                <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c" }} onClick={() => remove(s)}>
+                </Button>
+                <Button variant="danger" size="sm" aria-label={`Delete scheme: ${s.name}`} onClick={() => remove(s)}>
                   Delete
-                </button>
+                </Button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </Section>
   );
 }

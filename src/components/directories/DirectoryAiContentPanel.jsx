@@ -1,7 +1,8 @@
 import AIButton from "../ai/AIButton.jsx";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Button } from "../ui/index.js";
+import { Button, Callout, Dialog, Field, Section, Textarea, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 import { JobCard, useJob } from "../jobs/index.js";
 import { supabase } from "../../lib/supabase.js";
 import {
@@ -14,8 +15,6 @@ import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
 import AiRunSummary from "../ai/AiRunSummary.jsx";
 import AiBulkRunReport from "../ai/AiBulkRunReport.jsx";
 import { getAiBulkRunSummary, retryFailedBulkJobs } from "../../lib/aiUsage.js";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 const CONFIRM_WORD = "CREATE";
 
@@ -30,6 +29,7 @@ const CONFIRM_WORD = "CREATE";
  */
 export default function DirectoryAiContentPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
   const ai = useAiFeature("content_generation");
+  const formId = useId();
   const [runSummary, setRunSummary] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const [prompt, setPrompt] = useState(directory?.ai_content_prompt ?? "");
@@ -131,74 +131,85 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
     }
   }
 
+  // Stable so the Dialog's focus handling doesn't restart on every keystroke in the confirmation field.
+  const closeConfirm = useCallback(() => setConfirmOpen(false), []);
+
   if (!canManage) {
-    return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can change AI content generation settings.</p>;
+    return <Callout tone="info">Only an Owner or Manager can change AI content generation settings.</Callout>;
   }
 
+  const hasPrompt = !!directory?.ai_content_prompt?.trim();
+
   return (
-    <div>
+    <>
       {job ? (
-        <div style={{ margin: "0 0 12px" }}>
-          <JobCard
-            job={job}
-            onRetry={handleRetryFailed}
-            onDismiss={dismiss}
-            primaryAction={<Button as="a" href="#ai-content-report">Review drafts</Button>}
-          />
-        </div>
+        <JobCard
+          job={job}
+          onRetry={handleRetryFailed}
+          onDismiss={dismiss}
+          primaryAction={<Button as="a" href="#ai-content-report">Review drafts</Button>}
+        />
       ) : null}
-      <form onSubmit={savePrompt} style={{ display: "grid", gap: 10 }}>
-        {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
-        {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
 
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>
-          Describe the page content the AI should write for each entry. New entries with no content are written
-          automatically once this is set; existing entries only regenerate when you trigger it. Leave blank to turn
-          this off for this directory.
-        </p>
-        <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
-          <span>Content prompt</span>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={10}
-            placeholder="e.g. Write a warm, factual 2-3 paragraph description covering what this organisation does, who it serves, and why it's included in this directory."
-            style={{ ...inputStyle, minHeight: 180, resize: "vertical", fontFamily: "inherit" }}
+      <Section
+        title="Content generation"
+        description="Describe the page content the AI should write for each entry. New entries with no content are written automatically once this is set; existing entries only regenerate when you trigger it. Leave blank to turn this off for this directory."
+        footer={<Button type="submit" form={formId} variant="primary" loading={saving} loadingLabel="Saving…">Save prompt</Button>}
+      >
+        <form id={formId} onSubmit={savePrompt} className="b1-form">
+          <Field label="Content prompt">
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={10}
+              placeholder="e.g. Write a warm, factual 2-3 paragraph description covering what this organisation does, who it serves, and why it's included in this directory."
+            />
+          </Field>
+          {err ? <Callout tone="danger">{err}</Callout> : null}
+          {msg ? <Callout tone="ok">{msg}</Callout> : null}
+        </form>
+      </Section>
+
+      <Section
+        title="Bulk generation"
+        footer={(
+          <AIButton
+            compact
+            variant="secondary"
+            label="Generate all entry content"
+            onGenerate={() => { openConfirm(); return false; }}
+            disabled={!hasPrompt || running || !ai.available}
           />
-        </label>
-
-        <div>
-          <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-            {saving ? "Saving…" : "Save prompt"}
-          </button>
+        )}
+      >
+        <div id="ai-content-report">
+          <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
         </div>
-      </form>
-
-      <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid var(--lc-border)" }} />
-
-      <div id="ai-content-report">
-        <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
-      </div>
-      {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
-      <AIButton
-        compact
-        variant="secondary"
-        label="Generate all entry content"
-        onGenerate={() => { openConfirm(); return false; }}
-        disabled={!directory?.ai_content_prompt?.trim() || running || !ai.available}
-      />
-      {!directory?.ai_content_prompt?.trim() && (
-        <p style={{ fontSize: 12, opacity: 0.6, margin: "6px 0 0" }}>Save a content prompt above first.</p>
-      )}
+        {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
+        {!hasPrompt ? <p className="field-hint">Save a content prompt above first.</p> : null}
+      </Section>
 
       {confirmOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: 16 }}
-          onClick={() => setConfirmOpen(false)}
+        <Dialog
+          title="Generate content for every entry?"
+          onClose={closeConfirm}
+          footer={(
+            <>
+              <Button onClick={closeConfirm} disabled={queuing}>Cancel</Button>
+              <Button
+                variant="danger-solid"
+                onClick={handleBulkRun}
+                loading={queuing}
+                loadingLabel="Queuing…"
+                disabled={confirmText !== CONFIRM_WORD}
+              >
+                Generate all entry content
+              </Button>
+            </>
+          )}
         >
-          <div className="panel-section admin-card" style={{ border: "1px solid #b91c1c", maxWidth: 460, width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <p className="panel-section__title" style={{ color: "#b91c1c" }}>Generate content for every entry?</p>
-            <p style={{ margin: "0 0 8px", fontSize: 13 }}>
+          <div className="b1-form">
+            <p>
               This will overwrite the page content of {entryCount == null ? "every" : entryCount} {entryCount === 1 ? "entry" : "entries"} in
               this directory using the prompt above — including entries that already have hand-written content. It
               may take a few minutes and uses your connected AI provider account.
@@ -211,32 +222,22 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
               featureKey="content_generation"
               catalogue={ai.catalogue}
             />
-            <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
-              Every entry's previous content stays recoverable from its version history, so this can't permanently
+            <Callout tone="info">
+              Every entry&apos;s previous content stays recoverable from its version history, so this can&apos;t permanently
               lose anything.
-            </p>
-            <p style={{ margin: "0 0 6px", fontSize: 13 }}>Type <strong>{CONFIRM_WORD}</strong> to confirm:</p>
-            <input
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={CONFIRM_WORD}
-              style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 }}
-            />
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={handleBulkRun}
-                disabled={queuing || confirmText !== CONFIRM_WORD}
-                style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}
-              >
-                {queuing ? "Queuing…" : "Generate all entry content"}
-              </button>
-              <button type="button" className="btn" onClick={() => setConfirmOpen(false)} disabled={queuing}>Cancel</button>
-            </div>
+            </Callout>
+            <Field label={<>Type <strong>{CONFIRM_WORD}</strong> to confirm</>}>
+              <TextInput
+                data-autofocus
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={CONFIRM_WORD}
+                autoComplete="off"
+              />
+            </Field>
           </div>
-        </div>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }

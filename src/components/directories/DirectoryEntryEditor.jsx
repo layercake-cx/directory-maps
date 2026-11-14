@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getDirectoryEntry, isDirectoryAiContentEnabled } from "../../lib/directories.js";
-import EntryEditSubNav from "./entryEdit/EntryEditSubNav.jsx";
+import { entryEditTabs } from "./entryEdit/EntryEditSubNav.jsx";
+import { Button, EmptyState, ErrorState, Pill, RecordLayout, Skeleton } from "../ui/index.js";
 import EntryBasicInfoTab from "./entryEdit/EntryBasicInfoTab.jsx";
 import EntryCategoriesTab from "./entryEdit/EntryCategoriesTab.jsx";
 import EntryContentTab from "./entryEdit/EntryContentTab.jsx";
@@ -58,34 +59,32 @@ export default function DirectoryEntryEditor({
 
   const entryBasePath = `${basePath}/entries/${encodeURIComponent(entryId)}`;
 
+  const title = isNew ? "New entry" : loading ? "Loading…" : entry?.name || "Entry";
+  const subtitle = isNew
+    ? "Save the basic info to unlock categories, content, search metadata, panel style and preview."
+    : entry?.address || undefined;
+  const status = !isNew && entry ? <Pill tone={entry.is_active ? "ok" : "neutral"}>{entry.is_active ? "Active" : "Hidden"}</Pill> : null;
+  const head = {
+    title,
+    subtitle,
+    status,
+    breadcrumb: [{ label: backLabel, to: backPath }, { label: title }],
+  };
+  const tabs = isNew ? undefined : { tabs: entryEditTabs(entryBasePath), current: tab, label: "Entry sections" };
+
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Link to={backPath}>← {backLabel}</Link>
-      </div>
-
-      <h2 style={{ margin: "0 0 4px" }}>
-        {isNew ? "New entry" : loading ? "Loading…" : entry?.name || "Entry"}
-      </h2>
-      {!isNew && entry && (
-        <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.7 }}>
-          {entry.is_active ? "Active" : "Hidden"}{entry.address ? ` · ${entry.address}` : ""}
-        </p>
-      )}
-      {isNew && (
-        <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.7 }}>
-          Save the basic info to unlock categories, content, search metadata, panel style and preview.
-        </p>
-      )}
-
-      <EntryEditSubNav basePath={entryBasePath} activeTab={isNew ? "basic" : tab} disabled={isNew} />
-
+    <RecordLayout head={head} tabs={tabs}>
       {!isNew && loading ? (
-        <p>Loading…</p>
+        <Skeleton variant="form" rows={5} label="Loading entry" />
       ) : !isNew && err ? (
-        <p style={{ color: "#b91c1c" }}>{err}</p>
+        <ErrorState title="We couldn't load this entry" body={`${err} Nothing has been lost.`} onRetry={reload} />
       ) : !isNew && !entry ? (
-        <p>Entry not found.</p>
+        <EmptyState
+          art="searching"
+          title="Entry not found"
+          body="It may have been deleted, or the link may be out of date."
+          actions={<Button as={Link} to={backPath} variant="primary">{backLabel}</Button>}
+        />
       ) : (
         <>
           {(isNew || tab === "basic") && (
@@ -126,6 +125,6 @@ export default function DirectoryEntryEditor({
           )}
         </>
       )}
-    </div>
+    </RecordLayout>
   );
 }

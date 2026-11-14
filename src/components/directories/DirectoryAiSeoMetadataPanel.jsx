@@ -1,7 +1,7 @@
 import AIButton from "../ai/AIButton.jsx";
 import React, { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Button } from "../ui/index.js";
+import { Button, Callout, Section } from "../ui/index.js";
 import { JobCard, useJob } from "../jobs/index.js";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
@@ -103,32 +103,38 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
   }
 
   if (!canManage) {
-    return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can trigger the SEO metadata backfill.</p>;
+    return <Callout tone="info">Only an Owner or Manager can trigger the SEO metadata backfill.</Callout>;
   }
 
   return (
-    <div>
-      {job ? (
-        <div style={{ margin: "0 0 12px" }}>
-          <JobCard
-            job={job}
-            onRetry={handleRetryFailed}
-            onDismiss={dismiss}
-            primaryAction={<Button as="a" href="#ai-seo-report">Review drafts</Button>}
+    <Section
+      title="SEO metadata backfill"
+      description="Fills in meta title, meta description, keywords, social title/description, and AI summary for any active entry missing one — never touches a field that already has content, whether an editor wrote it or a previous backfill did. New entries with missing fields are also picked up automatically as they're added, without needing this button."
+      footer={(
+        <>
+          <Button onClick={refreshCount} disabled={countLoading || running}>Refresh count</Button>
+          <AIButton
+            compact
+            variant="secondary"
+            label="Backfill missing metadata"
+            onGenerate={async () => { await handleBackfill(); return false; }}
+            disabled={queuing || running || !missingCount || !ai.available}
           />
-        </div>
+        </>
+      )}
+    >
+      {job ? (
+        <JobCard
+          job={job}
+          onRetry={handleRetryFailed}
+          onDismiss={dismiss}
+          primaryAction={<Button as="a" href="#ai-seo-report">Review drafts</Button>}
+        />
       ) : null}
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 12, margin: "0 0 8px" }}>{msg}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
-      <p style={{ margin: "0 0 10px", fontSize: 13, opacity: 0.75 }}>
-        Fills in meta title, meta description, keywords, social title/description, and AI summary for any active
-        entry missing one — never touches a field that already has content, whether an editor wrote it or a previous
-        backfill did. New entries with missing fields are also picked up automatically as they're added, without
-        needing this button.
-      </p>
-
-      <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600 }}>
+      <p className="setting-row-label">
         {countLoading ? "Checking…" : missingCount == null ? "Could not check how many entries are missing metadata." : `${missingCount} ${missingCount === 1 ? "entry is" : "entries are"} missing SEO/social metadata.`}
       </p>
 
@@ -146,25 +152,6 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
           catalogue={ai.catalogue}
         />
       )}
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <AIButton
-          compact
-          variant="secondary"
-          label="Backfill missing metadata"
-          onGenerate={async () => { await handleBackfill(); return false; }}
-          disabled={queuing || running || !missingCount || !ai.available}
-        />
-        <button
-          type="button"
-          className="btn"
-          style={{ fontSize: 12, padding: "5px 12px" }}
-          onClick={refreshCount}
-          disabled={countLoading || running}
-        >
-          Refresh count
-        </button>
-      </div>
-    </div>
+    </Section>
   );
 }

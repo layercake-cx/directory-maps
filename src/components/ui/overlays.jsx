@@ -14,6 +14,10 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
   const ref = useRef(null);
   const auto = useId();
   const titleId = labelledBy || auto;
+  // Read onClose through a ref so callers can pass an inline function: the effect below must run once per open,
+  // otherwise every parent re-render (e.g. typing in a field) would re-focus the first control.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement;
     const el = ref.current;
@@ -21,7 +25,7 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
       } else if (e.key === "Tab" && el) {
         const items = [...el.querySelectorAll(FOCUSABLE)];
         if (!items.length) return;
@@ -36,7 +40,7 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
       document.removeEventListener("keydown", onKey);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className={`dialog ${wide ? "dialog--wide" : ""}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>

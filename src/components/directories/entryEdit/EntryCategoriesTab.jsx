@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Text } from "@mantine/core";
+import { Callout, Section, Skeleton } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 import CategoryTagPicker from "../CategoryTagPicker.jsx";
 import { loadEntryTermIds, setEntryTerms } from "../../../lib/categorisations.js";
 
@@ -30,19 +31,19 @@ export default function EntryCategoriesTab({ clientId, directoryId, entryId, can
     }
   }
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <Skeleton variant="form" rows={3} label="Loading categories" />;
 
   return (
-    <div className="admin-card" style={{ padding: 20, maxWidth: 560 }}>
-      <Text size="sm" fw={600} mb={8}>
-        Categories {saving ? <span style={{ fontWeight: 400, opacity: 0.6 }}>(saving…)</span> : null}
-      </Text>
-      {err && <p style={{ color: "#b91c1c", fontSize: 13 }}>{err}</p>}
+    <Section
+      title="Categories"
+      actions={saving ? <span className="entries-muted" role="status">Saving…</span> : null}
+    >
+      {err && <Callout tone="danger">{err}</Callout>}
       <CategoryTagPicker
         directoryId={directoryId}
         selectedTermIds={termIds}
         onChange={canEdit ? handleChange : () => {}}
       />
-    </div>
+    </Section>
   );
 }

@@ -1,0 +1,83 @@
+/* Wave A, batch 3: claims, categories, content pages, accreditations and entry sub-editors.
+   Tokens only, scoped under .shell. Classes are prefixed b3- so they cannot collide with the kit. */
+
+.shell .b3-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .b3-stack--tight { gap: 8px; }
+.shell .b3-stack--loose { gap: 24px; }
+.shell .b3-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.shell .b3-row--between { justify-content: space-between; }
+.shell .b3-row--end { align-items: flex-end; }
+.shell .b3-grow { flex: 1 1 240px; min-width: 0; }
+.shell .b3-push { margin-left: auto; }
+.shell .b3-subhead { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--shell-ink); }
+.shell .b3-muted { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .b3-text { margin: 0; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .b3-indent { margin-left: 28px; }
+.shell .b3-narrow { max-width: 420px; }
+
+/* Inline add / edit form inside an editor */
+.shell .b3-form { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--shell-line); border-radius: var(--radius-card); background: var(--shell-surface); }
+.shell .b3-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Lists of small records inside editors */
+.shell .b3-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.shell .b3-list-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--shell-line); border-radius: var(--radius-item); background: var(--shell-surface); }
+.shell .b3-list-item--top { align-items: flex-start; }
+.shell .b3-list-item.is-muted { opacity: 0.65; }
+.shell .b3-list-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.shell .b3-list-title { font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.shell .b3-list-sub { font-size: var(--fs-small); color: var(--shell-text-soft); overflow-wrap: anywhere; }
+.shell .b3-list-actions { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.shell .b3-ordering { display: flex; flex-direction: column; flex: none; }
+
+/* Media gallery */
+.shell .b3-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.shell .b3-media-card { display: flex; flex-direction: column; border: 1px solid var(--shell-line); border-radius: var(--radius-item); overflow: hidden; background: var(--shell-surface); }
+.shell .b3-media-img { display: block; width: 100%; height: 104px; object-fit: cover; }
+.shell .b3-media-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: var(--fs-small); color: var(--shell-text-soft); }
+.shell .b3-media-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.shell .b3-media-pending { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.shell .b3-media-preview { flex: none; width: 120px; height: 90px; object-fit: cover; border: 1px solid var(--shell-line); border-radius: var(--radius-item); }
+.shell .b3-media-fields { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* Categories */
+.shell .b3-term-row { display: flex; align-items: center; gap: 8px; }
+.shell .b3-term-row .input { flex: 1; min-width: 0; }
+.shell .b3-term-swatch { flex: none; }
+.shell .b3-cat-group { display: flex; flex-direction: column; gap: 8px; }
+
+/* Pages panel */
+.shell .b3-pages { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1023px) { .shell .b3-pages { grid-template-columns: minmax(0, 1fr); } }
+.shell .b3-page-tree { display: flex; flex-direction: column; gap: 2px; }
+.shell .b3-page-row { display: flex; align-items: center; gap: 6px; border-top: 2px solid transparent; border-bottom: 2px solid transparent; border-radius: 6px; padding-left: calc(4px + var(--b3-depth, 0) * 16px); }
+.shell .b3-page-row.is-selected, .shell .b3-page-row.is-dragging { background: var(--shell-selected-row); }
+.shell .b3-page-row.is-inactive { opacity: 0.6; }
+.shell .b3-page-row.is-drop-before { border-top-color: var(--shell-accent); }
+.shell .b3-page-row.is-drop-after { border-bottom-color: var(--shell-accent); }
+.shell .b3-page-row.is-drop-child { outline: 2px dashed var(--shell-accent); }
+.shell .b3-page-handle { display: inline-flex; flex: none; padding: 0 2px; color: var(--shell-text-muted); cursor: grab; user-select: none; }
+.shell .b3-page-btn { flex: 1; min-height: 44px; padding: 6px 8px 6px 0; border: 0; border-radius: 6px; background: transparent; text-align: left; font: var(--fs-ui) var(--font-body); color: var(--shell-ink); cursor: pointer; }
+.shell .b3-page-btn:hover { text-decoration: underline; }
+.shell .b3-page-state { color: var(--shell-text-muted); }
+
+/* Claims */
+.shell .b3-detail { display: flex; flex-direction: column; gap: 16px; padding: 18px 20px; background: var(--shell-ground); }
+.shell .b3-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.shell .b3-detail-wide { grid-column: 1 / -1; }
+.shell .b3-detail-label { margin: 0 0 2px; font-size: var(--fs-small); font-weight: 700; color: var(--shell-ink); }
+.shell .b3-detail-value { margin: 0; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .b3-pre { white-space: pre-wrap; }
+.shell .b3-click-row { cursor: pointer; }
+.shell .b3-search { flex: 1 1 240px; min-width: 0; }
+.shell .b3-expand-btn { padding: 0; border: 0; background: transparent; color: var(--shell-ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.shell .b3-expand-btn:hover { text-decoration: underline; }
+.shell .b3-narrow-field { max-width: 320px; }
+.shell .b3-price-field { max-width: 160px; }
+
+/* Claim banner settings */
+.shell .b3-banner-frame { padding: 16px; border: 1px dashed var(--shell-line); border-radius: var(--radius-item); background: var(--shell-surface); overflow-x: auto; }
+.shell .b3-banner-frame-inner { margin: 0 auto; max-width: 100%; }
+.shell .b3-banner-frame-inner.is-desktop { width: 100%; }
+.shell .b3-banner-frame-inner.is-mobile { width: 343px; }
+.shell .b3-colour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }

@@ -186,6 +186,16 @@ These emails are sent from the directory's chosen sending profile (a verified cu
 - Anything that doesn't match a suggested question gets a short "still being built" reply. Staff can type `/error` or `/unavailable` to see those states.
 - Your conversation is kept for the browser session, per organisation. **New conversation** clears it. Opening Pip and picking a suggested question are logged as admin events (the question you type is never recorded).
 
+### What changed on directory pages (new look)
+
+Every directory page now follows one layout: a page title, then stacked cards, with Save buttons at the bottom of the card they belong to. Things that moved:
+
+- **Entries:** **Add entry** is the main button. **Export CSV**, **Download CSV template**, **Import CSV** and **Geocode missing coords** are under the **More entry actions** menu. Search and filters are labelled. Row actions (Edit, Delete) are in each row's **Actions** menu.
+- **Entry editor:** a breadcrumb back to Entries, an Active/Hidden label by the name, and the same tabs as before.
+- **Claims:** the claims list is a table; selecting a claim shows its details in a card below. Revoke, Approve and Transfer ownership now ask in a dialog instead of a browser prompt.
+- **Deleting a directory or category** still asks you to type DELETE; the dialog now looks like the rest of the app.
+- Pages that had no heading (General, SEO, Search & Discovery, AI enrichment, Insights) now have one.
+
 ### Progress and background tasks
 
 Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.

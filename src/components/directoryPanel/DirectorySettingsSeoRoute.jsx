@@ -2,6 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import DirectorySeoSettingsPanel from "../directories/DirectorySeoSettingsPanel.jsx";
 import DirectoryAiSeoMetadataPanel from "../directories/DirectoryAiSeoMetadataPanel.jsx";
+import { SettingsLayout } from "../ui/index.js";
 
 /**
  * Settings › SEO. The AI backfill section keeps its own `canManage` guard even though this route
@@ -12,23 +13,18 @@ import DirectoryAiSeoMetadataPanel from "../directories/DirectoryAiSeoMetadataPa
 export default function DirectorySettingsSeoRoute() {
   const { directory, directoryId, canManage, recordEvent, refetch } = useDirectory();
   return (
-    <>
-      <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <DirectorySeoSettingsPanel
-          directory={directory}
-          directoryId={directoryId}
-          canManage={canManage}
-          recordEvent={recordEvent}
-          onSaved={refetch}
-        />
-      </div>
+    <SettingsLayout head={{ title: "SEO" }}>
+      <DirectorySeoSettingsPanel
+        directory={directory}
+        directoryId={directoryId}
+        canManage={canManage}
+        recordEvent={recordEvent}
+        onSaved={refetch}
+      />
 
       {canManage && (
-        <div className="card card-pad">
-          <p className="card-title">SEO metadata backfill</p>
-          <DirectoryAiSeoMetadataPanel directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
-        </div>
+        <DirectoryAiSeoMetadataPanel directoryId={directoryId} canManage={canManage} recordEvent={recordEvent} />
       )}
-    </>
+    </SettingsLayout>
   );
 }

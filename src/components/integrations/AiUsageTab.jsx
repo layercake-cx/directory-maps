@@ -14,7 +14,8 @@ import {
 } from "../../lib/aiUsage.js";
 import { DataTable, EmptyChart, LoadingState, MetricCards, Panel } from "../engagement/EngagementShared.jsx";
 import shared from "../engagement/EngagementShared.module.css";
-import styles from "../../pages/client/ClientEmail.module.css";
+import { Callout, Field, Select, Toolbar } from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 const providerLabel = (id) => AI_PROVIDERS.find((p) => p.id === id)?.label ?? id;
 const featureLabel = (row) =>
@@ -98,43 +99,36 @@ export default function AiUsageTab({ clientId }) {
   const modelRows = (summary?.by_model ?? []).map((r, i) => ({ ...r, id: `m${i}` }));
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <p className={styles.hint}>
+    <div className="b4-panel">
+      <Callout tone="info">
         This is the AI usage generated through Layercake. It is <strong>not</strong> your total provider account
         usage: your provider account may also be used for other things, and your provider is the authoritative source
         for what you owe.
-      </p>
+      </Callout>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "12px 0" }}>
-        <label className={shared.dateRange}>
-          <span className={shared.dateRangeLabel}>Period</span>
-          <select className={shared.dateRangeSelect} value={period} onChange={(e) => setPeriod(e.target.value)}>
-            {USAGE_PERIODS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className={shared.dateRange}>
-          <span className={shared.dateRangeLabel}>Directory</span>
-          <select className={shared.dateRangeSelect} value={directoryId} onChange={(e) => setDirectoryId(e.target.value)}>
+      <Toolbar>
+        <Field label="Period">
+          <Select value={period} onChange={(e) => setPeriod(e.target.value)} options={USAGE_PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
+        </Field>
+        <Field label="Directory">
+          <Select value={directoryId} onChange={(e) => setDirectoryId(e.target.value)}>
             <option value="">All directories</option>
             {directories.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
-          </select>
-        </label>
-        <label className={shared.dateRange}>
-          <span className={shared.dateRangeLabel}>Provider</span>
-          <select className={shared.dateRangeSelect} value={provider} onChange={(e) => setProvider(e.target.value)}>
+          </Select>
+        </Field>
+        <Field label="Provider">
+          <Select value={provider} onChange={(e) => setProvider(e.target.value)}>
             <option value="">All providers</option>
             {AI_PROVIDERS.map((p) => (
               <option key={p.id} value={p.id}>{p.label}</option>
             ))}
-          </select>
-        </label>
-      </div>
+          </Select>
+        </Field>
+      </Toolbar>
 
-      {err ? <p className={styles.error}>{err}</p> : null}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
       {loading && !summary ? <LoadingState /> : null}
 
       {totals ? (
@@ -150,28 +144,26 @@ export default function AiUsageTab({ clientId }) {
           />
 
           {totals.requests > 0 ? (
-            <div style={{ fontSize: 12, margin: "8px 0 16px", display: "grid", gap: 4 }}>
-              <span style={{ opacity: 0.75 }}>
+            <div className="b4-usage-notes">
+              <span>
                 Estimated cost is based on published provider pricing. Your AI provider account is the authoritative
                 source for billing. Actual costs may differ because of pricing changes, cached tokens, volume
                 discounts, agreements, credits and currency conversion.
               </span>
               {uncosted > 0 ? (
-                <span style={{ opacity: 0.75 }}>
+                <span>
                   {uncosted} of {totals.requests} requests used a model whose price isn&apos;t known, so they aren&apos;t
                   included in the estimate.
                 </span>
               ) : null}
-              {totals.platform_requests > 0 ? (
-                <span style={{ color: "#92400e" }}>
-                  {num(totals.platform_requests)} of these requests ran on Layercake&apos;s own AI account rather than
-                  your provider account, so your provider doesn&apos;t bill them.
-                </span>
-              ) : null}
-              {totals.failed > 0 ? (
-                <span style={{ opacity: 0.75 }}>{num(totals.failed)} requests failed and used no tokens.</span>
-              ) : null}
+              {totals.failed > 0 ? <span>{num(totals.failed)} requests failed and used no tokens.</span> : null}
             </div>
+          ) : null}
+          {totals.requests > 0 && totals.platform_requests > 0 ? (
+            <Callout tone="warn">
+              {num(totals.platform_requests)} of these requests ran on Layercake&apos;s own AI account rather than
+              your provider account, so your provider doesn&apos;t bill them.
+            </Callout>
           ) : null}
 
           <Panel title="Tokens per day" subtitle="Input plus output tokens across all AI requests.">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import styles from "./ListingSearchDropdown.module.css";
+import { Field, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 /**
  * @param {{ listings: { id: string, name?: string }[], mapId: string, days: number, listingStatsPath?: (listingId: string) => string }} props
@@ -37,28 +38,26 @@ export default function ListingSearchDropdown({ listings, mapId, days, listingSt
   }
 
   return (
-    <div className={styles.wrap} ref={wrapRef}>
-      <label className={styles.label} htmlFor="listing-stats-search">
-        View listing stats
-      </label>
-      <input
-        id="listing-stats-search"
-        type="text"
-        className={styles.input}
-        placeholder="Search by listing name…"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        autoComplete="off"
-      />
+    <div className="b4-lsd" ref={wrapRef}>
+      <Field label="View listing stats">
+        <TextInput
+          id="listing-stats-search"
+          type="text"
+          placeholder="Search by listing name…"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          autoComplete="off"
+        />
+      </Field>
       {open && filtered.length > 0 ? (
-        <ul className={styles.list} role="listbox">
+        <ul className="b4-lsd-list" role="listbox">
           {filtered.map((l) => (
             <li key={l.id}>
-              <button type="button" className={styles.option} role="option" onMouseDown={() => goToListing(l.id)}>
+              <button type="button" className="b4-lsd-option" role="option" onMouseDown={() => goToListing(l.id)}>
                 {l.name || "—"}
               </button>
             </li>
@@ -66,7 +65,7 @@ export default function ListingSearchDropdown({ listings, mapId, days, listingSt
         </ul>
       ) : null}
       {open && query.trim() && filtered.length === 0 ? (
-        <p className={styles.empty}>No listings match.</p>
+        <p className="b4-lsd-empty">No listings match.</p>
       ) : null}
     </div>
   );

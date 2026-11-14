@@ -1,7 +1,8 @@
 import AIButton from "../../ai/AIButton.jsx";
 import AiProvenanceNote from "../../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Button, Callout, Section, useConfirm } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 import { useAiFeature } from "../../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../../components/ai/AiUnavailableNotice.jsx";
 import {
@@ -39,6 +40,7 @@ const SOURCE_LABELS = {
  */
 export default function EntryContentTab({ directoryId, entryId, clientId, entry, canEdit, aiContentEnabled, recordEvent, onSaved }) {
   const ai = useAiFeature("content_generation");
+  const confirm = useConfirm();
   const loadPrompt = useCallback(async () => ({ text: await getDirectoryAiContentPrompt(directoryId) }), [directoryId]);
   const [notesHtml, setNotesHtml] = useState(entry?.notes_html || "");
   const [saving, setSaving] = useState(false);
@@ -76,7 +78,12 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
   }
 
   async function handleGenerate() {
-    if (notesHtml.trim() && !window.confirm("This entry already has content — generating with AI will overwrite it. The current content stays recoverable in the version history below. Continue?")) {
+    if (notesHtml.trim() && !(await confirm({
+      title: "Replace the current content?",
+      body: "This entry already has content. Generating with AI will overwrite it. The current content stays recoverable in the version history below.",
+      confirmLabel: "Generate and replace",
+      tone: "danger",
+    }))) {
       return false;
     }
     setErr("");
@@ -100,14 +107,14 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
   }
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      <div className="admin-card" style={{ padding: 20 }}>
-        <Group justify="space-between" mb={10}>
-          <Text size="sm" fw={600}>Notes</Text>
-          {canEdit && aiContentEnabled && (
-            <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} />
-          )}
-        </Group>
+    <div className="editor-stack">
+      <Section
+        title="Notes"
+        actions={canEdit && aiContentEnabled ? <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} /> : null}
+        footer={canEdit ? (
+          <Button variant="primary" onClick={handleSaveNotes} loading={saving} loadingLabel="Saving…">Save notes</Button>
+        ) : null}
+      >
         {canEdit && aiContentEnabled && (
           <AiProvenanceNote entityName="entry" compact loadPrompt={loadPrompt} onGenerateFromModal={handleGenerate} canGenerate={ai.available}>
             AI drafts this from the details held for this entry, following a drafting prompt set by the directory's administrators. Generating replaces the text below, and the previous version stays in the history.{" "}
@@ -115,36 +122,24 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
         )}
         {canEdit && aiContentEnabled && !ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
         <RichTextEditor value={notesHtml} onChange={setNotesHtml} editable={canEdit} />
-        {err && <Alert color="red" variant="light" mt="xs">{err}</Alert>}
-        {canEdit && (
-          <Group justify="flex-end" mt="xs">
-            <Button size="sm" onClick={handleSaveNotes} loading={saving}>Save notes</Button>
-          </Group>
-        )}
+        {err && <Callout tone="danger">{err}</Callout>}
 
         {!versionsLoading && versions.length > 0 && (
-          <div style={{ marginTop: 16, borderTop: "1px solid var(--lc-border)", paddingTop: 12 }}>
-            <Text size="xs" fw={600} c="dimmed" mb={6}>Version history</Text>
-            <div style={{ display: "grid", gap: 4, maxHeight: 180, overflowY: "auto" }}>
+          <div className="version-list">
+            <h3 className="preview-caption">Version history</h3>
+            <div className="version-list-items">
               {versions.map((v) => (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12 }}>
-                  <span style={{ opacity: 0.75 }}>
+                <div key={v.id} className="version-row">
+                  <span>
                     {new Date(v.created_at).toLocaleString()} — {SOURCE_LABELS[v.source] ?? v.source}
                   </span>
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ fontSize: 11, padding: "2px 8px" }}
-                    onClick={() => handleRestore(v)}
-                  >
-                    Restore
-                  </button>
+                  <Button size="sm" onClick={() => handleRestore(v)}>Restore</Button>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
+      </Section>
 
       <EvidenceItemsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
       <MediaAssetsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />

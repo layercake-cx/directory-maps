@@ -2,9 +2,14 @@ import React, { useState } from "react";
 import AiProvidersTab from "./AiProvidersTab.jsx";
 import AiFeaturesConfig from "./AiFeaturesConfig.jsx";
 import AiUsageTab from "./AiUsageTab.jsx";
-import styles from "../../pages/client/ClientEmail.module.css";
+import { PageLayout, Tabs } from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 const COMING_SOON = ["Analytics", "Payments", "CRM", "Identity & SSO", "Data & webhooks"];
+const TABS = [
+  { key: "ai", label: "AI providers" },
+  { key: "usage", label: "AI usage" },
+];
 
 /**
  * Platform Integrations hub: the external services an organisation has connected to Layercake,
@@ -21,33 +26,13 @@ export default function IntegrationsPanel({
   const [connectionsVersion, setConnectionsVersion] = useState(0);
 
   return (
-    <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">Integrations</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
-            Connect external services once and use them across Layercake products. Layercake provides the
-            capabilities; you pay your provider directly for what they use.
-          </p>
-        </div>
-      </div>
-
-      <div className={`admin-map-tabs ${styles.messagingTabs}`}>
-        <button
-          type="button"
-          className={`admin-map-tabs__tab ${tab === "ai" ? "is-active" : ""}`}
-          onClick={() => setTab("ai")}
-        >
-          AI providers
-        </button>
-        <button
-          type="button"
-          className={`admin-map-tabs__tab ${tab === "usage" ? "is-active" : ""}`}
-          onClick={() => setTab("usage")}
-        >
-          AI usage
-        </button>
-      </div>
+    <PageLayout
+      head={{
+        title: "Integrations",
+        subtitle: "Connect external services once and use them across Layercake products. Layercake provides the capabilities; you pay your provider directly for what they use.",
+      }}
+    >
+      <Tabs tabs={TABS} current={tab} onSelect={setTab} label="Integrations sections" />
 
       {tab === "ai" ? (
         <>
@@ -62,9 +47,7 @@ export default function IntegrationsPanel({
 
       {tab === "usage" ? <AiUsageTab clientId={clientId} /> : null}
 
-      <p className={styles.note} style={{ marginTop: 16 }}>
-        Coming later: {COMING_SOON.join(", ")}.
-      </p>
-    </>
+      <p className="b4-note">Coming later: {COMING_SOON.join(", ")}.</p>
+    </PageLayout>
   );
 }

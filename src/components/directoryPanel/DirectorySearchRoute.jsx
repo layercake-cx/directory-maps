@@ -2,7 +2,7 @@ import React from "react";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import DirectorySearchSettingsPanel from "../directories/DirectorySearchSettingsPanel.jsx";
 import DirectoryAiSearchPanel from "../directories/DirectoryAiSearchPanel.jsx";
-import { AskPipLink } from "../ui/index.js";
+import { AskPipLink, SettingsLayout } from "../ui/index.js";
 
 /**
  * Experience › Search & Discovery — location-search toggle (visible to any user with access,
@@ -14,30 +14,29 @@ export default function DirectorySearchRoute() {
   const { directory, directoryId, canManage, recordEvent, refetch } = useDirectory();
 
   return (
-    <>
-      <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <AskPipLink question="How does plain-English search work?" context="Search" />
-        <DirectorySearchSettingsPanel
+    <SettingsLayout
+      head={{
+        title: "Search & Discovery",
+        actions: <AskPipLink question="How does plain-English search work?" context="Search" />,
+      }}
+    >
+      <DirectorySearchSettingsPanel
+        directory={directory}
+        directoryId={directoryId}
+        canManage={canManage}
+        recordEvent={recordEvent}
+        onSaved={refetch}
+      />
+
+      {canManage && (
+        <DirectoryAiSearchPanel
           directory={directory}
           directoryId={directoryId}
           canManage={canManage}
           recordEvent={recordEvent}
           onSaved={refetch}
         />
-      </div>
-
-      {canManage && (
-        <div className="card card-pad">
-          <p className="card-title">Help me choose</p>
-          <DirectoryAiSearchPanel
-            directory={directory}
-            directoryId={directoryId}
-            canManage={canManage}
-            recordEvent={recordEvent}
-            onSaved={refetch}
-          />
-        </div>
       )}
-    </>
+    </SettingsLayout>
   );
 }

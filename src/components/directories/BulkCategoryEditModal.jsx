@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { applyBulkEntryTerms } from "../../lib/categorisations.js";
+import { Button, Callout, Checkbox, Dialog, Field, Select } from "../ui/index.js";
+import "../../styles/wave-a/batch-2.css";
 
 /**
  * Bulk-apply one categorisation's term(s) to a set of selected directory
@@ -56,94 +58,98 @@ export default function BulkCategoryEditModal({ categorisations, entryIds, onClo
     }
   }
 
+  const footer = taggable.length === 0 ? (
+    <Button onClick={onClose}>Close</Button>
+  ) : (
+    <>
+      <Button onClick={onClose} disabled={busy}>Cancel</Button>
+      <Button
+        variant="primary"
+        onClick={apply}
+        loading={busy}
+        loadingLabel="Applying…"
+        disabled={!categorisation || (effectiveMode === "add" && termIds.size === 0)}
+      >
+        {`Apply to ${count}`}
+      </Button>
+    </>
+  );
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.45)", padding: 16 }} onClick={onClose}>
-      <div className="admin-card" style={{ padding: 24, maxWidth: 460, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.22)" }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>Bulk tag entries</h3>
-        <p style={{ margin: "0 0 14px", fontSize: 13, opacity: 0.75 }}>Apply a category term to {count} selected entr{count === 1 ? "y" : "ies"}.</p>
+    <Dialog title="Bulk tag entries" onClose={onClose} footer={footer}>
+      <div className="bulk-tag-form">
+        <p className="bulk-tag-count">Apply a category term to {count} selected entr{count === 1 ? "y" : "ies"}.</p>
 
         {taggable.length === 0 ? (
-          <p style={{ fontSize: 13 }}>No categories apply to entries yet. Create one in Categories first.</p>
+          <p>No categories apply to entries yet. Create one in Categories first.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Category</span>
-              <select value={categorisationId} onChange={(e) => { setCategorisationId(e.target.value); setTermIds(new Set()); }} style={{ width: "100%" }}>
+          <>
+            <Field label="Category">
+              <Select value={categorisationId} onChange={(e) => { setCategorisationId(e.target.value); setTermIds(new Set()); }}>
                 {taggable.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
             {categorisation && categorisation.field_type === "boolean" && (
-              <div style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Set to</span>
-                <div style={{ display: "flex", gap: 14 }}>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <fieldset className="choice-group">
+                <legend className="field-label">Set to</legend>
+                <div className="choice-row">
+                  <label className="check">
                     <input type="radio" name="bulk-bool" checked={termIds.size > 0} onChange={() => setSingleTerm(categorisation.terms?.[0]?.id)} />
-                    Yes
+                    <span className="check-text"><span className="check-label">Yes</span></span>
                   </label>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <label className="check">
                     <input type="radio" name="bulk-bool" checked={termIds.size === 0} onChange={() => setSingleTerm(null)} />
-                    No
+                    <span className="check-text"><span className="check-label">No</span></span>
                   </label>
                 </div>
-              </div>
+              </fieldset>
             )}
 
             {categorisation && categorisation.field_type === "single_select" && (
-              <div style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Set to</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <fieldset className="choice-group">
+                <legend className="field-label">Set to</legend>
+                <div className="choice-row">
+                  <label className="check">
                     <input type="radio" name="bulk-single" checked={termIds.size === 0} onChange={() => setSingleTerm(null)} />
-                    Clear
+                    <span className="check-text"><span className="check-label">Clear</span></span>
                   </label>
                   {(categorisation.terms || []).map((t) => (
-                    <label key={t.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <label key={t.id} className="check">
                       <input type="radio" name="bulk-single" checked={termIds.has(t.id)} onChange={() => setSingleTerm(t.id)} />
-                      {t.label}
+                      <span className="check-text"><span className="check-label">{t.label}</span></span>
                     </label>
                   ))}
-                  {(categorisation.terms || []).length === 0 && <span style={{ opacity: 0.6 }}>No terms defined yet.</span>}
+                  {(categorisation.terms || []).length === 0 && <span className="entries-muted">No terms defined yet.</span>}
                 </div>
-              </div>
+              </fieldset>
             )}
 
             {categorisation && categorisation.field_type === "multi_select" && (
-              <div style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Term(s)</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <fieldset className="choice-group">
+                <legend className="field-label">Term(s)</legend>
+                <div className="choice-row">
                   {(categorisation.terms || []).map((t) => (
-                    <label key={t.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input type="checkbox" checked={termIds.has(t.id)} onChange={() => toggleTerm(t.id)} />
-                      {t.label}
-                    </label>
+                    <Checkbox key={t.id} label={t.label} checked={termIds.has(t.id)} onChange={() => toggleTerm(t.id)} />
                   ))}
-                  {(categorisation.terms || []).length === 0 && <span style={{ opacity: 0.6 }}>No terms defined yet.</span>}
+                  {(categorisation.terms || []).length === 0 && <span className="entries-muted">No terms defined yet.</span>}
                 </div>
-              </div>
+              </fieldset>
             )}
 
             {!forcedReplace && (
-              <label style={{ fontSize: 13 }}>
-                <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Mode</span>
-                <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ width: "100%" }}>
+              <Field label="Mode">
+                <Select value={mode} onChange={(e) => setMode(e.target.value)}>
                   <option value="add">Add to existing tags</option>
                   <option value="replace">Replace this category's tags</option>
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
 
-            {error && <p style={{ color: "#b91c1c", margin: 0, fontSize: 13 }}>{error}</p>}
-
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-              <button type="button" className="btn btn-primary" onClick={apply} disabled={busy || !categorisation || (effectiveMode === "add" && termIds.size === 0)}>
-                {busy ? "Applying…" : `Apply to ${count}`}
-              </button>
-            </div>
-          </div>
+            {error && <Callout tone="danger">{error}</Callout>}
+          </>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 }

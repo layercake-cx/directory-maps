@@ -9,12 +9,8 @@ import {
   resolveClaimVars,
   validateClaimBanner,
 } from "../../lib/claimBanner.js";
-
-const inputStyle = { width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13, boxSizing: "border-box" };
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
-const hintStyle = { margin: "4px 0 0", fontSize: 12, opacity: 0.65 };
-const errStyle = { margin: "4px 0 0", fontSize: 12, color: "#b91c1c" };
-const warnStyle = { margin: "4px 0 0", fontSize: 12, color: "#b45309" };
+import { Button, Callout, ColourField, Field, FieldGrid, Section, Select, Textarea, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 function TextField({ id, label, value, onChange, disabled, max, multiline, withVariables, error, warnings, hint }) {
   const ref = useRef(null);
@@ -31,65 +27,50 @@ function TextField({ id, label, value, onChange, disabled, max, multiline, withV
       el.setSelectionRange(start + token.length, start + token.length);
     });
   }
-  const Tag = multiline ? "textarea" : "input";
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <label style={{ ...labelStyle, marginBottom: 0 }} htmlFor={id}>{label}</label>
-        {withVariables && !disabled && (
-          <select
+    <div className="b3-stack b3-stack--tight">
+      <Field label={label} hint={hint} error={error} count={{ value: value.length, max }}>
+        {multiline ? (
+          <Textarea id={id} ref={ref} rows={3} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={max} />
+        ) : (
+          <TextInput id={id} ref={ref} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={max} />
+        )}
+      </Field>
+      {withVariables && !disabled && (
+        <div className="b3-narrow">
+          <Select
             aria-label={`Insert variable into ${label.toLowerCase()}`}
             value=""
             onChange={(e) => e.target.value && insertVariable(e.target.value)}
-            style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--lc-border)" }}
           >
             <option value="">Insert variable…</option>
             {CLAIM_BANNER_VARIABLES.map((v) => (
               <option key={v.name} value={v.name}>{`{{${v.name}}}`} · {v.label}</option>
             ))}
-          </select>
-        )}
-      </div>
-      <Tag
-        id={id}
-        ref={ref}
-        type={multiline ? undefined : "text"}
-        rows={multiline ? 3 : undefined}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        maxLength={max}
-        style={{ ...inputStyle, resize: multiline ? "vertical" : undefined }}
-      />
-      <p style={hintStyle}>{hint ? `${hint} ` : ""}{value.length}/{max}</p>
-      {error && <p style={errStyle}>{error}</p>}
-      {(warnings ?? []).map((w) => <p key={w} style={warnStyle}>{w}</p>)}
+          </Select>
+        </div>
+      )}
+      {(warnings ?? []).map((w) => <Callout key={w} tone="warn">{w}</Callout>)}
     </div>
   );
 }
 
-function ColourField({ id, label, value, onChange, disabled, error }) {
-  const valid = /^#[0-9A-Fa-f]{6}$/.test(value);
+/** Kit colour field plus the validation error the banner form shows under it. The picker emits upper-case hex, as before. */
+function BannerColourField({ id, label, value, onChange, disabled, error }) {
+  const emit = (v) => onChange(/^#[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : v);
   return (
-    <div>
-      <label style={labelStyle} htmlFor={id}>{label}</label>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          type="color"
-          aria-label={`${label} picker`}
-          value={valid ? value : "#000000"}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          disabled={disabled}
-          style={{ width: 36, height: 32, padding: 0, border: "1px solid var(--lc-border)", borderRadius: 6, background: "none" }}
-        />
-        <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} maxLength={7} style={{ ...inputStyle, width: 110 }} />
-      </div>
-      {error && <p style={errStyle}>{error}</p>}
+    <div className="b3-stack b3-stack--tight">
+      <ColourField id={id} label={label} value={value} onChange={emit} disabled={disabled} />
+      {error ? <span className="field-error">{error}</span> : null}
     </div>
   );
 }
 
-/** Live preview of the banner using the directory's fonts and the unsaved form values. */
+/**
+ * Live preview of the banner using the directory's fonts and the unsaved form values.
+ * Every inline style below is dynamic by design: it renders the public site's banner in the directory's own
+ * brand (user-chosen colours, the directory's fonts), so it must not pick up admin tokens.
+ */
 function BannerPreview({ banner, orgName, theme, mobile }) {
   const vars = { org_name: orgName };
   const heading = resolveClaimVars(banner.heading, vars);
@@ -178,49 +159,46 @@ export default function ClaimBannerSettings({ directoryId, banner, onChange, dis
   const err = (key) => (showErrors ? errors[key] : undefined);
 
   return (
-    <fieldset style={{ border: "1px solid var(--lc-border)", borderRadius: 10, padding: 16, margin: 0, display: "grid", gap: 14 }}>
-      <legend style={{ fontSize: 14, fontWeight: 600, padding: "0 6px" }}>Claim banner</legend>
-      <p style={{ margin: 0, fontSize: 12, opacity: 0.65 }}>
-        Shown between the heading and the details of every unclaimed listing while claims are enabled. Changes reach the public site the next time the directory is published.
-        Variables you can use in the heading, body and button label: {CLAIM_BANNER_VARIABLES.map((v) => `{{${v.name}}} (${v.label.toLowerCase()})`).join(", ")}.
-      </p>
-
+    <Section
+      title="Claim banner"
+      description={`Shown between the heading and the details of every unclaimed listing while claims are enabled. Changes reach the public site the next time the directory is published. Variables you can use in the heading, body and button label: ${CLAIM_BANNER_VARIABLES.map((v) => `{{${v.name}}} (${v.label.toLowerCase()})`).join(", ")}.`}
+    >
       <TextField id="claim-banner-heading" label="Heading" value={banner.heading} onChange={set("heading")} disabled={disabled} max={CLAIM_BANNER_LIMITS.heading} withVariables error={err("heading")} warnings={warnings.heading} />
       <TextField id="claim-banner-body" label="Body text" value={banner.body} onChange={set("body")} disabled={disabled} max={CLAIM_BANNER_LIMITS.body} multiline withVariables error={err("body")} warnings={warnings.body} />
       <TextField id="claim-banner-button" label="Button label" value={banner.buttonLabel} onChange={set("buttonLabel")} disabled={disabled} max={CLAIM_BANNER_LIMITS.buttonLabel} withVariables error={err("buttonLabel")} warnings={warnings.buttonLabel} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+      <FieldGrid>
         <TextField id="claim-banner-secondary-label" label="Secondary link label" value={banner.secondaryLabel} onChange={set("secondaryLabel")} disabled={disabled} max={CLAIM_BANNER_LIMITS.secondaryLabel} error={err("secondaryLabel")} />
         <TextField id="claim-banner-secondary-url" label="Secondary link URL" value={banner.secondaryUrl} onChange={set("secondaryUrl")} disabled={disabled} max={CLAIM_BANNER_LIMITS.secondaryUrl} error={err("secondaryUrl")} hint="https:// or a path starting with /. The link is hidden unless both label and URL are set." />
-      </div>
+      </FieldGrid>
 
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <ColourField id="claim-banner-accent" label="Button & icon colour" value={banner.accentColour} onChange={set("accentColour")} disabled={disabled} error={err("accentColour")} />
-        <ColourField id="claim-banner-btn-text" label="Button text colour" value={banner.buttonTextColour} onChange={set("buttonTextColour")} disabled={disabled} error={err("buttonTextColour")} />
-        <ColourField id="claim-banner-bg" label="Banner background" value={banner.backgroundColour} onChange={set("backgroundColour")} disabled={disabled} error={err("backgroundColour")} />
-        <ColourField id="claim-banner-border" label="Banner border" value={banner.borderColour} onChange={set("borderColour")} disabled={disabled} error={err("borderColour")} />
+      <div className="b3-colour-grid">
+        <BannerColourField id="claim-banner-accent" label="Button & icon colour" value={banner.accentColour} onChange={set("accentColour")} disabled={disabled} error={err("accentColour")} />
+        <BannerColourField id="claim-banner-btn-text" label="Button text colour" value={banner.buttonTextColour} onChange={set("buttonTextColour")} disabled={disabled} error={err("buttonTextColour")} />
+        <BannerColourField id="claim-banner-bg" label="Banner background" value={banner.backgroundColour} onChange={set("backgroundColour")} disabled={disabled} error={err("backgroundColour")} />
+        <BannerColourField id="claim-banner-border" label="Banner border" value={banner.borderColour} onChange={set("borderColour")} disabled={disabled} error={err("borderColour")} />
       </div>
 
       {contrast.length > 0 && (
-        <div role="status">
-          {contrast.map((c) => <p key={c.field + c.label} style={warnStyle}>{c.message}</p>)}
+        <div className="b3-stack b3-stack--tight">
+          {contrast.map((c) => <Callout key={c.field + c.label} tone="warn">{c.message}</Callout>)}
         </div>
       )}
 
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Preview <span style={{ opacity: 0.6, fontWeight: 400 }}>· sample listing: {orgName}</span></span>
-          <div role="group" aria-label="Preview width" style={{ display: "flex", gap: 4 }}>
+      <div className="b3-stack b3-stack--tight">
+        <div className="b3-row b3-row--between">
+          <h3 className="b3-subhead">Preview <span className="b3-muted">· sample listing: {orgName}</span></h3>
+          <div role="group" aria-label="Preview width" className="b3-row">
             {[["Desktop", false], ["Mobile", true]].map(([label, isMobile]) => (
-              <button key={label} type="button" className="btn" aria-pressed={mobile === isMobile} onClick={() => setMobile(isMobile)} style={{ fontSize: 12, padding: "3px 10px", fontWeight: mobile === isMobile ? 700 : 400 }}>{label}</button>
+              <Button key={label} size="sm" variant={mobile === isMobile ? "primary" : "secondary"} aria-pressed={mobile === isMobile} onClick={() => setMobile(isMobile)}>{label}</Button>
             ))}
           </div>
         </div>
-        <div style={{ background: "#fff", padding: 16, border: "1px dashed var(--lc-border)", borderRadius: 8, overflowX: "auto" }}>
-          <div style={{ width: mobile ? 343 : "100%", maxWidth: "100%", margin: "0 auto" }}>
+        <div className="b3-banner-frame">
+          <div className={`b3-banner-frame-inner ${mobile ? "is-mobile" : "is-desktop"}`}>
             <BannerPreview banner={banner} orgName={orgName} theme={theme} mobile={mobile} />
           </div>
         </div>
       </div>
-    </fieldset>
+    </Section>
   );
 }

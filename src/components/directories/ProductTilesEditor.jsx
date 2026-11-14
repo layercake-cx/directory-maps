@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createProductTile, deleteProductTile, listProductTiles } from "../../lib/productTiles";
+import { Button, Callout, EmptyState, Field, FieldGrid, Skeleton, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { title: "", image_url: "", price: "", currency: "", rating: "", review_count: "", provider: "", destination_url: "" };
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 /** External booking/product tiles on an entry (build-scope §5.9). Manual entry only. */
 export default function ProductTilesEditor({ directoryId, entryId, recordEvent }) {
@@ -58,61 +59,75 @@ export default function ProductTilesEditor({ directoryId, entryId, recordEvent }
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Product tiles</p>
-        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-          {addOpen ? "Cancel" : "+ Add tile"}
-        </button>
+    <div className="b3-stack">
+      <div className="b3-row b3-row--between">
+        <h3 className="b3-subhead">Product tiles</h3>
+        <Button size="sm" onClick={() => setAddOpen((v) => !v)}>
+          {addOpen ? "Cancel" : "Add tile"}
+        </Button>
       </div>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
       {addOpen && (
-        <form onSubmit={save} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.title} onChange={(e) => fSet("title", e.target.value)} placeholder="Title" style={inputStyle} required />
-          <input value={form.image_url} onChange={(e) => fSet("image_url", e.target.value)} placeholder="Image URL (optional)" type="url" style={inputStyle} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <input value={form.price} onChange={(e) => fSet("price", e.target.value)} placeholder="Price" inputMode="decimal" style={inputStyle} />
-            <input value={form.currency} onChange={(e) => fSet("currency", e.target.value)} placeholder="Currency, e.g. GBP" style={inputStyle} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input value={form.rating} onChange={(e) => fSet("rating", e.target.value)} placeholder="Rating (0–5)" inputMode="decimal" style={inputStyle} />
-            <input value={form.review_count} onChange={(e) => fSet("review_count", e.target.value)} placeholder="Review count" inputMode="numeric" style={inputStyle} />
-          </div>
-          <input value={form.provider} onChange={(e) => fSet("provider", e.target.value)} placeholder="Provider, e.g. Viator (optional)" style={inputStyle} />
-          <input value={form.destination_url} onChange={(e) => fSet("destination_url", e.target.value)} placeholder="Destination URL (booking link)" type="url" style={inputStyle} required />
-          <div>
-            <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-              {saving ? "Saving…" : "Add tile"}
-            </button>
+        <form onSubmit={save} className="b3-form">
+          <Field label="Title" required>
+            <TextInput value={form.title} onChange={(e) => fSet("title", e.target.value)} />
+          </Field>
+          <Field label="Image URL" hint="Optional.">
+            <TextInput type="url" value={form.image_url} onChange={(e) => fSet("image_url", e.target.value)} />
+          </Field>
+          <FieldGrid>
+            <Field label="Price">
+              <TextInput inputMode="decimal" value={form.price} onChange={(e) => fSet("price", e.target.value)} />
+            </Field>
+            <Field label="Currency" hint="For example GBP.">
+              <TextInput value={form.currency} onChange={(e) => fSet("currency", e.target.value)} />
+            </Field>
+          </FieldGrid>
+          <FieldGrid>
+            <Field label="Rating" hint="From 0 to 5.">
+              <TextInput inputMode="decimal" value={form.rating} onChange={(e) => fSet("rating", e.target.value)} />
+            </Field>
+            <Field label="Review count">
+              <TextInput inputMode="numeric" value={form.review_count} onChange={(e) => fSet("review_count", e.target.value)} />
+            </Field>
+          </FieldGrid>
+          <Field label="Provider" hint="For example Viator. Optional.">
+            <TextInput value={form.provider} onChange={(e) => fSet("provider", e.target.value)} />
+          </Field>
+          <Field label="Destination URL" hint="The booking link." required>
+            <TextInput type="url" value={form.destination_url} onChange={(e) => fSet("destination_url", e.target.value)} />
+          </Field>
+          <div className="b3-form-actions">
+            <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Add tile</Button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="list" rows={2} label="Loading product tiles" />
       ) : tiles.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No product tiles yet.</p>
+        <EmptyState art="none" title="No product tiles yet" body="Add a booking or product link to show it on this entry." />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
+        <ul className="b3-list">
           {tiles.map((t) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7 }}>
-              <div style={{ fontSize: 12 }}>
-                <div style={{ fontWeight: 500 }}>
-                  {t.title} {t.provider && <span style={{ opacity: 0.6, fontWeight: 400 }}>via {t.provider}</span>}
+            <li key={t.id} className="b3-list-item">
+              <div className="b3-list-main">
+                <div className="b3-list-title">
+                  {t.title} {t.provider && <span className="b3-muted">via {t.provider}</span>}
                 </div>
-                <div style={{ opacity: 0.7 }}>
+                <div className="b3-list-sub">
                   {t.price != null && `${t.currency || ""} ${t.price}`.trim()}
-                  {t.rating != null && ` · ${t.rating}★${t.review_count != null ? ` (${t.review_count})` : ""}`}
+                  {t.rating != null && ` · ${t.rating} stars${t.review_count != null ? ` (${t.review_count})` : ""}`}
                 </div>
               </div>
-              <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c", flexShrink: 0 }} onClick={() => remove(t)}>
+              <Button variant="danger" size="sm" aria-label={`Delete tile: ${t.title}`} onClick={() => remove(t)}>
                 Delete
-              </button>
-            </div>
+              </Button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

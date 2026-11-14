@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { updateDirectory } from "../../lib/directories.js";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
-const sectionTitleStyle = { margin: "0 0 8px", fontSize: 13, fontWeight: 600 };
+import { Button, Callout, Field, Section, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 
 /**
  * Directory Settings › General — title + home nav label.
@@ -12,6 +10,7 @@ const sectionTitleStyle = { margin: "0 0 8px", fontSize: 13, fontWeight: 600 };
  * just its own independent form/save button instead of sharing one with the SEO fields.
  */
 export default function DirectoryGeneralSettingsPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+  const formId = useId();
   const [name, setName] = useState(directory?.name || "");
   const [homeNavLabel, setHomeNavLabel] = useState(directory?.home_nav_label || "");
   const [saving, setSaving] = useState(false);
@@ -58,36 +57,30 @@ export default function DirectoryGeneralSettingsPanel({ directory, directoryId, 
   const disabled = !canManage;
 
   return (
-    <form onSubmit={handleSave} style={{ display: "grid", gap: 20 }}>
-      <div>
-        <p style={sectionTitleStyle}>General settings</p>
-        <label style={labelStyle}>Directory title</label>
-        <input value={name} onChange={(e) => { setName(e.target.value); setMsg(""); }} disabled={disabled} style={inputStyle} />
-        <div style={{ marginTop: 12 }}>
-          <label style={labelStyle}>Home navigation label</label>
-          <input
+    <Section
+      title="General settings"
+      footer={canManage ? (
+        <Button type="submit" form={formId} variant="primary" loading={saving} loadingLabel="Saving…">Save settings</Button>
+      ) : null}
+    >
+      <form id={formId} onSubmit={handleSave} className="b1-form">
+        <Field label="Directory title">
+          <TextInput value={name} onChange={(e) => { setName(e.target.value); setMsg(""); }} disabled={disabled} />
+        </Field>
+        <Field
+          label="Home navigation label"
+          hint="Label for the directory landing page in the site header, mobile menu, breadcrumbs, and footer. Leave blank to use “Home”."
+        >
+          <TextInput
             value={homeNavLabel}
             onChange={(e) => { setHomeNavLabel(e.target.value); setMsg(""); }}
             disabled={disabled}
             placeholder="Home"
-            style={inputStyle}
           />
-          <p style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.6 }}>
-            Label for the directory landing page in the site header, mobile menu, breadcrumbs, and footer. Leave blank to use “Home”.
-          </p>
-        </div>
-      </div>
-
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
-
-      {canManage && (
-        <div>
-          <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-            {saving ? "Saving…" : "Save settings"}
-          </button>
-        </div>
-      )}
-    </form>
+        </Field>
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
+      </form>
+    </Section>
   );
 }

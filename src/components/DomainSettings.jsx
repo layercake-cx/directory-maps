@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { domainStatusLabel, domainStatusTone, invokeManageClientDomain } from "../lib/clientDomains.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
@@ -6,8 +6,8 @@ import { useEntitlement } from "../hooks/useEntitlements.js";
 import { fetchClientEntitlements } from "../lib/entitlements.js";
 import EntitlementGate from "./EntitlementGate.jsx";
 import { getBlockedMessage } from "../lib/entitlementMessages.js";
-import styles from "../pages/client/ClientDomains.module.css";
-import emailStyles from "../pages/client/ClientEmail.module.css";
+import { Button, Callout, DataTable, EmptyState, Field, Pill, Section, Select, Skeleton, TextInput, useConfirm } from "./ui/index.js";
+import "../styles/wave-a/batch-1.css";
 
 function CopyButton({ value }) {
   const [copied, setCopied] = useState(false);
@@ -21,36 +21,45 @@ function CopyButton({ value }) {
     }
   }
   return (
-    <button type="button" className={emailStyles.copyBtn} onClick={handleCopy} title="Copy to clipboard" aria-label="Copy value">
-      {copied ? <span className={emailStyles.copyConfirm}>Copied</span> : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleCopy}
+      title="Copy to clipboard"
+      icon={(
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
       )}
-    </button>
+    >
+      {copied ? "Copied" : "Copy"}
+    </Button>
   );
 }
 
-function DnsStatusIcon({ status }) {
-  if (status === "verified") {
-    return (
-      <span className={emailStyles.dnsStatusVerified} title="Verified">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Verified">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      </span>
-    );
-  }
-  return (
-    <span className={emailStyles.dnsStatusPending} title="Pending">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Pending">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    </span>
-  );
-}
+const DNS_COLUMNS = [
+  { key: "type", label: "Type", render: (row) => <code>{row.type}</code> },
+  { key: "name", label: "Name / Host", render: (row) => <code>{row.name}</code> },
+  {
+    key: "value",
+    label: "Value",
+    render: (row) => (
+      <div className="b1-dns-value">
+        <code>{row.value}</code>
+        <CopyButton value={row.value} />
+      </div>
+    ),
+  },
+  {
+    key: "status",
+    label: "Status",
+    render: (row) => (row.status === "verified" ? <Pill tone="ok">Verified</Pill> : <Pill tone="warn">Pending</Pill>),
+  },
+];
+
+/** Maps the domain status helper's tones onto Pill tones. */
+const PILL_TONE = { success: "ok", warning: "warn", error: "danger", muted: "neutral" };
 
 /**
  * Shared custom-domain settings for client portal and admin customer detail.
@@ -59,6 +68,7 @@ function DnsStatusIcon({ status }) {
  * @param {{ clientId: string, clientName?: string, eventSource?: string, directoryId?: string }} props
  */
 export default function DomainSettings({ clientId, clientName = "", eventSource = "client_portal", directoryId = null }) {
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -246,7 +256,13 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
   }
 
   async function handleRemove(domain) {
-    if (!window.confirm(`Remove ${domain.hostname}? This can't be undone.`)) return;
+    const ok = await confirm({
+      title: `Remove ${domain.hostname}?`,
+      body: "This can't be undone.",
+      confirmLabel: "Remove domain",
+      tone: "danger",
+    });
+    if (!ok) return;
     setErr("");
     setBusyDomainId(domain.id);
     try {
@@ -271,157 +287,130 @@ export default function DomainSettings({ clientId, clientName = "", eventSource 
     }
   }
 
+  const addFormId = useId();
+  const noTargets = maps.length === 0 && directories.length === 0;
+
   return (
-    <>
-      {err ? <p className={emailStyles.error}>{err}</p> : null}
-      {msg ? <p className={emailStyles.success}>{msg}</p> : null}
+    <div className="section-stack">
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
       {loading ? (
-        <p>Loading…</p>
+        <Skeleton variant="form" rows={2} label="Loading domains" />
       ) : (
         <EntitlementGate allowed={canPublishAnything} loading={gateLoading} message={getBlockedMessage("custom_domain")}>
-          <form onSubmit={handleAddDomain} className={styles.addForm}>
-            {directoryId ? null : (
-            <label className={`${emailStyles.field} ${styles.field}`}>
-              <span>Publishes</span>
-              <select value={newTarget} onChange={(e) => setNewTarget(e.target.value)}>
-                {maps.length === 0 && directories.length === 0 ? <option value="">Nothing to publish yet</option> : null}
-                {maps.length > 0 ? (
-                  <optgroup label="Maps">
-                    {maps.map((m) => (
-                      <option key={m.id} value={`map:${m.id}`}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                {directories.length > 0 ? (
-                  <optgroup label="Directories">
-                    {directories.map((d) => (
-                      <option key={d.id} value={`directory:${d.id}`}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </select>
-            </label>
-            )}
-            <label className={`${emailStyles.field} ${styles.field}`}>
-              <span>Domain or subdomain</span>
-              <input
-                type="text"
-                value={newHostname}
-                onChange={(e) => setNewHostname(e.target.value)}
-                placeholder="directory.yourcompany.com"
-              />
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={adding || (maps.length === 0 && directories.length === 0)}>
-              {adding ? "Adding…" : "Add domain"}
-            </button>
-          </form>
+          <div className="section-stack">
+            <Section
+              title="Add a domain"
+              footer={(
+                <Button type="submit" form={addFormId} variant="primary" loading={adding} loadingLabel="Adding…" disabled={noTargets}>
+                  Add domain
+                </Button>
+              )}
+            >
+              <form id={addFormId} onSubmit={handleAddDomain} className="b1-form">
+                {directoryId ? null : (
+                  <Field label="Publishes">
+                    <Select value={newTarget} onChange={(e) => setNewTarget(e.target.value)}>
+                      {noTargets ? <option value="">Nothing to publish yet</option> : null}
+                      {maps.length > 0 ? (
+                        <optgroup label="Maps">
+                          {maps.map((m) => (
+                            <option key={m.id} value={`map:${m.id}`}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {directories.length > 0 ? (
+                        <optgroup label="Directories">
+                          {directories.map((d) => (
+                            <option key={d.id} value={`directory:${d.id}`}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                    </Select>
+                  </Field>
+                )}
+                <Field label="Domain or subdomain">
+                  <TextInput
+                    value={newHostname}
+                    onChange={(e) => setNewHostname(e.target.value)}
+                    placeholder="directory.yourcompany.com"
+                  />
+                </Field>
+              </form>
+            </Section>
 
-          {domains.length === 0 ? (
-            <p className={styles.emptyState}>
-              No domains yet. Add one above to publish {clientName ? `${clientName}'s` : "your"} directory on your
-              own domain.
-            </p>
-          ) : (
-            <div className={styles.domainList}>
-              {domains.map((domain) => {
+            {domains.length === 0 ? (
+              <Section>
+                <EmptyState
+                  art="none"
+                  title="No domains yet"
+                  body={`Add one above to publish ${clientName ? `${clientName}'s` : "your"} directory on your own domain.`}
+                />
+              </Section>
+            ) : (
+              domains.map((domain) => {
                 const verified = domain.status === "active";
                 const hostingPending = verified && !domain.vercel_domain_id;
                 const tone = hostingPending ? "warning" : domainStatusTone(domain.status);
                 const label = hostingPending ? "DNS verified — hosting pending" : domainStatusLabel(domain.status);
                 const feedback = feedbackByDomain[domain.id];
                 const busy = busyDomainId === domain.id;
+                const hasRecords = Array.isArray(domain.dns_records) && domain.dns_records.length > 0;
                 return (
-                  <div key={domain.id} className={styles.domainCard}>
-                    <div className={styles.domainCardHeader}>
-                      <h3 className={styles.domainHostname}>{domain.hostname}</h3>
-                      <span className={`${emailStyles.badge} ${emailStyles[`badge--${tone}`]}`}>{label}</span>
-                    </div>
-                    <p className={styles.domainMapLabel}>Publishes: {targetLabel(domain)}</p>
-
-                    <div className={emailStyles.actions}>
-                      <button
-                        type="button"
-                        className={`btn btn-primary ${emailStyles.verifyBtn}`}
-                        onClick={() => handleVerify(domain)}
-                        disabled={busy}
-                      >
-                        {busy ? "Verifying…" : "Verify DNS settings"}
-                      </button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(domain)} disabled={busy}>
-                        Remove
-                      </button>
-                    </div>
-
+                  <Section
+                    key={domain.id}
+                    title={domain.hostname}
+                    description={`Publishes: ${targetLabel(domain)}`}
+                    actions={<Pill tone={PILL_TONE[tone] ?? "neutral"}>{label}</Pill>}
+                    footer={(
+                      <>
+                        <Button variant="danger" onClick={() => handleRemove(domain)} disabled={busy}>
+                          Remove
+                        </Button>
+                        <Button variant="primary" onClick={() => handleVerify(domain)} loading={busy} loadingLabel="Verifying…">
+                          Verify DNS settings
+                        </Button>
+                      </>
+                    )}
+                  >
                     {feedback && !verified ? (
-                      <div
-                        className={`${emailStyles.verifyBanner} ${feedback.ok ? emailStyles.verifyBannerOk : emailStyles.verifyBannerWarn}`}
-                      >
-                        <span>{feedback.text}</span>
-                      </div>
+                      <Callout tone={feedback.ok ? "ok" : "warn"}>{feedback.text}</Callout>
                     ) : null}
 
-                    {Array.isArray(domain.dns_records) && domain.dns_records.length > 0 ? (
-                      <div className={emailStyles.dnsBlock}>
-                        <table className={emailStyles.dnsTable}>
-                          <thead>
-                            <tr>
-                              <th>Type</th>
-                              <th>Name / Host</th>
-                              <th>Value</th>
-                              <th className={emailStyles.dnsStatusTh} title="Verification status">
-                                ✓
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {domain.dns_records.map((row, i) => (
-                              <tr key={`${row.type}-${i}`}>
-                                <td>
-                                  <code>{row.type}</code>
-                                </td>
-                                <td>
-                                  <code className={emailStyles.dnsValue}>{row.name}</code>
-                                </td>
-                                <td>
-                                  <div className={emailStyles.dnsValueCell}>
-                                    <code className={emailStyles.dnsValue}>{row.value}</code>
-                                    <CopyButton value={row.value} />
-                                  </div>
-                                </td>
-                                <td className={emailStyles.dnsStatusCell}>
-                                  <DnsStatusIcon status={row.status} />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                    {hasRecords ? (
+                      <DataTable
+                        caption={`DNS records for ${domain.hostname}`}
+                        columns={DNS_COLUMNS}
+                        rows={domain.dns_records}
+                        getRowId={(row) => `${row.type}-${row.name}-${row.value}`}
+                        getRowLabel={(row) => `${row.type} record`}
+                      />
                     ) : null}
 
                     {!verified ? (
-                      <p className={emailStyles.note}>
+                      <Callout tone="info">
                         Add both records at your DNS provider exactly as shown, then click &ldquo;Verify DNS
                         settings&rdquo;. DNS changes can take up to 48 hours to propagate, though it&apos;s usually
                         much faster.
-                      </p>
+                      </Callout>
                     ) : hostingPending ? (
-                      <p className={emailStyles.note}>
+                      <Callout tone="info">
                         DNS is correctly configured. Connecting this domain to hosting — click &ldquo;Verify DNS
                         settings&rdquo; again in a few minutes if this doesn&apos;t clear on its own.
-                      </p>
+                      </Callout>
                     ) : null}
-                  </div>
+                  </Section>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </EntitlementGate>
       )}
-    </>
+    </div>
   );
 }

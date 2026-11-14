@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave A: directory workspace
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-a-directory`
+
+### What changed
+- 65 files in the directory workspace moved onto the Discover UI kit: route pages (Overview, Entries, Publishing, Domain, Search, AI enrichment, SEO, Claims, Insights, Email, General, Pages, Categories, Accreditations, Look & feel, Entry pages, web analytics), the entry editor and its tabs, the sub-editors, integrations/AI components and engagement shells. Inline styles, `.btn`, `.xp-*`, `.admin-card`, `.panel-section`, emoji, hard-coded colours and most Mantine components are gone from them. Whole-app counts: inline styles 2047 to 1270, legacy buttons 276 to 169, legacy containers 248 to 189.
+- Visible changes: every route has a page title; Entries actions sit in a More menu; Claims list is a DataTable with a details card; `window.prompt`/`window.confirm` replaced by dialogs (Claims revoke/approve/transfer, SEO and content overwrite confirms, domain removal, scheme delete, AI provider disconnect); several empty and error states reworded or added (see the PR report).
+- Kit fix: `Dialog` no longer re-focuses its first control on every parent render (the effect depended on `onClose` identity).
+- `DraftingPromptModal` and `AiProvenanceNote` render the new look only inside the admin shell; claim pages (out of scope) are unchanged.
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing counts of `recordEvent`/`recordAdminEvent` calls and Supabase/RPC/function calls in all 65 changed files against `main`: identical. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-dyrhhfj10-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Event and data-call counts unchanged across all changed files.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data (no signed-in session was available). Please click through, in client and staff-in-client contexts: Overview, Entries (search, filters, bulk, import, export, row menu), an entry editor on every tab, Publishing, Domain, Search, AI enrichment, SEO, Claims (list, details, settings, revoke/approve/transfer), Insights, Email settings and log, General (archive/delete), Pages (tree, delete, AI draft), Categories, Accreditations, Look & feel, Entry pages. Also the other pages that render migrated components: `ClientDomains`, `AdminClientDetail`, `ClientCategorisations`, the map filters panel, and the claim Listing Manager (should be unchanged).
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 5: Ask Pip preview
 
 **Branch:** `feat/2026-11-14-discover-ui-assistant-preview`

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { AskPipLink } from "../ui/index.js";
+import { AskPipLink, Button, Callout, PageLayout, Pill, Section, SettingRow, StatGrid, StatTile } from "../ui/index.js";
 import { Link } from "react-router-dom";
+import "../../styles/wave-a/batch-1.css";
 import { useDirectory } from "../../hooks/useDirectory.js";
 import { supabase } from "../../lib/supabase.js";
 import { countEntriesMissingSeoMetadata } from "../../lib/directories.js";
@@ -11,16 +12,8 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** `action` true = amber (needs attention), false = green (nothing to do), null = neutral/loading. Links when `to` is set. */
 function Tile({ label, value, sub, action = null, to }) {
-  const tone = action === true ? " stat--warn" : action === false ? " stat--ok" : "";
-  const cls = `stat stat--compact${tone}`;
-  const body = (
-    <>
-      <p className="stat-label">{label}</p>
-      <p className="stat-value">{value}</p>
-      {sub && <p className="stat-sub">{sub}</p>}
-    </>
-  );
-  return to ? <Link to={to} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
+  const tone = action === true ? "warn" : action === false ? "ok" : "default";
+  return <StatTile compact label={label} value={value} sub={sub} tone={tone} href={to} />;
 }
 
 /** Counts rows matching a gap filter; when exactly one matches, also returns its id so the tile can open that entry directly. */
@@ -37,9 +30,7 @@ async function gapCount(directoryId, apply) {
  * large BACKLOG.md's original "size L" guess assumed). Anything that genuinely needs a migration
  * (a client-facing activity feed, a directories volume entitlement) is NOT here — see BACKLOG.md.
  *
- * Uses the shell's own page-body component vocabulary (.stat-grid/.stat/.card — see
- * admin-shell.css) rather than the old admin.css/.admin-card patterns Phase 4 originally shipped
- * with — see BACKLOG.md "Page body content still uses the old design system".
+ * Built on the Discover UI kit (PageLayout, StatTile, Section).
  */
 export default function DirectoryOverviewRoute() {
   const { directory, client, basePath, canManage } = useDirectory();
@@ -127,82 +118,74 @@ export default function DirectoryOverviewRoute() {
   const unpublished = lastPublication ? changedSincePublish > 0 : true;
 
   return (
-    <div>
-      <div className="page-head" style={{ marginBottom: 12 }}>
-        <div>
-          <h1 className="page-title">Overview</h1>
-          {directory.description && <p style={{ margin: "6px 0 0", color: "var(--shell-text-soft)" }}>{directory.description}</p>}
-        </div>
-      </div>
-      {err && <p style={{ color: "var(--shell-danger)" }}>{err}</p>}
+    <PageLayout
+      head={{ title: "Overview", subtitle: directory.description || undefined }}
+      summary={(
+        <>
+          {err ? <Callout tone="danger">{err}</Callout> : null}
 
-      <div className="stat-grid stat-grid--compact" style={{ marginBottom: 14 }}>
-        <Tile label="Entries" value={totalEntries ?? "…"} action={totalEntries == null ? null : totalEntries === 0} to={entriesPath} sub={totalEntries === 0 ? "Add your first entry" : undefined} />
-        <Tile
-          label="Changed since publish"
-          value={lastPublication ? (changedSincePublish ?? "…") : "—"}
-          action={lastPublication && changedSincePublish == null ? null : unpublished}
-          to={unpublished ? `${basePath}/publishing` : undefined}
-          sub={!lastPublication ? "Not yet published" : undefined}
-        />
-        <Tile label="Missing SEO metadata" value={missingSeo ?? "…"} action={missingSeo == null ? null : missingSeo > 0} to={seoTo} />
-        <Tile label="Missing page content" {...gapTile("no_content", missingContent, "/content")} />
-        <Tile label="Missing logo" {...gapTile("no_logo", missingLogo, "")} />
-        <Tile label="Not geocoded" {...gapTile("not_geocoded", notGeocoded, "")} />
-        <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} to={enquiries30d ? `${basePath}/email-log` : undefined} />
-      </div>
+          <StatGrid compact>
+            <Tile label="Entries" value={totalEntries ?? "…"} action={totalEntries == null ? null : totalEntries === 0} to={entriesPath} sub={totalEntries === 0 ? "Add your first entry" : undefined} />
+            <Tile
+              label="Changed since publish"
+              value={lastPublication ? (changedSincePublish ?? "…") : "—"}
+              action={lastPublication && changedSincePublish == null ? null : unpublished}
+              to={unpublished ? `${basePath}/publishing` : undefined}
+              sub={!lastPublication ? "Not yet published" : undefined}
+            />
+            <Tile label="Missing SEO metadata" value={missingSeo ?? "…"} action={missingSeo == null ? null : missingSeo > 0} to={seoTo} />
+            <Tile label="Missing page content" {...gapTile("no_content", missingContent, "/content")} />
+            <Tile label="Missing logo" {...gapTile("no_logo", missingLogo, "")} />
+            <Tile label="Not geocoded" {...gapTile("not_geocoded", notGeocoded, "")} />
+            <Tile label="Enquiries (30 days)" value={enquiries30d ?? "…"} to={enquiries30d ? `${basePath}/email-log` : undefined} />
+          </StatGrid>
 
-      <div style={{ margin: "0 0 14px" }}>
-        <AskPipLink question="What should I fix first?" context="Needs attention" />
-      </div>
-
-      <div className="card-grid">
-      <div className="card card-pad card-pad--compact">
-        <p className="card-title">Publishing</p>
-        {lastPublication ? (
-          <p style={{ margin: 0, fontSize: 13 }}>
-            Last published {new Date(lastPublication.published_at).toLocaleString()} — version {lastPublication.version}
+          <AskPipLink question="What should I fix first?" context="Needs attention" />
+        </>
+      )}
+    >
+      <div className="section-stack">
+        <Section
+          title="Publishing"
+          actions={<Button as={Link} to={`${basePath}/publishing`} size="sm">Manage publishing</Button>}
+        >
+          <p>
+            {lastPublication
+              ? `Last published ${new Date(lastPublication.published_at).toLocaleString()} — version ${lastPublication.version}`
+              : "Not yet published."}
           </p>
-        ) : (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--shell-text-muted)" }}>Not yet published.</p>
-        )}
-        {publicUrl && (
-          <p style={{ margin: 0, fontSize: 13 }}>
-            <a href={publicUrl} target="_blank" rel="noreferrer">View live site ↗</a>
-            {" · "}
-            <a href={`${publicUrl}/sitemap.xml`} target="_blank" rel="noreferrer">sitemap.xml</a>
-            {" · "}
-            <a href={`${publicUrl}/robots.txt`} target="_blank" rel="noreferrer">robots.txt</a>
-            {" · "}
-            <a href={`${publicUrl}/llms.txt`} target="_blank" rel="noreferrer">llms.txt</a>
-          </p>
-        )}
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <Link to={`${basePath}/publishing`}>Manage publishing →</Link>
-        </p>
-      </div>
+          {publicUrl && (
+            <ul className="b1-link-list">
+              <li><a href={publicUrl} target="_blank" rel="noreferrer">View live site ↗</a></li>
+              <li><a href={`${publicUrl}/sitemap.xml`} target="_blank" rel="noreferrer">sitemap.xml</a></li>
+              <li><a href={`${publicUrl}/robots.txt`} target="_blank" rel="noreferrer">robots.txt</a></li>
+              <li><a href={`${publicUrl}/llms.txt`} target="_blank" rel="noreferrer">llms.txt</a></li>
+            </ul>
+          )}
+        </Section>
 
-      <div className="card card-pad card-pad--compact">
-        <p className="card-title">Claims</p>
-        {claimsByStatus ? (
-          <p style={{ margin: 0, fontSize: 13 }}>
-            {claimsByStatus.total} total — {claimsByStatus.active} active, {claimsByStatus.awaiting} awaiting verification
+        <Section
+          title="Claims"
+          actions={<Button as={Link} to={`${basePath}/claims`} size="sm">View claims</Button>}
+        >
+          <p>
+            {claimsByStatus
+              ? `${claimsByStatus.total} total — ${claimsByStatus.active} active, ${claimsByStatus.awaiting} awaiting verification`
+              : "…"}
           </p>
-        ) : (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--shell-text-muted)" }}>…</p>
-        )}
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <Link to={`${basePath}/claims`}>View claims →</Link>
-        </p>
-      </div>
+        </Section>
 
-      <div className="card card-pad card-pad--compact">
-        <p className="card-title">Visitor features</p>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          Location search: {directory.location_search_enabled ? "On" : "Off"} · Help me choose (AI web search): {directory.ai_search_web_enabled ? "On" : "Off"}
-        </p>
+        <Section title="Visitor features" flush>
+          <SettingRow
+            label="Location search"
+            control={<Pill tone={directory.location_search_enabled ? "ok" : "neutral"}>{directory.location_search_enabled ? "On" : "Off"}</Pill>}
+          />
+          <SettingRow
+            label="Help me choose (AI web search)"
+            control={<Pill tone={directory.ai_search_web_enabled ? "ok" : "neutral"}>{directory.ai_search_web_enabled ? "On" : "Off"}</Pill>}
+          />
+        </Section>
       </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }
