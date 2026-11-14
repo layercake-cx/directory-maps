@@ -18,7 +18,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - No migration, no Edge Function.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-o3qg0p7gr-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend.
