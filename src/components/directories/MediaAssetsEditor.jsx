@@ -3,8 +3,8 @@ import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
-import { deleteMediaAsset, generateMediaAltText, listMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
-import { Button, Callout, Checkbox, EmptyState, Field, Pill, Skeleton, TextInput } from "../ui/index.js";
+import { deleteMediaAsset, generateMediaAltText, listMediaAssets, reorderMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
+import { Button, Callout, Checkbox, EmptyState, Field, Pill, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 /**
@@ -106,6 +106,11 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
     }
   }
 
+  async function handleReorder(next) {
+    await reorderMediaAssets(next.map((a) => a.id));
+    setAssets(next);
+  }
+
   async function remove(asset) {
     try {
       await deleteMediaAsset(asset.id);
@@ -168,14 +173,24 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
       ) : assets.length === 0 ? (
         <EmptyState art="none" title="No media uploaded yet" body="Choose an image above to add the first one." />
       ) : (
-        <div className="b3-media-grid">
-          {assets.map((a) => (
-            <div key={a.id} className="b3-media-card">
-              <img src={a.url} alt={a.alt_text} className="b3-media-img" />
-              <div className="b3-media-body">
-                {a.is_hero && <Pill tone="ok">Hero</Pill>}
-                {a.caption && <div>{a.caption}</div>}
-                <div className="b3-media-actions">
+        <SortableList
+          items={assets}
+          getId={(a) => a.id}
+          getLabel={(a) => a.alt_text || a.caption || "Untitled image"}
+          ariaLabel="Images, in display order"
+          onReorder={handleReorder}
+          renderItem={(a, { row }) => (
+            <SortableRow
+              row={row}
+              title={(
+                <span className="sortable-thumb-title">
+                  <img src={a.url} alt={a.alt_text} className="sortable-thumb" />
+                  <span>{a.caption || a.alt_text || "Untitled image"}</span>
+                  {a.is_hero && <Pill tone="ok">Hero</Pill>}
+                </span>
+              )}
+              actions={(
+                <div className="b3-list-actions">
                   {!a.is_hero && (
                     <Button size="sm" onClick={() => makeHero(a)}>
                       Make hero
@@ -185,10 +200,10 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
                     Delete
                   </Button>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

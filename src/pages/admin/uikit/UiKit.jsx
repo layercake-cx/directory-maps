@@ -3,7 +3,7 @@ import {
   Button, AIButton, Section, SettingRow, Tabs, Field, TextInput, Select, Textarea, Checkbox, CheckboxGroup,
   FieldGrid, Switch, SegmentedControl, RadioCards, ColourField, OptionalColourField, TagPicker, Pill, Callout,
   useToast, EmptyState, ErrorState, Skeleton, Toolbar, BulkBar, DataTable, StatTile, StatGrid, ActionList,
-  Dialog, ConfirmDialog, useConfirm, OverflowMenu, SaveBar, SparkIcon, PlusIcon,
+  Dialog, ConfirmDialog, useConfirm, OverflowMenu, SaveBar, SparkIcon, PlusIcon, SortableList,
 } from "../../../components/ui/index.js";
 
 const ROWS = [
@@ -17,6 +17,33 @@ const STATUS_TONE = { Published: "live", "Unpublished changes": "warn", Draft: "
  * Review surface for the Discover UI kit: every component in every state, and the regression page afterwards.
  * Staff only (route /admin/ui-kit, not linked from the nav). Mirrors reference/21-in-page-component-library.html.
  */
+function SortableDemo({ compact = false, nested = false, disabled = false, kbdOpen = false }) {
+  const [items, setItems] = useState([
+    { id: "s", name: "Sector", parent: null }, { id: "r", name: "Region", parent: null },
+    { id: "t", name: "Type", parent: nested ? "r" : null }, { id: "z", name: "Size", parent: null },
+  ]);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (kbdOpen) ref.current?.querySelectorAll(".sortable-handle")[1]?.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+  }, [kbdOpen]);
+  return (
+    <div ref={ref}>
+      <SortableList
+        items={items}
+        getId={(i) => i.id}
+        getLabel={(i) => i.name}
+        getMeta={(i) => (i.parent ? "Nested" : "3 terms")}
+        getParentId={(i) => i.parent}
+        nestable={nested}
+        variant={compact ? "compact" : "default"}
+        disabled={disabled}
+        ariaLabel="Demo list"
+        onReorder={(next, meta) => setItems(meta.parentId === undefined ? next : next.map((i) => (i.id === meta.id ? { ...i, parent: meta.parentId } : i)))}
+      />
+    </div>
+  );
+}
+
 export default function UiKit() {
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -174,6 +201,18 @@ export default function UiKit() {
           { key: "s", count: 18, title: "Entries without SEO text", verb: "Draft with AI", onClick: () => toast("Draft started (demo)") },
           { key: "z", count: 0, title: "Hidden: zero rows are not rendered", verb: "Fix" },
         ]} />
+      </Section>
+
+      <Section title="SortableList (drag to reorder)" description="Drag the handle, or Space/Enter then the arrow keys; the ⋯ menu has the same moves. Saves on drop with Undo.">
+        <SortableDemo />
+        <p className="field-hint">Compact</p>
+        <SortableDemo compact />
+        <p className="field-hint">Nested (one level: drag 32px right, or press →)</p>
+        <SortableDemo nested />
+        <p className="field-hint">Disabled (view-only: no handles or move items)</p>
+        <SortableDemo disabled />
+        <p className="field-hint">Keyboard-lifted state</p>
+        <SortableDemo kbdOpen />
       </Section>
 
       <Section title="Empty, loading and error">

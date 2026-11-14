@@ -114,10 +114,16 @@ export function useSortable({ items, getId, getLabel, onReorder, disabled = fals
       if (i === base.from) return;
       if (base.tops[i] + base.heights[i] / 2 < center) over += 1;
     });
-    let nest = null;
-    if (canNest && over > 0 && clientX - base.startX >= NEST_PX) {
-      const others = cur.filter((_, i) => i !== base.from);
-      nest = gid(others[over - 1]);
+    // undefined = parent unchanged; an id = nest under that row; null = move out to the top level.
+    let nest;
+    if (canNest) {
+      const dx = clientX - base.startX;
+      if (dx >= NEST_PX && over > 0) {
+        const others = cur.filter((_, i) => i !== base.from);
+        nest = gid(others[over - 1]);
+      } else if (dx <= -NEST_PX) {
+        nest = null;
+      }
     }
     return { ...base, dy: pos - base.tops[base.from], over, nest, pos, outside: false };
   }, []);
@@ -152,8 +158,8 @@ export function useSortable({ items, getId, getLabel, onReorder, disabled = fals
     const { tops, heights } = measure();
     const rect = listEl.current.getBoundingClientRect();
     const base = {
-      id: p.id, from: p.index, over: p.index, dy: 0, nest: null, tops, heights,
-      grab: p.startY - rect.top - tops[p.index], startX: p.startX, pos: tops[p.index], outside: false,
+      id: p.id, from: p.index, over: p.index, dy: 0, nest: undefined, tops, heights,
+      grab: p.startY - rect.top - tops[p.index], startX: p.startX, pos: tops[p.index], outside: false, nest: undefined,
     };
     p.base = base;
     setDrag(base);
@@ -230,7 +236,7 @@ export function useSortable({ items, getId, getLabel, onReorder, disabled = fals
       return;
     }
     const currentParent = gp ? gp(item) ?? null : null;
-    const nestChanged = latest.current.nestable && (final.nest ?? null) !== currentParent;
+    const nestChanged = latest.current.nestable && final.nest !== undefined && (final.nest ?? null) !== currentParent;
     if (final.over === final.from && !nestChanged) {
       setMessage(`Cancelled. ${gl(item)} is back at position ${final.from + 1}.`);
       return;
@@ -290,7 +296,7 @@ export function useSortable({ items, getId, getLabel, onReorder, disabled = fals
       }
       const next = moveItem(cur, k.from, to);
       setMessage(`${label} dropped at position ${to + 1} of ${cur.length}.`);
-      commit(next, { from: k.from, to, item: cur[k.from], id, parentId: canNest ? k.parent : undefined });
+      commit(next, { from: k.from, to, item: cur[k.from], id, parentId: canNest && nestChanged ? k.parent : undefined });
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -436,6 +442,64 @@ export function SortableRow({ row, title, meta, actions, menuExtras = [], showPo
 }
 
 /**
+ * The standalone saving rules as a hook: optimistic update, "Order saved." toast with Undo, revert and an error message on
+ * failure, queued saves (never overlapping). `onReorder` may return a Promise and should throw on failure.
+ * Pass an `announceRef` ({ current: fn }) to have saves announced in the list's live region.
+ * @returns {{ items: any[], save: Function, error: string }}
+ */
+export function useSavedOrder(items, onReorder, announceRef) {
+  const { toast } = useToast();
+  const [local, setLocal] = useState(items);
+  const [error, setError] = useState("");
+  const saving = useRef(false);
+  const pending = useRef(null);
+  const lastGood = useRef(items);
+  const onReorderRef = useRef(onReorder);
+  onReorderRef.current = onReorder;
+  const say = (m) => announceRef?.current?.(m);
+
+  useEffect(() => {
+    if (saving.current) return;
+    setLocal(items);
+    lastGood.current = items;
+  }, [items]);
+
+  const save = useCallback(async (next, meta, opts) => {
+    setError("");
+    setLocal(next);
+    if (saving.current) { pending.current = { next, meta }; return; }
+    saving.current = true;
+    let job = { next, meta };
+    while (job) {
+      const before = lastGood.current;
+      const jobMeta = job.meta;
+      try {
+        await onReorderRef.current(job.next, jobMeta);
+        lastGood.current = job.next;
+        if (!pending.current) {
+          say("Order saved.");
+          if (!opts?.silent) {
+            toast("Order saved.", { action: { label: "Undo", onClick: () => { void save(before, jobMeta, { silent: true }); } } });
+          }
+        }
+      } catch (e) {
+        setLocal(lastGood.current);
+        setError(e?.message ?? "Couldn't save the new order. It's been put back.");
+        say("Couldn't save the new order. It's been put back.");
+        pending.current = null;
+        break;
+      }
+      job = pending.current;
+      pending.current = null;
+    }
+    saving.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  return { items: local, save, error };
+}
+
+/**
  * Sortable list with the standalone saving rules: optimistic update, "Order saved." toast with Undo, revert and a
  * danger Callout on failure, queued saves (never overlapping). With mode="form" `onReorder` only updates form state
  * (the page's SaveBar shows the unsaved change): no toast, no queue.
@@ -450,68 +514,20 @@ export function SortableList({
   items, getId, getLabel, onReorder, renderItem, getMeta, renderActions, getMenuItems,
   variant = "default", nestable = false, getParentId, disabled = false, ariaLabel, mode = "standalone", showPosition = true,
 }) {
-  const { toast } = useToast();
-  const [local, setLocal] = useState(items);
-  const [error, setError] = useState("");
-  const saving = useRef(false);
-  const pending = useRef(null);
-  const lastGood = useRef(items);
   const announceRef = useRef(() => {});
-  const onReorderRef = useRef(onReorder);
-  onReorderRef.current = onReorder;
   const standalone = mode !== "form";
-
-  useEffect(() => {
-    if (saving.current) return;
-    setLocal(items);
-    lastGood.current = items;
-  }, [items]);
-
-  const runSaves = useCallback(async (first, opts) => {
-    saving.current = true;
-    let job = first;
-    while (job) {
-      const before = lastGood.current;
-      const meta = job.meta;
-      try {
-        await onReorderRef.current(job.next, job.meta);
-        lastGood.current = job.next;
-        if (!pending.current) {
-          announceRef.current("Order saved.");
-          if (!opts?.silent) {
-            toast("Order saved.", { action: { label: "Undo", onClick: () => { void save(before, meta, { silent: true }); } } });
-          }
-        }
-      } catch (e) {
-        setLocal(lastGood.current);
-        setError(e?.message ?? "Couldn't save the new order. It's been put back.");
-        announceRef.current("Couldn't save the new order. It's been put back.");
-        pending.current = null;
-        break;
-      }
-      job = pending.current;
-      pending.current = null;
-    }
-    saving.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
-
-  const save = useCallback(async (next, meta, opts) => {
-    setError("");
-    setLocal(next);
-    if (saving.current) { pending.current = { next, meta }; return; }
-    await runSaves({ next, meta }, opts);
-  }, [runSaves]);
+  const saved = useSavedOrder(items, onReorder, announceRef);
 
   const sortable = useSortable({
-    items: standalone ? local : items,
+    items: standalone ? saved.items : items,
     getId, getLabel, disabled, nestable, getParentId, ariaLabel, variant,
     onReorder: (next, meta) => {
-      if (standalone) void save(next, meta);
+      if (standalone) void saved.save(next, meta);
       else onReorder(next, meta);
     },
   });
   announceRef.current = sortable.announce;
+  const error = standalone ? saved.error : "";
 
   return (
     <div className="sortable-wrap">

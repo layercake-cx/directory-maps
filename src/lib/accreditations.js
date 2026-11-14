@@ -82,3 +82,9 @@ export async function revokeEntryAccreditation(entryId, schemeId) {
   const { error } = await supabase.from("entry_accreditations").delete().eq("entry_id", entryId).eq("scheme_id", schemeId);
   if (error) throw error;
 }
+
+export async function reorderAccreditationSchemes(orderedIds) {
+  const results = await Promise.all(orderedIds.map((id, i) => supabase.from("directory_accreditation_schemes").update({ sort_order: i }).eq("id", id)));
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
+}

@@ -3,9 +3,10 @@ import {
   createAccreditationScheme,
   deleteAccreditationSchemePermanently,
   listAccreditationSchemes,
+  reorderAccreditationSchemes,
   setAccreditationSchemeActive,
 } from "../../lib/accreditations";
-import { Button, Callout, EmptyState, Field, FieldGrid, Pill, Section, Skeleton, Textarea, TextInput, useConfirm } from "../ui/index.js";
+import { Button, Callout, EmptyState, Field, FieldGrid, Pill, Section, Skeleton, SortableList, SortableRow, Textarea, TextInput, useConfirm } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { name: "", issuing_body: "", badge_image_url: "", description: "", verification_note: "" };
@@ -71,6 +72,11 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
     }
   }
 
+  async function handleReorder(next) {
+    await reorderAccreditationSchemes(next.map((s) => s.id));
+    setSchemes(next);
+  }
+
   async function remove(scheme) {
     const ok = await confirm({
       title: `Delete accreditation scheme "${scheme.name}"?`,
@@ -131,27 +137,31 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
           actions={!addOpen ? <Button variant="primary" onClick={() => setAddOpen(true)}>Add scheme</Button> : null}
         />
       ) : (
-        <ul className="b3-list">
-          {schemes.map((s) => (
-            <li key={s.id} className={`b3-list-item ${s.is_active ? "" : "is-muted"}`.trim()}>
-              <div className="b3-list-main">
-                <div className="b3-list-title">
-                  {s.name}
-                  {!s.is_active && <Pill tone="neutral">Archived</Pill>}
+        <SortableList
+          items={schemes}
+          getId={(s) => s.id}
+          getLabel={(s) => s.name}
+          ariaLabel="Accreditation schemes, in display order"
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(s, { row }) => (
+            <SortableRow
+              row={row}
+              title={<>{s.name}{!s.is_active && <> <Pill tone="neutral">Archived</Pill></>}</>}
+              meta={s.issuing_body || null}
+              actions={(
+                <div className="b3-list-actions">
+                  <Button size="sm" onClick={() => toggleActive(s)}>
+                    {s.is_active ? "Archive" : "Restore"}
+                  </Button>
+                  <Button variant="danger" size="sm" aria-label={`Delete scheme: ${s.name}`} onClick={() => remove(s)}>
+                    Delete
+                  </Button>
                 </div>
-                {s.issuing_body && <div className="b3-list-sub">{s.issuing_body}</div>}
-              </div>
-              <div className="b3-list-actions">
-                <Button size="sm" onClick={() => toggleActive(s)}>
-                  {s.is_active ? "Archive" : "Restore"}
-                </Button>
-                <Button variant="danger" size="sm" aria-label={`Delete scheme: ${s.name}`} onClick={() => remove(s)}>
-                  Delete
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+              )}
+            />
+          )}
+        />
       )}
     </Section>
   );

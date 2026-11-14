@@ -61,6 +61,11 @@ if [ -z "$topbar" ]; then ok "no top bar search or support link"; else bad "top 
 must_be_zero "no 'Layercake Maps' in admin/client portal files" 'Layercake Maps' \
   --exclude=clientEmail.js   # outgoing email sender name: rebrand pending, see BACKLOG
 
+# Reordering goes through SortableList / useSortable (REORDER_BRIEF.md): no HTML5 drag-and-drop.
+# Excluded: MapTileThumb.jsx sets draggable={false} on an image.
+must_be_zero "no native drag-and-drop (draggable, onDragStart); use SortableList" 'onDragStart|draggable(=\{true\}|=\"true\"|[ >])' --include='*.jsx' \
+  --exclude=MapTileThumb.jsx
+
 # Mantine: only src/components/ui/ (and main.jsx's provider) may import it.
 mantine=$(grep -rln '@mantine/core' src 2>/dev/null | grep -v '^src/components/ui/' | grep -v '^src/main.jsx$')
 if [ -z "$mantine" ]; then ok "no @mantine/core imports outside src/components/ui/"; else bad "@mantine/core imported outside src/components/ui/"; printf '%s\n' "$mantine" | sed 's/^/          /'; fi

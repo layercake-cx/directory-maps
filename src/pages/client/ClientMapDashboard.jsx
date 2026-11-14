@@ -138,7 +138,6 @@ export default function ClientMapDashboard() {
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const mapOptionsRef = useRef(null);
 
-  const [reorderedGroupIds, setReorderedGroupIds] = useState(null);
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [groupEditDesign, setGroupEditDesign] = useState(null);
   const [groupCustomPinUploading, setGroupCustomPinUploading] = useState(false);
@@ -349,14 +348,7 @@ export default function ClientMapDashboard() {
     setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, logo_bg: normalizedValue } : l)));
   }
 
-  const orderedGroupsList = useMemo(() => {
-    const list = groups || [];
-    if (reorderedGroupIds && reorderedGroupIds.length === list.length) {
-      const byId = new Map(list.map((g) => [g.id, g]));
-      return reorderedGroupIds.map((id) => byId.get(id)).filter(Boolean);
-    }
-    return list;
-  }, [groups, reorderedGroupIds]);
+  const orderedGroupsList = groups || [];
 
   const draftPublicationConfig = useMemo(
     () =>
@@ -786,49 +778,13 @@ export default function ClientMapDashboard() {
     window.open(embedSrc, "_blank");
   }
 
-  function handleGroupDragStart(e, index) {
-    e.dataTransfer.setData("text/plain", String(index));
-    e.dataTransfer.effectAllowed = "move";
-  }
-  function handleGroupDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }
-  function handleGroupDrop(e, dropIndex) {
-    e.preventDefault();
-    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
-    if (Number.isNaN(fromIndex) || fromIndex === dropIndex) return;
-    const ids = reorderedGroupIds ?? (groups || []).map((g) => g.id);
-    const next = [...ids];
-    const [removed] = next.splice(fromIndex, 1);
-    next.splice(dropIndex, 0, removed);
-    setReorderedGroupIds(next);
-  }
-
-  async function saveGroupsOrder() {
-    const order = reorderedGroupIds ?? (groups || []).map((g) => g.id);
-    if (!order.length) return;
-    try {
-      setSavingGroups(true);
-      setErr("");
-      for (let i = 0; i < order.length; i++) {
-        const { error } = await supabase.from("groups").update({ sort_order: i }).eq("id", order[i]).eq("map_id", mapId);
-        if (error) throw error;
-      }
-      setReorderedGroupIds(null);
-      const { data } = await supabase
-        .from("groups")
-        .select("id,name,sort_order,color,theme_json")
-        .eq("map_id", mapId)
-        .order("sort_order", { ascending: true });
-      if (data) setGroups(data);
-      setMsg("Category order saved.");
-      window.setTimeout(() => setMsg(""), 2000);
-    } catch (e2) {
-      setErr(e2.message ?? String(e2));
-    } finally {
-      setSavingGroups(false);
+  /** Called by MapGroupsPanel's SortableList on drop. Throws on failure so the list puts the order back. */
+  async function saveGroupsOrder(nextGroups) {
+    for (let i = 0; i < nextGroups.length; i++) {
+      const { error } = await supabase.from("groups").update({ sort_order: i }).eq("id", nextGroups[i].id).eq("map_id", mapId);
+      if (error) throw error;
     }
+    setGroups(nextGroups.map((g, i) => ({ ...g, sort_order: i })));
   }
 
   function openGroupEdit(gr) {
@@ -1827,12 +1783,8 @@ export default function ClientMapDashboard() {
             {overlayTab === "groups" && (
               <MapGroupsPanel
                 orderedGroups={orderedGroupsList}
-                onDragStart={handleGroupDragStart}
-                onDragOver={handleGroupDragOver}
-                onDrop={handleGroupDrop}
                 onEditGroup={openGroupEdit}
-                onSaveOrder={saveGroupsOrder}
-                savingGroups={savingGroups}
+                onReorder={saveGroupsOrder}
                 editor={
                   editingGroupId ? (
                     <MapGroupDesignEditor

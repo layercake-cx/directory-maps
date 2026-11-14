@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { createTeamMember, deleteTeamMember, listTeamMembers, updateTeamMember } from "../../lib/directoryEntryTeamMembers";
-import { Button, Callout, Checkbox, EmptyState, Field, Skeleton, Textarea, TextInput } from "../ui/index.js";
+import { createTeamMember, deleteTeamMember, listTeamMembers, reorderTeamMembers, updateTeamMember } from "../../lib/directoryEntryTeamMembers";
+import { Button, Callout, Checkbox, EmptyState, Field, Skeleton, SortableList, SortableRow, Textarea, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { name: "", role_title: "", photo_url: "", bio: "", is_visible: true };
@@ -47,6 +47,11 @@ export default function TeamMembersEditor({ directoryId, entryId, recordEvent })
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleReorder(next) {
+    await reorderTeamMembers(next.map((m) => m.id));
+    setItems(next);
   }
 
   async function toggleVisible(item) {
@@ -105,28 +110,31 @@ export default function TeamMembersEditor({ directoryId, entryId, recordEvent })
       ) : items.length === 0 ? (
         <EmptyState art="none" title="No team members yet" body="Add the people you want shown publicly on this entry." />
       ) : (
-        <ul className="b3-list">
-          {items.map((item) => (
-            <li key={item.id} className="b3-list-item b3-list-item--top">
-              <div className="b3-list-main">
-                <div className="b3-list-title">
-                  {item.name}
-                  {!item.is_visible && <span className="b3-muted">(hidden)</span>}
+        <SortableList
+          items={items}
+          getId={(m) => m.id}
+          getLabel={(m) => m.name}
+          ariaLabel="Team members, in display order"
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(item, { row }) => (
+            <SortableRow
+              row={row}
+              title={<>{item.name}{!item.is_visible && <span className="b3-muted"> (hidden)</span>}</>}
+              meta={[item.role_title, item.bio].filter(Boolean).join(" · ") || null}
+              actions={(
+                <div className="b3-list-actions">
+                  <Button size="sm" onClick={() => toggleVisible(item)}>
+                    {item.is_visible ? "Hide" : "Show"}
+                  </Button>
+                  <Button variant="danger" size="sm" aria-label={`Delete team member: ${item.name}`} onClick={() => remove(item)}>
+                    Delete
+                  </Button>
                 </div>
-                {item.role_title && <div className="b3-list-sub">{item.role_title}</div>}
-                {item.bio && <div className="b3-list-sub">{item.bio}</div>}
-              </div>
-              <div className="b3-list-actions">
-                <Button size="sm" onClick={() => toggleVisible(item)}>
-                  {item.is_visible ? "Hide" : "Show"}
-                </Button>
-                <Button variant="danger" size="sm" aria-label={`Delete team member: ${item.name}`} onClick={() => remove(item)}>
-                  Delete
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

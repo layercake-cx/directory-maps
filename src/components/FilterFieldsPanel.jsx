@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FIELD_TYPES,
   DISPLAY_CONTROLS,
@@ -20,8 +20,8 @@ import {
 } from "../lib/filterFields.js";
 import CategorisationAttachmentPicker from "./directories/CategorisationAttachmentPicker.jsx";
 import {
-  ArrowDownIcon, ArrowUpIcon, Button, Callout, Checkbox, Dialog, EmptyState, Field, PlusIcon, Section, Select,
-  Skeleton, TextInput, XIcon, Pill,
+  Button, Callout, Checkbox, Dialog, EmptyState, Field, PlusIcon, Section, Select,
+  Skeleton, SortableHandle, TextInput, XIcon, Pill, useSavedOrder, useSortable,
 } from "./ui/index.js";
 import "../styles/wave-b/map-pages.css";
 
@@ -98,6 +98,30 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
   );
   const activeFields = useMemo(() => fields.filter((f) => f.is_active), [fields]);
 
+  // Active fields reorder by drag (saves on drop, with Undo); archived ones are listed separately and don't move.
+  const announceRef = useRef(() => {});
+  const savedOrder = useSavedOrder(activeFields, saveFieldOrder, announceRef);
+  const fieldSort = useSortable({
+    items: savedOrder.items,
+    getId: (f) => f.id,
+    getLabel: (f) => f.label,
+    ariaLabel: "Filter fields, in search bar order",
+    disabled: busy,
+    onReorder: (next, meta) => { void savedOrder.save(next, meta); },
+  });
+  announceRef.current = fieldSort.announce;
+
+  // Options inside the field editor: form rule (the form's own Save writes them).
+  const optionKey = (o) => o.id || o._k;
+  const optionSort = useSortable({
+    items: form?.options ?? [],
+    getId: optionKey,
+    getLabel: (o) => o.label || "Untitled option",
+    ariaLabel: "Options, in display order",
+    variant: "compact",
+    onReorder: (next) => setForm((f) => ({ ...f, options: next })),
+  });
+
   // ---- form helpers ----
   function openCreate() {
     setForm({ ...emptyForm, options: [] });
@@ -142,7 +166,7 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     });
   }
   function addOption() {
-    setForm((f) => ({ ...f, options: [...f.options, { id: null, label: "", value: "", color: "" }] }));
+    setForm((f) => ({ ...f, options: [...f.options, { id: null, _k: `new-${Math.random().toString(36).slice(2)}`, label: "", value: "", color: "" }] }));
   }
   function updateOption(index, patch) {
     setForm((f) => ({ ...f, options: f.options.map((o, i) => (i === index ? { ...o, ...patch } : o)) }));
@@ -150,16 +174,6 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
   function removeOptionRow(index) {
     setForm((f) => ({ ...f, options: f.options.filter((_, i) => i !== index) }));
   }
-  function moveOption(index, dir) {
-    setForm((f) => {
-      const arr = f.options.slice();
-      const j = index + dir;
-      if (j < 0 || j >= arr.length) return f;
-      [arr[index], arr[j]] = [arr[j], arr[index]];
-      return { ...f, options: arr };
-    });
-  }
-
   const keyConflict = useMemo(() => {
     if (!form) return false;
     const k = (form.key || "").trim();
@@ -262,22 +276,11 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     }
   }
 
-  async function move(field, dir) {
-    const ordered = activeFields.slice();
-    const index = ordered.findIndex((f) => f.id === field.id);
-    const j = index + dir;
-    if (index < 0 || j < 0 || j >= ordered.length) return;
-    [ordered[index], ordered[j]] = [ordered[j], ordered[index]];
-    setBusy(true);
-    try {
-      await reorderFilterFields(ordered.map((f) => f.id));
-      emit("map_design_filter_field_reordered", { order: ordered.map((f) => f.id) });
-      await notifyChanged();
-    } catch (e) {
-      setError(e.message || "Failed to reorder");
-    } finally {
-      setBusy(false);
-    }
+  /** Throws on failure so useSavedOrder can put the order back. */
+  async function saveFieldOrder(next) {
+    await reorderFilterFields(next.map((f) => f.id));
+    emit("map_design_filter_field_reordered", { order: next.map((f) => f.id) });
+    await notifyChanged();
   }
 
   async function doPermanentDelete() {
@@ -351,23 +354,28 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
         {hasEditableOptions(form.fieldType) && (
           <Section title="Options" as="h3">
             <div className="mp-stack">
-              {form.options.map((o, i) => (
-                <div key={o.id || `new-${i}`} className="mp-option-row">
-                  <span className="mp-reorder">
-                    <Button size="sm" iconOnly icon={<ArrowUpIcon />} aria-label="Move up" onClick={() => moveOption(i, -1)} disabled={i === 0} />
-                    <Button size="sm" iconOnly icon={<ArrowDownIcon />} aria-label="Move down" onClick={() => moveOption(i, 1)} disabled={i === form.options.length - 1} />
-                  </span>
-                  <Field label="Option label">
-                    <TextInput
-                      value={o.label}
-                      onChange={(e) => updateOption(i, { label: e.target.value })}
-                      placeholder="Option label"
-                    />
-                  </Field>
-                  <MiniColorRow value={o.color} onChange={(v) => updateOption(i, { color: v })} ariaLabel={`${o.label || "option"} colour`} />
-                  <Button size="sm" iconOnly icon={<XIcon />} aria-label="Remove option" onClick={() => removeOptionRow(i)} />
-                </div>
-              ))}
+              <ol {...optionSort.listProps}>
+                {optionSort.items.map((o, i) => {
+                  const r = optionSort.rowFor(o, i);
+                  return (
+                    <li key={optionKey(o)} {...r.rowProps}>
+                      <SortableHandle {...(r.handleProps || {})} />
+                      <span className="sortable-pos">{i + 1}</span>
+                      <Field label="Option label">
+                        <TextInput
+                          value={o.label}
+                          onChange={(e) => updateOption(i, { label: e.target.value })}
+                          placeholder="Option label"
+                        />
+                      </Field>
+                      <MiniColorRow value={o.color} onChange={(v) => updateOption(i, { color: v })} ariaLabel={`${o.label || "option"} colour`} />
+                      <Button size="sm" iconOnly icon={<XIcon />} aria-label="Remove option" onClick={() => removeOptionRow(i)} />
+                    </li>
+                  );
+                })}
+                {optionSort.slot}
+              </ol>
+              {optionSort.after}
               <div>
                 <Button size="sm" icon={<PlusIcon size={14} />} onClick={addOption}>Add option</Button>
               </div>
@@ -417,6 +425,50 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     );
   }
 
+  const renderFieldBody = (f, handle) => {
+    const controls = allowedControlsForType(f.field_type);
+    return (
+      <>
+        <div className="mp-filter-main">
+          {handle}
+          <span className="mp-filter-text">
+            <span className="mp-filter-name">{f.label}</span>
+            <span className="mp-muted">
+              {typeLabel(f.field_type)}
+              {hasEditableOptions(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
+              {!f.is_active ? <>{" · "}<Pill>Archived</Pill></> : null}
+            </span>
+          </span>
+          <Button size="sm" onClick={() => openEdit(f)} disabled={busy}>Edit</Button>
+        </div>
+
+        {f.is_active && (
+          <div className="mp-filter-controls">
+            <Checkbox label="Show in search bar" checked={!!f.show_in_filter_bar} onChange={() => toggleFilterBar(f)} disabled={busy} />
+            {f.show_in_filter_bar && (
+              <Field label="Display as">
+                <Select value={f.display_control} onChange={(e) => changeControl(f, e.target.value)} disabled={busy}>
+                  {DISPLAY_CONTROLS.filter((c) => controls.includes(c.id)).map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <span className="mp-push" />
+            <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Archive</Button>
+            <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
+          </div>
+        )}
+        {!f.is_active && (
+          <div className="mp-filter-controls">
+            <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Restore</Button>
+            <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="mp-stack">
       {error ? <Callout tone="danger">{error}</Callout> : null}
@@ -454,56 +506,35 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
           actions={<Button variant="primary" onClick={openCreate}>Create your first filter field</Button>}
         />
       ) : (
-        <ul className="mp-filter-list">
-          {visibleFields.map((f) => {
-            const controls = allowedControlsForType(f.field_type);
-            return (
-              <li key={f.id} className={`mp-filter-item ${f.is_active ? "" : "mp-filter-item--archived"}`.trim()}>
-                <div className="mp-filter-main">
-                  {f.is_active && (
-                    <span className="mp-reorder">
-                      <Button size="sm" iconOnly icon={<ArrowUpIcon />} aria-label={`Move ${f.label} up`} onClick={() => move(f, -1)} disabled={busy} />
-                      <Button size="sm" iconOnly icon={<ArrowDownIcon />} aria-label={`Move ${f.label} down`} onClick={() => move(f, 1)} disabled={busy} />
-                    </span>
-                  )}
-                  <span className="mp-filter-text">
-                    <span className="mp-filter-name">{f.label}</span>
-                    <span className="mp-muted">
-                      {typeLabel(f.field_type)}
-                      {hasEditableOptions(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
-                      {!f.is_active ? <>{" · "}<Pill>Archived</Pill></> : null}
-                    </span>
-                  </span>
-                  <Button size="sm" onClick={() => openEdit(f)} disabled={busy}>Edit</Button>
-                </div>
-
-                {f.is_active && (
-                  <div className="mp-filter-controls">
-                    <Checkbox label="Show in search bar" checked={!!f.show_in_filter_bar} onChange={() => toggleFilterBar(f)} disabled={busy} />
-                    {f.show_in_filter_bar && (
-                      <Field label="Display as">
-                        <Select value={f.display_control} onChange={(e) => changeControl(f, e.target.value)} disabled={busy}>
-                          {DISPLAY_CONTROLS.filter((c) => controls.includes(c.id)).map((c) => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
-                          ))}
-                        </Select>
-                      </Field>
-                    )}
-                    <span className="mp-push" />
-                    <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Archive</Button>
-                    <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
-                  </div>
-                )}
-                {!f.is_active && (
-                  <div className="mp-filter-controls">
-                    <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Restore</Button>
-                    <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {savedOrder.error ? <Callout tone="danger">{savedOrder.error}</Callout> : null}
+          {fieldSort.items.length > 0 ? (
+            <ol {...fieldSort.listProps}>
+              {fieldSort.items.map((f, i) => {
+                const r = fieldSort.rowFor(f, i);
+                return (
+                  <li key={f.id} {...r.rowProps} className={`${r.rowProps.className} sortable-row--stack mp-filter-item`}>
+                    {renderFieldBody(f, (
+                      <>
+                        <SortableHandle {...(r.handleProps || {})} />
+                        <span className="sortable-pos">{r.position}</span>
+                      </>
+                    ))}
+                  </li>
+                );
+              })}
+              {fieldSort.slot}
+            </ol>
+          ) : null}
+          {fieldSort.items.length > 0 ? fieldSort.after : null}
+          {visibleFields.some((f) => !f.is_active) ? (
+            <ul className="mp-filter-list">
+              {visibleFields.filter((f) => !f.is_active).map((f) => (
+                <li key={f.id} className="mp-filter-item mp-filter-item--archived">{renderFieldBody(f, null)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </>
       )}
 
       {visibleFields.length > 0 && (

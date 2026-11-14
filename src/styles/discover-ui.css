@@ -520,3 +520,20 @@
   .shell .sortable-row--lifted { transform: translateY(var(--sortable-dy, 0px)); }
 }
 .shell .sortable-link { font-size: var(--fs-ui); font-weight: 600; white-space: nowrap; }
+.shell .sortable-thumb-title { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shell .sortable-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: var(--radius-control); border: 1px solid var(--shell-line); }
+
+/* Pages tree and Entry pages sections use the shared sortable list inside their own containers. */
+.shell .sortable-row .b3-page-btn { flex: 1; min-width: 0; min-height: 44px; padding: 6px 8px 6px 0; border: 0; border-radius: 6px; background: transparent; text-align: left; font: var(--fs-ui) var(--font-body); color: var(--shell-ink); cursor: pointer; }
+.shell .sortable-row .b3-page-btn:hover { text-decoration: underline; }
+.shell .sortable-row .b3-page-btn.is-selected { font-weight: 700; }
+.shell .sortable-row .b3-page-btn.is-inactive { opacity: 0.6; }
+.shell .b4-sortable { border: 0; border-radius: 0; background: transparent; }
+.shell .b4-sortable .sortable-row { gap: 12px; padding: 4px 16px 4px 4px; }
+.shell .b4-sortable .sortable-row[data-hidden="true"] .b4-block-name, .shell .b4-sortable .sortable-row[data-hidden="true"] .b4-block-heading { opacity: 0.55; }
+.shell .b4-col-grip { width: 36px; }
+.shell .b4-blockhead { padding-left: 4px; }
+.shell .b4-blocks { overflow: visible; } /* the ⋯ menu must not be clipped */
+.shell .b4-blockhead { border-top-left-radius: var(--radius-card); border-top-right-radius: var(--radius-card); }
+.shell .sortable-row--stack { flex-direction: column; align-items: stretch; gap: 0; padding: 0 12px 8px 4px; }
+.shell .sortable-row--stack > .mp-filter-main { display: flex; align-items: center; gap: 10px; min-height: 56px; }

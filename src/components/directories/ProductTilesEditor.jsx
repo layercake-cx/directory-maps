@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { createProductTile, deleteProductTile, listProductTiles } from "../../lib/productTiles";
-import { Button, Callout, EmptyState, Field, FieldGrid, Skeleton, TextInput } from "../ui/index.js";
+import { createProductTile, deleteProductTile, listProductTiles, reorderProductTiles } from "../../lib/productTiles";
+import { Button, Callout, EmptyState, Field, FieldGrid, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { title: "", image_url: "", price: "", currency: "", rating: "", review_count: "", provider: "", destination_url: "" };
@@ -46,6 +46,11 @@ export default function ProductTilesEditor({ directoryId, entryId, recordEvent }
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleReorder(next) {
+    await reorderProductTiles(next.map((t) => t.id));
+    setTiles(next);
   }
 
   async function remove(tile) {
@@ -110,24 +115,31 @@ export default function ProductTilesEditor({ directoryId, entryId, recordEvent }
       ) : tiles.length === 0 ? (
         <EmptyState art="none" title="No product tiles yet" body="Add a booking or product link to show it on this entry." />
       ) : (
-        <ul className="b3-list">
-          {tiles.map((t) => (
-            <li key={t.id} className="b3-list-item">
-              <div className="b3-list-main">
-                <div className="b3-list-title">
-                  {t.title} {t.provider && <span className="b3-muted">via {t.provider}</span>}
-                </div>
-                <div className="b3-list-sub">
+        <SortableList
+          items={tiles}
+          getId={(t) => t.id}
+          getLabel={(t) => t.title}
+          ariaLabel="Product tiles, in display order"
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(t, { row }) => (
+            <SortableRow
+              row={row}
+              title={<>{t.title} {t.provider && <span className="b3-muted">via {t.provider}</span>}</>}
+              meta={(
+                <>
                   {t.price != null && `${t.currency || ""} ${t.price}`.trim()}
                   {t.rating != null && ` · ${t.rating} stars${t.review_count != null ? ` (${t.review_count})` : ""}`}
-                </div>
-              </div>
-              <Button variant="danger" size="sm" aria-label={`Delete tile: ${t.title}`} onClick={() => remove(t)}>
-                Delete
-              </Button>
-            </li>
-          ))}
-        </ul>
+                </>
+              )}
+              actions={(
+                <Button variant="danger" size="sm" aria-label={`Delete tile: ${t.title}`} onClick={() => remove(t)}>
+                  Delete
+                </Button>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

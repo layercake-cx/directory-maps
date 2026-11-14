@@ -2,8 +2,8 @@ import AIButton from "../ai/AIButton.jsx";
 import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Button, Callout, Checkbox, Dialog, EmptyState, Field, FieldGrid, RadioCards, Section, Select, Skeleton, Textarea,
-  TextInput, useConfirm,
+  Button, Callout, Checkbox, Dialog, EmptyState, Field, FieldGrid, OverflowMenu, RadioCards, Section, Select, Skeleton,
+  SortableHandle, SortableList, Textarea, TextInput, useConfirm,
 } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
@@ -58,14 +58,49 @@ function pageHasChildren(pages, pageId) {
   return pages.some((p) => p.parent_page_id === pageId);
 }
 
-function dropPlacementFromEvent(e, draggedHasChildren, targetIsChild) {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const y = e.clientY - rect.top;
-  const ratio = rect.height ? y / rect.height : 0.5;
-  if (ratio < 0.28) return "before";
-  if (ratio > 0.72) return "after";
-  if (!targetIsChild && !draggedHasChildren) return "child";
-  return ratio < 0.5 ? "before" : "after";
+/**
+ * Turn a SortableList result (flat tree order + the parent the user chose) into the pages array that
+ * applyPageDrop would produce. Returns null when the drop isn't allowed (one level of nesting only).
+ */
+function pagesFromReorder(pages, flatNext, meta) {
+  const dragged = pages.find((p) => p.id === meta.item.id);
+  if (!dragged) return null;
+  const hasChildren = pageHasChildren(pages, dragged.id);
+  const desc = descendantIds(pages, dragged.id);
+  const clean = flatNext.filter((p) => !desc.has(p.id));
+  const idx = clean.findIndex((p) => p.id === dragged.id);
+  const prev = clean[idx - 1] || null;
+  const nxt = clean[idx + 1] || null;
+  const byId = new Map(pages.map((p) => [p.id, p]));
+  const parentOf = (p) => (p ? p.parent_page_id || null : null);
+  const topOf = (p) => (p ? (parentOf(p) ? byId.get(parentOf(p)) : p) : null);
+
+  // meta.parentId: undefined = not changed, an id = nest under it, null = move to the top level.
+  const oldParent = parentOf(dragged);
+  let newParent = meta.parentId === undefined ? null : meta.parentId;
+  // A plain move of a child keeps its parent when it lands inside that parent's group.
+  if (meta.parentId === undefined && oldParent && (parentOf(prev) === oldParent || prev?.id === oldParent || parentOf(nxt) === oldParent)) {
+    newParent = oldParent;
+  }
+  if (newParent && byId.get(newParent)?.parent_page_id) newParent = byId.get(newParent).parent_page_id;
+  if (newParent && hasChildren) return null;
+
+  let target = null;
+  let placement = "after";
+  if (newParent) {
+    if (prev && parentOf(prev) === newParent) { target = prev; placement = "after"; }
+    else if (nxt && parentOf(nxt) === newParent) { target = nxt; placement = "before"; }
+    else { target = byId.get(newParent); placement = "child"; }
+  } else if (prev) {
+    target = topOf(prev);
+    placement = "after";
+  } else if (nxt) {
+    target = topOf(nxt);
+    placement = "before";
+  }
+  if (!target || target.id === dragged.id) return null;
+  const next = applyPageDrop(pages, dragged.id, target.id, placement);
+  return next === pages ? null : next;
 }
 
 /**
@@ -86,8 +121,6 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
-  const [dragId, setDragId] = useState(null);
-  const [dropHint, setDropHint] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteMode, setDeleteMode] = useState("promote");
   const [reparentTo, setReparentTo] = useState("");
@@ -219,43 +252,17 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
     recordEvent?.("directory_content_pages_reordered", { directory_id: directoryId, page_ids: flattenTree(nextPages).map(({ page }) => page.id) });
   }
 
-  function handleDragStart(e, pageId) {
-    setDragId(pageId);
-    e.dataTransfer.setData("text/plain", pageId);
-    e.dataTransfer.effectAllowed = "move";
-  }
-
-  function handleDragOver(e, target) {
-    e.preventDefault();
-    if (!dragId || dragId === target.id) {
-      setDropHint(null);
-      return;
-    }
-    const draggedHasChildren = pageHasChildren(pages, dragId);
-    const targetIsChild = !!target.parent_page_id;
-    const placement = dropPlacementFromEvent(e, draggedHasChildren, targetIsChild);
-    e.dataTransfer.dropEffect = "move";
-    setDropHint({ id: target.id, placement });
-  }
-
-  async function handleDrop(e, target) {
-    e.preventDefault();
-    const fromId = e.dataTransfer.getData("text/plain") || dragId;
-    const hint = dropHint;
-    setDragId(null);
-    setDropHint(null);
-    if (!fromId || fromId === target.id) return;
-    const placement = hint?.id === target.id ? hint.placement : "after";
-    const next = applyPageDrop(pages, fromId, target.id, placement);
-    if (next === pages) return;
+  /** SortableList onReorder: persists, or throws so the list puts the order back and shows the error. */
+  async function handleReorder(flatNext, meta) {
+    const next = pagesFromReorder(pages, flatNext, meta);
+    if (!next) throw new Error("That page can't go there. Pages nest one level only, and a page with children has to stay top-level.");
     const prev = pages;
     setPages(next);
     try {
       await persistOrder(next, prev);
-      setMsg("Page order saved. Republish the directory for changes to appear on the live site.");
-    } catch (e2) {
+    } catch (e) {
       setPages(prev);
-      setErr(e2?.message ?? String(e2));
+      throw e;
     }
   }
 
@@ -318,51 +325,39 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
 
   return (
     <div className="b3-pages">
-      <Section title="Pages" description="Drag to reorder. Drop onto a top-level page to nest (one level only).">
+      <Section title="Pages" description="Drag the handle to reorder. Drag right to nest a page under the one above it (one level only).">
         {loading ? (
           <Skeleton variant="list" rows={4} label="Loading pages" />
         ) : tree.length === 0 ? (
           <EmptyState art="none" title="No pages yet" body="Add a page title below to create the first one." />
         ) : (
-          <div className="b3-page-tree" onDragLeave={() => setDropHint(null)}>
-            {tree.map(({ page, depth }) => {
-              const hintHere = dropHint?.id === page.id;
-              const rowClass = [
-                "b3-page-row",
-                page.id === selectedId && "is-selected",
-                dragId === page.id && "is-dragging",
-                !page.is_active && "is-inactive",
-                hintHere && dropHint.placement === "before" && "is-drop-before",
-                hintHere && dropHint.placement === "after" && "is-drop-after",
-                hintHere && dropHint.placement === "child" && "is-drop-child",
-              ].filter(Boolean).join(" ");
-              return (
-                <div
-                  key={page.id}
-                  draggable
-                  className={rowClass}
-                  style={{ "--b3-depth": depth }} // dynamic: indent level of this page in the tree
-                  onDragStart={(e) => handleDragStart(e, page.id)}
-                  onDragOver={(e) => handleDragOver(e, page)}
-                  onDrop={(e) => handleDrop(e, page)}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setDropHint(null);
-                  }}
+          <SortableList
+            items={tree.map(({ page }) => page)}
+            getId={(pg) => pg.id}
+            getLabel={(pg) => pg.nav_label || pg.title}
+            getParentId={(pg) => pg.parent_page_id || null}
+            nestable
+            variant="compact"
+            ariaLabel="Pages, in navigation order"
+            onReorder={handleReorder}
+            renderItem={(pg, { handleProps, menuItems }) => (
+              <>
+                <SortableHandle {...(handleProps || {})} />
+                <button
+                  type="button"
+                  className={`b3-page-btn${pg.id === selectedId ? " is-selected" : ""}${pg.is_active ? "" : " is-inactive"}`}
+                  onClick={() => setSelectedId(pg.id)}
+                  aria-current={pg.id === selectedId ? "true" : undefined}
                 >
-                  <span aria-hidden="true" className="b3-page-handle" title="Drag to reorder">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 8h14M5 12h14M5 16h14" /></svg>
-                  </span>
-                  <button type="button" className="b3-page-btn" onClick={() => setSelectedId(page.id)} aria-current={page.id === selectedId ? "true" : undefined}>
-                    {depth > 0 ? <span className="sr-only">Child page: </span> : null}
-                    {page.nav_label || page.title}
-                    {!page.show_in_navigation ? <span className="b3-page-state"> · hidden</span> : null}
-                    {!page.is_active ? <span className="b3-page-state"> · unpublished</span> : null}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                  {pg.parent_page_id ? <span className="sr-only">Child page: </span> : null}
+                  {pg.nav_label || pg.title}
+                  {!pg.show_in_navigation ? <span className="b3-page-state"> · hidden</span> : null}
+                  {!pg.is_active ? <span className="b3-page-state"> · unpublished</span> : null}
+                </button>
+                {menuItems.length ? <OverflowMenu label={`Actions for ${pg.nav_label || pg.title}`} items={menuItems} /> : null}
+              </>
+            )}
+          />
         )}
         <div className="b3-stack b3-stack--tight">
           <Field label="New page title">

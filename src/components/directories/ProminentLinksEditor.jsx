@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { createProminentLink, deleteProminentLink, listProminentLinks } from "../../lib/prominentLinks";
-import { Button, Callout, Checkbox, EmptyState, Field, Select, Skeleton, TextInput } from "../ui/index.js";
+import { createProminentLink, deleteProminentLink, listProminentLinks, reorderProminentLinks } from "../../lib/prominentLinks";
+import { Button, Callout, Checkbox, EmptyState, Field, Select, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { label: "", url: "", icon: "", style: "secondary", open_in_new: true, tracking: false };
@@ -56,6 +56,11 @@ export default function ProminentLinksEditor({ directoryId, entryId, recordEvent
     }
   }
 
+  async function handleReorder(next) {
+    await reorderProminentLinks(next.map((l) => l.id));
+    setLinks(next);
+  }
+
   async function remove(link) {
     try {
       await deleteProminentLink(link.id);
@@ -109,19 +114,26 @@ export default function ProminentLinksEditor({ directoryId, entryId, recordEvent
       ) : links.length === 0 ? (
         <EmptyState art="none" title="No links yet" body="Add a link to show it as a prominent tile." />
       ) : (
-        <ul className="b3-list">
-          {links.map((link) => (
-            <li key={link.id} className="b3-list-item">
-              <div className="b3-list-main">
-                <div className="b3-list-title">{link.label} <span className="b3-muted">({link.style})</span></div>
-                <div className="b3-list-sub">{link.url}</div>
-              </div>
-              <Button variant="danger" size="sm" aria-label={`Delete link: ${link.label}`} onClick={() => remove(link)}>
-                Delete
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <SortableList
+          items={links}
+          getId={(l) => l.id}
+          getLabel={(l) => l.label}
+          ariaLabel={`${title}, in display order`}
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(link, { row }) => (
+            <SortableRow
+              row={row}
+              title={<>{link.label} <span className="b3-muted">({link.style})</span></>}
+              meta={link.url}
+              actions={(
+                <Button variant="danger" size="sm" aria-label={`Delete link: ${link.label}`} onClick={() => remove(link)}>
+                  Delete
+                </Button>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );
