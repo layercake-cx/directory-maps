@@ -206,6 +206,15 @@ Home, Team, Domains, Integrations, Email, the maps list, map Data, map Listings,
 - **Team:** Remove and Cancel invitation ask in a dialog.
 - **Email:** the sending-profile editor has separate cards for the profile, **Domain & DNS** (with Verified/Pending labels) and **Delete profile**; deleting asks first.
 
+### What changed on staff admin pages (new look)
+
+The Layercake staff pages (Customers, customer detail, Directories, Maps, Listings, Users, Leads, Error log, User activity, Sync log, Deployments) use the same layout as the rest of the app: a page title, then cards and tables with an **Actions** menu per row.
+
+- **Customers and Directories:** the name is the link; the old separate Open/Settings column is gone. Deleting a customer is in the row's **Actions** menu (disabled with a reason while the customer still has maps).
+- **Customer details:** separate cards for Customer, Billing, Feature access (beta) and Primary contact. The three beta switches still save as soon as you flip them; **Save changes** saves the rest.
+- **Map design and Map data (staff):** the same pieces as the client portal. On the map design page, **Publish map** is now a full-page view with embed size options, a thumbnail embed code and the version history.
+- **Logs:** filters are labelled, statuses are labelled pills, and expanding a row shows its details.
+
 ### Progress and background tasks
 
 Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.

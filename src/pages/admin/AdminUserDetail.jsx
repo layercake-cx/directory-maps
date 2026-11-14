@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Callout, DataTable, EmptyState, RecordLayout, Section, Skeleton } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
+import "../../styles/wave-c/maps-users.css";
 
 function formatUtc(iso) {
   if (!iso) return "—";
@@ -61,106 +64,88 @@ export default function AdminUserDetail() {
     return c?.name || c?.email || userId;
   }, [contacts, userId]);
 
+  const contactColumns = [
+    {
+      key: "client",
+      label: "Client",
+      render: (c) => <Link to={`/admin/clients/${encodeURIComponent(c.client_id)}`}>{c.client_id}</Link>,
+    },
+    { key: "name", label: "Name", render: (c) => c.name || "—" },
+    { key: "email", label: "Email", render: (c) => c.email || "—" },
+    { key: "primary", label: "Primary", render: (c) => (c.is_primary ? "Yes" : "—") },
+    { key: "role", label: "Role", render: (c) => c.role || "—" },
+  ];
+
+  const activityColumns = [
+    { key: "time", label: "Time (UTC)", className: "mu-nowrap", render: (a) => formatUtc(a.occurred_at) },
+    { key: "event", label: "Event", render: (a) => <code>{a.event_type}</code> },
+    { key: "subtype", label: "Subtype", render: (a) => a.event_subtype || "—" },
+    {
+      key: "client",
+      label: "Client",
+      render: (a) => (a.client_id ? <Link to={`/admin/clients/${encodeURIComponent(a.client_id)}`}>{a.client_id}</Link> : "—"),
+    },
+    { key: "meta", label: "Meta", render: (a) => <pre className="mu-meta">{JSON.stringify(a.meta ?? {}, null, 2)}</pre> },
+  ];
+
+  const ready = !loading && !err;
+
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Admin Users", path: "/admin/users" },
-        { label: displayName || "User" },
-      ]}
-    >
-      <div className="card card-pad">
-        <div style={{ marginBottom: 12 }}>
-          <Link to="/admin/users">← Back to admin users</Link>
-        </div>
-        <div className="admin-map-tabs" style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            className={`admin-map-tabs__tab ${activeTab === "details" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("details")}
-          >
-            Details
-          </button>
-          <button
-            type="button"
-            className={`admin-map-tabs__tab ${activeTab === "activities" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("activities")}
-          >
-            Activities
-          </button>
-        </div>
+    <AdminLayout>
+      <RecordLayout
+        head={{
+          title: displayName || "User",
+          breadcrumb: [{ label: "Admin users", to: "/admin/users" }, { label: displayName || "User" }],
+        }}
+        tabs={{
+          tabs: [
+            { key: "details", label: "Details" },
+            { key: "activities", label: "Activities" },
+          ],
+          current: activeTab,
+          onSelect: setActiveTab,
+          label: "User sections",
+        }}
+      >
+        {loading ? <Skeleton variant="form" rows={3} label="Loading user" /> : null}
+        {err ? <Callout tone="danger">{err}</Callout> : null}
 
-        {loading ? <p>Loading…</p> : null}
-        {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
-
-        {!loading && !err && activeTab === "details" ? (
-          <div style={{ display: "grid", gap: 12 }}>
-            <div><strong>User ID:</strong> {userId}</div>
-            <div><strong>Admin role:</strong> {adminProfile?.role || "—"}</div>
-            <h3 style={{ margin: "8px 0 0", fontSize: 16 }}>Contact links</h3>
-            {contacts.length === 0 ? (
-              <p style={{ color: "var(--lc-muted)" }}>No linked contacts found.</p>
-            ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Primary</th>
-                    <th>Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contacts.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <Link to={`/admin/clients/${encodeURIComponent(c.client_id)}`}>{c.client_id}</Link>
-                      </td>
-                      <td>{c.name || "—"}</td>
-                      <td>{c.email || "—"}</td>
-                      <td>{c.is_primary ? "Yes" : "—"}</td>
-                      <td>{c.role || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+        {ready && activeTab === "details" ? (
+          <>
+            <Section title="Admin user">
+              <dl className="mu-detail-list">
+                <dt>User ID</dt>
+                <dd>{userId}</dd>
+                <dt>Admin role</dt>
+                <dd>{adminProfile?.role || "—"}</dd>
+              </dl>
+            </Section>
+            <Section title="Contact links" flush>
+              <DataTable
+                columns={contactColumns}
+                rows={contacts}
+                getRowId={(c) => c.id}
+                getRowLabel={(c) => c.name || c.email || c.client_id}
+                caption="Contact links"
+                empty={<EmptyState art="searching" title="No linked contacts found" />}
+              />
+            </Section>
+          </>
         ) : null}
 
-        {!loading && !err && activeTab === "activities" ? (
-          activities.length === 0 ? (
-            <p style={{ color: "var(--lc-muted)" }}>No activity recorded for this user yet.</p>
-          ) : (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Time (UTC)</th>
-                  <th>Event</th>
-                  <th>Subtype</th>
-                  <th>Client</th>
-                  <th>Meta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activities.map((a) => (
-                  <tr key={a.id}>
-                    <td>{formatUtc(a.occurred_at)}</td>
-                    <td><code>{a.event_type}</code></td>
-                    <td>{a.event_subtype || "—"}</td>
-                    <td>{a.client_id ? <Link to={`/admin/clients/${encodeURIComponent(a.client_id)}`}>{a.client_id}</Link> : "—"}</td>
-                    <td style={{ maxWidth: 420 }}>
-                      <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {JSON.stringify(a.meta ?? {}, null, 2)}
-                      </pre>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
+        {ready && activeTab === "activities" ? (
+          <Section title="Activities" flush>
+            <DataTable
+              columns={activityColumns}
+              rows={activities}
+              getRowId={(a) => a.id}
+              getRowLabel={(a) => a.event_type}
+              caption="Activities"
+              empty={<EmptyState art="searching" title="No activity recorded for this user yet" />}
+            />
+          </Section>
         ) : null}
-      </div>
+      </RecordLayout>
     </AdminLayout>
   );
 }

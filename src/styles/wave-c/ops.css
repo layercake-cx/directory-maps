@@ -1,0 +1,67 @@
+/* Wave C: platform ops pages (user activity, error log, sync log, deployments), staff sign-in gate,
+   entitlement gate and the workspace switcher menu. Tokens only; scoped under .shell. */
+
+/* ---- Log tables ---- */
+.shell .ops-nowrap { white-space: nowrap; }
+.shell .ops-cell-muted { color: var(--shell-text-soft); }
+.shell .ops-cell-small { font-size: var(--fs-small); max-width: 220px; }
+.shell .ops-cell-wrap { max-width: 360px; overflow-wrap: anywhere; }
+.shell .ops-cell-id { font-size: var(--fs-label); max-width: 120px; }
+.shell .ops-log-table { min-width: 900px; }
+.shell .ops-log-table tbody td { height: auto; padding-top: 12px; padding-bottom: 12px; vertical-align: top; }
+.shell .ops-row-click { cursor: pointer; }
+.shell .ops-row-highlight td { background: var(--shell-warn-bg); }
+.shell .ops-row-highlight td:first-child { box-shadow: inset 3px 0 0 var(--shell-warn-solid); }
+.shell .ops-detail td { background: var(--shell-ground); }
+.shell .ops-detail-body { display: flex; flex-direction: column; gap: 8px; font-size: var(--fs-small); }
+.shell .ops-detail-body p { margin: 0; }
+.shell .ops-detail-label { font-weight: 600; color: var(--shell-ink); }
+.shell .ops-pre {
+  margin: 0; padding: 8px 10px; font-family: var(--font-mono); font-size: var(--fs-label);
+  white-space: pre-wrap; overflow-wrap: anywhere; background: var(--shell-surface);
+  border: 1px solid var(--shell-line-soft); border-radius: var(--radius-item);
+}
+.shell .ops-toolbar-search { flex: 1 1 240px; max-width: 360px; }
+.shell .ops-toolbar-field { min-width: 160px; }
+.shell .ops-toolbar-check { align-self: flex-end; min-height: 44px; display: inline-flex; align-items: center; }
+
+/* ---- Deployments ---- */
+.shell .ops-deploy-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.shell .ops-deploy-note { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .ops-cmd-list { display: flex; flex-direction: column; gap: 8px; }
+.shell .ops-cmd {
+  display: block; padding: 10px 12px; background: var(--shell-ground);
+  border: 1px solid var(--shell-line); border-radius: var(--radius-control);
+}
+
+/* ---- Staff sign-in gate (rendered outside the shell chrome) ---- */
+.shell.ops-gate { align-items: center; justify-content: flex-start; padding: 48px 16px; }
+.shell .ops-gate-card { width: 100%; max-width: 480px; }
+.shell .ops-gate-form { display: flex; flex-direction: column; gap: 16px; }
+.shell .ops-gate-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.shell .ops-gate-note { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .ops-gate-stack { display: flex; flex-direction: column; gap: 12px; }
+.shell .ops-gate-help { margin: 8px 0 0; font-size: var(--fs-small); }
+
+/* ---- Entitlement gate and usage hint ---- */
+.shell .ent-gate { position: relative; }
+.shell .ent-gate-dim { opacity: 0.35; filter: grayscale(30%); }
+/* Absolute and inset 0 scopes the overlay to this component's own box, so it can never cover page chrome. */
+.shell .ent-gate-overlay { position: absolute; inset: 0; z-index: var(--z-sticky); background: color-mix(in srgb, var(--shell-surface) 55%, transparent); }
+/* Sticky keeps the message 200px below the top of the box as the page scrolls. */
+.shell .ent-gate-pin { position: sticky; top: 200px; display: flex; justify-content: center; }
+.shell .ent-gate-card { max-width: 380px; box-shadow: var(--shadow-pop); }
+.shell .ent-hint { margin: 0 0 12px; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---- Workspace switcher menu ---- */
+.shell .switcher-search-wrap { position: relative; }
+.shell .switcher-search-wrap .switcher-search { width: 100%; padding-left: 36px; }
+.shell .switcher-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--shell-text-muted); pointer-events: none; }
+.shell .switcher-group-label { margin: 8px 4px 2px; }
+.shell .switcher-list--spaced { margin-bottom: 8px; }
+.shell .switcher-item-meta { display: flex; align-items: center; gap: 8px; }
+
+/* Expandable sync log rows */
+.shell .ops-linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--shell-ink); cursor: pointer; text-align: left; }
+.shell .ops-linkbtn:hover { text-decoration: underline; }
+.shell .ops-sync-table { min-width: 900px; }

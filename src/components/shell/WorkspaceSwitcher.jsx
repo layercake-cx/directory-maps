@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase.js";
 import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
+import "../../styles/wave-c/ops.css";
 import { ChevronDownIcon, SearchIcon, ShieldIcon, CheckIcon } from "../icons/shellIcons.jsx";
 
 /**
@@ -99,12 +100,14 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
       </button>
       {open && (
         <div ref={menuRef} role="dialog" aria-label="Switch workspace" className="switcher-menu">
-          <div style={{ position: "relative" }}>
-            <SearchIcon size={16} style={{ position: "absolute", left: 12, top: 10 }} />
+          <div className="switcher-search-wrap">
+            <span className="switcher-search-icon" aria-hidden="true">
+              <SearchIcon size={16} />
+            </span>
             <input
               className="switcher-search"
-              style={{ paddingLeft: 34, width: "100%" }}
               type="text"
+              aria-label="Search customers by name or slug"
               placeholder="Search customers by name or slug"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -117,8 +120,8 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
           </Link>
           {recent.length > 0 && (
             <>
-              <p className="nav-group-label" style={{ margin: "8px 4px 2px" }}>Recently viewed</p>
-              <div className="switcher-list" style={{ marginBottom: 8 }}>
+              <p className="nav-group-label switcher-group-label">Recently viewed</p>
+              <div className="switcher-list switcher-list--spaced">
                 {recent.map((c) => (
                   <Link
                     key={`recent-${c.id}`}
@@ -144,7 +147,7 @@ export default function WorkspaceSwitcher({ isStaff, orgName, activeClientId, co
                 onClick={close}
               >
                 <span>{c.name}</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="switcher-item-meta">
                   <span className="switcher-item-plan">{c.plan_key || "Basic"}</span>
                   {c.id === activeClientId && <CheckIcon size={16} />}
                 </span>

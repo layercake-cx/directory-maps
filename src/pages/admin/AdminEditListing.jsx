@@ -1,10 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import AdminLayout from "./AdminLayout.jsx";
+import {
+  Button, Callout, Checkbox, Field, FieldGrid, Section, Select, SettingsLayout, Skeleton, Textarea, TextInput, useConfirm,
+} from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
+import "../../styles/wave-c/maps-users.css";
 
 export default function AdminEditListing() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +149,12 @@ export default function AdminEditListing() {
   }
 
   async function remove() {
-    const ok = window.confirm("Delete this listing? This cannot be undone.");
+    const ok = await confirm({
+      title: `Delete ${form.name || "this listing"}?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete listing",
+      tone: "danger",
+    });
     if (!ok) return;
 
     try {
@@ -161,164 +173,132 @@ export default function AdminEditListing() {
     }
   }
 
-  if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
+  const title = isNew ? "New listing" : "Edit listing";
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <SettingsLayout head={{ title }}>
+          <Skeleton variant="form" rows={4} label="Loading listing" />
+        </SettingsLayout>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <div style={{ padding: 24, maxWidth: 900 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <h1 style={{ margin: 0 }}>{isNew ? "New listing" : "Edit listing"}</h1>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>{form.id}</div>
-        </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <Link to="/admin">Back</Link>
-          {!isNew ? (
-            <button onClick={remove} disabled={saving} style={{ padding: "10px 14px" }}>
-              Delete
-            </button>
-          ) : null}
-          <button onClick={save} disabled={saving} style={{ padding: "10px 14px" }}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
+    <AdminLayout>
+      <SettingsLayout
+        head={{
+          title,
+          subtitle: form.id,
+          breadcrumb: [{ label: "Back", to: "/admin" }, { label: title }],
+          actions: (
+            <>
+              {!isNew ? (
+                <Button variant="danger" onClick={remove} disabled={saving}>Delete</Button>
+              ) : null}
+              <Button variant="primary" onClick={save} loading={saving} loadingLabel="Saving…">Save</Button>
+            </>
+          ),
+        }}
+      >
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
-      {err ? <p style={{ marginTop: 12 }}>{err}</p> : null}
-      {msg ? <p style={{ marginTop: 12 }}>{msg}</p> : null}
+        <Section title="Core">
+          <div className="mp-stack">
+            <Field label="Name">
+              <TextInput value={form.name} onChange={(e) => setField("name", e.target.value)} />
+            </Field>
 
-      <Section title="Core">
-        <Field label="Name">
-          <input value={form.name} onChange={(e) => setField("name", e.target.value)} style={inputStyle} />
-        </Field>
+            <Field label="Group" hint={`Selected: ${groupName}`}>
+              <Select value={form.group_id} onChange={(e) => setField("group_id", e.target.value)}>
+                <option value="">—</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-        <Field label="Group">
-          <select value={form.group_id} onChange={(e) => setField("group_id", e.target.value)} style={inputStyle}>
-            <option value="">—</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Selected: {groupName}</div>
-        </Field>
-
-        <Field label="Active">
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="checkbox"
+            <Checkbox
+              label="Active"
+              hint="Visible on map"
               checked={form.is_active}
               onChange={(e) => setField("is_active", e.target.checked)}
             />
-            Visible on map
-          </label>
-        </Field>
-      </Section>
+          </div>
+        </Section>
 
-      <Section title="Address">
-        <Field label="Address">
-          <input value={form.address} onChange={(e) => setField("address", e.target.value)} style={inputStyle} />
-        </Field>
-        <Field label="Postcode">
-          <input value={form.postcode} onChange={(e) => setField("postcode", e.target.value)} style={inputStyle} />
-        </Field>
-        <Field label="Country">
-          <input value={form.country} onChange={(e) => setField("country", e.target.value)} style={inputStyle} />
-        </Field>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <Field label="Lat">
-            <input value={form.lat} onChange={(e) => setField("lat", e.target.value)} style={inputStyle} />
-          </Field>
-          <Field label="Lng">
-            <input value={form.lng} onChange={(e) => setField("lng", e.target.value)} style={inputStyle} />
-          </Field>
-        </div>
-
-        <Field label="Geocode status">
-          <input
-            value={form.geocode_status}
-            onChange={(e) => setField("geocode_status", e.target.value)}
-            style={inputStyle}
-            placeholder="ok / zero_results / error / pending"
-          />
-        </Field>
-      </Section>
-
-      <Section title="Contact & links">
-        <Field label="Website URL">
-          <input
-            value={form.website_url}
-            onChange={(e) => setField("website_url", e.target.value)}
-            style={inputStyle}
-          />
-        </Field>
-        <Field label="Email">
-          <input value={form.email} onChange={(e) => setField("email", e.target.value)} style={inputStyle} />
-        </Field>
-        <Field label="Phone">
-          <input value={form.phone} onChange={(e) => setField("phone", e.target.value)} style={inputStyle} />
-        </Field>
-        <Field label="Logo URL">
-          <input value={form.logo_url} onChange={(e) => setField("logo_url", e.target.value)} style={inputStyle} />
-          {form.logo_url ? (
-            <div style={{ marginTop: 10 }}>
-              <img
-                src={form.logo_url}
-                alt="logo preview"
-                style={{ maxWidth: 240, maxHeight: 120, border: "1px solid #ddd", borderRadius: 8 }}
+        <Section title="Address">
+          <div className="mp-stack">
+            <Field label="Address">
+              <TextInput value={form.address} onChange={(e) => setField("address", e.target.value)} />
+            </Field>
+            <FieldGrid>
+              <Field label="Postcode">
+                <TextInput value={form.postcode} onChange={(e) => setField("postcode", e.target.value)} />
+              </Field>
+              <Field label="Country">
+                <TextInput value={form.country} onChange={(e) => setField("country", e.target.value)} />
+              </Field>
+              <Field label="Lat">
+                <TextInput value={form.lat} onChange={(e) => setField("lat", e.target.value)} />
+              </Field>
+              <Field label="Lng">
+                <TextInput value={form.lng} onChange={(e) => setField("lng", e.target.value)} />
+              </Field>
+            </FieldGrid>
+            <Field label="Geocode status">
+              <TextInput
+                value={form.geocode_status}
+                onChange={(e) => setField("geocode_status", e.target.value)}
+                placeholder="ok / zero_results / error / pending"
               />
-            </div>
-          ) : null}
-        </Field>
-      </Section>
+            </Field>
+          </div>
+        </Section>
 
-      <Section title="Notes">
-        <Field label="Notes (HTML)">
-          <textarea
-            value={form.notes_html}
-            onChange={(e) => setField("notes_html", e.target.value)}
-            rows={8}
-            style={{ ...inputStyle, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
-          />
-        </Field>
+        <Section title="Contact & links">
+          <div className="mp-stack">
+            <Field label="Website URL">
+              <TextInput value={form.website_url} onChange={(e) => setField("website_url", e.target.value)} />
+            </Field>
+            <FieldGrid>
+              <Field label="Email">
+                <TextInput value={form.email} onChange={(e) => setField("email", e.target.value)} />
+              </Field>
+              <Field label="Phone">
+                <TextInput value={form.phone} onChange={(e) => setField("phone", e.target.value)} />
+              </Field>
+            </FieldGrid>
+            <Field label="Logo URL">
+              <TextInput value={form.logo_url} onChange={(e) => setField("logo_url", e.target.value)} />
+            </Field>
+            {form.logo_url ? <img className="mu-logo-preview" src={form.logo_url} alt="Logo preview" /> : null}
+          </div>
+        </Section>
 
-        <Field label="Allow HTML">
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="checkbox"
+        <Section title="Notes">
+          <div className="mp-stack">
+            <Field label="Notes (HTML)">
+              <Textarea
+                className="mu-mono-input"
+                value={form.notes_html}
+                onChange={(e) => setField("notes_html", e.target.value)}
+                rows={8}
+              />
+            </Field>
+            <Checkbox
+              label="Allow HTML"
+              hint="Render as HTML in listing panel"
               checked={form.allow_html}
               onChange={(e) => setField("allow_html", e.target.checked)}
             />
-            Render as HTML in listing panel
-          </label>
-        </Field>
-      </Section>
-    </div>
+          </div>
+        </Section>
+      </SettingsLayout>
+    </AdminLayout>
   );
 }
-
-function Section({ title, children }) {
-  return (
-    <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #eee" }}>
-      <h2 style={{ margin: "0 0 12px 0", fontSize: 18 }}>{title}</h2>
-      <div style={{ display: "grid", gap: 14 }}>{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-const inputStyle = {
-  width: "100%",
-  padding: 10,
-  borderRadius: 8,
-  border: "1px solid #ddd",
-};

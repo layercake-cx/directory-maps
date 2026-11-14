@@ -8,6 +8,24 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave C: platform admin
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-c-platform`
+
+### What changed
+- 33 files in the staff admin moved onto the kit: `AdminMapDashboard` (3,239 to 1,973 lines) and `AdminMapData` (1,744 to 1,342) now compose the shared `mapDashboard`/`mapData` components with the client portal; `AdminClientDetail`, entitlements panel and modal, contacts, clients, directories, maps, map listings and stats, listings, users, leads, error log, user activity, sync log, deployments, `AdminGate`, `AdminLayout` (head via `PageHead`), `EntitlementGate`, `EntitlementUsageHint` and the workspace switcher menu.
+- Whole-app counts after Waves A-C: inline styles 2047 to 155, legacy buttons 276 to 21, legacy containers 248 to 23, `window.confirm` 0 outside the kit's fallback, Mantine files outside `ui/` 15 to 2. What remains is almost entirely out-of-scope files (published map, pricing, auth, site previews) and `admin.css`/`experience.css`, removed in Phase 7.
+- Kit fix: `OverflowMenu` items with an internal `href` now use the router (no full page reload).
+- Behaviour-adjacent change to review: `AdminMapDashboard`'s publish tab became the client's full-page publish view, with new embed-size state and a thumbnail embed (no Supabase calls); admin-only "Embed URL" box and two notes were dropped. `AdminEditListing` now renders inside `AdminLayout`.
+- No data fetching, RPC, Edge Function, route, permission, flag, entitlement-logic or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage, `fetch(`, `submitContactMessage(` and `.from(` calls across the 33 changed files against `main`: identical, except one `Array.from(` that moved into an existing shared helper. No migration.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; call totals unchanged.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data. Please click through as staff: Customers list and a customer (every tab: details, entitlements, categories, users, messaging, domains, integrations), contact, new customer, Directories and new directory, Maps and a map (design page: every settings tab, publish page, restore; Data: sync, CSV, manual), map listings and stats, Listings and edit listing, Users and user detail, Leads, Error log, User activity, Sync log, Deployments (do NOT trigger a live deploy to test), and the sign-in gate in a private window.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave B: client workspace
 
 **Branch:** `feat/2026-11-14-discover-ui-wave-b-client`

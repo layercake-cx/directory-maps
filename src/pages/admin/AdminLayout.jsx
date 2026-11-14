@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
 import AppShell from "../../components/shell/AppShell.jsx";
+import PageHead from "../../components/shell/PageHead.jsx";
 import { recordCustomerVisit } from "../../lib/recentCustomers.js";
 import "./admin.css";
 
@@ -65,29 +66,20 @@ export default function AdminLayout({
     >
       <div className={`admin-main ${mainClassName}`.trim()}>
         {!flush && (breadcrumbs.length > 0 || rightActions) && (
-          <div className="page-head" style={{ marginBottom: 16 }}>
-            <div>
-              {breadcrumbs.length > 1 && (
-                <div style={{ fontSize: 13, color: "var(--shell-text-muted)", marginBottom: 4 }}>
-                  {breadcrumbs.slice(0, -1).map((item, i) => (
-                    <span key={i}>
-                      {i > 0 && <span aria-hidden style={{ margin: "0 6px" }}>/</span>}
-                      {item.path ? (
-                        <Link to={item.path} style={{ color: "inherit" }}>{item.label}</Link>
-                      ) : (
-                        item.label
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {breadcrumbs.length > 0 && (
-                <h1 className="page-title">{breadcrumbs[breadcrumbs.length - 1].label}</h1>
-              )}
-              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>{subtitle}</p>}
+          breadcrumbs.length > 0 ? (
+            <PageHead
+              title={breadcrumbs[breadcrumbs.length - 1].label}
+              breadcrumb={breadcrumbs.slice(0, -1).map((item) => ({ label: item.label, to: item.path }))}
+              subtitle={subtitle}
+              actions={rightActions}
+            />
+          ) : (
+            // No title to show (actions only): keep the head row so the actions stay right-aligned.
+            <div className="page-head">
+              <div className="page-head-text">{subtitle ? <p className="page-subtitle">{subtitle}</p> : null}</div>
+              <div className="page-head-actions">{rightActions}</div>
             </div>
-            {rightActions && <div style={{ display: "flex", gap: 10, alignItems: "center" }}>{rightActions}</div>}
-          </div>
+          )
         )}
 
         {showMapSubNav && <MapEditSubNav standalone actions={flush ? rightActions : null} />}

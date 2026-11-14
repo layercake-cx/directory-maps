@@ -174,3 +174,16 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
   - `ClientMapListings.jsx` has a route (`/client/maps/:mapId/listings`) but nothing links to it; consider removing or linking it. It no longer wraps itself in `AdminLayout` (that rendered a second shell).
   - The manual listing dialog still exposes lat/lng fields (unchanged); see the "No lat/lng in entry forms" rule for directory entries.
   - `MapMessageDrawer` (the map preview's own drawer) keeps two legacy `btn` classes by design.
+
+### [DISCOVER-UI] Wave C follow-ups (platform admin)
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §6 Wave C; found while migrating
+- What the design shows: the staff admin on the same kit as the client portal.
+- Why not built now / open points:
+  - `AdminMapDashboard` now composes the shared `mapDashboard` panels and gets the client's full-page publish view (embed width/unit/height, thumbnail embed, version table). The admin-only "Embed URL" box, the "Saving writes draft configuration only" note and the publish-note placeholder were dropped (no shared slot). Decide whether staff need them back.
+  - Production deploy (`AdminDeployments`) still has no confirm dialog (none on `main` either). Adding `useConfirm` is a one-liner once product agrees.
+  - `AdminListings` is titled "Maps" although it lists listings (existing mislabel); rename needs a nav label decision.
+  - `AdminMapStats` and `AdminListingStats` still fetch client/map/listing rows they no longer use (kept so data calls are unchanged); remove in a data-cleanup pass.
+  - `AdminEditListing` now renders inside `AdminLayout` (it had no shell); the explicit Save stays, no SaveBar.
+  - `OverflowMenu` internal `href` items now use the router; external links stay plain anchors.
+  - Kit gaps still open: `DataTable` expandable rows and row className (log pages and Team use hand-built tables or workarounds), `rowMenu` hiding for a row, `PageHead` without a title, `Toolbar` + search `Field` combination, entitlement scrim token.
+  - Dead code left in place on purpose: `saveMap`/`deleteMap`/`isProductionEnv`/`mapOptions*` in the map dashboards.

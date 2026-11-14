@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Callout, DataTable, EmptyState, PageLayout, Section } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
+import "../../styles/wave-c/maps-users.css";
 
 export default function AdminUsers() {
   const [rows, setRows] = useState([]);
@@ -58,44 +60,32 @@ export default function AdminUsers() {
     };
   }, []);
 
+  const columns = [
+    { key: "name", label: "Name", render: (r) => r.name || r.email || `${r.user_id.slice(0, 8)}…` },
+    { key: "email", label: "Email", render: (r) => r.email || "—" },
+    { key: "role", label: "Role", render: (r) => r.role || "admin" },
+    { key: "user_id", label: "User ID", render: (r) => <span className="mu-code">{r.user_id}</span> },
+  ];
+
   return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Admin Users" }]}
-      subtitle="View admin user details and activity."
-    >
-      <div className="card card-pad">
-        {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
-        {loading ? (
-          <p>Loading…</p>
-        ) : rows.length === 0 ? (
-          <p style={{ color: "var(--lc-muted)" }}>No admin users found.</p>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>User ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.user_id}>
-                  <td>
-                    <Link to={`/admin/users/${encodeURIComponent(r.user_id)}`}>
-                      {r.name || r.email || `${r.user_id.slice(0, 8)}…`}
-                    </Link>
-                  </td>
-                  <td>{r.email || "—"}</td>
-                  <td>{r.role || "admin"}</td>
-                  <td style={{ fontSize: 12, opacity: 0.8 }}>{r.user_id}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+    <AdminLayout>
+      <PageLayout head={{ title: "Admin users", subtitle: "View admin user details and activity." }}>
+        <div className="mp-stack">
+          {err ? <Callout tone="danger">{err}</Callout> : null}
+          <Section flush>
+            <DataTable
+              columns={columns}
+              rows={rows}
+              getRowId={(r) => r.user_id}
+              getRowLabel={(r) => r.name || r.email || r.user_id}
+              rowLink={(r) => `/admin/users/${encodeURIComponent(r.user_id)}`}
+              loading={loading}
+              caption="Admin users"
+              empty={<EmptyState art="searching" title="No admin users found" />}
+            />
+          </Section>
+        </div>
+      </PageLayout>
     </AdminLayout>
   );
 }
