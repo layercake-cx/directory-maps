@@ -65,7 +65,7 @@ Normalised job shape:
 - Failed: red, says what is still live ("The live site still shows version 119"), `<details>` with the technical error, Try again, Contact support.
 - `role="status" aria-live="polite"` while running/done; `role="alert"` when failed. Announce start, each 25% boundary and the end, not every poll. Progress bar has `aria-valuenow/min/max` or `aria-valuetext` ("Step 2 of 3, generating pages").
 
-**`TaskIndicator`** (top bar, between search and Ask Pip): hidden when there are no jobs this session. Pill "1 running" with spinner; turns green ("Done") for 8s after a finish, red ("1 failed") until opened. Click opens `.task-popover` listing jobs with mini progress bars; each item links to `job.href`. Accessible: `button aria-haspopup="dialog" aria-expanded`, Esc closes, focus returns.
+**`TaskIndicator`** (top bar, after the spacer, before Ask Pip): hidden when there are no jobs this session. Pill "1 running" with spinner; turns green ("Done") for 8s after a finish, red ("1 failed") until opened. Click opens `.task-popover` listing jobs with mini progress bars; each item links to `job.href`. Accessible: `button aria-haspopup="dialog" aria-expanded`, Esc closes, focus returns.
 
 **`PublishStatus`** (side panel): while publishing, spinner + "Publishing…" + elapsed + 4px indeterminate bar; otherwise the existing states on the new tokens.
 
@@ -117,7 +117,7 @@ src/components/assistant/
   constants.js
 ```
 
-Mount `AssistantProvider` and `AssistantDrawer` inside `AppShell` (both client and platform contexts). Add `AskPipButton` to `TopBar` between the search field and the support link.
+Mount `AssistantProvider` and `AssistantDrawer` inside `AppShell` (both client and platform contexts). Add `AskPipButton` to `TopBar` immediately before the avatar menu (the search field and help link are removed in Phase 3).
 
 ### 2.3 Triggers
 

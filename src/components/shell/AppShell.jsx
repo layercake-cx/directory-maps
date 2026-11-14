@@ -9,6 +9,7 @@ import { ToastProvider, ConfirmProvider } from "../ui/index.js";
 import { JobsProvider } from "../jobs/index.js";
 import AssistantProvider from "../assistant/AssistantProvider.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import useDocumentTitle from "../../hooks/useDocumentTitle.js";
 
 /**
  * Three-layer navigation shell: TopBar + icon Rail + optional FeaturePanel + <main>.
@@ -18,6 +19,7 @@ import { useAuth } from "../../hooks/useAuth.js";
  */
 export default function AppShell({ context, isStaff, homeHref, orgName, activeClientId, contact, panel, children }) {
   const [navOpen, setNavOpen] = useState(false);
+  useDocumentTitle(null); // "Discover by Layercake"; a PageHead below sets "{page} · Discover by Layercake"
   const { pathname } = useLocation();
   const { user } = useAuth();
   const firstName = contact?.first_name || user?.user_metadata?.first_name || null;

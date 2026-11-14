@@ -33,23 +33,10 @@
   background: var(--lc-ink); box-shadow: inset 0 -3px 0 var(--lc-teal);
 }
 .shell .topbar-logo { display: flex; align-items: center; height: 44px; }
-.shell .topbar-logo img { height: 24px; width: auto; display: block; }
+.shell .topbar-logo img { height: 40px; width: auto; display: block; }
 .shell .topbar-divider { width: 1px; height: 24px; background: rgba(255, 255, 255, 0.45); }
 .shell[data-context="platform"] .topbar-divider { background: var(--lc-ink-line); }
 .shell .topbar-spacer { flex: 1; }
-.shell .topbar-search { position: relative; width: 320px; }
-.shell .topbar-search svg { position: absolute; left: 12px; top: 9px; }
-.shell .topbar-search input {
-  width: 100%; height: 34px; padding: 0 12px 0 36px; border: 0; border-radius: var(--radius-item);
-  font-size: var(--fs-ui); background: var(--shell-surface); color: var(--shell-ink);
-}
-.shell[data-context="platform"] .topbar-search input {
-  background: var(--lc-ink-raised); border: 1px solid var(--lc-ink-line); color: var(--lc-on-ink);
-}
-.shell .topbar-icon {
-  width: 36px; height: 36px; border-radius: var(--radius-item); display: grid; place-items: center;
-  color: var(--lc-on-ink);
-}
 .shell .avatar {
   width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center;
   font-size: 13px; font-weight: 600; text-decoration: none; background: var(--lc-ink); color: var(--lc-on-ink);

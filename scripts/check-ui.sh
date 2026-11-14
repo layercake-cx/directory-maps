@@ -50,6 +50,17 @@ must_be_zero "legacy containers and tables (admin-card, panel-section, admin-tab
 
 must_be_zero "xp-* classes" '\bxp-[a-z]' --include='*.jsx' --include='*.js'
 
+# Rebrand guardrails (docs/design/discover-ui/REBRAND_BRIEF.md §4).
+bricolage=$(grep -rn 'Bricolage' src index.html 2>/dev/null)
+if [ -z "$bricolage" ]; then ok "no Bricolage (heading font is Schibsted Grotesk)"; else bad "Bricolage still referenced"; printf '%s\n' "$bricolage" | head -20 | sed 's/^/          /'; fi
+
+topbar=$(grep -rEn 'topbar-search|Support and documentation' src 2>/dev/null)
+if [ -z "$topbar" ]; then ok "no top bar search or support link"; else bad "top bar search / support link came back"; printf '%s\n' "$topbar" | head -20 | sed 's/^/          /'; fi
+
+# Product name: "Layercake Maps" is now "Discover by Layercake" in the admin. Excluded: outgoing email sender name.
+must_be_zero "no 'Layercake Maps' in admin/client portal files" 'Layercake Maps' \
+  --exclude=clientEmail.js   # outgoing email sender name: rebrand pending, see BACKLOG
+
 # Mantine: only src/components/ui/ (and main.jsx's provider) may import it.
 mantine=$(grep -rln '@mantine/core' src 2>/dev/null | grep -v '^src/components/ui/' | grep -v '^src/main.jsx$')
 if [ -z "$mantine" ]; then ok "no @mantine/core imports outside src/components/ui/"; else bad "@mantine/core imported outside src/components/ui/"; printf '%s\n' "$mantine" | sed 's/^/          /'; fi

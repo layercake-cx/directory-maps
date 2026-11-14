@@ -1,4 +1,4 @@
-/** One constant so the assistant can be renamed without a hunt. The top bar keeps the Layercake Maps logo; Pip appears only as the assistant. */
+/** One constant so the assistant can be renamed without a hunt. The top bar shows the Discover by Layercake logo; Pip appears only as the assistant. */
 export const ASSISTANT_NAME = "Pip";
 
 /** sessionStorage key for a workspace's conversation: assistant:{clientId|platform}. */

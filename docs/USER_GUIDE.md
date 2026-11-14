@@ -4,6 +4,8 @@ This guide explains how to use **Directory Maps** as a client: signing up, creat
 
 For a full product feature list (admin, analytics, integrations), see [FEATURES.md](./FEATURES.md).
 
+> **Renamed (2026-11-14):** the admin you sign in to is now **Discover by Layercake** (it was Layercake Maps). The top bar has a new logo and no longer has a search box or a help icon. Published directory sites, sign-up and login pages, and emails still say Layercake Maps for now.
+
 ---
 
 ## Overview
@@ -53,7 +55,7 @@ Forgot your password? Use **Forgot password** on the login page.
 
 ## Client portal navigation
 
-After sign-in you'll see a top bar (logo, search, support, your account menu) and a dark icon
+After sign-in you'll see a top bar (the Discover by Layercake logo, the workspace switcher, background tasks, Ask Pip and your account menu) and a dark icon
 rail down the left for the sections you can access:
 
 | Section | Path | Who can access |

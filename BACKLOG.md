@@ -41,7 +41,7 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Where in the design:** TopBar search field, all reference pages
 - **What's missing:** any backing query across customers/maps/directories/entries
 - **Existing pieces:** none combined yet — would need a new RPC or client-side fan-out query
-- **Shown meanwhile:** the search input renders (Phase 1) but is disabled/non-functional
+- **Shown meanwhile:** removed from the top bar on 2026-11-14 (it was a disabled placeholder); re-add it when a real query exists
 - **Size guess:** L
 - **Status:** To do
 
@@ -49,7 +49,7 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Where in the design:** TopBar support icon, all reference pages
 - **What's missing:** a decision on where it should link (docs site? mailto? a chat widget?)
 - **Existing pieces:** none
-- **Shown meanwhile:** links to `#` (no-op)
+- **Shown meanwhile:** removed from the top bar on 2026-11-14; see "[DISCOVER-UI] Help and guides link"
 - **Size guess:** decision, not build
 - **Status:** To do
 
@@ -198,3 +198,33 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - Source: docs/design/discover-ui/BUILD_BRIEF.md §7
 - What remains on purpose: `src/style.css` and `admin.css` keep the global `.btn`/`.admin-card` look used by auth, claim, pricing and embed pages; `components/ai/ai.css` keeps `--uka-*` for the claim pages; the `--lc-card/--lc-border/--lc-muted` variables are still used in about 50 places (a token rename is a separate job); `RichTextEditor` still uses `window.prompt` for the link URL (the check script only fails on confirm/alert).
 - Suggested next step: when the claim pages are redesigned, delete `ai.css` variables and the `.btn` rules; add a kit `PromptDialog` and use it for the editor link.
+
+### [DISCOVER-UI] Rebrand sign-up, login and marketing pages
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md (decision 2026-11-14: admin only)
+- What the design shows: the Discover by Layercake logo and name everywhere a customer sees the product.
+- Why not built now: approved for the admin only. `SignUp`, `Login`/`AuthForm`, `BrandLogo` ("Maps by Layercake"), `Pricing`, `SiteHeader`, `SiteFooter` and the static `<title>` in `index.html` still say Layercake Maps.
+- Suggested next step: one PR once the public site copy is agreed; reuse `src/assets/brand/`.
+
+### [DISCOVER-UI] Rebrand the outgoing email sender name
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.4
+- What the design shows: "Discover by Layercake" as the product name.
+- Why not built now: `src/lib/clientEmail.js` sends as "Layercake Maps <noreply@layercake-cx.biz>"; deliverability and recipients' filters depend on that name.
+- Suggested next step: check deliverability and customer comms first, then change the name (and the display name on the Resend domain if needed).
+
+### [DISCOVER-UI] Rebrand the "Built on Layercake Maps" panel on published directory sites
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.2
+- What the design shows: the reversed logo in a chip (see `reference/04-logo-discover-by-layercake.html`).
+- Why not built now: it lives in `supabase/functions/generate_directory_site` and `public/layercake-maps-white.png` (kept on purpose: published sites load it from `maps.layercake-cx.biz`). Changing it needs an Edge Function deploy and republishing every directory, plus an `ENTRY_TEMPLATE_VERSION` bump.
+- Suggested next step: do it with the next generator change; use `discover-by-layercake-reversed.svg`.
+
+### [DISCOVER-UI] Help and guides link
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §2.5
+- What the design shows: nothing now; the support icon was removed from the top bar (it linked to `#`).
+- Why not built now: there is no real help URL.
+- Suggested next step: add "Help and guides" to the avatar menu once a help site, mailbox or chat exists.
+
+### [DISCOVER-UI] Custom-domain "not connected" page copy
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.4
+- What the design shows: the new product name.
+- Why not built now: `src/pages/CustomDomainMap.jsx` is a public page ("isn't connected to a Layercake Maps directory"), outside the admin rebrand.
+- Suggested next step: update with the public pages rebrand.

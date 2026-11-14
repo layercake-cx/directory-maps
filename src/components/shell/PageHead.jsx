@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import useDocumentTitle from "../../hooks/useDocumentTitle.js";
 
 /**
  * Standard page heading used across the client portal and staff admin. Always the first child of <main>.
@@ -15,6 +16,7 @@ import { Link } from "react-router-dom";
  * }} props
  */
 export default function PageHead({ title, subtitle, eyebrow, breadcrumb, status, actions, size = "md", style }) {
+  useDocumentTitle(title);
   const crumbs = breadcrumb && breadcrumb.length > 0 ? breadcrumb : null;
   return (
     <div className="page-head" style={{ marginBottom: 16, ...style }}>

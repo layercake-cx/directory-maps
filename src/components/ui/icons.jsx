@@ -6,7 +6,7 @@ import React from "react";
  * The spark is the one AI glyph (Discover UI decision, 2026-11-14): never use another for AI.
  */
 export {
-  ChevronDownIcon, ChevronRightIcon, CheckIcon, PlusIcon, SearchIcon, SupportIcon,
+  ChevronDownIcon, ChevronRightIcon, CheckIcon, PlusIcon, SearchIcon,
 } from "../icons/shellIcons.jsx";
 
 function Icon({ children, size = 16, ...rest }) {
