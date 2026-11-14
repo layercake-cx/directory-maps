@@ -162,3 +162,27 @@ export async function getDirectoryPublishState(directoryId) {
   const changeCount = (entries.count ?? 0) + (pages.count ?? 0) + settingsChanged;
   return { state: changeCount > 0 ? "changes" : "published", ...base, changeCount };
 }
+
+export const DIRECTORY_CONTENT_CHANGED_EVENT = "directory:content-changed";
+
+/**
+ * Mark published-site content as changed so the directory's publish status flips to "Unpublished changes".
+ * getDirectoryPublishState compares updated_at on the directory, its entries and its pages with the last publish; things
+ * that don't have their own timestamp bump (attached-category order, entry extras like links and media, page layouts)
+ * call this after they save. With an entryId it touches that entry; otherwise the directory.
+ * Best-effort: a failure here must not fail the edit that already saved.
+ */
+export async function markDirectoryContentChanged({ directoryId, entryId } = {}) {
+  const now = new Date().toISOString();
+  try {
+    if (entryId) {
+      await supabase.from("directory_entries").update({ updated_at: now }).eq("id", entryId);
+    } else if (directoryId) {
+      await supabase.from("directories").update({ updated_at: now }).eq("id", directoryId);
+    }
+  } catch {
+    /* non-fatal */
+  }
+  // Lets the side-panel publish chip re-check straight away instead of on the next navigation.
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(DIRECTORY_CONTENT_CHANGED_EVENT, { detail: { directoryId, entryId } }));
+}

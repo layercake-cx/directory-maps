@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import {
   createAccreditationScheme,
   deleteAccreditationSchemePermanently,
@@ -74,6 +75,7 @@ export default function AccreditationSchemesPanel({ directoryId, recordEvent }) 
 
   async function handleReorder(next) {
     await reorderAccreditationSchemes(next.map((s) => s.id));
+    await markDirectoryContentChanged({ directoryId });
     setSchemes(next);
   }
 

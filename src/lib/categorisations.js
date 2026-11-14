@@ -24,6 +24,7 @@
  */
 
 import { supabase } from "./supabase";
+import { markDirectoryContentChanged } from "./directoryPublications";
 
 /** URL/import-safe slug from a human label (matches filterFields.js's slugifyKey). */
 export function slugify(label) {
@@ -257,6 +258,7 @@ export async function reorderAttachedCategorisations({ targetType, targetId, ord
   );
   const failed = results.find((r) => r.error);
   if (failed) throw failed.error;
+  if (targetType === "directory") await markDirectoryContentChanged({ directoryId: targetId });
 }
 
 /** Attach a categorisation to a map or directory (idempotent). */
@@ -268,6 +270,7 @@ export async function attachCategorisation({ categorisationId, targetType, targe
       { onConflict: "categorisation_id,target_type,target_id", ignoreDuplicates: true },
     );
   if (error) throw error;
+  if (targetType === "directory") await markDirectoryContentChanged({ directoryId: targetId });
 }
 
 /** Detach a categorisation from a map or directory. */
@@ -279,6 +282,7 @@ export async function detachCategorisation({ categorisationId, targetType, targe
     .eq("target_type", targetType)
     .eq("target_id", targetId);
   if (error) throw error;
+  if (targetType === "directory") await markDirectoryContentChanged({ directoryId: targetId });
 }
 
 // ---- Tagging: directory entries ----

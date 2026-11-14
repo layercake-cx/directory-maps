@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { createProminentLink, deleteProminentLink, listProminentLinks, reorderProminentLinks } from "../../lib/prominentLinks";
 import { Button, Callout, Checkbox, EmptyState, Field, Select, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
@@ -58,6 +59,7 @@ export default function ProminentLinksEditor({ directoryId, entryId, recordEvent
 
   async function handleReorder(next) {
     await reorderProminentLinks(next.map((l) => l.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
     setLinks(next);
   }
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { getDirectoryPublishState } from "../../lib/directoryPublications.js";
+import { DIRECTORY_CONTENT_CHANGED_EVENT, getDirectoryPublishState } from "../../lib/directoryPublications.js";
 import { useJobs, useNow, formatElapsed } from "../jobs/index.js";
 import { SpinnerIcon } from "../ui/index.js";
 
@@ -36,6 +36,13 @@ export default function DirectoryPublishStatus({ directoryId, publishingRoute, p
   }, [directoryId]);
 
   useEffect(() => { void load(); }, [load, pathname, publishedAtKey]);
+
+  // Edits that save in place (reordering, attaching categories) announce themselves so the chip flips without a navigation.
+  useEffect(() => {
+    const onChanged = () => { void load(); };
+    window.addEventListener(DIRECTORY_CONTENT_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(DIRECTORY_CONTENT_CHANGED_EVENT, onChanged);
+  }, [load]);
 
   useEffect(() => {
     if (status?.state !== "generating") return undefined;

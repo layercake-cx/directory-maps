@@ -1,6 +1,7 @@
 import AIButton from "../ai/AIButton.jsx";
 import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
 import { deleteMediaAsset, generateMediaAltText, listMediaAssets, reorderMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
@@ -108,6 +109,7 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
 
   async function handleReorder(next) {
     await reorderMediaAssets(next.map((a) => a.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
     setAssets(next);
   }
 
