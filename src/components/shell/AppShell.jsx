@@ -7,6 +7,8 @@ import TopBar from "./TopBar.jsx";
 import Rail from "./Rail.jsx";
 import { ToastProvider, ConfirmProvider } from "../ui/index.js";
 import { JobsProvider } from "../jobs/index.js";
+import AssistantProvider from "../assistant/AssistantProvider.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 
 /**
  * Three-layer navigation shell: TopBar + icon Rail + optional FeaturePanel + <main>.
@@ -17,6 +19,8 @@ import { JobsProvider } from "../jobs/index.js";
 export default function AppShell({ context, isStaff, homeHref, orgName, activeClientId, contact, panel, children }) {
   const [navOpen, setNavOpen] = useState(false);
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const firstName = contact?.first_name || user?.user_metadata?.first_name || null;
 
   // Navigating closes the drawer (the page that now shows is the answer to the menu choice).
   useEffect(() => { setNavOpen(false); }, [pathname]);
@@ -32,6 +36,7 @@ export default function AppShell({ context, isStaff, homeHref, orgName, activeCl
       <ToastProvider>
         <ConfirmProvider>
           <JobsProvider>
+            <AssistantProvider context={context} isStaff={isStaff} orgName={orgName} activeClientId={activeClientId} contact={contact} userId={user?.id} firstName={firstName}>
           <TopBar
             context={context}
             isStaff={isStaff}
@@ -52,6 +57,7 @@ export default function AppShell({ context, isStaff, homeHref, orgName, activeCl
             {panel && navOpen ? <div className="panel-scrim" onClick={() => setNavOpen(false)} aria-hidden="true" /> : null}
             <main className={panel ? "main" : "main main--wide"}>{children}</main>
           </div>
+            </AssistantProvider>
           </JobsProvider>
         </ConfirmProvider>
       </ToastProvider>

@@ -177,6 +177,15 @@ Pick an email, then edit its **Subject**, **Heading**, **Message** and **Button 
 
 These emails are sent from the directory's chosen sending profile (a verified custom domain sends from your own address); with no profile chosen they go from the platform address under the directory's name. Unlike the Contact button, they are not stopped by the messaging on/off switch or test mode, because a sign-in link has to reach its recipient.
 
+### Ask Pip (preview, staff only)
+
+**Ask Pip** is a preview of an in-app assistant. For now it only shows how answers will look: replies are canned examples, nothing is sent to an AI, and nothing is ever changed or published. It is on for Layercake staff only.
+
+- Open it from the **Ask Pip** button in the top bar, with **Cmd+J** (Mac) or **Ctrl+J**, or from an **Ask Pip about this** link on a page. A link pre-fills the question without sending it.
+- Pip shows which page it is helping with, suggests three questions for that page, and answers with links to the right pages. **Apply** on a suggestion only shows a "Preview" message; a drafting action shows a clearly fake progress card. **Show me where** takes you to the page and closes the drawer.
+- Anything that doesn't match a suggested question gets a short "still being built" reply. Staff can type `/error` or `/unavailable` to see those states.
+- Your conversation is kept for the browser session, per organisation. **New conversation** clears it. Opening Pip and picking a suggested question are logged as admin events (the question you type is never recorded).
+
 ### Progress and background tasks
 
 Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.

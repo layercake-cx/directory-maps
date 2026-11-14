@@ -265,6 +265,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory content pages**: `directory_content_page_*`
   - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
   - **AI model configuration**: `ai_*`
+  - **Assistant (Ask Pip preview)**: `admin_assistant_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -538,6 +539,16 @@ Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab
 - **`ai_model_config_updated`**
   - `meta`: `client_id`, `product` (`directory_maps`, or null for the organisation default), `feature` (null for the organisation default), `provider` (null = automatic), `model` (null when using the recommended model), `use_recommended`, `source`
   - Fired from `AiFeaturesConfig.jsx` on save. Never put prompts or keys in `meta`.
+
+#### Assistant (Ask Pip preview)
+
+The Ask Pip drawer is a UI preview with canned replies (no network, no LLM). Only two interactions are logged, from `AssistantProvider.jsx`. Never record what the user types.
+
+- **`admin_assistant_opened`**
+  - `meta`: `actor_user_id`, `actor_contact_id`, `actor_role`, `actor_admin_scope`, `client_id`, `route_group` (e.g. `directory-search`), `trigger` (`topbar` / `shortcut` / `section` / `empty_state` / `error_state`), `source`
+- **`admin_assistant_prompt_selected`**
+  - `meta`: same actor keys, `client_id`, `route_group`, `prompt_id` (the canned prompt's id, never free text), `source`
+  - Fired when a suggested prompt is clicked, not when free text is sent.
 
 #### Claims
 

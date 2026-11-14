@@ -9,11 +9,11 @@ export function useAskPip() {
 }
 
 /** Ask Pip link used by Section / EmptyState / ErrorState. Renders nothing until the assistant exists. */
-export function AskPipLink({ question, context }) {
+export function AskPipLink({ question, context, trigger = "section" }) {
   const pip = useAskPip();
   if (!pip?.open) return null;
   return (
-    <button type="button" className="ask-pip-link" onClick={() => pip.open({ question, context })}>
+    <button type="button" className="ask-pip-link" onClick={() => pip.open({ question, context, trigger })}>
       <SparkIcon size={14} />
       Ask Pip about this
     </button>

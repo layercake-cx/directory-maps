@@ -496,3 +496,24 @@
 }
 .shell .job-stack { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
 .shell .task-indicator { white-space: nowrap; }
+
+/* ==================================================================
+   ASK PIP (phase 5): pieces the reference CSS above doesn't define
+   ================================================================== */
+.shell .ask-pip-btn:focus-visible { outline: var(--focus-ring-on-dark); outline-offset: var(--focus-offset); }
+.shell .pip-head-spacer { flex: 1; }
+.shell .pip-welcome { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 8px 0; }
+.shell .pip-welcome-art { height: 72px; width: auto; }
+.shell .pip-welcome-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--shell-ink); }
+.shell .pip-suggestions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.shell .pip-sources { align-items: center; }
+.shell .pip-sources a { color: var(--shell-accent); font-weight: 600; }
+.shell .pip-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.shell .pip-feedback { display: flex; gap: 4px; margin-left: -8px; }
+.shell .pip-thinking .shell-btn { margin-left: auto; }
+.shell .pip-composer textarea { min-height: 24px; }
+.shell .pip-drawer :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .job-card--compact .job-card-progress { padding: 0 16px 14px; }
+@media (max-width: 1023px) { .shell .ask-pip-kbd { display: none; } }
+@media (max-width: 767px) { .shell .ask-pip-btn span:nth-child(2) { display: none; } }
+.shell .ask-pip-btn, .shell .staff-chip { white-space: nowrap; }
