@@ -55,3 +55,12 @@ export function ArrowRightIcon(props) { return <Icon {...props}><path d="M5 12h1
 export function ChevronLeftIcon(props) { return <Icon {...props}><path d="M15 6l-6 6 6 6" /></Icon>; }
 export function ArrowUpIcon(props) { return <Icon size={14} {...props}><path d="M12 19V5M6 11l6-6 6 6" /></Icon>; }
 export function ArrowDownIcon(props) { return <Icon size={14} {...props}><path d="M12 5v14M6 13l6 6 6-6" /></Icon>; }
+
+/** Six-dot drag grip (2x3), 16px, currentColor. Filled dots, not strokes. */
+export function GripIcon({ size = 16, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...rest}>
+      {[4.5, 11.5].flatMap((x) => [3, 8, 13].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.35" />))}
+    </svg>
+  );
+}

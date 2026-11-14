@@ -470,3 +470,53 @@
 @media (max-width: 639px) {
   .shell .topbar-logo img { height: 32px; }
 }
+
+/* ---------- Sortable list (drag to reorder) — docs/design/discover-ui/REORDER_BRIEF.md ---------- */
+.shell .sortable-wrap { display: flex; flex-direction: column; gap: 12px; }
+.shell .sortable {
+  position: relative; isolation: isolate; list-style: none; margin: 0; padding: 0;
+  background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-card);
+}
+.shell .sortable-row {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 0 12px 0 4px;
+  background: var(--shell-surface); border-bottom: 1px solid var(--shell-line-soft);
+  transform: translateY(var(--sortable-dy, 0px));
+}
+.shell .sortable-row:first-child { border-top-left-radius: var(--radius-card); border-top-right-radius: var(--radius-card); }
+.shell .sortable-row:last-of-type { border-bottom: 0; border-bottom-left-radius: var(--radius-card); border-bottom-right-radius: var(--radius-card); }
+.shell .sortable--compact .sortable-row { min-height: 48px; }
+.shell .sortable--dragging .sortable-row:not(.sortable-row--lifted) { transition: transform 150ms var(--ease-out); }
+.shell .sortable-row--nested { padding-left: 36px; }
+.shell .sortable-handle {
+  flex: none; width: 36px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 8px; background: transparent; color: #9aa3a8; cursor: grab; touch-action: none;
+}
+.shell .sortable-handle:hover, .shell .sortable-handle:focus-visible { color: var(--shell-ink); background: var(--shell-ground); }
+.shell .sortable-pos { flex: none; min-width: 18px; font-size: 13px; font-weight: 600; color: var(--shell-text-muted); font-variant-numeric: tabular-nums; }
+.shell .sortable-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shell .sortable-title { font-weight: 600; color: var(--shell-ink); overflow-wrap: anywhere; }
+.shell .sortable-meta { font-size: var(--fs-label); color: var(--shell-text-muted); }
+.shell .sortable-row--lifted {
+  z-index: 3; background: var(--shell-surface); border: 2px solid var(--lc-teal); border-radius: var(--radius-card);
+  box-shadow: 0 12px 28px rgba(20, 25, 28, 0.18); cursor: grabbing;
+  transform: translateY(var(--sortable-dy, 0px)) scale(1.01) rotate(-0.6deg);
+}
+.shell .sortable-row--lifted .sortable-handle { cursor: grabbing; }
+.shell .sortable-slot {
+  position: absolute; left: 0; right: 0; z-index: -1; box-sizing: border-box; list-style: none;
+  border: 2px dashed var(--shell-info-border); background: var(--shell-info-bg); border-radius: var(--radius-card);
+  transition: top 150ms var(--ease-out); display: flex; align-items: center; padding-left: 16px;
+  font-size: var(--fs-label); font-weight: 600; color: var(--shell-info-text);
+}
+.shell .sortable-slot--nested { left: 32px; }
+.shell .sortable-row--kbd { outline: 2px solid var(--shell-accent); outline-offset: -2px; background: var(--shell-selected-row); }
+.shell .sortable-kbd-bar { padding: 10px 14px; border-radius: var(--radius-card); background: var(--lc-ink); color: #fff; font-size: var(--fs-ui); }
+.shell .sortable-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.shell .sortable-hint { display: flex; align-items: center; gap: 8px; font-size: var(--fs-label); color: var(--shell-text-muted); }
+.shell .avatar-menu-sep { height: 1px; margin: 4px 0; background: var(--shell-line-soft); }
+@media (prefers-reduced-motion: reduce) {
+  .shell .sortable--dragging .sortable-row:not(.sortable-row--lifted),
+  .shell .sortable-slot { transition: none; }
+  .shell .sortable-row--lifted { transform: translateY(var(--sortable-dy, 0px)); }
+}
+.shell .sortable-link { font-size: var(--fs-ui); font-weight: 600; white-space: nowrap; }

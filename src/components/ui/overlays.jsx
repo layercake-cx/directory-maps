@@ -138,7 +138,7 @@ export function useConfirm() {
 }
 
 /**
- * OverflowMenu: ⋯ menu. Items: [{label, onSelect, danger?, disabled?, href?}]. Destructive items go last and open ConfirmDialog.
+ * OverflowMenu: ⋯ menu. Items: [{label, onSelect, danger?, disabled?, href?}] or {divider: true}. Destructive items go last and open ConfirmDialog.
  */
 export function OverflowMenu({ label, items }) {
   const [open, setOpen] = useState(false);
@@ -177,7 +177,8 @@ export function OverflowMenu({ label, items }) {
       </Button>
       {open && (
         <div className="avatar-menu-list" role="menu">
-          {items.map((it) => {
+          {items.map((it, idx) => {
+            if (it.divider) return <div key={`sep-${idx}`} role="separator" className="avatar-menu-sep" />;
             const cls = `avatar-menu-item ${it.danger ? "avatar-menu-item--danger" : ""}`.trim();
             // Internal paths use the router (no full page reload); anything else is a plain link.
             return it.href ? (
