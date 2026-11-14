@@ -20,6 +20,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - **Flag** `assistant_preview` (`ASSISTANT_PREVIEW_FLAG`): not in the `feature_flags` registry, so the default is on for staff and off for customers without a migration. Enabling it for customers later means adding a registry row (a migration), which I did not write.
 - No behaviour, data, route, permission or Edge Function changes. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-326vqgvok-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. The two event types simply stop being written; existing rows are harmless. No migration, no Edge Function.
 
