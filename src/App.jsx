@@ -23,6 +23,7 @@ import ClaimManager from "./pages/claim/ClaimManager.jsx";
 import DirectorySiteFrame from "./components/claim/DirectorySiteFrame.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
+import AdminUiKit from "./pages/admin/AdminUiKit.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
 import AdminEditListing from "./pages/admin/AdminEditListing.jsx";
 import AdminClientDetail from "./pages/admin/AdminClientDetail.jsx";
@@ -165,6 +166,16 @@ export default function App() {
 
       {/* Admin root -> clients */}
       <Route path="/admin" element={<Navigate to="/admin/clients" replace />} />
+
+      {/* Admin · UI kit review page (Discover UI; staff only, not linked from the nav) */}
+      <Route
+        path="/admin/ui-kit"
+        element={
+          <AdminGate>
+            <AdminUiKit />
+          </AdminGate>
+        }
+      />
 
       {/* Admin · Clients */}
       <Route

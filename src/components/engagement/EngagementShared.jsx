@@ -1,17 +1,15 @@
 import React from "react";
 import { DAY_OPTIONS } from "../../lib/engagementAnalytics";
 import styles from "./EngagementShared.module.css";
+import { Section, StatGrid, StatTile, EmptyState, Skeleton, DataTable as KitDataTable } from "../ui/index.js";
 
 export function MetricCards({ items }) {
   return (
-    <div className={styles.metricGrid}>
+    <StatGrid>
       {items.map((item) => (
-        <div key={item.label} className={styles.metricCard}>
-          <p className={styles.metricLabel}>{item.label}</p>
-          <p className={styles.metricValue}>{item.value}</p>
-        </div>
+        <StatTile key={item.label} label={item.label} value={item.value} />
       ))}
-    </div>
+    </StatGrid>
   );
 }
 
@@ -32,27 +30,18 @@ export function DateRangeSelect({ days, onChange }) {
 
 export function Panel({ title, subtitle, children, className = "" }) {
   return (
-    <section className={`${styles.panel} ${className}`.trim()}>
-      <header className={styles.panelHeader}>
-        <h2 className={styles.panelTitle}>{title}</h2>
-        {subtitle ? <p className={styles.panelSubtitle}>{subtitle}</p> : null}
-      </header>
-      <div className={styles.panelBody}>{children}</div>
-    </section>
+    <Section title={title} description={subtitle} className={className}>
+      {children}
+    </Section>
   );
 }
 
 export function EmptyChart({ message = "No engagement data for this period." }) {
-  return <p className={styles.emptyChart}>{message}</p>;
+  return <EmptyState art="none" title={message} />;
 }
 
 export function LoadingState() {
-  return (
-    <div className={styles.loadingWrap} aria-busy="true">
-      <div className={styles.spinner} />
-      <p>Loading engagement data…</p>
-    </div>
-  );
+  return <Skeleton variant="tiles" rows={4} label="Loading engagement data" />;
 }
 
 export function FunnelChart({ steps, maxCount }) {
@@ -80,30 +69,6 @@ export function FunnelChart({ steps, maxCount }) {
 
 export function DataTable({ columns, rows, emptyMessage = "No data." }) {
   if (!rows.length) return <EmptyChart message={emptyMessage} />;
-  return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col.key} className={col.className}>
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.id ?? i}>
-              {columns.map((col) => (
-                <td key={col.key} className={col.className}>
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const withIds = rows.map((r, i) => ({ ...r, __rid: r.id ?? i }));
+  return <KitDataTable columns={columns} rows={withIds} getRowId={(r) => r.__rid} />;
 }

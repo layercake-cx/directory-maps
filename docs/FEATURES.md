@@ -115,6 +115,13 @@ Admin console shares the same shell (`AppShell context="platform"`) via
 `src/pages/admin/AdminLayout.jsx`, which every admin page still wraps its content in — no admin
 route restructuring was needed to introduce it (see the Phase 1 plan for why).
 
+### 4.1a UI kit (new, Discover UI phase 2)
+
+- **`src/components/ui/`** is the shared component kit (Button, AIButton, Section, SettingRow, Tabs, Field and the form controls, Pill, Callout, Toast, EmptyState/ErrorState/Skeleton, Toolbar, BulkBar, DataTable, StatTile, ActionList, Dialog/ConfirmDialog/`useConfirm`, SaveBar, OverflowMenu). Pages import from `components/ui/index.js` only. Spec: `docs/design/discover-ui/COMPONENTS.md`.
+- **`/admin/ui-kit`** (staff only, not linked from the nav) renders every component in every state. Use it to review the kit and to check for regressions; look there before adding a new component.
+- `ToastProvider` and `ConfirmProvider` mount in `AppShell`. `useConfirm()` replaces `window.confirm`, and `useUnsavedGuard` now asks through the same dialog.
+- The old `components/experience/ui.jsx` re-exports from the kit until Discover UI phase 7.
+
 ### 4.2 Maps — create & list
 
 | Feature | Description |

@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 2: shared UI kit
+
+**Branch:** `feat/2026-11-14-discover-ui-kit`
+
+### What changed
+- New component kit in `src/components/ui/` (about 40 components, one `index.js`) built to `docs/design/discover-ui/COMPONENTS.md`, plus the icon set with the Discover spark. Pip SVGs and the spark are copied to `src/assets/`.
+- `/admin/ui-kit` (staff only, not in the nav) renders every component in every state. It is the review surface for this phase and the regression page afterwards.
+- `AIButton` now uses the spark instead of the two-star sparkle, and its default label is "Draft with AI" (callers that pass a label are unchanged). Inside the shell it takes the new ink-outline look. Claim pages (outside the shell) keep their own styling but get the spark.
+- `components/experience/ui.jsx` is now a re-export of the kit, so the Look & feel and Entry pages use the new Dialog, ConfirmDialog, SaveBar, OverflowMenu, SegmentedControl and colour fields. Engagement `MetricCards`, `Panel`, `EmptyChart`, `LoadingState` and `DataTable` are thin wrappers over the kit.
+- `ToastProvider` and `ConfirmProvider` mount in `AppShell`. `useUnsavedGuard`'s in-app prompt now uses a dialog instead of `window.confirm`.
+- Not built: a searchable-select wrapper (the spec makes it optional; native `Select` covers current needs).
+- No behaviour, data, route (other than `/admin/ui-kit`), event, migration or Edge Function changes.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-cieizefu9-layercake-apps.vercel.app`). `maps.layercake-cx.biz` serves the new bundle. GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] UI kit page rendered in a local harness at desktop and 375px width, no horizontal scroll; Dialog focus/Esc, `useConfirm`, Toast, OverflowMenu arrow keys, Switch naming and SegmentedControl arrow keys checked.
+- [ ] Not yet checked on signed-in pages: `/admin/ui-kit` itself, the Look & feel and Entry pages (now on the new dialogs, save bar and colour fields), engagement pages, and the AI buttons in the entry editor.
+- [ ] Reduced-motion and VoiceOver passes not done.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 1: tokens, type and theme
 
 **Branch:** `feat/2026-11-14-discover-ui-tokens`
