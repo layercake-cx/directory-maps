@@ -177,13 +177,13 @@ Pick an email, then edit its **Subject**, **Heading**, **Message** and **Button 
 
 These emails are sent from the directory's chosen sending profile (a verified custom domain sends from your own address); with no profile chosen they go from the platform address under the directory's name. Unlike the Contact button, they are not stopped by the messaging on/off switch or test mode, because a sign-in link has to reach its recipient.
 
-### Ask Pip (preview, staff only)
+### Ask Pip (preview)
 
-**Ask Pip** is a preview of an in-app assistant. For now it only shows how answers will look: replies are canned examples, nothing is sent to an AI, and nothing is ever changed or published. It is on for Layercake staff only.
+**Ask Pip** is a preview of an in-app assistant. For now it only shows how answers will look: replies are canned examples, nothing is sent to an AI, and nothing is ever changed or published. It is available to everyone who signs in to the app, in the client portal and the staff admin.
 
 - Open it from the **Ask Pip** button in the top bar, with **Cmd+J** (Mac) or **Ctrl+J**, or from an **Ask Pip about this** link on a page. A link pre-fills the question without sending it.
 - Pip shows which page it is helping with, suggests three questions for that page, and answers with links to the right pages. **Apply** on a suggestion only shows a "Preview" message; a drafting action shows a clearly fake progress card. **Show me where** takes you to the page and closes the drawer.
-- Anything that doesn't match a suggested question gets a short "still being built" reply. Staff can type `/error` or `/unavailable` to see those states.
+- Anything that doesn't match a suggested question gets a short "still being built" reply. Layercake staff can also type `/error` or `/unavailable` to see those states.
 - Your conversation is kept for the browser session, per organisation. **New conversation** clears it. Opening Pip and picking a suggested question are logged as admin events (the question you type is never recorded).
 
 ### What changed on directory pages (new look)

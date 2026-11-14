@@ -8,6 +8,24 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
+
+**Branch:** `feat/2026-11-14-ask-pip-all-users`
+
+### What changed
+- The Ask Pip preview (top-bar button, Cmd/Ctrl+J, "Ask Pip about this" links) was staff-only. Product decision: it should appear for everyone who uses the app. It is now on for staff and customers alike in the client portal and the staff admin. It is still a preview with canned replies: no AI calls, nothing changes or publishes.
+- The `assistant_preview` flag now defaults to on for everyone; a `feature_flags` row set to `false` turns it off. Only the `/error` and `/unavailable` test commands remain staff-only.
+- The two admin events are unchanged; customers get the client actor scopes (`client_owner`/`client_manager`/`client_member`) already supported.
+- Note: the assistant shows only inside the app shell. An admin who opens `/client` with no organisation of their own sees the "Admin account" card, which is outside the shell, so no Ask Pip there (use `/admin/clients`).
+- No data fetching, route, permission or Edge Function changes. No migration.
+
+### Rollback plan
+Revert the commit and redeploy with `npm run deploy:live`, or set a `feature_flags` row `assistant_preview` to `false` (needs a migration or direct row insert). No Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes.
+- [ ] Not yet seen with a customer (non-staff) account. Please sign in as a client user and check the Ask Pip button, Cmd+J, and a suggested question.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 7: clean-up and enforcement
 
 **Branch:** `feat/2026-11-14-discover-ui-cleanup`

@@ -30,12 +30,14 @@ function writeJson(storage, key, value) {
  * Ask Pip: UI preview only. Mocked, local, canned replies: no network calls, no LLM, nothing is changed by Apply.
  * Owns open/close state, the conversation (sessionStorage per workspace), the Cmd/Ctrl+J shortcut (the only global
  * keydown handler for the assistant) and the two admin events. Renders the drawer inside .shell.
- * Gate: staff get it unless the registry turns the flag off; customers only if the registry turns it on.
+ * Gate: on for every signed-in user of the app (staff and customers); a registry row set to false turns it off.
+ * Only the `/error` and `/unavailable` test commands stay staff-only.
  */
 export default function AssistantProvider({ context, isStaff, orgName, activeClientId, contact, userId, firstName, children }) {
   const flags = useContext(FeatureFlagsContext)?.flags;
   const flagValue = flags?.[ASSISTANT_PREVIEW_FLAG];
-  const enabled = isStaff ? flagValue !== false : flagValue === true;
+  // On for everyone who uses the app. A registry row set to false turns it off.
+  const enabled = flagValue !== false;
 
   const key = conversationKey(activeClientId);
   const [open, setOpen] = useState(false);

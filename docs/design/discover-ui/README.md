@@ -19,7 +19,7 @@ Design source: the "Layercake Discover UX/UI system" canvas (https://claude.ai/a
 | Processing feedback | New pattern: JobCard + top-bar TaskIndicator + side-panel PublishStatus + KeepOpenBanner. Replaces subtle status text |
 | Package location | `docs/design/discover-ui/` (this folder) |
 
-Still open (do not decide in code; add to BACKLOG if you hit them): official Discover logo; "Search & Discovery" → "Search & AI" rename; a "Getting started" checklist on Home; whether customers get the assistant preview.
+Still open (do not decide in code; add to BACKLOG if you hit them): official Discover logo; "Search & Discovery" → "Search & AI" rename; a "Getting started" checklist on Home.
 
 ## What's in the folder
 

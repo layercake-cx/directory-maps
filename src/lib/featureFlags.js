@@ -17,8 +17,8 @@ export const DIRECTORY_PAGES_FLAG = "directory_pages";
 export const CUSTOM_DOMAIN_FLAG = "custom_domain";
 export const INTEGRATIONS_FLAG = "integrations";
 /**
- * Ask Pip assistant preview (UI mock, no network). Not in the registry yet, so a missing value means: on for staff,
- * off for customers. A registry row set to false turns it off for staff; set to true turns it on for customers.
+ * Ask Pip assistant preview (UI mock, no network). On for everyone by default: a missing registry value means on,
+ * and a registry row set to false turns it off.
  */
 export const ASSISTANT_PREVIEW_FLAG = "assistant_preview";
 
