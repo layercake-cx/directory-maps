@@ -1,31 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./ai.css";
+import { SparkIcon, CheckIcon } from "../ui/icons.jsx";
 
-/** The AI mark (filled sparkle). Kept as-is per the handoff: it is what users learn to recognise as AI. */
+/**
+ * The AI mark is the Discover spark (four-point orange star). It replaced the two-star sparkle on
+ * 2026-11-14: one symbol for AI everywhere. `SparkleIcon` stays as an alias so existing imports keep working.
+ */
 export function SparkleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M11 3.5l1.8 4.9 4.9 1.8-4.9 1.8L11 16.9l-1.8-4.9-4.9-1.8 4.9-1.8z" />
-      <path d="M18.5 14l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" />
-    </svg>
-  );
-}
-
-function SpinnerIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
-  );
+  return <SparkIcon />;
 }
 
 const TIMEOUT_MS = 60000;
@@ -44,7 +26,7 @@ export default function AIButton({
   size = "md",
   compact = false,
   iconOnly = false,
-  label = "Generate with AI",
+  label = "Draft with AI",
   onGenerate,
   disabled = false,
   disabledReason,
@@ -123,7 +105,7 @@ export default function AIButton({
         aria-describedby={describedBy}
         title={disabled && disabledReason ? disabledReason : iconOnly ? text : undefined}
       >
-        {state === "loading" ? <SpinnerIcon /> : state === "done" ? <CheckIcon /> : <SparkleIcon />}
+        {state === "done" ? <CheckIcon /> : <SparkIcon />}
         {iconOnly ? null : <span>{text}</span>}
       </button>
       {liveRegion && <span className="sr-only" role="status" aria-live="polite">{announce}</span>}

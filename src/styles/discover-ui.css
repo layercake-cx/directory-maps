@@ -304,3 +304,94 @@
 .shell .admin-table th { font-family: var(--font-body); color: var(--shell-text-muted); border-bottom-color: var(--shell-line); }
 .shell .admin-table td { border-bottom-color: var(--shell-line-soft); }
 .shell .admin-table a { color: var(--shell-accent); }
+
+
+/* ==================================================================
+   UI KIT additions (phase 2). Classes the kit components need that the
+   reference CSS above doesn't define. Still scoped under .shell.
+   ================================================================== */
+.shell .btn-reason { align-self: center; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .shell-btn[disabled] { cursor: not-allowed; }
+.shell .shell-btn--sm.shell-btn--icon { width: 36px; padding: 0; }
+.shell .ai-btn.ai-btn--primary, .shell .ai-btn.ai-btn--secondary { background: var(--shell-surface); border-color: var(--shell-ink); color: var(--shell-ink); box-shadow: none; }
+.shell .ai-btn.is-idle:hover, .shell .ai-btn.ai-btn--primary.is-idle:hover { background: var(--spark-tint); transform: none; box-shadow: none; }
+.shell .ai-btn.ai-btn--compact { height: 36px; padding: 0 12px; border-radius: var(--radius-item); font-size: var(--fs-small); }
+.shell .ai-btn.ai-btn--subtle { border-color: transparent; background: transparent; color: var(--shell-accent); }
+.shell .ai-btn.is-done { background: var(--shell-accent); border-color: var(--shell-accent); color: #fff; }
+.shell .ai-btn.is-done svg { color: #fff; }
+.shell .ai-btn.is-disabled, .shell .ai-btn:disabled.is-idle { background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); }
+.shell .ai-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .ai-btn.is-loading svg { animation: dui-spin 1.6s var(--ease-in-out) infinite; }
+
+.shell .section-head-actions { display: flex; align-items: center; gap: 12px; flex: none; }
+.shell .section-flush { padding: 0; }
+.shell .section-flush > .setting-row:first-child, .shell .section-flush > .action-row:first-child { border-top: 0; }
+.shell .setting-row-control { flex: none; display: flex; align-items: center; gap: 10px; }
+.shell .pill--dashed { border: 1px dashed var(--shell-text-muted); background: transparent; }
+.shell .pill--ok { background: var(--shell-accent-tint); color: var(--shell-accent-tint-text); }
+.shell a.tab { display: inline-block; }
+
+.shell .check { display: flex; align-items: flex-start; gap: 10px; min-height: 28px; cursor: pointer; }
+.shell .check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--shell-accent); flex: none; }
+.shell .check-text { display: flex; flex-direction: column; gap: 2px; }
+.shell .check-label { font-size: var(--fs-ui); color: var(--shell-ink); }
+.shell .choice-group { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shell .choice-group legend { padding: 0; margin-bottom: 8px; }
+.shell .radio-cards legend { padding: 0; margin-bottom: 8px; }
+.shell .radio-card:has(input:focus-visible) { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+@media (max-width: 719px) { .shell .field-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.shell .segmented button:focus-visible { outline-offset: -2px; }
+.shell .colour-field { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.shell .colour-field-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 160px; min-width: 0; }
+.shell .swatch { width: 44px; height: 44px; padding: 2px; border: 1px solid var(--shell-line); border-radius: var(--radius-control); background: var(--shell-surface); cursor: pointer; flex: none; }
+.shell .colour-field-hex { width: 120px; font-family: var(--font-mono); }
+.shell .tag-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.shell .chip-remove { width: 24px; height: 24px; border: 0; border-radius: 999px; background: transparent; color: inherit; display: grid; place-items: center; cursor: pointer; }
+.shell .chip-remove:hover { background: rgba(11, 74, 78, 0.12); }
+.shell .chip-add { height: 32px; padding: 0 12px; border: 1px dashed var(--shell-text-muted); border-radius: 999px; background: transparent; color: var(--shell-text-soft); display: inline-flex; align-items: center; gap: 6px; font: 600 var(--fs-small) var(--font-body); cursor: pointer; }
+.shell .chip-add:hover { background: var(--shell-ground); color: var(--shell-ink); }
+
+.shell .callout-icon { flex: none; padding-top: 1px; display: inline-flex; }
+.shell .callout-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shell .callout-action { flex: none; align-self: center; }
+.shell .toast-region:empty { display: none; }
+.shell .toast button[aria-label="Dismiss"] { color: #c9cfd2; font-weight: 600; }
+
+.shell .error-state { background: transparent; }
+.shell .skeleton-region { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
+.shell .skeleton-row { display: flex; align-items: center; gap: 14px; height: 52px; }
+.shell .skeleton-row .skeleton--line { flex: 1; }
+.shell .skeleton--short { flex: 0 0 18%; max-width: 160px; }
+.shell .skeleton--tile { height: 96px; border-radius: var(--radius-card); }
+.shell .skeleton--input { height: var(--control-h); border-radius: var(--radius-control); }
+.shell .skeleton-field { display: flex; flex-direction: column; gap: 8px; }
+
+.shell .toolbar--wrap { flex-wrap: wrap; }
+.shell .toolbar-spacer { flex: 1; }
+.shell .bulkbar-actions { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.shell .table-check { width: 44px; padding-right: 0; }
+.shell .table-check input { width: 18px; height: 18px; accent-color: var(--shell-accent); }
+.shell .table-menu { width: 52px; text-align: right; }
+.shell .table-empty { height: auto; padding: 8px 0; }
+.shell .table tbody tr:last-child td.table-empty { border-bottom: 0; }
+.shell .th-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.shell .table-foot-actions { display: inline-flex; gap: 8px; }
+.shell .action-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.shell .action-verb { font-size: var(--fs-small); font-weight: 600; color: var(--shell-accent); }
+.shell .action-row--button { width: 100%; border: 0; border-top: 1px solid var(--shell-line); background: transparent; text-align: left; font: inherit; cursor: pointer; }
+.shell .action-row--button:first-child { border-top: 0; }
+.shell .action-row:hover { background: var(--shell-ground); }
+
+.shell .avatar-menu-item--danger { color: var(--shell-danger); }
+.shell .avatar-menu-item:disabled { color: var(--shell-text-muted); cursor: not-allowed; }
+.shell a.avatar-menu-item { text-decoration: none; }
+.shell .dialog-body > :first-child { margin-top: 0; }
+.shell .dialog-body > :last-child { margin-bottom: 0; }
+
+/* /admin/ui-kit review page */
+.shell .uikit { display: flex; flex-direction: column; gap: 24px; max-width: 1100px; }
+.shell .uikit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.shell .uikit-stack { display: flex; flex-direction: column; gap: 16px; }
+.shell .uikit-note { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .segmented { align-self: flex-start; max-width: 100%; }
