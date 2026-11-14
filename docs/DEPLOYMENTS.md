@@ -19,6 +19,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Behaviour-adjacent change to review: `AdminMapDashboard`'s publish tab became the client's full-page publish view, with new embed-size state and a thumbnail embed (no Supabase calls); admin-only "Embed URL" box and two notes were dropped. `AdminEditListing` now renders inside `AdminLayout`.
 - No data fetching, RPC, Edge Function, route, permission, flag, entitlement-logic or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage, `fetch(`, `submitContactMessage(` and `.from(` calls across the 33 changed files against `main`: identical, except one `Array.from(` that moved into an existing shared helper. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-98ralp59m-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
