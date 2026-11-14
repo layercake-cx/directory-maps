@@ -1,0 +1,258 @@
+/* Layercake Discover UI: in-page component classes
+   ------------------------------------------------------------------
+   Reference implementation of the class vocabulary in COMPONENTS.md and
+   PATTERNS.md. Port into src/styles/admin-shell.css (or a sibling file
+   imported by AppShell) and scope everything under `.shell`, exactly as
+   admin-shell.css does today. Values come from tokens only.
+
+   Existing classes this file EXTENDS (do not duplicate them):
+   .shell-btn*, .pill*, .tag*, .card, .card-pad, .card-title, .card-label,
+   .stat*, .action-row, .action-count, .tabs, .tab, .field, .field-label,
+   .input, .select, .textarea, .field-hint, .field-grid, .toolbar,
+   .bulkbar, .table, .logo-chip, .publish-status*
+   ------------------------------------------------------------------ */
+
+/* ---------- Typography in the shell ---------- */
+.shell .page-title,
+.shell .card-title,
+.shell .panel-title { font-family: var(--font-display); font-weight: var(--fw-display); letter-spacing: var(--tracking-display); }
+.shell .stat-value { font-family: var(--font-display); font-weight: var(--fw-display-strong); }
+.shell code, .shell .mono { font-family: var(--font-mono); font-size: 0.92em; }
+
+/* ---------- Spark glyph (single AI + Discover mark) ---------- */
+.shell .spark { width: 16px; height: 16px; flex: none; display: inline-block; }
+.shell .spark--sm { width: 12px; height: 12px; }
+.shell .spark--lg { width: 20px; height: 20px; }
+.shell .spark--spin { animation: dui-spin 1.6s var(--ease-in-out) infinite; }
+
+/* ---------- Buttons: additions to .shell-btn ---------- */
+.shell .shell-btn--danger { color: var(--shell-danger); }
+.shell .shell-btn--danger-solid { background: var(--shell-danger); border-color: var(--shell-danger); color: #fff; }
+.shell .shell-btn:disabled,
+.shell .shell-btn[aria-disabled="true"] { background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); cursor: not-allowed; }
+.shell .shell-btn[aria-busy="true"] { cursor: progress; }
+.shell .shell-btn .btn-spinner { width: 16px; height: 16px; animation: dui-spin 0.9s linear infinite; }
+
+/* AIButton re-skin (replaces the --uka-* navy set in components/ai/ai.css) */
+.shell .ai-btn { height: var(--control-h); padding: 0 18px; border-radius: var(--radius-control); display: inline-flex; align-items: center; gap: 8px;
+  font: 600 var(--fs-ui)/1 var(--font-body); border: 1px solid var(--shell-ink); background: var(--shell-surface); color: var(--shell-ink); cursor: pointer; }
+.shell .ai-btn:hover { background: var(--spark-tint); }
+.shell .ai-btn--sm { height: 36px; padding: 0 12px; border-radius: var(--radius-item); font-size: var(--fs-small); }
+.shell .ai-btn--subtle { border-color: transparent; background: transparent; color: var(--shell-accent); }
+.shell .ai-btn.is-loading .spark { animation: dui-spin 1.6s var(--ease-in-out) infinite; }
+.shell .ai-btn.is-done { background: var(--shell-accent); border-color: var(--shell-accent); color: #fff; }
+.shell .ai-btn.is-disabled { background: var(--shell-chip-neutral); border-color: var(--shell-chip-neutral); color: var(--shell-text-muted); }
+.shell .ai-error { margin: 8px 0 0; font-size: var(--fs-small); color: var(--shell-danger); }
+
+/* ---------- Pills: added tones ---------- */
+.shell .pill--danger { background: var(--shell-danger-bg); color: var(--shell-danger-text); }
+.shell .pill--info { background: var(--shell-info-bg); color: var(--shell-info-text); }
+.shell .pill--ai { background: var(--spark-tint); color: var(--spark-ink); }
+.shell .pill--live { background: var(--shell-ok-bg); color: var(--shell-ok-text); }
+
+/* ---------- Section (card with header/body/footer) ---------- */
+.shell .section { background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-panel); }
+.shell .section-head { padding: 22px 24px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.shell .section-head-text { display: flex; flex-direction: column; gap: 4px; }
+.shell .section-title { margin: 0; font-family: var(--font-display); font-weight: var(--fw-display); font-size: 20px; color: var(--shell-ink); }
+.shell .section-desc { margin: 0; font-size: var(--fs-ui); color: var(--shell-text-muted); }
+.shell .section-body { padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; }
+.shell .section-foot { padding: 14px 24px; border-top: 1px solid var(--shell-line); display: flex; justify-content: flex-end; gap: 10px; background: #fcfbf9; border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
+.shell .section--danger { border-color: var(--shell-danger-border); }
+.shell .section-stack { display: flex; flex-direction: column; gap: 16px; max-width: var(--form-max); }
+
+/* SettingRow: label + description left, control right */
+.shell .setting-row { padding: 14px 24px; border-top: 1px solid var(--shell-line-soft); display: flex; align-items: center; gap: 16px; }
+.shell .setting-row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.shell .setting-row-label { font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); }
+.shell .setting-row-desc { font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---------- Choices ---------- */
+.shell .switch { width: 44px; height: 26px; border: 0; padding: 0; border-radius: 999px; background: #c8c2b8; position: relative; cursor: pointer; flex: none; }
+.shell .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px; background: #fff; transition: left var(--dur-fast) var(--ease-out); }
+.shell .switch[aria-checked="true"] { background: var(--shell-accent); }
+.shell .switch[aria-checked="true"]::after { left: 21px; }
+.shell .segmented { display: inline-flex; border: 1px solid var(--shell-line); border-radius: var(--radius-control); overflow: hidden; background: var(--shell-surface); }
+.shell .segmented button { height: 40px; padding: 0 16px; border: 0; border-left: 1px solid var(--shell-line); background: transparent; font: 500 var(--fs-ui) var(--font-body); color: var(--shell-ink); cursor: pointer; }
+.shell .segmented button:first-child { border-left: 0; }
+.shell .segmented button[aria-checked="true"] { background: var(--shell-ink); color: #fff; font-weight: 600; }
+.shell .radio-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; border: 0; margin: 0; padding: 0; }
+.shell .radio-card { padding: 14px 16px; border: 1px solid var(--shell-line); border-radius: 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.shell .radio-card:has(input:checked) { border: 2px solid var(--shell-accent); background: var(--shell-accent-tint); padding: 13px 15px; }
+.shell .radio-card input { width: 18px; height: 18px; accent-color: var(--shell-accent); margin: 0; }
+.shell .chip-removable { height: 32px; padding: 0 6px 0 12px; border-radius: 999px; background: var(--shell-accent-tint); color: var(--shell-accent-tint-text); display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-small); font-weight: 600; }
+
+/* ---------- Field states ---------- */
+.shell .input[aria-invalid="true"], .shell .select[aria-invalid="true"], .shell .textarea[aria-invalid="true"] { border: 2px solid var(--shell-danger); }
+.shell .field-error { font-size: var(--fs-small); font-weight: 600; color: var(--shell-danger); }
+.shell .field-required { color: var(--shell-danger); margin-left: 2px; }
+.shell .field-count { font-size: var(--fs-small); color: var(--shell-text-muted); text-align: right; }
+.shell .input:disabled, .shell .select:disabled, .shell .textarea:disabled { background: var(--shell-ground); color: var(--shell-text-muted); border-color: var(--shell-line-soft); }
+
+/* ---------- Callout ---------- */
+.shell .callout { display: flex; gap: 12px; padding: 14px 16px; border-radius: 12px; font-size: var(--fs-ui); line-height: 1.5; }
+.shell .callout-title { font-weight: 700; }
+.shell .callout a { color: inherit; font-weight: 700; }
+.shell .callout--info { background: var(--shell-info-bg); color: var(--shell-info-text); }
+.shell .callout--ok { background: var(--shell-ok-bg); color: var(--shell-ok-text); }
+.shell .callout--warn { background: var(--shell-warn-bg); color: var(--shell-warn-text); }
+.shell .callout--danger { background: var(--shell-danger-bg); color: var(--shell-danger-text); }
+.shell .callout--ai { background: var(--spark-tint); color: var(--shell-text); }
+
+/* ---------- Table additions ---------- */
+.shell .table thead th { position: sticky; top: 0; background: var(--shell-surface); z-index: 1; }
+.shell .table tbody tr[aria-selected="true"] { background: var(--shell-selected-row); }
+.shell .table-foot { padding: 12px 20px; border-top: 1px solid var(--shell-line); display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .table-wrap { overflow-x: auto; border: 1px solid var(--shell-line); border-radius: var(--radius-panel); background: var(--shell-surface); }
+.shell .table-wrap > .table { border: 0; border-radius: 0; }
+.shell .row-link { font-weight: 600; color: var(--shell-ink); text-decoration: none; }
+.shell .row-link:hover { text-decoration: underline; }
+
+/* ---------- Empty / loading / error ---------- */
+.shell .empty-state { padding: 32px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.shell .empty-state-art { height: 88px; width: auto; }
+.shell .empty-state-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--shell-ink); }
+.shell .empty-state-body { margin: 0; max-width: 420px; font-size: var(--fs-ui); color: var(--shell-text-soft); }
+.shell .empty-state-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.shell .error-state .empty-state-title { color: var(--shell-danger-text); }
+.shell .skeleton { background: var(--shell-chip-neutral); border-radius: 6px; animation: dui-pulse 1.4s ease-in-out infinite; }
+.shell .skeleton--line { height: 12px; }
+.shell .skeleton--chip { width: 36px; height: 36px; border-radius: var(--radius-item); }
+
+/* ---------- Dialog ---------- */
+.shell .dialog-backdrop { position: fixed; inset: 0; background: var(--scrim-modal); z-index: var(--z-dialog); display: grid; place-items: center; padding: 24px; }
+.shell .dialog { width: 100%; max-width: 460px; background: var(--shell-surface); border-radius: var(--radius-panel); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+.shell .dialog--wide { max-width: 640px; }
+.shell .dialog-head { padding: 22px 24px 8px; }
+.shell .dialog-title { margin: 0; font-family: var(--font-display); font-weight: var(--fw-display); font-size: 20px; color: var(--shell-ink); }
+.shell .dialog-body { padding: 0 24px 18px; font-size: var(--fs-ui); line-height: 1.5; color: var(--shell-text-soft); }
+.shell .dialog-foot { padding: 14px 24px; border-top: 1px solid var(--shell-line); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- SaveBar + Toast ---------- */
+.shell .savebar { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px var(--main-pad-x); margin: 0 calc(-1 * var(--main-pad-x)) -32px; background: var(--shell-surface); border-top: 1px solid var(--shell-line); }
+.shell .savebar-status { flex: 1 1 200px; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .savebar-error { color: var(--shell-danger); font-weight: 600; }
+.shell .toast-region { position: fixed; left: 88px; bottom: 24px; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; }
+.shell .toast { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--lc-ink); color: #fff; font-size: var(--fs-ui); box-shadow: 0 8px 24px rgba(20,25,28,.2); animation: dui-toast-in var(--dur-enter) var(--ease-out); }
+.shell .toast button { height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #5fc6d2; font-weight: 700; cursor: pointer; }
+.shell .toast :focus-visible { outline: var(--focus-ring-on-dark); outline-offset: var(--focus-offset); }
+
+/* ==================================================================
+   PROCESSING PATTERN (PATTERNS.md §1)
+   ================================================================== */
+.shell .progress { position: relative; height: var(--progress-height); border-radius: 999px; background: var(--progress-track); overflow: hidden; }
+.shell .progress--sm { height: 6px; }
+.shell .progress--xs { height: var(--progress-height-sm); }
+.shell .progress-fill { height: 100%; border-radius: 999px; background-color: var(--progress-fill); transition: width 400ms var(--ease-out); }
+.shell .progress--striped .progress-fill { background-image: linear-gradient(45deg, rgba(255,255,255,.25) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.25) 50%, rgba(255,255,255,.25) 75%, transparent 75%); background-size: 28px 28px; animation: dui-stripes 1s linear infinite; }
+.shell .progress--indeterminate .progress-fill { position: absolute; top: 0; bottom: 0; width: 40%; animation: dui-indeterminate 1.4s var(--ease-in-out) infinite; }
+
+.shell .job-card { background: var(--shell-surface); border: 2px solid var(--job-border); border-radius: var(--radius-panel); box-shadow: var(--shadow-job); overflow: hidden; }
+.shell .job-card-main { padding: 20px 24px; display: flex; gap: 16px; align-items: flex-start; }
+.shell .job-card-icon { width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--shell-info-bg); }
+.shell .job-card-icon--ai { background: var(--spark-tint); }
+.shell .job-card-icon .spinner { width: 24px; height: 24px; animation: dui-spin 0.9s linear infinite; }
+.shell .job-card-text { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.shell .job-card-title { margin: 0; font-family: var(--font-display); font-weight: var(--fw-display); font-size: 22px; color: var(--shell-ink); }
+.shell .job-card-detail { margin: 0; font-size: var(--fs-ui); color: var(--shell-text-soft); }
+.shell .job-card-meta { font-size: var(--fs-small); color: var(--shell-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shell .job-card-percent { font-family: var(--font-display); font-weight: var(--fw-display-strong); font-size: 24px; color: var(--shell-ink); font-variant-numeric: tabular-nums; }
+.shell .job-card-progress { padding: 0 24px; }
+.shell .job-card-counts { padding: 10px 24px 0; display: flex; justify-content: space-between; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .job-steps { list-style: none; margin: 0; padding: 16px 24px 20px; display: flex; gap: 24px; flex-wrap: wrap; font-size: var(--fs-ui); }
+.shell .job-step { display: flex; align-items: center; gap: 8px; color: var(--shell-text-muted); }
+.shell .job-step-dot { width: 22px; height: 22px; border-radius: 999px; border: 2px solid #c8c2b8; box-sizing: border-box; display: grid; place-items: center; }
+.shell .job-step[data-state="done"] { color: var(--shell-ok-text); }
+.shell .job-step[data-state="done"] .job-step-dot { border: 0; background: var(--shell-ok-solid); color: #fff; }
+.shell .job-step[data-state="active"] { color: var(--shell-ink); font-weight: 700; }
+.shell .job-step[data-state="active"] .job-step-dot { border: 3px solid var(--lc-teal); animation: dui-pulse 1.2s ease-in-out infinite; }
+.shell .job-card-actions { padding: 0 24px 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+.shell .job-card--done { border-color: var(--shell-ok-border); background: var(--shell-ok-bg); box-shadow: none; }
+.shell .job-card--done .job-card-title, .shell .job-card--done .job-card-detail { color: var(--shell-ok-text); }
+.shell .job-card--done .job-card-icon { background: var(--shell-ok-solid); color: #fff; }
+.shell .job-card--failed { border-color: var(--shell-danger-border); background: var(--shell-danger-bg); box-shadow: none; }
+.shell .job-card--failed .job-card-title, .shell .job-card--failed .job-card-detail { color: var(--shell-danger-text); }
+.shell .job-card--failed .job-card-icon { background: var(--shell-danger); color: #fff; }
+.shell .job-card--compact .job-card-main { padding: 14px 16px; }
+.shell .job-card--compact .job-card-title { font-size: 16px; font-family: var(--font-body); font-weight: 700; letter-spacing: 0; }
+
+/* Top bar task indicator */
+.shell .task-indicator { height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--lc-ink); color: #fff; display: inline-flex; align-items: center; gap: 8px; font: 600 var(--fs-small) var(--font-body); cursor: pointer; }
+.shell[data-context="platform"] .task-indicator { background: var(--lc-ink-raised); box-shadow: inset 0 0 0 1px var(--lc-teal); }
+.shell .task-indicator--failed { background: var(--shell-danger); }
+.shell .task-indicator--done { background: var(--shell-ok-solid); }
+.shell .task-indicator :focus-visible, .shell .task-indicator:focus-visible { outline: var(--focus-ring-on-dark); outline-offset: var(--focus-offset); }
+.shell .task-popover { position: absolute; top: 44px; right: 0; width: 360px; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-card); box-shadow: var(--shadow-pop); z-index: var(--z-menu); overflow: hidden; }
+.shell .task-popover-head { padding: 12px 14px; font-size: var(--fs-label); font-weight: 700; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--shell-text-muted); border-bottom: 1px solid var(--shell-line); }
+.shell .task-item { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; border-top: 1px solid var(--shell-line-soft); }
+.shell .task-item:first-of-type { border-top: 0; }
+.shell .task-item:hover { background: var(--shell-ground); }
+
+/* Side panel publish chip while running (extends existing .publish-status) */
+.shell .publish-status[data-state="generating"] { --ps-color: var(--lc-teal); --ps-bg: var(--shell-info-bg); flex-wrap: wrap; }
+.shell .publish-status[data-state="published"] { --ps-color: var(--shell-ok-solid); --ps-bg: var(--shell-ok-bg); }
+.shell .publish-status[data-state="changes"] { --ps-color: var(--shell-warn-solid); --ps-bg: var(--shell-warn-bg); }
+.shell .publish-status[data-state="failed"] { --ps-color: var(--shell-danger); --ps-bg: var(--shell-danger-bg); }
+.shell .publish-status .progress { flex-basis: 100%; margin-top: 6px; }
+
+/* Browser-bound work */
+.shell .keep-open-banner { position: sticky; top: 0; z-index: var(--z-sticky); padding: 14px 16px; border-radius: 12px; background: var(--lc-ink); color: #fff; display: flex; flex-direction: column; gap: 10px; }
+.shell .keep-open-banner .progress { background: rgba(255,255,255,.18); }
+.shell .keep-open-banner .progress-fill { background-color: #5fc6d2; }
+.shell .keep-open-banner .shell-btn { background: transparent; border-color: rgba(255,255,255,.4); color: #fff; align-self: flex-start; }
+
+/* ==================================================================
+   ASK PIP DRAWER (PATTERNS.md §2)
+   ================================================================== */
+.shell .ask-pip-btn { height: 34px; padding: 0 12px; border: 0; border-radius: var(--radius-item); background: var(--shell-surface); color: var(--shell-ink); display: inline-flex; align-items: center; gap: 8px; font: 600 var(--fs-ui) var(--font-body); cursor: pointer; }
+.shell .ask-pip-btn[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--lc-ink); }
+.shell .ask-pip-kbd { font-size: var(--fs-label); font-weight: 500; opacity: .7; }
+.shell[data-context="platform"] .ask-pip-btn { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px var(--lc-teal); }
+.shell .ask-pip-link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-small); font-weight: 600; background: none; border: 0; padding: 0; color: var(--shell-accent); cursor: pointer; }
+
+.shell .pip-scrim { position: fixed; left: 0; right: 0; top: var(--header-h); bottom: 0; background: var(--scrim); z-index: var(--z-drawer); animation: dui-fade var(--dur-enter) var(--ease-out); }
+@media (min-width: 1280px) { .shell .pip-scrim { background: var(--scrim-light); } }
+.shell .pip-drawer { position: fixed; top: var(--header-h); right: 0; bottom: 0; width: clamp(360px, var(--drawer-w), 40vw); background: var(--shell-surface); border-left: 1px solid var(--shell-line); box-shadow: var(--shadow-drawer); z-index: calc(var(--z-drawer) + 1); display: flex; flex-direction: column; animation: dui-drawer-in var(--dur-enter) var(--ease-out); }
+@media (max-width: 767px) { .shell .pip-drawer { width: 100vw; border-left: 0; } .shell .pip-scrim { display: none; } }
+.shell .pip-head { padding: 16px 18px; border-bottom: 1px solid var(--shell-line); display: flex; align-items: center; gap: 10px; }
+.shell .pip-avatar { width: 32px; height: 32px; flex: none; }
+.shell .pip-avatar--sm { width: 24px; height: 24px; }
+.shell .pip-title { margin: 0; font-family: var(--font-display); font-weight: var(--fw-display); font-size: 20px; color: var(--shell-ink); }
+.shell .pip-icon-btn { width: 36px; height: 36px; border: 0; border-radius: var(--radius-item); background: transparent; display: grid; place-items: center; color: var(--shell-text-soft); cursor: pointer; }
+.shell .pip-icon-btn:hover { background: var(--shell-ground); }
+.shell .pip-context { padding: 10px 18px; background: var(--shell-ground); border-bottom: 1px solid var(--shell-line); display: flex; align-items: center; gap: 8px; font-size: var(--fs-small); color: var(--shell-text-soft); }
+.shell .pip-context-chip { padding: 3px 10px; border-radius: 999px; background: var(--shell-surface); border: 1px solid var(--shell-line); color: var(--shell-ink); font-weight: 600; }
+.shell .pip-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.shell .pip-msg-user { align-self: flex-end; max-width: 80%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--lc-ink); color: #fff; font-size: var(--fs-ui); line-height: 1.5; }
+.shell .pip-msg-pip { display: flex; gap: 10px; align-items: flex-start; }
+.shell .pip-msg-body { flex: 1; display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-ui); line-height: 1.55; color: var(--shell-text); }
+.shell .pip-msg-body p { margin: 0; }
+.shell .pip-sources { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
+.shell .pip-suggestion { text-align: left; padding: 10px 12px; border: 1px solid var(--shell-line); border-radius: 10px; background: var(--shell-surface); font: var(--fs-small)/1.4 var(--font-body); color: var(--shell-ink); cursor: pointer; }
+.shell .pip-suggestion:hover { border-color: var(--shell-ink); }
+.shell .pip-action-card { border: 1px solid var(--shell-line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #fcfbf9; }
+.shell .pip-thinking { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: var(--spark-tint); font-size: var(--fs-small); }
+.shell .pip-composer { padding: 14px 18px 16px; border-top: 1px solid var(--shell-line); display: flex; flex-direction: column; gap: 8px; }
+.shell .pip-composer-box { display: flex; gap: 8px; align-items: flex-end; padding: 8px 8px 8px 12px; border: 2px solid var(--shell-ink); border-radius: 14px; }
+.shell .pip-composer-box:focus-within { box-shadow: 0 0 0 3px var(--shell-accent-tint); }
+.shell .pip-composer textarea { flex: 1; border: 0; resize: none; font: 15px/1.45 var(--font-body); color: var(--shell-ink); outline: none; background: transparent; }
+.shell .pip-send { width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--lc-ink); display: grid; place-items: center; cursor: pointer; }
+.shell .pip-send:disabled { opacity: .4; cursor: not-allowed; }
+.shell .pip-disclaimer { font-size: var(--fs-label); color: var(--shell-text-muted); }
+
+/* ---------- Keyframes ---------- */
+@keyframes dui-spin { to { transform: rotate(360deg); } }
+@keyframes dui-pulse { 50% { opacity: .35; } }
+@keyframes dui-stripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
+@keyframes dui-indeterminate { 0% { left: -40%; } 100% { left: 100%; } }
+@keyframes dui-fade { from { opacity: 0; } }
+@keyframes dui-drawer-in { from { transform: translateX(24px); opacity: 0; } }
+@keyframes dui-toast-in { from { transform: translateY(8px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .shell .spark--spin, .shell .ai-btn.is-loading .spark, .shell .skeleton,
+  .shell .progress--striped .progress-fill, .shell .job-step[data-state="active"] .job-step-dot,
+  .shell .job-card-icon .spinner, .shell .btn-spinner, .shell .pip-drawer, .shell .pip-scrim, .shell .toast { animation: none; }
+  .shell .progress--indeterminate .progress-fill { animation: none; left: 0; width: 100%; opacity: .55; }
+  .shell .switch::after, .shell .progress-fill { transition: none; }
+}

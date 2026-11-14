@@ -1,0 +1,274 @@
+{
+  "_about": "Canned content for the Ask Pip UI preview. No network calls. Route patterns match react-router paths in src/App.jsx under both /client and /admin/clients/:clientId. Replies must stay generic: no invented figures. Every source.to must resolve to a real route; ':directoryId' etc. are filled from the current route.",
+  "assistantName": "Pip",
+  "previewNotice": "Preview: replies are examples while we build this. No data leaves your browser.",
+  "fallbackReply": "I'm still being built, so I can't answer that yet. In this preview I can show you how answers will look: try one of the suggested questions.",
+  "disclaimer": "Pip can be wrong. It uses this directory's settings and Layercake guides, and never publishes or emails for you.",
+  "thinkingLabels": ["Looking at this page", "Checking your settings", "Reading the guide"],
+  "routeGroups": [
+    {
+      "id": "home",
+      "match": ["/client", "/admin/clients/:clientId"],
+      "pageLabel": "Home",
+      "welcome": "What can I help with today?",
+      "prompts": [
+        {
+          "id": "home-start",
+          "text": "How do I get my first directory live?",
+          "reply": ["There are six steps: purpose and audience, how listings get filled, adding entries and categories, applying your brand, connecting domain, email and analytics, then publishing.", "The step that shapes everything else is how listings get filled: bring existing data, seed listings for owners to claim, or let owners add their own."],
+          "sources": [{ "label": "Directories", "to": "directories" }],
+          "action": { "type": "navigate", "title": "Create a directory", "detail": "Opens the new directory form.", "to": "directories/new" }
+        },
+        {
+          "id": "home-maps-vs-directories",
+          "text": "What's the difference between a map and a directory?",
+          "reply": ["A directory is a full website with a page for every entry, its own domain, search and filters. A map is an interactive map you can embed in an existing site.", "Many organisations use both: the directory for discovery and search engines, the map embedded on their own website."],
+          "sources": [{ "label": "My maps", "to": "maps" }, { "label": "Directories", "to": "directories" }]
+        },
+        {
+          "id": "home-team",
+          "text": "How do I invite a colleague?",
+          "reply": ["Go to Team and send an invitation link. They create a password when they accept. You can choose whether they can manage settings or only view."],
+          "sources": [{ "label": "Team", "to": "team" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-overview",
+      "match": ["directories/:directoryId"],
+      "pageLabel": "Overview",
+      "welcome": "What can I help with on {directory}?",
+      "prompts": [
+        {
+          "id": "ov-attention",
+          "text": "What should I fix first?",
+          "reply": ["Start with anything that changes what visitors see: unpublished changes, entries without page content, and addresses that couldn't be placed on the map.", "Missing AI summaries matter next, because plain-English search uses them to match entries."],
+          "sources": [{ "label": "Needs attention", "to": "directories/:directoryId" }]
+        },
+        {
+          "id": "ov-unpublished",
+          "text": "Why aren't my changes on the live site?",
+          "reply": ["Saving keeps your edits safe but doesn't change the live site. Publish when you're ready and the public pages are regenerated."],
+          "sources": [{ "label": "Publishing", "to": "directories/:directoryId/publishing" }],
+          "action": { "type": "navigate", "title": "Review and publish", "detail": "Opens Publishing for this directory.", "to": "directories/:directoryId/publishing" }
+        },
+        {
+          "id": "ov-claims",
+          "text": "How do organisations claim their listing?",
+          "reply": ["Each entry page can show a claim button. The organisation verifies by email, then manages its own listing. You approve claims that need checking."],
+          "sources": [{ "label": "Claims", "to": "directories/:directoryId/claims" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-entries",
+      "match": ["directories/:directoryId/entries", "directories/:directoryId/entries/:entryId", "directories/:directoryId/entries/:entryId/:tab"],
+      "pageLabel": "Entries",
+      "welcome": "What can I help with on your entries?",
+      "prompts": [
+        {
+          "id": "en-import",
+          "text": "What columns does my import file need?",
+          "reply": ["At minimum a name for each entry. Address, website, description and category columns make the directory far more useful. Categories are matched by name to the ones you've set up."],
+          "sources": [{ "label": "Entries", "to": "directories/:directoryId/entries" }, { "label": "Categories", "to": "directories/:directoryId/categories" }]
+        },
+        {
+          "id": "en-summaries",
+          "text": "Can you write summaries for entries that don't have one?",
+          "reply": ["Yes. I can draft AI summaries from each entry's details and website. They're saved as drafts for you to review, and nothing goes live until you publish."],
+          "sources": [{ "label": "AI enrichment", "to": "directories/:directoryId/ai-enrichment" }],
+          "action": { "type": "job", "title": "Draft missing summaries", "detail": "Saved as drafts for you to review.", "jobKind": "ai-content" }
+        },
+        {
+          "id": "en-geocode",
+          "text": "Why isn't an entry showing on the map?",
+          "reply": ["Usually its address couldn't be turned into a map location. Check the address on the entry's Basic details tab; a full postcode fixes most cases."],
+          "sources": [{ "label": "Entries", "to": "directories/:directoryId/entries" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-search",
+      "match": ["directories/:directoryId/search"],
+      "pageLabel": "Search & Discovery",
+      "welcome": "What can I help with on Search & Discovery?",
+      "prompts": [
+        {
+          "id": "se-top",
+          "text": "What do visitors search for most?",
+          "reply": ["Your top searches are in Insights. Look for searches that found nothing: they show what visitors expect from your directory and where entries or categories are missing."],
+          "sources": [{ "label": "Insights", "to": "directories/:directoryId/insights" }]
+        },
+        {
+          "id": "se-chartered",
+          "text": "Why do some searches find nothing?",
+          "reply": ["Keyword search looks at entry names, descriptions and AI summaries. Values stored only as filters, like a yes/no category, aren't matched as words.", "You could include filter labels in keyword matching, or add a quick filter above results."],
+          "sources": [{ "label": "Search & Discovery settings", "to": "directories/:directoryId/search" }],
+          "action": { "type": "setting", "title": "Include filter labels in keyword search", "detail": "Saved as an unpublished change. Nothing goes live until you publish." }
+        },
+        {
+          "id": "se-plain",
+          "text": "How does plain-English search work?",
+          "reply": ["Visitors can describe what they want in their own words. The search matches that description against your entries and explains why each result fits, using the listing's own details."],
+          "sources": [{ "label": "Search & Discovery settings", "to": "directories/:directoryId/search" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-design",
+      "match": ["directories/:directoryId/look-and-feel", "directories/:directoryId/entry-pages"],
+      "pageLabel": "Look & feel",
+      "welcome": "What can I help with on the design of {directory}?",
+      "prompts": [
+        {
+          "id": "de-contrast",
+          "text": "Are my colours accessible?",
+          "reply": ["Each colour field shows a contrast badge. Aim for AA on body text and buttons; the badge tells you when a colour only works for large text."],
+          "sources": [{ "label": "Look & feel", "to": "directories/:directoryId/look-and-feel" }]
+        },
+        {
+          "id": "de-logo",
+          "text": "What logo file works best?",
+          "reply": ["A transparent PNG or SVG, wide rather than tall, with some padding. Check it on both the header and the footer backgrounds."],
+          "sources": [{ "label": "Look & feel", "to": "directories/:directoryId/look-and-feel" }]
+        },
+        {
+          "id": "de-preview",
+          "text": "How do I see changes before publishing?",
+          "reply": ["Use the preview on this page. Changes are saved as unpublished until you publish from Publishing."],
+          "sources": [{ "label": "Publishing", "to": "directories/:directoryId/publishing" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-publishing",
+      "match": ["directories/:directoryId/publishing", "directories/:directoryId/domain", "directories/:directoryId/seo", "directories/:directoryId/settings", "directories/:directoryId/integrations"],
+      "pageLabel": "Settings",
+      "welcome": "What can I help with on publishing and settings?",
+      "prompts": [
+        {
+          "id": "pu-time",
+          "text": "How long does publishing take?",
+          "reply": ["Publishing saves a new version straight away, then regenerates your public pages in the background. You can leave the page; the top bar shows progress and tells you when it's live."],
+          "sources": [{ "label": "Publishing", "to": "directories/:directoryId/publishing" }]
+        },
+        {
+          "id": "pu-rollback",
+          "text": "Can I undo a publish?",
+          "reply": ["Yes. Restore an earlier version from the version history. It creates a new version with that snapshot; nothing is deleted."],
+          "sources": [{ "label": "Publishing", "to": "directories/:directoryId/publishing" }]
+        },
+        {
+          "id": "pu-domain",
+          "text": "How do I use my own domain?",
+          "reply": ["Add the domain, then create the DNS record shown on the Domain page with your domain provider. Verification usually completes once DNS has updated."],
+          "sources": [{ "label": "Domain", "to": "directories/:directoryId/domain" }]
+        }
+      ]
+    },
+    {
+      "id": "directory-engagement",
+      "match": ["directories/:directoryId/claims", "directories/:directoryId/insights", "directories/:directoryId/email-settings", "directories/:directoryId/email-log"],
+      "pageLabel": "Engagement",
+      "welcome": "What can I help with on engagement?",
+      "prompts": [
+        {
+          "id": "eg-enquiries",
+          "text": "Where do enquiries go?",
+          "reply": ["Enquiries from entry pages go to each organisation's contact email. While messaging is in test mode they go to your test recipient instead."],
+          "sources": [{ "label": "Email settings", "to": "directories/:directoryId/email-settings" }]
+        },
+        {
+          "id": "eg-claims",
+          "text": "How should I verify claims?",
+          "reply": ["Check the claimant's email domain matches the organisation's website. If it doesn't, contact the organisation before approving."],
+          "sources": [{ "label": "Claims", "to": "directories/:directoryId/claims" }]
+        },
+        {
+          "id": "eg-insights",
+          "text": "What do these numbers mean?",
+          "reply": ["Directory views count visits to the directory; entry views count visits to individual entry pages; enquiries opened counts people who started an enquiry. Searches shows what visitors looked for."],
+          "sources": [{ "label": "Insights", "to": "directories/:directoryId/insights" }]
+        }
+      ]
+    },
+    {
+      "id": "maps",
+      "match": ["maps", "maps/:mapId", "maps/:mapId/data", "maps/:mapId/listings", "maps/:mapId/stats"],
+      "pageLabel": "Maps",
+      "welcome": "What can I help with on your maps?",
+      "prompts": [
+        {
+          "id": "mp-sheet",
+          "text": "How does Google Sheets sync work?",
+          "reply": ["Connect a sheet once, then sync manually or on a schedule. Each sync reads the sheet and updates the map's listings."],
+          "sources": [{ "label": "My maps", "to": "maps" }]
+        },
+        {
+          "id": "mp-embed",
+          "text": "How do I put a map on my website?",
+          "reply": ["Publish the map, then copy its embed code from the map dashboard into your website."],
+          "sources": [{ "label": "My maps", "to": "maps" }]
+        },
+        {
+          "id": "mp-missing",
+          "text": "Why are some listings missing from the map?",
+          "reply": ["Listings need an address that can be placed on the map. Check the Data page for addresses that couldn't be found."],
+          "sources": [{ "label": "My maps", "to": "maps" }]
+        }
+      ]
+    },
+    {
+      "id": "workspace-settings",
+      "match": ["team", "email", "domains", "integrations", "categorisations", "directories", "users", "messaging", "details", "entitlements"],
+      "pageLabel": "Settings",
+      "welcome": "What can I help with here?",
+      "prompts": [
+        {
+          "id": "ws-roles",
+          "text": "What can team members do?",
+          "reply": ["Managers can change settings and publish. View-only members can see content and insights but not change them."],
+          "sources": [{ "label": "Team", "to": "team" }]
+        },
+        {
+          "id": "ws-categories",
+          "text": "How do shared categories work?",
+          "reply": ["Categories set up here can be reused across your directories and maps, so filters stay consistent."],
+          "sources": [{ "label": "Categories", "to": "categorisations" }]
+        },
+        {
+          "id": "ws-domains",
+          "text": "Do I need a custom domain?",
+          "reply": ["No. Every directory works on a Layercake address. A custom domain helps visitors trust the directory and keeps search engine credit on your domain."],
+          "sources": [{ "label": "Domains", "to": "domains" }]
+        }
+      ]
+    },
+    {
+      "id": "platform",
+      "match": ["/admin/clients", "/admin/maps", "/admin/directories", "/admin/listings", "/admin/users", "/admin/leads", "/admin/user-activity", "/admin/error-log", "/admin/sync-log", "/admin/deployments"],
+      "pageLabel": "Platform",
+      "welcome": "What can I help with on the platform?",
+      "prompts": [
+        {
+          "id": "pl-beta",
+          "text": "Which customers have beta access?",
+          "reply": ["Filter Customers by 'With beta access'. Entitlements on each customer control which features they see."],
+          "sources": [{ "label": "Customers", "to": "/admin/clients" }]
+        },
+        {
+          "id": "pl-errors",
+          "text": "What's in the error log?",
+          "reply": ["Client-side errors reported by the app, newest first, with the page and context they came from."],
+          "sources": [{ "label": "Error log", "to": "/admin/error-log" }]
+        },
+        {
+          "id": "pl-sync",
+          "text": "Did last night's syncs run?",
+          "reply": ["The Sync log lists every scheduled and manual Google Sheets sync with its outcome."],
+          "sources": [{ "label": "Sync log", "to": "/admin/sync-log" }]
+        }
+      ]
+    }
+  ]
+}

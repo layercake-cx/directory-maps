@@ -1,0 +1,91 @@
+/* Layercake Discover UI: token additions and overrides
+   ------------------------------------------------------------------
+   Merge into src/styles/admin-shell-tokens.css (do not create a second
+   token file at runtime). Every value below either:
+     (a) OVERRIDES an existing token (marked OVERRIDE), or
+     (b) is NEW (marked NEW).
+   Existing tokens not listed here stay exactly as they are.
+
+   Contrast figures are WCAG 2.x ratios against the surface named.
+   ------------------------------------------------------------------ */
+
+:root {
+  /* ---------- Type ---------- */
+  /* OVERRIDE: display face moves from Source Serif 4 to Bricolage Grotesque (approved 2026-11-14).
+     Load: https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&display=swap
+     Remove the Source Serif 4 request once nothing references it. */
+  --font-display: 'Bricolage Grotesque', 'Public Sans', system-ui, sans-serif;
+  --font-body: 'Public Sans', system-ui, sans-serif;           /* unchanged */
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; /* NEW: routes, codes, hex values */
+  --fw-display: 700;            /* NEW: page titles, card titles, panel title */
+  --fw-display-strong: 800;     /* NEW: stat numbers only */
+  --tracking-display: -0.02em;  /* NEW: Bricolage needs slight negative tracking at 22px+ */
+
+  /* ---------- Status (shell) ---------- */
+  /* Existing: --shell-ok-bg #e3f1e4, --shell-ok-border #b7d8ba, --shell-ok-text #1f5a28,
+               --shell-warn-bg #fbefd9, --shell-warn-border #ecd2a0, --shell-warn-text #7a4a06,
+               --shell-danger #a3281c */
+  --shell-ok-solid: #2f7a3a;        /* NEW: dots, check badges. White on it 5.2:1 */
+  --shell-warn-solid: #b26a00;      /* NEW: dots only (not text) */
+  --shell-danger-bg: #f8e3e0;       /* NEW: error callouts, failed job cards */
+  --shell-danger-border: #e8b9b2;   /* NEW */
+  --shell-danger-text: #8a2318;     /* NEW: 7.1:1 on --shell-danger-bg */
+  --shell-info-bg: #e8f4f5;         /* NEW: info callouts, running job chip (= --lc-teal-tint) */
+  --shell-info-border: #a9d3d8;     /* NEW */
+  --shell-info-text: #0b4a4e;       /* NEW: 8.4:1 on --shell-info-bg */
+  --shell-selected-row: #f6faf9;    /* NEW: table row aria-selected (value already used inline) */
+
+  /* ---------- Progress (processing pattern) ---------- */
+  --progress-track: #d6ecef;        /* NEW */
+  --progress-fill: var(--lc-teal);  /* NEW: #1A9EAD. Decorative fill; text never sits on it */
+  --progress-height: 10px;          /* NEW: JobCard bar */
+  --progress-height-sm: 4px;        /* NEW: panel chip, task popover rows use 6px */
+  --job-border: var(--lc-teal);     /* NEW: 2px border on running JobCard */
+
+  /* ---------- Discover / AI accents ---------- */
+  /* The spark is the single AI + Discover glyph (approved: replaces SparkleIcon). */
+  --spark: #f47721;                 /* NEW: glyph fill only. 2.8:1 on white: never text, never thin lines */
+  --spark-ink: #a8440a;             /* NEW: orange TEXT. 5.3:1 on white, 5.1:1 on --paper */
+  --spark-tint: #fdf0e6;            /* NEW: AI callout, AI pill, thinking state background */
+  --paper: #f4ebdb;                 /* NEW: plate behind concept-art Pip only. Not a page background */
+  --pip-ink: #10283b;               /* NEW: Pip linework, used by the SVG assets */
+
+  /* ---------- Focus ---------- */
+  --focus-ring: 2px solid var(--shell-accent); /* NEW: name the existing rule */
+  --focus-offset: 2px;                         /* NEW */
+  --focus-ring-on-dark: 2px solid #5fc6d2;     /* NEW: rail, ink top bar, toasts. 8.9:1 on --lc-ink */
+
+  /* ---------- Elevation ---------- */
+  --shadow-card: 0 1px 2px rgba(20, 25, 28, 0.04);        /* NEW */
+  --shadow-pop: 0 16px 40px rgba(20, 25, 28, 0.18);       /* NEW: menus, popovers (value already used) */
+  --shadow-drawer: -16px 0 40px rgba(20, 25, 28, 0.16);   /* NEW: Ask Pip drawer */
+  --shadow-job: 0 8px 24px rgba(26, 158, 173, 0.12);      /* NEW: running JobCard */
+  --scrim: rgba(20, 25, 28, 0.18);                        /* NEW: drawer scrim 768–1279px */
+  --scrim-light: rgba(20, 25, 28, 0.10);                  /* NEW: drawer scrim ≥1280px */
+  --scrim-modal: rgba(20, 25, 28, 0.45);                  /* NEW: Dialog backdrop */
+
+  /* ---------- Layering ---------- */
+  --z-sticky: 5;        /* NEW: SaveBar, sticky table headers, KeepOpenBanner */
+  --z-menu: 50;         /* NEW: menus/popovers (value already used) */
+  --z-drawer: 80;       /* NEW: Ask Pip drawer + scrim */
+  --z-dialog: 90;       /* NEW: Dialog sits above the drawer */
+  --z-toast: 100;       /* NEW */
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 120ms;    /* NEW: hover, press */
+  --dur-base: 160ms;    /* NEW: menus, drawer close */
+  --dur-enter: 220ms;   /* NEW: drawer open, toast in */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);  /* NEW */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* NEW */
+
+  /* ---------- Layout ---------- */
+  --drawer-w: 440px;        /* NEW: Ask Pip. min 360px, max 40vw */
+  --form-max: 880px;        /* NEW: settings page section stack */
+  --form-max-narrow: 760px; /* NEW: record editor form column */
+  --aside-w: 320px;         /* NEW: workspace page aside */
+  --preview-w: 360px;       /* NEW: record editor preview aside */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-enter: 0ms; }
+}

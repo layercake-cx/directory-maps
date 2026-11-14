@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<!-- Visual reference exported from the Layercake Discover design canvas. Inline styles mirror the canvas: build with tokens + classes, never by copying these styles. [N], [DATE], [NAME] are placeholders. -->
+<meta charset="utf-8">
+<title>Layercake Discover components</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F5E63}a:hover{color:#0A4346}
+button,input{font-family:inherit}
+</style>
+</head>
+<body>
+
+
+<div style="width: 1440px; height: 1960px; box-sizing: border-box; background: #F4F2EE; font-family: 'Public Sans', system-ui, sans-serif; color: #2C3338; padding: 64px 72px; display: flex; flex-direction: column; gap: 40px">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Component library</p>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 56px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">Components</h1>
+<p style="margin: 0; max-width: 780px; font-size: 17px; line-height: 1.55; color: #454D52">Built on the existing admin tokens (radius 10/14/16, 44px controls, Public Sans). New: the spark, AI surfaces and the Pip family.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">Actions</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+<button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #0F5E63; color: #FFFFFF; font-size: 14px; font-weight: 600">Primary</button>
+<button type="button" style="height: 44px; padding: 0 18px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; color: #14191C; font-size: 14px; font-weight: 600">Secondary</button>
+<button type="button" style="height: 44px; padding: 0 18px; border: 1px solid #14191C; border-radius: 10px; background: #FFFFFF; color: #14191C; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px"><img src="../assets/spark.svg" alt="" style="width: 16px; height: 16px">Ask Pip</button>
+<a href="#" style="height: 44px; display: flex; align-items: center; font-size: 14px; font-weight: 600">Text link</a>
+<button type="button" style="height: 44px; padding: 0 18px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; color: #A3281C; font-size: 14px; font-weight: 600">Delete</button>
+<button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #0F5E63; color: #FFFFFF; font-size: 14px; font-weight: 600; outline: 2px solid #0F5E63; outline-offset: 2px">Focused</button>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">The spark button is the only "Discover" action style: use it for AI help. Primary stays teal so serious actions (publish, verify claim) never look playful.</p>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">Chips, tags, status</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: #14191C; color: #FFFFFF; font-size: 13.5px; font-weight: 600">Arts and culture</button>
+<button type="button" aria-pressed="false" style="height: 36px; padding: 0 14px; border: 1px solid #E3DFD8; border-radius: 999px; background: #FFFFFF; color: #14191C; font-size: 13.5px; font-weight: 500">Environment</button>
+<button type="button" aria-pressed="false" style="height: 36px; padding: 0 14px; border: 1px solid #E3DFD8; border-radius: 999px; background: #FFFFFF; color: #14191C; font-size: 13.5px; font-weight: 500">Sport</button>
+<span style="height: 28px; padding: 0 9px; border-radius: 7px; background: #F1ECDF; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; color: #2C3338">Chartered</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="padding: 4px 10px; border-radius: 999px; background: #E6F0EF; color: #0B4A4E; font-size: 12px; font-weight: 700">Published</span>
+<span style="padding: 4px 10px; border-radius: 999px; background: #EFECE6; color: #454D52; font-size: 12px; font-weight: 700">Draft</span>
+<span style="padding: 4px 10px; border-radius: 999px; background: #FBEFD9; color: #7A4A06; font-size: 12px; font-weight: 700">Unpublished changes</span>
+<span style="padding: 4px 10px; border-radius: 999px; background: #FFFFFF; border: 1px dashed #9AA3A8; color: #454D52; font-size: 12px; font-weight: 700">Coming soon</span>
+<span style="padding: 4px 10px 4px 8px; border-radius: 999px; background: #FDF0E6; color: #A8440A; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px"><img src="../assets/spark.svg" alt="" style="width: 12px; height: 12px">AI match</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">"AI match" is the single place orange appears inside results. Text uses spark-ink, so it passes contrast.</p>
+</section>
+
+<section style="grid-column: span 2; background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">DiscoverSearch</h2>
+<div style="display: flex; gap: 24px; align-items: flex-start">
+<form style="flex: 1; display: flex; flex-direction: column; gap: 10px">
+<label for="cs-q" style="font-size: 13px; font-weight: 600; color: #14191C">What are you looking for?</label>
+<div style="height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 18px; border: 2px solid #14191C; border-radius: 16px; background: #FFFFFF">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C6469" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input id="cs-q" type="search" placeholder="Try ‘choirs near Bristol that welcome beginners’" style="flex: 1; height: 44px; border: 0; font-size: 17px; color: #14191C; outline: none">
+<button type="button" style="height: 44px; padding: 0 20px; border: 0; border-radius: 10px; background: #0F5E63; color: #FFFFFF; font-size: 15px; font-weight: 600">Search</button>
+</div>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #454D52"><img src="../assets/spark.svg" alt="" style="width: 14px; height: 14px">Plain-English questions are matched with AI. Keywords work too.</span>
+</form>
+<div style="width: 380px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; font-weight: 600; color: #14191C">Compact (header, admin)</span>
+<div style="height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C6469" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="font-size: 14px; color: #5C6469">Search directories</span></div>
+<span style="font-size: 13px; color: #5C6469">2px ink border on the hero version gives a strong focus target; the spark helper line explains AI without hype.</span>
+</div>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">ListingCard</h2>
+<article style="border: 1px solid #E3DFD8; border-radius: 14px; padding: 18px; display: flex; gap: 16px">
+<div style="width: 72px; height: 72px; flex-shrink: 0; border-radius: 12px; background: #F1ECDF; display: grid; place-items: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 20px; color: #454D52">[L]</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; gap: 8px"><h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #14191C">[Organisation name]</h3><span style="padding: 3px 9px 3px 7px; border-radius: 999px; background: #FDF0E6; color: #A8440A; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; height: fit-content"><img src="../assets/spark.svg" alt="" style="width: 11px; height: 11px">AI match</span></div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #454D52">[One-line description from the listing.]</p>
+<p style="margin: 0; font-size: 13px; color: #5C6469">[Town] · [Region]</p>
+<p style="margin: 0; padding: 8px 10px; border-radius: 8px; background: #F4F2EE; font-size: 13px; line-height: 1.45; color: #2C3338"><strong>Why this matches:</strong> [reason drawn from listing fields]</p>
+</div>
+</article>
+<p style="margin: 0; font-size: 13px; color: #5C6469">No Pip on cards. The match reason quotes listing data, so the AI can be checked.</p>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">PipAvatar · PipBadge</h2>
+<div style="display: flex; gap: 20px; align-items: flex-end">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 48px"><span style="font-size: 12px; color: #5C6469">48</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 32px"><span style="font-size: 12px; color: #5C6469">32</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><span style="font-size: 12px; color: #5C6469">24</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-spark-outlined.svg" alt="" style="width: 32px"><span style="font-size: 12px; color: #5C6469">spark</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/pip/pip-mini.svg" alt="" style="width: 56px"><span style="font-size: 12px; color: #5C6469">mini</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><img src="../assets/discover-app-icon-provisional.svg" alt="" style="width: 32px"><span style="font-size: 12px; color: #5C6469">favicon</span></div>
+</div>
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 14px; border-radius: 12px; background: #F4F2EE">
+<img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 32px">
+<div style="display: flex; flex-direction: column; gap: 4px"><strong style="font-size: 13px; color: #14191C">Pip</strong><span style="font-size: 14px; line-height: 1.5">I found 6 groups that match. Two run beginner sessions on weekday evenings.</span></div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">Avatar is decorative (alt=""); the speaker name is text.</p>
+</section>
+
+<section style="grid-column: span 2; background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">PipState · feedback</h2>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
+<div style="border-radius: 14px; border: 1px solid #E3DFD8; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px" role="status"><img src="../assets/pip/pip-searching.svg" alt="" style="height: 96px"><strong style="font-size: 15px; color: #14191C">Searching…</strong><span style="font-size: 13px; color: #454D52">Checking [N] listings for "[query]"</span></div>
+<div style="border-radius: 14px; border: 1px solid #E3DFD8; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px"><img src="../assets/pip/pip-encouraging.svg" alt="" style="height: 96px"><strong style="font-size: 15px; color: #14191C">No matches yet</strong><span style="font-size: 13px; color: #454D52">Try a wider area or fewer filters.</span><a href="#" style="font-size: 13px; font-weight: 600">Clear filters</a></div>
+<div style="border-radius: 14px; border: 1px solid #E3DFD8; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px"><img src="../assets/pip/pip-welcome.svg" alt="" style="height: 96px"><strong style="font-size: 15px; color: #14191C">Empty directory</strong><span style="font-size: 13px; color: #454D52">Add your first entries or import a CSV.</span><a href="#" style="font-size: 13px; font-weight: 600">Import entries</a></div>
+<div style="border-radius: 14px; border: 1px solid #E3DFD8; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px" role="alert"><img src="../assets/pip/pip-apology.svg" alt="" style="height: 96px"><strong style="font-size: 15px; color: #A3281C">Something went wrong</strong><span style="font-size: 13px; color: #454D52">Your changes are saved. Try again.</span><a href="#" style="font-size: 13px; font-weight: 600">Retry</a></div>
+<div style="border-radius: 14px; border: 1px solid #E3DFD8; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px" role="status"><img src="../assets/pip/pip-celebrating.svg" alt="" style="height: 96px"><strong style="font-size: 15px; color: #0B4A4E">Directory published</strong><span style="font-size: 13px; color: #454D52">Live at [domain]</span><a href="#" style="font-size: 13px; font-weight: 600">View site</a></div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">Every state carries its meaning in the heading and an action. Pip's face is a second signal, never the only one. Shown in vector; concept-art versions are interchangeable at the same size.</p>
+</section>
+
+<section style="grid-column: span 2; background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700; color: #14191C">Component contracts</h2>
+<div style="display: grid; grid-template-columns: 180px 1fr 1fr 1fr; font-size: 13px; line-height: 1.45">
+<span style="padding: 8px 0; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469; border-bottom: 1px solid #E3DFD8">Component</span><span style="padding: 8px 0; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469; border-bottom: 1px solid #E3DFD8">Props</span><span style="padding: 8px 0; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469; border-bottom: 1px solid #E3DFD8">Sizes</span><span style="padding: 8px 0; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469; border-bottom: 1px solid #E3DFD8">Accessibility</span>
+<strong style="padding: 8px 0; border-bottom: 1px solid #EFECE6">PipAvatar</strong><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">expression: neutral | welcome | thinking | success</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">24 · 32 · 48 (face badge)</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">Decorative, alt=""; speaker named in text</span>
+<strong style="padding: 8px 0; border-bottom: 1px solid #EFECE6">PipSpot</strong><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">feature: search | directories | maps | jobs | connect | grow; art: concept | vector</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">96 · 140 · 200 tall, on paper plate</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">Decorative; card title carries meaning</span>
+<strong style="padding: 8px 0; border-bottom: 1px solid #EFECE6">PipHero / PipAnimated</strong><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">pose: exploring | pointing | celebrating; autoplay, loops (max 3)</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">280–420 tall; hidden under 640px wide</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">aria-hidden; honours prefers-reduced-motion; pause control if &gt;5s</span>
+<strong style="padding: 8px 0; border-bottom: 1px solid #EFECE6">PipState</strong><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">state: loading | noResults | empty | error | success; title; body; action</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">compact 64 · default 96 · page 160</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">role=status / alert on the container; text states the status</span>
+<strong style="padding: 8px 0; border-bottom: 1px solid #EFECE6">PipBadge</strong><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">variant: face | spark | mini</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">16 · 20 · 32 · 64</span><span style="padding: 8px 0; border-bottom: 1px solid #EFECE6">Decorative unless used as the only label, then aria-label</span>
+<strong style="padding: 8px 0">DiscoverScene</strong><span style="padding: 8px 0">theme: arts | sport | environment | education | professional; withPip</span><span style="padding: 8px 0">full-bleed ≥1024; crops to Pip only below</span><span style="padding: 8px 0">Decorative; scene never holds text</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5C6469">Asset naming: pip-{context}-{pose}-{expression}-{size}.{svg|png|webp}, e.g. pip-state-searching-curious-96.svg</p>
+</section>
+
+</div>
+</div>
+
+</body>
+</html>

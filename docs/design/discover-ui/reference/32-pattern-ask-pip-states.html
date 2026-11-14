@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<!-- Visual reference exported from the Layercake Discover design canvas. Inline styles mirror the canvas: build with tokens + classes, never by copying these styles. [N], [DATE], [NAME] are placeholders. -->
+<meta charset="utf-8">
+<title>AI assistant drawer: triggers and states</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F5E63}a:hover{color:#0A4346}
+button,input,textarea{font-family:inherit}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#EFECE6;padding:1px 5px;border-radius:4px;color:#2C3338}
+@keyframes lc-spin{to{transform:rotate(360deg)}}
+@keyframes lc-dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style>
+</head>
+<body>
+
+
+<div style="width: 1440px; min-height: 2060px; box-sizing: border-box; background: #F4F2EE; font-family: 'Public Sans', system-ui, sans-serif; color: #2C3338; padding: 64px 72px; display: flex; flex-direction: column; gap: 28px">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6469">Pattern · AI assistance (UI mock, no feature yet)</p>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 52px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; color: #14191C">Ask Pip: the assistant drawer</h1>
+<p style="margin: 0; max-width: 900px; font-size: 17px; line-height: 1.55; color: #454D52">A side drawer that slides over the right of any admin page. It knows which page you're on, answers questions, points to settings and suggests changes you approve. AIButton stays for single in-place jobs ("Draft with AI"); Pip is for help and conversation.</p>
+</div>
+
+<section style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 700; color: #14191C">Ways in</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="background: #1A9EAD; border-radius: 12px; padding: 10px 12px; display: flex; justify-content: center"><button type="button" style="height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: #FFFFFF; color: #14191C; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600"><img src="../assets/spark.svg" alt="" style="width: 14px; height: 14px">Ask Pip<span style="font-size: 12px; font-weight: 500; opacity: 0.7">⌘J</span></button></div><strong style="font-size: 14px; color: #14191C">Top bar, every page</strong><span style="font-size: 13px; line-height: 1.5; color: #5C6469">Between search and help. Platform context: teal outline on ink. Keyboard: ⌘J / Ctrl+J toggles.</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="border: 1px solid #E3DFD8; border-radius: 12px; padding: 14px; display: flex; justify-content: space-between; align-items: center"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px; color: #14191C">Keyword search</strong><a href="#" style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600"><img src="../assets/spark.svg" alt="" style="width: 12px; height: 12px">Ask Pip about this</a></div><strong style="font-size: 14px; color: #14191C">Section header link</strong><span style="font-size: 13px; line-height: 1.5; color: #5C6469">Optional <code>askPip</code> prop on Section. Opens the drawer with that section as context and a starter question.</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="border: 1px solid #E3DFD8; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center"><strong style="font-size: 14px; color: #14191C">No entries yet</strong><span style="display: flex; gap: 8px"><span style="height: 32px; padding: 0 10px; border-radius: 8px; background: #0F5E63; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600">Import entries</span><span style="height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #14191C; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600"><img src="../assets/spark.svg" alt="" style="width: 11px; height: 11px">Ask Pip</span></span></div><strong style="font-size: 14px; color: #14191C">Empty and error states</strong><span style="font-size: 13px; line-height: 1.5; color: #5C6469">Secondary action on EmptyState and ErrorState: "How do I get started?" / "What went wrong?"</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="border: 1px solid #E3DFD8; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px"><span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><img src="../assets/spark.svg" alt="" style="width: 12px; height: 12px"><strong>Draft with AI</strong> → does one job here</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 16px; height: 16px"><strong>Ask Pip</strong> → opens the conversation</span></div><strong style="font-size: 14px; color: #14191C">Not the same as AIButton</strong><span style="font-size: 13px; line-height: 1.5; color: #5C6469">Both use the spark. Only Pip has the face avatar and opens the drawer.</span></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 700; color: #14191C">Drawer states</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 460px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong><span style="padding: 1px 6px; border-radius: 999px; background: #FDF0E6; color: #A8440A; font-size: 10px; font-weight: 700">Preview</span></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px">
+<img src="../assets/pip/pip-welcome.svg" alt="" style="height: 72px; align-self: flex-start">
+<strong style="font-size: 16px; color: #14191C">Hi [First name]. What can I help with on Search &amp; Discovery?</strong>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Try asking</span>
+<button type="button" style="text-align: left; padding: 10px 12px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; font-size: 13px; color: #14191C">What do visitors search for most?</button>
+<button type="button" style="text-align: left; padding: 10px 12px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; font-size: 13px; color: #14191C">Which searches found nothing?</button>
+<button type="button" style="text-align: left; padding: 10px 12px; border: 1px solid #E3DFD8; border-radius: 10px; background: #FFFFFF; font-size: 13px; color: #14191C">How does plain-English search work?</button>
+</div>
+<div style="padding: 10px 14px; border-top: 1px solid #E3DFD8"><div style="height: 40px; border: 2px solid #14191C; border-radius: 12px; display: flex; align-items: center; padding: 0 10px; font-size: 13px; color: #5C6469">Ask about this directory…</div></div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">1 · Welcome · prompts change by page</span>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 460px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 4px 12px; background: #14191C; color: #FFFFFF; font-size: 13px">Which searches found nothing?</div>
+<div role="status" style="display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: #FDF0E6"><img src="../assets/spark.svg" alt="" style="width: 18px; height: 18px; animation: lc-spin 1.6s ease-in-out infinite"><span style="font-size: 13px; color: #2C3338"><strong>Looking at last 30 days of searches</strong><span style="animation: lc-dot 1.2s infinite"> …</span></span></div>
+<button type="button" style="align-self: flex-start; height: 32px; padding: 0 10px; border: 1px solid #E3DFD8; border-radius: 8px; background: #FFFFFF; font-size: 12px; font-weight: 600">Stop</button>
+</div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">2 · Thinking · says what it's reading</span>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 460px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.5">
+<div style="display: flex; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 20px; height: 20px"><span>I can draft AI summaries for the <strong>12 entries</strong> without one. That runs in the background.</span></div>
+<div style="border: 1px solid #E3DFD8; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #FCFBF9"><span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">Suggested action</span><strong style="color: #14191C">Draft 12 summaries</strong><span style="color: #454D52">Saved as drafts for you to review.</span><span style="display: flex; gap: 6px"><span style="height: 32px; padding: 0 10px; border-radius: 8px; background: #0F5E63; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600">Start</span><span style="height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #E3DFD8; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600">Not now</span></span></div>
+<div role="status" style="border: 2px solid #1A9EAD; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px"><span style="display: flex; justify-content: space-between"><strong style="color: #14191C">Drafting summaries</strong><span style="color: #5C6469">4 of 12</span></span><span style="height: 6px; border-radius: 999px; background: #D6ECEF; overflow: hidden"><span style="display: block; width: 33%; height: 100%; background: #1A9EAD; border-radius: 999px"></span></span><a href="#" style="font-size: 12px; font-weight: 600">Open AI enrichment</a></div>
+</div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">3 · Action → hands off to a JobCard</span>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 460px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong><span style="padding: 1px 6px; border-radius: 999px; background: #FDF0E6; color: #A8440A; font-size: 10px; font-weight: 700">Preview</span></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 1.5">
+<div style="align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 4px 12px; background: #14191C; color: #FFFFFF">Can you rename all the regions?</div>
+<div style="display: flex; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 20px; height: 20px"><span>I'm still being built, so I can't answer that yet. In this preview I can show you how answers will look: try one of the suggested questions.</span></div>
+<div role="note" style="padding: 10px 12px; border-radius: 10px; background: #E8F4F5; color: #0B4A4E; font-size: 12.5px">Preview mode: replies are examples. No data leaves your browser.</div>
+</div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #A8440A">4 · Mock reply · what ships now</span>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 380px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.5">
+<div role="alert" style="padding: 12px; border-radius: 10px; background: #F8E3E0; color: #8A2318; display: flex; flex-direction: column; gap: 8px"><strong>I couldn't answer that</strong><span>Something went wrong on our side. Your question is still in the box.</span><button type="button" style="align-self: flex-start; height: 32px; padding: 0 10px; border: 1px solid #A3281C; border-radius: 8px; background: #FFFFFF; color: #8A2318; font-size: 12px; font-weight: 600">Try again</button></div>
+</div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">5 · Error · keeps the question</span>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 380px">
+<div style="padding: 12px 14px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 8px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 24px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; color: #14191C">Pip</strong></div>
+<div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; font-size: 13px; line-height: 1.5">
+<img src="../assets/pip/pip-encouraging.svg" alt="" style="height: 80px">
+<strong style="font-size: 15px; color: #14191C">AI isn't switched on for [Organisation]</strong>
+<span style="color: #454D52">Your plan or an administrator controls this.</span>
+<a href="#" style="font-weight: 600">See plans</a>
+</div>
+<span style="padding: 8px 14px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6469">6 · Unavailable · reuses AiUnavailableNotice logic</span>
+</div>
+
+<div style="grid-column: span 2; background: #FFFFFF; border: 1px solid #E3DFD8; border-radius: 16px; padding: 18px 20px; display: flex; gap: 20px; align-items: stretch">
+<div style="width: 190px; flex-shrink: 0; border: 6px solid #14191C; border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; background: #FFFFFF">
+<div style="height: 26px; background: #1A9EAD"></div>
+<div style="padding: 10px; border-bottom: 1px solid #E3DFD8; display: flex; align-items: center; gap: 6px"><img src="../assets/pip/pip-badge-face.svg" alt="" style="width: 18px"><strong style="font-size: 13px">Pip</strong><span style="margin-left: auto; font-size: 14px">✕</span></div>
+<div style="flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 6px"><span style="height: 28px; border-radius: 8px; border: 1px solid #E3DFD8"></span><span style="height: 28px; border-radius: 8px; border: 1px solid #E3DFD8"></span></div>
+<div style="margin: 8px; height: 30px; border: 2px solid #14191C; border-radius: 10px"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.55; color: #454D52"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; color: #14191C">Small screens</strong><span>Below 768px the drawer becomes a full-screen sheet under the top bar, with a close button and the same parts. Between 768 and 1280px it overlays with a scrim; above 1280px the scrim drops to 10% so the page stays readable for side-by-side work.</span></div>
+</div>
+
+</div>
+</section>
+
+<section style="background: #14191C; border-radius: 16px; padding: 28px 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; color: #E6E9EB; font-size: 14px; line-height: 1.55">
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">Layout</strong><span>440px wide (min 360, max 40vw), full height below the 52px top bar, slides in from the right over the panel and page (220ms ease-out; 160ms out). Scrim rgba(20,25,28,.18). Sits above SaveBar and toasts in z-order; the TaskIndicator stays visible.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">Behaviour</strong><span>Opens with page context (workspace, directory, page, selected record). Conversation persists per workspace for the session; New conversation clears it. Esc, close button or scrim click closes and returns focus to the trigger. Pip never publishes, deletes or sends email; suggested changes need an explicit Apply.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong style="color: #5FC6D2">Accessibility</strong><span>role=dialog, aria-modal, labelled by "Pip". Focus moves to the composer. New replies announced via a polite live region. Thinking state has a Stop button. Works without the avatar: every state has a text heading.</span></div>
+</section>
+
+</div>
+
+</body>
+</html>
