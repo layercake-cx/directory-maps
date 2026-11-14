@@ -2,8 +2,12 @@
 // Hex fallbacks here (#ffffff, #4A9BAA, #111827, #e5e7eb) are default theme DATA, not styling.
 import { normalizePinSize } from "../../lib/markerIcons";
 
-/** Per-group design overrides from each group's theme_json, keyed by group id. */
-export function groupOverridesFromGroups(groups) {
+/**
+ * Per-group design overrides from each group's theme_json, keyed by group id.
+ * `groupColourFallback` (default true) lets the group's own `color` column stand in for a missing marker colour;
+ * the admin page passes false because it never read that column here.
+ */
+export function groupOverridesFromGroups(groups, { groupColourFallback = true } = {}) {
   const m = new Map();
   (groups || []).forEach((g) => {
     if (!g.id) return;
@@ -24,7 +28,7 @@ export function groupOverridesFromGroups(groups) {
     }
     m.set(g.id, {
       marker_style: theme.marker_style ?? theme.markerStyle ?? null,
-      marker_color: theme.marker_color ?? theme.markerColor ?? g.color ?? null,
+      marker_color: theme.marker_color ?? theme.markerColor ?? (groupColourFallback ? g.color : null) ?? null,
       pinBorderColor: theme.pinBorderColor ?? null,
       pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
       pinDropShadow: theme.pinDropShadow != null ? theme.pinDropShadow : null,

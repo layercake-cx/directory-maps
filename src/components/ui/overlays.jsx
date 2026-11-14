@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import Button from "./Button.jsx";
 import { TextInput, Field } from "./forms.jsx";
@@ -178,8 +179,13 @@ export function OverflowMenu({ label, items }) {
         <div className="avatar-menu-list" role="menu">
           {items.map((it) => {
             const cls = `avatar-menu-item ${it.danger ? "avatar-menu-item--danger" : ""}`.trim();
+            // Internal paths use the router (no full page reload); anything else is a plain link.
             return it.href ? (
-              <a key={it.label} role="menuitem" className={cls} href={it.href} onClick={() => close(false)}>{it.label}</a>
+              it.href.startsWith("/") ? (
+                <Link key={it.label} role="menuitem" className={cls} to={it.href} onClick={() => close(false)}>{it.label}</Link>
+              ) : (
+                <a key={it.label} role="menuitem" className={cls} href={it.href} onClick={() => close(false)}>{it.label}</a>
+              )
             ) : (
               <button key={it.label} type="button" role="menuitem" className={cls} disabled={it.disabled} onClick={() => { close(false); it.onSelect?.(); }}>
                 {it.label}

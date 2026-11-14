@@ -6,15 +6,10 @@ import { Link } from "react-router-dom";
 import { listPlans } from "../../lib/entitlements.js";
 import { listClientIdsWithBetaAccess } from "../../lib/featureFlags.js";
 import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
-
-const TRASH_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
-  </svg>
-);
+import {
+  Button, Callout, DataTable, Dialog, EmptyState, Field, PageLayout, Section, TextInput, Toolbar,
+} from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 function buildPrimaryContactByClientId(contacts) {
   const byClient = {};
@@ -165,6 +160,29 @@ export default function AdminClients() {
     [rows],
   );
 
+  const columns = [
+    { key: "name", label: "Customer", render: (r) => <strong>{r.name}</strong> },
+    { key: "plan", label: "Plan", render: (r) => planNameByKey[r.plan_key] ?? r.plan_key ?? "—" },
+    { key: "slug", label: "Slug" },
+    { key: "maps", label: "Number of maps", render: (r) => mapCountByClientId[r.id] ?? 0 },
+    {
+      key: "primary",
+      label: "Primary contact",
+      render: (r) => {
+        const primaryContact = primaryContactByClientId[r.id];
+        return primaryContact ? (
+          <Link to={`/admin/clients/${encodeURIComponent(r.id)}/contacts/${encodeURIComponent(primaryContact.id)}`}>
+            {primaryContact.email}
+          </Link>
+        ) : (
+          "—"
+        );
+      },
+    },
+    { key: "created", label: "Created", render: (r) => (r.created_at ? new Date(r.created_at).toLocaleDateString() : "—") },
+    { key: "updated", label: "Updated", render: (r) => (r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—") },
+  ];
+
   return (
     <AdminLayout
       panel={
@@ -177,126 +195,75 @@ export default function AdminClients() {
           recentClients={recentClients}
         />
       }
-      breadcrumbs={[{ label: "Customers" }]}
     >
-      <div className="card card-pad">
-        <div className="admin-controls">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search customer name, slug, id…"
-          />
+      <PageLayout
+        head={{
+          title: "Customers",
+          actions: (
+            <>
+              <Button onClick={load}>Refresh</Button>
+              <Button as={Link} to="/admin/clients/new" variant="primary">New customer</Button>
+            </>
+          ),
+        }}
+      >
+        <div className="wc-stack">
+          {err ? <Callout tone="danger">{err}</Callout> : null}
 
-          <button className="shell-btn" onClick={load} type="button">
-            Refresh
-          </button>
-
-          <Link className="shell-btn shell-btn--primary" to="/admin/clients/new">
-            New customer
-          </Link>
+          <Section flush>
+            <Toolbar className="wc-toolbar">
+              <Field label="Search customers" className="wc-field-grow">
+                <TextInput
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search customer name, slug, id…"
+                />
+              </Field>
+            </Toolbar>
+            <DataTable
+              caption="Customers"
+              columns={columns}
+              rows={filtered}
+              getRowId={(r) => r.id}
+              getRowLabel={(r) => r.name}
+              rowLink={(r) => `/admin/clients/${encodeURIComponent(r.id)}`}
+              loading={loading}
+              rowMenu={(r) => [
+                (mapCountByClientId[r.id] ?? 0) === 0
+                  ? {
+                      label: "Delete customer",
+                      danger: true,
+                      onSelect: () => {
+                        setClientToDelete({ id: r.id, name: r.name });
+                        setDeleteConfirmText("");
+                      },
+                    }
+                  : { label: "Delete customer (remove maps first)", danger: true, disabled: true },
+              ]}
+              empty={
+                <EmptyState
+                  art="none"
+                  title={rows.length === 0 ? "No customers yet" : "No customers match your search"}
+                  actions={rows.length === 0 ? <Button as={Link} to="/admin/clients/new" variant="primary">New customer</Button> : null}
+                />
+              }
+            />
+          </Section>
         </div>
-
-        {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
-        {err ? <p style={{ marginTop: 12 }}>{err}</p> : null}
-
-        <table className="admin-table">
-          <thead>
-            <tr>
-              {["Customer", "Plan", "Slug", "Number of maps", "Primary contact", "Created", "Updated", ""].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.map((r) => {
-              const mapCount = mapCountByClientId[r.id] ?? 0;
-              const canDelete = mapCount === 0;
-              const primaryContact = primaryContactByClientId[r.id];
-              return (
-                <tr key={r.id}>
-                  <td>
-                    <Link
-                      to={`/admin/clients/${encodeURIComponent(r.id)}`}
-                      style={{ fontWeight: 600, color: "inherit" }}
-                    >
-                      <strong>{r.name}</strong>
-                    </Link>
-                  </td>
-
-                  <td>{planNameByKey[r.plan_key] ?? r.plan_key ?? "—"}</td>
-
-                  <td>{r.slug}</td>
-
-                  <td>{mapCount}</td>
-
-                  <td>
-                    {primaryContact ? (
-                      <Link to={`/admin/clients/${encodeURIComponent(r.id)}/contacts/${encodeURIComponent(primaryContact.id)}`}>
-                        {primaryContact.email}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-                  <td>
-                    {r.created_at
-                      ? new Date(r.created_at).toLocaleDateString()
-                      : "—"}
-                  </td>
-
-                  <td>
-                    {r.updated_at
-                      ? new Date(r.updated_at).toLocaleDateString()
-                      : "—"}
-                  </td>
-
-                  <td style={{ width: 44, textAlign: "right" }}>
-                    {canDelete ? (
-                      <button
-                        type="button"
-                        className="admin-table__delete-btn"
-                        onClick={() => {
-                          setClientToDelete({ id: r.id, name: r.name });
-                          setDeleteConfirmText("");
-                        }}
-                        title="Delete customer"
-                        aria-label={`Delete customer ${r.name}`}
-                      >
-                        {TRASH_ICON}
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      </PageLayout>
 
       {clientToDelete ? (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-customer-title">
-          <div className="admin-modal">
-            <h2 id="delete-customer-title" className="admin-modal__title">Delete customer</h2>
-            <p className="admin-modal__message">
-              Are you sure you want to permanently delete the customer &quot;{clientToDelete.name}&quot;? This cannot be undone.
-            </p>
-            <p className="admin-modal__hint">Type <strong>delete</strong> below to confirm.</p>
-            <input
-              type="text"
-              className="admin-modal__input"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="delete"
-              autoComplete="off"
-              autoFocus
-              aria-label="Type delete to confirm"
-            />
-            <div className="admin-modal__actions">
-              <button
-                type="button"
-                className="btn"
+        <Dialog
+          title="Delete customer"
+          onClose={() => {
+            if (deleting) return;
+            setClientToDelete(null);
+            setDeleteConfirmText("");
+          }}
+          footer={
+            <>
+              <Button
                 onClick={() => {
                   setClientToDelete(null);
                   setDeleteConfirmText("");
@@ -304,18 +271,32 @@ export default function AdminClients() {
                 disabled={deleting}
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
+              </Button>
+              <Button
+                variant="danger-solid"
                 onClick={confirmDelete}
-                disabled={deleteConfirmText.trim().toLowerCase() !== "delete" || deleting}
+                disabled={deleteConfirmText.trim().toLowerCase() !== "delete"}
+                loading={deleting}
+                loadingLabel="Deleting…"
               >
-                {deleting ? "Deleting…" : "Delete permanently"}
-              </button>
-            </div>
-          </div>
-        </div>
+                Delete permanently
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Are you sure you want to permanently delete the customer &quot;{clientToDelete.name}&quot;? This cannot be undone.
+          </p>
+          <Field label="Type delete to confirm" hint="Type delete below to confirm.">
+            <TextInput
+              data-autofocus
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="delete"
+              autoComplete="off"
+            />
+          </Field>
+        </Dialog>
       ) : null}
     </AdminLayout>
   );

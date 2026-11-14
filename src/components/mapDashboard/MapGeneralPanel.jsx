@@ -5,12 +5,14 @@ import { DraftStatus, RangeControl, RangeField } from "./controls.jsx";
 /**
  * General tab: name, slug, description, default location and clustering. Auto-saves as a draft (the page owns that).
  * Location lookup (geocoding) stays in the page; this component only renders its controls.
+ * `slugPlaceholder` and `slugHint` are optional (the admin page suggests a slug from the name).
  * @param {object} props
  */
 export default function MapGeneralPanel({
   draftStatus, name, onNameChange, slug, onSlugChange, description, onDescriptionChange,
   locationQuery, onLocationQueryChange, onLookupLocation, geocoding, centerLabel,
   zoom, onZoomChange, enableClustering, onEnableClusteringChange, clusterRadius, onClusterRadiusChange,
+  slugPlaceholder, slugHint,
 }) {
   return (
     <div className="md-stack">
@@ -20,8 +22,8 @@ export default function MapGeneralPanel({
         <Field label="Map name">
           <TextInput value={name} onChange={(e) => onNameChange(e.target.value)} />
         </Field>
-        <Field label="Slug">
-          <TextInput value={slug} onChange={(e) => onSlugChange(e.target.value)} />
+        <Field label="Slug" hint={slugHint}>
+          <TextInput value={slug} onChange={(e) => onSlugChange(e.target.value)} placeholder={slugPlaceholder} />
         </Field>
         <Field label="Description" hint="Optional. Shown beneath the title in the search panel.">
           <Textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} rows={4} />

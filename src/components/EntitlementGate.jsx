@@ -1,4 +1,6 @@
 import React from "react";
+import { Callout } from "./ui/index.js";
+import "../styles/wave-c/ops.css";
 
 /**
  * Generic entitlement gate: dims + disables its children and shows a
@@ -10,41 +12,20 @@ export default function EntitlementGate({ allowed, loading, message, children })
   if (loading || allowed) return <>{children}</>;
 
   return (
-    <div style={{ position: "relative" }}>
-      <div style={{ opacity: 0.35, filter: "grayscale(30%)" }} aria-hidden="true" inert={true}>
+    <div className="ent-gate">
+      <div className="ent-gate-dim" aria-hidden="true" inert={true}>
         {children}
       </div>
       {/*
-        `absolute; inset: 0` scopes the dim/overlay to THIS component's own
-        box only — it can never cover nav or other page chrome, since those
-        live outside this wrapper in the DOM. `sticky; top: 200` keeps the
-        alert pinned 200px below the top of that box as the page scrolls,
-        instead of trying to vertically center it in the viewport (which
-        pushed it to the bottom of the screen on some viewport heights).
+        The overlay is scoped to THIS component's own box only (see ops.css), so it can never
+        cover nav or other page chrome. The alert is pinned 200px below the top of that box as
+        the page scrolls, instead of being vertically centred in the viewport.
       */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.55)", zIndex: 5 }}>
-        <div
-          style={{
-            position: "sticky",
-            top: 200,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            role="alert"
-            style={{
-              background: "#fff",
-              border: "1px solid #f59e0b",
-              borderRadius: 10,
-              padding: "20px 24px",
-              maxWidth: 380,
-              textAlign: "center",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-            }}
-          >
-            <p style={{ margin: 0, fontWeight: 600, color: "#92400e" }}>{message}</p>
-          </div>
+      <div className="ent-gate-overlay">
+        <div className="ent-gate-pin">
+          <Callout tone="warn" role="alert" className="ent-gate-card">
+            {message}
+          </Callout>
         </div>
       </div>
     </div>

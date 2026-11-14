@@ -22,7 +22,7 @@ import "../../styles/wave-b/map-data.css";
  *   onSubmit: (event: React.FormEvent) => void,
  *   onClose: () => void,
  *   filterEditorRef: React.Ref<any>,          // ref to ListingFilterValuesEditor (persist(listingId))
- *   addGroup: { open: boolean, name: string, saving: boolean, onOpen: () => void, onClose: () => void,
+ *   addGroup?: { open: boolean, name: string, saving: boolean, onOpen: () => void, onClose: () => void,
  *               onNameChange: (name: string) => void, onSave: (event: React.SyntheticEvent) => void },
  * }} props
  */
@@ -63,12 +63,12 @@ export default function ManualListingDialog({
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </Select>
           </Field>
-          {!addGroup.open && (
+          {addGroup && !addGroup.open && (
             <div>
               <Button size="sm" variant="ghost" icon={<PlusIcon />} onClick={addGroup.onOpen}>Add group</Button>
             </div>
           )}
-          {addGroup.open && (
+          {addGroup && addGroup.open && (
             // Not a <form>: this sits inside the entry form, and nested forms are invalid HTML.
             <div className="md-group-add">
               <Field label="New group name">

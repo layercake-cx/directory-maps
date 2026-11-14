@@ -2,10 +2,17 @@ import React, { useCallback, useEffect, useState } from "react";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, DataTable, EmptyState, PageLayout, Section, Select } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
+import "../../styles/wave-c/maps-users.css";
 
 const PAGE_SIZE = 200;
 
 const STATUS_OPTIONS = ["To be actioned", "In progress", "Successful", "Lost"];
+
+function leadName(r) {
+  return [r.first_name, r.last_name].filter(Boolean).join(" ") || "—";
+}
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -68,87 +75,67 @@ export default function AdminLeads() {
     });
   }
 
-  return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Leads" }]}
-      subtitle={
-        <>
-          Founding-partner enquiries submitted via the public landing page (newest first, up to {PAGE_SIZE} rows).
-          Apply the <code>beta_signups_status</code> migration if this list is empty or errors.
-        </>
-      }
-      rightActions={
-        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
-          {loading ? "Loading…" : "Refresh"}
-        </button>
-      }
-    >
-      <div className="card card-pad">
-
-        <p
-          style={{
-            background: "#fdf3e6",
-            border: "1px solid #f0d9b5",
-            borderRadius: 8,
-            padding: "10px 14px",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
+  const columns = [
+    { key: "date", label: "Date", className: "mu-nowrap", render: (r) => formatDate(r.submitted_at) },
+    { key: "name", label: "Name", render: (r) => leadName(r) },
+    { key: "email", label: "Email", render: (r) => r.work_email || "—" },
+    { key: "organisation", label: "Organisation", render: (r) => r.organisation || "—" },
+    {
+      key: "status",
+      label: "Status",
+      render: (r) => (
+        <Select
+          className="mu-status-select"
+          value={r.status || "To be actioned"}
+          disabled={savingId === r.id}
+          onChange={(e) => updateStatus(r, e.target.value)}
+          aria-label={`Status for ${leadName(r)}`}
         >
-          <strong>Deprecated:</strong> the public signup form now submits to HubSpot instead of this table. This
-          page only shows leads captured before that change — new enquiries won&apos;t appear here. Check HubSpot
-          for current leads.
-        </p>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      ),
+    },
+  ];
 
-        {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
+  return (
+    <AdminLayout>
+      <PageLayout
+        head={{
+          title: "Leads",
+          subtitle: (
+            <>
+              Founding-partner enquiries submitted via the public landing page (newest first, up to {PAGE_SIZE} rows).
+              Apply the <code>beta_signups_status</code> migration if this list is empty or errors.
+            </>
+          ),
+          actions: <Button onClick={load} loading={loading} loadingLabel="Loading…">Refresh</Button>,
+        }}
+      >
+        <div className="mp-stack">
+          <Callout tone="warn" title="Deprecated">
+            The public signup form now submits to HubSpot instead of this table. This page only shows leads captured
+            before that change, so new enquiries won&apos;t appear here. Check HubSpot for current leads.
+          </Callout>
 
-        {loading && !rows.length ? (
-          <p>Loading…</p>
-        ) : !rows.length ? (
-          <p style={{ color: "var(--lc-muted)" }}>No leads submitted yet.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="admin-table" style={{ width: "100%", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Organisation</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || "—";
-                  return (
-                    <tr key={r.id}>
-                      <td style={{ whiteSpace: "nowrap" }}>{formatDate(r.submitted_at)}</td>
-                      <td>{name}</td>
-                      <td>{r.work_email || "—"}</td>
-                      <td>{r.organisation || "—"}</td>
-                      <td>
-                        <select
-                          value={r.status || "To be actioned"}
-                          disabled={savingId === r.id}
-                          onChange={(e) => updateStatus(r, e.target.value)}
-                          aria-label={`Status for ${name}`}
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+          {err ? <Callout tone="danger">{err}</Callout> : null}
+
+          <Section flush>
+            <DataTable
+              columns={columns}
+              rows={rows}
+              getRowId={(r) => r.id}
+              getRowLabel={leadName}
+              loading={loading && !rows.length}
+              caption="Leads"
+              empty={<EmptyState art="searching" title="No leads submitted yet" />}
+            />
+          </Section>
+        </div>
+      </PageLayout>
     </AdminLayout>
   );
 }

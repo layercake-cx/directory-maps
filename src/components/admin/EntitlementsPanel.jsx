@@ -9,6 +9,8 @@ import {
   setClientEntitlementOverride,
   clearClientEntitlementOverride,
 } from "../../lib/entitlements.js";
+import { Button, Callout, Checkbox, DataTable, EmptyState, Field, Pill, Select, Skeleton, TextInput } from "../ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 /**
  * Self-contained "Entitlements" panel — plan assignment + per-feature
@@ -111,87 +113,82 @@ export default function EntitlementsPanel({ clientId, recordEvent }) {
     }
   }
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <Skeleton variant="form" label="Loading entitlements" />;
+
+  const columns = [
+    {
+      key: "name",
+      label: "Feature",
+      render: (f) => (
+        <>
+          <strong>{f.name}</strong>
+          <span className="wc-cell-sub">
+            {f.product_key}.{f.key}
+          </span>
+        </>
+      ),
+    },
+    { key: "entitlement_type", label: "Type" },
+    {
+      key: "override",
+      label: "Override",
+      render: (f) => (
+        <FeatureOverrideInput
+          feature={f}
+          override={overrideFor(f.id)}
+          disabled={savingFeatureId === f.id}
+          onChange={(patch) => handleOverrideChange(f, patch)}
+        />
+      ),
+    },
+    {
+      key: "clear",
+      label: "Clear",
+      render: (f) =>
+        overrideFor(f.id) ? (
+          <Button size="sm" disabled={savingFeatureId === f.id} onClick={() => handleClearOverride(f)}>
+            Clear
+          </Button>
+        ) : null,
+    },
+  ];
 
   return (
-    <div>
-      {error ? <p style={{ margin: "0 0 12px 0", color: "#b91c1c" }}>{error}</p> : null}
+    <div className="wc-stack">
+      {error ? <Callout tone="danger">{error}</Callout> : null}
 
-      <h3 style={{ margin: "0 0 8px 0", fontSize: 15 }}>Plan</h3>
-      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
-        Sets this customer&apos;s commercial tier. Saved immediately.
-      </p>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <select
-          value={planKey}
-          disabled={savingPlan}
-          onChange={(e) => handlePlanChange(e.target.value)}
-          style={{ padding: "8px 10px" }}
-        >
-          {plans.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        {selectedPlan?.is_founder_tier ? (
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#047857" }}>
-            Founder Members — all entitlements unlimited
-          </span>
-        ) : null}
+      <div className="wc-block">
+        <h3 className="wc-subhead">Plan</h3>
+        <p className="wc-muted">Sets this customer&apos;s commercial tier. Saved immediately.</p>
+        <div className="wc-inline">
+          <Field label="Plan" className="wc-field-auto">
+            <Select value={planKey} disabled={savingPlan} onChange={(e) => handlePlanChange(e.target.value)}>
+              {plans.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {selectedPlan?.is_founder_tier ? (
+            <Pill tone="ok">Founder Members: all entitlements unlimited</Pill>
+          ) : null}
+        </div>
       </div>
 
-      <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Per-feature overrides</h3>
-      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
-        Grant or restrict a specific feature for this customer, overriding their plan default.
-      </p>
-
-      {features.length === 0 ? (
-        <p style={{ opacity: 0.8 }}>No entitlements in the catalog yet.</p>
-      ) : (
-        <table className="admin-table" style={{ marginTop: 0 }}>
-          <thead>
-            <tr>
-              <th>Feature</th>
-              <th>Type</th>
-              <th>Override</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {features.map((f) => {
-              const ov = overrideFor(f.id);
-              const savingThis = savingFeatureId === f.id;
-              return (
-                <tr key={f.id}>
-                  <td>
-                    <strong>{f.name}</strong>
-                    <div style={{ fontSize: 11, opacity: 0.6 }}>
-                      {f.product_key}.{f.key}
-                    </div>
-                  </td>
-                  <td>{f.entitlement_type}</td>
-                  <td>
-                    <FeatureOverrideInput
-                      feature={f}
-                      override={ov}
-                      disabled={savingThis}
-                      onChange={(patch) => handleOverrideChange(f, patch)}
-                    />
-                  </td>
-                  <td>
-                    {ov ? (
-                      <button type="button" disabled={savingThis} onClick={() => handleClearOverride(f)}>
-                        Clear
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      <div className="wc-block">
+        <h3 className="wc-subhead">Per-feature overrides</h3>
+        <p className="wc-muted">
+          Grant or restrict a specific feature for this customer, overriding their plan default.
+        </p>
+        <DataTable
+          caption="Per-feature overrides"
+          columns={columns}
+          rows={features}
+          getRowLabel={(f) => f.name}
+          empty={<EmptyState art="none" title="No entitlements in the catalog yet" />}
+        />
+      </div>
     </div>
   );
 }
@@ -199,15 +196,12 @@ export default function EntitlementsPanel({ clientId, recordEvent }) {
 function FeatureOverrideInput({ feature, override, disabled, onChange }) {
   if (feature.entitlement_type === ENTITLEMENT_TYPES.BOOLEAN) {
     return (
-      <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: disabled ? "wait" : "pointer" }}>
-        <input
-          type="checkbox"
-          checked={override?.bool_value === true}
-          disabled={disabled}
-          onChange={(e) => onChange({ bool_value: e.target.checked })}
-        />
-        Enabled
-      </label>
+      <Checkbox
+        label="Enabled"
+        checked={override?.bool_value === true}
+        disabled={disabled}
+        onChange={(e) => onChange({ bool_value: e.target.checked })}
+      />
     );
   }
 
@@ -218,14 +212,15 @@ function FeatureOverrideInput({ feature, override, disabled, onChange }) {
     const field = feature.entitlement_type === ENTITLEMENT_TYPES.VOLUME ? "limit_value" : "included_allowance";
     const value = override?.[field] ?? "";
     return (
-      <input
+      <TextInput
         key={overrideKey(override)}
         type="number"
         min={0}
+        aria-label={`${feature.name} override`}
         placeholder="Unlimited"
         defaultValue={value}
         disabled={disabled}
-        style={{ width: 100, padding: "6px 8px" }}
+        className="wc-input-narrow"
         onBlur={(e) => {
           const next = e.target.value === "" ? null : Number(e.target.value);
           onChange({ [field]: next });
@@ -237,12 +232,13 @@ function FeatureOverrideInput({ feature, override, disabled, onChange }) {
   if (feature.entitlement_type === ENTITLEMENT_TYPES.TIME_BOXED) {
     const value = override?.expires_at ? override.expires_at.slice(0, 10) : "";
     return (
-      <input
+      <TextInput
         key={overrideKey(override)}
         type="date"
+        aria-label={`${feature.name} expiry date`}
         defaultValue={value}
         disabled={disabled}
-        style={{ padding: "6px 8px" }}
+        className="wc-input-auto"
         onBlur={(e) => {
           const next = e.target.value ? new Date(`${e.target.value}T00:00:00.000Z`).toISOString() : null;
           onChange({ bool_value: true, expires_at: next });

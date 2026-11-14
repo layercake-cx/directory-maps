@@ -1,14 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MapDraftContext } from "../../context/MapDraftContext.js";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import PublishedMapView from "../../components/PublishedMapView.jsx";
 import FilterFieldsPanel from "../../components/FilterFieldsPanel.jsx";
 import EntityMessagingSettings from "../../components/EntityMessagingSettings.jsx";
 import { loadFilterFields, loadFilterValuesForMap, filterFieldsForPublication, resolveColorForListing, setMapColorFilterFieldId } from "../../lib/filterFields.js";
-import LogoImage from "../../components/LogoImage.jsx";
-import { markerIconDataUrl, normalizePinSize, pinPreviewScale, MARKER_ANCHORS } from "../../lib/markerIcons";
+import { normalizePinSize } from "../../lib/markerIcons";
 import { sanitizeSvgFile } from "../../lib/sanitizeSvg.js";
 import {
   buildPublicationConfig,
@@ -22,66 +21,21 @@ import { formatContactMessageError, submitContactMessage } from "../../lib/conta
 import {
   buildMapStyles,
   DEFAULT_MAP_STYLE_SETTINGS,
-  DETAIL_LEVEL_LABELS,
   normalizeMapStyleSettings,
 } from "../../lib/mapStyleSettings.js";
 import { listClientFeatureOverrides } from "../../lib/featureFlags.js";
+import { Button, Skeleton, useConfirm } from "../../components/ui";
+import {
+  MapDesignPanel, MapGeneralPanel, MapGroupDesignEditor, MapGroupsPanel, MapListingLogoPanel, MapMessageDrawer, MapOverlayPanel,
+  MapPanelsPanel, MapPublishPage, MapSearchPanel, MapSettingsStrip, MapStylePanel,
+  PAGE_SIZE, MAP_STYLE_PRESET_SETTINGS, groupOverridesFromGroups, listingsWithGroupColours, buildEditTheme, defaultPresetIdFromMapTypeId, buildEmbedIframe, buildEmbedThumbnail,
+} from "../../components/mapDashboard";
 
+// Map design/publish page for platform staff (/admin/clients/:clientId/maps/:mapId). Presentation lives in
+// src/components/mapDashboard (shared with the client page); this file keeps the data loading, draft auto-save,
+// publish and group logic, plus the admin-only wiring (event sources, AdminLayout, client check).
+// Hex values below (#4A9BAA, #ffffff, ...) are default map theme DATA stored in theme_json, not styling.
 // Run once: ALTER TABLE listings ADD COLUMN IF NOT EXISTS logo_bg text;
-const TABS = ["detail", "design", "panels", "groups", "mapstyle", "publish", "search", "filters", "messaging"];
-const PAGE_SIZE = 100;
-const LOGO_BG_SWATCHES = [
-  { label: "None", value: "" },
-  { label: "Light", value: "#d4d4d4" },
-  { label: "Mid", value: "#737373" },
-  { label: "Dark", value: "#1a1a1a" },
-];
-const MAP_TYPES = [
-  { id: "roadmap", label: "Roadmap" },
-  { id: "roadmap_silver", label: "Silver" },
-  { id: "roadmap_dark", label: "Dark" },
-  { id: "roadmap_muted", label: "Muted" },
-  { id: "roadmap_atlas", label: "Atlas" },
-  { id: "satellite", label: "Satellite" },
-  { id: "hybrid", label: "Hybrid" },
-  { id: "terrain", label: "Terrain" },
-];
-const BASE_TYPE_OPTIONS = [
-  { id: "roadmap", label: "Roadmap" },
-  { id: "satellite", label: "Satellite" },
-  { id: "hybrid", label: "Hybrid" },
-  { id: "terrain", label: "Terrain" },
-];
-const DETAIL_CONTROLS = [
-  { key: "poi", label: "Places of interest", description: "Restaurants, cafes, attractions" },
-  { key: "business", label: "Local businesses", description: "Shops, services, offices" },
-  { key: "transit", label: "Transit & transport", description: "Bus stops, stations, routes" },
-  { key: "roadLabels", label: "Road labels", description: "Street names and numbers" },
-  { key: "adminLabels", label: "Administrative labels", description: "Towns, counties, countries" },
-];
-const OVERLAY_CONTROLS = [
-  { key: "terrain", label: "Terrain & contours", description: "Show elevation shading and contour lines" },
-  { key: "traffic", label: "Traffic layer", description: "Live traffic conditions" },
-  { key: "transit", label: "Public transport routes", description: "Bus, rail and tube lines" },
-  { key: "bikeLanes", label: "Bike lanes", description: "Cycle paths and shared routes" },
-];
-const PIN_STYLES = [
-  { id: "pin", label: "Pin" },
-  { id: "teardrop", label: "Rounded Pin" },
-  { id: "dot", label: "Dot" },
-  { id: "custom", label: "Custom Icon" },
-];
-
-function tabLabel(t) {
-  if (t === "detail") return "General";
-  if (t === "design") return "Pin Design";
-  if (t === "groups") return "Groups";
-  if (t === "mapstyle") return "Map Style";
-  if (t === "publish") return "Publish Map";
-  if (t === "filters") return "Filters";
-  if (t === "messaging") return "Messaging";
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
 
 function slugify(input) {
   return (input || "")
@@ -90,123 +44,6 @@ function slugify(input) {
     .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-
-function ColorRow({ value, onChange, ariaLabel }) {
-  return (
-    <div className="color-row">
-      <label className="color-swatch" title="Click to pick colour">
-        <span className="color-swatch__fill" style={{ background: value }} />
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="color-swatch__input"
-          aria-label={ariaLabel}
-        />
-      </label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="color-hex-input"
-        aria-label={`${ariaLabel} hex`}
-      />
-    </div>
-  );
-}
-
-const MAP_STYLE_COLORS = {
-  roadmap:        { land: "#e8e4de", water: "#a8c8e8", road: "#ffffff", border: "#c8c0b0" },
-  roadmap_silver: { land: "#ebe3cd", water: "#b9d3c2", road: "#fdfcf8", border: "#c9b2a6" },
-  roadmap_dark:   { land: "#374151", water: "#17263c", road: "#4b5563", border: "#4a5568" },
-  roadmap_muted:  { land: "#e8e2d5", water: "#b8d4e3", road: "#f0ede6", border: "#8b8680" },
-  roadmap_atlas:  { land: "#cdb98a", water: "#8bbde0", road: "#d8c898", border: "#a0906a" },
-  satellite:      { land: "#2a3f28", water: "#1a3548", road: "#3d5a3d", border: "#1e2e1e" },
-  hybrid:         { land: "#2a3f28", water: "#1a3548", road: "#6b7280", border: "#374151" },
-  terrain:        { land: "#8aaa6a", water: "#7abadb", road: "#b8d4a8", border: "#6a8a5a" },
-};
-
-const MAP_STYLE_PRESET_SETTINGS = {
-  roadmap: {
-    baseType: "roadmap",
-    colors: { land: "#e8e4de", water: "#a8c8e8", roads: "#ffffff" },
-    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
-    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
-  },
-  roadmap_silver: {
-    baseType: "roadmap",
-    colors: { land: "#ebe3cd", water: "#b9d3c2", roads: "#fdfcf8" },
-    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
-    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
-  },
-  roadmap_dark: {
-    baseType: "roadmap",
-    colors: { land: "#374151", water: "#17263c", roads: "#4b5563" },
-    detail: { poi: 1, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
-    overlays: { terrain: false, traffic: false, transit: true, bikeLanes: false },
-  },
-  roadmap_muted: {
-    baseType: "roadmap",
-    colors: { land: "#e8e2d5", water: "#b8d4e3", roads: "#f0ede6" },
-    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
-    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
-  },
-  roadmap_atlas: {
-    baseType: "roadmap",
-    colors: { land: "#cdb98a", water: "#8bbde0", roads: "#d8c898" },
-    detail: { poi: 0, business: 0, transit: 0, roadLabels: 0, adminLabels: 3 },
-    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
-  },
-  satellite: {
-    baseType: "satellite",
-    colors: { land: "#2a3f28", water: "#1a3548", roads: "#3d5a3d" },
-    detail: { poi: 1, business: 1, transit: 1, roadLabels: 2, adminLabels: 2 },
-    overlays: { terrain: false, traffic: false, transit: false, bikeLanes: false },
-  },
-  hybrid: {
-    baseType: "hybrid",
-    colors: { land: "#2a3f28", water: "#1a3548", roads: "#6b7280" },
-    detail: { poi: 2, business: 2, transit: 2, roadLabels: 3, adminLabels: 3 },
-    overlays: { terrain: false, traffic: false, transit: true, bikeLanes: false },
-  },
-  terrain: {
-    baseType: "terrain",
-    colors: { land: "#8aaa6a", water: "#7abadb", roads: "#b8d4a8" },
-    detail: { poi: 2, business: 1, transit: 1, roadLabels: 2, adminLabels: 3 },
-    overlays: { terrain: true, traffic: false, transit: false, bikeLanes: false },
-  },
-};
-
-function defaultPresetIdFromMapTypeId(mapTypeId) {
-  return MAP_STYLE_PRESET_SETTINGS[mapTypeId] ? mapTypeId : null;
-}
-
-function MapStyleThumb({ styleId }) {
-  const c = MAP_STYLE_COLORS[styleId] || MAP_STYLE_COLORS.roadmap;
-  return (
-    <svg viewBox="0 0 90 56" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-      <rect width="90" height="56" fill={c.water} />
-      <polygon points="0,0 38,0 44,8 36,20 20,24 8,18 0,22" fill={c.land} />
-      <polygon points="42,0 90,0 90,22 78,28 64,20 52,24 44,14" fill={c.land} />
-      <polygon points="0,32 14,26 28,32 32,44 20,56 0,56" fill={c.land} />
-      <polygon points="56,30 72,24 90,30 90,56 52,56 50,42" fill={c.land} />
-      <path d="M16,18 Q30,10 44,14 Q58,18 68,20" stroke={c.road} strokeWidth="1.2" fill="none" opacity="0.7" />
-      <line x1="0" y1="28" x2="90" y2="28" stroke={c.border} strokeWidth="0.5" opacity="0.4" strokeDasharray="3,2" />
-    </svg>
-  );
 }
 
 export default function AdminMapDashboard() {
@@ -338,6 +175,12 @@ export default function AdminMapDashboard() {
 
   const suggestedSlug = useMemo(() => slugify(name), [name]);
   const finalSlug = (slug || suggestedSlug).trim();
+  const confirm = useConfirm();
+
+  const [embedWidth, setEmbedWidth] = useState("100");
+  const [embedWidthUnit, setEmbedWidthUnit] = useState("%");
+  const [embedHeight, setEmbedHeight] = useState("800");
+  const [thumbSize, setThumbSize] = useState("medium");
 
   const embedSrc = useMemo(() => {
     const clientSlug = client?.slug;
@@ -348,13 +191,15 @@ export default function AdminMapDashboard() {
     return `${window.location.origin}/embed?map=${encodeURIComponent(mapId)}`;
   }, [mapId, client?.slug, slug]);
 
-  const embedIframe = useMemo(() => {
-    const uid = `dm-e-${String(mapId).replace(/[^a-z0-9]/gi, "")}`;
-    return `<style>.${uid}{width:100%;height:800px}@media(max-width:767px){.${uid}{height:100vh;height:100dvh}}</style>
-<div class="${uid}">
-  <iframe src="${embedSrc}" width="100%" height="100%" style="border:0;border-radius:12px" loading="lazy" allowfullscreen></iframe>
-</div>`;
-  }, [embedSrc, mapId]);
+  const embedIframe = useMemo(
+    () => buildEmbedIframe({ embedSrc, embedWidth, embedWidthUnit, embedHeight, mapId }),
+    [embedSrc, embedWidth, embedWidthUnit, embedHeight, mapId],
+  );
+
+  const embedThumbnail = useMemo(
+    () => buildEmbedThumbnail({ embedSrc, mapId, thumbSize }),
+    [embedSrc, mapId, thumbSize],
+  );
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   // isProductionEnv kept for reference; contact form test mode is now driven by client.email_test_mode
@@ -393,41 +238,9 @@ export default function AdminMapDashboard() {
     setMapStyleSettings(normalizeMapStyleSettings(preset));
   }
 
-  const groupOverridesById = useMemo(() => {
-    const m = new Map();
-    (groups || []).forEach((g) => {
-      if (!g.id) return;
-      const raw = g.theme_json;
-      const theme =
-        typeof raw === "string"
-          ? (() => {
-              try {
-                return JSON.parse(raw || "{}");
-              } catch {
-                return {};
-              }
-            })()
-          : raw || {};
-      if (!theme || typeof theme !== "object") {
-        m.set(g.id, {});
-        return;
-      }
-      m.set(g.id, {
-        marker_style: theme.marker_style ?? theme.markerStyle ?? null,
-        marker_color: theme.marker_color ?? theme.markerColor ?? null,
-        pinBorderColor: theme.pinBorderColor ?? null,
-        pinBorderSize: theme.pinBorderSize != null ? theme.pinBorderSize : null,
-        pinDropShadow: theme.pinDropShadow != null ? theme.pinDropShadow : null,
-        clusterColor: theme.clusterColor ?? null,
-        custom_pin_url: theme.custom_pin_url ?? null,
-        pin_favicon_url: theme.pin_favicon_url ?? null,
-        pin_favicon_mode: theme.pin_favicon_mode ?? "inherit",
-        pinSize:
-          theme.pinSize != null && theme.pinSize !== "" ? normalizePinSize(theme.pinSize) : null,
-      });
-    });
-    return m;
-  }, [groups]);
+  // The admin page never read the group's own colour column for the preview, so the shared helper is told not to.
+  const groupOverridesById = useMemo(() => groupOverridesFromGroups(groups, { groupColourFallback: false }), [groups]);
+
 
   const globalDesignForGroup = useMemo(
     () => ({
@@ -445,45 +258,11 @@ export default function AdminMapDashboard() {
     }),
     [markerStyle, markerColor, pinBorderColor, pinBorderSize, pinDropShadow, pinShadowDistance, pinShadowOpacity, clusterColor, customPinUrl, pinFaviconUrl, pinSize],
   );
-  const groupMarkerStyle = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
 
-  const listingsWithColor = useMemo(() => {
-    return (listings || []).map((l) => {
-      let overrides = l.group_id ? groupOverridesById.get(l.group_id) || {} : {};
-      if (editingGroupId && groupEditDesign && l.group_id === editingGroupId) {
-        const e = groupEditDesign;
-        const g = globalDesignForGroup;
-        const favMode = e.pin_favicon_mode ?? "inherit";
-        overrides = {
-          marker_style: e.marker_style ?? g.marker_style,
-          marker_color: e.marker_color ?? g.marker_color,
-          pinBorderColor: e.pinBorderColor ?? g.pinBorderColor,
-          pinBorderSize: e.pinBorderSize != null ? e.pinBorderSize : g.pinBorderSize,
-          pinDropShadow: e.pinDropShadow != null ? e.pinDropShadow : g.pinDropShadow,
-          clusterColor: e.clusterColor ?? g.clusterColor,
-          custom_pin_url: e.custom_pin_url ?? g.custom_pin_url,
-          pin_favicon_url: favMode === "custom" ? (e.pin_favicon_url || null) : null,
-          pin_favicon_mode: favMode,
-          pinSize: e.pinSize != null ? normalizePinSize(e.pinSize) : g.pinSize,
-        };
-      }
-      return {
-        ...l,
-        group_color: overrides.marker_color || null,
-        group_marker_style: overrides.marker_style || null,
-        group_custom_pin_url: overrides.custom_pin_url || null,
-        group_pin_favicon_url: overrides.pin_favicon_url || null,
-        group_pin_favicon_mode: overrides.pin_favicon_mode || "inherit",
-        group_pin_border_color: overrides.pinBorderColor || null,
-        group_pin_border_size:
-          typeof overrides.pinBorderSize === "number" ? overrides.pinBorderSize : null,
-        group_pin_drop_shadow:
-          typeof overrides.pinDropShadow === "number" ? overrides.pinDropShadow : null,
-        group_pin_size:
-          overrides.pinSize != null && overrides.pinSize !== "" ? overrides.pinSize : null,
-      };
-    });
-  }, [listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup]);
+  const listingsWithColor = useMemo(
+    () => listingsWithGroupColours({ listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup }),
+    [listings, groupOverridesById, editingGroupId, groupEditDesign, globalDesignForGroup],
+  );
 
   const refreshFilterFields = React.useCallback(async () => {
     if (!mapId) return;
@@ -554,8 +333,6 @@ export default function AdminMapDashboard() {
     [filteredListings, dataPage]
   );
   const totalFilteredListings = filteredListings.length;
-  const dataStart = totalFilteredListings ? dataPage * PAGE_SIZE + 1 : 0;
-  const dataEnd = totalFilteredListings ? Math.min((dataPage + 1) * PAGE_SIZE, totalFilteredListings) : 0;
 
   useEffect(() => {
     const maxPage = totalPages > 0 ? totalPages - 1 : 0;
@@ -895,6 +672,12 @@ export default function AdminMapDashboard() {
     window.setTimeout(() => setMsg(""), 1600);
   }
 
+  async function copyThumbnailEmbed() {
+    await navigator.clipboard.writeText(embedThumbnail);
+    setMsg("Thumbnail embed code copied.");
+    window.setTimeout(() => setMsg(""), 1600);
+  }
+
   function openEmbed() {
     window.open(embedSrc, "_blank");
   }
@@ -1132,7 +915,12 @@ export default function AdminMapDashboard() {
   }
 
   async function deleteMap() {
-    const ok = window.confirm("Delete this map? This will also delete its groups and listings if FK cascade is set.");
+    const ok = await confirm({
+      title: "Delete this map?",
+      body: "This will also delete its groups and listings if FK cascade is set.",
+      confirmLabel: "Delete map",
+      tone: "danger",
+    });
     if (!ok) return;
 
     try {
@@ -1149,36 +937,11 @@ export default function AdminMapDashboard() {
     }
   }
 
-  const editTheme = useMemo(() => {
-    const toRgba = (hexColor, opacity) => {
-      const hex = (hexColor || "#ffffff").trim().replace(/^#/, "");
-      const m = hex.match(/.{2}/g);
-      const r = m ? parseInt(m[0], 16) : 255;
-      const g = m ? parseInt(m[1], 16) : 255;
-      const b = m ? parseInt(m[2], 16) : 255;
-      const a = Math.max(0, Math.min(1, Number(opacity) ?? 1));
-      return `rgba(${r},${g},${b},${a})`;
-    };
-    return {
-      panelBg: toRgba(panelBackgroundColor, panelBackgroundOpacity ?? 0.88),
-      panelLinkColor: (panelLinkColor || "").trim() || "#4A9BAA",
-      buttonColor: (buttonColor || "").trim() || "#4A9BAA",
-      pinDetailLayout: pinDetailLayout === "drawer" ? "drawer" : "map",
-      panelBorderRadius: Math.max(0, Math.min(28, Number(panelBorderRadius) || 12)),
-      pinSize: normalizePinSize(pinSize),
-      logoUrl: (logoUrl || "").trim(),
-      description: typeof description === "string" ? description : "",
-      searchPanelBg: toRgba(searchPanelBgColor, searchPanelBgOpacity ?? 0.92),
-      searchPanelTextColor: (searchPanelTextColor || "").trim() || "#111827",
-      listingBg: toRgba(listingBgColor, listingOpacity ?? 1),
-      listingBorder: (listingBorderColor || "").trim() || "#e5e7eb",
-      showContinentFilter: !!showContinentFilter,
-      showKey: !!showKey,
-      showLogo: !!showLogo,
-      showTitle: !!showTitle,
-      showListings: !!showListings,
-    };
-  }, [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey, showLogo, showTitle, showListings]);
+  const editTheme = useMemo(
+    () => buildEditTheme({ panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey, showLogo, showTitle, showListings }),
+    [panelBackgroundColor, panelBackgroundOpacity, panelLinkColor, buttonColor, pinDetailLayout, panelBorderRadius, pinSize, logoUrl, description, searchPanelBgColor, searchPanelBgOpacity, searchPanelTextColor, listingBgColor, listingBorderColor, listingOpacity, showContinentFilter, showKey, showLogo, showTitle, showListings],
+  );
+
 
   async function publishMap() {
     if (!map) return;
@@ -1791,192 +1554,56 @@ export default function AdminMapDashboard() {
     }
   }
 
-  if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
+  async function handleContactSubmit(e) {
+    e.preventDefault();
+    if (!selectedListing?.email) return;
+    if (messagingTestMode && !contactForm.testToEmail.trim()) {
+      setContactFormError("Enter a test recipient email to send in test mode.");
+      return;
+    }
+    setContactFormError("");
+    setContactFormSubmitting(true);
+    try {
+      await submitContactMessage(supabase, {
+        mapId,
+        listingId: selectedListing.id,
+        listingName: selectedListing.name || "",
+        toEmail: messagingTestMode ? contactForm.testToEmail.trim() : selectedListing.email,
+        senderName: (contactForm.name || "").trim(),
+        senderEmail: (contactForm.email || "").trim(),
+        senderPhone: (contactForm.phone || "").trim(),
+        message: (contactForm.message || "").trim(),
+        surface: "admin_preview",
+      });
+      setContactFormSent(true);
+      setContactForm({ name: "", email: "", phone: "", message: "", testToEmail: contactForm.testToEmail });
+    } catch (err) {
+      setContactFormError(formatContactMessageError(err));
+    } finally {
+      setContactFormSubmitting(false);
+    }
+  }
+
+  const isPublishOpen = overlayTab === "publish";
 
   const messageDrawer = (
-    <div
-      className={`embed-message-drawer ${messageDrawerOpen ? "embed-message-drawer--open" : ""}`}
-      aria-hidden={!messageDrawerOpen}
-    >
-      <div
-        className="embed-message-drawer__backdrop"
-        onClick={() => setMessageDrawerOpen(false)}
-        aria-label="Close"
-      />
-      <div className="embed-message-drawer__panel" role="dialog" aria-label="Send a message">
-        <div className="embed-message-drawer__header">
-          <h3 className="embed-message-drawer__title">Send message</h3>
-          <button
-            type="button"
-            className="embed-message-drawer__close"
-            onClick={() => setMessageDrawerOpen(false)}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        {selectedListing ? (
-          <p className="embed-message-drawer__to">To: {selectedListing.name || "—"}</p>
-        ) : null}
-        {contactFormSent ? (
-          <div className="embed-message-drawer__success">
-            <p>Your message has been sent. You have been CC&apos;d on the email.</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setMessageDrawerOpen(false);
-                setContactFormSent(false);
-              }}
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          <form
-            className="embed-message-drawer__form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-            if (!selectedListing?.email) return;
-            if (messagingTestMode && !contactForm.testToEmail.trim()) {
-              setContactFormError("Enter a test recipient email to send in test mode.");
-              return;
-            }
-            setContactFormError("");
-              setContactFormSubmitting(true);
-              try {
-                await submitContactMessage(supabase, {
-                  mapId,
-                  listingId: selectedListing.id,
-                  listingName: selectedListing.name || "",
-                  toEmail: messagingTestMode
-                    ? contactForm.testToEmail.trim()
-                    : selectedListing.email,
-                  senderName: (contactForm.name || "").trim(),
-                  senderEmail: (contactForm.email || "").trim(),
-                  senderPhone: (contactForm.phone || "").trim(),
-                  message: (contactForm.message || "").trim(),
-                  surface: "admin_preview",
-                });
-                setContactFormSent(true);
-                setContactForm({
-                  name: "",
-                  email: "",
-                  phone: "",
-                  message: "",
-                  testToEmail: contactForm.testToEmail,
-                });
-              } catch (err) {
-                setContactFormError(formatContactMessageError(err));
-              } finally {
-                setContactFormSubmitting(false);
-              }
-            }}
-          >
-            {messagingTestMode && (
-              <div
-                style={{
-                  marginBottom: 10,
-                  fontSize: 12,
-                  color: "#b45309",
-                  background: "#fef3c7",
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                }}
-              >
-                <strong>Test mode:</strong> Messages will be sent to the test address below, not to the listing email.
-              </div>
-            )}
-            {messagingTestMode && (
-              <label className="embed-message-drawer__label">
-                <span>Test recipient email</span>
-                <input
-                  type="email"
-                  value={contactForm.testToEmail}
-                  onChange={(e) =>
-                    setContactForm((f) => ({
-                      ...f,
-                      testToEmail: e.target.value,
-                    }))
-                  }
-                  placeholder={messagingTestRecipient || "test-recipient@example.com"}
-                  required
-                />
-              </label>
-            )}
-            <label className="embed-message-drawer__label">
-              <span>Name</span>
-              <input
-                type="text"
-                value={contactForm.name}
-                onChange={(e) =>
-                  setContactForm((f) => ({
-                    ...f,
-                    name: e.target.value,
-                  }))
-                }
-                placeholder="Your name"
-              />
-            </label>
-            <label className="embed-message-drawer__label">
-              <span>Email</span>
-              <input
-                type="email"
-                value={contactForm.email}
-                onChange={(e) =>
-                  setContactForm((f) => ({
-                    ...f,
-                    email: e.target.value,
-                  }))
-                }
-                placeholder="your@email.com"
-                required
-              />
-            </label>
-            <label className="embed-message-drawer__label">
-              <span>Phone</span>
-              <input
-                type="tel"
-                value={contactForm.phone}
-                onChange={(e) =>
-                  setContactForm((f) => ({
-                    ...f,
-                    phone: e.target.value,
-                  }))
-                }
-                placeholder="Optional"
-              />
-            </label>
-            <label className="embed-message-drawer__label">
-              <span>Message</span>
-              <textarea
-                value={contactForm.message}
-                onChange={(e) =>
-                  setContactForm((f) => ({
-                    ...f,
-                    message: e.target.value,
-                  }))
-                }
-                placeholder="Your message…"
-                rows={4}
-                required
-              />
-            </label>
-            {contactFormError ? (
-              <p className="embed-message-drawer__error">{contactFormError}</p>
-            ) : null}
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={contactFormSubmitting}
-              style={{ marginTop: 8 }}
-            >
-              {contactFormSubmitting ? "Sending…" : "Send message"}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+    <MapMessageDrawer
+      open={messageDrawerOpen}
+      onClose={() => setMessageDrawerOpen(false)}
+      onSentClose={() => {
+        setMessageDrawerOpen(false);
+        setContactFormSent(false);
+      }}
+      listing={selectedListing}
+      sent={contactFormSent}
+      form={contactForm}
+      onFormChange={setContactForm}
+      testMode={messagingTestMode}
+      testRecipient={messagingTestRecipient}
+      submitting={contactFormSubmitting}
+      error={contactFormError}
+      onSubmit={handleContactSubmit}
+    />
   );
 
   const inner = (
@@ -1988,17 +1615,18 @@ export default function AdminMapDashboard() {
       ]}
       mainClassName="admin-main--map-page"
       rightActions={
-        <button className="shell-btn shell-btn--primary" type="button" onClick={saveMap} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </button>
+        <Button variant="primary" onClick={saveMap} loading={saving} loadingLabel="Saving…">Save</Button>
       }
     >
+      {loading ? (
+        <div className="md-load"><Skeleton variant="form" rows={4} label="Loading map" /></div>
+      ) : (
       <div className="admin-map-page">
         <div className="admin-map-page__map-wrap">
-          {(overlayTab && overlayTab !== "publish") ? (
+          {overlayTab && !isPublishOpen ? (
             <div className="admin-map-overlay__backdrop" aria-hidden="true" />
           ) : null}
-          {apiKey ? (
+          {!isPublishOpen && (apiKey ? (
             <PublishedMapView
               apiKey={apiKey}
               center={mapCenter}
@@ -2056,8 +1684,8 @@ export default function AdminMapDashboard() {
                 if (clientId) {
                   supabase
                     .from("map_messaging_settings")
-            .select("email_test_mode,email_test_recipient")
-            .eq("map_id", mapId)
+                    .select("email_test_mode,email_test_recipient")
+                    .eq("map_id", mapId)
                     .single()
                     .then(({ data: ms }) => {
                       if (ms) {
@@ -2076,1151 +1704,257 @@ export default function AdminMapDashboard() {
               mapOverlay={messageDrawer}
             />
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--lc-muted)" }}>
-              Set VITE_GOOGLE_MAPS_API_KEY to show the map.
-            </div>
-          )}
+            <div className="md-map-empty">Set VITE_GOOGLE_MAPS_API_KEY to show the map.</div>
+          ))}
         </div>
+
+        {isPublishOpen && (
+          <MapPublishPage
+            onBack={closeOverlay}
+            hasActiveSubscription
+            pricingOrigin="Admin publish tab"
+            err={err}
+            map={map}
+            lat={defaultLat}
+            lng={defaultLng}
+            zoom={defaultZoom}
+            publishedAt={publishedAt}
+            publishNote={publishNote}
+            onPublishNoteChange={setPublishNote}
+            hasUnpublishedChanges={hasUnpublishedChanges}
+            canDiscard={!!publishedSnapshot && hasUnpublishedChanges}
+            discarding={discarding}
+            onDiscard={discardDraft}
+            publishing={publishing}
+            onPublish={publishMap}
+            embedWidth={embedWidth}
+            onEmbedWidthChange={setEmbedWidth}
+            embedWidthUnit={embedWidthUnit}
+            onEmbedWidthUnitChange={setEmbedWidthUnit}
+            embedHeight={embedHeight}
+            onEmbedHeightChange={setEmbedHeight}
+            embedIframe={embedIframe}
+            onCopyEmbed={copyEmbed}
+            onOpenEmbed={openEmbed}
+            thumbSize={thumbSize}
+            onThumbSizeChange={setThumbSize}
+            embedThumbnail={embedThumbnail}
+            onCopyThumbnail={copyThumbnailEmbed}
+            publicationHistory={publicationHistory}
+            rollingBack={rollingBack}
+            onRestore={rollbackToPublication}
+          />
+        )}
 
         <div className="admin-map-page__right">
-          <div className="admin-map-page__controls">
-            <h2 className="admin-map-page__controls-title">Map Settings</h2>
+          <MapSettingsStrip
+            primaryTabs={["detail", "search", "filters", "messaging"]}
+            secondaryTabs={["design", "groups", "panels", "mapstyle"]}
+            openTab={overlayTab}
+            onOpenTab={openOverlay}
+            onPreview={openEmbed}
+            message={msg}
+          />
 
-            {["detail", "search", "filters", "messaging"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
-                onClick={() => openOverlay(t)}
-              >
-                {tabLabel(t)}
-              </button>
-            ))}
-
-            <hr className="admin-map-page__controls-divider" />
-
-            {["design", "groups", "panels", "mapstyle"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`admin-map-page__tab ${overlayTab === t ? "is-open" : ""}`}
-                onClick={() => openOverlay(t)}
-              >
-                {tabLabel(t)}
-              </button>
-            ))}
-
-            <div className="admin-map-page__controls-footer">
-              <button type="button" className="admin-map-page__control-btn admin-map-page__control-btn--primary" onClick={openEmbed}>
-                Preview Map
-              </button>
-              {msg ? <span className="admin-map-page__toolbar-msg">{msg}</span> : null}
-            </div>
-          </div>
-
-          <div
-            className={`admin-map-overlay__panel ${overlayTab ? "admin-map-overlay__panel--open" : ""}`}
-            role="dialog"
-            aria-label={overlayTab ? `${overlayTab} settings` : ""}
-            aria-hidden={!overlayTab}
+          <MapOverlayPanel
+            tab={overlayTab}
+            open={!!overlayTab && !isPublishOpen}
+            onClose={closeOverlay}
+            error={err}
+            notice={isDirectorySourced ? "This map's pins come from its linked directory — shown here for preview, but add or edit entries there rather than in this dashboard." : null}
           >
-            <header className="admin-map-overlay__header">
-              <h2 className="admin-map-overlay__title">
-                {overlayTab ? tabLabel(overlayTab) : ""}
-              </h2>
-              <button type="button" className="admin-map-overlay__close" onClick={closeOverlay} aria-label="Close">
-                ×
-              </button>
-            </header>
-            <div className="admin-map-overlay__body">
-              {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
-              {isDirectorySourced && (
-                <p style={{ fontSize: 12.5, opacity: 0.75, marginBottom: 12 }}>
-                  This map's pins come from its linked directory — shown here for preview, but add or edit entries there rather than in this dashboard.
-                </p>
-              )}
+            {overlayTab === "detail" && (
+              <MapGeneralPanel
+                draftStatus={draftStatus}
+                name={name}
+                onNameChange={setName}
+                slug={slug}
+                onSlugChange={setSlug}
+                slugPlaceholder={suggestedSlug}
+                slugHint={`Suggested: ${suggestedSlug || "—"}`}
+                description={description}
+                onDescriptionChange={setDescription}
+                locationQuery={locationQuery}
+                onLocationQueryChange={setLocationQuery}
+                onLookupLocation={lookupLocation}
+                geocoding={geocoding}
+                centerLabel={centerLabel}
+                zoom={defaultZoom}
+                onZoomChange={setDefaultZoom}
+                enableClustering={enableClustering}
+                onEnableClusteringChange={setEnableClustering}
+                clusterRadius={clusterRadius}
+                onClusterRadiusChange={setClusterRadius}
+              />
+            )}
 
-              {overlayTab === "detail" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
-                    <div className="panel-section">
-                      <p className="panel-section__title">Map details</p>
-                      <Field label="Name">
-                        <input value={name} onChange={(e) => setName(e.target.value)} />
-                      </Field>
-                      <Field label="Slug">
-                        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={suggestedSlug} />
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Suggested: <strong>{suggestedSlug || "—"}</strong></div>
-                      </Field>
-                      <Field label="Description">
-                        <textarea
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          rows={4}
-                          placeholder="Optional. Shown beneath the title in the search panel."
-                          style={{ width: "100%", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", fontSize: 14, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--lc-border)" }}
-                        />
-                      </Field>
-                    </div>
+            {overlayTab === "design" && (
+              <MapDesignPanel
+                draftStatus={draftStatus}
+                markerStyle={markerStyle}
+                onMarkerStyleChange={setMarkerStyle}
+                pinSize={pinSize}
+                onPinSizeChange={setPinSize}
+                enableClustering={enableClustering}
+                markerColor={markerColor}
+                onMarkerColorChange={setMarkerColor}
+                pinBorderColor={pinBorderColor}
+                onPinBorderColorChange={setPinBorderColor}
+                pinBorderSize={pinBorderSize}
+                onPinBorderSizeChange={setPinBorderSize}
+                clusterColor={clusterColor}
+                onClusterColorChange={setClusterColor}
+                clusterOpacity={clusterOpacity}
+                onClusterOpacityChange={setClusterOpacity}
+                pinDropShadow={pinDropShadow}
+                onPinDropShadowChange={setPinDropShadow}
+                pinShadowDistance={pinShadowDistance}
+                onPinShadowDistanceChange={setPinShadowDistance}
+                pinShadowOpacity={pinShadowOpacity}
+                onPinShadowOpacityChange={setPinShadowOpacity}
+                customPinUrl={customPinUrl}
+                onCustomPinUrlChange={setCustomPinUrl}
+                customPinUploading={customPinUploading}
+                onCustomPinFile={handleCustomPinFile}
+                customPinInputRef={customPinTileInputRef}
+                pinFaviconUrl={pinFaviconUrl}
+                onPinFaviconUrlChange={setPinFaviconUrl}
+                onError={setErr}
+              />
+            )}
 
-                    <div className="panel-section">
-                      <p className="panel-section__title">Default view</p>
-                      <Field label="Map centre">
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <input
-                            value={locationQuery}
-                            onChange={(e) => setLocationQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && lookupLocation(e)}
-                            placeholder="Search city, country or address…"
-                            style={{ flex: 1 }}
-                          />
-                          <button
-                            className="btn"
-                            type="button"
-                            onClick={lookupLocation}
-                            disabled={geocoding}
-                            style={{ flexShrink: 0 }}
-                          >
-                            {geocoding ? "Searching…" : "Search"}
-                          </button>
-                        </div>
-                        {centerLabel && (
-                          <div style={{ fontSize: 12, color: "var(--lc-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                              <path d="M8 1C5.24 1 3 3.24 3 6c0 4.25 5 9 5 9s5-4.75 5-9c0-2.76-2.24-5-5-5zm0 6.75A1.75 1.75 0 1 1 8 4.25a1.75 1.75 0 0 1 0 3.5z" fill="currentColor"/>
-                            </svg>
-                            {centerLabel}
-                          </div>
-                        )}
-                      </Field>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Zoom level: <strong>{defaultZoom || 10}</strong></div>
-                        <input type="range" min={1} max={20} step={1} value={Number(defaultZoom) || 10} onChange={(e) => setDefaultZoom(String(e.target.value))} style={{ width: "100%" }} />
-                      </div>
-                    </div>
+            {overlayTab === "panels" && (
+              <MapPanelsPanel
+                draftStatus={draftStatus}
+                pinDetailLayout={pinDetailLayout}
+                onPinDetailLayoutChange={setPinDetailLayout}
+                panelBackgroundColor={panelBackgroundColor}
+                onPanelBackgroundColorChange={setPanelBackgroundColor}
+                panelBackgroundOpacity={panelBackgroundOpacity}
+                onPanelBackgroundOpacityChange={setPanelBackgroundOpacity}
+                panelBorderRadius={panelBorderRadius}
+                onPanelBorderRadiusChange={setPanelBorderRadius}
+                panelLinkColor={panelLinkColor}
+                onPanelLinkColorChange={setPanelLinkColor}
+                buttonColor={buttonColor}
+                onButtonColorChange={setButtonColor}
+              />
+            )}
 
-                    <div className="panel-section">
-                      <p className="panel-section__title">Display</p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                          <input type="checkbox" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
-                          Enable clustering
-                        </label>
-                      </div>
-                      {enableClustering && (
-                        <div style={{ marginTop: 10 }}>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
-                            Clustering level (radius): <strong>{clusterRadius}</strong> px
-                          </div>
-                          <input
-                            type="range"
-                            min={40}
-                            max={200}
-                            step={10}
-                            value={clusterRadius}
-                            onChange={(e) => setClusterRadius(Number(e.target.value))}
-                            style={{ width: "100%", maxWidth: 280 }}
-                          />
-                          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                            Higher = more grouping. Updates the map as you drag.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                </div>
-              )}
-
-              {overlayTab === "design" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Style</p>
-                    <div className="pin-style-grid">
-                      {PIN_STYLES.map(({ id, label }) => {
-                        const isSelected = markerStyle === id;
-                        const isCustom = id === "custom";
-                        const src = isCustom && customPinUrl ? customPinUrl : !isCustom ? markerIconDataUrl(id, markerColor, { borderColor: pinBorderColor, borderWidth: pinBorderSize, pinFaviconUrl: (id === "pin" || id === "teardrop") ? pinFaviconUrl : undefined, dropShadowPx: pinDropShadow, dropShadowDistance: pinShadowDistance, dropShadowOpacity: pinShadowOpacity }) : null;
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                            onClick={() => {
-                              if (isCustom && !customPinUrl) customPinTileInputRef.current?.click();
-                              else setMarkerStyle(id);
-                            }}
-                            aria-pressed={isSelected}
-                          >
-                            <div className="pin-style-option__preview">
-                              {src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(pinSize)})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}
-                            </div>
-                            <span className="pin-style-option__label">{label}</span>
-                          </button>
-                        );
-                      })}
-                      <input
-                        ref={customPinTileInputRef}
-                        type="file"
-                        accept="image/svg+xml,image/png,.svg,.png"
-                        onChange={handleCustomPinFile}
-                        style={{ display: "none" }}
-                      />
-                    </div>
-                    <div className="pin-size-segmented" role="group" aria-label="Pin size">
-                      {[{ id: "small", label: "Small" }, { id: "medium", label: "Medium" }, { id: "large", label: "Large" }].map(({ id, label: szLabel }) => (
-                        <button key={id} type="button" className={`pin-size-segmented__btn${pinSize === id ? " is-selected" : ""}`} onClick={() => setPinSize(id)} aria-pressed={pinSize === id}>{szLabel}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {markerStyle === "custom" && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">Custom Icon</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {customPinUrl && <img src={customPinUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />}
-                        <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
-                          {customPinUploading ? "Uploading…" : customPinUrl ? "Change…" : "Upload icon"}
-                          <input
-                            type="file"
-                            accept="image/svg+xml,image/png,.svg,.png"
-                            onChange={handleCustomPinFile}
-                            disabled={customPinUploading}
-                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-                          />
-                        </label>
-                        {customPinUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setCustomPinUrl("")}>Remove</button>}
-                      </div>
-                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-                        SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
-                      </div>
-                    </div>
-                  )}
-
-                  {markerStyle !== "custom" && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">Colours</p>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
-                          <ColorRow value={markerColor} onChange={setMarkerColor} ariaLabel="Pin colour" />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
-                          <ColorRow value={pinBorderColor} onChange={setPinBorderColor} ariaLabel="Pin border colour" />
-                        </div>
-                        {enableClustering && (
-                          <div>
-                            <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
-                            <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={15} step={1} value={pinBorderSize} onChange={(e) => setPinBorderSize(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinBorderSize}px</span>
-                        </div>
-                      </div>
-                      {enableClustering && (
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster transparency</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input type="range" min={0} max={100} step={1} value={clusterOpacity} onChange={(e) => setClusterOpacity(Number(e.target.value))} style={{ flex: 1 }} />
-                            <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{clusterOpacity}%</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {enableClustering && markerStyle === "custom" && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">Cluster Colours</p>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster colour</div>
-                          <ColorRow value={clusterColor} onChange={setClusterColor} ariaLabel="Cluster colour" />
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Cluster transparency</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={100} step={1} value={clusterOpacity} onChange={(e) => setClusterOpacity(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{clusterOpacity}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {markerStyle !== "custom" && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">Drop Shadow</p>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Size</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={30} step={1} value={pinDropShadow} onChange={(e) => setPinDropShadow(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinDropShadow}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Distance from pin</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={30} step={1} value={pinShadowDistance} onChange={(e) => setPinShadowDistance(Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{pinShadowDistance}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Transparency</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="range" min={0} max={100} step={1} value={100 - pinShadowOpacity} onChange={(e) => setPinShadowOpacity(100 - Number(e.target.value))} style={{ flex: 1 }} />
-                          <span style={{ fontSize: 12, minWidth: 36, textAlign: "right" }}>{100 - pinShadowOpacity}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {(markerStyle === "pin" || markerStyle === "teardrop") && (
-                    <div className="panel-section">
-                      <p className="panel-section__title">Pin icon</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {pinFaviconUrl && <img src={pinFaviconUrl} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />}
-                        <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
-                          {pinFaviconUrl ? "Change…" : "Upload icon"}
-                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; } const reader = new FileReader(); reader.onload = () => { setPinFaviconUrl(reader.result || ""); setErr(""); }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
-                        </label>
-                        {pinFaviconUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setPinFaviconUrl("")}>Remove</button>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {overlayTab === "panels" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-                    Style the listing detail panel and choose whether it appears beside the pin on the map or in a side drawer (drawer mode shows extended description text when you have added it in Data).
-                  </p>
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Layout</p>
-                    <Field label="Listing detail display">
-                      <div className="panel-detail-layout-options">
-                        <label className={`panel-detail-layout-option${pinDetailLayout === "map" ? " is-selected" : ""}`}>
-                          <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "map"} onChange={() => setPinDetailLayout("map")} />
-                          <span className="panel-detail-layout-option__text">
-                            <span className="panel-detail-layout-option__title">Map panel</span>
-                            <span className="panel-detail-layout-option__desc">Floating card next to the pin on the map.</span>
-                          </span>
-                        </label>
-                        <label className={`panel-detail-layout-option${pinDetailLayout === "drawer" ? " is-selected" : ""}`}>
-                          <input type="radio" name="pinDetailLayout" checked={pinDetailLayout === "drawer"} onChange={() => setPinDetailLayout("drawer")} />
-                          <span className="panel-detail-layout-option__text">
-                            <span className="panel-detail-layout-option__title">Side drawer</span>
-                            <span className="panel-detail-layout-option__desc">Slides in from the edge with a scrollable area for descriptions and full details.</span>
-                          </span>
-                        </label>
-                      </div>
-                    </Field>
-                  </div>
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Appearance</p>
-                    <Field label="Background colour">
-                      <ColorRow value={panelBackgroundColor} onChange={setPanelBackgroundColor} ariaLabel="Panel background" />
-                    </Field>
-                    <Field label="Translucency">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={1} step={0.05} value={panelBackgroundOpacity} onChange={(e) => setPanelBackgroundOpacity(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(panelBackgroundOpacity * 100)}%</span>
-                      </div>
-                    </Field>
-                    <Field label="Corner roundness">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={28} step={1} value={panelBorderRadius} onChange={(e) => setPanelBorderRadius(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{panelBorderRadius}px</span>
-                      </div>
-                    </Field>
-                  </div>
-
-                  <div className="panel-section">
-                    <p className="panel-section__title">Colours</p>
-                    <Field label="Link colour">
-                      <ColorRow value={panelLinkColor} onChange={setPanelLinkColor} ariaLabel="Panel link colour" />
-                    </Field>
-                    <Field label="Button colour">
-                      <ColorRow value={buttonColor} onChange={setButtonColor} ariaLabel="Website button colour" />
-                    </Field>
-                  </div>
-                </div>
-              )}
-
-              {overlayTab === "groups" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>Drag to reorder groups. Order is used in the embed map search bar.</p>
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                    {orderedGroupsList.map((gr, index) => (
-                      <li
-                        key={gr.id}
-                        draggable
-                        onDragStart={(e) => handleGroupDragStart(e, index)}
-                        onDragOver={handleGroupDragOver}
-                        onDrop={(e) => handleGroupDrop(e, index)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "10px 12px",
-                          background: "var(--lc-card)",
-                          border: "1px solid var(--lc-border)",
-                          borderRadius: 10,
-                          cursor: "grab",
-                        }}
-                      >
-                        <span style={{ opacity: 0.6, cursor: "grab" }} aria-hidden>⋮⋮</span>
-                        <span style={{ flex: 1, fontWeight: 600 }}>{gr.name || "—"}</span>
-                        <button type="button" className="btn" onClick={() => openGroupEdit(gr)}>Edit design</button>
-                      </li>
-                    ))}
-                  </ul>
-                  {orderedGroupsList.length === 0 && <p style={{ margin: 0, opacity: 0.8 }}>No groups yet. Add groups when importing data.</p>}
-                  <div>
-                    <button type="button" className="btn btn-primary" onClick={saveGroupsOrder} disabled={savingGroups || orderedGroupsList.length === 0}>
-                      {savingGroups ? "Saving…" : "Save order"}
-                    </button>
-                  </div>
-
-                  {editingGroupId && (
-                    <div style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--lc-border)" }}>
-                      <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>Group design overrides</h3>
-                      <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.85 }}>
-                        Editing:{" "}
-                        <strong>{groups.find((g) => g.id === editingGroupId)?.name || "Untitled group"}</strong>
-                      </p>
-                      <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.85 }}>Override global design for this group’s pins. Leave as default to use map design.</p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div className="panel-section">
-                          <p className="panel-section__title">Style</p>
-                          <div className="pin-style-grid">
-                            {PIN_STYLES.map(({ id, label }) => {
-                              const val = groupEditDesign?.marker_style ?? globalDesignForGroup.marker_style;
-                              const isSelected = val === id;
-                              const isCustom = id === "custom";
-                              const customUrl = groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url;
-                              const src = isCustom && customUrl ? customUrl : !isCustom ? markerIconDataUrl(id, groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color, { borderColor: groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor, borderWidth: groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize, dropShadowPx: globalDesignForGroup.pinDropShadow, dropShadowDistance: globalDesignForGroup.pinShadowDistance, dropShadowOpacity: globalDesignForGroup.pinShadowOpacity, pinFaviconUrl: (id === "pin" || id === "teardrop") ? ((groupEditDesign?.pin_favicon_mode ?? "inherit") === "custom"
-                                  ? groupEditDesign?.pin_favicon_url
-                                  : (groupEditDesign?.pin_favicon_mode ?? "inherit") === "off"
-                                    ? undefined
-                                    : globalDesignForGroup.pin_favicon_url || undefined) : undefined }) : null;
-                              return (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  className={`pin-style-option ${isSelected ? "is-selected" : ""}`}
-                                  onClick={() => {
-                                    if (isCustom && !customUrl) groupCustomPinTileInputRef.current?.click();
-                                    else setGroupEditDesign((p) => ({ ...(p || {}), marker_style: id }));
-                                  }}
-                                  aria-pressed={isSelected}
-                                >
-                                  <div className="pin-style-option__preview">{src ? <img src={src} alt="" aria-hidden width={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.w * 0.75)} height={Math.round((MARKER_ANCHORS[id] || MARKER_ANCHORS.pin).scaledSize.h * 0.75)} style={{ transform: `scale(${pinPreviewScale(normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize))})`, transformOrigin: "center", objectFit: "contain" }} /> : <span style={{ fontSize: 11, color: "var(--lc-muted)" }}>Upload</span>}</div>
-                                  <span className="pin-style-option__label">{label}</span>
-                                </button>
-                              );
-                            })}
-                            <input
-                              ref={groupCustomPinTileInputRef}
-                              type="file"
-                              accept="image/svg+xml,image/png,.svg,.png"
-                              onChange={handleGroupCustomPinFile}
-                              style={{ display: "none" }}
-                            />
-                          </div>
-                          <div className="pin-size-segmented" role="group" aria-label="Pin size for this group">
-                            {["small", "medium", "large"].map((id) => {
-                              const effective = normalizePinSize(groupEditDesign?.pinSize ?? globalDesignForGroup.pinSize);
-                              return (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  className={`pin-size-segmented__btn${effective === id ? " is-selected" : ""}`}
-                                  onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: id }))}
-                                  aria-pressed={effective === id}
-                                >
-                                  {id.charAt(0).toUpperCase() + id.slice(1)}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {groupEditDesign?.pinSize != null ? (
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pinSize: null }))}
-                            >
-                              Use map default
-                            </button>
-                          ) : null}
-                        </div>
-                        {groupMarkerStyle === "custom" && (
-                          <div className="panel-section">
-                            <p className="panel-section__title">Custom Icon</p>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              {(groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url) && (
-                                <img src={groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url} alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />
-                              )}
-                              <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
-                                {groupCustomPinUploading ? "Uploading…" : (groupEditDesign?.custom_pin_url ?? globalDesignForGroup.custom_pin_url) ? "Change…" : "Upload icon"}
-                                <input
-                                  type="file"
-                                  accept="image/svg+xml,image/png,.svg,.png"
-                                  onChange={handleGroupCustomPinFile}
-                                  disabled={groupCustomPinUploading}
-                                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-                                />
-                              </label>
-                              {groupEditDesign?.custom_pin_url && (
-                                <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), custom_pin_url: null }))}>
-                                  Use map default
-                                </button>
-                              )}
-                            </div>
-                            <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>
-                              SVG or PNG, up to 200KB. Shown exactly as uploaded — colour, outline and drop-shadow don&apos;t apply to custom icons.
-                            </p>
-                          </div>
-                        )}
-                        {groupMarkerStyle !== "custom" && (
-                          <div className="panel-section">
-                            <p className="panel-section__title">Colours</p>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                              <div>
-                                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Marker colour</div>
-                                <ColorRow
-                                  value={groupEditDesign?.marker_color ?? globalDesignForGroup.marker_color}
-                                  onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), marker_color: v }))}
-                                  ariaLabel="Pin colour"
-                                />
-                              </div>
-                              <div>
-                                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Border colour</div>
-                                <ColorRow value={groupEditDesign?.pinBorderColor ?? globalDesignForGroup.pinBorderColor} onChange={(v) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderColor: v }))} ariaLabel="Pin border colour" />
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>Pin border size</div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <input type="range" min={0} max={15} step={1} value={groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize} onChange={(e) => setGroupEditDesign((p) => ({ ...(p || {}), pinBorderSize: Number(e.target.value) }))} style={{ flex: 1 }} />
-                                <span style={{ fontSize: 12, minWidth: 28, textAlign: "right" }}>{groupEditDesign?.pinBorderSize ?? globalDesignForGroup.pinBorderSize}px</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {groupMarkerStyle !== "custom" && (
-                        <div className="panel-section">
-                          <p className="panel-section__title">Icon</p>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            {groupEditDesign?.pin_favicon_url && (
-                              <img src={groupEditDesign.pin_favicon_url} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)" }} />
-                            )}
-                            <label className="btn" style={{ margin: 0, position: "relative", overflow: "hidden" }}>
-                              {groupEditDesign?.pin_favicon_url ? "Change…" : "Upload icon"}
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  if (file.size > 48 * 1024) { setErr("Image must be under 48KB."); return; }
-                                  const reader = new FileReader();
-                                  reader.onload = () => {
-                                    setGroupEditDesign((p) => ({
-                                      ...(p || {}),
-                                      pin_favicon_mode: "custom",
-                                      pin_favicon_url: reader.result || "",
-                                    }));
-                                    setErr("");
-                                  };
-                                  reader.readAsDataURL(file);
-                                  e.target.value = "";
-                                }}
-                                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-                              />
-                            </label>
-                            {(groupEditDesign?.pin_favicon_mode ?? "inherit") !== "off" && (
-                              <button
-                                type="button"
-                                className="btn"
-                                style={{ margin: 0 }}
-                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "off", pin_favicon_url: null }))}
-                              >
-                                No icon
-                              </button>
-                            )}
-                            {(groupEditDesign?.pin_favicon_mode ?? "inherit") !== "inherit" && (
-                              <button
-                                type="button"
-                                className="btn"
-                                style={{ margin: 0 }}
-                                onClick={() => setGroupEditDesign((p) => ({ ...(p || {}), pin_favicon_mode: "inherit", pin_favicon_url: null }))}
-                              >
-                                Use map default
-                              </button>
-                            )}
-                          </div>
-                          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Overrides the map’s default icon for this group’s pins.</p>
-                        </div>
-                        )}
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <button type="button" className="btn" onClick={resetGroupDesign}>Reset design</button>
-                          {savingGroups ? <span style={{ fontSize: 12, color: "var(--lc-muted)" }}>Saving…</span> : null}
-                          <button type="button" className="btn" onClick={closeGroupEdit}>Cancel</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {overlayTab === "mapstyle" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
-                  <div className="panel-section">
-                    <p className="panel-section__title">Presets</p>
-                    <div className="map-style-grid">
-                      {MAP_TYPES.map(({ id, label }) => (
-                        <button
-                          key={id}
-                          type="button"
-                          className={`map-style-option ${selectedMapStylePreset === id ? "is-selected" : ""}`}
-                          onClick={() => applyMapStylePreset(id)}
-                          aria-pressed={selectedMapStylePreset === id}
-                        >
-                          <span className="map-style-option__thumb"><MapStyleThumb styleId={id} /></span>
-                          <span className="map-style-option__label">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="panel-section">
-                    <p className="panel-section__title">Base type</p>
-                    <div className="map-style-grid map-style-grid--base-types">
-                      {BASE_TYPE_OPTIONS.map(({ id, label }) => (
-                        <button
-                          key={id}
-                          type="button"
-                          className={`map-style-option ${mapStyleSettings.baseType === id ? "is-selected" : ""}`}
-                          onClick={() => {
-                            setMapTypeId(id);
-                            updateMapStyleSettings((prev) => ({ ...prev, baseType: id }));
-                          }}
-                          aria-pressed={mapStyleSettings.baseType === id}
-                        >
-                          <span className="map-style-option__thumb"><MapStyleThumb styleId={id} /></span>
-                          <span className="map-style-option__label">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="panel-section">
-                    <p className="panel-section__title">Colours</p>
-                    <div className="colours-grid">
-                      {[
-                        { key: "land", label: "Land" },
-                        { key: "water", label: "Water" },
-                        { key: "roads", label: "Roads" },
-                      ].map((field) => (
-                        <div key={field.key}>
-                          <div className="colour-field-label">{field.label}</div>
-                          <ColorRow
-                            value={mapStyleSettings.colors[field.key]}
-                            onChange={(value) =>
-                              updateMapStyleSettings((prev) => ({
-                                ...prev,
-                                colors: {
-                                  ...prev.colors,
-                                  [field.key]: value,
-                                },
-                              }))
-                            }
-                            ariaLabel={`${field.label} colour`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="panel-section">
-                    <p className="panel-section__title">Map detail</p>
-                    <div className="map-detail-grid">
-                      {DETAIL_CONTROLS.map((control) => (
-                        <div key={control.key} className="map-detail-row">
-                          <div className="map-detail-row__labels">
-                            <div className="map-detail-row__title">{control.label}</div>
-                            <div className="map-detail-row__desc">{control.description}</div>
-                          </div>
-                          <div className="map-detail-row__control">
-                            <input
-                              type="range"
-                              min={0}
-                              max={3}
-                              step={1}
-                              value={mapStyleSettings.detail[control.key]}
-                              onChange={(event) => {
-                                const value = Number(event.target.value);
-                                updateMapStyleSettings((prev) => ({
-                                  ...prev,
-                                  detail: {
-                                    ...prev.detail,
-                                    [control.key]: value,
-                                  },
-                                }));
-                              }}
-                            />
-                            <span className="map-detail-row__value">
-                              {DETAIL_LEVEL_LABELS[mapStyleSettings.detail[control.key]]}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="panel-section">
-                    <p className="panel-section__title">Overlays</p>
-                    <div className="map-overlays-grid">
-                      {OVERLAY_CONTROLS.map((overlay) => (
-                        <label key={overlay.key} className="map-overlay-toggle">
-                          <span>
-                            <span className="map-overlay-toggle__title">{overlay.label}</span>
-                            <span className="map-overlay-toggle__desc">{overlay.description}</span>
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={mapStyleSettings.overlays[overlay.key]}
-                            onChange={(event) =>
-                              updateMapStyleSettings((prev) => ({
-                                ...prev,
-                                overlays: {
-                                  ...prev.overlays,
-                                  [overlay.key]: event.target.checked,
-                                },
-                              }))
-                            }
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {overlayTab === "publish" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, opacity: 0.85 }}>
-                      {publishedAt ? (
-                        <>
-                          Last published:{" "}
-                          <strong>{new Date(publishedAt).toLocaleString()}</strong>
-                        </>
-                      ) : (
-                        "This map has not been published yet. Embeds stay blank until you publish."
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={discardDraft}
-                        disabled={discarding || !publishedSnapshot || !hasUnpublishedChanges}
-                      >
-                        {discarding ? "Resetting…" : "Discard draft"}
-                      </button>
-                      <button
-                        className={`btn btn-primary${!hasUnpublishedChanges || publishing ? " is-disabled" : ""}`}
-                        type="button"
-                        onClick={publishMap}
-                        disabled={!hasUnpublishedChanges || publishing}
-                      >
-                        {publishing ? "Publishing…" : hasUnpublishedChanges ? "Publish changes" : "Published"}
-                      </button>
-                    </div>
-                  </div>
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontSize: 13, opacity: 0.85 }}>Publish note (optional)</span>
-                    <input
-                      type="text"
-                      value={publishNote}
-                      onChange={(e) => setPublishNote(e.target.value)}
-                      placeholder="e.g. Spring palette refresh"
-                      style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", maxWidth: 420 }}
+            {overlayTab === "groups" && (
+              <MapGroupsPanel
+                orderedGroups={orderedGroupsList}
+                onDragStart={handleGroupDragStart}
+                onDragOver={handleGroupDragOver}
+                onDrop={handleGroupDrop}
+                onEditGroup={openGroupEdit}
+                onSaveOrder={saveGroupsOrder}
+                savingGroups={savingGroups}
+                editor={
+                  editingGroupId ? (
+                    <MapGroupDesignEditor
+                      group={groups.find((g) => g.id === editingGroupId)}
+                      design={groupEditDesign}
+                      globalDesign={globalDesignForGroup}
+                      onChange={setGroupEditDesign}
+                      fileInputRef={groupCustomPinTileInputRef}
+                      onCustomFile={handleGroupCustomPinFile}
+                      customPinUploading={groupCustomPinUploading}
+                      saving={savingGroups}
+                      onReset={resetGroupDesign}
+                      onClose={closeGroupEdit}
+                      onError={setErr}
                     />
-                  </label>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>
-                    Saving writes draft configuration only. Publishing creates a version embeds use for map layout and group styling;
-                    listing data from sheets stays live.
-                  </div>
-                  {publicationHistory.length > 0 ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <div style={{ fontSize: 13, opacity: 0.85 }}>Publish history</div>
-                      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-                        {publicationHistory.map((row) => {
-                          const isCurrent = row.id === map?.current_publication_id;
-                          return (
-                            <li
-                              key={row.id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 10,
-                                flexWrap: "wrap",
-                                padding: "8px 10px",
-                                border: "1px solid var(--lc-border)",
-                                borderRadius: 10,
-                                fontSize: 13,
-                              }}
-                            >
-                              <span>
-                                <strong>v{row.version}</strong>
-                                {" · "}
-                                {new Date(row.published_at).toLocaleString()}
-                                {row.note ? ` · ${row.note}` : ""}
-                                {isCurrent ? (
-                                  <>
-                                    {" "}
-                                    <span style={{ opacity: 0.85 }}>(current)</span>
-                                  </>
-                                ) : null}
-                              </span>
-                              {!isCurrent ? (
-                                <button
-                                  type="button"
-                                  className="btn"
-                                  disabled={rollingBack}
-                                  onClick={() => rollbackToPublication(row.id)}
-                                >
-                                  Restore
-                                </button>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed URL</div>
-                    <code
-                      style={{
-                        display: "block",
-                        padding: 10,
-                        border: "1px solid var(--lc-border)",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {embedSrc}
-                    </code>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Embed code</div>
-                    <pre
-                      style={{
-                        margin: 0,
-                        padding: 10,
-                        border: "1px solid var(--lc-border)",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        overflow: "auto",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {embedIframe}
-                    </pre>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button className="btn" type="button" onClick={copyEmbed}>
-                      Copy embed code
-                    </button>
-                    <button className="btn" type="button" onClick={openEmbed}>
-                      Launch map
-                    </button>
-                  </div>
-                </div>
-              )}
+                  ) : null
+                }
+              />
+            )}
 
-              {overlayTab === "search" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {draftStatus && <div className={`draft-status draft-status--${draftStatus}`}>{draftStatus === "saving" ? "Saving…" : "✓ Draft saved"}</div>}
-                  <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-                    Configure the logo and styling of the search panel shown on the published map. Changes save automatically and go live on Publish.
-                  </p>
+            {overlayTab === "mapstyle" && (
+              <MapStylePanel
+                draftStatus={draftStatus}
+                selectedPreset={selectedMapStylePreset}
+                onApplyPreset={applyMapStylePreset}
+                settings={mapStyleSettings}
+                onBaseTypeChange={(id) => {
+                  setMapTypeId(id);
+                  updateMapStyleSettings((prev) => ({ ...prev, baseType: id }));
+                }}
+                onSettingsChange={updateMapStyleSettings}
+              />
+            )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Display options</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
-                        Show search panel
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} />
-                        Show logo
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showTitle} onChange={(e) => setShowTitle(e.target.checked)} />
-                        Show title
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showKey} onChange={(e) => setShowKey(e.target.checked)} />
-                        Show groups key
-                      </label>
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showListings} onChange={(e) => setShowListings(e.target.checked)} />
-                        Show listings
-                      </label>
-                      {/* Display continent filter — deprecated (tech debt), commented out for now. Underlying showContinentFilter
-                          state, save logic, and rendering gate are left intact; only this control is hidden.
-                      <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-                        <input type="checkbox" checked={showContinentFilter} onChange={(e) => setShowContinentFilter(e.target.checked)} />
-                        Display continent filter
-                      </label>
-                      */}
-                    </div>
-                  </div>
+            {overlayTab === "search" && (
+              <MapSearchPanel
+                draftStatus={draftStatus}
+                display={[
+                  { key: "panel", label: "Show search panel", checked: showListPanel, onChange: setShowListPanel },
+                  { key: "logo", label: "Show logo", checked: showLogo, onChange: setShowLogo },
+                  { key: "title", label: "Show title", checked: showTitle, onChange: setShowTitle },
+                  { key: "key", label: "Show groups key", checked: showKey, onChange: setShowKey },
+                  { key: "listings", label: "Show listings", checked: showListings, onChange: setShowListings },
+                ]}
+                logoUrl={logoUrl}
+                logoUploading={logoUploading}
+                onLogoFile={handleLogoFile}
+                onLogoRemove={() => setLogoUrl("")}
+                searchPanelBgColor={searchPanelBgColor}
+                onSearchPanelBgColorChange={setSearchPanelBgColor}
+                searchPanelTextColor={searchPanelTextColor}
+                onSearchPanelTextColorChange={setSearchPanelTextColor}
+                searchPanelBgOpacity={searchPanelBgOpacity}
+                onSearchPanelBgOpacityChange={setSearchPanelBgOpacity}
+                listingBgColor={listingBgColor}
+                onListingBgColorChange={setListingBgColor}
+                listingBorderColor={listingBorderColor}
+                onListingBorderColorChange={setListingBorderColor}
+                listingOpacity={listingOpacity}
+                onListingOpacityChange={setListingOpacity}
+                filterFields={filterFields}
+                onManageFilters={() => openOverlay("filters")}
+              />
+            )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Logo</p>
-                    <Field label="Logo image">
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ width: 96, height: 56, borderRadius: 8, border: "1px solid var(--lc-border)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
-                          {logoUrl ? <LogoImage src={logoUrl} maxWidth={96} maxHeight={56} /> : <span style={{ fontSize: 11, opacity: 0.6 }}>No logo</span>}
-                        </div>
-                        <label className="btn" style={{ position: "relative", margin: 0, overflow: "hidden", cursor: "pointer" }}>
-                          {logoUploading ? "Uploading…" : logoUrl ? "Change…" : "Upload logo"}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                            onChange={handleLogoFile}
-                            disabled={logoUploading}
-                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-                          />
-                        </label>
-                        {logoUrl && <button type="button" className="btn" style={{ margin: 0 }} onClick={() => setLogoUrl("")}>Remove</button>}
-                      </div>
-                    </Field>
-                  </div>
+            {overlayTab === "filters" && (
+              <FilterFieldsPanel
+                mapId={mapId}
+                clientId={clientId ?? null}
+                recordEvent={recordFilterEvent}
+                onChange={refreshFilterFields}
+                colorFieldId={colorFilterFieldId}
+                onColorFieldChange={updateColorFilterField}
+              />
+            )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Search bar options</p>
-                    <Field label="Background colour">
-                      <ColorRow value={searchPanelBgColor} onChange={setSearchPanelBgColor} ariaLabel="Search panel background colour" />
-                    </Field>
-                    <Field label="Font colour">
-                      <ColorRow value={searchPanelTextColor} onChange={setSearchPanelTextColor} ariaLabel="Search panel font colour" />
-                    </Field>
-                    <Field label="Background transparency">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={1} step={0.05} value={searchPanelBgOpacity} onChange={(e) => setSearchPanelBgOpacity(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(searchPanelBgOpacity * 100)}%</span>
-                      </div>
-                    </Field>
-                    <Field label="Search listing background colour">
-                      <ColorRow value={listingBgColor} onChange={setListingBgColor} ariaLabel="Search listing background colour" />
-                    </Field>
-                    <Field label="Search listing border">
-                      <ColorRow value={listingBorderColor} onChange={setListingBorderColor} ariaLabel="Search listing border colour" />
-                    </Field>
-                    <Field label="Search listing transparency">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input type="range" min={0} max={1} step={0.05} value={listingOpacity} onChange={(e) => setListingOpacity(Number(e.target.value))} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 12, minWidth: 32, textAlign: "right" }}>{Math.round(listingOpacity * 100)}%</span>
-                      </div>
-                    </Field>
-                  </div>
+            {overlayTab === "messaging" && (
+              <EntityMessagingSettings
+                entity="map"
+                entityId={mapId}
+                clientId={clientId}
+                eventSource="admin_dashboard"
+              />
+            )}
 
-                  <div className="panel-section">
-                    <p className="panel-section__title">Custom filter fields</p>
-                    {filterFields.filter((f) => f.is_active && f.show_in_filter_bar).length === 0 ? (
-                      <p style={{ margin: "0 0 8px", fontSize: 13, opacity: 0.75 }}>
-                        No custom filter fields are shown in the search bar yet.
-                      </p>
-                    ) : (
-                      <ul style={{ margin: "0 0 8px", paddingLeft: 18, fontSize: 13 }}>
-                        {filterFields.filter((f) => f.is_active && f.show_in_filter_bar).map((f) => (
-                          <li key={f.id}>{f.label}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <button type="button" className="btn" onClick={() => openOverlay("filters")}>Manage filter fields</button>
-                  </div>
-                </div>
-              )}
-
-              {overlayTab === "filters" && (
-                <FilterFieldsPanel
-                  mapId={mapId}
-                  clientId={clientId ?? null}
-                  recordEvent={recordFilterEvent}
-                  onChange={refreshFilterFields}
-                  colorFieldId={colorFilterFieldId}
-                  onColorFieldChange={updateColorFilterField}
-                />
-              )}
-
-              {overlayTab === "messaging" && (
-                <EntityMessagingSettings
-                  entity="map"
-                  entityId={mapId}
-                  clientId={clientId}
-                  eventSource="admin_dashboard"
-                />
-              )}
-
-              {overlayTab === "data" && (
-                <div style={{ display: "grid", gap: 12 }}>
-                  <input
-                    type="text"
-                    value={dataSearch}
-                    onChange={(e) => {
-                      setDataSearch(e.target.value);
-                      setDataPage(0);
-                    }}
-                    placeholder="Filter by name or address…"
-                  />
-                  <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)" }}>
-                          <th style={{ padding: "8px 10px" }}>Name</th>
-                          <th style={{ padding: "8px 10px" }}>Group</th>
-                          <th style={{ padding: "8px 10px" }}>Logo BG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pageListings.map((listing) => {
-                          const currentBg = listing.logo_bg || "";
-                          return (
-                            <tr key={listing.id} style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                              <td style={{ padding: "8px 10px" }}>{listing.name || "—"}</td>
-                              <td style={{ padding: "8px 10px" }}>{groupNameById.get(listing.group_id) || "—"}</td>
-                              <td style={{ padding: "8px 10px" }}>
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                  {currentBg ? (
-                                    <span
-                                      title={currentBg}
-                                      style={{
-                                        width: 12,
-                                        height: 12,
-                                        borderRadius: 2,
-                                        background: currentBg,
-                                        border: "1px solid rgba(0,0,0,0.2)",
-                                      }}
-                                    />
-                                  ) : (
-                                    <span style={{ opacity: 0.7 }}>—</span>
-                                  )}
-                                  {LOGO_BG_SWATCHES.map((swatch) => {
-                                    const selected = currentBg === swatch.value || (!currentBg && swatch.value === "");
-                                    return (
-                                      <button
-                                        key={swatch.label}
-                                        type="button"
-                                        onClick={() => updateListingLogoBg(listing.id, swatch.value)}
-                                        title={swatch.label}
-                                        style={{
-                                          width: 20,
-                                          height: 20,
-                                          borderRadius: 4,
-                                          border: selected ? "2px solid #2563eb" : "1px solid rgba(0,0,0,0.28)",
-                                          padding: 0,
-                                          background: swatch.value || "#fff",
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          cursor: "pointer",
-                                          lineHeight: 1,
-                                        }}
-                                      >
-                                        {!swatch.value ? "✕" : ""}
-                                      </button>
-                                    );
-                                  })}
-                                  <label
-                                    title="Custom"
-                                    style={{
-                                      width: 20,
-                                      height: 20,
-                                      borderRadius: 4,
-                                      border:
-                                        !LOGO_BG_SWATCHES.some((swatch) => swatch.value === currentBg) && currentBg
-                                          ? "2px solid #2563eb"
-                                          : "1px solid rgba(0,0,0,0.28)",
-                                      padding: 0,
-                                      overflow: "hidden",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      background: currentBg || "#fff",
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    <input
-                                      type="color"
-                                      value={currentBg || "#d4d4d4"}
-                                      onChange={(e) => updateListingLogoBg(listing.id, e.target.value)}
-                                      style={{ width: 24, height: 24, border: "none", padding: 0, background: "transparent" }}
-                                      aria-label={`Custom logo background for ${listing.name || "listing"}`}
-                                    />
-                                  </label>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {pageListings.length === 0 && (
-                          <tr>
-                            <td colSpan={3} style={{ padding: "12px 10px", opacity: 0.8 }}>
-                              No listings found.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, opacity: 0.85 }}>
-                      Showing {dataStart}-{dataEnd} of {totalFilteredListings} listings
-                    </span>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="btn"
-                        type="button"
-                        onClick={() => setDataPage((p) => Math.max(0, p - 1))}
-                        disabled={dataPage <= 0}
-                      >
-                        Prev
-                      </button>
-                      <button
-                        className="btn"
-                        type="button"
-                        onClick={() => setDataPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))}
-                        disabled={dataPage >= Math.max(totalPages - 1, 0)}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+            {overlayTab === "data" && (
+              <MapListingLogoPanel
+                search={dataSearch}
+                onSearchChange={(value) => {
+                  setDataSearch(value);
+                  setDataPage(0);
+                }}
+                listings={pageListings}
+                groupNameById={groupNameById}
+                onChangeLogoBg={updateListingLogoBg}
+                page={dataPage + 1}
+                pageSize={PAGE_SIZE}
+                total={totalFilteredListings}
+                onPage={(p) => setDataPage(p - 1)}
+              />
+            )}
+          </MapOverlayPanel>
         </div>
       </div>
+      )}
     </AdminLayout>
   );
 

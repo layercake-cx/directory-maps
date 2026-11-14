@@ -7,6 +7,8 @@ import {
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
+import { Button, Callout, EmptyState, Field, PageLayout, Pill, Section, Select, Skeleton, Toolbar } from "../../components/ui/index.js";
+import "../../styles/wave-c/ops.css";
 
 const PAGE_SIZE = 200;
 
@@ -198,177 +200,166 @@ export default function AdminUserActivity() {
   const hasFilters = filterType || filterSubtype || filterClientId || filterMapId;
 
   return (
-    <AdminLayout
-      panel={<LogsFeaturePanel />}
-      breadcrumbs={[{ label: "User activity" }]}
-      subtitle={
-        <>
-          Admin and client-portal actions (newest first, up to {PAGE_SIZE} rows). Apply the{" "}
-          <code>admin_events</code> migration if this list is empty or errors.
-        </>
-      }
-      rightActions={
-        <button type="button" className="shell-btn" onClick={load} disabled={loading}>
-          {loading ? "Loading…" : "Refresh"}
-        </button>
-      }
-    >
-      <div className="card card-pad">
-
-        <div className="admin-controls" style={{ marginBottom: 16 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>
-            Type
-            <select value={filterType} onChange={(e) => onTypeChange(e.target.value)} aria-label="Filter by type">
+    <AdminLayout panel={<LogsFeaturePanel />}>
+      <PageLayout
+        head={{
+          title: "User activity",
+          subtitle: (
+            <>
+              Admin and client-portal actions (newest first, up to {PAGE_SIZE} rows). Apply the{" "}
+              <code>admin_events</code> migration if this list is empty or errors.
+            </>
+          ),
+          actions: (
+            <Button onClick={load} loading={loading} loadingLabel="Loading…">
+              Refresh
+            </Button>
+          ),
+        }}
+      >
+        <Toolbar>
+          <Field label="Type" className="ops-toolbar-field">
+            <Select value={filterType} onChange={(e) => onTypeChange(e.target.value)}>
               <option value="">All types</option>
               {Object.entries(ADMIN_EVENT_CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>
-            Subtype
-            <select
-              value={filterSubtype}
-              onChange={(e) => setFilterSubtype(e.target.value)}
-              aria-label="Filter by subtype"
-            >
+          <Field label="Subtype" className="ops-toolbar-field">
+            <Select value={filterSubtype} onChange={(e) => setFilterSubtype(e.target.value)}>
               <option value="">All subtypes</option>
               {subtypeOptions.map((s) => (
                 <option key={s} value={s}>
                   {s.replace(/_/g, " ")}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>
-            Client
-            <select value={filterClientId} onChange={(e) => onClientChange(e.target.value)} aria-label="Filter by client">
+          <Field label="Client" className="ops-toolbar-field">
+            <Select value={filterClientId} onChange={(e) => onClientChange(e.target.value)}>
               <option value="">All clients</option>
               {clientOptions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name || c.id}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--lc-muted)" }}>
-            Map
-            <select value={filterMapId} onChange={(e) => setFilterMapId(e.target.value)} aria-label="Filter by map">
+          <Field label="Map" className="ops-toolbar-field">
+            <Select value={filterMapId} onChange={(e) => setFilterMapId(e.target.value)}>
               <option value="">All maps</option>
               {filteredMapOptions.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name || m.id}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          {hasFilters ? (
-            <button type="button" className="shell-btn" onClick={clearFilters} style={{ alignSelf: "flex-end" }}>
-              Clear filters
-            </button>
-          ) : null}
-        </div>
+          {hasFilters ? <Button onClick={clearFilters}>Clear filters</Button> : null}
+        </Toolbar>
 
-        {err ? <p style={{ color: "#b91c1c" }}>{err}</p> : null}
+        {err ? <Callout tone="danger">{err}</Callout> : null}
 
-        {loading && !rows.length ? (
-          <p>Loading…</p>
-        ) : !rows.length ? (
-          <p style={{ color: "var(--lc-muted)" }}>No events match these filters.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="admin-table" style={{ width: "100%", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th>Time (UTC)</th>
-                  <th>Type</th>
-                  <th>Subtype</th>
-                  <th>Event</th>
-                  <th>Client</th>
-                  <th>Map</th>
-                  <th>Actor</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const client = r.client_id ? clientsById[r.client_id] : null;
-                  const map = r.map_id ? mapsById[r.map_id] : null;
-                  const actorUserId = r.actor_user_id || r?.meta?.actor_user_id || null;
-                  const actor = actorUserId ? actorByUserId[actorUserId] : null;
-                  return (
-                    <React.Fragment key={r.id}>
-                      <tr>
-                        <td style={{ whiteSpace: "nowrap" }}>{formatUtc(r.occurred_at)}</td>
-                        <td>{categoryLabel(r.event_category)}</td>
-                        <td>{r.event_subtype || "—"}</td>
-                        <td>
-                          <code style={{ fontSize: 12 }}>{r.event_type}</code>
-                        </td>
-                        <td>
-                          {client ? (
-                            <Link to={`/admin/clients/${r.client_id}`}>{client.name || r.client_id}</Link>
-                          ) : r.client_id ? (
-                            r.client_id
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td>
-                          {map && r.client_id ? (
-                            <Link to={`/admin/clients/${r.client_id}/maps/${r.map_id}`}>
-                              {map.name || r.map_id}
-                            </Link>
-                          ) : map ? (
-                            map.name || r.map_id
-                          ) : r.map_id ? (
-                            r.map_id
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td style={{ fontSize: 12, maxWidth: 220 }} title={actorUserId || ""}>
-                          {actorUserId ? (
-                            <Link to={`/admin/users/${encodeURIComponent(actorUserId)}`}>
-                              {actor?.label || `${actorUserId.slice(0, 8)}…`}
-                            </Link>
-                          ) : (
-                            "System"
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="shell-btn shell-btn--sm"
-                            onClick={() => toggle(r.id)}
-                          >
-                            {expanded[r.id] ? "Hide" : "Meta"}
-                          </button>
-                        </td>
-                      </tr>
-                      {expanded[r.id] ? (
+        <Section flush>
+          {loading && !rows.length ? (
+            <Skeleton variant="table" label="Loading events" />
+          ) : !rows.length ? (
+            <EmptyState art="searching" title="No events match these filters" body="Clear a filter or refresh to check again." />
+          ) : (
+            <div className="table-wrap">
+              <table className="table ops-log-table">
+                <caption className="sr-only">User activity</caption>
+                <thead>
+                  <tr>
+                    <th>Time (UTC)</th>
+                    <th>Type</th>
+                    <th>Subtype</th>
+                    <th>Event</th>
+                    <th>Client</th>
+                    <th>Map</th>
+                    <th>Actor</th>
+                    <th>
+                      <span className="sr-only">Details</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const client = r.client_id ? clientsById[r.client_id] : null;
+                    const map = r.map_id ? mapsById[r.map_id] : null;
+                    const actorUserId = r.actor_user_id || r?.meta?.actor_user_id || null;
+                    const actor = actorUserId ? actorByUserId[actorUserId] : null;
+                    return (
+                      <React.Fragment key={r.id}>
                         <tr>
-                          <td colSpan={8} style={{ background: "#f9fafb", verticalAlign: "top", padding: 12 }}>
-                            <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
-                              {formatJson(r.meta)}
-                            </pre>
+                          <td className="ops-nowrap">{formatUtc(r.occurred_at)}</td>
+                          <td>
+                            <Pill tone="neutral">{categoryLabel(r.event_category)}</Pill>
+                          </td>
+                          <td>{r.event_subtype || "—"}</td>
+                          <td>
+                            <code>{r.event_type}</code>
+                          </td>
+                          <td>
+                            {client ? (
+                              <Link to={`/admin/clients/${r.client_id}`}>{client.name || r.client_id}</Link>
+                            ) : r.client_id ? (
+                              r.client_id
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td>
+                            {map && r.client_id ? (
+                              <Link to={`/admin/clients/${r.client_id}/maps/${r.map_id}`}>
+                                {map.name || r.map_id}
+                              </Link>
+                            ) : map ? (
+                              map.name || r.map_id
+                            ) : r.map_id ? (
+                              r.map_id
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="ops-cell-small" title={actorUserId || ""}>
+                            {actorUserId ? (
+                              <Link to={`/admin/users/${encodeURIComponent(actorUserId)}`}>
+                                {actor?.label || `${actorUserId.slice(0, 8)}…`}
+                              </Link>
+                            ) : (
+                              "System"
+                            )}
+                          </td>
+                          <td>
+                            <Button size="sm" aria-expanded={!!expanded[r.id]} onClick={() => toggle(r.id)}>
+                              {expanded[r.id] ? "Hide" : "Meta"}
+                            </Button>
                           </td>
                         </tr>
-                      ) : null}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        {expanded[r.id] ? (
+                          <tr className="ops-detail">
+                            <td colSpan={8}>
+                              <pre className="ops-pre">{formatJson(r.meta)}</pre>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      </PageLayout>
     </AdminLayout>
   );
 }

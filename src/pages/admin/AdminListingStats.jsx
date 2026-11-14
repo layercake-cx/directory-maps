@@ -29,19 +29,9 @@ export default function AdminListingStats() {
     };
   }, [clientId, mapId, listingId]);
 
-  const mapPath = `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`;
-  const statsPath = `${mapPath}/stats`;
 
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-        { label: map?.name ?? "Map", path: mapPath },
-        { label: "Stats", path: statsPath },
-        { label: listing?.name ?? "Listing" },
-      ]}
-    >
+    <AdminLayout>
       <ListingStats />
     </AdminLayout>
   );

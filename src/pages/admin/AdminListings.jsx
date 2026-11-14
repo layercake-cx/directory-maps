@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, Checkbox, DataTable, EmptyState, Field, PageLayout, Pill, Section, Select, TextInput, Toolbar } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
+import "../../styles/wave-c/maps-users.css";
 
 export default function AdminListings() {
   const [rows, setRows] = useState([]);
@@ -61,76 +64,78 @@ export default function AdminListings() {
     });
   }, [rows, q, groupId, activeOnly]);
 
+  const columns = [
+    {
+      key: "name",
+      label: "Name",
+      render: (r) => (
+        <>
+          <Link to={`/admin/listings/${encodeURIComponent(r.id)}`} className="row-link">{r.name}</Link>
+          <span className="mu-id">{r.id}</span>
+        </>
+      ),
+    },
+    { key: "group", label: "Group", render: (r) => groups.find((g) => g.id === r.group_id)?.name ?? "—" },
+    { key: "active", label: "Active", render: (r) => (r.is_active ? <Pill tone="live">Active</Pill> : <Pill>Off</Pill>) },
+    { key: "postcode", label: "Postcode", render: (r) => r.postcode ?? "—" },
+    { key: "country", label: "Country", render: (r) => r.country ?? "—" },
+    { key: "geocode", label: "Geocode", render: (r) => r.geocode_status ?? "—" },
+    { key: "updated", label: "Updated", render: (r) => (r.updated_at ? new Date(r.updated_at).toLocaleString() : "—") },
+  ];
+
   return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Maps" }]}
-    >
-      <div className="card card-pad">
-        <div className="admin-controls">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, postcode, country, id…"
-          />
+    <AdminLayout>
+      <PageLayout
+        head={{
+          title: "Maps",
+          actions: <Button as={Link} variant="primary" to="/admin/listings/new">New listing</Button>,
+        }}
+      >
+        <div className="mp-stack">
+          {err ? <Callout tone="danger">{err}</Callout> : null}
 
-          <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All groups</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
+          <Section>
+            <div className="mp-stack">
+              <Toolbar>
+                <Field label="Search" className="mp-grow">
+                  <TextInput
+                    type="search"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Search name, postcode, country, id…"
+                  />
+                </Field>
+                <Field label="Group">
+                  <Select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                    <option value="">All groups</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Checkbox label="Active only" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+                <Button onClick={load}>Refresh</Button>
+              </Toolbar>
 
-          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
-            Active only
-          </label>
-
-          <button className="shell-btn" onClick={load} type="button">
-            Refresh
-          </button>
-
-          <Link className="shell-btn shell-btn--primary" to="/admin/listings/new">
-            New listing
-          </Link>
+              <DataTable
+                columns={columns}
+                rows={filtered}
+                getRowId={(r) => r.id}
+                getRowLabel={(r) => r.name}
+                loading={loading}
+                caption="Listings"
+                empty={
+                  rows.length === 0 ? (
+                    <EmptyState art="welcome" title="No listings yet" body="Create a listing to see it here." actions={<Button as={Link} variant="primary" to="/admin/listings/new">New listing</Button>} />
+                  ) : (
+                    <EmptyState art="searching" title="No listings match" body="Try a different search or clear the filters." />
+                  )
+                }
+              />
+            </div>
+          </Section>
         </div>
-
-        {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
-        {err ? <p style={{ marginTop: 12 }}>{err}</p> : null}
-
-        <table className="admin-table">
-          <thead>
-            <tr>
-              {["Name", "Group", "Active", "Postcode", "Country", "Geocode", "Updated"].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <Link to={`/admin/listings/${encodeURIComponent(r.id)}`}>{r.name}</Link>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{r.id}</div>
-                </td>
-
-                <td>{groups.find((g) => g.id === r.group_id)?.name ?? "—"}</td>
-
-                <td>
-                  <span className={`badge ${r.is_active ? "" : "badge--off"}`}>{r.is_active ? "Active" : "Off"}</span>
-                </td>
-
-                <td>{r.postcode ?? "—"}</td>
-                <td>{r.country ?? "—"}</td>
-                <td>{r.geocode_status ?? "—"}</td>
-                <td>{r.updated_at ? new Date(r.updated_at).toLocaleString() : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      </PageLayout>
     </AdminLayout>
   );
 }

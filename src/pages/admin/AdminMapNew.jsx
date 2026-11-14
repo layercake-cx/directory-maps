@@ -6,6 +6,8 @@ import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import EntitlementUsageHint from "../../components/EntitlementUsageHint.jsx";
+import { Button, Callout, Checkbox, Field, FieldGrid, Section, SettingsLayout, TextInput } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
 
 function slugify(input) {
   return (input || "")
@@ -177,120 +179,91 @@ export default function AdminMapNew() {
   }
 
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-        { label: "New map" },
-      ]}
-    >
-      <div className="card card-pad" style={{ maxWidth: 760 }}>
-        <div style={{ marginBottom: 12 }}>
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
-        </div>
-
+    <AdminLayout>
+      <SettingsLayout
+        className="mp-form"
+        head={{
+          title: "New map",
+          breadcrumb: [
+            { label: "Customers", to: "/admin/clients" },
+            { label: client?.name ?? "…", to: `/admin/clients/${encodeURIComponent(clientId)}` },
+            { label: "New map" },
+          ],
+        }}
+      >
         <EntitlementUsageHint featureKey="max_maps" used={mapCount} limit={maxMapsLimit} atLimit={atMapLimit} />
 
         <form onSubmit={createMap}>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div className="field-grid">
-              <Field label="Map name">
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
-              </Field>
-              <Field label="Web address (short name)">
-                <input
-                  className="input"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder={suggestedSlug || "e.g. uk-directory"}
-                />
-                <div className="field-hint">
-                  This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
-                </div>
-              </Field>
-            </div>
+          <Section
+            footer={
+              <div className="mp-row">
+                <Button variant="primary" type="submit" loading={saving} loadingLabel="Creating…" disabled={atMapLimit}>
+                  Create map
+                </Button>
+                <Button as={Link} to={`/admin/clients/${encodeURIComponent(clientId)}`}>Cancel</Button>
+              </div>
+            }
+          >
+            <div className="mp-stack">
+              <FieldGrid>
+                <Field label="Map name">
+                  <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UK Directory" />
+                </Field>
+                <Field
+                  label="Web address (short name)"
+                  hint={<>This becomes part of the map URL. Suggested: <strong>{suggestedSlug || "—"}</strong></>}
+                >
+                  <TextInput
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    placeholder={suggestedSlug || "e.g. uk-directory"}
+                  />
+                </Field>
+              </FieldGrid>
 
-            <div style={{ marginTop: 8 }}>
-              <p className="card-title" style={{ fontSize: 15 }}>Where do you want to centre your map?</p>
-              <p style={{ margin: "0 0 8px 0", fontSize: 13, opacity: 0.8 }}>
-                Search for a city or country and we’ll set the map centre and an appropriate zoom level.
-              </p>
-              <Field label="Search for a place">
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    className="input"
+              <div className="mp-stack mp-stack--tight">
+                <h2 className="mp-subhead">Where do you want to centre your map?</h2>
+                <p className="mp-note">
+                  Search for a city or country and we’ll set the map centre and an appropriate zoom level.
+                </p>
+              </div>
+
+              <div className="mp-inline-form">
+                <Field label="Search for a place">
+                  <TextInput
                     value={locationQuery}
                     onChange={(e) => setLocationQuery(e.target.value)}
                     placeholder="e.g. London, UK or Canada"
                   />
-                  <button className="shell-btn" type="button" onClick={lookupLocation} disabled={geocoding}>
-                    {geocoding ? "Searching…" : "Search"}
-                  </button>
-                </div>
-              </Field>
+                </Field>
+                <Button onClick={lookupLocation} loading={geocoding} loadingLabel="Searching…">Search</Button>
+              </div>
 
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.85 }}>Fine-tune the start view (optional)</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div className="mp-stack mp-stack--tight">
+                <h3 className="mp-subhead">Fine-tune the start view (optional)</h3>
+                <div className="mp-grid-3">
                   <Field label="Latitude">
-                    <input className="input" value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
+                    <TextInput value={defaultLat} onChange={(e) => setDefaultLat(e.target.value)} />
                   </Field>
                   <Field label="Longitude">
-                    <input className="input" value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
+                    <TextInput value={defaultLng} onChange={(e) => setDefaultLng(e.target.value)} />
                   </Field>
-                  <Field label="Zoom">
-                    <input className="input" value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
-                    <div className="field-hint">
-                      4–6: continent / global, 7–10: country / region, 11+ closer in.
-                    </div>
+                  <Field label="Zoom" hint="4–6: continent / global, 7–10: country / region, 11+ closer in.">
+                    <TextInput value={defaultZoom} onChange={(e) => setDefaultZoom(e.target.value)} />
                   </Field>
                 </div>
               </div>
+
+              <div className="mp-choice-row">
+                <Checkbox label="Show list panel" checked={showListPanel} onChange={(e) => setShowListPanel(e.target.checked)} />
+                <Checkbox label="Enable clustering" checked={enableClustering} onChange={(e) => setEnableClustering(e.target.checked)} />
+              </div>
+
+              {err ? <Callout tone="danger">{err}</Callout> : null}
             </div>
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={showListPanel}
-                  onChange={(e) => setShowListPanel(e.target.checked)}
-                />
-                Show list panel
-              </label>
-
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={enableClustering}
-                  onChange={(e) => setEnableClustering(e.target.checked)}
-                />
-                Enable clustering
-              </label>
-            </div>
-
-            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
-
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving || atMapLimit}>
-                {saving ? "Creating…" : "Create map"}
-              </button>
-
-              <Link className="shell-btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
-                Cancel
-              </Link>
-            </div>
-          </div>
+          </Section>
         </form>
-      </div>
+      </SettingsLayout>
     </AdminLayout>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
   );
 }

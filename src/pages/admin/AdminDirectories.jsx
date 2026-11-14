@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import {
+  Button, Callout, DataTable, EmptyState, Field, PageLayout, Pill, Section, TextInput, Toolbar,
+} from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 /**
  * Top-level, cross-client Directories list (DIR-E1 hardening) — mirrors
@@ -75,78 +79,77 @@ export default function AdminDirectories() {
     });
   }, [directories, clientsById, q]);
 
+  const adminUrlFor = (d) =>
+    d.client_id ? `/admin/clients/${encodeURIComponent(d.client_id)}/directories/${encodeURIComponent(d.id)}` : null;
+
+  const columns = [
+    {
+      key: "name",
+      label: "Directory name",
+      render: (d) => (
+        <>
+          <strong>{d.name ?? "—"}</strong>
+          {d.slug ? <span className="wc-cell-sub">{d.slug}</span> : null}
+        </>
+      ),
+    },
+    {
+      key: "customer",
+      label: "Customer",
+      render: (d) => {
+        const client = clientsById[d.client_id];
+        return client ? (
+          <Link to={`/admin/clients/${encodeURIComponent(d.client_id)}`}>{client.name}</Link>
+        ) : (
+          <span className="wc-muted">—</span>
+        );
+      },
+    },
+    { key: "entries", label: "Entries", render: (d) => entryCountByDirectoryId[d.id] ?? 0 },
+    {
+      key: "status",
+      label: "Status",
+      render: (d) => <Pill tone={d.is_active ? "ok" : "neutral"}>{d.is_active ? "Active" : "Archived"}</Pill>,
+    },
+  ];
+
   return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Directories" }]}
-    >
-      <div className="card card-pad">
-        <div className="admin-controls">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by directory name or customer name…"
-          />
-          <button className="shell-btn" onClick={load} type="button">
-            Refresh
-          </button>
+    <AdminLayout>
+      <PageLayout head={{ title: "Directories", actions: <Button onClick={load}>Refresh</Button> }}>
+        <div className="wc-stack">
+          {err ? <Callout tone="danger">{err}</Callout> : null}
+
+          <Section flush>
+            <Toolbar className="wc-toolbar">
+              <Field label="Search directories" className="wc-field-grow">
+                <TextInput
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search by directory name or customer name…"
+                />
+              </Field>
+            </Toolbar>
+            <DataTable
+              caption="Directories"
+              columns={columns}
+              rows={filtered}
+              getRowId={(d) => d.id}
+              getRowLabel={(d) => d.name ?? "directory"}
+              rowLink={(d) => adminUrlFor(d) ?? "#"}
+              loading={loading}
+              empty={
+                err ? null : (
+                  <EmptyState
+                    art="none"
+                    title={directories.length === 0 ? "No directories yet" : "No directories match your search"}
+                  />
+                )
+              }
+            />
+          </Section>
         </div>
-
-        {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
-        {err ? <p style={{ marginTop: 12 }}>{err}</p> : null}
-
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Directory name</th>
-              <th>Customer</th>
-              <th>Entries</th>
-              <th>Status</th>
-              <th>Settings</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((d) => {
-              const client = clientsById[d.client_id];
-              const adminUrl = d.client_id
-                ? `/admin/clients/${encodeURIComponent(d.client_id)}/directories/${encodeURIComponent(d.id)}`
-                : null;
-              const entryCount = entryCountByDirectoryId[d.id] ?? 0;
-              return (
-                <tr key={d.id}>
-                  <td>
-                    {adminUrl ? (
-                      <Link to={adminUrl} style={{ fontWeight: 600, textDecoration: "none" }}>
-                        {d.name ?? "—"}
-                      </Link>
-                    ) : (
-                      <strong>{d.name ?? "—"}</strong>
-                    )}
-                    {d.slug ? <span style={{ fontSize: 12, opacity: 0.8, display: "block" }}>{d.slug}</span> : null}
-                  </td>
-                  <td>
-                    {client ? (
-                      <Link to={`/admin/clients/${encodeURIComponent(d.client_id)}`}>{client.name}</Link>
-                    ) : (
-                      <span style={{ opacity: 0.6 }}>—</span>
-                    )}
-                  </td>
-                  <td>{entryCount}</td>
-                  <td>{d.is_active ? "Active" : "Archived"}</td>
-                  <td>
-                    {adminUrl ? <Link className="shell-btn shell-btn--sm" to={adminUrl}>Open</Link> : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {!loading && !err && filtered.length === 0 ? (
-          <p style={{ marginTop: 12, color: "var(--lc-muted)" }}>
-            {directories.length === 0 ? "No directories yet." : "No directories match your search."}
-          </p>
-        ) : null}
-      </div>
+      </PageLayout>
     </AdminLayout>
   );
 }
