@@ -31,7 +31,7 @@ Revert the branch's commits and redeploy with `npm run deploy:live`. No migratio
 ### Verification
 - [x] `npm run build` passes; `scripts/check-ui.sh` passes with the new checks.
 - [x] Damian checked the first deploy on live (2026-11-14), which led to Addendum A.
-- [ ] Addendum A deployed but not yet re-checked on live: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
+- [x] Damian re-checked Addendum A on live (2026-11-14): looks good. Not independently checked by the agent: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
 
 ## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
 
