@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { Button, Callout, useConfirm } from "../ui/index.js";
+import { JobCard, useJob } from "../jobs/index.js";
 import { listCategorisations } from "../../lib/categorisations";
 import {
   buildDirectoryPublicationConfig,
-  getDirectorySiteGenerationStatus,
   listDirectoryPublications,
   publishDirectory,
   rollbackDirectoryTo,
@@ -26,25 +28,23 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   const [publishing, setPublishing] = useState(false);
   const [rollingBackId, setRollingBackId] = useState(null);
   const [err, setErr] = useState("");
-  const [msg, setMsg] = useState("");
-  const [genStatus, setGenStatus] = useState(null);
+  const confirm = useConfirm();
+  const { pathname } = useLocation();
+  // Generation status, progress and the leave-the-page hint all live in the job (JobsProvider polls the server).
+  const { job, running, begin, refresh, dismiss } = useJob("publish", directory?.id, { href: pathname, version: history[0]?.version });
 
-  function handleGenerationResult(successMsg, result) {
+  function handleGenerationResult(result) {
     if (result?.skipped === "flag_disabled") {
-      setMsg("");
       setErr(
         "Published, but the public pages weren't generated: the Directories feature isn't enabled for this client yet. " +
         "Ask an admin to enable it under Feature access (beta) on the customer's detail page, then publish again.",
       );
     } else if (result?.skipped) {
-      setMsg("");
       setErr(`Published, but page generation was skipped (${result.skipped}). Ask an admin to check the customer's plan/entitlements, then publish again.`);
     } else if (result?.error) {
-      setMsg("");
       setErr(`Published, but page generation failed: ${result.error}`);
     } else {
       setErr("");
-      setMsg(successMsg);
     }
   }
 
@@ -62,43 +62,22 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
 
   useEffect(() => { void refreshHistory(); }, [refreshHistory]);
 
-  const refreshGenStatus = useCallback(async () => {
-    if (!directory?.id) return;
-    try {
-      setGenStatus(await getDirectorySiteGenerationStatus(directory.id));
-    } catch {
-      /* non-fatal: status display just stays stale/empty */
-    }
-  }, [directory?.id]);
-
-  useEffect(() => { void refreshGenStatus(); }, [refreshGenStatus]);
-
-  // Poll while a generation is in progress, so this reflects reality even if
-  // it was triggered from a different tab, or this tab was reloaded after
-  // the triggering fire-and-forget call already resolved/failed elsewhere.
-  useEffect(() => {
-    if (genStatus?.site_generation_status !== "running") return;
-    const id = setInterval(() => { void refreshGenStatus(); }, 3000);
-    return () => clearInterval(id);
-  }, [genStatus?.site_generation_status, refreshGenStatus]);
-
   async function handlePublish() {
     setErr("");
-    setMsg("");
     try {
       setPublishing(true);
       const categorisations = directory?.client_id ? await listCategorisations(directory.client_id) : [];
       const config = buildDirectoryPublicationConfig({ directory, categorisations });
       recordEvent?.("directory_publish_requested", { directory_id: directory.id, note_present: !!note.trim() });
       await publishDirectory(directory.id, config, note);
-      setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
+      const fresh = await listDirectoryPublications(directory.id);
+      setHistory(fresh);
+      begin({ variant: "publish", version: fresh[0]?.version });
       triggerDirectorySiteRegeneration(directory.id, {
-        onResult: (result) => { handleGenerationResult("Published and public pages generated.", result); void refreshGenStatus(); },
+        onResult: (result) => { handleGenerationResult(result); void refresh(); },
       });
       recordEvent?.("directory_published", { directory_id: directory.id, note_present: !!note.trim() });
       setNote("");
-      setMsg("Published — generating public pages…");
-      await refreshHistory();
       onPublished?.();
     } catch (e) {
       recordEvent?.("directory_publish_failed", { directory_id: directory.id, error: e?.message ?? String(e) });
@@ -109,19 +88,22 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   }
 
   async function handleRollback(pub) {
-    if (!window.confirm(`Restore version ${pub.version}? This creates a new version with that snapshot's settings — it doesn't delete anything.`)) return;
+    const ok = await confirm({
+      title: `Restore version ${pub.version}?`,
+      body: "This creates a new version with that snapshot's settings. It doesn't delete anything.",
+      confirmLabel: "Restore version",
+    });
+    if (!ok) return;
     setErr("");
-    setMsg("");
     try {
       setRollingBackId(pub.id);
       await rollbackDirectoryTo(directory.id, pub.id);
-      setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
+      begin({ variant: "restore", version: pub.version });
       triggerDirectorySiteRegeneration(directory.id, {
         scope: "full",
-        onResult: (result) => { handleGenerationResult(`Restored version ${pub.version} and regenerated public pages.`, result); void refreshGenStatus(); },
+        onResult: (result) => { handleGenerationResult(result); void refresh(); },
       });
       recordEvent?.("directory_publish_rolled_back", { directory_id: directory.id, from_publication_id: directory.current_publication_id, to_publication_id: pub.id });
-      setMsg(`Restored version ${pub.version} — regenerating public pages…`);
       await refreshHistory();
       onPublished?.();
     } catch (e) {
@@ -136,32 +118,14 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
     : null;
 
   async function handleRegenerate() {
-    setErr(""); setMsg("");
-    setGenStatus((prev) => ({ ...prev, site_generation_status: "running", site_generation_started_at: new Date().toISOString() }));
+    setErr("");
+    begin({ variant: "regenerate" });
     triggerDirectorySiteRegeneration(directory.id, {
-      onResult: (result) => { handleGenerationResult("Public pages regenerated.", result); void refreshGenStatus(); },
+      onResult: (result) => { handleGenerationResult(result); void refresh(); },
     });
   }
 
-  const genStatusLine = (() => {
-    if (!genStatus?.site_generation_status) return null;
-    if (genStatus.site_generation_status === "running") {
-      return <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>⏳ Generating public pages…</p>;
-    }
-    if (genStatus.site_generation_status === "failed") {
-      return (
-        <p style={{ fontSize: 12, color: "#b91c1c", margin: "0 0 8px" }}>
-          Public pages generation failed{genStatus.site_generated_at ? ` (last succeeded ${new Date(genStatus.site_generated_at).toLocaleString()})` : ""}: {genStatus.site_generation_error || "unknown error"}.{" "}
-          <button type="button" className="btn" style={{ fontSize: 11, padding: "2px 6px" }} onClick={handleRegenerate}>Retry</button>
-        </p>
-      );
-    }
-    return (
-      <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
-        Public pages last generated {new Date(genStatus.site_generated_at).toLocaleString()}.
-      </p>
-    );
-  })();
+  const pausedReason = running ? `Publishing is paused until ${job?.variant === "regenerate" ? "pages are rebuilt" : history[0]?.version ? `version ${history[0].version} is live` : "this run finishes"}.` : undefined;
 
   return (
     <div>
@@ -176,17 +140,25 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
         <p style={{ fontSize: 13, opacity: 0.7, margin: "0 0 8px" }}>Not published yet.</p>
       )}
 
-      {genStatusLine}
+      {job ? (
+        <div style={{ margin: "0 0 12px" }}>
+          <JobCard
+            job={job}
+            onRetry={handleRegenerate}
+            onDismiss={dismiss}
+            primaryAction={publicUrl ? <Button as="a" href={publicUrl} target="_blank" rel="noopener noreferrer">View live site</Button> : null}
+          />
+        </div>
+      ) : null}
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
-      {msg && <p style={{ color: "#166534", fontSize: 12, margin: "0 0 8px" }}>{msg}</p>}
+      {err ? <div style={{ margin: "0 0 12px" }}><Callout tone="danger">{err}</Callout></div> : null}
 
       {canPublish && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" style={{ ...inputStyle, maxWidth: 280 }} />
-          <button type="button" className="btn btn-primary" onClick={handlePublish} disabled={publishing}>
-            {publishing ? "Publishing…" : directory?.published_at ? "Publish update" : "Publish"}
-          </button>
+          <Button variant="primary" onClick={handlePublish} loading={publishing} loadingLabel="Publishing…" disabled={running} disabledReason={pausedReason}>
+            {directory?.published_at ? "Publish update" : "Publish"}
+          </Button>
         </div>
       )}
 
@@ -205,9 +177,9 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
                   <div style={{ opacity: 0.7 }}>{new Date(pub.published_at).toLocaleString()}{pub.note ? ` — ${pub.note}` : ""}</div>
                 </div>
                 {canPublish && !isCurrent && (
-                  <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => handleRollback(pub)} disabled={rollingBackId === pub.id}>
-                    {rollingBackId === pub.id ? "Restoring…" : "Restore"}
-                  </button>
+                  <Button size="sm" onClick={() => handleRollback(pub)} loading={rollingBackId === pub.id} loadingLabel="Restoring…" disabled={running} disabledReason={undefined} title={running ? pausedReason : undefined}>
+                    Restore
+                  </Button>
                 )}
               </div>
             );

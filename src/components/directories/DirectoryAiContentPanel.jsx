@@ -1,10 +1,12 @@
 import AIButton from "../ai/AIButton.jsx";
 import React, { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { Button } from "../ui/index.js";
+import { JobCard, useJob } from "../jobs/index.js";
 import { supabase } from "../../lib/supabase.js";
 import {
   updateDirectory,
   triggerDirectoryAiContentBulkRun,
-  getDirectoryAiContentStatus,
 } from "../../lib/directories.js";
 
 import { useAiFeature } from "../../hooks/useAiFeature.js";
@@ -39,31 +41,25 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [queuing, setQueuing] = useState(false);
-  const [status, setStatus] = useState(null);
+  const { pathname } = useLocation();
+  // Progress comes from the server status via JobsProvider; the page can be left while it runs.
+  const { job, running, begin, dismiss } = useJob("ai-content", directoryId, { href: pathname });
 
   useEffect(() => {
     setPrompt(directory?.ai_content_prompt ?? "");
   }, [directory?.ai_content_prompt]);
 
-  const refreshStatus = useCallback(async () => {
+  const refreshSummary = useCallback(async () => {
     if (!directoryId) return;
     try {
-      setStatus(await getDirectoryAiContentStatus(directoryId));
       setRunSummary(await getAiBulkRunSummary(directoryId, "content"));
     } catch {
-      /* non-fatal: status display just stays stale/empty */
+      /* non-fatal: the report just stays stale/empty */
     }
   }, [directoryId]);
 
-  useEffect(() => { void refreshStatus(); }, [refreshStatus]);
-
-  // Poll while a bulk run is in progress, so this reflects reality even if
-  // triggered from a different tab or this tab was reloaded mid-run.
-  useEffect(() => {
-    if (status?.ai_content_generation_status !== "running") return;
-    const id = setInterval(() => { void refreshStatus(); }, 3000);
-    return () => clearInterval(id);
-  }, [status?.ai_content_generation_status, refreshStatus]);
+  // Re-read the run report when a run starts or finishes.
+  useEffect(() => { void refreshSummary(); }, [refreshSummary, job?.status]);
 
   async function savePrompt(e) {
     e.preventDefault();
@@ -110,7 +106,7 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
       recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, entries_queued: queued });
       setConfirmOpen(false);
       setMsg(`Queued ${queued} ${queued === 1 ? "entry" : "entries"} for regeneration.`);
-      await refreshStatus();
+      if (queued > 0) begin({ total: queued });
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -126,7 +122,8 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
       const n = await retryFailedBulkJobs(directoryId, "content");
       recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, entries_queued: n, retry: true });
       setMsg(n > 0 ? `Re-queued ${n} failed ${n === 1 ? "entry" : "entries"}.` : "Nothing to retry.");
-      await refreshStatus();
+      if (n > 0) begin({ total: n });
+      await refreshSummary();
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -134,37 +131,22 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
     }
   }
 
-  const statusLine = (() => {
-    if (!status?.ai_content_generation_status) return null;
-    if (status.ai_content_generation_status === "running") {
-      const total = status.ai_content_generation_total ?? 0;
-      const processed = status.ai_content_generation_processed ?? 0;
-      return (
-        <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
-          ⏳ Generating content — {processed} of {total} entries done…
-        </p>
-      );
-    }
-    if (status.ai_content_generation_status === "failed") {
-      return (
-        <p style={{ fontSize: 12, color: "#b91c1c", margin: "0 0 8px" }}>
-          Last run finished with errors: {status.ai_content_generation_error || "unknown error"}.
-        </p>
-      );
-    }
-    return (
-      <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
-        Last full run completed {new Date(status.ai_content_generated_at).toLocaleString()}.
-      </p>
-    );
-  })();
-
   if (!canManage) {
     return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can change AI content generation settings.</p>;
   }
 
   return (
     <div>
+      {job ? (
+        <div style={{ margin: "0 0 12px" }}>
+          <JobCard
+            job={job}
+            onRetry={handleRetryFailed}
+            onDismiss={dismiss}
+            primaryAction={<Button as="a" href="#ai-content-report">Review drafts</Button>}
+          />
+        </div>
+      ) : null}
       <form onSubmit={savePrompt} style={{ display: "grid", gap: 10 }}>
         {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
         {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
@@ -194,15 +176,16 @@ export default function DirectoryAiContentPanel({ directory, directoryId, canMan
 
       <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid var(--lc-border)" }} />
 
-      {statusLine}
-      <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      <div id="ai-content-report">
+        <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      </div>
       {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
       <AIButton
         compact
         variant="secondary"
         label="Generate all entry content"
         onGenerate={() => { openConfirm(); return false; }}
-        disabled={!directory?.ai_content_prompt?.trim() || status?.ai_content_generation_status === "running" || !ai.available}
+        disabled={!directory?.ai_content_prompt?.trim() || running || !ai.available}
       />
       {!directory?.ai_content_prompt?.trim() && (
         <p style={{ fontSize: 12, opacity: 0.6, margin: "6px 0 0" }}>Save a content prompt above first.</p>

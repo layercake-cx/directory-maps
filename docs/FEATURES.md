@@ -122,6 +122,7 @@ route restructuring was needed to introduce it (see the Phase 1 plan for why).
 - `ToastProvider` and `ConfirmProvider` mount in `AppShell`. `useConfirm()` replaces `window.confirm`, and `useUnsavedGuard` now asks through the same dialog.
 - The old `components/experience/ui.jsx` re-exports from the kit until Discover UI phase 7.
 - **Page templates** (`PageLayout`, `SettingsLayout`, `RecordLayout` in `components/ui/layouts.jsx`) replace hand-built page structure: workspace page with optional summary and 320px aside; feature-panel settings page with a section stack and SaveBar; record editor with breadcrumb, tabs, form column and sticky preview.
+- **Processing pattern** (`components/jobs/`): `JobsProvider` (mounted in `AppShell`) holds running and finished jobs; `useJob` reads server status (publish, AI content, SEO backfill) and the provider keeps polling every 3 s after the page unmounts; `JobCard`, the top-bar `TaskIndicator`, `KeepOpenBanner` and the side-panel publish chip show it. Browser-run work (Sheets sync, CSV import) uses `useLocalJob`. A `DirectoryJobsWatcher` in the directory side panel restores a job that is already running after a reload.
 - **Responsive shell:** below 1024px the feature panel becomes a drawer opened by a Menu button in the top bar (closes on navigation, Esc or scrim click); below 640px the rail becomes a bottom bar. `PageHead` takes `eyebrow`, `breadcrumb`, `status` and `size`. The top bar has reserved slots for the task indicator (phase 4) and Ask Pip (phase 5).
 
 ### 4.2 Maps — create & list

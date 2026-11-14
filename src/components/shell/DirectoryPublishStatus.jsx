@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getDirectoryPublishState } from "../../lib/directoryPublications.js";
+import { useJobs, useNow, formatElapsed } from "../jobs/index.js";
+import { SpinnerIcon } from "../ui/index.js";
 
 const LABELS = {
   not_published: "Not published",
@@ -19,6 +21,10 @@ const LABELS = {
 export default function DirectoryPublishStatus({ directoryId, publishingRoute, publishedAtKey, fallbackUrl }) {
   const { pathname } = useLocation();
   const [status, setStatus] = useState(null);
+  const { jobs } = useJobs();
+  const startedAt = jobs[`publish:${directoryId}`]?.startedAt;
+  const generating = status?.state === "generating";
+  const now = useNow(generating);
 
   const load = useCallback(async () => {
     if (!directoryId) return;
@@ -49,11 +55,14 @@ export default function DirectoryPublishStatus({ directoryId, publishingRoute, p
   return (
     <div className="publish-status-wrap">
       <Link to={publishingRoute} className="publish-status" data-state={state} title={changeCount ? `${changeCount} item${changeCount === 1 ? "" : "s"} changed since the last publish` : undefined}>
-        <span className="publish-status-dot" aria-hidden="true" />
+        {state === "generating" ? <SpinnerIcon className="publish-status-spinner" /> : <span className="publish-status-dot" aria-hidden="true" />}
         <span className="publish-status-text">
           <strong>{LABELS[state]}</strong>
-          {detail && <span>{detail}</span>}
+          {state === "generating" && startedAt ? <span>{formatElapsed(now - new Date(startedAt).getTime())}</span> : detail && <span>{detail}</span>}
         </span>
+        {state === "generating" ? (
+          <span className="progress progress--xs progress--indeterminate" aria-hidden="true"><span className="progress-fill" /></span>
+        ) : null}
       </Link>
       {liveUrl && (
         <a className="publish-status-live" href={liveUrl} target="_blank" rel="noopener noreferrer">

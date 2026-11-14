@@ -1,5 +1,8 @@
 import AIButton from "../ai/AIButton.jsx";
 import React, { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { Button } from "../ui/index.js";
+import { JobCard, useJob } from "../jobs/index.js";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../ai/AiUnavailableNotice.jsx";
 import AiRunSummary from "../ai/AiRunSummary.jsx";
@@ -8,7 +11,6 @@ import { getAiBulkRunSummary, retryFailedBulkJobs } from "../../lib/aiUsage.js";
 import {
   countEntriesMissingSeoMetadata,
   triggerDirectorySeoMetadataBackfill,
-  getDirectorySeoMetadataBackfillStatus,
 } from "../../lib/directories.js";
 
 /**
@@ -29,7 +31,9 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
   const [missingCount, setMissingCount] = useState(null);
   const [countLoading, setCountLoading] = useState(true);
   const [queuing, setQueuing] = useState(false);
-  const [status, setStatus] = useState(null);
+  const { pathname } = useLocation();
+  // Progress comes from the server status via JobsProvider; the page can be left while it runs.
+  const { job, running, begin, dismiss } = useJob("seo-backfill", directoryId, { href: pathname });
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -45,29 +49,20 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
     }
   }, [directoryId]);
 
-  const refreshStatus = useCallback(async () => {
+  const refreshSummary = useCallback(async () => {
     if (!directoryId) return;
     try {
-      setStatus(await getDirectorySeoMetadataBackfillStatus(directoryId));
       setRunSummary(await getAiBulkRunSummary(directoryId, "seo"));
     } catch {
-      /* non-fatal: status display just stays stale/empty */
+      /* non-fatal: the report just stays stale/empty */
     }
   }, [directoryId]);
 
-  useEffect(() => { void refreshCount(); void refreshStatus(); }, [refreshCount, refreshStatus]);
+  useEffect(() => { void refreshCount(); }, [refreshCount]);
+  // Re-read the run report when a run starts or finishes.
+  useEffect(() => { void refreshSummary(); }, [refreshSummary, job?.status]);
 
-  // Poll while a bulk run is in progress, so this reflects reality even if
-  // triggered from a different tab or this tab was reloaded mid-run. Once it
-  // stops running, re-check the missing-entries count so it reflects what
-  // the run actually filled.
-  const running = status?.seo_metadata_backfill_status === "running";
-  useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => { void refreshStatus(); }, 3000);
-    return () => clearInterval(id);
-  }, [running, refreshStatus]);
-
+  // Once a run stops, re-check the missing-entries count so it reflects what the run actually filled.
   const prevRunning = React.useRef(running);
   useEffect(() => {
     if (prevRunning.current && !running) void refreshCount();
@@ -82,7 +77,7 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
       const queued = await triggerDirectorySeoMetadataBackfill(directoryId);
       recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, target: "seo_metadata", entries_queued: queued });
       setMsg(queued > 0 ? `Queued ${queued} ${queued === 1 ? "entry" : "entries"} for backfill.` : "Nothing to backfill — every active entry already has all six fields.");
-      await refreshStatus();
+      if (queued > 0) begin({ total: queued });
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -98,7 +93,8 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
       const n = await retryFailedBulkJobs(directoryId, "seo");
       recordEvent?.("directory_ai_content_bulk_requested", { directory_id: directoryId, target: "seo_metadata", entries_queued: n, retry: true });
       setMsg(n > 0 ? `Re-queued ${n} failed ${n === 1 ? "entry" : "entries"}.` : "Nothing to retry.");
-      await refreshStatus();
+      if (n > 0) begin({ total: n });
+      await refreshSummary();
     } catch (e) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -106,37 +102,22 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
     }
   }
 
-  const statusLine = (() => {
-    if (!status?.seo_metadata_backfill_status) return null;
-    if (status.seo_metadata_backfill_status === "running") {
-      const total = status.seo_metadata_backfill_total ?? 0;
-      const processed = status.seo_metadata_backfill_processed ?? 0;
-      return (
-        <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
-          ⏳ Backfilling metadata — {processed} of {total} entries done…
-        </p>
-      );
-    }
-    if (status.seo_metadata_backfill_status === "failed") {
-      return (
-        <p style={{ fontSize: 12, color: "#b91c1c", margin: "0 0 8px" }}>
-          Last run finished with errors: {status.seo_metadata_backfill_error || "unknown error"}.
-        </p>
-      );
-    }
-    return (
-      <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px" }}>
-        Last backfill run completed {new Date(status.seo_metadata_backfill_completed_at).toLocaleString()}.
-      </p>
-    );
-  })();
-
   if (!canManage) {
     return <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Only an Owner or Manager can trigger the SEO metadata backfill.</p>;
   }
 
   return (
     <div>
+      {job ? (
+        <div style={{ margin: "0 0 12px" }}>
+          <JobCard
+            job={job}
+            onRetry={handleRetryFailed}
+            onDismiss={dismiss}
+            primaryAction={<Button as="a" href="#ai-seo-report">Review drafts</Button>}
+          />
+        </div>
+      ) : null}
       {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
       {msg && <p style={{ color: "#15803d", fontSize: 12, margin: "0 0 8px" }}>{msg}</p>}
 
@@ -151,8 +132,9 @@ export default function DirectoryAiSeoMetadataPanel({ directoryId, canManage, re
         {countLoading ? "Checking…" : missingCount == null ? "Could not check how many entries are missing metadata." : `${missingCount} ${missingCount === 1 ? "entry is" : "entries are"} missing SEO/social metadata.`}
       </p>
 
-      {statusLine}
-      <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      <div id="ai-seo-report">
+        <AiBulkRunReport summary={runSummary} onRetry={handleRetryFailed} retrying={retrying} canRetry={ai.available} />
+      </div>
       {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
       {ai.available && missingCount > 0 && !running && (
         <AiRunSummary

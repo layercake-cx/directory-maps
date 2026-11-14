@@ -475,3 +475,24 @@
   .shell .panel-slot .panel, .shell .panel-slot[data-open="true"] .panel { transition: none; }
 }
 .shell .main > .savebar, .shell .main--wide > .savebar { width: auto; max-width: none; margin-left: calc(-1 * var(--main-pad-x)); margin-right: calc(-1 * var(--main-pad-x)); }
+
+/* ==================================================================
+   PROCESSING (phase 4)
+   ================================================================== */
+.shell .task-wrap { position: relative; }
+.shell .task-item-title { font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); }
+.shell .task-item-sub { font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .job-card-title { overflow-wrap: anywhere; }
+.shell .job-card-error { margin-top: 6px; font-size: var(--fs-small); color: var(--shell-danger-text); }
+.shell .job-card-error summary { cursor: pointer; font-weight: 600; }
+.shell .job-card-error code { display: block; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.shell .job-card-text .job-card-meta { white-space: normal; }
+.shell .job-card + .job-card, .shell .keep-open-banner + .job-card { margin-top: 0; }
+.shell .publish-status-spinner { width: 14px; height: 14px; flex: none; color: var(--ps-color); animation: dui-spin 0.9s linear infinite; }
+.shell .publish-status .progress--xs { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .shell .publish-status-spinner { animation: none; }
+  .shell .progress--striped .progress-fill, .shell .progress--indeterminate .progress-fill { animation: none; }
+}
+.shell .job-stack { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.shell .task-indicator { white-space: nowrap; }
