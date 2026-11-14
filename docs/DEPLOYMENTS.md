@@ -21,6 +21,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Result: in scope, legacy buttons 0, legacy containers 0, `xp-*` 0, Mantine outside `ui/` 0, native confirm/alert 0, inline styles 37 (all dynamic), from a baseline of 2047 inline styles and 276 legacy buttons.
 - No data fetching, route, permission, event or Edge Function changes. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-6wuysoviv-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
