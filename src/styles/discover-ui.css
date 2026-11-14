@@ -395,3 +395,83 @@
 .shell .uikit-stack { display: flex; flex-direction: column; gap: 16px; }
 .shell .uikit-note { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
 .shell .segmented { align-self: flex-start; max-width: 100%; }
+
+
+/* ==================================================================
+   SHELL (phase 3): PageHead, page templates, responsive shell
+   ================================================================== */
+.shell .page-head-text { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.shell .page-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.shell .page-title--sm { font-size: 32px; }
+.shell .page-eyebrow { margin: 0; font-size: var(--fs-label); font-weight: 700; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--shell-text-muted); }
+.shell .page-subtitle { margin: 0; font-size: var(--fs-ui); color: var(--shell-text-muted); }
+.shell .page-head-actions { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.shell .breadcrumb { flex-wrap: wrap; }
+.shell .breadcrumb a:hover { color: var(--shell-ink); text-decoration: underline; }
+
+.shell .nav-spark { margin-left: 6px; align-self: center; }
+.shell .nav-item { align-items: center; }
+
+/* Template 1: workspace page */
+.shell .page-summary { margin-bottom: 4px; }
+.shell .page-grid { display: block; }
+.shell .page-grid--aside { display: grid; grid-template-columns: minmax(0, 1fr) var(--aside-w); gap: 24px; align-items: start; }
+.shell .page-primary { display: flex; flex-direction: column; gap: var(--gap-section); min-width: 0; }
+.shell .page-aside { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 1099px) { .shell .page-grid--aside { grid-template-columns: minmax(0, 1fr); } }
+
+/* Template 3: record editor */
+.shell .record-grid { display: block; }
+.shell .record-grid--preview { display: grid; grid-template-columns: minmax(0, var(--form-max-narrow)) var(--preview-w); gap: 24px; align-items: start; }
+.shell .record-form { display: flex; flex-direction: column; gap: 16px; max-width: var(--form-max-narrow); min-width: 0; }
+.shell .record-preview { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 1199px) {
+  .shell .record-grid--preview { grid-template-columns: minmax(0, 1fr); }
+  .shell .record-preview { position: static; }
+}
+
+/* ---------- Responsive shell ---------- */
+.shell .panel-slot { display: contents; }
+.shell .topbar-menu { display: none; height: 36px; padding: 0 12px 0 8px; border: 0; border-radius: var(--radius-item); background: rgba(255, 255, 255, 0.18); color: var(--lc-on-ink); align-items: center; gap: 6px; font: 600 var(--fs-ui) var(--font-body); cursor: pointer; }
+.shell[data-context="platform"] .topbar-menu { background: var(--lc-ink-raised); box-shadow: inset 0 0 0 1px var(--lc-ink-line); }
+.shell .topbar-menu:focus-visible, .shell .topbar-icon:focus-visible, .shell .topbar-logo:focus-visible { outline: var(--focus-ring-on-dark); outline-offset: var(--focus-offset); }
+.shell .panel-scrim { display: none; }
+
+@media (max-width: 1023px) {
+  .shell .topbar-menu { display: inline-flex; }
+  .shell .topbar { gap: 12px; padding: 0 12px; }
+  .shell .topbar-search { width: 200px; }
+  .shell .panel-slot .panel {
+    position: fixed; top: var(--header-h); bottom: 0; left: var(--rail-w); z-index: calc(var(--z-drawer) + 1);
+    width: min(var(--panel-w), calc(100vw - var(--rail-w) - 24px)); box-shadow: var(--shadow-pop);
+    transform: translateX(calc(-100% - var(--rail-w))); visibility: hidden;
+    transition: transform var(--dur-enter) var(--ease-out), visibility 0s linear var(--dur-enter);
+  }
+  .shell .panel-slot[data-open="true"] .panel { transform: none; visibility: visible; transition: transform var(--dur-enter) var(--ease-out); }
+  .shell .panel-scrim { display: block; position: fixed; inset: var(--header-h) 0 0 0; z-index: var(--z-drawer); background: var(--scrim); }
+  .shell { --main-pad-x: 20px; }
+}
+@media (max-width: 767px) {
+  .shell .topbar-search { display: none; }
+  .shell .page-head { flex-wrap: wrap; align-items: flex-start; }
+  .shell .page-title { font-size: 30px; }
+  .shell .page-title--sm { font-size: 26px; }
+  .shell .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 639px) {
+  .shell .topbar-menu span { display: none; }
+  .shell .topbar-menu { padding: 0 8px; }
+  .shell .topbar-divider, .shell .staff-chip { display: none; }
+  .shell { --main-pad-x: 16px; }
+  /* The rail becomes a bottom bar. */
+  .shell .rail { position: fixed; z-index: var(--z-menu); left: 0; right: 0; bottom: 0; width: auto; height: 60px; padding: 6px 8px; flex-direction: row; justify-content: space-around; align-items: center; gap: 4px; overflow-x: auto; }
+  .shell .rail-spacer { display: none; }
+  .shell .main, .shell .main--wide { padding-bottom: 84px; }
+  .shell .panel-slot .panel { left: 0; width: min(var(--panel-w), calc(100vw - 24px)); bottom: 60px; transform: translateX(-100%); }
+  .shell .toast-region { left: 16px; right: 16px; bottom: 72px; }
+  .shell .savebar { bottom: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shell .panel-slot .panel, .shell .panel-slot[data-open="true"] .panel { transition: none; }
+}
+.shell .main > .savebar, .shell .main--wide > .savebar { width: auto; max-width: none; margin-left: calc(-1 * var(--main-pad-x)); margin-right: calc(-1 * var(--main-pad-x)); }

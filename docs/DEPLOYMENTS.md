@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 3: shell updates
+
+**Branch:** `feat/2026-11-14-discover-ui-shell`
+
+### What changed
+- **Top bar** has slots, in order after search: task indicator (phase 4), Ask Pip button (phase 5), support link, avatar. The two new slots render nothing yet.
+- **PageHead** takes `eyebrow`, `breadcrumb`, `status` and `size`; existing call sites render as before.
+- **Feature panel:** AI items (AI enrichment, Search & Discovery) show a small spark after the label (`ai: true` in `navConfig.js`).
+- **Publish status chip** state colours moved from hard-coded hex to the status tokens (logic untouched).
+- **Layout helpers** `PageLayout`, `SettingsLayout` and `RecordLayout` (`components/ui/layouts.jsx`). No existing page uses them yet; phase 6 migrates pages onto them.
+- **Responsive shell:** below 1024px the feature panel is a drawer behind a Menu button in the top bar; below 640px the rail is a bottom bar. This didn't exist before.
+- No behaviour, data, route, event, migration or Edge Function changes.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Rendered the shell in a local harness (not committed) with each template at 1440px, the drawer at 900px (opens, scrim, Esc closes, `aria-expanded` follows) and the bottom-bar rail at 390px with no horizontal overflow.
+- [ ] Not yet checked on signed-in pages: real directory, map and customer pages in client and platform contexts, and staff view; keyboard focus order in the drawer.
+
 ## 2026-11-14 — [Frontend only] Discover UI phase 2: shared UI kit
 
 **Branch:** `feat/2026-11-14-discover-ui-kit`

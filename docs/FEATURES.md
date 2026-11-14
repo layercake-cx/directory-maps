@@ -121,6 +121,8 @@ route restructuring was needed to introduce it (see the Phase 1 plan for why).
 - **`/admin/ui-kit`** (staff only, not linked from the nav) renders every component in every state. Use it to review the kit and to check for regressions; look there before adding a new component.
 - `ToastProvider` and `ConfirmProvider` mount in `AppShell`. `useConfirm()` replaces `window.confirm`, and `useUnsavedGuard` now asks through the same dialog.
 - The old `components/experience/ui.jsx` re-exports from the kit until Discover UI phase 7.
+- **Page templates** (`PageLayout`, `SettingsLayout`, `RecordLayout` in `components/ui/layouts.jsx`) replace hand-built page structure: workspace page with optional summary and 320px aside; feature-panel settings page with a section stack and SaveBar; record editor with breadcrumb, tabs, form column and sticky preview.
+- **Responsive shell:** below 1024px the feature panel becomes a drawer opened by a Menu button in the top bar (closes on navigation, Esc or scrim click); below 640px the rail becomes a bottom bar. `PageHead` takes `eyebrow`, `breadcrumb`, `status` and `size`. The top bar has reserved slots for the task indicator (phase 4) and Ask Pip (phase 5).
 
 ### 4.2 Maps — create & list
 

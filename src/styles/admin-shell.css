@@ -154,10 +154,7 @@
   border: 1px solid var(--shell-line); text-decoration: none; color: var(--shell-ink); font-size: var(--fs-small);
   --ps-color: #9ca3af; --ps-bg: var(--shell-ground);
 }
-.shell .publish-status[data-state="published"] { --ps-color: #16a34a; --ps-bg: #f0fdf4; }
-.shell .publish-status[data-state="changes"] { --ps-color: #d97706; --ps-bg: #fffbeb; }
-.shell .publish-status[data-state="failed"] { --ps-color: #dc2626; --ps-bg: #fef2f2; }
-.shell .publish-status[data-state="generating"] { --ps-color: #2563eb; --ps-bg: #eff6ff; }
+/* State colours live in discover-ui.css (.publish-status[data-state]) and use the status tokens. */
 .shell .publish-status { background: var(--ps-bg); border-color: color-mix(in srgb, var(--ps-color) 35%, transparent); }
 .shell .publish-status:hover { border-color: var(--ps-color); }
 .shell .publish-status-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--ps-color); flex-shrink: 0; }

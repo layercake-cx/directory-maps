@@ -118,7 +118,7 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
         ...(canManage ? [{ id: "pages", label: "Pages", route: `${basePath}/pages` }] : []),
         { id: "categories", label: "Categories", route: `${basePath}/categories` },
         ...(canManage ? [{ id: "accreditations", label: "Accreditations", route: `${basePath}/accreditations` }] : []),
-        ...(canManage ? [{ id: "ai-enrichment", label: "AI enrichment", route: `${basePath}/ai-enrichment` }] : []),
+        ...(canManage ? [{ id: "ai-enrichment", label: "AI enrichment", route: `${basePath}/ai-enrichment`, ai: true }] : []),
       ],
     },
     {
@@ -126,7 +126,7 @@ export function getDirectoryPanelGroups({ basePath, canManage, entriesCount }) {
       items: [
         ...(canManage ? [{ id: "look-and-feel", label: "Look & feel", route: `${basePath}/look-and-feel` }] : []),
         ...(canManage ? [{ id: "entry-pages", label: "Entry pages", route: `${basePath}/entry-pages` }] : []),
-        { id: "search", label: "Search & Discovery", route: `${basePath}/search` },
+        { id: "search", label: "Search & Discovery", route: `${basePath}/search`, ai: true },
       ],
     },
     {
