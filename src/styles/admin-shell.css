@@ -143,6 +143,8 @@
 .shell .panel-title {
   margin: 0; padding-left: 8px; font-family: var(--font-display); font-size: var(--fs-panel-title);
   line-height: 1.15; font-weight: 600; color: var(--shell-ink);
+  /* Long directory names must not overflow the 272px panel (Discover UI phase 1). */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .shell .panel-head { display: flex; align-items: center; justify-content: space-between; }
 .shell .publish-status-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: -6px; }

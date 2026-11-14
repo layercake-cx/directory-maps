@@ -58,7 +58,7 @@ export default function FeaturePanel({ title, backHref, backLabel, subtitle, pri
         </Link>
       )}
       <div className="panel-head">
-        <h2 className="panel-title">{title}</h2>
+        <h2 className="panel-title" title={typeof title === "string" ? title : undefined}>{title}</h2>
       </div>
       {subtitle}
       {primaryAction}

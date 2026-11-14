@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Discover UI phase 1: tokens, type and theme
+
+**Branch:** `feat/2026-11-14-discover-ui-tokens`
+
+### What changed
+- Admin and client portal chrome now use the Discover UI tokens: Bricolage Grotesque for titles (replaces Source Serif 4), teal primary buttons at 44px, and the new status, progress, spark, focus, elevation, layering and motion tokens (`src/styles/admin-shell-tokens.css`, `src/styles/discover-ui.css`).
+- The Mantine theme is teal-based (shade 6 = `#0f5e63`) with 10px radius and the shell fonts, so unmigrated Mantine pieces sit closer to the new look.
+- Legacy `.btn*`, `.xp-btn*`, `.xp-input`, `.admin-card`, `.panel-section`, `.xp-card` and `.admin-table` now render with the shell look **only inside `.shell`**. The brief proposed changing them globally, but Login, Forgot/Reset password, claim pages, Privacy and Terms use the same classes and are out of scope, so the bridge is scoped. Marked `DISCOVER-UI bridge: delete in phase 7`.
+- Feature panel titles truncate with an ellipsis and a `title` tooltip.
+- No behaviour, data, route, event, migration or Edge Function changes.
+
+### Rollback plan
+Revert the branch's commits. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Login page unchanged (button still 36px, near-black, 8px radius).
+- [x] A `.shell` test fragment on the dev server computes teal 44px primaries, 36px small, Bricolage 700 titles, ellipsis panel titles, 800 stat values, 16px card radius.
+- [ ] Not yet checked on real signed-in pages (needs a signed-in session): client and platform contexts at 1440px and 390px.
+- [ ] Bricolage rendering not yet confirmed visually.
+
 ## 2026-11-13 — [Production] One AI button everywhere + Listing Manager redesign
 
 **Branch:** `feat/2026-11-13-ai-button`

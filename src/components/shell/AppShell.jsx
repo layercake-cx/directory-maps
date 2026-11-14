@@ -1,6 +1,7 @@
 import React from "react";
 import "../../styles/admin-shell-tokens.css";
 import "../../styles/admin-shell.css";
+import "../../styles/discover-ui.css";
 import TopBar from "./TopBar.jsx";
 import Rail from "./Rail.jsx";
 
