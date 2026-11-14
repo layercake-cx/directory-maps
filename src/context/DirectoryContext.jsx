@@ -10,7 +10,6 @@ import {
   getDirectory,
   getMapsLinkedToDirectory,
 } from "../lib/directories.js";
-import { loadDirectoryTermIds, setDirectoryTerms } from "../lib/categorisations.js";
 import { DirectoryContext } from "./directoryContext.js";
 
 /**
@@ -48,8 +47,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
 
-  const [directoryTermIds, setDirectoryTermIds] = useState([]);
-  const [savingTerms, setSavingTerms] = useState(false);
   const [linkedMaps, setLinkedMaps] = useState([]);
 
   const refetch = useCallback(async () => {
@@ -86,10 +83,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
   }, [clientProp]);
 
   useEffect(() => {
-    loadDirectoryTermIds(directoryId).then(setDirectoryTermIds).catch(() => {});
-  }, [directoryId]);
-
-  useEffect(() => {
     getMapsLinkedToDirectory(directoryId).then(setLinkedMaps).catch(() => {});
   }, [directoryId]);
 
@@ -107,22 +100,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       .catch((e) => setError(e?.message ?? String(e)))
       .finally(() => setPermissionChecked(true));
   }, [canManage, contact?.id, directoryId]);
-
-  const handleDirectoryTermsChange = useCallback(
-    async (ids) => {
-      setDirectoryTermIds(ids);
-      try {
-        setSavingTerms(true);
-        await setDirectoryTerms(directoryId, ids);
-        recordEvent("directory_terms_updated", { directory_id: directoryId });
-      } catch (e) {
-        setError(e?.message ?? String(e));
-      } finally {
-        setSavingTerms(false);
-      }
-    },
-    [directoryId, recordEvent],
-  );
 
   const afterDeleteHref = isAdminView ? `/admin/clients/${encodeURIComponent(clientId)}` : "/client/directories";
 
@@ -187,9 +164,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       canPublish: canManage,
       hasAccess,
       permissionChecked,
-      directoryTermIds,
-      savingTerms,
-      handleDirectoryTermsChange,
       linkedMaps,
       archiving,
       deleting,
@@ -216,9 +190,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       canEditEntries,
       hasAccess,
       permissionChecked,
-      directoryTermIds,
-      savingTerms,
-      handleDirectoryTermsChange,
       linkedMaps,
       archiving,
       deleting,
