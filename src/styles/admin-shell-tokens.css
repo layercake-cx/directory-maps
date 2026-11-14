@@ -39,10 +39,66 @@
   --shell-ok-text: #1f5a28;
   --shell-warn-border: #ecd2a0;
   --shell-danger: #a3281c;
+  /* Discover UI additions (docs/design/discover-ui/tokens.css) */
+  --shell-ok-solid: #2f7a3a;        /* dots, check badges. White on it 5.2:1 */
+  --shell-warn-solid: #b26a00;      /* dots only (not text) */
+  --shell-danger-bg: #f8e3e0;       /* error callouts, failed job cards */
+  --shell-danger-border: #e8b9b2;
+  --shell-danger-text: #8a2318;     /* 7.1:1 on --shell-danger-bg */
+  --shell-info-bg: #e8f4f5;         /* info callouts, running job chip (= --lc-teal-tint) */
+  --shell-info-border: #a9d3d8;
+  --shell-info-text: #0b4a4e;       /* 8.4:1 on --shell-info-bg */
+  --shell-selected-row: #f6faf9;    /* table row aria-selected */
+
+  /* Progress (processing pattern) */
+  --progress-track: #d6ecef;
+  --progress-fill: var(--lc-teal);  /* decorative fill; text never sits on it */
+  --progress-height: 10px;          /* JobCard bar */
+  --progress-height-sm: 4px;        /* panel chip; task popover rows use 6px */
+  --job-border: var(--lc-teal);     /* 2px border on running JobCard */
+
+  /* Discover / AI accents. The spark is the single AI + Discover glyph. */
+  --spark: #f47721;                 /* glyph fill only. 2.8:1 on white: never text, never thin lines */
+  --spark-ink: #a8440a;             /* orange TEXT. 5.3:1 on white */
+  --spark-tint: #fdf0e6;            /* AI callout, AI pill, thinking state background */
+  --paper: #f4ebdb;                 /* plate behind concept-art Pip only. Not a page background */
+  --pip-ink: #10283b;               /* Pip linework, used by the SVG assets */
+
+  /* Focus */
+  --focus-ring: 2px solid var(--shell-accent);
+  --focus-offset: 2px;
+  --focus-ring-on-dark: 2px solid #5fc6d2;     /* rail, ink top bar, toasts. 8.9:1 on --lc-ink */
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgba(20, 25, 28, 0.04);
+  --shadow-pop: 0 16px 40px rgba(20, 25, 28, 0.18);       /* menus, popovers */
+  --shadow-drawer: -16px 0 40px rgba(20, 25, 28, 0.16);   /* Ask Pip drawer */
+  --shadow-job: 0 8px 24px rgba(26, 158, 173, 0.12);      /* running JobCard */
+  --scrim: rgba(20, 25, 28, 0.18);                        /* drawer scrim 768-1279px */
+  --scrim-light: rgba(20, 25, 28, 0.10);                  /* drawer scrim >=1280px */
+  --scrim-modal: rgba(20, 25, 28, 0.45);                  /* Dialog backdrop */
+
+  /* Layering */
+  --z-sticky: 5;        /* SaveBar, sticky table headers, KeepOpenBanner */
+  --z-menu: 50;         /* menus/popovers */
+  --z-drawer: 80;       /* Ask Pip drawer + scrim */
+  --z-dialog: 90;       /* Dialog sits above the drawer */
+  --z-toast: 100;
+
+  /* Motion */
+  --dur-fast: 120ms;    /* hover, press */
+  --dur-base: 160ms;    /* menus, drawer close */
+  --dur-enter: 220ms;   /* drawer open, toast in */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Type */
-  --font-display: "Source Serif 4", Georgia, serif;
+  --font-display: "Bricolage Grotesque", "Public Sans", system-ui, sans-serif; /* was Source Serif 4 (changed 2026-11-14) */
   --font-body: "Public Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* routes, codes, hex values */
+  --fw-display: 700;            /* page titles, card titles, panel title */
+  --fw-display-strong: 800;     /* stat numbers only */
+  --tracking-display: -0.02em;  /* Bricolage needs slight negative tracking at 22px+ */
   --fs-h1: 40px;
   --fs-h2: 22px;
   --fs-panel-title: 24px;
@@ -60,6 +116,11 @@
   --main-pad-x: 32px;   /* tightened 2026-09-29 — was 40px, too generous vs. reference apps like HubSpot */
   --main-pad-top: 20px; /* was 28px */
   --gap-section: 24px;
+  --drawer-w: 440px;        /* Ask Pip. min 360px, max 40vw */
+  --form-max: 880px;        /* settings page section stack */
+  --form-max-narrow: 760px; /* record editor form column */
+  --aside-w: 320px;         /* workspace page aside */
+  --preview-w: 360px;       /* record editor preview aside */
 
   /* Shape */
   --radius-panel: 16px;
@@ -69,4 +130,8 @@
   --control-h: 44px;
   --nav-item-h: 36px;
   --icon-stroke: 1.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-enter: 0ms; }
 }
