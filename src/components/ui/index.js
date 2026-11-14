@@ -14,3 +14,4 @@ export { Toolbar, BulkBar, DataTable, StatTile, StatGrid, ActionList } from "./d
 export {
   Dialog, ConfirmDialog, NameDialog, ConfirmProvider, useConfirm, OverflowMenu, SaveBar, useUnsavedGuard, useTabKeys,
 } from "./overlays.jsx";
+export { PageLayout, SettingsLayout, RecordLayout } from "./layouts.jsx";
