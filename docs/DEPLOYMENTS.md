@@ -23,6 +23,9 @@ A plain-English record of every deployment to staging and production. Newest ent
 - The "Last full run completed {date}" muted line on the AI panels is gone (the card replaces status lines; that date isn't shown until a run is watched).
 - No data fetching, RPC, Edge Function, route, permission, flag or event changes; every `recordEvent` call is as it was. No migration.
 
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-8gx438ldn-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
 ### Rollback plan
 Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
 
