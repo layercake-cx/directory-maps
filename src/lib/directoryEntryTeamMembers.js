@@ -48,6 +48,12 @@ export async function updateTeamMember(id, patch) {
   if (error) throw error;
 }
 
+export async function reorderTeamMembers(orderedIds) {
+  const results = await Promise.all(orderedIds.map((id, i) => supabase.from("directory_entry_team_members").update({ sort_order: i }).eq("id", id)));
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
+}
+
 export async function deleteTeamMember(id) {
   const { error } = await supabase.from("directory_entry_team_members").delete().eq("id", id);
   if (error) throw error;

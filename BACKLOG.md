@@ -228,3 +228,11 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - What the design shows: the new product name.
 - Why not built now: `src/pages/CustomDomainMap.jsx` is a public page ("isn't connected to a Layercake Maps directory"), outside the admin rebrand.
 - Suggested next step: update with the public pages rebrand.
+
+### [REORDER] Categories: per-category "Edit terms" route
+- **Where in the design:** `REORDER_BRIEF.md` §3 (Directory › Categories row: "Edit terms")
+- **What's missing:** a route for a single category's terms. "Edit terms" opens the client's Categories list (`/client/categorisations`, or the staff equivalent) instead, because no per-category route exists.
+- **Existing pieces:** `ClientCategorisations` / `CategorisationsPanel`
+- **Shown meanwhile:** link to the Categories list
+- **Size guess:** S
+- **Status:** To do

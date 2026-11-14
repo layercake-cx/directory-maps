@@ -15,3 +15,4 @@ export {
   Dialog, ConfirmDialog, NameDialog, ConfirmProvider, useConfirm, OverflowMenu, SaveBar, useUnsavedGuard, useTabKeys,
 } from "./overlays.jsx";
 export { PageLayout, SettingsLayout, RecordLayout } from "./layouts.jsx";
+export { SortableList, SortableRow, SortableHandle, useSortable, useSavedOrder } from "./sortable.jsx";

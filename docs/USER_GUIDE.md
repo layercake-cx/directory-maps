@@ -293,6 +293,17 @@ From a directory's page (owners and managers only):
 - **Archive** — hides the directory from your list; entries are kept. If a map uses this directory as its live pin source, archiving does **not** remove it from that map's public embed — you'll see a warning naming the map(s); archive or delete the map itself to take it out of public view.
 - **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm. If a map uses this directory as its live pin source, you'll see a warning naming the map(s) — deleting the directory removes that link and the map reverts to being manually-edited data, rather than losing its pins with no explanation.
 
+### Reordering lists
+
+Anywhere you can change the order of a list (a directory's or map's attached categories, map filter fields and groups, directory pages, entry page sections, and the lists of links, product tiles, media, team members, evidence and accreditation schemes), every row has a **grip handle** on the left and a **⋯ menu**.
+
+- **Mouse:** drag the handle to the new position and let go. Press **Esc** or drop outside the list to cancel.
+- **Touch:** press and hold the handle for a moment, then drag. Scrolling the page still works anywhere else.
+- **Keyboard:** Tab to the handle, press **Space** or **Enter** to pick the row up, use **↑ / ↓** (or **Home / End**) to move it, **Space** or **Enter** to drop, **Esc** to cancel.
+- **⋯ menu:** **Move to top / up / down / bottom**, plus the row's other actions.
+
+On lists that save by themselves, the new order is saved the moment you drop, with an **Order saved.** message and an **Undo** button for a few seconds; if saving fails, the list goes back to the old order and says so. On lists inside a form (entry page sections), reordering counts as an unsaved change until you click **Save**. Directory pages can be nested one level: drag a page 32px to the right (or press **→**) to nest it under the page above, and left (or **←**) to move it back out. Reordered directory lists are unpublished changes until you publish.
+
 ### Categories
 
 **Categories** (`/client/categorisations`, owners and managers only) are reusable taxonomies — e.g. "Sector" or "Region" — shared across every map and directory you own. They're separate from a directory's simple **Group** field:

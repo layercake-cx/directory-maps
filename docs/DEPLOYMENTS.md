@@ -8,6 +8,33 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-14 — [Frontend only] Drag-to-reorder everywhere lists have an order
+
+**Branch:** `feat/2026-11-14-drag-to-reorder`
+
+### What changed
+- New shared `SortableList` / `useSortable` / `useSavedOrder` (`src/components/ui/sortable.jsx`), built on Pointer Events with no new dependency: mouse, touch (hold 200ms), keyboard (Space/Enter, arrows, Home/End, Esc) and a ⋯ menu with Move to top/up/down/bottom. Standalone lists save on drop with an "Order saved." toast and Undo, revert with a danger message on failure, and never overlap saves. `GripIcon` added; `OverflowMenu` gained `{ divider: true }`.
+- Applied to: Directory and map Categories (also reworked: page-head Attach action and dialog, confirmed Detach, Edit terms link, hint line, empty state), map filter fields (and the options inside the field editor), map Groups (the separate Save order button is gone; it saves on drop), directory Pages (nestable), Entry pages sections (form rule, SaveBar), and the prominent links, product tiles, media, team members, evidence and accreditation scheme lists.
+- Three small new write functions (`reorderAccreditationSchemes`, `reorderTeamMembers`, `reorderEvidenceItems`) update `sort_order` on existing tables; no schema or RLS change, no Edge Function, no migration. The six editor lists had no reorder UI before, so they gain one.
+- `scripts/check-ui.sh` now fails on `draggable` / `onDragStart`; `/admin/ui-kit` has a SortableList section; `USER_GUIDE.md` has a "Reordering lists" section. BACKLOG: per-category "Edit terms" route.
+
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch for a click-through (`directory-maps-jc6lk1ohl-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so reorders you make there are real.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the merge commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [x] Component tested in an isolated page: mouse drag, keyboard lift/move/drop, ⋯ menu items, Undo, failed save reverts with an error.
+- [ ] Not yet checked on the real pages (they need a login): Categories (directory and map), filter fields, map groups, directory pages (nesting), entry pages, and the six editor lists.
+- [ ] Not yet checked: touch devices (iOS Safari, Android Chrome), VoiceOver announcements, reduced motion, and before/after screenshots or a keyboard screen recording.
+
+---
+
 ## 2026-11-14 — [Frontend only] Directory Categories page only attaches categories
 
 **Branch:** `fix/2026-11-14-directory-categories-attach-only`

@@ -1,46 +1,31 @@
 import React from "react";
-import { Button, EmptyState } from "../ui";
+import { Button, EmptyState, SortableList } from "../ui";
 import { normalizePinSize } from "../../lib/markerIcons";
 import {
   CustomIconSection, PinColoursSection, PinIconSection, PinStyleSection,
 } from "./PinDesignFields.jsx";
 
 /**
- * Groups tab: drag to reorder, then edit one group's design overrides.
- * Drag state, saving and the override values live in the page; this renders them.
+ * Groups tab: drag to reorder (saves on drop), then edit one group's design overrides.
+ * Saving and the override values live in the page; this renders them.
  * @param {object} props
  */
-export default function MapGroupsPanel({
-  orderedGroups, onDragStart, onDragOver, onDrop, onEditGroup, onSaveOrder, savingGroups, editor,
-}) {
+export default function MapGroupsPanel({ orderedGroups, onEditGroup, onReorder, editor }) {
   return (
     <div className="md-stack">
       <p className="md-intro">Drag to reorder groups. Order is used in the embed map search bar.</p>
       {orderedGroups.length === 0 ? (
         <EmptyState art="none" title="No groups yet" body="Add groups when importing data." />
       ) : (
-        <ul className="md-group-list">
-          {orderedGroups.map((gr, index) => (
-            <li
-              key={gr.id}
-              className="md-group-item"
-              draggable
-              onDragStart={(e) => onDragStart(e, index)}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, index)}
-            >
-              <span className="md-grip" aria-hidden="true" />
-              <span className="md-group-name">{gr.name || "—"}</span>
-              <Button size="sm" onClick={() => onEditGroup(gr)}>Edit design</Button>
-            </li>
-          ))}
-        </ul>
+        <SortableList
+          items={orderedGroups}
+          getId={(gr) => gr.id}
+          getLabel={(gr) => gr.name || "Untitled group"}
+          ariaLabel="Groups, in search bar order"
+          onReorder={onReorder}
+          renderActions={(gr) => <Button size="sm" onClick={() => onEditGroup(gr)}>Edit design</Button>}
+        />
       )}
-      <div className="md-actions">
-        <Button variant="primary" onClick={onSaveOrder} loading={savingGroups} loadingLabel="Saving…" disabled={orderedGroups.length === 0}>
-          Save order
-        </Button>
-      </div>
       {editor}
     </div>
   );

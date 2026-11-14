@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { CONFIDENCE_OPTIONS, createEvidenceItem, deleteEvidenceItem, listEvidenceItems } from "../../lib/evidenceItems";
-import { Button, Callout, EmptyState, Field, FieldGrid, Select, Skeleton, Textarea, TextInput } from "../ui/index.js";
+import { CONFIDENCE_OPTIONS, createEvidenceItem, deleteEvidenceItem, listEvidenceItems, reorderEvidenceItems } from "../../lib/evidenceItems";
+import { Button, Callout, EmptyState, Field, FieldGrid, Select, Skeleton, SortableList, SortableRow, Textarea, TextInput } from "../ui/index.js";
 import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { claim: "", value: "", source_url: "", checked_at: "", confidence: "", note: "" };
@@ -47,6 +47,11 @@ export default function EvidenceItemsEditor({ directoryId, entryId, recordEvent 
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleReorder(next) {
+    await reorderEvidenceItems(next.map((i) => i.id));
+    setItems(next);
   }
 
   async function remove(item) {
@@ -106,28 +111,41 @@ export default function EvidenceItemsEditor({ directoryId, entryId, recordEvent 
       ) : items.length === 0 ? (
         <EmptyState art="none" title="No evidence recorded yet" body="Add the source for a claim so visitors can see how it was checked." />
       ) : (
-        <ul className="b3-list">
-          {items.map((item) => (
-            <li key={item.id} className="b3-list-item b3-list-item--top">
-              <div className="b3-list-main">
-                <div className="b3-list-title">
+        <SortableList
+          items={items}
+          getId={(i) => i.id}
+          getLabel={(i) => i.claim}
+          ariaLabel="Evidence, in display order"
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(item, { row }) => (
+            <SortableRow
+              row={row}
+              title={(
+                <>
                   {item.claim}
                   {item.confidence && (
                     <span className="b3-muted">
-                      ({CONFIDENCE_OPTIONS.find((o) => o.value === item.confidence)?.label ?? item.confidence})
+                      {" "}({CONFIDENCE_OPTIONS.find((o) => o.value === item.confidence)?.label ?? item.confidence})
                     </span>
                   )}
-                </div>
-                {item.value && <div className="b3-list-sub">{item.value}</div>}
-                {item.source_url && <div className="b3-list-sub"><a href={item.source_url} target="_blank" rel="noopener noreferrer">source</a></div>}
-                {item.note && <div className="b3-list-sub">{item.note}</div>}
-              </div>
-              <Button variant="danger" size="sm" aria-label={`Delete evidence: ${item.claim}`} onClick={() => remove(item)}>
-                Delete
-              </Button>
-            </li>
-          ))}
-        </ul>
+                </>
+              )}
+              meta={(item.value || item.source_url || item.note) ? (
+                <>
+                  {item.value}
+                  {item.source_url && <>{item.value ? " · " : ""}<a href={item.source_url} target="_blank" rel="noopener noreferrer">source</a></>}
+                  {item.note && <>{item.value || item.source_url ? " · " : ""}{item.note}</>}
+                </>
+              ) : null}
+              actions={(
+                <Button variant="danger" size="sm" aria-label={`Delete evidence: ${item.claim}`} onClick={() => remove(item)}>
+                  Delete
+                </Button>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

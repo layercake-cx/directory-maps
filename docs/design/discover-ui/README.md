@@ -8,6 +8,12 @@ The phased rollout in `BUILD_BRIEF.md` is complete. The next piece of work is **
 
 > Read `docs/design/discover-ui/REBRAND_BRIEF.md` in full and follow it. It's one branch and one PR. Follow AGENTS.md for the git workflow, docs and deployment log. Stop and ask if anything in the brief conflicts with AGENTS.md or the current code.
 
+## Next brief: drag-to-reorder pattern
+
+**`REORDER_BRIEF.md`**: one shared `SortableList` (drag handle, touch, keyboard, menu fallback, save on drop with Undo), applied first to Directory › Categories and then to every list that can be reordered. Prompt:
+
+> Read `docs/design/discover-ui/REORDER_BRIEF.md` in full and follow it. One branch, one PR. Follow AGENTS.md; stop and ask if anything conflicts with AGENTS.md or the current code.
+
 ## Original rollout prompt (done)
 
 > Read `docs/design/discover-ui/BUILD_BRIEF.md` in full, then `README.md`, `COMPONENTS.md`, `PATTERNS.md`, `tokens.css`, `discover-ui.css`, `MIGRATION_INVENTORY.md` and `assistant-mock.json` in the same folder, and open the files in `reference/` in a browser. Apply the Discover UI system across the client portal and staff admin following the phases in BUILD_BRIEF.md. Follow AGENTS.md for git workflow, docs and admin events. One branch and PR per phase; stop for my review at the end of each phase with the phase report described in the brief. Start with the AGENTS.md opening checks, then Phase 1.
@@ -32,6 +38,7 @@ Still open (do not decide in code; add to BACKLOG if you hit them): official Dis
 
 | File | Purpose |
 |---|---|
+| `REORDER_BRIEF.md` | Drag-to-reorder pattern and the Categories page fix. One PR |
 | `REBRAND_BRIEF.md` | **Current work.** Schibsted Grotesk, top bar clean-up, admin rebrand to Discover by Layercake. One PR |
 | `BUILD_BRIEF.md` | The original seven-phase rollout (complete). Still the reference for ground rules, the per-page checklist and acceptance checks |
 | `COMPONENTS.md` | Spec for every shared component in `src/components/ui/`: props, classes, states, accessibility, what it replaces |
@@ -62,6 +69,7 @@ Still open (do not decide in code; add to BACKLOG if you hit them): official Dis
 | `30-pattern-processing.html` | Processing and progress pattern, before/after |
 | `31-pattern-ask-pip-drawer.html` | Ask Pip drawer open on a directory page |
 | `32-pattern-ask-pip-states.html` | Ask Pip triggers and every drawer state |
+| `33-pattern-reorder.html` | Drag-to-reorder pattern, Categories before/after |
 | `40-mockup-admin-onboarding.html` | Onboarding concept (Getting started is not built: BACKLOG) |
 | `41-mockup-admin-directory-summary.html` | Directory overview concept |
 

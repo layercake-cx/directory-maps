@@ -32,9 +32,9 @@ import {
   Skeleton,
   TextInput,
   useUnsavedGuard,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  DotsIcon,
+  OverflowMenu,
+  SortableHandle,
+  useSortable,
   XIcon,
 } from "../ui/index.js";
 import "../../styles/wave-a/batch-4.css";
@@ -44,6 +44,10 @@ const ENTRY_COLUMNS =
 
 function blockKey(block) {
   return block.type === "categorisation" ? `categorisation:${block.key}` : block.type;
+}
+
+function blockName(block) {
+  return block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type);
 }
 
 function NewTemplateDialog({ groups, categorisations, busy, onSubmit, onCancel }) {
@@ -111,7 +115,6 @@ export default function EntryPagesPage() {
 
   const [selectedId, setSelectedId] = useState("default");
   const [draft, setDraft] = useState(IMPLICIT_DEFAULT_LAYOUT);
-  const [dragIndex, setDragIndex] = useState(null);
   const [dialog, setDialog] = useState(null);
 
   const defaultTemplate = templates.find((t) => t.is_default) ?? null;
@@ -126,6 +129,16 @@ export default function EntryPagesPage() {
     return c;
   }, [draft, savedLayout]);
   useUnsavedGuard(changed > 0);
+
+  // Form rule: reordering only edits the draft, so the SaveBar shows the unsaved change.
+  const sortable = useSortable({
+    items: draft,
+    getId: blockKey,
+    getLabel: blockName,
+    onReorder: (next) => setDraft(next),
+    ariaLabel: "Sections, in page order",
+    variant: "compact",
+  });
 
   const load = useCallback(async () => {
     if (!directoryId) return;
@@ -222,14 +235,6 @@ export default function EntryPagesPage() {
     };
   }, [draft, categorisations]);
 
-  const move = (from, to) =>
-    setDraft((d) => {
-      if (to < 0 || to >= d.length || from === to) return d;
-      const next = [...d];
-      const [m] = next.splice(from, 1);
-      next.splice(to, 0, m);
-      return next;
-    });
   const setLabel = (i, label) =>
     setDraft((d) =>
       d.map((b, bi) => {
@@ -396,51 +401,29 @@ export default function EntryPagesPage() {
             <span className="b4-col-show">Show</span>
             <span className="b4-col-actions" />
           </div>
-          {draft.map((block, i) => {
-            const name = block.type === "categorisation" ? `Tags: ${block.key}` : blockLabel(block.type);
-            return (
-              <div
-                key={`${blockKey(block)}-${i}`}
-                className="b4-block"
-                data-dragging={String(dragIndex === i)}
-                data-hidden={String(block.hidden === true)}
-                draggable
-                onDragStart={() => setDragIndex(i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragIndex !== null) move(dragIndex, i);
-                  setDragIndex(null);
-                }}
-                onDragEnd={() => setDragIndex(null)}
-              >
-                <button
-                  type="button"
-                  className="b4-grip"
-                  aria-label={`Reorder ${name}. Use Alt plus Up or Down arrow to move.`}
-                  onKeyDown={(e) => {
-                    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-                      e.preventDefault();
-                      const to = e.key === "ArrowUp" ? i - 1 : i + 1;
-                      move(i, to);
-                      requestAnimationFrame(() => document.querySelectorAll(".b4-grip")[Math.max(0, Math.min(draft.length - 1, to))]?.focus());
-                    }
-                  }}
-                >
-                  <DotsIcon />
-                </button>
-                <span className="b4-block-name">{name}</span>
-                <TextInput className="b4-block-heading" aria-label={`Heading for ${name}`} value={block.label || ""} placeholder="No heading" onChange={(e) => setLabel(i, e.target.value)} />
-                <span className="b4-block-show">
-                  <input type="checkbox" aria-label={`Show ${name}`} checked={block.hidden !== true} onChange={(e) => setShown(i, e.target.checked)} />
-                </span>
-                <span className="b4-moves">
-                  <Button variant="ghost" size="sm" iconOnly aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><ArrowUpIcon /></Button>
-                  <Button variant="ghost" size="sm" iconOnly aria-label={`Move ${name} down`} disabled={i === draft.length - 1} onClick={() => move(i, i + 1)}><ArrowDownIcon /></Button>
-                  <Button variant="ghost" size="sm" iconOnly aria-label={`Remove ${name}`} onClick={() => setDraft((d) => d.filter((_, bi) => bi !== i))}><XIcon /></Button>
-                </span>
-              </div>
-            );
-          })}
+          <ol {...sortable.listProps} className={`${sortable.listProps.className} b4-sortable`}>
+            {sortable.items.map((block, pos) => {
+              const i = draft.indexOf(block);
+              const name = blockName(block);
+              const r = sortable.rowFor(block, pos);
+              return (
+                <li key={blockKey(block)} {...r.rowProps} data-hidden={String(block.hidden === true)}>
+                  <SortableHandle {...(r.handleProps || {})} />
+                  <span className="b4-block-name">{name}</span>
+                  <TextInput className="b4-block-heading" aria-label={`Heading for ${name}`} value={block.label || ""} placeholder="No heading" onChange={(e) => setLabel(i, e.target.value)} />
+                  <span className="b4-block-show">
+                    <input type="checkbox" aria-label={`Show ${name}`} checked={block.hidden !== true} onChange={(e) => setShown(i, e.target.checked)} />
+                  </span>
+                  <span className="b4-moves">
+                    <Button variant="ghost" size="sm" iconOnly aria-label={`Remove ${name}`} onClick={() => setDraft((d) => d.filter((_, bi) => bi !== i))}><XIcon /></Button>
+                    <OverflowMenu label={`Actions for ${name}`} items={r.menuItems()} />
+                  </span>
+                </li>
+              );
+            })}
+            {sortable.slot}
+          </ol>
+          {sortable.after}
           {draft.length === 0 && <p className="field-hint b4-blocks-foot">No sections — add one below.</p>}
           <div className="b4-blocks-foot">
             {availableToAdd.standard.length > 0 || availableToAdd.cats.length > 0 ? (

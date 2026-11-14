@@ -225,6 +225,12 @@ Keep `.stat`, `.stat-grid`, `.stat--compact`, `.stat--ok`, `.stat--warn`. Compon
 
 ---
 
+## 5b. Reordering
+
+### SortableList, SortableRow, useSortable
+
+The only way to change order in the admin. Drag handle (always visible) with mouse, touch (hold 200ms) and keyboard (Space to lift, arrows, Space to drop, Esc to cancel), plus Move to top/up/down/bottom in each row's ⋯ menu. Standalone lists save on drop with a Toast + Undo; lists inside SaveBar forms just mark the form dirty. No HTML5 `draggable`, no up/down arrow buttons. Full spec, API and where it applies: `REORDER_BRIEF.md`; visual: `reference/33-pattern-reorder.html`.
+
 ## 6. Overlays
 
 ### Dialog and ConfirmDialog (move from `experience/ui.jsx`)

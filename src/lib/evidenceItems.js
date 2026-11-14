@@ -43,6 +43,12 @@ export async function createEvidenceItem(entryId, item) {
   return data;
 }
 
+export async function reorderEvidenceItems(orderedIds) {
+  const results = await Promise.all(orderedIds.map((id, i) => supabase.from("entry_evidence_items").update({ sort_order: i }).eq("id", id)));
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
+}
+
 export async function deleteEvidenceItem(id) {
   const { error } = await supabase.from("entry_evidence_items").delete().eq("id", id);
   if (error) throw error;
