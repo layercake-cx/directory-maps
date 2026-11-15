@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { error: updateErr } = await service
       .from("directory_entries")
-      .update({ notes_html: html, allow_html: true, ai_content_generated_at: new Date().toISOString() })
+      .update({ notes_html: html, allow_html: true, ai_content_generated_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", entryId);
     if (updateErr) throw updateErr;
 
