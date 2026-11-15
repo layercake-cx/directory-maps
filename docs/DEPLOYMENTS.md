@@ -18,7 +18,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - No migration, no schema, no Edge Function.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-15: PR 357 merged and `main` (`cbf3bf7`) deployed to Vercel production with `npm run deploy:live` on the user's go-ahead (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. The browser check below is still unconfirmed.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend.
