@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Frontend only] Stop the job-status request loop on Publish and AI enrichment pages
+
+**Branch:** `fix/2026-11-15-jobs-request-loop`
+
+### What changed
+- Opening a page that calls `useJob` without `runningOnly` (Publish, AI enrichment) sent the same `directories` status request many times a second, indefinitely. `JobsProvider` rebuilt its `getJob` function on every state change; `useJob`'s `poll` and `refresh` depend on it, and `useJob`'s mount effect re-ran whenever `refresh` changed. Each run upserted the job, which changed state, which rebuilt `getJob`: fetch, render, fetch, and so on.
+- `getJob` is now a stable `useCallback`, and the initial status read in `useJob` is keyed on `[kind, directoryId]` through a ref instead of on `refresh`, so a changing callback can't retrigger it.
+- Introduced with the Phase 4 processing pattern (28cec34, 2026-11-14). No migration, no schema, no Edge Function.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): open Publish and AI enrichment and confirm the Network tab shows one status request on load, then one every 3 s only while a job is running.
+
+---
+
 ## 2026-11-15 — [Edge Functions, not yet deployed] AI content now marks entries as changed; stale cron key recorded
 
 **Branch:** `fix/2026-11-15-ai-writers-bump-updated-at`

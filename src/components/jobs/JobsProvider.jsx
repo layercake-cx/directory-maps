@@ -66,9 +66,12 @@ export function JobsProvider({ children }) {
   }, [upsert]);
 
   const acknowledgeFailures = useCallback(() => setAckFailed((n) => n + 1), []);
+  // Must be referentially stable: useJob's poll/refresh depend on it, and its mount effect re-runs
+  // (and re-fetches) whenever refresh changes. A new function per render looped upsert -> render -> fetch.
+  const getJob = useCallback((id) => jobsRef.current[id], []);
   const value = useMemo(
-    () => ({ jobs, upsert, dismiss, track, flash, ackFailed, acknowledgeFailures, getJob: (id) => jobsRef.current[id] }),
-    [jobs, upsert, dismiss, track, flash, ackFailed, acknowledgeFailures],
+    () => ({ jobs, upsert, dismiss, track, flash, ackFailed, acknowledgeFailures, getJob }),
+    [jobs, upsert, dismiss, track, flash, ackFailed, acknowledgeFailures, getJob],
   );
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;
 }
