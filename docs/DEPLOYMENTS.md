@@ -66,7 +66,7 @@ Revert the commit and redeploy the frontend.
 
 ---
 
-## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
+## 2026-11-15 — [Migration + Edge Functions + frontend, staging and production] Invitations carry primary status and all-access
 
 **Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
 **Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08; production migration, functions and frontend 2026-11-15)
