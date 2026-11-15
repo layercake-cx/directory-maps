@@ -13,7 +13,7 @@ export async function getContactForCurrentUser() {
 
   const { data: contacts } = await supabase
     .from("contacts")
-    .select("id, client_id, role, is_primary, email, name")
+    .select("id, client_id, role, is_primary, has_all_access, email, name")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1);

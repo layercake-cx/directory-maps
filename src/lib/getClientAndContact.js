@@ -16,7 +16,7 @@ export async function getClientAndContact() {
   if (role === "admin") {
     const { data: adminContacts } = await supabase
       .from("contacts")
-      .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
+      .select("id, client_id, role, is_primary, has_all_access, can_manage_maps, can_manage_users")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1);
@@ -35,7 +35,7 @@ export async function getClientAndContact() {
   // landing page can create duplicate contacts; maybeSingle would throw in that case.
   const { data: contacts, error: contactError } = await supabase
     .from("contacts")
-    .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
+    .select("id, client_id, role, is_primary, has_all_access, can_manage_maps, can_manage_users")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1);
@@ -69,7 +69,7 @@ export async function getClientAndContact() {
     if (!insErr) {
       const { data: newContact } = await supabase
         .from("contacts")
-        .select("id, client_id, is_primary, can_manage_maps, can_manage_users")
+        .select("id, client_id, role, is_primary, has_all_access, can_manage_maps, can_manage_users")
         .eq("user_id", user.id)
         .eq("client_id", legacyClient.id)
         .single();
