@@ -32,12 +32,12 @@ Revert the commit and redeploy the frontend.
 ## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
 
 **Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
-**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08); production **not** deployed
+**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08; production migration, functions and frontend 2026-11-15)
 
-### Current state, honestly
-- **Staging** has migration `20261008140000` and the `send_team_invitation` / `complete_invited_signup` functions from the original branch. Its frontend is the *older* hand-rolled Team page from 2026-10-08, not this PR's UI-kit port.
-- **Production** has none of it: no migration, no functions, no frontend. The migration drops and recreates `create_team_invitation`, so production must get the migration, the two function deploys and this frontend **together**, only on the user's explicit go-ahead.
-- Landing this PR on `main` makes the repo match staging's migration history (previously `supabase db push --dry-run` against staging failed because staging had a migration the repo lacked).
+### Current state
+- **Staging** has migration `20261008140000` and both edge functions. Its frontend is the older hand-rolled Team page.
+- **Production (2026-11-15, user-approved):** migration `20261008140000` applied with `supabase db push --include-all` (the only pending migration; `VERIFY PASSED`), then `send_team_invitation` and `complete_invited_signup` deployed to `gxixwdjfmegxcxfeflro`. Frontend: GitHub Pages deployed from `main` on merge of PR 349; Vercel production (`maps.layercake-cx.biz`) redeployed from `main` the same day with `npm run deploy:live` (status Ready, includes PR 349).
+- The new Team page has not been checked in a browser; invite -> signup on production is unverified.
 
 ### What changed
 - An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
@@ -48,10 +48,10 @@ Revert the commit and redeploy the frontend.
 - Multiple primaries are allowed; nothing assumes a single one.
 
 ### Database migrations applied
-- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: not applied.
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: applied 2026-11-15.
 
 ### Edge functions deployed
-- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: not deployed.
+- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: deployed 2026-11-15.
 
 ### Rollback plan
 - Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
