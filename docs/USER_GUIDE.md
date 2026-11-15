@@ -232,6 +232,8 @@ Long-running work now shows a **progress card** at the top of the page that owns
 
 On a directory's **Publish** tab (visible to everyone with access; only owners and managers can actually publish), the panel shows whether the directory has been published, when, and a link to the live public page once it has been. Click **Publish** (optionally add a note) to snapshot the directory's settings and category taxonomy and to update the public pages. Editing an entry, a content page, branding, or search settings does not change the live site until you publish again.
 
+**Which entries get published.** Only entries whose status is **Active** are built. An entry set to **noindex** is also left off the site's own homepage listing, the sitemap and `llms.txt`, even though its page is still built. If a directory has entries but none would be listed, the Publish tab shows a warning before you publish, with how many are hidden and how many are noindex. If only some are left out, it says how many will be listed. In a CSV, these are the `is_active` and `noindex` columns: `false`/`no`/`0` in `is_active` hides an entry, and `true`/`yes`/`1` in `noindex` excludes it.
+
 Publish rewrites only the pages affected by what changed since the last successful generation:
 
 - **Colours, fonts, the logo image, logo height, and the hero banner** update one shared stylesheet. The pages themselves stay as they are.

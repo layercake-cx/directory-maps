@@ -163,6 +163,28 @@ export async function getDirectoryPublishState(directoryId) {
   return { state: changeCount > 0 ? "changes" : "published", ...base, changeCount };
 }
 
+/**
+ * What a publish will actually list. The generator skips hidden entries and leaves noindex entries off the
+ * homepage listing, sitemap and llms.txt (builders.ts `visibleEntries`), so a directory can have entries and still
+ * publish an empty site. `listed` mirrors that rule: active and not noindex.
+ * Returns { total, hidden, noindex, listed }; noindex counts only active entries, so the three add up.
+ */
+export async function getDirectoryPublishableCounts(directoryId) {
+  const count = (build) => build(
+    supabase.from("directory_entries").select("id", { count: "exact", head: true }).eq("directory_id", directoryId),
+  );
+  const [total, hidden, noindex] = await Promise.all([
+    count((q) => q),
+    count((q) => q.eq("is_active", false)),
+    count((q) => q.eq("is_active", true).eq("noindex", true)),
+  ]);
+  for (const r of [total, hidden, noindex]) if (r.error) throw r.error;
+  const t = total.count ?? 0;
+  const h = hidden.count ?? 0;
+  const n = noindex.count ?? 0;
+  return { total: t, hidden: h, noindex: n, listed: Math.max(0, t - h - n) };
+}
+
 export const DIRECTORY_CONTENT_CHANGED_EVENT = "directory:content-changed";
 
 /**

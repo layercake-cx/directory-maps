@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Frontend only] Publish tab warns when no entries (or only some) will be listed
+
+**Branch:** `feat/2026-11-15-publish-no-entries-warning`
+
+### What changed
+- A directory could have entries and still publish an empty site: the generator skips hidden entries and leaves `noindex` entries off the homepage listing, sitemap and `llms.txt`. Nothing said so. A real production directory published "0 entries" after a CSV with `noindex = true` on every row, with every status staying green.
+- New `getDirectoryPublishableCounts` (`src/lib/directoryPublications.js`) returns total / hidden / noindex / listed, mirroring `visibleEntries` in `builders.ts`. The Publish tab (`DirectoryPublishPanel.jsx`) shows an amber warning when entries exist but none would be listed, naming the causes with counts, and a quieter note when only some are left out.
+- No migration, no schema, no Edge Function. Admin event instrumentation: none added; this is a read-only display on an existing page.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): a directory whose entries are all noindex, all hidden, and mixed, plus one with every entry listed (no message).
+
+---
+
 ## 2026-11-15 — [Migration + Edge Functions] AI listings are researched, written, then validated
 
 **Branch:** `feat/2026-11-15-ai-listing-research-pipeline`
@@ -55,7 +76,7 @@ Redeploy the three functions from the previous commit; `_20261115120000_director
 - No migration, no schema, no Edge Function.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-15: PR 352 merged and `main` deployed to Vercel production with `npm run deploy:live` (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend.
