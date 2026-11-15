@@ -45,15 +45,36 @@ Redeploy the three functions from the previous commit; `_20261115120000_director
 
 ---
 
+## 2026-11-15 — [Frontend only] Publish chip updates straight after AI generation or a save on the entry Content tab
+
+**Branch:** `fix/2026-11-15-ai-generate-refreshes-publish-chip`
+
+### What changed
+- After **Draft with AI** (single-entry generation) succeeded, the content was saved and the entry's `updated_at` bumped (server side, since PR 346), but the side-panel publish chip only re-checks on navigation or when something announces a change. Nothing did, so it kept showing green "Published" next to content that wasn't live. `EntryContentTab.jsx` now calls `markDirectoryContentChanged` after a successful AI generation and after **Save notes**, which fires the existing `directory:content-changed` event so the chip flips to "Unpublished changes" at once.
+- Not covered: whole-directory and automatic AI runs finish on the server, so the chip still catches up on the next navigation or reload.
+- No migration, no schema, no Edge Function.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): generate content for an entry in a published directory and confirm the chip turns amber without leaving the page; then Publish and confirm it returns to green.
+
+---
+
 ## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
 
 **Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
-**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08); production **not** deployed
+**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08; production migration, functions and frontend 2026-11-15)
 
-### Current state, honestly
-- **Staging** has migration `20261008140000` and the `send_team_invitation` / `complete_invited_signup` functions from the original branch. Its frontend is the *older* hand-rolled Team page from 2026-10-08, not this PR's UI-kit port.
-- **Production** has none of it: no migration, no functions, no frontend. The migration drops and recreates `create_team_invitation`, so production must get the migration, the two function deploys and this frontend **together**, only on the user's explicit go-ahead.
-- Landing this PR on `main` makes the repo match staging's migration history (previously `supabase db push --dry-run` against staging failed because staging had a migration the repo lacked).
+### Current state
+- **Staging** has migration `20261008140000` and both edge functions. Its frontend is the older hand-rolled Team page.
+- **Production (2026-11-15, user-approved):** migration `20261008140000` applied with `supabase db push --include-all` (the only pending migration; `VERIFY PASSED`), then `send_team_invitation` and `complete_invited_signup` deployed to `gxixwdjfmegxcxfeflro`. Frontend: GitHub Pages deployed from `main` on merge of PR 349; Vercel production (`maps.layercake-cx.biz`) redeployed from `main` the same day with `npm run deploy:live` (status Ready, includes PR 349).
+- The new Team page has not been checked in a browser; invite -> signup on production is unverified.
 
 ### What changed
 - An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
@@ -64,10 +85,10 @@ Redeploy the three functions from the previous commit; `_20261115120000_director
 - Multiple primaries are allowed; nothing assumes a single one.
 
 ### Database migrations applied
-- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: not applied.
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: applied 2026-11-15.
 
 ### Edge functions deployed
-- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: not deployed.
+- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: deployed 2026-11-15.
 
 ### Rollback plan
 - Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.

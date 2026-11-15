@@ -16,6 +16,7 @@ import EvidenceItemsEditor from "../EvidenceItemsEditor.jsx";
 import MediaAssetsEditor from "../MediaAssetsEditor.jsx";
 import TeamMembersEditor from "../TeamMembersEditor.jsx";
 import AccreditationsEditor from "../AccreditationsEditor.jsx";
+import { markDirectoryContentChanged } from "../../../lib/directoryPublications.js";
 import ProminentLinksEditor from "../ProminentLinksEditor.jsx";
 import ProductTilesEditor from "../ProductTilesEditor.jsx";
 
@@ -69,6 +70,8 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
       await updateDirectoryEntry(entryId, { notes_html: notesHtml, allow_html: true });
       recordEvent?.("directory_entry_updated", { directory_id: directoryId, entry_id: entryId });
       onSaved?.();
+      // Tells the side-panel publish chip straight away; it otherwise only re-checks on navigation.
+      void markDirectoryContentChanged({ directoryId, entryId });
       await refreshVersions();
     } catch (e) {
       setErr(e?.message ?? String(e));
@@ -93,6 +96,8 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
       setNotesHtml(result?.notes_html ?? "");
       recordEvent?.("directory_ai_content_generated", { directory_id: directoryId, entry_id: entryId });
       onSaved?.();
+      // The function has already saved the new content; flip the publish chip to "Unpublished changes" without a navigation.
+      void markDirectoryContentChanged({ directoryId, entryId });
       await refreshVersions();
     } catch (e) {
       recordEvent?.("directory_ai_content_failed", { directory_id: directoryId, entry_id: entryId, error: e?.message ?? String(e) });
