@@ -6,6 +6,7 @@ import { JobCard, useJob } from "../jobs/index.js";
 import { listCategorisations } from "../../lib/categorisations";
 import {
   buildDirectoryPublicationConfig,
+  getDirectoryPublishableCounts,
   listDirectoryPublications,
   publishDirectory,
   rollbackDirectoryTo,
@@ -27,6 +28,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   const [publishing, setPublishing] = useState(false);
   const [rollingBackId, setRollingBackId] = useState(null);
   const [err, setErr] = useState("");
+  const [counts, setCounts] = useState(null);
   const confirm = useConfirm();
   const { pathname } = useLocation();
   // Generation status, progress and the leave-the-page hint all live in the job (JobsProvider polls the server).
@@ -60,6 +62,18 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
   }, [directory?.id]);
 
   useEffect(() => { void refreshHistory(); }, [refreshHistory]);
+
+  // What a publish would list, so an empty result is explained before it happens, not discovered afterwards.
+  const refreshCounts = useCallback(async () => {
+    if (!directory?.id) return;
+    try {
+      setCounts(await getDirectoryPublishableCounts(directory.id));
+    } catch {
+      setCounts(null); /* non-fatal: the warning just doesn't show */
+    }
+  }, [directory?.id]);
+
+  useEffect(() => { void refreshCounts(); }, [refreshCounts, directory?.updated_at]);
 
   async function handlePublish() {
     setErr("");
@@ -180,6 +194,21 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
         ) : null}
 
         {err ? <Callout tone="danger">{err}</Callout> : null}
+
+        {counts && counts.total > 0 && counts.listed === 0 ? (
+          <Callout tone="warn" title="No entries will appear on the published site">
+            This directory has {counts.total} {counts.total === 1 ? "entry" : "entries"}, but none are listed.
+            {counts.hidden > 0 ? ` ${counts.hidden} ${counts.hidden === 1 ? "is" : "are"} hidden (status Hidden).` : ""}
+            {counts.noindex > 0 ? ` ${counts.noindex} ${counts.noindex === 1 ? "is" : "are"} set to noindex, which also keeps an entry off the site's own listing, sitemap and llms.txt.` : ""}
+            {" "}Activate the entries and clear noindex (both are in the Entries tab and the CSV columns <code>is_active</code> and <code>noindex</code>), then publish.
+          </Callout>
+        ) : counts && counts.total > 0 && counts.listed < counts.total ? (
+          <Callout tone="info">
+            {counts.listed} of {counts.total} entries will be listed.
+            {counts.hidden > 0 ? ` ${counts.hidden} hidden.` : ""}
+            {counts.noindex > 0 ? ` ${counts.noindex} noindex.` : ""}
+          </Callout>
+        ) : null}
 
         {canPublish ? (
           <Field label="Note (optional)">
