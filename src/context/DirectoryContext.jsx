@@ -89,7 +89,7 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
   const canManage = isAdminView ? true : canManageOrg(contact);
 
   useEffect(() => {
-    if (canManage) {
+    if (canManage || contact?.has_all_access) {
       setPermissionChecked(true);
       return;
     }
@@ -99,7 +99,7 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       .then(setPermission)
       .catch((e) => setError(e?.message ?? String(e)))
       .finally(() => setPermissionChecked(true));
-  }, [canManage, contact?.id, directoryId]);
+  }, [canManage, contact?.id, contact?.has_all_access, directoryId]);
 
   const afterDeleteHref = isAdminView ? `/admin/clients/${encodeURIComponent(clientId)}` : "/client/directories";
 
@@ -141,8 +141,9 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
     ? `/admin/clients/${encodeURIComponent(clientId)}/directories/${encodeURIComponent(directoryId)}`
     : `/client/directories/${encodeURIComponent(directoryId)}`;
 
-  const canEditEntries = canManage || !!permission?.can_edit_entries;
-  const hasAccess = canManage || !!permission;
+  const hasAllAccess = !!contact?.has_all_access;
+  const canEditEntries = canManage || hasAllAccess || !!permission?.can_edit_entries;
+  const hasAccess = canManage || hasAllAccess || !!permission;
 
   const value = useMemo(
     () => ({

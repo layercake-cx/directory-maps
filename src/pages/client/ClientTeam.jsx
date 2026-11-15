@@ -10,11 +10,17 @@ import "../../styles/wave-b/client-pages.css";
 import {
   formatLastLoggedIn,
   getTeamStatus,
-  inviteMapNames,
   sortTeamRows,
 } from "../../lib/teamDirectory.js";
 
 const ROLE_LABELS = { owner: "Owner", manager: "Manager", member: "Member" };
+
+// Invite form's single access selector. "primary" is sent as a manager invitation with isPrimary.
+const ACCESS_LEVELS = [
+  { value: "member", label: "Member — can use all directories" },
+  { value: "manager", label: "Manager — also manages the team and organisation settings" },
+  { value: "primary", label: "Primary contact — manager, plus listed as a primary contact" },
+];
 
 // getTeamStatus tones (teamDirectory.js) mapped onto Pill tones.
 const STATUS_TONES = { active: "ok", pending: "warn", warning: "info", muted: "neutral" };
@@ -38,13 +44,16 @@ export default function ClientTeam() {
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
-  const [inviteMapIds, setInviteMapIds] = useState(new Set());
+  const [allAccess, setAllAccess] = useState({});
+  const [invitePrimary, setInvitePrimary] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
   const [msg, setMsg] = useState({ text: "", error: false });
 
   const isOwner = myContact?.role === "owner" || myContact?.is_primary === true;
+  // Only owners and primary contacts can hand out the primary-contact level.
+  const accessLevels = isOwner ? ACCESS_LEVELS : ACCESS_LEVELS.filter((l) => l.value !== "primary");
 
   useEffect(() => {
     load();
@@ -68,7 +77,13 @@ export default function ClientTeam() {
         .single();
       setClient(clientData);
 
-      const [{ data: directory, error: dirErr }, { data: mapsData }, { data: directoriesData }] = await Promise.all([
+      const [
+        { data: directory, error: dirErr },
+        { data: mapsData },
+        { data: directoriesData },
+        { data: accessRows },
+        { data: pendingInvites },
+      ] = await Promise.all([
         supabase.rpc("list_client_team_directory", { p_client_id: ct.client_id }),
         supabase
           .from("maps")
@@ -81,6 +96,8 @@ export default function ClientTeam() {
           .eq("client_id", ct.client_id)
           .eq("is_active", true)
           .order("name", { ascending: true }),
+        supabase.from("contacts").select("id, has_all_access").eq("client_id", ct.client_id),
+        supabase.from("invitations").select("id, is_primary").eq("client_id", ct.client_id).is("accepted_at", null),
       ]);
 
       if (dirErr) throw dirErr;
@@ -89,6 +106,8 @@ export default function ClientTeam() {
       setTeamRows(rows);
       setMaps(mapsData ?? []);
       setDirectories(directoriesData ?? []);
+      setAllAccess(Object.fromEntries((accessRows ?? []).map((r) => [r.id, !!r.has_all_access])));
+      setInvitePrimary(Object.fromEntries((pendingInvites ?? []).map((r) => [r.id, !!r.is_primary])));
 
       const memberContactIds = rows
         .filter((r) => r.row_kind === "member" && r.role === "member")
@@ -138,8 +157,8 @@ export default function ClientTeam() {
       const { invitation } = await sendInvitation({
         clientId: client.id,
         email: inviteEmail,
-        role: inviteRole,
-        mapIds: inviteRole === "member" ? Array.from(inviteMapIds) : [],
+        role: inviteRole === "primary" ? "manager" : inviteRole,
+        isPrimary: inviteRole === "primary",
       });
       setMsg({
         text: `Invitation email sent to ${invitation.email}. They can set a password and join your team.`,
@@ -147,7 +166,6 @@ export default function ClientTeam() {
       });
       setInviteEmail("");
       setInviteRole("member");
-      setInviteMapIds(new Set());
       await load();
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
@@ -164,6 +182,28 @@ export default function ClientTeam() {
           r.row_kind === "member" && r.row_id === contactId ? { ...r, role: newRole } : r
         )
       );
+    } catch (e) {
+      setMsg({ text: e?.message ?? String(e), error: true });
+    }
+  }
+
+  async function handlePrimaryToggle(contactId, makePrimary) {
+    try {
+      const { error } = await supabase.from("contacts").update({ is_primary: makePrimary }).eq("id", contactId);
+      if (error) throw error;
+      setTeamRows((prev) =>
+        prev.map((r) => (r.row_kind === "member" && r.row_id === contactId ? { ...r, is_primary: makePrimary } : r))
+      );
+    } catch (e) {
+      setMsg({ text: e?.message ?? String(e), error: true });
+    }
+  }
+
+  async function handleAllAccessToggle(contactId, enabled) {
+    try {
+      const { error } = await supabase.from("contacts").update({ has_all_access: enabled }).eq("id", contactId);
+      if (error) throw error;
+      setAllAccess((prev) => ({ ...prev, [contactId]: enabled }));
     } catch (e) {
       setMsg({ text: e?.message ?? String(e), error: true });
     }
@@ -272,15 +312,6 @@ export default function ClientTeam() {
     }
   }
 
-  function toggleInviteMapId(mapId) {
-    setInviteMapIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(mapId)) next.delete(mapId);
-      else next.add(mapId);
-      return next;
-    });
-  }
-
   if (loading) {
     return (
       <PageLayout head={{ title: "Team", subtitle: "Manage team members and their map access" }}>
@@ -323,7 +354,7 @@ export default function ClientTeam() {
       render: (row) => {
         const isMember = row.row_kind === "member";
         const isSelf = isMember && row.row_id === myContact?.id;
-        return isMember && isOwner && !isSelf && row.role !== "owner" ? (
+        const roleControl = isMember && isOwner && !isSelf && row.role !== "owner" ? (
           <Select
             aria-label={`Role for ${row.email}`}
             value={row.role}
@@ -335,6 +366,13 @@ export default function ClientTeam() {
           </Select>
         ) : (
           <Pill>{ROLE_LABELS[row.role] ?? row.role}</Pill>
+        );
+        const isPrimaryRow = row.is_primary || (row.row_kind === "invite_pending" && invitePrimary[row.row_id]);
+        return (
+          <div className="cw-row-actions">
+            {roleControl}
+            {isPrimaryRow ? <Pill tone="info" className="cw-nowrap">Primary</Pill> : null}
+          </div>
         );
       },
     },
@@ -349,11 +387,13 @@ export default function ClientTeam() {
         if (row.row_kind === "invite_pending") {
           return (
             <span className="cw-muted">
-              {row.role === "member" ? inviteMapNames(row.invite_map_ids, maps) : "All maps (when joined)"}
+              {row.role === "member" ? "Set after they join" : "All maps (when joined)"}
             </span>
           );
         }
-        if (row.role === "owner" || row.role === "manager") return <span className="cw-muted">All maps</span>;
+        if (row.role === "owner" || row.role === "manager" || row.is_primary) {
+          return <span className="cw-muted">All maps</span>;
+        }
         return checkList(maps, (id) => perms.has(id), (id, granted) => handleMapPermToggle(row.row_id, id, granted), "No maps");
       },
     },
@@ -364,10 +404,23 @@ export default function ClientTeam() {
         const isMember = row.row_kind === "member";
         const dPerms = isMember ? dirPerms[row.row_id] ?? new Set() : new Set();
         if (row.row_kind === "invite_pending") {
-          return <span className="cw-muted">{row.role === "member" ? "—" : "All directories (when joined)"}</span>;
+          return <span className="cw-muted">All directories (when joined)</span>;
         }
-        if (row.role === "owner" || row.role === "manager") return <span className="cw-muted">All directories</span>;
-        return checkList(directories, (id) => dPerms.has(id), (id, granted) => handleDirectoryPermToggle(row.row_id, id, granted), "No directories");
+        if (row.role === "owner" || row.role === "manager" || row.is_primary || allAccess[row.row_id]) {
+          return <span className="cw-muted">All directories</span>;
+        }
+        return (
+          <div className="cw-stack">
+            {isOwner && (
+              <div>
+                <Button size="sm" onClick={() => handleAllAccessToggle(row.row_id, true)}>
+                  Give access to all
+                </Button>
+              </div>
+            )}
+            {checkList(directories, (id) => dPerms.has(id), (id, granted) => handleDirectoryPermToggle(row.row_id, id, granted), "No directories")}
+          </div>
+        );
       },
     },
   ];
@@ -386,9 +439,14 @@ export default function ClientTeam() {
           );
         }
         return !isSelf && row.role !== "owner" ? (
-          <Button size="sm" variant="danger" onClick={() => handleRemove(row.row_id)}>
-            Remove
-          </Button>
+          <div className="cw-row-actions">
+            <Button size="sm" onClick={() => handlePrimaryToggle(row.row_id, !row.is_primary)}>
+              {row.is_primary ? "Remove primary" : "Make primary"}
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => handleRemove(row.row_id)}>
+              Remove
+            </Button>
+          </div>
         ) : null;
       },
     });
@@ -430,22 +488,15 @@ export default function ClientTeam() {
                   placeholder="colleague@example.com"
                 />
               </Field>
-              <Field label="Role">
+              <Field label="Access level">
                 <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-                  <option value="manager">Manager — can edit org details, access all maps</option>
-                  <option value="member">Member — access only to selected maps</option>
+                  {accessLevels.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
                 </Select>
               </Field>
-              {inviteRole === "member" && maps.length > 0 && (
-                <fieldset className="choice-group">
-                  <legend className="field-label">Map access</legend>
-                  <div className="cw-check-list">
-                    {maps.map((m) => (
-                      <Checkbox key={m.id} label={m.name} checked={inviteMapIds.has(m.id)} onChange={() => toggleInviteMapId(m.id)} />
-                    ))}
-                  </div>
-                </fieldset>
-              )}
               <div>
                 <Button variant="primary" type="submit" loading={inviting} loadingLabel="Sending…">
                   Send invitation email

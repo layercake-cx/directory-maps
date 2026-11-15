@@ -8,6 +8,41 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
+
+**Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
+**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08); production **not** deployed
+
+### Current state, honestly
+- **Staging** has migration `20261008140000` and the `send_team_invitation` / `complete_invited_signup` functions from the original branch. Its frontend is the *older* hand-rolled Team page from 2026-10-08, not this PR's UI-kit port.
+- **Production** has none of it: no migration, no functions, no frontend. The migration drops and recreates `create_team_invitation`, so production must get the migration, the two function deploys and this frontend **together**, only on the user's explicit go-ahead.
+- Landing this PR on `main` makes the repo match staging's migration history (previously `supabase db push --dry-run` against staging failed because staging had a migration the repo lacked).
+
+### What changed
+- An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
+- New `contacts.has_all_access` flag (set on every contact created from an invitation): a Member with it sees every directory without `contact_directory_permissions` rows. `DirectoryContext` honours it. (Per-map access is unchanged: it still comes from `contact_map_permissions`, which owners tick on the Team page after the person joins.) Existing members are unchanged; owners can click **Give access to all** or **Make primary** in the Team table.
+- Map checkboxes are removed from the invite form: the new `create_team_invitation` signature has no `p_map_ids` parameter (it was replaced by `p_is_primary`), so the form could not send them. Restoring them needs a new migration; not done here.
+- The Team page is re-ported onto the UI kit (`PageLayout`, `Section`, `Select`, `Pill`, `Button`), keeping status pills, skeleton loading and the confirm dialogs.
+- Fixed in passing: `getClientAndContact` did not select `role`, so non-primary Managers failed `canManageOrg` inside the client layout. It now selects `role` and `has_all_access`.
+- Multiple primaries are allowed; nothing assumes a single one.
+
+### Database migrations applied
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: not applied.
+
+### Edge functions deployed
+- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: not deployed.
+
+### Rollback plan
+- Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
+
+### Verified
+- [x] Migration applied; `VERIFY PASSED` (columns exist, one `create_team_invitation` overload, no existing contact has `has_all_access`)
+- [x] Older (pre-UI-kit) frontend deployed to the Vercel preview on 2026-10-08 (https://directory-maps-143sieyre-layercake-apps.vercel.app, behind Vercel deployment protection). The UI-kit port in this PR has **not** been deployed anywhere or checked in a browser; it needs a login. `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Invite as Member, Manager and Primary; sign up; contact has the right role, `is_primary` and `has_all_access`
+- [ ] A manager cannot invite a primary; Member sees all directories
+
+---
+
 ## 2026-11-15 — [Frontend only] Stop the job-status request loop on Publish and AI enrichment pages
 
 **Branch:** `fix/2026-11-15-jobs-request-loop`
