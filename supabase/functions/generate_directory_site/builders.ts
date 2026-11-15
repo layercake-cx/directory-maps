@@ -39,7 +39,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 21;
+export const ENTRY_TEMPLATE_VERSION = 22; // v22: card listing layout CSS (docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
 
 export type Entry = {
   id: string;
@@ -156,6 +156,15 @@ export type DirectoryTheme = {
   // false hides the floating "Ask AI" launcher (it still appears while the
   // panel is minimised). Unset = shown.
   aiShowLauncher?: boolean;
+  // Card listing layout (docs/DIRECTORY_CARD_LAYOUT_SPEC.md). Every key is
+  // optional and unset reproduces the list layout byte for byte; resolved
+  // by resolveCardSettings() below. Built-in presets never set these.
+  listingLayout?: "list" | "cards";
+  // A categorisations.key whose term colours drive the card stripe and
+  // badge. undefined = auto-pick; null = no category colours.
+  cardColourBy?: string | null;
+  cardShowSummary?: boolean;
+  cardCtaLabel?: string;
 };
 
 // `hidden: true` keeps the block in the saved layout but renders nothing (no section, heading or
@@ -168,7 +177,8 @@ export type EntryTemplateRow = {
   applies_to_term_id: string | null;
   layout_json: BlockDescriptor[];
 };
-export type CategorisationTerm = { id: string; categorisation_id: string; label: string; slug: string; sort_order: number };
+/** `color` is category_terms.color (nullable, set in Categories) — only the card layout reads it; validate with validHexColor() before use. */
+export type CategorisationTerm = { id: string; categorisation_id: string; label: string; slug: string; sort_order: number; color?: string | null };
 export type Categorisation = { id: string; key: string; label: string; applies_to: string };
 
 // DIR-E6 (docs/DIRECTORIES.md §4.4) — the block order generate_directory_site
@@ -582,6 +592,26 @@ const LAYOUT_STYLE = `
   .dir-row__meta { font-size: 12.5px; line-height: 1.7; color: var(--muted); margin: 0 0 8px; }
   .dir-row__meta strong { display: block; font-weight: 700; color: var(--primary); margin-top: 2px; }
   .dir-row__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Card listing layout (theme listingLayout: "cards") — same <a class="dir-row">
+     root and data attributes as a list row so the filter/search/distance/AI
+     script works unchanged; only modifier classes differ. Theme variables
+     only, so every preset keeps its own look. */
+  .dir-rows--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+  .dir-row--card { flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; outline-offset: 3px; }
+  .dir-row--card:last-child { border-bottom: 1px solid var(--line); }
+  .dir-row--card:hover { background: var(--surface); border-color: var(--card-stripe, var(--primary)); box-shadow: 0 10px 24px -16px rgba(0,0,0,.35); }
+  .dir-card__stripe { display: block; flex: none; height: 6px; background: var(--card-stripe, var(--primary)); }
+  .dir-card__logo { position: relative; flex: none; height: 120px; background: var(--surface-2); }
+  .dir-card__logo img { position: absolute; inset: 20px; width: calc(100% - 40px); height: calc(100% - 40px); object-fit: contain; }
+  .dir-card__body { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 20px 22px 22px; }
+  .dir-card__body .badge { align-self: flex-start; }
+  .dir-card__body h3 { margin: 0; font-size: calc(var(--fs-h3) * 0.8); line-height: 1.1; letter-spacing: -0.015em; color: var(--ink); }
+  .dir-card__loc { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+  .dir-card__loc svg { flex: none; }
+  .dir-card__body .dir-row__desc { margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .dir-card__body .dir-row__why { margin: 0; }
+  .dir-card__cta { margin-top: auto; padding-top: 6px; font-size: 14px; font-weight: 700; color: var(--primary); }
+  .dir-term-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--dot); }
   .dir-empty { padding: 48px 24px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
   .dir-map-pane { flex: 1; min-width: 0; position: relative; }
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
@@ -776,6 +806,11 @@ export function sanitizeHexColor(value: string | undefined, fallback: string): s
   return value && /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : fallback;
 }
 
+/** The hex colour if valid (same rule as sanitizeHexColor), otherwise null. */
+export function validHexColor(value: unknown): string | null {
+  return typeof value === "string" && sanitizeHexColor(value, "") === value && value !== "" ? value : null;
+}
+
 // A region background's solid `color` isn't always a hex the user picked —
 // the built-in header default is a translucent white (`rgba(255,255,255,.6)`)
 // over the page background, which a plain hex can't express. Same
@@ -811,6 +846,10 @@ function resolveRegionBackground(bg: RegionBackground | undefined, fallback: str
 export const NATURAL_DEFAULTS: Required<
   Omit<
     DirectoryTheme,
+    | "listingLayout"
+    | "cardColourBy"
+    | "cardShowSummary"
+    | "cardCtaLabel"
     | "logoUrl"
     | "faviconUrl"
     | "heroBannerUrl"
@@ -2703,7 +2742,11 @@ export type FilterBarCategorisation = {
  * (via data-term-ids baked into each row) and, when a map is attached,
  * posts the same selection into its <iframe> so one filter action drives
  * both (see buildFilterAndSearchScript below). */
-export function filterRail(categorisations: FilterBarCategorisation[], locationSearch = false): string {
+/** `dotColours` (card layout only): termId → validated hex for the colour
+ * categorisation, so stripe colours have a key in the filter options. A
+ * native <select> option can't hold a dot, so single_select shows it on the
+ * active-filter chip instead (see TERM_DOTS in buildFilterAndSearchScript). */
+export function filterRail(categorisations: FilterBarCategorisation[], locationSearch = false, dotColours: Map<string, string> | null = null): string {
   if (categorisations.length === 0 && !locationSearch) return "";
   const distanceGroup = locationSearch
     ? `<div class="dir-rail__group" id="dir-distance">
@@ -2753,7 +2796,7 @@ export function filterRail(categorisations: FilterBarCategorisation[], locationS
       const options = cat.terms
         .map(
           (t) =>
-            `<label class="dir-msel__option"><input type="checkbox" class="dir-msel__checkbox" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="multi_select"><span>${escapeHtml(t.label)}</span></label>`,
+            `<label class="dir-msel__option"><input type="checkbox" class="dir-msel__checkbox" data-cat-id="${escapeAttr(cat.id)}" data-term-id="${escapeAttr(t.id)}" data-kind="multi_select">${termDot(dotColours?.get(t.id))}<span>${escapeHtml(t.label)}</span></label>`,
         )
         .join("");
       return `<div class="dir-rail__group">
@@ -3064,7 +3107,20 @@ function buildSiteAnalyticsMarkup(analytics: PageAnalytics): string {
  * Search is always local keyword matching over the full-listing haystack.
  * When aiSearch.enabled, Help me choose can additionally restrict the
  * shown set to directory_ai_search's returned ids (same apply() path). */
-export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null, locationSearch: LocationSearchOptions | null = null): string {
+export function buildFilterAndSearchScript(hasMap: boolean, categorisations: FilterBarCategorisation[], aiSearch: AiSearchOptions | null = null, locationSearch: LocationSearchOptions | null = null, dotColours: Map<string, string> | null = null): string {
+  // Only emitted in card mode, so list-mode pages stay byte-identical.
+  const hasDots = !!dotColours && dotColours.size > 0;
+  const termDotsJs = hasDots ? `\n  var TERM_DOTS = ${embedJson(Object.fromEntries(dotColours!))};` : "";
+  const chipDotJs = hasDots
+    ? `        if (TERM_DOTS[termId]) {
+          var dot = document.createElement('span');
+          dot.className = 'dir-term-dot';
+          dot.setAttribute('aria-hidden', 'true');
+          dot.style.setProperty('--dot', TERM_DOTS[termId]);
+          chip.appendChild(dot);
+        }
+`
+    : "";
   const catsMeta = categorisations.map((c) => ({
     id: c.id,
     key: c.key,
@@ -3076,7 +3132,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   return `
 <script>
 (function () {
-  var CATS = ${embedJson(catsMeta)};
+  var CATS = ${embedJson(catsMeta)};${termDotsJs}
   var FILLER_WORDS = ${embedJson(SEARCH_FILLER_WORDS)};
   var fillerSet = {};
   FILLER_WORDS.forEach(function (w) { fillerSet[w] = true; });
@@ -3547,7 +3603,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
           setRowControlState();
           apply();
         });
-        chip.appendChild(text);
+${chipDotJs}        chip.appendChild(text);
         chip.appendChild(removeBtn);
         chipsEl.appendChild(chip);
       });
@@ -3993,17 +4049,70 @@ type TermMeta = {
   catKey: string;
   catLabel: string;
   catFieldType: FilterBarCategorisation["field_type"];
+  /** Validated hex from category_terms.color, or null. */
+  color: string | null;
 };
 
 function buildTermMetaIndex(categorisations: FilterBarCategorisation[]): Map<string, TermMeta> {
   const termMeta = new Map<string, TermMeta>();
   for (const cat of categorisations) {
     for (const t of cat.terms) {
-      termMeta.set(t.id, { label: t.label, slug: t.slug, catId: cat.id, catKey: cat.key, catLabel: cat.label, catFieldType: cat.field_type });
+      termMeta.set(t.id, { label: t.label, slug: t.slug, catId: cat.id, catKey: cat.key, catLabel: cat.label, catFieldType: cat.field_type, color: validHexColor(t.color) });
     }
   }
   return termMeta;
 }
+
+export const CARD_CTA_DEFAULT = "View details";
+export const CARD_CTA_MAX = 30;
+
+export type CardSettings = {
+  layout: "list" | "cards";
+  /** The categorisation whose term colours drive stripe + badge, or null for none. */
+  colourCategorisation: FilterBarCategorisation | null;
+  showSummary: boolean;
+  ctaLabel: string;
+};
+
+/** Resolves the four card-layout theme keys (docs/DIRECTORY_CARD_LAYOUT_SPEC.md §5–6).
+ * Unknown or invalid values fall back to the default silently. */
+export function resolveCardSettings(theme: DirectoryTheme, categorisations: FilterBarCategorisation[]): CardSettings {
+  const layout = theme.listingLayout === "cards" ? "cards" : "list";
+  const hasColour = (c: FilterBarCategorisation) => c.terms.some((t) => validHexColor(t.color));
+  let colourCategorisation: FilterBarCategorisation | null = null;
+  if (typeof theme.cardColourBy === "string") {
+    colourCategorisation = categorisations.find((c) => c.key === theme.cardColourBy) ?? null;
+  } else if (theme.cardColourBy !== null) {
+    // Unset (or an invalid type): auto-pick the first single_select
+    // categorisation, in filter-rail order, that has a coloured term.
+    colourCategorisation = categorisations.find((c) => c.field_type === "single_select" && hasColour(c)) ?? null;
+  }
+  const rawCta = typeof theme.cardCtaLabel === "string" ? theme.cardCtaLabel.trim().slice(0, CARD_CTA_MAX).trim() : "";
+  return {
+    layout,
+    colourCategorisation,
+    showSummary: theme.cardShowSummary === true,
+    ctaLabel: rawCta || CARD_CTA_DEFAULT,
+  };
+}
+
+/** termId → hex for the colour categorisation's coloured terms (filter dots). */
+function cardDotColours(settings: CardSettings): Map<string, string> | null {
+  if (settings.layout !== "cards" || !settings.colourCategorisation) return null;
+  const dots = new Map<string, string>();
+  for (const t of settings.colourCategorisation.terms) {
+    const hex = validHexColor(t.color);
+    if (hex) dots.set(t.id, hex);
+  }
+  return dots.size ? dots : null;
+}
+
+function termDot(hex: string | null | undefined): string {
+  const safe = validHexColor(hex);
+  return safe ? `<span class="dir-term-dot" style="--dot:${safe}" aria-hidden="true"></span>` : "";
+}
+
+const CARD_PIN_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`;
 
 export function buildDirectoryLandingPage(opts: {
   clientSlug: string;
@@ -4033,6 +4142,9 @@ export function buildDirectoryLandingPage(opts: {
   const aiNounMany = "entries";
 
   const termMeta = buildTermMetaIndex(categorisations);
+  const card = resolveCardSettings(theme, categorisations);
+  const cards = card.layout === "cards";
+  const dotColours = cardDotColours(card);
 
   const rows = visibleEntries
     .map((e) => {
@@ -4067,6 +4179,27 @@ export function buildDirectoryLandingPage(opts: {
       const metaHtml = location || asideTerm
         ? `<div class="dir-row__meta">${location ? `<span>${escapeHtml(location)}</span>` : ""}${asideTerm ? `<strong>${escapeHtml(asideTerm.label)}</strong>` : ""}</div>`
         : "";
+      const tagsHtml = tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : "";
+
+      if (cards) {
+        const colourTerm = card.colourCategorisation ? terms.find((t) => t.catId === card.colourCategorisation!.id) : undefined;
+        const badgeTerm = colourTerm ?? asideTerm;
+        const stripeStyle = colourTerm?.color ? ` style="--card-stripe:${colourTerm.color}"` : "";
+        return `<a class="dir-row dir-row--card" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}"${coordAttr}${stripeStyle}>
+  <span class="dir-card__stripe" aria-hidden="true"></span>
+  ${logo ? `<div class="dir-card__logo"${panelBoxStyle}>${logo}</div>` : ""}
+  <div class="dir-card__body">
+    ${badgeTerm ? `<span class="badge">${escapeHtml(badgeTerm.label)}</span>` : ""}
+    <h3>${escapeHtml(e.name)}</h3>
+    ${location ? `<p class="dir-card__loc">${CARD_PIN_ICON}<span>${escapeHtml(location)}</span></p>` : ""}
+    ${milesHtml}
+    ${card.showSummary && e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
+    ${card.showSummary ? tagsHtml : ""}
+    <p class="dir-row__why" hidden></p>
+    <span class="dir-card__cta">${escapeHtml(card.ctaLabel)} <span aria-hidden="true">→</span></span>
+  </div>
+</a>`;
+      }
 
       return `<a class="dir-row" href="${escapeAttr(entryUrl)}" data-entry-id="${escapeAttr(e.id)}" data-search="${searchText}" data-term-ids="${termIdsAttr}"${coordAttr}>
   <div class="dir-row__logo"${panelBoxStyle}>${logo}</div>
@@ -4075,7 +4208,7 @@ export function buildDirectoryLandingPage(opts: {
     ${e.meta_description ? `<p class="dir-row__desc">${escapeHtml(e.meta_description)}</p>` : ""}
     ${milesHtml}
     ${metaHtml}
-    ${tagLabels.length ? `<div class="dir-row__tags">${tagLabels.map((l) => `<span class="tag">${escapeHtml(l)}</span>`).join("")}</div>` : ""}
+    ${tagsHtml}
     <p class="dir-row__why" hidden></p>
   </div>
 </a>`;
@@ -4114,7 +4247,8 @@ export function buildDirectoryLandingPage(opts: {
     ? `${attachedMapEmbedSrc}${attachedMapEmbedSrc.includes("?") ? "&" : "?"}hideFilterBar=1&hideListPanel=1`
     : null;
   const hasMap = !!mapEmbedSrcWithFlag;
-  const rail = filterRail(categorisations, !!locationSearch);
+  const rail = filterRail(categorisations, !!locationSearch, dotColours);
+  const rowsClass = cards ? "dir-rows dir-rows--cards" : "dir-rows";
 
   const viewToggle = hasMap
     ? `<div class="dir-seg" id="dir-view-toggle">
@@ -4175,12 +4309,12 @@ ${aiSearch?.enabled ? `<div class="dir-ai-shell" id="dir-ai-shell" data-show-lau
     <div class="dir-rail-backdrop" id="dir-rail-backdrop"></div>
     <div class="dir-content-row">
       <div class="dir-results" id="dir-results-col">
-        <div class="dir-rows" id="dir-rows">
+        <div class="${rowsClass}" id="dir-rows">
           ${rows}
         </div>
         ${locationSearch ? `<div class="dir-also" id="dir-also" hidden>
           <p class="dir-also__title">Also matching your words</p>
-          <div class="dir-rows" id="dir-also-rows"></div>
+          <div class="${rowsClass}" id="dir-also-rows"></div>
         </div>` : ""}
         <div class="dir-empty" id="dir-empty" hidden>
           <p id="dir-empty-title" style="font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0 0 12px;">Nothing matches these filters</p>
@@ -4198,7 +4332,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
 ${aiSearch?.enabled ? `<div class="dir-ai-live" id="dir-ai-live" role="status" aria-live="polite"></div>
 ${askAiFloatingMarkup()}` : ""}
 ${locationSearch ? "<!-- Place names: GeoNames (https://www.geonames.org/), CC-BY 4.0 -->" : ""}
-${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, locationSearch ?? null)}
+${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, locationSearch ?? null, dotColours)}
 `.trim();
 
   return directoryPageShell({

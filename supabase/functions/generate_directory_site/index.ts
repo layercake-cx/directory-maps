@@ -413,7 +413,7 @@ async function generateForDirectoryInner(
     const ectRows = await loadByEntry<{ entry_id: string; category_terms: unknown }>("Entry category terms", null, (chunk, from, to) => {
       let q = db
         .from("entry_category_terms")
-        .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, categorisations(key, label, field_type)), directory_entries!inner(id)")
+        .select("entry_id, category_terms(id, categorisation_id, label, slug, sort_order, color, categorisations(key, label, field_type)), directory_entries!inner(id)")
         .eq("directory_entries.directory_id", directoryId)
         .eq("directory_entries.is_active", true)
         .order("entry_id", { ascending: true })
@@ -436,7 +436,7 @@ async function generateForDirectoryInner(
       idSet.add(term.id);
       entryTermIdsByEntry.set(row.entry_id, idSet);
 
-      const termRow: CategorisationTerm = { id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order };
+      const termRow: CategorisationTerm = { id: term.id, categorisation_id: term.categorisation_id, label: term.label, slug: term.slug, sort_order: term.sort_order, color: term.color ?? null };
       const fieldType: FilterBarCategorisation["field_type"] =
         cat.field_type === "single_select" || cat.field_type === "boolean" ? cat.field_type : "multi_select";
       const catEntry = categorisationCatalog.get(term.categorisation_id) ?? {
