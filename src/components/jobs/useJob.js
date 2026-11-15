@@ -53,7 +53,10 @@ export function useJob(kind, directoryId, ctx = {}) {
     }
   }, [directoryId, poll, upsert, track, id]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  // Initial status read only: keyed on the job identity, not on refresh, so a changing callback can never re-trigger it.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  useEffect(() => { void refreshRef.current(); }, [kind, directoryId]);
 
   const begin = useCallback((partial = {}) => {
     upsert({
