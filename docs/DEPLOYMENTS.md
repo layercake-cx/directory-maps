@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Frontend only] Publish chip updates straight after AI generation or a save on the entry Content tab
+
+**Branch:** `fix/2026-11-15-ai-generate-refreshes-publish-chip`
+
+### What changed
+- After **Draft with AI** (single-entry generation) succeeded, the content was saved and the entry's `updated_at` bumped (server side, since PR 346), but the side-panel publish chip only re-checks on navigation or when something announces a change. Nothing did, so it kept showing green "Published" next to content that wasn't live. `EntryContentTab.jsx` now calls `markDirectoryContentChanged` after a successful AI generation and after **Save notes**, which fires the existing `directory:content-changed` event so the chip flips to "Unpublished changes" at once.
+- Not covered: whole-directory and automatic AI runs finish on the server, so the chip still catches up on the next navigation or reload.
+- No migration, no schema, no Edge Function.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): generate content for an entry in a published directory and confirm the chip turns amber without leaving the page; then Publish and confirm it returns to green.
+
+---
+
 ## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
 
 **Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
