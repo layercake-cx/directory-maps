@@ -64,7 +64,7 @@ async function processJob(service: ReturnType<typeof createServiceClient>, job: 
   const update = computeSeoMetadataUpdate(entry as unknown as EntrySeoBackfillRow, draft);
 
   if (update) {
-    const { error: updateErr } = await service.from("directory_entries").update(update).eq("id", job.entry_id);
+    const { error: updateErr } = await service.from("directory_entries").update({ ...update, updated_at: new Date().toISOString() }).eq("id", job.entry_id);
     if (updateErr) throw updateErr;
   }
 

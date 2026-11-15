@@ -8,6 +8,35 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Edge Functions, not yet deployed] AI content now marks entries as changed; stale cron key recorded
+
+**Branch:** `fix/2026-11-15-ai-writers-bump-updated-at`
+
+### What changed
+- `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` now set `directory_entries.updated_at` when they save AI-written content. Nothing in the database does this, and the publish status chip compares entry `updated_at` with the last build, so after an AI enrichment run the chip stayed green ("live") even though the public pages were behind. Entries now show as unpublished changes until the directory is published again.
+- Geocoding (`geocode_directory_entries`) also writes without bumping `updated_at`; left alone here, noted for a follow-up.
+
+### Incident recorded (no code change)
+- AI enrichment sat at 0 of 25 (jobs all `pending`) on production. The `process-entry-content-dispatch` pg_cron job fired every 2 minutes, but every call got `401 Legacy API keys are disabled`: the vault secret `anon_key` still held the legacy anon key, which Supabase disabled on 2026-09-26 (the earlier key migration changed functions, Vercel and GitHub secrets but not the vault).
+- Fixed by the user on 2026-11-15: `vault.update_secret` on `anon_key` with the production `sb_publishable_...` key. The next tick processed jobs. The same secret feeds the daily Google Sheets sync, the SEO-metadata backfill and the error-log Teams notification schedules, so those were failing from 2026-09-26 to 2026-11-15 and should now be working again.
+- Separately found: directory entries imported hidden (`is_active = false`) are skipped by both AI enrichment and site generation. Cause was `false`-like values in the CSV's `is_active` column.
+
+### Staging outcome
+- 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes. Behaviour not yet verified on staging.
+
+### Production outcome
+- 2026-11-15: deployed the same three functions to production (`gxixwdjfmegxcxfeflro`) on the user's explicit go-ahead, from this branch (contains current `origin/main`, 0 commits behind). Behaviour not yet verified.
+
+### Rollback plan
+Revert the commit and redeploy the three functions. The vault secret change is separate and should not be reverted (the legacy key no longer works).
+
+### Verification
+- [x] `deno check` passes on all three functions.
+- [ ] Not yet checked: run enrichment on a published directory and confirm the status chip turns amber, then Publish and confirm it returns to green.
+- [ ] Not yet checked: the sheet-sync and SEO-backfill schedules succeed (`net._http_response` shows 200 for them).
+
+---
+
 ## 2026-11-14 — [Frontend only] Reordering marks a directory as having unpublished changes
 
 **Branch:** `feat/2026-11-14-reorder-marks-unpublished`
