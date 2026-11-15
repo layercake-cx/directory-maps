@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-15 — [Migration + Edge Functions, not yet deployed] AI listings are researched, written, then validated
+## 2026-11-15 — [Migration + Edge Functions] AI listings are researched, written, then validated
 
 **Branch:** `feat/2026-11-15-ai-listing-research-pipeline`
 
@@ -31,7 +31,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - 2026-11-15: migration `20261115120000_directory_entry_research` applied to staging (`beqejxneehilplrtpntn`) with `supabase db push` after PR 349 landed `20261008140000` on `main` (the history drift that blocked the first attempt is gone); the dry run listed only this migration. The migration's verification queries are comments, and the CLI has no raw-SQL command, so table existence and `rowsecurity = true` still need a check in the SQL editor. Production: not applied.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-15: on the user's explicit instruction ("deploy to prod and I'll test there", skipping a staging behaviour test), migration `20261115120000_directory_entry_research` applied to production (`gxixwdjfmegxcxfeflro`) with `supabase db push` (dry run listed only this migration; branch was 0 commits behind `origin/main`), then `process_entry_content_jobs`, `generate_entry_content` and `claim_listing_ai` deployed. The first push attempt was blocked by the agent permission check and succeeded after the user confirmed in chat. CLI relinked to staging afterwards. Table existence and RLS not yet confirmed by query; behaviour not yet verified on production.
 
 ### Rollback plan
 Redeploy the three functions from the previous commit; `_20261115120000_directory_entry_research.rollback.sql` drops the table (back up first; the notes are regenerable).
