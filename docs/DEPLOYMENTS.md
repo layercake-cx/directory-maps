@@ -210,7 +210,7 @@ Revert the commit and redeploy the frontend. The bumped `updated_at` values are 
 - 2026-11-14: Vercel preview deployed from this branch for a click-through (`directory-maps-jc6lk1ohl-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so reorders you make there are real.
 
 ### Production outcome
-- Not deployed yet.
+- Deployed to production (frontend, after PR 344 merged) and tested by the user, who confirmed on 2026-11-15. The deploy date and the exact checks run weren't recorded at the time.
 
 ### Rollback plan
 Revert the merge commit and redeploy the frontend.
