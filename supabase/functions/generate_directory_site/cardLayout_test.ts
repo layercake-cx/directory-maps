@@ -169,3 +169,8 @@ Deno.test("cardShowSummary toggles the summary and tags", () => {
 Deno.test("template version bumped for the card CSS", () => {
   assert(ENTRY_TEMPLATE_VERSION >= 22);
 });
+
+Deno.test("cards without a map -> results column goes full width; with a map it doesn't", () => {
+  assertStringIncludes(fixtureLanding(cardsTheme(), { attachedMapEmbedSrc: null }), 'class="dir-results dir-results--full" id="dir-results-col"');
+  assertStringIncludes(fixtureLanding(cardsTheme()), 'class="dir-results" id="dir-results-col"');
+});

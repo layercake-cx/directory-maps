@@ -77,7 +77,27 @@ export function themeFromDirectory(directory) {
   // Ask AI tokens stay absent until set — an unset token follows the primary colour (askAiTheme.js).
   for (const key of AI_COLOUR_KEYS) if (isAiHex(t[key])) next[key] = t[key];
   if (t.aiShowLauncher === false) next.aiShowLauncher = false;
+  Object.assign(next, cardKeysFrom(t));
   return next;
+}
+
+// Card listing layout (docs/DIRECTORY_CARD_LAYOUT_SPEC.md §6). Mirrors
+// resolveCardSettings() in generate_directory_site/builders.ts — hand-synced.
+// Every key stays absent until set, so an untouched directory keeps
+// rendering the list layout byte for byte.
+export const CARD_KEYS = ["listingLayout", "cardColourBy", "cardShowSummary", "cardCtaLabel"];
+export const CARD_CTA_DEFAULT = "View details";
+export const CARD_CTA_MAX = 30;
+
+/** The valid card-layout keys from a raw theme_json (invalid values dropped). */
+export function cardKeysFrom(t) {
+  const out = {};
+  if (t?.listingLayout === "cards" || t?.listingLayout === "list") out.listingLayout = t.listingLayout;
+  // null ("don't colour") is meaningful and distinct from unset (automatic).
+  if (t?.cardColourBy === null || (typeof t?.cardColourBy === "string" && t.cardColourBy)) out.cardColourBy = t.cardColourBy;
+  if (t?.cardShowSummary === true) out.cardShowSummary = true;
+  if (typeof t?.cardCtaLabel === "string" && t.cardCtaLabel.trim()) out.cardCtaLabel = t.cardCtaLabel.trim().slice(0, CARD_CTA_MAX).trim();
+  return out;
 }
 
 /** The single "Header shows" choice the UI exposes, derived from the two stored fields. */
@@ -121,8 +141,10 @@ export function serializeTheme(theme) {
   const base = withoutRetiredColours(theme);
   for (const key of AI_COLOUR_KEYS) if (!isAiHex(base[key])) delete base[key];
   if (base.aiShowLauncher !== false) delete base.aiShowLauncher;
+  for (const key of CARD_KEYS) delete base[key];
   return {
     ...base,
+    ...cardKeysFrom(theme),
     siteTitle: (theme.siteTitle || "").trim(),
     showHeaderTitle: showTitle,
     headerMode: !showTitle ? (theme.headerMode === "text" ? "text" : "logo") : theme.headerMode === "logo" ? "logoText" : theme.headerMode,

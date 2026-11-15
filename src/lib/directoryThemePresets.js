@@ -15,6 +15,13 @@ import { supabase } from "./supabase";
  *   logoUrl, faviconUrl, heroBannerUrl, heroBannerHeight (not part of a preset —
  *   always left for the client to set).
  *
+ * Card listing layout (Look & feel → Listings; never set by a built-in
+ * preset, so applying one never flips the layout — see
+ * docs/DIRECTORY_CARD_LAYOUT_SPEC.md §6 and builders.ts's resolveCardSettings()):
+ *   listingLayout ("list" | "cards", unset = list), cardColourBy (a
+ *   categorisations.key, null = no colours, unset = automatic),
+ *   cardShowSummary (boolean), cardCtaLabel (string, ≤ 30 chars).
+ *
  * Region overrides (header/footer independent bg/text/link — see
  * generate_directory_site/builders.ts's DirectoryTheme type for the exact
  * shape): NATURAL deliberately omits them, since NATURAL is also "the

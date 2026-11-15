@@ -597,7 +597,8 @@ const LAYOUT_STYLE = `
      script works unchanged; only modifier classes differ. Theme variables
      only, so every preset keeps its own look. */
   .dir-rows--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; border: 0; border-radius: 0; background: transparent; overflow: visible; }
-  .dir-row--card { flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; outline-offset: 3px; }
+  .dir-row--card { flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .dir-row--card:focus-visible { outline-offset: 3px; }
   .dir-row--card:last-child { border-bottom: 1px solid var(--line); }
   .dir-row--card:hover { background: var(--surface); border-color: var(--card-stripe, var(--primary)); box-shadow: 0 10px 24px -16px rgba(0,0,0,.35); }
   .dir-card__stripe { display: block; flex: none; height: 6px; background: var(--card-stripe, var(--primary)); }
@@ -637,6 +638,8 @@ const LAYOUT_STYLE = `
     .dir-map-pane { flex: 0 0 calc(33.333% - 14px); }
 
     .dir-row__logo { width: 208px; min-width: 208px; }
+    /* Card layout with no map beside it: use the full width (3-4 columns). */
+    .dir-results--full { flex: 1 1 100%; }
   }
 
   .dir-filters-trigger { display: none; }
@@ -4308,7 +4311,7 @@ ${aiSearch?.enabled ? `<div class="dir-ai-shell" id="dir-ai-shell" data-show-lau
     ${rail}
     <div class="dir-rail-backdrop" id="dir-rail-backdrop"></div>
     <div class="dir-content-row">
-      <div class="dir-results" id="dir-results-col">
+      <div class="dir-results${cards && !hasMap ? " dir-results--full" : ""}" id="dir-results-col">
         <div class="${rowsClass}" id="dir-rows">
           ${rows}
         </div>
