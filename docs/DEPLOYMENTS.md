@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
+
+**Branch:** `fix/2026-11-15-publish-card-stale-status`
+
+### What changed
+- Clicking Publish showed the job as running, then polled the directory's status row. The Edge Function only flips that row to "running" a moment later, so an early poll could read the *previous* run's "succeeded" row and the card announced "Version N is live, took 0 s" while the real build was still writing pages (seen on a production directory: card done at once, page files still being rewritten two minutes later).
+- New `src/components/jobs/jobGate.js` (pure `evaluateGate`): `begin()` in `useJob` now records when the run was started from this browser. Until the server row is running, or shows a run that started at or after that moment (5 s clock-skew allowance), a finished-looking row is treated as stale and the card stays "running". The gate is released by the Edge Function's own reply (`refresh({ final: true })`, used by the Publish panel's three `onResult` callbacks) or after 3 minutes, so a run that never starts can't spin forever. The same gate applies to the AI content and SEO backfill cards, which use `useJob` too.
+- No migration, no schema, no Edge Function.
+
+### Production outcome
+- Not deployed yet.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `node --test src/components/jobs/jobGate.test.js` passes (5 tests: stale previous-run row held, released on running, on a newer start with clock skew, and on timeout).
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): click Publish on a directory with changes; the card should stay "Publishing" until pages are written, then show a realistic duration. Also check an AI bulk run's card still behaves.
+
+---
+
 ## 2026-11-15 — [Frontend only] Publish tab warns when no entries (or only some) will be listed
 
 **Branch:** `feat/2026-11-15-publish-no-entries-warning`

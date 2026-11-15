@@ -87,7 +87,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       setHistory(fresh);
       begin({ variant: "publish", version: fresh[0]?.version });
       triggerDirectorySiteRegeneration(directory.id, {
-        onResult: (result) => { handleGenerationResult(result); void refresh(); },
+        onResult: (result) => { handleGenerationResult(result); void refresh({ final: true }); },
       });
       recordEvent?.("directory_published", { directory_id: directory.id, note_present: !!note.trim() });
       setNote("");
@@ -114,7 +114,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
       begin({ variant: "restore", version: pub.version });
       triggerDirectorySiteRegeneration(directory.id, {
         scope: "full",
-        onResult: (result) => { handleGenerationResult(result); void refresh(); },
+        onResult: (result) => { handleGenerationResult(result); void refresh({ final: true }); },
       });
       recordEvent?.("directory_publish_rolled_back", { directory_id: directory.id, from_publication_id: directory.current_publication_id, to_publication_id: pub.id });
       await refreshHistory();
@@ -134,7 +134,7 @@ export default function DirectoryPublishPanel({ directory, clientSlug, canPublis
     setErr("");
     begin({ variant: "regenerate" });
     triggerDirectorySiteRegeneration(directory.id, {
-      onResult: (result) => { handleGenerationResult(result); void refresh(); },
+      onResult: (result) => { handleGenerationResult(result); void refresh({ final: true }); },
     });
   }
 

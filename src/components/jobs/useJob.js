@@ -3,12 +3,18 @@ import { getDirectorySiteGenerationStatus } from "../../lib/directoryPublication
 import { getDirectoryAiContentStatus, getDirectorySeoMetadataBackfillStatus } from "../../lib/directories.js";
 import { useJobs } from "./JobsProvider.jsx";
 import { normalisePublishJob, normaliseAiContentJob, normaliseSeoBackfillJob } from "./jobCopy.js";
+import { evaluateGate } from "./jobGate.js";
 
+// statusKey/startedKey: the server row columns the stale-status gate (jobGate.js) compares against.
 const SOURCES = {
-  publish: { fetch: getDirectorySiteGenerationStatus, normalise: normalisePublishJob },
-  "ai-content": { fetch: getDirectoryAiContentStatus, normalise: normaliseAiContentJob },
-  "seo-backfill": { fetch: getDirectorySeoMetadataBackfillStatus, normalise: normaliseSeoBackfillJob },
+  publish: { fetch: getDirectorySiteGenerationStatus, normalise: normalisePublishJob, statusKey: "site_generation_status", startedKey: "site_generation_started_at" },
+  "ai-content": { fetch: getDirectoryAiContentStatus, normalise: normaliseAiContentJob, statusKey: "ai_content_generation_status", startedKey: "ai_content_generation_started_at" },
+  "seo-backfill": { fetch: getDirectorySeoMetadataBackfillStatus, normalise: normaliseSeoBackfillJob, statusKey: "seo_metadata_backfill_status", startedKey: "seo_metadata_backfill_started_at" },
 };
+
+// Runs started from this browser whose server row may still show the previous run (see jobGate.js). Module-level so
+// the provider's background poller, which outlives the page, applies the same gate.
+const gates = new Map();
 
 /** A finished job is only worth showing if we watched it run; running and failed always show until dismissed. */
 function visible(job) {
@@ -34,12 +40,24 @@ export function useJob(kind, directoryId, ctx = {}) {
 
   const poll = useCallback(async () => {
     const row = await src.fetch(directoryId);
+    const gate = gates.get(id);
+    const verdict = evaluateGate(gate, { status: row?.[src.statusKey], startedAt: row?.[src.startedKey] });
+    if (verdict === "release") gates.delete(id);
+    if (verdict === "hold") {
+      // The server row is still the previous run's: keep showing this run as running until it catches up.
+      return {
+        id, kind, status: "running", startedAt: new Date(gate.at).toISOString(), href: ctxRef.current.href, scopeLabel: ctxRef.current.scopeLabel,
+        ...normaliseStub(kind, { ...ctxRef.current, id, ...gate.partial }), ...gate.partial,
+      };
+    }
     const prev = getJob(id);
     return src.normalise(row, { ...ctxRef.current, id, variant: ctxRef.current.variant || prev?.variant, version: ctxRef.current.version ?? prev?.version });
-  }, [src, directoryId, id, getJob]);
+  }, [src, kind, directoryId, id, getJob]);
 
-  const refresh = useCallback(async () => {
+  // `final: true` is for callers that just heard the Edge Function's own reply: the row is then authoritative, so release the gate.
+  const refresh = useCallback(async ({ final = false } = {}) => {
     if (!directoryId) return null;
+    if (final) gates.delete(id);
     try {
       const next = await poll();
       // `runningOnly` (the directory-wide watcher): don't surface finished or old failed runs, only ones in flight.
@@ -59,6 +77,7 @@ export function useJob(kind, directoryId, ctx = {}) {
   useEffect(() => { void refreshRef.current(); }, [kind, directoryId]);
 
   const begin = useCallback((partial = {}) => {
+    gates.set(id, { at: Date.now(), partial });
     upsert({
       id, kind, status: "running", startedAt: new Date().toISOString(), href: ctxRef.current.href, scopeLabel: ctxRef.current.scopeLabel,
       ...normaliseStub(kind, { ...ctxRef.current, id, ...partial }), ...partial,
