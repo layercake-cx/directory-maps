@@ -22,7 +22,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Separately found: directory entries imported hidden (`is_active = false`) are skipped by both AI enrichment and site generation. Cause was `false`-like values in the CSV's `is_active` column.
 
 ### Staging outcome
-- Not deployed yet. `deno check` passes on the three functions.
+- 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes. Behaviour not yet verified on staging.
 
 ### Production outcome
 - Not deployed yet. Production Edge Function deploy needs the user's explicit go-ahead.
