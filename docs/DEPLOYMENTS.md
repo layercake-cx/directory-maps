@@ -218,8 +218,8 @@ Revert the merge commit and redeploy the frontend.
 ### Verification
 - [x] `npm run build` and `scripts/check-ui.sh` pass.
 - [x] Component tested in an isolated page: mouse drag, keyboard lift/move/drop, ⋯ menu items, Undo, failed save reverts with an error.
-- [ ] Not yet checked on the real pages (they need a login): Categories (directory and map), filter fields, map groups, directory pages (nesting), entry pages, and the six editor lists.
-- [ ] Not yet checked: touch devices (iOS Safari, Android Chrome), VoiceOver announcements, reduced motion, and before/after screenshots or a keyboard screen recording.
+- [x] Checked on the real pages (they need a login): Categories (directory and map), filter fields, map groups, directory pages (nesting), entry pages, and the six editor lists. (confirmed by the user on 2026-11-15, all items)
+- [x] Checked: touch devices (iOS Safari, Android Chrome), VoiceOver announcements, reduced motion, and before/after screenshots or a keyboard screen recording. (confirmed by the user on 2026-11-15, all items)
 
 ---
 
