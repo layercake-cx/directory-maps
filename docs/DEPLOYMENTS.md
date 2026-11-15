@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-15 — [Staging] Card listing layout for the directory home page
+## 2026-11-15 — [Production] Card listing layout for the directory home page
 
 **Branch:** `feat/2026-11-15-directory-card-layout`
 
@@ -20,7 +20,12 @@ A plain-English record of every deployment to staging and production. Newest ent
 - **Events:** no new visitor action (a card is the same link to the entry page a row was), so no `map_engagement_events` change. `directory_branding_updated` gains `changed_fields` and `listing_layout` (AGENTS.md catalogue updated).
 
 ### Staging outcome
-- 2026-11-15: `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`) from this branch. Frontend not deployed anywhere yet (it ships with the PR merge / Vercel deploy).
+- 2026-11-15: `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`) from this branch.
+
+### Production outcome
+- 2026-11-15 21:49 GMT: on the user's instruction ("just deploy into live"), `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`) from this branch, which already contained current `origin/main` (template version 22). The staging checks below were skipped at the user's request.
+- Frontend deployed to Vercel production from this branch with `npm run deploy:live` (deployment `directory-maps-bca9vkxld`, status Ready, aliased to maps.layercake-cx.biz; the live bundle contains the new Listings tab). GitHub Pages updates when the PR merges.
+- Existing directories are unaffected until an owner picks Cards and republishes. The next ordinary Publish of any directory does a full rebuild because of the template version bump.
 
 ### Rollback plan
 Revert the branch's commits and redeploy `generate_directory_site` (template version goes back to 21, which forces a full rebuild on the next Publish). No data to undo: the four `theme_json` keys are ignored by the old generator.
@@ -31,7 +36,7 @@ Revert the branch's commits and redeploy `generate_directory_site` (template ver
 - [x] Generated card pages checked in a browser with the real theme CSS: Natural and Midnight presets, with and without a map (2 vs 3 columns at 1024px), one column at 375px with no horizontal scroll; filtering hides cards without grid gaps and the chip shows its colour dot.
 - [ ] Look & feel › Listings tab not yet checked in the running app (needs a login): switch to Cards, change each setting, check the preview, save, and confirm the settings survive a reload.
 - [ ] Staging: publish a directory with Cards on in each built-in preset; check search, filters, distance sort, Ask AI "why" lines and the List/Map toggle on mobile, tablet and desktop.
-- [ ] Production deploy of `generate_directory_site` (needs the user's go-ahead) and frontend (Vercel `npm run deploy:live`).
+- [x] Production deploy of `generate_directory_site` and the Vercel frontend (see Production outcome).
 
 ## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
 
