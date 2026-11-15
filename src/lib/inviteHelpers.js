@@ -59,14 +59,14 @@ export async function completeInvitedSignup({
 /**
  * Invite a team member: validates 1:1 rules, creates invitation, sends email.
  */
-export async function sendInvitation({ clientId, email, role, mapIds = [] }) {
+export async function sendInvitation({ clientId, email, role, isPrimary = false }) {
   const data = await invokeEdgeFunction(
     "send_team_invitation",
     {
       clientId,
       email: email.trim(),
       role,
-      mapIds: mapIds ?? [],
+      isPrimary: !!isPrimary,
     },
     { supabase, requireAuth: true }
   );

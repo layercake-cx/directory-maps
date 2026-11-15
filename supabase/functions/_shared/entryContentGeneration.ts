@@ -8,6 +8,8 @@
 
 import { createServiceClient } from "./supabase.ts";
 import { AiScope, directoryMapsContext, generate, requireToolInput } from "./ai/gateway.ts";
+import { researchEntry, type EntryResearch } from "./entryResearch.ts";
+import { validateListing } from "./entryListingQuality.ts";
 
 const TOOL_NAME = "write_entry_content";
 
@@ -61,11 +63,6 @@ export function sanitizeGeneratedHtml(html: string): string {
   });
 }
 
-function stripHtml(html: string | null | undefined): string {
-  if (!html) return "";
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
 export type DirectoryEntryForGeneration = {
   id: string;
   name: string;
@@ -76,28 +73,64 @@ export type DirectoryEntryForGeneration = {
   website_url: string | null;
   phone: string | null;
   email: string | null;
-  notes_html: string | null;
+  /** Accepted for compatibility but deliberately NOT used: stored notes are often import placeholders, and rewriting them is what produced database-style listings. */
+  notes_html?: string | null;
 };
 
-async function callModel(scope: AiScope, prompt: string, entryText: string): Promise<string> {
+export type GeneratedListing = { html: string; research: EntryResearch };
+
+/** The draft failed validation twice. The existing listing must be left alone. */
+export class ListingQualityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ListingQualityError";
+  }
+}
+
+const WRITE_SYSTEM =
+  "You write the public listing for one supplier in a curated directory, from research notes you are given. " +
+  "Voice: warm, knowledgeable and enthusiastic, natural British English, like a good independent food magazine. " +
+  "Reflect the supplier's personality without impersonating their brand or speaking as them. " +
+  "Use only the research findings: every claim must come from them, and anything under 'Do not state or imply' must not appear in any form. " +
+  "Make every sentence earn its place with a specific product, story, practice or detail; cut filler, repetition and generic praise. " +
+  "Lead with what makes this supplier interesting, and give readers a genuine reason to visit its website through those specifics, never by telling them to go and look. " +
+  "Never mention research, sources, records, data, listings, categories, verification, or anything missing or unknown; if the findings are thin on a point, leave that point out. " +
+  "Never write SEO titles, meta descriptions, keywords or notes: those are produced elsewhere and must not appear in the listing. " +
+  "Write clean HTML using only these tags: p, br, strong, b, em, i, u, ul, ol, li, h2, h3, h4, blockquote, a, img, span, div. " +
+  "No <script>, <style>, inline event handlers, or javascript:/data: URIs. " +
+  `Respond only by calling the ${TOOL_NAME} tool.`;
+
+function findingsText(r: EntryResearch): string {
+  const list = (label: string, items: string[]) => (items.length ? `${label}:\n${items.map((i) => `- ${i}`).join("\n")}\n` : "");
+  return [
+    `What they are: ${r.business_summary}\n`,
+    list("Story and history", r.history_and_story),
+    list("Products", r.products),
+    list("Producers and sourcing", r.producers_and_sourcing),
+    list("Philosophy and practices", r.philosophy_and_practices),
+    r.verified_certifications.length ? `Confirmed credentials:\n${r.verified_certifications.map((c) => `- ${c.name} (${c.evidence})`).join("\n")}\n` : "",
+    list("The most distinctive details (build the listing around these)", r.distinctive_details),
+    list("Do not state or imply (unconfirmed or unknown; never mention that they are unconfirmed)", r.unverified_or_missing),
+  ].join("\n");
+}
+
+async function writeListing(
+  scope: AiScope,
+  entry: DirectoryEntryForGeneration,
+  brief: string,
+  research: EntryResearch,
+  rejected?: { html: string; problems: string[] },
+): Promise<string> {
   const result = await generate(directoryMapsContext(scope, "content_generation"), {
     maxTokens: 4096,
-    system:
-      "You write the page content for one directory entry, following the directory-specific instructions you are given. " +
-      "Only use the entry data provided in the user message. Never invent, assume, or infer facts that are not present in it — " +
-      "where the instructions ask for something the data doesn't cover, write around it rather than guessing. " +
-      "Write clean HTML using only these tags: p, br, strong, b, em, i, u, ul, ol, li, h2, h3, h4, blockquote, a, img, span, div. " +
-      "No <script>, <style>, inline event handlers, or javascript:/data: URIs. " +
-      `Respond only by calling the ${TOOL_NAME} tool.`,
+    system: WRITE_SYSTEM,
     tools: [
       {
         name: TOOL_NAME,
-        description: "Record the generated HTML page content for this directory entry.",
+        description: "Record the public listing HTML for this supplier.",
         inputSchema: {
           type: "object",
-          properties: {
-            html: { type: "string", description: "The entry's page content, as HTML using only the allowed tags." },
-          },
+          properties: { html: { type: "string", description: "The listing, as HTML using only the allowed tags. No SEO fields, notes or caveats." } },
           required: ["html"],
         },
       },
@@ -107,45 +140,52 @@ async function callModel(scope: AiScope, prompt: string, entryText: string): Pro
       {
         role: "user",
         content:
-          `Content instructions for this directory:\n${prompt}\n\n` +
-          `Entry data (the only source of truth — do not use outside knowledge):\n${entryText}\n\n` +
-          "Call the tool now with the generated HTML.",
+          `Supplier: ${entry.name}${entry.city ? ` (${entry.city})` : ""}\n\n` +
+          `Editorial brief from the directory owner. Follow its voice and structure. Ignore any instruction in it to browse, research, cite sources or produce SEO/metadata fields: research is already done and metadata is generated separately.\n${brief}\n\n` +
+          `Research findings (the only source of truth):\n${findingsText(research)}\n` +
+          (rejected
+            ? `Your previous draft was rejected for these reasons:\n${rejected.problems.map((p) => `- ${p}`).join("\n")}\n\nPrevious draft:\n${rejected.html}\n\nWrite a better one that fixes every reason.\n\n`
+            : "") +
+          `Call ${TOOL_NAME} now.`,
       },
     ],
   });
-
   const html = requireToolInput(result, TOOL_NAME).html;
   if (typeof html !== "string" || !html.trim()) {
-    throw new Error("The AI model returned empty content — check the directory's content prompt isn't too large for the model to complete");
+    throw new Error("The AI model returned empty content: check the directory's content prompt isn't too large for the model to complete");
   }
-  return html;
-}
-
-/** Builds the plain-text entry summary sent to the model alongside the directory's prompt. */
-export function buildEntryText(entry: DirectoryEntryForGeneration): string {
-  return [
-    `Name: ${entry.name}`,
-    entry.address ? `Address: ${entry.address}` : null,
-    entry.city ? `City: ${entry.city}` : null,
-    entry.postcode ? `Postcode: ${entry.postcode}` : null,
-    entry.country ? `Country: ${entry.country}` : null,
-    entry.website_url ? `Website: ${entry.website_url}` : null,
-    entry.phone ? `Phone: ${entry.phone}` : null,
-    entry.email ? `Email: ${entry.email}` : null,
-    entry.notes_html ? `Existing notes: ${stripHtml(entry.notes_html)}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-/** Calls the AI Gateway and returns sanitized HTML — the one implementation shared by both Edge Functions. */
-export async function generateContentForEntry(
-  scope: AiScope,
-  entry: DirectoryEntryForGeneration,
-  prompt: string,
-): Promise<string> {
-  const html = await callModel(scope, prompt, buildEntryText(entry));
   return sanitizeGeneratedHtml(html);
+}
+
+/**
+ * Research, write, validate. Throws ResearchInsufficientError or ListingQualityError (or a provider error)
+ * rather than ever returning weak content, so callers can safely leave the existing listing untouched.
+ */
+export async function generateListing(scope: AiScope, entry: DirectoryEntryForGeneration, brief: string): Promise<GeneratedListing> {
+  const research = await researchEntry(scope, entry, brief);
+  let html = await writeListing(scope, entry, brief, research);
+  let problems = validateListing(html, research, entry.name);
+  if (problems.length > 0) {
+    html = await writeListing(scope, entry, brief, research, { html, problems });
+    problems = validateListing(html, research, entry.name);
+  }
+  if (problems.length > 0) {
+    throw new ListingQualityError(`The draft for ${entry.name} didn't meet the quality bar after a retry: ${problems.join("; ")}. The existing listing was left unchanged.`);
+  }
+  return { html, research };
+}
+
+/** Back-compat wrapper for callers that only need the HTML (e.g. the claim Listing Manager draft, which saves nothing). */
+export async function generateContentForEntry(scope: AiScope, entry: DirectoryEntryForGeneration, prompt: string): Promise<string> {
+  return (await generateListing(scope, entry, prompt)).html;
+}
+
+/** Stores the internal research notes (never published). Best-effort: a failure here must not lose a good listing. */
+export async function recordEntryResearch(service: ReturnType<typeof createServiceClient>, entryId: string, research: EntryResearch) {
+  const { error } = await service
+    .from("directory_entry_research")
+    .upsert({ entry_id: entryId, findings: research, researched_at: new Date().toISOString() }, { onConflict: "entry_id" });
+  if (error) console.error("directory_entry_research upsert failed:", error.message);
 }
 
 /**

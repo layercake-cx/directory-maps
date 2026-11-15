@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: invitation, error: invitationError } = await service
       .from("invitations")
-      .select("id, client_id, email, role, map_ids, expires_at, accepted_at")
+      .select("id, client_id, email, role, is_primary, map_ids, expires_at, accepted_at")
       .eq("id", invitationId)
       .maybeSingle();
     if (invitationError) throw invitationError;
@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
         email,
         name: fullName,
         role: invitation.role,
-        is_primary: false,
+        is_primary: invitation.is_primary === true,
+        has_all_access: true,
       })
       .select("id")
       .single();

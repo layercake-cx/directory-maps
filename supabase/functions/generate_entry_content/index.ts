@@ -14,7 +14,7 @@
 import { createServiceClient, requireDirectoryAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
-import { generateContentForEntry, recordEntryContentVersion } from "../_shared/entryContentGeneration.ts";
+import { generateListing, recordEntryContentVersion, recordEntryResearch } from "../_shared/entryContentGeneration.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const clientId = await getDirectoryClientId(service, entry.directory_id);
-    const html = await generateContentForEntry({ db: service, clientId, productInstanceId: entry.directory_id }, entry, prompt);
+    const { html, research } = await generateListing({ db: service, clientId, productInstanceId: entry.directory_id }, entry, prompt);
 
     const { error: updateErr } = await service
       .from("directory_entries")
@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
     if (updateErr) throw updateErr;
 
     await recordEntryContentVersion(service, entryId, html, "ai_manual");
+    await recordEntryResearch(service, entryId, research);
 
     return json({ notes_html: html });
   } catch (err) {
