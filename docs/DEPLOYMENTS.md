@@ -18,7 +18,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - No migration, no schema, no Edge Function. Admin event instrumentation: none added; this is a read-only display on an existing page.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-15: PR 348 merged and `main` deployed to Vercel production with `npm run deploy:live` (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. Not yet seen rendering in a browser.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend.
@@ -132,7 +132,7 @@ Revert the commit and redeploy the frontend.
 - Introduced with the Phase 4 processing pattern (28cec34, 2026-11-14). No migration, no schema, no Edge Function.
 
 ### Production outcome
-- Not deployed yet.
+- 2026-11-15: PR 347 merged and `main` (`f48d619`) deployed to Vercel production with `npm run deploy:live` on the user's go-ahead (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. The Network-tab check below is still unconfirmed.
 
 ### Rollback plan
 Revert the commit and redeploy the frontend.
