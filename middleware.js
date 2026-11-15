@@ -1,3 +1,5 @@
+import { OWNER_ACCOUNT_STYLE, ownerAccountScriptTag, supabaseConfigFromHtml } from "./ownerAccount.js";
+
 /**
  * Vercel Edge Middleware (Epic 3 — Directory & LLM/Search Discoverability;
  * extended in Epic 4 — Bring Your Own Domain, Phase 2; extended again in
@@ -154,6 +156,9 @@ async function handleCustomDomain(host, segments, blobBase) {
   // These two segments just fall through to the SPA's own not-found
   // handling for that case, same as any other unmatched path.
   if (domain.entityType === "map" && segments.length === 1 && (segments[0] === "map" || segments[0] === "embed")) return;
+  // Listing Manager lives in the SPA. On a directory domain it must load on
+  // that domain (/claim/login, /claim/manage/:id), not on the platform host.
+  if (domain.entityType === "directory" && segments[0] === "claim") return;
 
   if (!domain.clientSlug || !domain.entitySlug || !blobBase) {
     return htmlResponse(404, "Domain not configured", "This domain isn&apos;t connected to a Layercake Maps directory.");
@@ -232,7 +237,8 @@ async function handleCustomDomain(host, segments, blobBase) {
     return htmlResponse(200, "Not published yet", "This directory hasn&apos;t been published.");
   }
   if (segments[0] === "BingSiteAuth.xml" && !html.trim()) return new Response("", { status: 404 });
-  const body = contentType.startsWith("text/css") || segments[0] === "BingSiteAuth.xml" ? html : rewriteForCustomDomain(html, host, domain);
+  let body = contentType.startsWith("text/css") || segments[0] === "BingSiteAuth.xml" ? html : rewriteForCustomDomain(html, host, domain);
+  if (domain.entityType === "directory") body = withOwnerAccount(body, contentType);
   return new Response(body, {
     status: 200,
     headers: { "content-type": contentType },
@@ -269,6 +275,12 @@ function rewriteForCustomDomain(text, host, { entityType, clientSlug, entitySlug
   out = out.split(brandedBase).join(customOrigin);
   out = out.split(`${rootRelativeBase}/`).join("/");
   out = out.split(rootRelativeBase).join("/");
+  // Already-published login pages hand the magic-link session to the platform.
+  // Keep it on this domain so the Listing Manager opens here.
+  if (entityType === "directory") {
+    out = out.split("https://maps.layercake-cx.biz/claim/login").join(`${customOrigin}/claim/login`);
+    out = keepMagicLinkOnLoginPage(out);
+  }
 
   if (entityType !== "directory") {
     const brandedMapUrl = `https://maps.layercake-cx.biz/${clientSlug}/${entitySlug}`;
@@ -278,6 +290,57 @@ function rewriteForCustomDomain(text, host, { entityType, clientSlug, entitySlug
   }
 
   return out;
+}
+
+/** Published pages keep the person icon as a signed-out link. When a listing
+ * session is already stored on this site, turn it into the account menu. */
+function withOwnerAccount(body, contentType) {
+  if (!body) return body;
+  if (contentType.startsWith("text/css")) {
+    return body.includes("owner-account") ? body : `${body}\n${OWNER_ACCOUNT_STYLE}`;
+  }
+  if (!contentType.includes("html") || !body.includes("dir-listing-login") || body.includes('id="owner-account-script"')) return body;
+  return body.replace("</body>", `${ownerAccountScriptTag(supabaseConfigFromHtml(body))}</body>`);
+}
+
+/** Already-published login pages bounce a magic link into the Layercake app.
+ * Keep the person on this page and remember the session for "Edit your listing". */
+function keepMagicLinkOnLoginPage(html) {
+  const marker = 'location.replace(location.origin + "/claim/login" + location.search + location.hash);';
+  if (!html.includes(marker) || !html.includes("owner-login-form")) return html;
+  return html.replace(marker, `void function () {
+    var hash = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+    var access = hash.get("access_token");
+    var refresh = hash.get("refresh_token");
+    if (!access || !refresh) return;
+    var user = {};
+    try {
+      var part = access.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (part.length % 4) part += "=";
+      var payload = JSON.parse(atob(part));
+      user = { id: payload.sub, aud: payload.aud, role: payload.role, email: payload.email || "", app_metadata: payload.app_metadata || {}, user_metadata: payload.user_metadata || {} };
+    } catch (e) {}
+    var refMatch = String(cfg.supabaseUrl || "").match(/https:\\/\\/([^.]+)/);
+    var ref = (refMatch && refMatch[1]) || "auth";
+    var expiresIn = Number(hash.get("expires_in") || 3600);
+    var expiresAt = Number(hash.get("expires_at") || 0) || Math.floor(Date.now() / 1000) + expiresIn;
+    localStorage.setItem("sb-" + ref + "-auth-token", JSON.stringify({ access_token: access, refresh_token: refresh, expires_in: expiresIn, expires_at: expiresAt, token_type: "bearer", user: user }));
+    history.replaceState(null, "", location.pathname);
+    var requestPanel = document.getElementById("owner-login-request");
+    var sentPanel = document.getElementById("owner-login-sent");
+    if (requestPanel) requestPanel.hidden = true;
+    if (sentPanel) sentPanel.hidden = true;
+    var done = document.getElementById("owner-login-done");
+    if (!done && requestPanel && requestPanel.parentNode) {
+      done = document.createElement("div");
+      done.id = "owner-login-done";
+      done.innerHTML = '<h1 class="dir-owner-login__title">You\\'re signed in</h1><p class="dir-owner-login__lead">You\\'re signed in as <strong id="owner-login-done-email"></strong>. You can update your organisation\\'s listing from here.</p><div class="dir-owner-login__grid" style="grid-template-columns:minmax(0,480px);justify-content:center;"><section class="dir-owner-login__card"><h2>Your listing</h2><p>Open the listing editor to change the description, contact details and logo. It stays on this website.</p><a class="dir-owner-login__submit" href="/claim/login" style="text-align:center;text-decoration:none;">Edit your listing</a></section></div>';
+      requestPanel.parentNode.insertBefore(done, requestPanel);
+    }
+    if (done) done.hidden = false;
+    var doneEmail = document.getElementById("owner-login-done-email");
+    if (doneEmail && user.email) doneEmail.textContent = user.email;
+  }();`);
 }
 
 /**
@@ -321,7 +384,9 @@ async function handleDirectorySite(segments, blobBase) {
   }
 
   const html = await fetchBlobHtml(blobBase, pathname);
-  if (html != null) return new Response(html, { status: 200, headers: { "content-type": contentType } });
+  if (html != null) {
+    return new Response(withOwnerAccount(html, contentType), { status: 200, headers: { "content-type": contentType } });
+  }
 
   // Stale/renamed entry or content-page URL — check the pre-generated
   // redirect manifest (docs/DIRECTORIES.md §5.11) before giving up. Landing,

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import styles from "./MapEditSubNav.module.css";
+import { ChevronLeftIcon, Pill } from "./ui/index.js";
+import "../styles/wave-b/map-pages.css";
 import { useMapDraft } from "../context/MapDraftContext.js";
 
 function parseMapEditRoute(pathname) {
@@ -51,7 +52,7 @@ function parseMapEditRoute(pathname) {
   return null;
 }
 
-/** Inline variant — used by AdminLayout, renders as siblings inside the primary nav bar */
+/** Inline variant: renders as siblings inside a navigation bar (kept for callers that pass `linkClassName`). */
 function InlineMapEditSubNav({ route, mapName, linkClassName }) {
   const navLinkClass = (active) =>
     [linkClassName, active && linkClassName ? `${linkClassName}--active` : ""].filter(Boolean).join(" ");
@@ -59,8 +60,8 @@ function InlineMapEditSubNav({ route, mapName, linkClassName }) {
 
   return (
     <>
-      <span className={styles.divider} aria-hidden>|</span>
-      <span className={styles.mapName} title={mapName}>{mapName}</span>
+      <span className="mp-subnav-sep" aria-hidden>|</span>
+      <span className="mp-subnav-name" title={mapName}>{mapName}</span>
       <Link to={route.designPath} className={navLinkClass(route.isDesign)} onClick={() => closePublishRef.current?.()}>Design</Link>
       <Link to={route.dataPath} className={navLinkClass(route.isData)} onClick={() => closePublishRef.current?.()}>Data</Link>
       {route.showStats ? (
@@ -69,38 +70,40 @@ function InlineMapEditSubNav({ route, mapName, linkClassName }) {
       <button
         type="button"
         onClick={() => openPublishRef.current?.()}
-        className={`${styles.subNavTabInline} ${publishPanelOpen ? styles.subNavTabInlineActive : ""} ${hasDraft ? styles.subNavTabInlineDraft : ""}`}
+        className="tab"
+        aria-current={publishPanelOpen ? "page" : undefined}
       >
         Publish
+        {hasDraft ? <Pill tone="warn">Unpublished changes</Pill> : null}
       </button>
     </>
   );
 }
 
-/** Standalone variant — renders as its own bar below the primary nav */
+/** Standalone variant: its own bar below the page header, using the kit's tab styling. */
 function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublishOpen, onLeavePublish, actions }) {
   return (
-    <nav className={styles.subNav} aria-label="Map sections">
-      <div className={`${styles.subNavInner} ${actions ? styles.subNavInnerFull : ""}`}>
-        <div className={styles.subNavLeft}>
-          <Link to={route.backPath} className={styles.backLink} aria-label={`Back to ${route.backLabel}`}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+    <nav className="mp-subnav" aria-label="Map sections">
+      <div className={`mp-subnav-inner ${actions ? "mp-subnav-inner--full" : ""}`.trim()}>
+        <div className="mp-subnav-left">
+          <Link to={route.backPath} className="mp-subnav-back" aria-label={`Back to ${route.backLabel}`}>
+            <ChevronLeftIcon size={18} />
           </Link>
-          <span className={styles.subNavMapName} title={mapName}>{mapName}</span>
+          <span className="mp-subnav-name" title={mapName}>{mapName}</span>
         </div>
-        <div className={styles.subNavTabs}>
+        <div className="tabs mp-subnav-tabs">
           <Link
             to={route.designPath}
-            className={`${styles.subNavTab} ${route.isDesign && !isPublishOpen ? styles.subNavTabActive : ""}`}
+            className="tab"
+            aria-current={route.isDesign && !isPublishOpen ? "page" : undefined}
             onClick={onLeavePublish}
           >
             Design
           </Link>
           <Link
             to={route.dataPath}
-            className={`${styles.subNavTab} ${route.isData ? styles.subNavTabActive : ""}`}
+            className="tab"
+            aria-current={route.isData ? "page" : undefined}
             onClick={onLeavePublish}
           >
             Data
@@ -108,7 +111,8 @@ function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublis
           {route.showStats ? (
             <Link
               to={route.statsPath}
-              className={`${styles.subNavTab} ${route.isStats ? styles.subNavTabActive : ""}`}
+              className="tab"
+              aria-current={route.isStats ? "page" : undefined}
               onClick={onLeavePublish}
             >
               Stats
@@ -117,12 +121,14 @@ function StandaloneMapEditSubNav({ route, mapName, hasDraft, onPublish, isPublis
           <button
             type="button"
             onClick={onPublish}
-            className={`${styles.subNavTab} ${styles.subNavTabPublish} ${isPublishOpen ? styles.subNavTabActive : ""} ${hasDraft ? styles.subNavTabDraft : ""}`}
+            className="tab"
+            aria-current={isPublishOpen ? "page" : undefined}
           >
             Publish Map
+            {hasDraft ? <Pill tone="warn">Unpublished changes</Pill> : null}
           </button>
         </div>
-        {actions ? <div className={styles.subNavActions}>{actions}</div> : null}
+        {actions ? <div className="mp-subnav-actions">{actions}</div> : null}
       </div>
     </nav>
   );

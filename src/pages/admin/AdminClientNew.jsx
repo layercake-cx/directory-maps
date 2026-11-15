@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase.js";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, Field, Section, SettingsLayout, TextInput } from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 function slugify(input) {
   return (input || "")
@@ -51,63 +53,48 @@ export default function AdminClientNew() {
   }
 
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: "New customer" },
-      ]}
-    >
-      <div className="card card-pad" style={{ maxWidth: 720 }}>
-        <div style={{ marginBottom: 12 }}>
-          <Link to="/admin/clients">← Back to customers</Link>
-        </div>
-
-        <form onSubmit={createClient}>
-          <div style={{ display: "grid", gap: 14 }}>
+    <AdminLayout>
+      <SettingsLayout
+        head={{
+          title: "New customer",
+          breadcrumb: [
+            { label: "Customers", to: "/admin/clients" },
+            { label: "New customer" },
+          ],
+        }}
+      >
+        <Section>
+          <form onSubmit={createClient} className="wc-form">
             <Field label="Customer name">
-              <input
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. IoIC"
-              />
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. IoIC" />
             </Field>
 
-            <Field label="Slug">
-              <input
-                className="input"
+            <Field
+              label="Slug"
+              hint={
+                <>
+                  Used in URLs. Leave blank to auto-suggest: <strong>{suggestedSlug || "—"}</strong>
+                </>
+              }
+            >
+              <TextInput
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder={suggestedSlug || "e.g. ioic"}
               />
-              <div className="field-hint">
-                Used in URLs. Leave blank to auto-suggest: <strong>{suggestedSlug || "—"}</strong>
-              </div>
             </Field>
 
-            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
+            {err ? <Callout tone="danger">{err}</Callout> : null}
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create customer"}
-              </button>
-
-              <Link className="shell-btn" to="/admin/clients">
-                Cancel
-              </Link>
+            <div className="wc-actions">
+              <Button type="submit" variant="primary" loading={saving} loadingLabel="Creating…">
+                Create customer
+              </Button>
+              <Button as={Link} to="/admin/clients">Cancel</Button>
             </div>
-          </div>
-        </form>
-      </div>
+          </form>
+        </Section>
+      </SettingsLayout>
     </AdminLayout>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
   );
 }

@@ -210,6 +210,11 @@ export default function PublishedMapView({
   showListPanel: showListPanelProp = true,
   /** Embedded in a directory page that hides the sidebar: still show it while the map is full screen, since the page's own filters aren't visible then. */
   showListPanelInFullscreen = false,
+  /** Map settings: show the search box / group lozenges in the sidebar. */
+  /** Directory entry page embed: show only this {lat,lng}, centred, with no pin detail card. */
+  singleFocus = null,
+  showSearch = true,
+  showGroupDropdowns = true,
   mapName = "",
   enableClustering = true,
   clusterRadius = 80,
@@ -266,6 +271,11 @@ export default function PublishedMapView({
    * externalActiveFilters. null = no extra id restriction.
    */
   externalVisibleEntryIds = null,
+  /** Ask AI picks showing on the directory page: accent-coloured, larger pins. */
+  externalAiPicks = false,
+  externalAiAccent = null,
+  /** { id, n } — select and pan to this entry's pin ("Show on map"). */
+  externalFocusEntry = null,
   /**
    * Directory homepage Distance from target. When set, pans the camera to
    * that point. null leaves the camera where it is.
@@ -344,6 +354,9 @@ export default function PublishedMapView({
     };
   }, [showListPanelInFullscreen]);
   const showListPanel = showListPanelProp || (showListPanelInFullscreen && isFullscreen);
+  // A directory page hides the map's filter bar because it renders its own filters. In fullscreen
+  // those aren't visible, so the sidebar must show the map's configured filters after all.
+  const showFilterBar = !hideFilterBar || (showListPanelInFullscreen && isFullscreen);
 
   const mapFitBoundsPadding = useMemo(
     () =>
@@ -496,6 +509,12 @@ export default function PublishedMapView({
     });
   }, [list, activeGroupIds, activeContinents, visibleFilterFields, effectiveActiveFilters, listingFilterIndex, visibleEntryIdSet]);
 
+  // Picked-by-AI pins: accent fill and a larger size, via the per-listing overrides the map already honours.
+  const mapListings = useMemo(() => {
+    if (!externalAiPicks) return effectiveListings;
+    return effectiveListings.map((l) => ({ ...l, ...(externalAiAccent ? { group_color: externalAiAccent } : {}), group_pin_size: "large" }));
+  }, [effectiveListings, externalAiPicks, externalAiAccent]);
+
   const groupNameById = useMemo(() => {
     const m = new Map();
     (groups || []).forEach((gr) => m.set(gr.id, gr.name || ""));
@@ -566,6 +585,12 @@ export default function PublishedMapView({
     const q = searchQuery.trim();
     if (q.length < 2) lastSearchQueryLoggedRef.current = "";
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!singleFocus) return;
+    cameraSeqRef.current += 1;
+    setCameraRequest({ id: cameraSeqRef.current, center: { lat: singleFocus.lat, lng: singleFocus.lng }, zoom: 15 });
+  }, [singleFocus?.lat, singleFocus?.lng]);
 
   useEffect(() => {
     if (!externalFocus || typeof externalFocus.lat !== "number" || typeof externalFocus.lng !== "number") return;
@@ -705,7 +730,15 @@ export default function PublishedMapView({
     }
   }
 
+  useEffect(() => {
+    if (!externalFocusEntry?.id) return;
+    const target = (list || []).find((l) => l.id === externalFocusEntry.id);
+    if (target) selectFromList(target, "ask_ai", { skipSearchRecord: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalFocusEntry]);
+
   function handleDirectoryMapSelect(listing, point) {
+    if (singleFocus) return;
     if (suppressListingOpenEngagementRef.current) {
       suppressListingOpenEngagementRef.current = false;
     } else if (recordEngagement && listing?.id) {
@@ -1017,7 +1050,7 @@ export default function PublishedMapView({
         center={center}
         zoom={zoom}
         mapTypeId={mapTypeId}
-        listings={effectiveListings}
+        listings={mapListings}
         onSelect={handleDirectoryMapSelect}
         centerOnListingId={centerOnListingId}
         defaultMarkerColor={markerColor}
@@ -1048,7 +1081,7 @@ export default function PublishedMapView({
         showTransitLayer={showTransitLayer}
         showBikeLayer={showBikeLayer}
         showZoomIndicator={showZoomIndicator}
-        showZoomSlider={showZoomSlider}
+        showZoomSlider={showZoomSlider && !singleFocus}
       />
 
       {showListPanel && (
@@ -1099,6 +1132,7 @@ export default function PublishedMapView({
 
           <div className="embed-list-panel__filter">
             <div className="embed-list-panel__section-title">Search &amp; filter</div>
+          {showSearch && (
           <div className="embed-list-panel__search-wrap" ref={searchWrapRef}>
             <input
               type="text"
@@ -1212,8 +1246,9 @@ export default function PublishedMapView({
               </ul>
             )}
           </div>
+          )}
 
-            {(groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
+            {showGroupDropdowns && (groups || []).some((gr) => groupIdsWithEntries.has(gr.id)) && (
               <div className="embed-list-panel__lozenges">
                 {(groups || []).filter((gr) => groupIdsWithEntries.has(gr.id)).map((gr) => {
                   const meta = groupMeta.get(gr.id) || { name: gr.name || "—", color: markerColor, border: pinBorderColor };
@@ -1257,7 +1292,7 @@ export default function PublishedMapView({
                 })}
               </div>
             )}
-            {!hideFilterBar && visibleFilterFields.map((field) => {
+            {showFilterBar && visibleFilterFields.map((field) => {
               const selected = effectiveActiveFilters[field.id];
               const selectedSet = selected instanceof Set ? selected : null;
               const textValue = typeof selected === "string" ? selected : "";

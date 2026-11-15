@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
+import "../../../styles/wave-a/batch-2.css";
 
 // Extension config is deliberately restricted to exactly what
 // sanitizeNotesHtml (src/lib/sanitizeHtml.js) allows through on save —
@@ -34,20 +35,9 @@ function ToolbarButton({ onClick, active, disabled, label, children }) {
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-pressed={active === undefined ? undefined : active}
       title={label}
-      style={{
-        minWidth: 28,
-        height: 28,
-        padding: "0 6px",
-        fontSize: 13,
-        fontWeight: 600,
-        borderRadius: 6,
-        border: "1px solid var(--lc-border)",
-        background: active ? "var(--lc-brand, #4a9baa)" : "#fff",
-        color: active ? "#fff" : "inherit",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-      }}
+      className="rte-btn"
     >
       {children}
     </button>
@@ -98,9 +88,9 @@ export default function RichTextEditor({ value, onChange, editable = true }) {
   if (!editor) return null;
 
   return (
-    <div style={{ border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
+    <div className="rte">
       {editable && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: 6, borderBottom: "1px solid var(--lc-border)", background: "#f9fafb" }}>
+        <div className="rte-toolbar" role="toolbar" aria-label="Text formatting">
           <ToolbarButton label="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}><i>B</i></ToolbarButton>
           <ToolbarButton label="Italic" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><em>I</em></ToolbarButton>
           <ToolbarButton label="Underline" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></ToolbarButton>
@@ -110,11 +100,11 @@ export default function RichTextEditor({ value, onChange, editable = true }) {
           <ToolbarButton label="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>•—</ToolbarButton>
           <ToolbarButton label="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</ToolbarButton>
           <ToolbarButton label="Quote" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>"</ToolbarButton>
-          <ToolbarButton label="Link" active={editor.isActive("link")} onClick={setLink}>🔗</ToolbarButton>
+          <ToolbarButton label="Link" active={editor.isActive("link")} onClick={setLink}>Link</ToolbarButton>
           <ToolbarButton label="Clear formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>Tx</ToolbarButton>
         </div>
       )}
-      <div style={{ padding: "10px 12px", minHeight: 160, fontSize: 14, lineHeight: 1.5 }}>
+      <div className="rte-content">
         <EditorContent editor={editor} />
       </div>
     </div>

@@ -97,12 +97,22 @@ Map embed names are **unchanged** (map Stats dashboards depend on them). Directo
 | `directory_distance_filter` | Visitor sets, changes, or clears **Distance from** (not when the search box fills it) | — | `place_label` (`near_me`, a place name, or empty when cleared), `radius_miles` (null when cleared). No coordinates |
 | `listing_website_click` | Entry “Visit website” (sidebar Contact & address panel) | set | `cta_type` |
 | `listing_contact_click` | Entry `mailto:` (sidebar Contact & address panel) | set | `cta_type` |
-| `listing_cta_click` | Primary website, prominent-link tile, the sidebar map card's "Open in directory map" link (`cta_type: map`), or the quiet "Claim this listing" link under it (`cta_type: claim`) | set | `cta_type` |
+| `listing_cta_click` | Primary website, prominent-link tile, the sidebar map card's "Open in directory map" link (`cta_type: map`), or the **Claim this listing** button in the claim banner (`cta_type: claim`) | set | `cta_type` |
 | `listing_enquiry_open` | **Contact** clicked (sidebar Contact & address panel, under Visit website; opens the drawer) | set | `cta_type`: `enquiry`, `path` |
 | `listing_enquiry_sent` | Contact message submitted and the email send succeeded | set | `cta_type`: `enquiry`, `path` |
 | `listing_claim_start` | Self-service claim work-email form submitted, domain verified, and the magic-link email send succeeded — fired client-side by the published page's own JS (Claimed Directory Listings epic, Phase 7) | set | `cta_type`: `claim`, `path` |
+| `listing_claim_request_sent` | Manual-mode claim request sent successfully from the claim dialog (name, email and message emailed to the directory's configured mailbox) — fired client-side by the published page after the `submit_claim_request` call succeeds | set | `cta_type`: `claim`, `path` (never the name, email or message) |
+| `claim_banner_view` | The claim banner is on the page (unclaimed listing, claims enabled). Once per page view, fired by the banner's own script after load | set | `path` |
+| `claim_banner_secondary_click` | The banner's optional secondary link (e.g. "How claiming works") is clicked | set | `cta_type: claim_secondary`, `path` |
+| `claim_login_click` | The icon-only **Listing login** control in a published directory site's header (desktop nav, or the mobile header bar beside the menu) is clicked. Only rendered while claims are on for the directory. Opens the directory's own `/login` page | not set | `cta_type: nav`, `path` |
 | `listing_claim_complete` | Self-service claim activated (right after the claimant's first magic-link login) — fired server-side, inside `activate_self_service_claim()`, not client-side, since the caller is authenticated by that point and this table's anon-only insert policy doesn't cover `authenticated` callers | set | `{}` (empty; no `client_session_id` either, since it's inserted by an RPC, not the visitor's own browser session) |
 | `platform_footer_click` | Logo or **Discover Layercake Maps** button in the footer's "Built on Layercake Maps" panel clicked (every published directory page) | set on entry pages, otherwise — | `cta_type`: `logo` or `button`, `path` |
+| `ask_ai_open` | Ask AI sidebar opened (not when restored after a reload) | — | `entry_point`: `E1` search-bar button, `E2` "Describe your situation" link, `E3` Narrow chip, `E4` launcher or mobile bar; `has_context` (a search or filter was active) |
+| `ask_ai_message_sent` | Visitor sent a message to Ask AI | — | `via`: `typed` or `chip` (never the text) |
+| `ask_ai_picks_applied` | Ask AI picks were applied to the list and map | — | `k` (number of picks), `scoped` (worked from the current results rather than the whole directory) |
+| `ask_ai_picks_cleared` | AI picks were removed | — | `reason`: `clear_button` (pill × or Show all), `search_changed`, `clear_all`, `new_conversation` |
+| `ask_ai_feedback` | Thumbs up or down on an Ask AI answer | — | `value`: `up` or `down` |
+| `ask_ai_rate_limited` | Ask AI answered that it is busy (rate limit) | — | — |
 
 Reserved (CHECK only; not emitted until those products exist): `listing_upgrade_start`, `listing_upgrade_complete`, `map_marker_click`.
 

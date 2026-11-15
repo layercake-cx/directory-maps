@@ -5,14 +5,9 @@ import { useDirectoryEngagement } from "../../hooks/useDirectoryEngagement.js";
 import { supabase } from "../../lib/supabase.js";
 import { deriveTopDirectoryEntries, parseDaysParam } from "../../lib/engagementAnalytics.js";
 import { DailyEventsChart, DonutChart } from "../../components/engagement/EngagementCharts.jsx";
-import {
-  DataTable,
-  DateRangeSelect,
-  FunnelChart,
-  LoadingState,
-  MetricCards,
-  Panel,
-} from "../../components/engagement/EngagementShared.jsx";
+import { DateRangeSelect, FunnelChart } from "../../components/engagement/EngagementShared.jsx";
+import { DataTable, EmptyState, ErrorState, PageLayout, Section, Skeleton, StatGrid, StatTile } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 
 /**
  * Insights (Phase 4 follow-up) — real visitor-engagement dashboard for a directory,
@@ -22,12 +17,8 @@ import {
  * (deriveDirectoryMetrics) and this page are new. Not to be confused with
  * DirectoryAnalyticsPanel.jsx (GA4/GTM tracking-code config, Settings › Web Analytics).
  *
- * Deliberately keeps `EngagementShared.jsx`'s own `Panel`/`MetricCards`/`DataTable` look (its own
- * CSS module, shared with the working `MapStats.jsx`/`ListingStats.jsx`) rather than reaching for
- * the new shell's `.card`/`.stat-grid` vocabulary — that's a third, already-cohesive design
- * system for exactly this kind of stats page, not the old `.admin-card` pattern the rest of
- * BACKLOG.md's "page body styling" entry is about. Only this file's own wrapper markup (the
- * empty-state card) uses the new classes.
+ * Built on the Discover UI kit (PageLayout, Section, StatTile, DataTable); charts come from
+ * components/engagement.
  */
 export default function DirectoryAnalyticsRoute() {
   const { directoryId } = useDirectory();
@@ -65,8 +56,23 @@ export default function DirectoryAnalyticsRoute() {
 
   const topEntries = useMemo(() => deriveTopDirectoryEntries(metrics.entryCounts, entryNameById), [metrics.entryCounts, entryNameById]);
 
-  if (loading) return <LoadingState />;
-  if (error) return <p style={{ color: "var(--shell-danger)" }}>{error}</p>;
+  const dateRange = <DateRangeSelect days={days} onChange={setDays} />;
+  const head = { title: "Insights", actions: dateRange };
+
+  if (loading) {
+    return (
+      <PageLayout head={head}>
+        <Skeleton variant="tiles" rows={4} label="Loading engagement data" />
+      </PageLayout>
+    );
+  }
+  if (error) {
+    return (
+      <PageLayout head={{ title: "Insights" }}>
+        <ErrorState title="Couldn't load insights" body={`${error} Nothing has been lost.`} />
+      </PageLayout>
+    );
+  }
 
   const summaryCards = [
     { label: "Directory views", value: metrics.summary.directoryViews.toLocaleString() },
@@ -76,54 +82,71 @@ export default function DirectoryAnalyticsRoute() {
   ];
 
   const searchRows = metrics.topSearchQueries.map((row, i) => ({ id: row.query + i, ...row }));
-  const numCellStyle = { textAlign: "right" };
+  const entryRows = topEntries.map((row) => ({ ...row, id: row.listingId }));
   const entryColumns = [
     { key: "name", label: "Entry" },
-    { key: "listing_view", label: "Views", render: (r) => <span style={numCellStyle}>{r.listing_view.toLocaleString()}</span> },
-    { key: "listing_cta_click", label: "CTA clicks", render: (r) => <span style={numCellStyle}>{r.listing_cta_click.toLocaleString()}</span> },
-    { key: "listing_enquiry_open", label: "Enquiries", render: (r) => <span style={numCellStyle}>{r.listing_enquiry_open.toLocaleString()}</span> },
+    { key: "listing_view", label: "Views", align: "right", render: (r) => r.listing_view.toLocaleString() },
+    { key: "listing_cta_click", label: "CTA clicks", align: "right", render: (r) => r.listing_cta_click.toLocaleString() },
+    { key: "listing_enquiry_open", label: "Enquiries", align: "right", render: (r) => r.listing_enquiry_open.toLocaleString() },
   ];
   const searchColumns = [
     { key: "query", label: "Search term" },
-    { key: "count", label: "Times searched", render: (r) => <span style={numCellStyle}>{r.count.toLocaleString()}</span> },
+    { key: "count", label: "Times searched", align: "right", render: (r) => r.count.toLocaleString() },
   ];
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <DateRangeSelect days={days} onChange={setDays} />
-      </div>
-
-      <MetricCards items={summaryCards} />
-
+    <PageLayout
+      head={head}
+      summary={(
+        <StatGrid>
+          {summaryCards.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}
+        </StatGrid>
+      )}
+    >
       {!metrics.hasData ? (
-        <div className="card card-pad">
-          <p style={{ margin: 0 }}>No visitor activity recorded for this directory in this period.</p>
-        </div>
+        <EmptyState
+          art="searching"
+          title="No visitor activity recorded for this directory in this period"
+          body="Try a longer period, or publish the directory so visitors can find it."
+        />
       ) : (
         <>
-          <Panel title="Views over time" subtitle="Directory + entry page views, and distinct visitor sessions">
+          <Section title="Views over time" description="Directory + entry page views, and distinct visitor sessions">
             <DailyEventsChart data={metrics.daily} />
-          </Panel>
+          </Section>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            <Panel title="Activity by type">
+          <div className="b1-pair">
+            <Section title="Activity by type">
               <DonutChart data={metrics.eventsByType} />
-            </Panel>
-            <Panel title="Visitor journey" subtitle="Directory view → entry view → enquiry opened → enquiry sent">
+            </Section>
+            <Section title="Visitor journey" description="Directory view → entry view → enquiry opened → enquiry sent">
               <FunnelChart steps={metrics.funnel} />
-            </Panel>
+            </Section>
           </div>
 
-          <Panel title="Top search terms">
-            <DataTable columns={searchColumns} rows={searchRows} emptyMessage="No searches in this period." />
-          </Panel>
+          <Section title="Top search terms" flush>
+            <DataTable
+              caption="Top search terms"
+              columns={searchColumns}
+              rows={searchRows}
+              getRowId={(r) => r.id}
+              getRowLabel={(r) => r.query}
+              empty={<EmptyState art="none" title="No searches in this period" />}
+            />
+          </Section>
 
-          <Panel title="Top entries">
-            <DataTable columns={entryColumns} rows={topEntries} emptyMessage="No entry-level activity in this period." />
-          </Panel>
+          <Section title="Top entries" flush>
+            <DataTable
+              caption="Top entries"
+              columns={entryColumns}
+              rows={entryRows}
+              getRowId={(r) => r.id}
+              getRowLabel={(r) => r.name}
+              empty={<EmptyState art="none" title="No entry-level activity in this period" />}
+            />
+          </Section>
         </>
       )}
-    </div>
+    </PageLayout>
   );
 }

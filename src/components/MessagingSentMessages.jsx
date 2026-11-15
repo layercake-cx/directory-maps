@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import styles from "../pages/client/ClientEmail.module.css";
+import { Dialog, Button, DataTable, EmptyState, ErrorState, Pill, Section } from "./ui/index.js";
+import "../styles/wave-b/messaging.css";
 
 const PAGE_SIZE = 50;
 
@@ -23,9 +24,9 @@ function surfaceLabel(surface) {
 
 function deliveryStatus(row) {
   if (row.email_sent === false) {
-    return { label: "Send failed", tone: "error", title: row.email_error || undefined };
+    return { label: "Send failed", tone: "danger", title: row.email_error || undefined };
   }
-  return { label: "Sent", tone: "success" };
+  return { label: "Sent", tone: "ok" };
 }
 
 function mergeSubmissions(rawRows) {
@@ -113,129 +114,111 @@ export default function MessagingSentMessages({ clientId }) {
     if (page > 0 && page >= pageCount) setPage(Math.max(0, pageCount - 1));
   }, [page, pageCount]);
 
-  if (loading) {
-    return <p className={styles.messagesHint}>Loading sent messages…</p>;
-  }
-
   if (err) {
-    return <p className={styles.error}>{err}</p>;
-  }
-
-  if (!rows.length) {
     return (
-      <p className={styles.messagesHint}>
-        No contact messages yet. When visitors use Send message on your published maps, they will
-        appear here.
-      </p>
+      <ErrorState
+        title="Sent messages could not be loaded"
+        body={`${err} Nothing has been lost.`}
+        onRetry={load}
+      />
     );
   }
 
-  return (
-    <div className={styles.messagesPanel}>
-      <p className={styles.messagesHint}>
-        Contact form submissions across all maps for this organisation, newest first. Email delivery
-        failures are marked — the visitor&apos;s message is still recorded.
-      </p>
+  const expandedRow = rows.find((r) => r.id === expandedId) ?? null;
+  const expandedStatus = expandedRow ? deliveryStatus(expandedRow) : null;
 
-      <div className={styles.messagesTableWrap}>
-        <table className={styles.messagesTable}>
-          <thead>
-            <tr>
-              <th>Sent</th>
-              <th>Map</th>
-              <th>Listing</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Message</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((row) => {
-              const status = deliveryStatus(row);
-              const expanded = expandedId === row.id;
-              return (
-                <React.Fragment key={row.id}>
-                  <tr>
-                    <td className={styles.messagesWhen}>{formatWhen(row.submitted_at)}</td>
-                    <td>{mapNames[row.map_id] || "—"}</td>
-                    <td>{row.listing_name || "—"}</td>
-                    <td>
-                      <div className={styles.messagesPerson}>
-                        <span>{row.sender_name || "—"}</span>
-                        <a href={`mailto:${row.sender_email}`}>{row.sender_email}</a>
-                        {row.sender_phone ? <span className={styles.messagesMuted}>{row.sender_phone}</span> : null}
-                      </div>
-                    </td>
-                    <td className={styles.messagesEmail}>{row.to_email}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.messagesExpand}
-                        onClick={() => setExpandedId(expanded ? null : row.id)}
-                        aria-expanded={expanded}
-                      >
-                        {truncate(row.message)}
-                      </button>
-                    </td>
-                    <td>
-                      <span
-                        className={`${styles.messagesBadge} ${styles[`messagesBadge--${status.tone}`]}`}
-                        title={status.title}
-                      >
-                        {status.label}
-                      </span>
-                      <span className={styles.messagesSurface}>{surfaceLabel(row.surface)}</span>
-                    </td>
-                  </tr>
-                  {expanded ? (
-                    <tr className={styles.messagesDetailRow}>
-                      <td colSpan={7}>
-                        <div className={styles.messagesDetail}>
-                          <strong>Message</strong>
-                          <p>{row.message}</p>
-                          {status.title ? (
-                            <>
-                              <strong>Delivery error</strong>
-                              <pre>{status.title}</pre>
-                            </>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {rows.length > PAGE_SIZE ? (
-        <div className={styles.messagesPager}>
-          <button
-            type="button"
-            className="btn"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-          >
-            Previous
-          </button>
-          <span className={styles.messagesPagerMeta}>
-            Page {page + 1} of {pageCount} · {rows.length} messages
-          </span>
-          <button
-            type="button"
-            className="btn"
-            disabled={page >= pageCount - 1}
-            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-          >
-            Next
-          </button>
+  const columns = [
+    { key: "submitted_at", label: "Sent", className: "wb5-nowrap", render: (row) => formatWhen(row.submitted_at) },
+    { key: "map", label: "Map", render: (row) => mapNames[row.map_id] || "—" },
+    { key: "listing_name", label: "Listing", render: (row) => row.listing_name || "—" },
+    {
+      key: "sender",
+      label: "From",
+      render: (row) => (
+        <div className="wb5-person">
+          <span>{row.sender_name || "—"}</span>
+          <a href={`mailto:${row.sender_email}`}>{row.sender_email}</a>
+          {row.sender_phone ? <span className="wb5-cell-sub">{row.sender_phone}</span> : null}
         </div>
-      ) : (
-        <p className={styles.messagesPagerMeta}>{rows.length} message{rows.length === 1 ? "" : "s"}</p>
-      )}
-    </div>
+      ),
+    },
+    { key: "to_email", label: "To", className: "wb5-wrap", render: (row) => row.to_email },
+    {
+      key: "message",
+      label: "Message",
+      render: (row) => (
+        <button
+          type="button"
+          className="wb5-msg-btn"
+          onClick={() => setExpandedId(row.id)}
+          aria-haspopup="dialog"
+        >
+          {truncate(row.message)}
+        </button>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => {
+        const status = deliveryStatus(row);
+        return (
+          <>
+            <Pill tone={status.tone} title={status.title}>{status.label}</Pill>
+            <span className="wb5-cell-sub">{surfaceLabel(row.surface)}</span>
+          </>
+        );
+      },
+    },
+  ];
+
+  return (
+    <>
+      <Section
+        title="Sent messages"
+        description="Contact form submissions across all maps for this organisation, newest first. Email delivery failures are marked — the visitor's message is still recorded."
+        flush
+      >
+        <DataTable
+          caption="Sent messages"
+          columns={columns}
+          rows={pageRows}
+          getRowId={(row) => row.id}
+          getRowLabel={(row) => row.listing_name || row.sender_name || "message"}
+          loading={loading}
+          empty={(
+            <EmptyState
+              art="none"
+              title="No contact messages yet"
+              body="When visitors use Send message on your published maps, they will appear here."
+            />
+          )}
+          pagination={{
+            page: page + 1,
+            pageSize: PAGE_SIZE,
+            total: rows.length,
+            onPage: (p) => setPage(Math.min(pageCount - 1, Math.max(0, p - 1))),
+          }}
+        />
+      </Section>
+
+      {expandedRow ? (
+        <Dialog
+          title="Message"
+          onClose={() => setExpandedId(null)}
+          footer={<Button onClick={() => setExpandedId(null)}>Close</Button>}
+        >
+          <div className="wb5-detail">
+            <p>{expandedRow.message}</p>
+            {expandedStatus.title ? (
+              <>
+                <h3>Delivery error</h3>
+                <pre>{expandedStatus.title}</pre>
+              </>
+            ) : null}
+          </div>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

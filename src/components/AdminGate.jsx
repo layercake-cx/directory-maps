@@ -4,6 +4,11 @@ import { hasSupabaseConfig, supabase } from "../lib/supabase";
 import { signOut } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth.js";
 import { getPasswordResetRedirectUrl, withTimeout } from "../lib/authHelpers";
+import { Button, Callout, Field, Section, Skeleton, TextInput } from "./ui/index.js";
+import "../styles/admin-shell-tokens.css";
+import "../styles/admin-shell.css";
+import "../styles/discover-ui.css";
+import "../styles/wave-c/ops.css";
 
 function isNetworkError(e) {
   const msg = (e?.message ?? String(e)).toLowerCase();
@@ -31,45 +36,60 @@ export default function AdminGate({ children }) {
       console.error(e);
     }
   }
-  if (initializing || roleLoading) return <div style={{ padding: 24 }}>Loading…</div>;
+  if (initializing || roleLoading) {
+    return (
+      <GateFrame>
+        <Skeleton variant="form" rows={2} label="Loading" />
+      </GateFrame>
+    );
+  }
 
   if (!user) {
     const authError = error;
     return (
-      <div style={{ padding: 24, maxWidth: 560 }}>
-        <h2 style={{ marginTop: 0 }}>Admin sign-in</h2>
-        <p>Use your email + password (local/dev).</p>
-        {!hasSupabaseConfig && (
-          <p style={{ padding: 12, background: "#fef3c7", borderRadius: 8, marginBottom: 16 }}>
-            Supabase is not configured. Set <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> in
-            .env (or Vercel environment variables) and restart the dev server.
-          </p>
-        )}
-        <PasswordForm onNetworkErrorHelp={networkErrorHelp} />
-        {authError ? (
-          <div style={{ marginTop: 12, padding: 12, background: "rgba(185, 28, 28, 0.08)", borderRadius: 8, border: "1px solid #b91c1c" }}>
-            <p style={{ margin: 0 }}>{authError}</p>
-            {isNetworkError({ message: authError }) ? <p style={{ margin: "8px 0 0", fontSize: 13 }}>{networkErrorHelp()}</p> : null}
-          </div>
-        ) : null}
-      </div>
+      <GateFrame>
+        <Section as="h1" title="Admin sign-in" description="Use your email + password (local/dev).">
+          {!hasSupabaseConfig && (
+            <Callout tone="warn">
+              Supabase is not configured. Set <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> in
+              .env (or Vercel environment variables) and restart the dev server.
+            </Callout>
+          )}
+          <PasswordForm onNetworkErrorHelp={networkErrorHelp} />
+          {authError ? (
+            <Callout tone="danger">
+              {authError}
+              {isNetworkError({ message: authError }) ? <p className="ops-gate-help">{networkErrorHelp()}</p> : null}
+            </Callout>
+          ) : null}
+        </Section>
+      </GateFrame>
     );
   }
 
   if (role !== "admin") {
     return (
-      <div style={{ padding: 24, maxWidth: 560 }}>
-        <h2 style={{ marginTop: 0 }}>Admin access required</h2>
-        <p>You are signed in, but your account is not an admin.</p>
-        <button onClick={doSignOut} style={{ padding: "10px 14px" }}>
-          Sign out
-        </button>
-        {error ? <p style={{ marginTop: 12 }}>{error}</p> : null}
-      </div>
+      <GateFrame>
+        <Section as="h1" title="Admin access required" description="You are signed in, but your account is not an admin.">
+          <div className="ops-gate-actions">
+            <Button onClick={doSignOut}>Sign out</Button>
+          </div>
+          {error ? <Callout tone="danger">{error}</Callout> : null}
+        </Section>
+      </GateFrame>
     );
   }
 
   return children;
+}
+
+/** Staff sign-in screens render outside AppShell, so they carry their own `.shell` scope for the kit styles. */
+function GateFrame({ children }) {
+  return (
+    <div className="shell ops-gate">
+      <div className="ops-gate-card">{children}</div>
+    </div>
+  );
 }
 
 function PasswordForm({ onNetworkErrorHelp }) {
@@ -138,59 +158,40 @@ function PasswordForm({ onNetworkErrorHelp }) {
   }
 
   return (
-    <form onSubmit={signIn}>
-      <label style={{ display: "block", marginBottom: 8 }}>Email</label>
-      <input
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        type="email"
-        required
-        style={{ padding: 10, width: "100%", marginBottom: 12 }}
-      />
+    <form onSubmit={signIn} className="ops-gate-form">
+      <Field label="Email">
+        <TextInput value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" required />
+      </Field>
 
-      <label style={{ display: "block", marginBottom: 8 }}>Password</label>
-      <input
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        type="password"
-        required
-        style={{ padding: 10, width: "100%", marginBottom: 12 }}
-      />
+      <Field label="Password">
+        <TextInput
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+      </Field>
 
-      <button type="submit" style={{ padding: "10px 14px" }}>
-        Sign in
-      </button>
-      <button
-        type="button"
-        onClick={sendResetLink}
-        style={{ padding: "10px 14px", marginLeft: 8 }}
-        disabled={sendingReset}
-      >
-        {sendingReset ? "Sending..." : "Forgot password?"}
-      </button>
-      <p style={{ marginTop: 10, marginBottom: 0, fontSize: 13 }}>
+      <div className="ops-gate-actions">
+        <Button type="submit" variant="primary">
+          Sign in
+        </Button>
+        <Button onClick={sendResetLink} loading={sendingReset} loadingLabel="Sending…">
+          Forgot password?
+        </Button>
+      </div>
+      <p className="ops-gate-note">
         You can also use the full reset page: <Link to="/forgot-password">Forgot password</Link>.
       </p>
 
       {msg ? (
-        <div style={{ marginTop: 12, padding: 12, background: "rgba(185, 28, 28, 0.08)", borderRadius: 8, border: "1px solid #b91c1c" }}>
-          <p style={{ margin: 0 }}>{msg}</p>
-          {isNetworkErr && onNetworkErrorHelp ? <p style={{ margin: "8px 0 0", fontSize: 13 }}>{onNetworkErrorHelp()}</p> : null}
-        </div>
+        <Callout tone="danger">
+          {msg}
+          {isNetworkErr && onNetworkErrorHelp ? <p className="ops-gate-help">{onNetworkErrorHelp()}</p> : null}
+        </Callout>
       ) : null}
-      {resetMsg ? (
-        <div
-          style={{
-            marginTop: 12,
-            padding: 12,
-            background: "rgba(59, 130, 246, 0.12)",
-            borderRadius: 8,
-            border: "1px solid rgba(59, 130, 246, 0.35)",
-          }}
-        >
-          <p style={{ margin: 0 }}>{resetMsg}</p>
-        </div>
-      ) : null}
+      {resetMsg ? <Callout tone="info">{resetMsg}</Callout> : null}
     </form>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import CustomerWorkspaceFeaturePanel from "../../components/shell/CustomerWorkspaceFeaturePanel.jsx";
@@ -14,7 +14,11 @@ import CategorisationsPanel from "../../components/directories/CategorisationsPa
 import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
 import EntitlementLimitModal from "../../components/admin/EntitlementLimitModal.jsx";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
-import PageHead from "../../components/shell/PageHead.jsx";
+import {
+  Button, Callout, Checkbox, DataTable, Dialog, EmptyState, Field, PageLayout, Pill, Section, SettingRow,
+  SettingsLayout, Skeleton, Switch, TextInput,
+} from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 import { DOMAINS_SUBTITLE } from "../../lib/clientDomains.js";
 import { getLimitReachedMessage } from "../../lib/entitlementMessages.js";
 import {
@@ -25,24 +29,6 @@ import {
   setClientFeatureOverride,
   clearClientFeatureOverride,
 } from "../../lib/featureFlags.js";
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 6, opacity: 0.8 }}>{label}</div>
-      <div className="admin-controls" style={{ marginTop: 0 }}>{children}</div>
-    </div>
-  );
-}
-
-const TRASH_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
-  </svg>
-);
 
 export default function AdminClientDetail() {
   const { clientId, tab } = useParams();
@@ -400,454 +386,380 @@ export default function AdminClientDetail() {
     }
   }
 
+  const clientBase = `/admin/clients/${encodeURIComponent(clientId)}`;
+  const showTopError = err && activeTab !== "details" && activeTab !== "users";
+  const topError = showTopError ? <Callout tone="danger">{err}</Callout> : null;
+
+  function handleNewMap() {
+    const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
+    if (atMapLimit) {
+      recordEvent("entitlements_limit_blocked", { feature_key: "max_maps", source: "admin_client_detail" });
+      setMapLimitModalOpen(true);
+      return;
+    }
+    navigate(`${clientBase}/maps/new`);
+  }
+
+  const mapColumns = [
+    {
+      key: "name",
+      label: "Map",
+      render: (m) => (
+        <>
+          {m.name}
+          <span className="wc-cell-sub">{m.id}</span>
+        </>
+      ),
+    },
+    { key: "slug", label: "Slug" },
+    {
+      key: "defaults",
+      label: "Defaults",
+      render: (m) => (
+        <span className="wc-muted">
+          {Number(m.default_lat).toFixed(4)}, {Number(m.default_lng).toFixed(4)} · z{m.default_zoom}
+        </span>
+      ),
+    },
+    {
+      key: "options",
+      label: "Options",
+      render: (m) => (
+        <span className="wc-pills">
+          <Pill>{m.show_list_panel ? "List on" : "List off"}</Pill>
+          <Pill>{m.enable_clustering ? "Cluster on" : "Cluster off"}</Pill>
+        </span>
+      ),
+    },
+  ];
+
+  const userColumns = [
+    { key: "email", label: "Email" },
+    { key: "name", label: "Name", render: (c) => c.name || "—" },
+    { key: "primary", label: "Primary", render: (c) => (c.is_primary ? "Yes" : "—") },
+    {
+      key: "can_manage_maps",
+      label: "Manage maps",
+      render: (c) =>
+        c.is_primary ? (
+          <Pill>Yes (primary)</Pill>
+        ) : (
+          <Checkbox
+            label={c.can_manage_maps ? "Yes" : "No"}
+            aria-label={`Manage maps for ${c.email}`}
+            checked={!!c.can_manage_maps}
+            onChange={(e) => updateContactPermissions(c.id, e.target.checked, c.can_manage_users)}
+          />
+        ),
+    },
+    {
+      key: "can_manage_users",
+      label: "Manage users",
+      render: (c) =>
+        c.is_primary ? (
+          <Pill>Yes (primary)</Pill>
+        ) : (
+          <Checkbox
+            label={c.can_manage_users ? "Yes" : "No"}
+            aria-label={`Manage users for ${c.email}`}
+            checked={!!c.can_manage_users}
+            onChange={(e) => updateContactPermissions(c.id, c.can_manage_maps, e.target.checked)}
+          />
+        ),
+    },
+    {
+      key: "has_login",
+      label: "Has login",
+      render: (c) => (c.user_id ? "Yes" : <Pill tone="warn">Pending</Pill>),
+    },
+  ];
+
+  const detailsToggles = [
+    {
+      key: "directories",
+      label: "Directories & Categories",
+      description: "Show the Directories and Categories sections in this customer's portal. Saved immediately.",
+      checked: directoriesFlagEnabled,
+      disabled: flagSaving,
+      onChange: handleToggleDirectoriesFlag,
+    },
+    {
+      key: "directory-pages",
+      label: "Directory pages",
+      description:
+        "Generate crawlable directory + listing pages for this customer's published maps. Also requires the Directory pages entitlement (Entitlements tab). Saved immediately.",
+      checked: directoryPagesFlagEnabled,
+      disabled: directoryPagesFlagSaving,
+      onChange: handleToggleDirectoryPagesFlag,
+    },
+    {
+      key: "custom-domains",
+      label: "Custom domains",
+      description:
+        "Show the Domains section in this customer's portal, letting them add and verify their own domain. Also requires the Custom domain entitlement (Entitlements tab). Saved immediately.",
+      checked: customDomainFlagEnabled,
+      disabled: customDomainFlagSaving,
+      onChange: handleToggleCustomDomainFlag,
+    },
+  ];
+
+  function closeDeleteDialog() {
+    setContactToDelete(null);
+    setDeleteConfirmText("");
+  }
+
   return (
     <AdminLayout panel={<CustomerWorkspaceFeaturePanel clientId={clientId} clientName={client?.name} />}>
-      <div className="card card-pad">
-        {loading ? (
-          <p>Loading…</p>
-        ) : (
-          <>
-            {err && activeTab !== "details" && activeTab !== "users" ? (
-              <p style={{ margin: "0 0 12px 0", color: "#b91c1c" }}>{err}</p>
-            ) : null}
-
-            {activeTab === "maps" && (
-              <div>
-                <PageHead
-                  title="Maps"
-                  subtitle="Interactive maps for this customer."
-                  actions={
-                  <button
-                    type="button"
-                    className="shell-btn shell-btn--primary"
-                    onClick={() => {
-                      const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
-                      if (atMapLimit) {
-                        recordEvent("entitlements_limit_blocked", { feature_key: "max_maps", source: "admin_client_detail" });
-                        setMapLimitModalOpen(true);
-                        return;
-                      }
-                      navigate(`/admin/clients/${encodeURIComponent(clientId)}/maps/new`);
-                    }}
-                  >
+      {loading ? (
+        <PageLayout head={{ title: "Customer" }}>
+          <Skeleton variant="table" label="Loading customer" />
+        </PageLayout>
+      ) : (
+        <>
+          {activeTab === "maps" && (
+            <PageLayout
+              head={{
+                title: "Maps",
+                subtitle: "Interactive maps for this customer.",
+                actions: (
+                  <Button variant="primary" onClick={handleNewMap}>
                     New map
-                  </button>
-                  }
-                />
-
-                {maps.length === 0 ? (
-                  err ? null : (
-                    <p style={{ marginTop: 8, opacity: 0.8 }}>No maps yet for this customer.</p>
-                  )
-                ) : (
-                  <table className="admin-table" style={{ marginTop: 0 }}>
-                    <thead>
-                      <tr>
-                        {["Map", "Slug", "Defaults", "Options"].map((h) => (
-                          <th key={h}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {maps.map((m) => (
-                        <tr key={m.id}>
-                          <td>
-                            <Link to={`/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(m.id)}`}>
-                              {m.name}
-                            </Link>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{m.id}</div>
-                          </td>
-                          <td>{m.slug}</td>
-                          <td>
-                            <span style={{ opacity: 0.85 }}>
-                              {Number(m.default_lat).toFixed(4)}, {Number(m.default_lng).toFixed(4)} · z{m.default_zoom}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="badge">{m.show_list_panel ? "List on" : "List off"}</span>{" "}
-                            <span className="badge">{m.enable_clustering ? "Cluster on" : "Cluster off"}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                  </Button>
+                ),
+              }}
+            >
+              <div className="wc-stack">
+                {topError}
+                <Section flush>
+                  <DataTable
+                    caption="Maps"
+                    columns={mapColumns}
+                    rows={maps}
+                    getRowId={(m) => m.id}
+                    getRowLabel={(m) => m.name}
+                    rowLink={(m) => `${clientBase}/maps/${encodeURIComponent(m.id)}`}
+                    empty={err ? null : <EmptyState art="none" title="No maps yet for this customer" />}
+                  />
+                </Section>
               </div>
-            )}
+            </PageLayout>
+          )}
 
-            {activeTab === "directories" && (
+          {activeTab === "directories" && (
+            <>
+              {topError}
               <DirectoriesDashboard
                 clientId={clientId}
                 canManage
-                basePath={`/admin/clients/${encodeURIComponent(clientId)}/directories`}
-                newHref={`/admin/clients/${encodeURIComponent(clientId)}/directories/new`}
+                basePath={`${clientBase}/directories`}
+                newHref={`${clientBase}/directories/new`}
               />
-            )}
+            </>
+          )}
 
-            {activeTab === "categorisations" && (
-              <div>
-                <PageHead title="Categories" subtitle="Reusable taxonomies applied across all of your directories." />
-                <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
-              </div>
-            )}
+          {activeTab === "categorisations" && (
+            <PageLayout head={{ title: "Categories", subtitle: "Reusable taxonomies applied across all of your directories." }}>
+              {topError}
+              <CategorisationsPanel clientId={clientId} recordEvent={recordEvent} />
+            </PageLayout>
+          )}
 
-            {activeTab === "entitlements" && (
-              <div>
-                <PageHead title="Entitlements" subtitle="Plan, feature access and limits for this customer." />
+          {activeTab === "entitlements" && (
+            <PageLayout head={{ title: "Entitlements", subtitle: "Plan, feature access and limits for this customer." }}>
+              {topError}
+              <Section>
                 <EntitlementsPanel clientId={clientId} recordEvent={recordEvent} />
-              </div>
-            )}
+              </Section>
+            </PageLayout>
+          )}
 
-            {activeTab === "details" && (
-              <>
-                <PageHead title="Customer details" subtitle={`ID: ${client?.id ?? "—"}`} />
+          {activeTab === "details" && (
+            <SettingsLayout head={{ title: "Customer details", subtitle: `ID: ${client?.id ?? "—"}` }}>
+              {err ? <Callout tone="danger">{err}</Callout> : null}
+              {notice ? <Callout tone="ok">{notice}</Callout> : null}
 
-                {err ? <p style={{ margin: "0 0 12px 0" }}>{err}</p> : null}
-                {notice ? (
-                  <p style={{ margin: "0 0 12px 0", color: "#047857", fontSize: 14 }}>{notice}</p>
-                ) : null}
-
-                <form onSubmit={handleSave} style={{ display: "grid", gap: 14, maxWidth: 560 }}>
+              <form onSubmit={handleSave} className="wc-form-stack">
+                <Section title="Customer">
                   <Field label="Customer name">
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. IoIC"
-                      style={{ padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
-                    />
+                    <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. IoIC" />
                   </Field>
                   <Field label="Slug">
-                    <input
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      placeholder="e.g. ioic"
-                      style={{ padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
-                    />
+                    <TextInput value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. ioic" />
                   </Field>
+                </Section>
 
-                  <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Billing</h3>
-                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
-                    Enable for customers who pay by invoice. They get publish and embed access without a Stripe
-                    subscription record.
-                  </p>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={subscriptionActiveOverride}
-                      onChange={(e) => setSubscriptionActiveOverride(e.target.checked)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <span>
-                      <strong>Pays by invoice</strong>
-                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Treat as an active paying customer (subscription override)
-                      </span>
-                    </span>
-                  </label>
+                <Section
+                  title="Billing"
+                  description="Enable for customers who pay by invoice. They get publish and embed access without a Stripe subscription record."
+                >
+                  <Checkbox
+                    label="Pays by invoice"
+                    hint="Treat as an active paying customer (subscription override)"
+                    checked={subscriptionActiveOverride}
+                    onChange={(e) => setSubscriptionActiveOverride(e.target.checked)}
+                  />
+                </Section>
 
-                  <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Feature access (beta)</h3>
-                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
-                    Pre-release in-development features to this customer. Admins and @layercake-cx.biz
-                    users always see beta features; these toggles let specific customers in early.
-                  </p>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: flagSaving ? "wait" : "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={directoriesFlagEnabled}
-                      disabled={flagSaving}
-                      onChange={(e) => handleToggleDirectoriesFlag(e.target.checked)}
-                      style={{ marginTop: 3 }}
+                <Section
+                  title="Feature access (beta)"
+                  description="Pre-release in-development features to this customer. Admins and @layercake-cx.biz users always see beta features; these toggles let specific customers in early."
+                  flush
+                >
+                  {detailsToggles.map((t) => (
+                    <SettingRow
+                      key={t.key}
+                      label={t.label}
+                      description={t.description}
+                      control={<Switch checked={t.checked} disabled={t.disabled} onChange={t.onChange} />}
                     />
-                    <span>
-                      <strong>Directories &amp; Categories</strong>
-                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Show the Directories and Categories sections in this customer&apos;s portal.
-                        Saved immediately.
-                      </span>
-                    </span>
-                  </label>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: directoryPagesFlagSaving ? "wait" : "pointer", marginTop: 12 }}>
-                    <input
-                      type="checkbox"
-                      checked={directoryPagesFlagEnabled}
-                      disabled={directoryPagesFlagSaving}
-                      onChange={(e) => handleToggleDirectoryPagesFlag(e.target.checked)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <span>
-                      <strong>Directory pages</strong>
-                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Generate crawlable directory + listing pages for this customer&apos;s published maps.
-                        Also requires the Directory pages entitlement (Entitlements tab). Saved immediately.
-                      </span>
-                    </span>
-                  </label>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, cursor: customDomainFlagSaving ? "wait" : "pointer", marginTop: 12 }}>
-                    <input
-                      type="checkbox"
-                      checked={customDomainFlagEnabled}
-                      disabled={customDomainFlagSaving}
-                      onChange={(e) => handleToggleCustomDomainFlag(e.target.checked)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <span>
-                      <strong>Custom domains</strong>
-                      <span style={{ display: "block", fontSize: 13, color: "var(--lc-muted)", marginTop: 4 }}>
-                        Show the Domains section in this customer&apos;s portal, letting them add and verify
-                        their own domain. Also requires the Custom domain entitlement (Entitlements tab).
-                        Saved immediately.
-                      </span>
-                    </span>
-                  </label>
+                  ))}
+                </Section>
 
-                  <h3 style={{ margin: "20px 0 8px 0", fontSize: 15 }}>Primary contact</h3>
-                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--lc-muted)" }}>
-                    The primary contact is edited here. To add more users or set permissions, use the Users tab.
-                  </p>
+                <Section
+                  title="Primary contact"
+                  description="The primary contact is edited here. To add more users or set permissions, use the Users tab."
+                  footer={
+                    <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">
+                      Save changes
+                    </Button>
+                  }
+                >
                   <Field label="Contact name">
-                    <input
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      placeholder="e.g. Jane Smith"
-                      style={{ padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
-                    />
+                    <TextInput value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="e.g. Jane Smith" />
                   </Field>
                   <Field label="Contact email">
-                    <input
+                    <TextInput
                       type="email"
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
                       placeholder="e.g. jane@example.com"
                       required
-                      style={{ padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
                     />
                   </Field>
+                </Section>
+              </form>
+            </SettingsLayout>
+          )}
 
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
-                      {saving ? "Saving…" : "Save changes"}
-                    </button>
-                  </div>
-                </form>
-              </>
-            )}
+          {activeTab === "users" && (
+            <PageLayout head={{ title: "Users", subtitle: "People who can sign in to this customer's workspace." }}>
+              <div className="wc-stack">
+                {err ? <Callout tone="danger">{err}</Callout> : null}
+                {notice ? <Callout tone="info">{notice}</Callout> : null}
+                {usersWarning ? <Callout tone="warn">{usersWarning}</Callout> : null}
 
-            {activeTab === "users" && (
-              <div>
-                <PageHead title="Users" subtitle="People who can sign in to this customer's workspace." />
-                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-                  <form onSubmit={handleAddUser} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="email"
-                      value={addEmail}
-                      onChange={(e) => setAddEmail(e.target.value)}
-                      placeholder="Email"
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--lc-border)", minWidth: 180 }}
-                    />
-                    <input
-                      value={addName}
-                      onChange={(e) => setAddName(e.target.value)}
-                      placeholder="Name"
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--lc-border)", minWidth: 140 }}
-                      required
-                    />
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={addCanManageMaps}
-                        onChange={(e) => setAddCanManageMaps(e.target.checked)}
-                      />
-                      Manage maps
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={addCanManageUsers}
-                        onChange={(e) => setAddCanManageUsers(e.target.checked)}
-                      />
-                      Manage users
-                    </label>
-                    <button type="submit" className="shell-btn shell-btn--primary" disabled={adding}>
-                      {adding ? "Adding…" : "Add user"}
-                    </button>
+                <Section title="Add user">
+                  <form onSubmit={handleAddUser} className="wc-form">
+                    <Field label="Email">
+                      <TextInput type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="Email" />
+                    </Field>
+                    <Field label="Name">
+                      <TextInput value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name" required />
+                    </Field>
+                    <div className="wc-checks">
+                      <Checkbox label="Manage maps" checked={addCanManageMaps} onChange={(e) => setAddCanManageMaps(e.target.checked)} />
+                      <Checkbox label="Manage users" checked={addCanManageUsers} onChange={(e) => setAddCanManageUsers(e.target.checked)} />
+                    </div>
+                    <div className="wc-actions">
+                      <Button type="submit" variant="primary" loading={adding} loadingLabel="Adding…">
+                        Add user
+                      </Button>
+                    </div>
                   </form>
-                </div>
+                </Section>
 
-                {err ? <p style={{ margin: "0 0 12px 0", color: "#b91c1c" }}>{err}</p> : null}
-                {notice ? (
-                  <div
-                    style={{
-                      margin: "0 0 12px 0",
-                      padding: "12px 14px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(59, 130, 246, 0.35)",
-                      background: "rgba(59, 130, 246, 0.12)",
-                      color: "#1e40af",
-                    }}
-                  >
-                    {notice}
-                  </div>
-                ) : null}
-                {usersWarning ? (
-                  <div
-                    style={{
-                      margin: "0 0 12px 0",
-                      padding: "12px 14px",
-                      borderRadius: 8,
-                      border: "1px solid #b45309",
-                      background: "rgba(251, 191, 36, 0.18)",
-                      color: "#78350f",
-                    }}
-                  >
-                    {usersWarning}
-                  </div>
-                ) : null}
-
-                {contactsList.length === 0 ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>No users yet. Add one above or set the primary contact in Customer details.</p>
-                ) : (
-                  <table className="admin-table" style={{ marginTop: 0 }}>
-                    <thead>
-                      <tr>
-                        <th>Email</th>
-                        <th>Name</th>
-                        <th>Primary</th>
-                        <th>Manage maps</th>
-                        <th>Manage users</th>
-                        <th>Has login</th>
-                        <th></th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {contactsList.map((c) => (
-                        <tr key={c.id}>
-                          <td>{c.email}</td>
-                          <td>{c.name || "—"}</td>
-                          <td>{c.is_primary ? "Yes" : "—"}</td>
-                          <td>
-                            {c.is_primary ? (
-                              <span className="badge">Yes (primary)</span>
-                            ) : (
-                              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!c.can_manage_maps}
-                                  onChange={(e) => updateContactPermissions(c.id, e.target.checked, c.can_manage_users)}
-                                />
-                                {c.can_manage_maps ? "Yes" : "No"}
-                              </label>
-                            )}
-                          </td>
-                          <td>
-                            {c.is_primary ? (
-                              <span className="badge">Yes (primary)</span>
-                            ) : (
-                              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!c.can_manage_users}
-                                  onChange={(e) => updateContactPermissions(c.id, c.can_manage_maps, e.target.checked)}
-                                />
-                                {c.can_manage_users ? "Yes" : "No"}
-                              </label>
-                            )}
-                          </td>
-                          <td>{c.user_id ? "Yes" : "Pending"}</td>
-                          <td>
-                            <Link to={`/admin/clients/${encodeURIComponent(clientId)}/contacts/${encodeURIComponent(c.id)}`}>
-                              Edit
-                            </Link>
-                          </td>
-                          <td style={{ width: 44, textAlign: "right" }}>
-                            <button
-                              type="button"
-                              className="admin-table__delete-btn"
-                              onClick={() => {
-                                setContactToDelete({ id: c.id, email: c.email, name: c.name });
-                                setDeleteConfirmText("");
-                              }}
-                              title="Delete user"
-                              aria-label={`Delete user ${c.email}`}
-                            >
-                              {TRASH_ICON}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                <Section title="Users" flush>
+                  <DataTable
+                    caption="Users"
+                    columns={userColumns}
+                    rows={contactsList}
+                    getRowId={(c) => c.id}
+                    getRowLabel={(c) => c.email}
+                    rowLink={(c) => `${clientBase}/contacts/${encodeURIComponent(c.id)}`}
+                    rowMenu={(c) => [
+                      { label: "Edit user", onSelect: () => navigate(`${clientBase}/contacts/${encodeURIComponent(c.id)}`) },
+                      {
+                        label: "Delete user",
+                        danger: true,
+                        onSelect: () => {
+                          setContactToDelete({ id: c.id, email: c.email, name: c.name });
+                          setDeleteConfirmText("");
+                        },
+                      },
+                    ]}
+                    empty={
+                      <EmptyState
+                        art="none"
+                        title="No users yet"
+                        body="Add one above or set the primary contact in Customer details."
+                      />
+                    }
+                  />
+                </Section>
               </div>
-            )}
+            </PageLayout>
+          )}
 
-            {activeTab === "messaging" && (
-              <MessagingPanel
-                clientId={clientId}
-                clientName={client?.name}
-                eventSource="admin_dashboard"
-              />
-            )}
+          {activeTab === "messaging" && (
+            <>
+              {topError}
+              <MessagingPanel clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+            </>
+          )}
 
-            {activeTab === "domains" && (
-              <>
-                <PageHead title="Domains" subtitle={DOMAINS_SUBTITLE} />
-                <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
-              </>
-            )}
+          {activeTab === "domains" && (
+            <PageLayout head={{ title: "Domains", subtitle: DOMAINS_SUBTITLE }}>
+              {topError}
+              <DomainSettings clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+            </PageLayout>
+          )}
 
-            {activeTab === "integrations" && (
-              <IntegrationsPanel
-                clientId={clientId}
-                clientName={client?.name}
-                eventSource="admin_dashboard"
-              />
-            )}
-          </>
-        )}
-      </div>
+          {activeTab === "integrations" && (
+            <>
+              {topError}
+              <IntegrationsPanel clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
+            </>
+          )}
+        </>
+      )}
+
       {contactToDelete ? (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
-          <div className="admin-modal">
-            <h2 id="delete-user-title" className="admin-modal__title">Delete user</h2>
-            <p className="admin-modal__message">
-              Are you sure you want to remove &quot;{contactToDelete.name || contactToDelete.email}&quot; from this customer?
-              This cannot be undone.
-            </p>
-            <p className="admin-modal__hint">Type <strong>delete</strong> below to confirm.</p>
-            <input
-              type="text"
-              className="admin-modal__input"
+        <Dialog
+          title="Delete user"
+          onClose={() => {
+            if (!deletingContact) closeDeleteDialog();
+          }}
+          footer={
+            <>
+              <Button onClick={closeDeleteDialog} disabled={deletingContact}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger-solid"
+                onClick={confirmDeleteContact}
+                disabled={deleteConfirmText.trim().toLowerCase() !== "delete"}
+                loading={deletingContact}
+                loadingLabel="Deleting…"
+              >
+                Delete user
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Are you sure you want to remove &quot;{contactToDelete.name || contactToDelete.email}&quot; from this customer?
+            This cannot be undone.
+          </p>
+          <Field label="Type delete to confirm" hint="Type delete below to confirm.">
+            <TextInput
+              data-autofocus
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="delete"
               autoComplete="off"
-              autoFocus
-              aria-label="Type delete to confirm"
             />
-            <div className="admin-modal__actions">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  setContactToDelete(null);
-                  setDeleteConfirmText("");
-                }}
-                disabled={deletingContact}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={confirmDeleteContact}
-                disabled={deleteConfirmText.trim().toLowerCase() !== "delete" || deletingContact}
-              >
-                {deletingContact ? "Deleting…" : "Delete user"}
-              </button>
-            </div>
-          </div>
-        </div>
+          </Field>
+        </Dialog>
       ) : null}
       <EntitlementLimitModal
         open={mapLimitModalOpen}

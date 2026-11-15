@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useClient } from "../../hooks/useClient.js";
 import { supabase } from "../../lib/supabase";
 import { listDirectories, countEntriesMissingSeoMetadata } from "../../lib/directories.js";
+import { Callout, PageLayout, Section, Skeleton, StatGrid, StatTile } from "../../components/ui/index.js";
+import "../../styles/wave-b/client-pages.css";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -16,16 +18,6 @@ function relativeTime(iso) {
   return `${days} day${days !== 1 ? "s" : ""} ago`;
 }
 
-function Tile({ label, value, sub, to }) {
-  return (
-    <Link to={to} className="stat">
-      <p className="stat-label">{label}</p>
-      <p className="stat-value">{value}</p>
-      {sub && <p className="stat-sub">{sub}</p>}
-    </Link>
-  );
-}
-
 /**
  * Organisation home (Phase 4, admin shell redesign) — /client's new default, replacing the maps
  * grid (now at /client/maps — see BACKLOG.md "My maps as distinct from Home", resolved here).
@@ -33,9 +25,7 @@ function Tile({ label, value, sub, to }) {
  * admin_events has no client-scoped RLS policy today, so a real client contact would just see an
  * empty/broken feed; logged in BACKLOG.md as needing a migration, not built on a guess.
  *
- * Uses the shell's own page-body component vocabulary (.stat-grid/.stat/.card/.action-row — see
- * admin-shell.css) rather than the old admin.css/.admin-card patterns Phase 4 originally shipped
- * with — see BACKLOG.md "Page body content still uses the old design system".
+ * Built on the Discover UI kit (PageLayout, StatGrid/StatTile, Section, Callout, Skeleton).
  */
 export default function ClientHome() {
   const { client } = useClient();
@@ -110,38 +100,40 @@ export default function ClientHome() {
   }, [client?.id]);
 
   return (
-    <>
-      <div className="page-head">
-        <h1 className="page-title">{client?.name}</h1>
-      </div>
+    <PageLayout head={{ title: client?.name }}>
+      <div className="cw-stack">
+        {err ? <Callout tone="danger">{err}</Callout> : null}
 
-      {err && <p style={{ color: "var(--shell-danger)" }}>{err}</p>}
-
-      <div className="stat-grid">
-        <Tile label="Maps" value={stats ? stats.mapsCount : "…"} sub={stats ? `${stats.mapsPublished} published` : undefined} to="/client/maps" />
-        <Tile label="Directories" value={stats ? stats.directoriesCount : "…"} sub={stats ? `${stats.directoriesPublished} published` : undefined} to="/client/directories" />
-        <Tile label="Team" value={stats ? stats.teamSize : "…"} to="/client/team" />
-        <Tile label="Enquiries (30 days)" value={stats ? stats.enquiries30d : "…"} to="/client/maps" />
-      </div>
-
-      <div className="card card-pad">
-        <p className="card-title">Needs attention</p>
-        {needsAttention.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--shell-text-muted)" }}>Nothing needs attention right now.</p>
-        ) : (
-          <div>
-            {needsAttention.map((a) => (
-              <Link key={a.key} to={a.to} className="action-row">
-                <span className="action-count">!</span>
-                <span>
-                  {a.text}
-                  {a.sub && <span style={{ color: "var(--shell-text-muted)" }}> — {a.sub}</span>}
-                </span>
-              </Link>
-            ))}
-          </div>
+        {stats ? (
+          <StatGrid>
+            <StatTile label="Maps" value={stats.mapsCount} sub={`${stats.mapsPublished} published`} href="/client/maps" />
+            <StatTile label="Directories" value={stats.directoriesCount} sub={`${stats.directoriesPublished} published`} href="/client/directories" />
+            <StatTile label="Team" value={stats.teamSize} href="/client/team" />
+            <StatTile label="Enquiries (30 days)" value={stats.enquiries30d} href="/client/maps" />
+          </StatGrid>
+        ) : err ? null : (
+          <Skeleton variant="tiles" label="Loading your overview" />
         )}
+
+        <Section title="Needs attention" flush={needsAttention.length > 0}>
+          {needsAttention.length === 0 ? (
+            <p className="cw-muted">Nothing needs attention right now.</p>
+          ) : (
+            <div>
+              {needsAttention.map((a) => (
+                <Link key={a.key} to={a.to} className="action-row">
+                  <span className="action-count" aria-hidden="true">!</span>
+                  <span>
+                    <span className="sr-only">Needs attention: </span>
+                    {a.text}
+                    {a.sub && <span className="cw-attention-sub"> — {a.sub}</span>}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Section>
       </div>
-    </>
+    </PageLayout>
   );
 }

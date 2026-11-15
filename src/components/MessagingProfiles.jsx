@@ -10,7 +10,13 @@ import { useMessagingAllowed } from "../hooks/useMessagingAllowed.js";
 import EntitlementGate from "./EntitlementGate.jsx";
 import { getBlockedMessage } from "../lib/entitlementMessages.js";
 import MessagingProfileEditor from "./MessagingProfileEditor.jsx";
-import styles from "../pages/client/ClientEmail.module.css";
+import {
+  Button, Callout, DataTable, EmptyState, Field, FieldGrid, Pill, Section, Skeleton, TextInput,
+} from "./ui/index.js";
+import "../styles/wave-b/messaging.css";
+
+// emailDomainStatusTone (lib/clientEmail.js) -> Pill tone.
+const PILL_TONE = { success: "ok", warning: "warn", error: "danger", muted: "neutral" };
 
 const PROFILE_COLUMNS =
   "id,client_id,name,email_from_name,email_from_address,email_domain,resend_domain_id,email_domain_status,email_dns_records";
@@ -124,12 +130,47 @@ export default function MessagingProfiles({ clientId, clientName = "", eventSour
 
   const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
+  const columns = [
+    { key: "name", label: "Name", render: (p) => <strong>{p.name}</strong> },
+    { key: "email_from_address", label: "From", className: "wb5-wrap", render: (p) => p.email_from_address || "—" },
+    {
+      key: "email_domain_status",
+      label: "Domain",
+      render: (p) => (
+        <Pill tone={PILL_TONE[emailDomainStatusTone(p.email_domain_status)] || "neutral"}>
+          {emailDomainStatusLabel(p.email_domain_status)}
+        </Pill>
+      ),
+    },
+    {
+      key: "usage",
+      label: "Used by",
+      render: (p) => {
+        const u = usage[p.id] ?? { maps: 0, directories: 0 };
+        const parts = [];
+        if (u.maps) parts.push(`${u.maps} map${u.maps === 1 ? "" : "s"}`);
+        if (u.directories) parts.push(`${u.directories} director${u.directories === 1 ? "y" : "ies"}`);
+        return parts.length ? parts.join(", ") : "Not used yet";
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      align: "right",
+      render: (p) => (
+        <Button size="sm" aria-label={`Edit ${p.name}`} onClick={() => setSelectedId(p.id)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <>
-      {err && !selected ? <p className={styles.error}>{err}</p> : null}
+      {err && !selected ? <Callout tone="danger">{err}</Callout> : null}
 
       {loading ? (
-        <p>Loading…</p>
+        <Skeleton variant="list" rows={3} label="Loading sending profiles" />
       ) : (
         <EntitlementGate
           allowed={messagingAllowed}
@@ -147,120 +188,83 @@ export default function MessagingProfiles({ clientId, clientName = "", eventSour
               onClose={() => setSelectedId(null)}
             />
           ) : (
-            <div className={styles.messagingGrid}>
-              <section className={`${styles.panelBox} ${styles.panelBoxFull}`}>
-                <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>Sending profiles</h2>
-                  {!creating ? (
-                    <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-                      New profile
-                    </button>
-                  ) : null}
-                </div>
-                <p className={styles.hint}>
+            <Section
+              title="Sending profiles"
+              description={(
+                <>
                   A sending profile is the address visitor messages are sent <em>from</em>, with its own domain
                   verification. Create as many as you need, then choose one on each map or directory (under its
                   Messaging tab) and turn messaging on there. A map or directory with no profile chosen cannot
                   send messages.
-                </p>
-
+                </>
+              )}
+              actions={
+                !creating ? (
+                  <Button variant="primary" onClick={() => setCreating(true)}>
+                    New profile
+                  </Button>
+                ) : null
+              }
+            >
+              <div className="wb5-stack">
                 {creating ? (
-                  <form onSubmit={handleCreate} className={styles.panelSubsection}>
-                    <label className={styles.field}>
-                      <span>
-                        Profile name <span className={styles.required}>*</span>
-                      </span>
-                      <input
+                  <form onSubmit={handleCreate} className="wb5-form">
+                    <Field label="Profile name" required>
+                      <TextInput
                         type="text"
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
                         placeholder="e.g. Events team"
-                        required
                       />
-                    </label>
-                    <div className={styles.fromAddressRow}>
-                      <label className={styles.field}>
-                        <span>Display name</span>
-                        <input
+                    </Field>
+                    <FieldGrid>
+                      <Field label="Display name">
+                        <TextInput
                           type="text"
                           value={newFromName}
                           onChange={(e) => setNewFromName(e.target.value)}
                           placeholder={clientName || "Your organisation"}
                         />
-                      </label>
-                      <label className={styles.field}>
-                        <span>
-                          Email address <span className={styles.required}>*</span>
-                        </span>
-                        <input
+                      </Field>
+                      <Field label="Email address" required>
+                        <TextInput
                           type="email"
                           value={newFromAddress}
                           onChange={(e) => setNewFromAddress(e.target.value)}
                           placeholder="hello@yourcompany.com"
-                          required
                         />
-                      </label>
-                    </div>
-                    <div className={styles.actions}>
-                      <button type="submit" className="btn btn-primary" disabled={busy}>
-                        {busy ? "Creating…" : "Create profile"}
-                      </button>
-                      <button type="button" className="btn" onClick={() => setCreating(false)} disabled={busy}>
+                      </Field>
+                    </FieldGrid>
+                    <div className="wb5-row">
+                      <Button type="submit" variant="primary" loading={busy} loadingLabel="Creating…">
+                        Create profile
+                      </Button>
+                      <Button onClick={() => setCreating(false)} disabled={busy}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : null}
 
                 {profiles.length === 0 && !creating ? (
-                  <p className={styles.note}>
-                    No sending profiles yet. Create one to start sending messages from a map or directory.
-                  </p>
+                  <EmptyState
+                    art="none"
+                    title="No sending profiles yet"
+                    body="Create one to start sending messages from a map or directory."
+                  />
                 ) : null}
 
                 {profiles.length > 0 ? (
-                  <table className={styles.dnsTable}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>From</th>
-                        <th>Domain</th>
-                        <th>Used by</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profiles.map((p) => {
-                        const u = usage[p.id] ?? { maps: 0, directories: 0 };
-                        const parts = [];
-                        if (u.maps) parts.push(`${u.maps} map${u.maps === 1 ? "" : "s"}`);
-                        if (u.directories) parts.push(`${u.directories} director${u.directories === 1 ? "y" : "ies"}`);
-                        const tone = emailDomainStatusTone(p.email_domain_status);
-                        return (
-                          <tr key={p.id}>
-                            <td>
-                              <strong>{p.name}</strong>
-                            </td>
-                            <td>{p.email_from_address || "—"}</td>
-                            <td>
-                              <span className={`${styles.badge} ${styles[`badge--${tone}`]}`}>
-                                {emailDomainStatusLabel(p.email_domain_status)}
-                              </span>
-                            </td>
-                            <td>{parts.length ? parts.join(", ") : "Not used yet"}</td>
-                            <td>
-                              <button type="button" className="btn" onClick={() => setSelectedId(p.id)}>
-                                Edit
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <DataTable
+                    caption="Sending profiles"
+                    columns={columns}
+                    rows={profiles}
+                    getRowId={(p) => p.id}
+                    getRowLabel={(p) => p.name}
+                  />
                 ) : null}
-              </section>
-            </div>
+              </div>
+            </Section>
           )}
         </EntitlementGate>
       )}

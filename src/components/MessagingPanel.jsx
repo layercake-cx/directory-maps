@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import MessagingProfiles from "./MessagingProfiles.jsx";
 import MessagingSentMessages from "./MessagingSentMessages.jsx";
-import styles from "../pages/client/ClientEmail.module.css";
+import { PageLayout, Tabs } from "./ui/index.js";
+import "../styles/wave-b/messaging.css";
+
+const TABS = [
+  { key: "profiles", label: "Sending profiles" },
+  { key: "messages", label: "Sent messages" },
+];
 
 /**
  * Messaging hub: sending profiles + sent message log (client portal and admin customer detail).
@@ -15,44 +21,26 @@ export default function MessagingPanel({
   const [tab, setTab] = useState("profiles");
 
   return (
-    <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">Messaging</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
-            Create the sending profiles (From addresses and domains) your maps and directories send
-            messages from, and review messages sent through them. Turn messaging on for each map or
-            directory under its own Messaging tab.
-          </p>
-        </div>
-      </div>
+    <PageLayout
+      head={{
+        title: "Messaging",
+        subtitle:
+          "Create the sending profiles (From addresses and domains) your maps and directories send messages from, and review messages sent through them. Turn messaging on for each map or directory under its own Messaging tab.",
+      }}
+    >
+      <Tabs tabs={TABS} current={tab} onSelect={setTab} label="Messaging sections" />
 
-      <div className={`admin-map-tabs ${styles.messagingTabs}`}>
-        <button
-          type="button"
-          className={`admin-map-tabs__tab ${tab === "profiles" ? "is-active" : ""}`}
-          onClick={() => setTab("profiles")}
-        >
-          Sending profiles
-        </button>
-        <button
-          type="button"
-          className={`admin-map-tabs__tab ${tab === "messages" ? "is-active" : ""}`}
-          onClick={() => setTab("messages")}
-        >
-          Sent messages
-        </button>
+      <div className="wb5-tabbody">
+        {tab === "profiles" ? (
+          <MessagingProfiles
+            clientId={clientId}
+            clientName={clientName}
+            eventSource={eventSource}
+          />
+        ) : (
+          <MessagingSentMessages clientId={clientId} />
+        )}
       </div>
-
-      {tab === "profiles" ? (
-        <MessagingProfiles
-          clientId={clientId}
-          clientName={clientName}
-          eventSource={eventSource}
-        />
-      ) : (
-        <MessagingSentMessages clientId={clientId} />
-      )}
-    </>
+    </PageLayout>
   );
 }

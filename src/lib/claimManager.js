@@ -124,3 +124,32 @@ export async function publishDirectoryItem(directoryItemId) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+
+// ---- AI drafting (Listing tab) ----
+
+/** The directory's admin-set drafting prompt, read-only. Resolved server-side. */
+export async function getListingDraftingPrompt(entryId) {
+  const { data, error } = await invokeFunction("claim_listing_ai", { body: { entry_id: entryId, action: "prompt" } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { text: data?.text ?? "" };
+}
+
+/**
+ * Asks for an AI draft of the listing body. NOTHING is saved by the server; the caller puts the
+ * HTML in its unsaved editor. The server reads the prompt and the web address itself (the client
+ * never sends either). Throws an Error with `.code === "no_web_address"` when the entry has none.
+ */
+export async function generateListingDraft(entryId) {
+  const { data, error } = await invokeFunction("claim_listing_ai", { body: { entry_id: entryId, action: "draft" } });
+  if (error) {
+    const e = new Error(error.message);
+    if (error.message === "no_web_address") {
+      e.code = "no_web_address";
+      e.message = "Add a web address in Contact details to use AI drafting.";
+    }
+    throw e;
+  }
+  if (data?.error) throw new Error(data.error);
+  return sanitizeNotesHtml(data?.html ?? "");
+}

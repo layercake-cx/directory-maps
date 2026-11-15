@@ -1,17 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { createDirectoryEntry, createDirectoryGroup, geocodeAddress, listDirectoryGroups, updateDirectoryEntry } from "../../../lib/directories.js";
 import { uploadEntryLogo } from "../../../lib/entryImages.js";
-
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--lc-border)",
-  fontSize: 13,
-};
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
+import { Button, Callout, CheckboxGroup, Checkbox, Field, FieldGrid, PlusIcon, Section, Select, TextInput } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 
 /** Address fields as a single comparable key, to detect whether re-geocoding is needed. */
 function addressKey(source) {
@@ -145,139 +136,106 @@ export default function EntryBasicInfoTab({ directoryId, entryId, entry, isNew, 
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="admin-card" style={{ padding: 20, maxWidth: 560 }}>
-      <Stack gap="sm">
-        <div>
-          <label style={labelStyle}>Name <span style={{ color: "red" }}>*</span></label>
-          <input value={form.name} onChange={(e) => fSet("name", e.target.value)} required disabled={!canEdit} placeholder="e.g. Bright Solutions Ltd" style={inputStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>Address</label>
-          <input value={form.address} onChange={(e) => fSet("address", e.target.value)} disabled={!canEdit} placeholder="e.g. 1 Example Street, London" style={inputStyle} />
-        </div>
-        <Group gap="sm" grow>
-          <div>
-            <label style={labelStyle}>Postcode</label>
-            <input value={form.postcode} onChange={(e) => fSet("postcode", e.target.value)} disabled={!canEdit} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Country</label>
-            <input value={form.country} onChange={(e) => fSet("country", e.target.value)} disabled={!canEdit} style={inputStyle} />
-          </div>
-        </Group>
+  const SHOW_KEYS = ["show_phone", "show_email", "show_website", "show_address"];
 
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>Group</label>
-            {canEdit && (
-              <button
-                type="button"
-                style={{ fontSize: 12, color: "var(--lc-brand, #4a9baa)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                onClick={() => { setAddGroupOpen(true); setNewGroupName(""); }}
-              >
-                + Add group
-              </button>
-            )}
-          </div>
-          <select value={form.directory_group_id} onChange={(e) => fSet("directory_group_id", e.target.value)} disabled={!canEdit} style={inputStyle}>
-            <option value="">No group</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
+  return (
+    <form onSubmit={handleSubmit} className="editor-form">
+      <Section
+        footer={canEdit ? (
+          <Button variant="primary" type="submit" loading={saving} loadingLabel={isNew ? "Creating…" : "Saving…"}>
+            {isNew ? "Create entry" : "Save changes"}
+          </Button>
+        ) : null}
+      >
+        <Field label="Name" required>
+          <TextInput value={form.name} onChange={(e) => fSet("name", e.target.value)} disabled={!canEdit} placeholder="e.g. Bright Solutions Ltd" />
+        </Field>
+        <Field label="Address">
+          <TextInput value={form.address} onChange={(e) => fSet("address", e.target.value)} disabled={!canEdit} placeholder="e.g. 1 Example Street, London" />
+        </Field>
+        <FieldGrid>
+          <Field label="Postcode">
+            <TextInput value={form.postcode} onChange={(e) => fSet("postcode", e.target.value)} disabled={!canEdit} />
+          </Field>
+          <Field label="Country">
+            <TextInput value={form.country} onChange={(e) => fSet("country", e.target.value)} disabled={!canEdit} />
+          </Field>
+        </FieldGrid>
+
+        <div className="group-row">
+          <Field label="Group">
+            <Select value={form.directory_group_id} onChange={(e) => fSet("directory_group_id", e.target.value)} disabled={!canEdit}>
+              <option value="">No group</option>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </Select>
+          </Field>
+          {canEdit && (
+            <Button size="sm" variant="ghost" icon={<PlusIcon size={14} />} onClick={() => { setAddGroupOpen(true); setNewGroupName(""); }}>
+              Add group
+            </Button>
+          )}
 
           {addGroupOpen && (
-            <div style={{ marginTop: 8, padding: "12px 14px", background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>New group name</div>
-              <form onSubmit={saveNewGroup} style={{ display: "flex", gap: 8 }}>
-                <input
-                  autoFocus
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="e.g. Healthcare"
-                  style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 }}
-                  required
-                />
-                <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: "6px 14px" }} disabled={savingGroup}>
-                  {savingGroup ? "Saving…" : "Add"}
-                </button>
-                <button type="button" className="btn" style={{ fontSize: 13, padding: "6px 10px" }} onClick={() => setAddGroupOpen(false)}>
-                  Cancel
-                </button>
+            <div className="subpanel">
+              <form onSubmit={saveNewGroup} className="inline-form">
+                <Field label="New group name" required>
+                  <TextInput autoFocus value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="e.g. Healthcare" />
+                </Field>
+                <Button type="submit" variant="primary" loading={savingGroup} loadingLabel="Saving…">Add</Button>
+                <Button onClick={() => setAddGroupOpen(false)}>Cancel</Button>
               </form>
             </div>
           )}
         </div>
 
-        <div>
-          <label style={labelStyle}>Website URL</label>
-          <input value={form.website_url} onChange={(e) => fSet("website_url", e.target.value)} disabled={!canEdit} placeholder="https://…" type="url" style={inputStyle} />
-        </div>
-        <Group gap="sm" grow>
-          <div>
-            <label style={labelStyle}>Email</label>
-            <input value={form.email} onChange={(e) => fSet("email", e.target.value)} disabled={!canEdit} placeholder="hello@…" type="email" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Phone</label>
-            <input value={form.phone} onChange={(e) => fSet("phone", e.target.value)} disabled={!canEdit} placeholder="+44…" style={inputStyle} />
-          </div>
-        </Group>
-        <div>
-          <label style={labelStyle}>Logo</label>
-          <input value={form.logo_url} onChange={(e) => fSet("logo_url", e.target.value)} disabled={!canEdit} placeholder="https://…/logo.png" type="url" style={inputStyle} />
-          {canEdit && (
-            isNew ? (
-              <Text size="xs" c="dimmed" mt={4}>Save the entry first to unlock direct file upload — paste a hosted image URL for now.</Text>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-                {form.logo_url && (
-                  <img src={form.logo_url} alt="" style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 4, border: "1px solid var(--lc-border)", background: "#fff" }} />
-                )}
-                <label style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--lc-brand, #4a9baa)", textDecoration: "underline", cursor: "pointer" }}>
-                    {logoUploading ? "Uploading…" : "Upload a logo file"}
-                  </span>
-                  <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={handleLogoFile} disabled={logoUploading} style={{ display: "none" }} />
-                </label>
-                <Text size="xs" c="dimmed">PNG, JPG or WebP, max 2 MB.</Text>
-              </div>
-            )
-          )}
-          {logoErr && <Alert color="red" variant="light" mt={4}>{logoErr}</Alert>}
-        </div>
-
-        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: canEdit ? "pointer" : "default" }}>
-          <input type="checkbox" checked={form.is_active} onChange={(e) => fSet("is_active", e.target.checked)} disabled={!canEdit} />
-          Active (visible)
-        </label>
-
-        <div>
-          <label style={labelStyle}>Show publicly (once published)</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {[
-              ["show_phone", "Phone"],
-              ["show_email", "Email"],
-              ["show_website", "Website"],
-              ["show_address", "Address"],
-            ].map(([key, label]) => (
-              <label key={key} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, cursor: canEdit ? "pointer" : "default" }}>
-                <input type="checkbox" checked={form[key]} onChange={(e) => fSet(key, e.target.checked)} disabled={!canEdit} />
-                {label}
+        <Field label="Website URL">
+          <TextInput value={form.website_url} onChange={(e) => fSet("website_url", e.target.value)} disabled={!canEdit} placeholder="https://…" type="url" />
+        </Field>
+        <FieldGrid>
+          <Field label="Email">
+            <TextInput value={form.email} onChange={(e) => fSet("email", e.target.value)} disabled={!canEdit} placeholder="hello@…" type="email" />
+          </Field>
+          <Field label="Phone">
+            <TextInput value={form.phone} onChange={(e) => fSet("phone", e.target.value)} disabled={!canEdit} placeholder="+44…" />
+          </Field>
+        </FieldGrid>
+        <div className="editor-stack">
+          <Field
+            label="Logo"
+            hint={canEdit && isNew ? "Save the entry first to unlock direct file upload — paste a hosted image URL for now." : undefined}
+          >
+            <TextInput value={form.logo_url} onChange={(e) => fSet("logo_url", e.target.value)} disabled={!canEdit} placeholder="https://…/logo.png" type="url" />
+          </Field>
+          {canEdit && !isNew && (
+            <div className="upload-row">
+              {form.logo_url && <img src={form.logo_url} alt="" className="logo-thumb" />}
+              <label className="shell-btn shell-btn--sm file-btn" aria-disabled={logoUploading ? "true" : undefined}>
+                {logoUploading ? "Uploading…" : "Upload a logo file"}
+                <input type="file" className="sr-only" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={handleLogoFile} disabled={logoUploading} />
               </label>
-            ))}
-          </div>
+              <span className="entries-muted">PNG, JPG or WebP, max 2 MB.</span>
+            </div>
+          )}
+          {logoErr && <Callout tone="danger">{logoErr}</Callout>}
         </div>
 
-        {err && <Alert color="red" variant="light">{err}</Alert>}
+        <Checkbox label="Active (visible)" checked={form.is_active} onChange={(e) => fSet("is_active", e.target.checked)} disabled={!canEdit} />
 
-        {canEdit && (
-          <Group justify="flex-end" mt={4}>
-            <Button size="sm" type="submit" loading={saving}>
-              {isNew ? "Create entry" : "Save changes"}
-            </Button>
-          </Group>
-        )}
-      </Stack>
+        <CheckboxGroup
+          legend="Show publicly (once published)"
+          disabled={!canEdit}
+          options={[
+            { value: "show_phone", label: "Phone" },
+            { value: "show_email", label: "Email" },
+            { value: "show_website", label: "Website" },
+            { value: "show_address", label: "Address" },
+          ]}
+          value={SHOW_KEYS.filter((k) => form[k])}
+          onChange={(next) => SHOW_KEYS.forEach((k) => fSet(k, next.includes(k)))}
+        />
+
+        {err && <Callout tone="danger">{err}</Callout>}
+      </Section>
     </form>
   );
 }

@@ -4,6 +4,8 @@ import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import { createDirectory, slugify } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
+import { Button, Callout, Field, Section, SettingsLayout, TextInput, Textarea } from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 export default function AdminDirectoryNew() {
   const { clientId } = useParams();
@@ -50,63 +52,56 @@ export default function AdminDirectoryNew() {
     }
   }
 
-  return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-        { label: "New directory" },
-      ]}
-    >
-      <div className="card card-pad" style={{ maxWidth: 760 }}>
-        <div style={{ marginBottom: 12 }}>
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
-        </div>
+  const clientHref = `/admin/clients/${encodeURIComponent(clientId)}`;
 
-        <form onSubmit={handleCreate}>
-          <div style={{ display: "grid", gap: 14 }}>
+  return (
+    <AdminLayout>
+      <SettingsLayout
+        head={{
+          title: "New directory",
+          breadcrumb: [
+            { label: "Customers", to: "/admin/clients" },
+            { label: client?.name ?? "…", to: clientHref },
+            { label: "New directory" },
+          ],
+        }}
+      >
+        <Section>
+          <form onSubmit={handleCreate} className="wc-form">
             <Field label="Directory name">
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
             </Field>
 
-            <Field label="Slug">
-              <input
-                className="input"
+            <Field
+              label="Slug"
+              hint={
+                <>
+                  Unique within this customer. Suggested: <strong>{suggestedSlug || "—"}</strong>
+                </>
+              }
+            >
+              <TextInput
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder={suggestedSlug || "e.g. accredited-suppliers"}
               />
-              <div className="field-hint">
-                Unique within this customer. Suggested: <strong>{suggestedSlug || "—"}</strong>
-              </div>
             </Field>
 
             <Field label="Description (optional)">
-              <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </Field>
 
-            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
+            {err ? <Callout tone="danger">{err}</Callout> : null}
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create directory"}
-              </button>
-              <Link className="shell-btn" to={`/admin/clients/${encodeURIComponent(clientId)}`}>
-                Cancel
-              </Link>
+            <div className="wc-actions">
+              <Button type="submit" variant="primary" loading={saving} loadingLabel="Creating…">
+                Create directory
+              </Button>
+              <Button as={Link} to={clientHref}>Cancel</Button>
             </div>
-          </div>
-        </form>
-      </div>
+          </form>
+        </Section>
+      </SettingsLayout>
     </AdminLayout>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
   );
 }

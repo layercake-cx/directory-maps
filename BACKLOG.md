@@ -41,7 +41,7 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Where in the design:** TopBar search field, all reference pages
 - **What's missing:** any backing query across customers/maps/directories/entries
 - **Existing pieces:** none combined yet — would need a new RPC or client-side fan-out query
-- **Shown meanwhile:** the search input renders (Phase 1) but is disabled/non-functional
+- **Shown meanwhile:** removed from the top bar on 2026-11-14 (it was a disabled placeholder); re-add it when a real query exists
 - **Size guess:** L
 - **Status:** To do
 
@@ -49,7 +49,7 @@ first; if a piece already exists, wire it up instead of adding a new entry for i
 - **Where in the design:** TopBar support icon, all reference pages
 - **What's missing:** a decision on where it should link (docs site? mailto? a chat widget?)
 - **Existing pieces:** none
-- **Shown meanwhile:** links to `#` (no-op)
+- **Shown meanwhile:** removed from the top bar on 2026-11-14; see "[DISCOVER-UI] Help and guides link"
 - **Size guess:** decision, not build
 - **Status:** To do
 
@@ -125,4 +125,114 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - **What's wrong:** in map test mode the embed's form asks the visitor for a test recipient and sends it as `toEmail`; `send_contact_message`'s map path trusts `toEmail`. A direct call to the function can therefore send to a real listing address even with test mode on. Directory sends are not affected: that path resolves the recipient server-side (the entry's email, or the saved test recipient in test mode).
 - **Fix:** resolve the map recipient server-side from `listingId` (the listing's own email, or `maps.email_test_recipient` when `email_test_mode` is on) instead of trusting `toEmail`. Needs a frontend change too: the embed would send `listingId` and stop sending an address.
 - **Size guess:** S-M
+- **Status:** To do
+
+### [DISCOVER-UI] Geocoding progress
+- Source: docs/design/discover-ui/PATTERNS.md (§1.3 job kinds, "Geocode" copy)
+- What the design shows: a determinate "Finding map locations · x of y" job with a Stop button, run in the browser.
+- Why not built now: geocoding is a server-side queue here (`geocode_listings`, `geocodeDirectoryEntries`), not a browser loop, and nothing exposes processed/total. There is nothing to stop and no progress to read without a new status source or a count poll.
+- Suggested next step: expose a processed/total count for the geocode queue (like the AI bulk runs have) so it can use `JobCard`.
+
+### [DISCOVER-UI] "Contact support" on failed jobs
+- Source: docs/design/discover-ui/PATTERNS.md (§1.4 JobCard failed state)
+- What the design shows: a Contact support action on a red job card.
+- Why not built now: the top-bar support link is still a placeholder (`href="#"`), so there is nowhere real to send people.
+- Suggested next step: decide the support destination, then add it to `JobCard` and the top bar together.
+
+### [DISCOVER-UI] CSV import progress and Stop
+- Source: docs/design/discover-ui/PATTERNS.md (§1.5 ClientMapData/AdminMapData/DirectoryEntriesPanel)
+- What the design shows: a determinate import with a Stop button.
+- Why not built now: import is one upsert plus follow-up writes, not a row loop, so there is no progress to show and nothing safe to stop mid-way.
+- Suggested next step: if large imports become a problem, batch the upsert and report batches done.
+
+### [DISCOVER-UI] Kit gaps found while migrating the directory workspace (Wave A)
+- Source: docs/design/discover-ui/COMPONENTS.md (Tabs, RadioCards, SegmentedControl, ColourField, DataTable, Field)
+- What the design shows: a complete form/table kit.
+- Why not built now: Wave A worked around these locally; each needs a small kit addition: `Tabs`/`RecordLayout` disabled tab (new-entry page lost its greyed tabs); `RadioCards` and `SegmentedControl` per-option and group `disabled`; `ColourField` `error` prop; `DataTable` expandable rows (Claims detail sits below the table); a kit `PromptDialog` (text entry, promise-based, like `useConfirm`) to replace the local one in `DirectoryClaimsPanel`; a kit slider `RangeField` (local copy lives in `GradientBackgroundField.jsx`); a `Field` variant with a visually hidden label for row editors; token-based chart colours (Recharts and `CHART_COLORS` still use hex).
+- Suggested next step: add these to `components/ui/` and the `/admin/ui-kit` page in phase 7, then delete the local workarounds.
+
+### [DISCOVER-UI] Delete confirms in the entry sub-editors
+- Source: docs/design/discover-ui/PATTERNS.md (§3 Destructive)
+- What the design shows: deletes use a ConfirmDialog naming the item.
+- Why not built now: Evidence, Media, Product tiles, Links, Team and Accreditation scheme deletes act immediately today; adding a confirm is new behaviour, so it was left as is.
+- Suggested next step: product decision, then `useConfirm` on each.
+
+### [DISCOVER-UI] Entry editor "new group" form submits the outer form
+- Source: found in `entryEdit/EntryBasicInfoTab.jsx` during Wave A (pre-existing, not changed)
+- What the design shows: n/a. The new-group form is nested inside the entry form and its submit handler doesn't stop propagation, so submitting it may also trigger the entry save.
+- Why not built now: fixing it changes behaviour, outside this presentation-only phase.
+- Suggested next step: move the group form out of the entry form, or stop propagation.
+
+### [DISCOVER-UI] Wave B follow-ups (client workspace)
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §6 Wave B; found while migrating
+- What the design shows: shared map dashboard and map data pages across client and admin, one kit.
+- Why not built now / open points:
+  - `AdminMapDashboard.jsx` and `AdminMapData.jsx` (Wave C) must adopt the new shared pieces in `src/components/mapDashboard/` and `src/components/mapData/` (props listed in the Wave B PR). `ClientMapDashboard.jsx` is still about 1,900 lines of state and handlers; hooks such as `useMapPublishing`, `useMapAssetUploads` and `useMapDraftSave` would shrink it but move Supabase calls, so they were left.
+  - Restoring an earlier map version has no confirm, and the connect/disconnect Google and "use this directory" flows have none either (as before). Product decision, then `useConfirm`.
+  - Map group reorder is mouse-only; needs up/down buttons.
+  - Kit gaps: `RadioCards` per-option `disabled` and click-on-selected; `Tabs` disabled tabs and an `onClick` hook; `SegmentedControl` `disabled`; `DataTable` row className and expandable rows; `Field` with a label-side action; a copy icon; number-with-unit and inline file-upload fields.
+  - `ClientMapListings.jsx` has a route (`/client/maps/:mapId/listings`) but nothing links to it; consider removing or linking it. It no longer wraps itself in `AdminLayout` (that rendered a second shell).
+  - The manual listing dialog still exposes lat/lng fields (unchanged); see the "No lat/lng in entry forms" rule for directory entries.
+  - `MapMessageDrawer` (the map preview's own drawer) keeps two legacy `btn` classes by design.
+
+### [DISCOVER-UI] Wave C follow-ups (platform admin)
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §6 Wave C; found while migrating
+- What the design shows: the staff admin on the same kit as the client portal.
+- Why not built now / open points:
+  - `AdminMapDashboard` now composes the shared `mapDashboard` panels and gets the client's full-page publish view (embed width/unit/height, thumbnail embed, version table). The admin-only "Embed URL" box, the "Saving writes draft configuration only" note and the publish-note placeholder were dropped (no shared slot). Decide whether staff need them back.
+  - Production deploy (`AdminDeployments`) still has no confirm dialog (none on `main` either). Adding `useConfirm` is a one-liner once product agrees.
+  - `AdminListings` is titled "Maps" although it lists listings (existing mislabel); rename needs a nav label decision.
+  - `AdminMapStats` and `AdminListingStats` still fetch client/map/listing rows they no longer use (kept so data calls are unchanged); remove in a data-cleanup pass.
+  - `AdminEditListing` now renders inside `AdminLayout` (it had no shell); the explicit Save stays, no SaveBar.
+  - `OverflowMenu` internal `href` items now use the router; external links stay plain anchors.
+  - Kit gaps still open: `DataTable` expandable rows and row className (log pages and Team use hand-built tables or workarounds), `rowMenu` hiding for a row, `PageHead` without a title, `Toolbar` + search `Field` combination, entitlement scrim token.
+  - Dead code left in place on purpose: `saveMap`/`deleteMap`/`isProductionEnv`/`mapOptions*` in the map dashboards.
+
+### [DISCOVER-UI] Remove Mantine
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §7 item 3
+- What the design shows: the kit replaces Mantine everywhere in the shell.
+- Why not built now: two uses remain outside the shell, both via `src/components/ui/mantine.js`: the claim pages' drafting-prompt modal (`DraftingPromptModal` renders a Mantine `Modal` when it is not inside `.shell`) and `EntryCardPreview` (`Text`). `main.jsx` still mounts `MantineProvider` for them. The dependency was not removed.
+- Suggested next step: give the claim pages (they render in a client's own brand) their own plain modal and replace the `Text` in the card preview; then delete `ui/mantine.js`, `MantineProvider`, and `@mantine/core`/`@mantine/hooks` from `package.json`.
+
+### [DISCOVER-UI] Phase 7 leftovers
+- Source: docs/design/discover-ui/BUILD_BRIEF.md §7
+- What remains on purpose: `src/style.css` and `admin.css` keep the global `.btn`/`.admin-card` look used by auth, claim, pricing and embed pages; `components/ai/ai.css` keeps `--uka-*` for the claim pages; the `--lc-card/--lc-border/--lc-muted` variables are still used in about 50 places (a token rename is a separate job); `RichTextEditor` still uses `window.prompt` for the link URL (the check script only fails on confirm/alert).
+- Suggested next step: when the claim pages are redesigned, delete `ai.css` variables and the `.btn` rules; add a kit `PromptDialog` and use it for the editor link.
+
+### [DISCOVER-UI] Rebrand sign-up, login and marketing pages
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md (decision 2026-11-14: admin only)
+- What the design shows: the Discover by Layercake logo and name everywhere a customer sees the product.
+- Why not built now: approved for the admin only. `SignUp`, `Login`/`AuthForm`, `BrandLogo` ("Maps by Layercake"), `Pricing`, `SiteHeader`, `SiteFooter` and the static `<title>` in `index.html` still say Layercake Maps.
+- Suggested next step: one PR once the public site copy is agreed; reuse `src/assets/brand/`.
+
+### [DISCOVER-UI] Rebrand the outgoing email sender name
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.4
+- What the design shows: "Discover by Layercake" as the product name.
+- Why not built now: `src/lib/clientEmail.js` sends as "Layercake Maps <noreply@layercake-cx.biz>"; deliverability and recipients' filters depend on that name.
+- Suggested next step: check deliverability and customer comms first, then change the name (and the display name on the Resend domain if needed).
+
+### [DISCOVER-UI] Rebrand the "Built on Layercake Maps" panel on published directory sites
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.2
+- What the design shows: the reversed logo in a chip (see `reference/04-logo-discover-by-layercake.html`).
+- Why not built now: it lives in `supabase/functions/generate_directory_site` and `public/layercake-maps-white.png` (kept on purpose: published sites load it from `maps.layercake-cx.biz`). Changing it needs an Edge Function deploy and republishing every directory, plus an `ENTRY_TEMPLATE_VERSION` bump.
+- Suggested next step: do it with the next generator change; use `discover-by-layercake-reversed.svg`.
+
+### [DISCOVER-UI] Help and guides link
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §2.5
+- What the design shows: nothing now; the support icon was removed from the top bar (it linked to `#`).
+- Why not built now: there is no real help URL.
+- Suggested next step: add "Help and guides" to the avatar menu once a help site, mailbox or chat exists.
+
+### [DISCOVER-UI] Custom-domain "not connected" page copy
+- Source: docs/design/discover-ui/REBRAND_BRIEF.md §3.4
+- What the design shows: the new product name.
+- Why not built now: `src/pages/CustomDomainMap.jsx` is a public page ("isn't connected to a Layercake Maps directory"), outside the admin rebrand.
+- Suggested next step: update with the public pages rebrand.
+
+### [REORDER] Categories: per-category "Edit terms" route
+- **Where in the design:** `REORDER_BRIEF.md` §3 (Directory › Categories row: "Edit terms")
+- **What's missing:** a route for a single category's terms. "Edit terms" opens the client's Categories list (`/client/categorisations`, or the staff equivalent) instead, because no per-category route exists.
+- **Existing pieces:** `ClientCategorisations` / `CategorisationsPanel`
+- **Shown meanwhile:** link to the Categories list
+- **Size guess:** S
 - **Status:** To do

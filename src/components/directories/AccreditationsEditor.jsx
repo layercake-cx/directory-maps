@@ -5,6 +5,8 @@ import {
   loadEntryAccreditationSchemeIds,
   revokeEntryAccreditation,
 } from "../../lib/accreditations";
+import { Callout, Checkbox, EmptyState } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 /**
  * Entry-level accreditation picker (build-scope §5.7). Unlike
@@ -61,28 +63,24 @@ export default function AccreditationsEditor({ directoryId, entryId, recordEvent
 
   if (loading) return null;
   if (schemes.length === 0) {
-    return <p style={{ fontSize: 12, opacity: 0.6, margin: 0 }}>No accreditation schemes defined yet for this directory.</p>;
+    return <EmptyState art="none" title="No accreditation schemes defined yet for this directory" />;
   }
 
   return (
-    <div>
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 6px" }}>{err}</p>}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div className="b3-stack b3-stack--tight">
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      <fieldset className="choice-group" aria-busy={busyId ? "true" : undefined}>
+        <legend className="sr-only">Accreditation schemes</legend>
         {schemes.map((s) => (
-          <label
+          <Checkbox
             key={s.id}
-            style={{
-              display: "flex", gap: 6, alignItems: "center", fontSize: 12,
-              padding: "4px 8px", borderRadius: 14, border: "1px solid var(--lc-border)",
-              cursor: busyId ? "wait" : "pointer",
-              opacity: busyId === s.id ? 0.6 : 1,
-            }}
-          >
-            <input type="checkbox" checked={selected.has(s.id)} disabled={!!busyId} onChange={() => toggle(s.id)} />
-            {s.name}
-          </label>
+            label={s.name}
+            checked={selected.has(s.id)}
+            disabled={!!busyId}
+            onChange={() => toggle(s.id)}
+          />
         ))}
-      </div>
+      </fieldset>
     </div>
   );
 }

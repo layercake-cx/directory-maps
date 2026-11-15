@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, Section, SettingsLayout } from "../../components/ui/index.js";
+import "../../styles/wave-c/ops.css";
 
 const DEPLOY_HOOK_PREVIEW = import.meta.env.VITE_DEPLOY_HOOK_PREVIEW || "";
 const DEPLOY_HOOK_PRODUCTION = import.meta.env.VITE_DEPLOY_HOOK_PRODUCTION || "";
@@ -102,60 +104,41 @@ export default function AdminDeployments() {
     setTimeout(clearMsg, 5000);
   }
 
+  const calloutTone = msg.type === "error" ? "danger" : msg.type === "success" ? "ok" : "info";
+
   return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Deployments" }]}
-      subtitle="Deploy to test (preview) or production. If deploy hooks are configured, clicking will trigger a deploy; otherwise the command is copied so you can run it locally."
-    >
-      <div className="card card-pad">
+    <AdminLayout>
+      <SettingsLayout
+        head={{
+          title: "Deployments",
+          subtitle:
+            "Deploy to test (preview) or production. If deploy hooks are configured, clicking will trigger a deploy; otherwise the command is copied so you can run it locally.",
+        }}
+      >
+        <Section title="Deploy">
+          <div className="ops-deploy-actions">
+            <Button variant="primary" onClick={deployToTest} loading={loading.test} loadingLabel="Triggering…">
+              Deploy to test
+            </Button>
+            <Button onClick={deployLive} loading={loading.live} loadingLabel="Triggering…">
+              Deploy live
+            </Button>
+          </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320 }}>
-          <button
-            type="button"
-            className="shell-btn shell-btn--primary"
-            onClick={deployToTest}
-            disabled={loading.test}
-          >
-            {loading.test ? "Triggering…" : "Deploy to test"}
-          </button>
-          <button
-            type="button"
-            className="shell-btn"
-            onClick={deployLive}
-            disabled={loading.live}
-          >
-            {loading.live ? "Triggering…" : "Deploy live"}
-          </button>
-        </div>
+          {msg.text ? <Callout tone={calloutTone}>{msg.text}</Callout> : null}
+        </Section>
 
-        {msg.text && (
-          <p
-            style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 8,
-              background: msg.type === "error" ? "rgba(185, 28, 28, 0.1)" : msg.type === "success" ? "rgba(22, 163, 74, 0.1)" : "var(--lc-card)",
-              color: msg.type === "error" ? "#b91c1c" : msg.type === "success" ? "#16a34a" : "var(--lc-text)",
-              border: `1px solid ${msg.type === "error" ? "#b91c1c" : msg.type === "success" ? "#16a34a" : "var(--lc-border)"}`,
-            }}
-          >
-            {msg.text}
-          </p>
-        )}
-
-        <div style={{ marginTop: 24, fontSize: 13, color: "var(--lc-muted)" }}>
-          <p style={{ margin: "0 0 8px" }}>To run from terminal (from project root):</p>
-          <code style={{ display: "block", padding: 8, background: "var(--lc-card)", borderRadius: 6, border: "1px solid var(--lc-border)" }}>
-            npm run deploy:test
-          </code>
-          <code style={{ display: "block", marginTop: 6, padding: 8, background: "var(--lc-card)", borderRadius: 6, border: "1px solid var(--lc-border)" }}>
-            npm run deploy:live
-          </code>
-          <p style={{ margin: "12px 0 0", fontSize: 12 }}>
+        <Section title="Run from the terminal">
+          <div className="ops-cmd-list">
+            <p className="ops-deploy-note">To run from terminal (from project root):</p>
+            <code className="ops-cmd">npm run deploy:test</code>
+            <code className="ops-cmd">npm run deploy:live</code>
+          </div>
+          <p className="ops-deploy-note">
             Or run the scripts directly: <code>./scripts/deploy-to-test.sh</code> and <code>./scripts/deploy-live.sh</code>. For one-click deploys, add Vercel Deploy Hook URLs to your <code>.env</code> as <code>VITE_DEPLOY_HOOK_PREVIEW</code> and <code>VITE_DEPLOY_HOOK_PRODUCTION</code>.
           </p>
-        </div>
-      </div>
+        </Section>
+      </SettingsLayout>
     </AdminLayout>
   );
 }

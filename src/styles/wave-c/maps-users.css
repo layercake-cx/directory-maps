@@ -1,0 +1,14 @@
+/* Phase 6, Wave C (platform admin): maps, listings, users and leads pages.
+   Scoped under .shell, tokens only. Classes are prefixed mu-. Wave B's mp- classes
+   (src/styles/wave-b/map-pages.css) are reused where they fit. */
+
+.shell .mu-id { display: block; font-size: var(--fs-label); color: var(--shell-text-muted); overflow-wrap: anywhere; }
+.shell .mu-code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-label); }
+.shell .mu-nowrap { white-space: nowrap; }
+.shell .mu-meta { margin: 0; max-width: 420px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-label); color: var(--shell-text); }
+.shell .mu-logo-preview { display: block; max-width: 240px; max-height: 120px; border: 1px solid var(--shell-line); border-radius: var(--radius-control, 10px); }
+.shell .mu-mono-input { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.shell .mu-detail-list { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; }
+.shell .mu-detail-list dt { font-weight: 700; color: var(--shell-ink); }
+.shell .mu-detail-list dd { margin: 0; overflow-wrap: anywhere; }
+.shell .mu-status-select { min-width: 160px; }

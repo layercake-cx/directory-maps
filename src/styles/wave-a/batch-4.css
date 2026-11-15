@@ -1,0 +1,147 @@
+/* Wave A batch 4: Look & feel, Entry pages, Integrations, AI notes, engagement search.
+   Scoped under .shell, tokens only. The few unscoped rules are for components shared with
+   the claim pages (which render outside .shell in a client's brand) and are called out. */
+
+/* ---- Generic helpers ---- */
+.shell .b4-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shell .b4-row--between { justify-content: space-between; }
+.shell .b4-row--end { justify-content: flex-end; }
+.shell .b4-row--nowrap { flex-wrap: nowrap; }
+.shell .b4-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.shell .b4-stack--tight { gap: 8px; }
+.shell p.b4-text, .shell p.field-hint, .shell p.b4-note { margin: 0; }
+.shell .b4-note { font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .b4-subhead { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--shell-ink); }
+.shell .b4-input-xs { width: 80px; }
+.shell .b4-input-sm { width: 100px; }
+.shell .b4-input-md { width: 130px; }
+.shell .b4-grow { flex: 1; min-width: 140px; }
+.shell .b4-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .b4-panel:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .b4-link-btn { display: inline; }
+
+/* ---- Range field (slider plus number) ---- */
+.shell .b4-range-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shell .b4-range-row input[type="range"] { flex: 1; min-width: 140px; accent-color: var(--shell-accent); }
+
+/* ---- Tab groups (Look & feel) ---- */
+.shell .b4-tabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 28px; border-bottom: 1px solid var(--shell-line); }
+.shell .b4-tabgroup { display: flex; flex-direction: column; gap: 2px; }
+.shell .b4-tabgroup-label { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--shell-text-muted); }
+.shell .b4-tabgroup-row { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.shell .b4-tabs .tab:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+/* ---- Theme cards ---- */
+.shell .b4-themegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.shell .b4-themecard { border: 1px solid var(--shell-line); border-radius: var(--radius-card); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.shell .b4-themename { font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell .b4-swatchbar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; border: 1px solid var(--shell-line); }
+.shell .b4-swatchbar > span { flex: 1; }
+
+/* ---- Images and uploads ---- */
+.shell .b4-logo-preview { height: 44px; max-width: 140px; object-fit: contain; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: 6px; }
+.shell .b4-logo-placeholder { height: 44px; width: 44px; border-radius: 6px; }
+.shell .b4-favicon-preview { height: 32px; width: 32px; object-fit: contain; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: 6px; }
+.shell .b4-favicon-placeholder { height: 32px; width: 32px; border-radius: 6px; background: var(--shell-chip-neutral); }
+.shell .b4-banner-preview { height: 56px; width: 112px; object-fit: cover; border-radius: 6px; border: 1px solid var(--shell-line); }
+.shell .b4-drop { border: 2px dashed var(--shell-text-muted); border-radius: var(--radius-card); padding: 28px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* ---- Colours ---- */
+.shell .b4-colour-list { display: flex; flex-direction: column; gap: 14px; }
+.shell .b4-details > summary { cursor: pointer; font-size: var(--fs-small); font-weight: 600; min-height: 36px; display: flex; align-items: center; color: var(--shell-ink); }
+.shell .b4-details > summary:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .b4-details-body { margin-top: 8px; }
+
+/* ---- Typography ---- */
+.shell .b4-font-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.shell .b4-font-sample { font-size: 18px; }
+.shell .b4-scroll-x { overflow-x: auto; }
+.shell .b4-sizes { border-collapse: collapse; width: 100%; }
+.shell .b4-sizes th { text-align: left; font-weight: 600; font-size: var(--fs-small); padding: 8px 8px 8px 0; white-space: nowrap; color: var(--shell-ink); }
+.shell .b4-sizes td { padding: 8px; }
+.shell .b4-sizes .b4-sample-cell { overflow: hidden; }
+.shell .b4-sample { white-space: nowrap; }
+
+/* ---- Gradient field ---- */
+.shell .b4-gradient { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shell .b4-gradient legend { padding: 0; margin-bottom: 6px; }
+.shell .b4-gradient-bar { height: 24px; border-radius: 6px; border: 1px solid var(--shell-line); }
+.shell .b4-stops { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.shell .b4-stoprow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.shell .b4-stoprow .swatch { width: 36px; height: 36px; }
+
+/* ---- Entry pages section list ---- */
+.shell .b4-blocks { border: 1px solid var(--shell-line); border-radius: var(--radius-card); overflow: hidden; background: var(--shell-surface); }
+.shell .b4-blockhead, .shell .b4-block { display: flex; align-items: center; gap: 12px; padding: 8px 16px; }
+.shell .b4-blockhead { background: var(--shell-ground); border-bottom: 1px solid var(--shell-line); font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--shell-text-muted); }
+.shell .b4-block { border-bottom: 1px solid var(--shell-line-soft); }
+.shell .b4-block[data-dragging="true"] { opacity: 0.4; }
+.shell .b4-block[data-hidden="true"] .b4-block-name, .shell .b4-block[data-hidden="true"] .b4-block-heading { opacity: 0.55; }
+.shell .b4-col-grip { width: 28px; }
+.shell .b4-col-name, .shell .b4-block-name { width: 160px; }
+.shell .b4-col-heading { flex: 1; }
+.shell .b4-col-show, .shell .b4-block-show { width: 56px; }
+.shell .b4-col-show { text-align: center; }
+.shell .b4-col-actions { width: 120px; }
+.shell .b4-block-name { font-size: var(--fs-ui); font-weight: 600; color: var(--shell-ink); }
+.shell .b4-block-heading { flex: 1; min-width: 0; }
+.shell .b4-block-show { display: flex; justify-content: center; }
+.shell .b4-block-show input { width: 20px; height: 20px; accent-color: var(--shell-accent); }
+.shell .b4-grip { width: 28px; height: 36px; border: 0; background: transparent; color: var(--shell-text-muted); cursor: grab; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+.shell .b4-grip svg { transform: rotate(90deg); }
+.shell .b4-grip:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .b4-moves { display: flex; gap: 2px; }
+.shell .b4-blocks-foot { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.shell .b4-preview-scroll { max-height: 520px; overflow-y: auto; }
+.shell .b4-select-wide { min-width: 240px; }
+@media (max-width: 640px) {
+  .shell .b4-block-name { width: 100px; }
+  .shell .b4-block-heading { flex-basis: 100%; order: 5; }
+}
+
+/* ---- Integrations ---- */
+.shell .b4-provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.shell .b4-provider-active { border-color: var(--shell-ok-border); }
+.shell .b4-feature { border-top: 1px solid var(--shell-line); padding-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.shell .b4-indent { margin-left: 28px; }
+.shell .b4-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.shell .b4-actions--end { margin-top: auto; padding-top: 4px; }
+.shell .b4-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.shell .b4-filters .field { min-width: 180px; }
+.shell .b4-usage-notes { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---- AI run summary and report ---- */
+.shell .b4-ai-summary { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; padding: 10px 12px; border-radius: var(--radius-item); background: var(--shell-ground); font-size: var(--fs-small); color: var(--shell-text); }
+.shell .b4-ai-summary-fine { font-size: var(--fs-label); color: var(--shell-text-muted); }
+.shell .b4-ai-report { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; font-size: var(--fs-small); }
+.shell .b4-ai-report p { margin: 0; }
+.shell .b4-ai-report-muted { color: var(--shell-text-muted); }
+.shell .b4-ai-report-error { color: var(--shell-danger-text); }
+.shell .b4-ai-notice { margin: 6px 0; }
+
+/* ---- AI provenance note (shell look). Claim pages keep ai.css untouched. ---- */
+.shell .ai-note { background: var(--spark-tint); color: var(--shell-text); border-radius: var(--radius-card); font-size: var(--fs-ui); }
+.shell .ai-note svg { color: var(--spark-ink); }
+.shell .ai-note__link { color: var(--shell-accent); }
+.shell .ai-note__link:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+/* Shared with claim pages: only resets the paragraph margin, no colours. */
+.ai-note__text { margin: 0; }
+
+/* ---- Drafting prompt dialog (shell look) ---- */
+.shell .b4-prompt-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .b4-prompt-facts { display: flex; flex-wrap: wrap; gap: 18px; margin: 0 0 16px; font-size: var(--fs-small); color: var(--shell-text-soft); }
+.shell .b4-prompt-box { border: 1px solid var(--shell-line); border-radius: var(--radius-card); background: var(--shell-ground); overflow: hidden; }
+.shell .b4-prompt-bar { display: flex; justify-content: space-between; align-items: center; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--shell-line); font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--tracking-label); color: var(--shell-text-muted); }
+.shell .b4-prompt-body { margin: 0; padding: 14px; max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono); font-size: var(--fs-small); line-height: 1.75; color: var(--shell-text); }
+.shell .b4-prompt-body:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+.shell .b4-prompt-body .prompt-var { font-weight: 500; padding: 1px 5px; border-radius: 5px; background: var(--shell-accent-tint); color: var(--shell-accent-tint-text); }
+.shell .b4-prompt-foot-note { margin: 0; flex: 1; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* ---- Listing search dropdown ---- */
+.shell .b4-lsd { position: relative; min-width: 260px; max-width: 360px; }
+.shell .b4-lsd-list { position: absolute; z-index: var(--z-menu); top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px 0; list-style: none; background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-item); box-shadow: var(--shadow-pop); max-height: 240px; overflow-y: auto; }
+.shell .b4-lsd-option { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; background: transparent; font-family: inherit; font-size: var(--fs-ui); color: var(--shell-ink); cursor: pointer; }
+.shell .b4-lsd-option:hover, .shell .b4-lsd-option:focus-visible { background: var(--shell-ground); }
+.shell .b4-lsd-option:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+.shell .b4-lsd-empty { position: absolute; z-index: var(--z-menu); top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 10px 12px; font-size: var(--fs-small); color: var(--shell-text-muted); background: var(--shell-surface); border: 1px solid var(--shell-line); border-radius: var(--radius-item); }

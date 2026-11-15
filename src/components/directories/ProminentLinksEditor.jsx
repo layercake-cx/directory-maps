@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { createProminentLink, deleteProminentLink, listProminentLinks } from "../../lib/prominentLinks";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
+import { createProminentLink, deleteProminentLink, listProminentLinks, reorderProminentLinks } from "../../lib/prominentLinks";
+import { Button, Callout, Checkbox, EmptyState, Field, Select, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = { label: "", url: "", icon: "", style: "secondary", open_in_new: true, tracking: false };
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
 
 /**
  * Prominent link tiles (build-scope §5.8) — pass exactly one of
@@ -55,6 +57,12 @@ export default function ProminentLinksEditor({ directoryId, entryId, recordEvent
     }
   }
 
+  async function handleReorder(next) {
+    await reorderProminentLinks(next.map((l) => l.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
+    setLinks(next);
+  }
+
   async function remove(link) {
     try {
       await deleteProminentLink(link.id);
@@ -66,60 +74,68 @@ export default function ProminentLinksEditor({ directoryId, entryId, recordEvent
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{title}</p>
-        <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 10px" }} onClick={() => setAddOpen((v) => !v)}>
-          {addOpen ? "Cancel" : "+ Add link"}
-        </button>
+    <div className="b3-stack">
+      <div className="b3-row b3-row--between">
+        <h3 className="b3-subhead">{title}</h3>
+        <Button size="sm" onClick={() => setAddOpen((v) => !v)}>
+          {addOpen ? "Cancel" : "Add link"}
+        </Button>
       </div>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
       {addOpen && (
-        <form onSubmit={save} style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-          <input value={form.label} onChange={(e) => fSet("label", e.target.value)} placeholder="Label" style={inputStyle} required />
-          <input value={form.url} onChange={(e) => fSet("url", e.target.value)} placeholder="https://…" type="url" style={inputStyle} required />
-          <div style={{ display: "flex", gap: 8 }}>
-            <select value={form.style} onChange={(e) => fSet("style", e.target.value)} style={inputStyle}>
+        <form onSubmit={save} className="b3-form">
+          <Field label="Label" required>
+            <TextInput value={form.label} onChange={(e) => fSet("label", e.target.value)} />
+          </Field>
+          <Field label="URL" required>
+            <TextInput type="url" placeholder="https://…" value={form.url} onChange={(e) => fSet("url", e.target.value)} />
+          </Field>
+          <Field label="Style">
+            <Select value={form.style} onChange={(e) => fSet("style", e.target.value)}>
               <option value="primary">Primary style</option>
               <option value="secondary">Secondary style</option>
-            </select>
-          </div>
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
-            <input type="checkbox" checked={form.open_in_new} onChange={(e) => fSet("open_in_new", e.target.checked)} />
-            Open in a new tab
-          </label>
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
-            <input type="checkbox" checked={form.tracking} onChange={(e) => fSet("tracking", e.target.checked)} />
-            Sponsored / affiliate (adds rel="sponsored nofollow" when rendered)
-          </label>
-          <div>
-            <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-              {saving ? "Saving…" : "Add link"}
-            </button>
+            </Select>
+          </Field>
+          <Checkbox label="Open in a new tab" checked={form.open_in_new} onChange={(e) => fSet("open_in_new", e.target.checked)} />
+          <Checkbox
+            label="Sponsored or affiliate"
+            hint={'Adds rel="sponsored nofollow" when rendered.'}
+            checked={form.tracking}
+            onChange={(e) => fSet("tracking", e.target.checked)}
+          />
+          <div className="b3-form-actions">
+            <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">Add link</Button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="list" rows={2} label="Loading links" />
       ) : links.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No links yet.</p>
+        <EmptyState art="none" title="No links yet" body="Add a link to show it as a prominent tile." />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
-          {links.map((link) => (
-            <div key={link.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", border: "1px solid var(--lc-border)", borderRadius: 7 }}>
-              <div style={{ fontSize: 12 }}>
-                <div style={{ fontWeight: 500 }}>{link.label} <span style={{ opacity: 0.6, fontWeight: 400 }}>({link.style})</span></div>
-                <div style={{ opacity: 0.7 }}>{link.url}</div>
-              </div>
-              <button type="button" className="btn" style={{ fontSize: 12, padding: "3px 8px", color: "#b91c1c", flexShrink: 0 }} onClick={() => remove(link)}>
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
+        <SortableList
+          items={links}
+          getId={(l) => l.id}
+          getLabel={(l) => l.label}
+          ariaLabel={`${title}, in display order`}
+          variant="compact"
+          onReorder={handleReorder}
+          renderItem={(link, { row }) => (
+            <SortableRow
+              row={row}
+              title={<>{link.label} <span className="b3-muted">({link.style})</span></>}
+              meta={link.url}
+              actions={(
+                <Button variant="danger" size="sm" aria-label={`Delete link: ${link.label}`} onClick={() => remove(link)}>
+                  Delete
+                </Button>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { FeatureFlagsProvider } from "./context/FeatureFlagsProvider.jsx";
 import { EntitlementsProvider } from "./context/EntitlementsProvider.jsx";
 import { isEmbedPath } from "./lib/embedRoutes.js";
+import { isDirectoryCustomHost } from "./lib/directoryHost.js";
 
 function Layout() {
   const location = useLocation();
@@ -19,8 +20,10 @@ function Layout() {
   // /client and /admin both render their own AppShell (logo, workspace switcher, account
   // menu) since the admin shell redesign — the marketing SiteHeader would otherwise stack
   // on top of it, duplicating branding and the account menu.
-  const showSiteHeader = !isAdmin && !isClient && !isSignUpSplit && !isEmbed;
-  const showFooter = !isEmbed && !isSignUpSplit;
+  // Claim pages on a directory domain use that site's header, not Maps by Layercake.
+  const directoryClaim = location.pathname.startsWith("/claim") && isDirectoryCustomHost();
+  const showSiteHeader = !isAdmin && !isClient && !isSignUpSplit && !isEmbed && !directoryClaim;
+  const showFooter = !isEmbed && !isSignUpSplit && !directoryClaim;
 
   useEffect(() => {
     if (!isEmbed) {
@@ -85,12 +88,15 @@ function useAuthErrorRedirect() {
       }
     }
 
-    // 2. Recovery via hash fragment (#access_token=...&type=recovery)
-    if (!alreadyOnReset) {
+    // 2. Recovery via hash fragment (#access_token=...&type=recovery).
+    // Claim sign-in uses the same hash shape with type=magiclink and must stay
+    // on /claim/login so the session can be stored there.
+    if (!alreadyOnReset && !window.location.pathname.startsWith("/claim/")) {
       const rawHash = window.location.hash.replace(/^#/, "");
       if (rawHash) {
         const hashParams = new URLSearchParams(rawHash);
-        if (hashParams.get("access_token") || hashParams.get("type") === "recovery") {
+        const type = hashParams.get("type");
+        if (type === "recovery" || (hashParams.get("access_token") && type !== "magiclink")) {
           window.history.replaceState(
             null,
             "",

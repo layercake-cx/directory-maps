@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { invokeEdgeFunction } from "./edgeFunctionFetch.js";
 
 /**
  * Claimed Directory Listings epic — Phase 3 (manual, admin-first claim
@@ -28,7 +29,8 @@ export async function listClaimsForDirectory(directoryId) {
       verification_method, created_by, started_at, verified_at, activated_at, suspended_at, revoked_at, revoked_reason,
       directory_entries!directory_item_id ( name ),
       claim_users ( id, name, email, role, user_id, removed_at ),
-      claim_payments ( payment_status, payment_type, payment_provider, amount_cents, currency )
+      claim_payments ( payment_status, payment_type, payment_provider, amount_cents, currency ),
+      claim_requests ( requester_name, requester_email, message, created_at )
     `)
     .eq("directory_id", directoryId)
     .order("started_at", { ascending: false });
@@ -39,6 +41,8 @@ export async function listClaimsForDirectory(directoryId) {
     users: (row.claim_users ?? []).filter((u) => !u.removed_at),
     owner: (row.claim_users ?? []).find((u) => u.role === "owner" && !u.removed_at) ?? null,
     payment: row.claim_payments ?? null,
+    // Set when this claim came from a manual-mode request on the published site.
+    request: (row.claim_requests ?? [])[0] ?? null,
   }));
 }
 
@@ -52,6 +56,12 @@ export async function createManualClaim({ directoryItemId, ownerName, ownerEmail
   });
   if (error) throw error;
   return data; // claim id
+}
+
+/** Approves a manual claim request: claim_started -> verified (admin override) and the requester becomes owner. */
+export async function approveManualClaim(claimId, note) {
+  const { error } = await supabase.rpc("admin_approve_manual_claim", { p_claim_id: claimId, p_note: note || null });
+  if (error) throw error;
 }
 
 export async function activateClaim(claimId) {
@@ -85,13 +95,23 @@ export async function setClaimPaymentStatus(claimId, { paymentStatus, paymentTyp
   if (error) throw error;
 }
 
-/** Sends (or resends) a passwordless magic-link sign-in email to a claim user. */
-export async function sendClaimUserMagicLink(email) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: `${window.location.origin}/claim/login` },
-  });
-  if (error) throw error;
+/**
+ * Sends (or resends) a passwordless sign-in link to a claim user as a branded email from the
+ * directory (see the send_claim_link Edge Function). Without a claimId it is the public
+ * "send me a sign-in link" request from the login page; with a claimId it is an invitation
+ * sent by someone signed in who can see that claim (admin, directory owner, or claim user).
+ */
+export async function sendClaimUserMagicLink(email, { claimId } = {}) {
+  await invokeEdgeFunction(
+    "send_claim_link",
+    {
+      email,
+      kind: claimId ? "invite" : "sign_in",
+      claimId: claimId || undefined,
+      redirectTo: `${window.location.origin}/claim/login`,
+    },
+    { supabase, requireAuth: !!claimId },
+  );
 }
 
 /** Call once after a claim user's first magic-link login. Returns rows linked (0 is normal on later logins). */

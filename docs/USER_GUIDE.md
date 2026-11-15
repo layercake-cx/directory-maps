@@ -4,6 +4,8 @@ This guide explains how to use **Directory Maps** as a client: signing up, creat
 
 For a full product feature list (admin, analytics, integrations), see [FEATURES.md](./FEATURES.md).
 
+> **Renamed (2026-11-14):** the admin you sign in to is now **Discover by Layercake** (it was Layercake Maps). The top bar has a new logo and no longer has a search box or a help icon. Published directory sites, sign-up and login pages, and emails still say Layercake Maps for now.
+
 ---
 
 ## Overview
@@ -53,7 +55,7 @@ Forgot your password? Use **Forgot password** on the login page.
 
 ## Client portal navigation
 
-After sign-in you'll see a top bar (logo, search, support, your account menu) and a dark icon
+After sign-in you'll see a top bar (the Discover by Layercake logo, the workspace switcher, background tasks, Ask Pip and your account menu) and a dark icon
 rail down the left for the sections you can access:
 
 | Section | Path | Who can access |
@@ -106,9 +108,9 @@ Your plan may cap how many maps you can create — the **New map** page shows "X
 
 The **Directories** list has filtered views (All / Published / Not yet published / Archived) and shows each directory's entry count, publish status, a card image (from its SEO/social image if set), and any map it's linked to as a data source. A plan box shows your current plan and any features that need a higher plan.
 
-A directory has its own side panel. Under the directory name, a **publish status** box shows whether the live site is up to date — green **Published**, amber **Unpublished changes** (something has been edited since the last publish), red **Publishing failed**, or grey **Not published** — and clicking it opens Settings › Publishing. Below it, **View live site** opens the public directory in a new tab — on your custom domain when one is active (see Domain), otherwise the standard Maps address. **Overview** sits at the top; the other groups are collapsible sections — click a heading (or its arrow) to open it. One section is open at a time, and the one containing the page you're on opens automatically. The groups are **Overview**, **Content** (Entries, Pages, Categories, Accreditations, AI enrichment), **Experience** (Design, Search & Discovery), **Engagement** (Claims, Insights), **Emails** (Email settings, Email log), and **Settings** (General, SEO, Publishing, Domain, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, AI enrichment, Design, Claims, Domain, and the Emails group are owner/manager-only. "AI content generation" has its own **Content › AI enrichment** page, separate from Entries; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
+A directory has its own side panel. Under the directory name, a **publish status** box shows whether the live site is up to date — green **Published**, amber **Unpublished changes** (something has been edited since the last publish, including reordering categories, pages, entry page sections, or an entry's links, tiles, media, team, evidence and accreditation schemes, and attaching or detaching a category; the box updates as soon as you drop the new order), red **Publishing failed**, or grey **Not published** — and clicking it opens Settings › Publishing. Below it, **View live site** opens the public directory in a new tab — on your custom domain when one is active (see Domain), otherwise the standard Maps address. **Overview** sits at the top; the other groups are collapsible sections — click a heading (or its arrow) to open it. One section is open at a time, and the one containing the page you're on opens automatically. The groups are **Overview**, **Content** (Entries, Pages, Categories, Accreditations, AI enrichment), **Experience** (Look & feel, Entry pages, Search & Discovery), **Engagement** (Claims, Insights), **Emails** (Email settings, Email log), and **Settings** (General, SEO, Publishing, Domain, Integrations). Members without manage permission only see Entries, Categories, Search & Discovery's location-search toggle, Integrations, Publishing, and Settings › General/SEO (those last few read-only for them) — Pages, Accreditations, AI enrichment, Look & feel, Entry pages, Claims, Domain, and the Emails group are owner/manager-only. "AI content generation" has its own **Content › AI enrichment** page, separate from Entries; "Help me choose" and SEO metadata backfill live alongside Search & Discovery and SEO respectively. Prominent Links isn't in this panel yet — it's still reachable from Settings › General while its new treatment is decided.
 
-**Overview** is the directory's own dashboard, headed **Overview**. A row of compact tiles shows the **number of entries**, entries changed since the last publish, and counts of entries missing SEO metadata, page content, a logo, or coordinates, plus enquiries in the last 30 days. Each tile is **green** when there's nothing to do and **amber** when something needs attention, and amber tiles are clickable: *Changed since publish* opens Settings › Publishing, *Missing SEO metadata* opens Settings › SEO (where the metadata backfill lives), and the content/logo/coordinates tiles open the one affected entry directly when only one is affected, or the Entries list pre-filtered by the matching **Gaps** filter when several are. Below the tiles, short cards show when the directory was last published and at what version, claims by status, whether location search and "Help me choose" are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
+**Overview** is the directory's own dashboard, headed **Overview**. A row of compact tiles shows the **number of entries**, entries changed since the last publish, and counts of entries missing SEO metadata, page content, a logo, or coordinates, plus enquiries in the last 30 days. Each tile is **green** when there's nothing to do and **amber** when something needs attention, and amber tiles are clickable: *Changed since publish* opens Settings › Publishing, *Missing SEO metadata* opens Settings › SEO (where the metadata backfill lives), and the content/logo/coordinates tiles open the one affected entry directly when only one is affected, or the Entries list pre-filtered by the matching **Gaps** filter when several are. Below the tiles, short cards show when the directory was last published and at what version, claims by status, whether location search and Ask AI ("Help me choose" in the admin) are on, and (once published) direct links to the live site, `sitemap.xml`, `robots.txt`, and `llms.txt`.
 
 **Engagement › Insights** (previously Insights › Analytics) shows real visitor activity on your published directory: views over time (with a date range picker), a breakdown of activity by type, a visitor journey funnel (directory view → entry view → enquiry opened → enquiry sent), top search terms, and your most-viewed entries.
 
@@ -169,6 +171,61 @@ On a directory's **Emails → Email settings** page (owners and managers only):
 
 Sent messages are listed on the separate **Emails → Email log** page (the latest 20).
 
+#### System emails (branded, editable)
+
+Below the messaging settings, **System emails** controls the emails the platform sends on the directory's behalf: **Claim sign-in link**, **Claim invitation** and **Claim request notification**. Every one uses the directory's own look from the **Look & feel** (Branding) tab — logo, heading and body fonts, header background and text colour, and the primary colour for the button — so a claimant sees your directory, not Layercake or a generic message.
+
+Pick an email, then edit its **Subject**, **Heading**, **Message** and **Button label**. Placeholders such as `{{directory_name}}`, `{{listing_name}}`, `{{requester_name}}`, `{{requester_email}}` and `{{message}}` are filled in when it is sent (each email lists the ones it supports). A blank line starts a new paragraph. The sign-in button and link are added automatically. The preview on the right updates as you type, using sample values. **Send test to me** emails a copy to your own address, **Save** keeps your wording, and **Reset to default** goes back to the built-in text. Changes apply to the next email sent; there is no need to Publish.
+
+These emails are sent from the directory's chosen sending profile (a verified custom domain sends from your own address); with no profile chosen they go from the platform address under the directory's name. Unlike the Contact button, they are not stopped by the messaging on/off switch or test mode, because a sign-in link has to reach its recipient.
+
+### Ask Pip (preview)
+
+**Ask Pip** is a preview of an in-app assistant. For now it only shows how answers will look: replies are canned examples, nothing is sent to an AI, and nothing is ever changed or published. It is available to everyone who signs in to the app, in the client portal and the staff admin.
+
+- Open it from the **Ask Pip** button in the top bar, with **Cmd+J** (Mac) or **Ctrl+J**, or from an **Ask Pip about this** link on a page. A link pre-fills the question without sending it.
+- Pip shows which page it is helping with, suggests three questions for that page, and answers with links to the right pages. **Apply** on a suggestion only shows a "Preview" message; a drafting action shows a clearly fake progress card. **Show me where** takes you to the page and closes the drawer.
+- Anything that doesn't match a suggested question gets a short "still being built" reply. Layercake staff can also type `/error` or `/unavailable` to see those states.
+- Your conversation is kept for the browser session, per organisation. **New conversation** clears it. Opening Pip and picking a suggested question are logged as admin events (the question you type is never recorded).
+
+### What changed on directory pages (new look)
+
+Every directory page now follows one layout: a page title, then stacked cards, with Save buttons at the bottom of the card they belong to. Things that moved:
+
+- **Entries:** **Add entry** is the main button. **Export CSV**, **Download CSV template**, **Import CSV** and **Geocode missing coords** are under the **More entry actions** menu. Search and filters are labelled. Row actions (Edit, Delete) are in each row's **Actions** menu.
+- **Entry editor:** a breadcrumb back to Entries, an Active/Hidden label by the name, and the same tabs as before.
+- **Claims:** the claims list is a table; selecting a claim shows its details in a card below. Revoke, Approve and Transfer ownership now ask in a dialog instead of a browser prompt.
+- **Deleting a directory or category** still asks you to type DELETE; the dialog now looks like the rest of the app.
+- Pages that had no heading (General, SEO, Search & Discovery, AI enrichment, Insights) now have one.
+
+### What changed on client pages (new look)
+
+Home, Team, Domains, Integrations, Email, the maps list, map Data, map Listings, map stats and the map design page now share the same layout as the directory pages: a page title, then cards. Things that moved:
+
+- **Map Data** shows its progress (Sheets sync, CSV import) first, above the tabs. Manual entries and the listings table are tables with an **Actions** menu per row; **Bulk edit filters** appears when rows are selected.
+- **Map settings** (design page): the tab strip is light with the active tab underlined; **Publish map** shows "Unpublished changes" on its tab when there are edits.
+- **Maps list:** the placeholder search box, Filter and Sort controls that didn't do anything are gone; map names are real links.
+- **Team:** Remove and Cancel invitation ask in a dialog.
+- **Email:** the sending-profile editor has separate cards for the profile, **Domain & DNS** (with Verified/Pending labels) and **Delete profile**; deleting asks first.
+
+### What changed on staff admin pages (new look)
+
+The Layercake staff pages (Customers, customer detail, Directories, Maps, Listings, Users, Leads, Error log, User activity, Sync log, Deployments) use the same layout as the rest of the app: a page title, then cards and tables with an **Actions** menu per row.
+
+- **Customers and Directories:** the name is the link; the old separate Open/Settings column is gone. Deleting a customer is in the row's **Actions** menu (disabled with a reason while the customer still has maps).
+- **Customer details:** separate cards for Customer, Billing, Feature access (beta) and Primary contact. The three beta switches still save as soon as you flip them; **Save changes** saves the rest.
+- **Map design and Map data (staff):** the same pieces as the client portal. On the map design page, **Publish map** is now a full-page view with embed size options, a thumbnail embed code and the version history.
+- **Logs:** filters are labelled, statuses are labelled pills, and expanding a row shows its details.
+
+### Progress and background tasks
+
+Long-running work now shows a **progress card** at the top of the page that owns it, and a **task indicator** in the top bar ("1 running", then a green "Done" for a few seconds, or a red "1 failed" until you open it). Click the indicator to see every running task and jump to its page.
+
+- **Work that runs on our servers** (publishing, Restore, regenerating pages, AI content drafting, SEO metadata backfill) keeps going if you leave the page. The card says so, shows elapsed time, and shows a percentage and "about N min left" only when there is real progress to base it on. If you reload mid-run, the card comes back. When a task finishes while you are on another page, you get a short message, and the directory's publish chip in the side panel shows the same running state.
+- **Work that runs in your browser** (CSV import, Google Sheets sync) needs the tab open. A banner says **Keep this tab open**, and leaving the page asks you to confirm first.
+- While a publish is running, **Publish** and **Restore** are paused with a short reason beside them. Editing other things stays available.
+- If something fails, the card turns red, says what is still live, and offers **Try again**. It stays until you dismiss it.
+
 ### Publishing a directory
 
 > **Beta within a beta.** Publishing makes your directory's pages generate as a real, crawlable public website. It currently only reaches customers who also have this specific piece enabled.
@@ -178,16 +235,16 @@ On a directory's **Publish** tab (visible to everyone with access; only owners a
 Publish rewrites only the pages affected by what changed since the last successful generation:
 
 - **Colours, fonts, the logo image, logo height, and the hero banner** update one shared stylesheet. The pages themselves stay as they are.
-- **Search, filters, Help me choose, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
+- **Search, filters, Ask AI, the map, and directory SEO** rewrite the homepage and the site indexes (`sitemap.xml` and `llms.txt`).
 - **An edited entry or content page** rewrites that page, the homepage, and the indexes. Related-entry cards on other entry pages stay as they were until a full rebuild.
 
-The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the Contact button, or analytics tags — those are copied into each page. **Restore** on an earlier version publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
+The first publish, and **Restore**, rewrite every public page. So does a change to the site title wording, the favicon, the navigation, the Contact button, or analytics tags — those are copied into each page. **Restore** on an earlier version asks you to confirm, then publishes a new version with that version's settings and rebuilds the public pages. It never deletes anything.
 
 Each publish also regenerates `sitemap.xml` and `llms.txt`. Every sitemap URL includes a last-modified date: the directory homepage uses when the directory itself was last saved; each entry and content page uses when that entry or page was last saved. Search engines use this to decide what to recrawl.
 
 `llms.txt` is a short Markdown overview for AI tools (`/llms.txt` on a custom domain, or `/directories/{your-organisation}/{your-directory}/llms.txt` on the Layercake site). It names the directory, repeats the SEO description (or the directory description), says how listings are categorised, explains that each listing lives at its own address, and links the homepage, the pages in your navigation, and the sitemap. Pages you have published but hidden from navigation are listed under Optional. Listings marked noindex, and anything not yet published, are left out. There is nothing to edit by hand: change the directory title, SEO description, categories, or pages, then **Publish** again. On a custom domain, the links inside the file use that domain.
 
-The published homepage has a fast keyword search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed) and, when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categories (see **Categories** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get a **Help me choose** button — see **Help me choose** below. The search box itself never calls Claude.
+The published homepage has a fast search across each listing's public content (name, acronym/slug, description, body, keywords, website, location, tags — no account or API key needed). Results are ranked by relevance, not just by whether a word appears: a visitor's search needs every distinctive word, a word that appears in almost every listing (such as "association" in a directory of associations) counts for very little and only when it is in a listing's name, keywords, tags, description or location rather than its body text, and a match in a listing's name ranks above one deep in its body. Filler words such as "find", "for" and "of" are ignored. Directories already published need a **Publish** to pick this up. Alongside that, when entries have coordinates set, there is when entries have coordinates set, a pins-only map whose markers follow the same result set, plus a working filter rail built from the directory's attached categories (see **Categories** below). If the directory's **AI** tab has Help me choose instructions set, visitors also get **Ask AI** — see **Ask AI (formerly Help me choose)** below. The search box itself never calls Claude.
 
 **Location search** is optional. On the directory **Settings** tab, turn on **Location search** and **Publish** again. Visitors then get a **Distance from** filter (a town, city, or postcode, plus 5, 10, 25, or 50 miles, and **Use my location**). A search such as “ultimate frisbee near Stroud” fills that filter and keeps “ultimate frisbee” as the keywords, so a club in a nearby town can appear even when its listing does not contain the word Stroud. Listings need coordinates. With location search off, the homepage stays keyword search only.
 
@@ -197,37 +254,35 @@ The header, mobile menu, and footer on every published page are generated from t
 
 If generation fails with a temporary file-host error (for example "Blob service is currently unavailable"), the directory is already published — only the public HTML failed to rewrite. Click **Retry** on the Publish tab; you do not need to publish a new version.
 
-### Branding
+### Look & feel
 
-On a directory's **Branding** tab (owners and managers only), the panel sets the colours and fonts applied to the directory's published pages — the header, homepage, and every entry page now share one consistent, full-width design. A **live preview** above the colour sections updates instantly as you make changes, before you save.
+Under **Experience › Look & feel** (owners and managers only; the old **Design** link redirects here) you set how the published directory looks. The page has eight tabs in two groups, each deep-linkable (for example `…/look-and-feel?tab=footer`): **Whole site** — Theme, Logo & identity, Colours, Ask AI, Typography — and **Page areas** — Header, Hero banner, Footer. A **live preview** beside the editor shows your unsaved edits and outlines the part of the page the current tab changes. All tabs share one set of edits, so switching tabs never loses anything.
 
-- **Theme preset**: pick a starting point — **Natural** (earthy sage & terracotta, the default), **Midnight** (dark, premium), **Coastal** (airy blues & teal), **Heritage** (warm burgundy & gold, serif-forward), or **Slate** (minimal neutral grey). Choosing a preset fills in every colour and font field below it, including the header/footer fields described next.
-- **Header**, **Hero banner**, **Body**, and **Footer** are each their own section, so the three regions of the page can be coloured independently, and a photographic banner can sit behind the top of the page:
-  - **Header** — background (solid colour or a gradient, with adjustable angle and colour stops), text colour, **header shows** (Logo only / Logo + text / Text only), a **logo upload** (PNG/JPG/WebP, up to 2 MB — replaces or removes the current logo), a **logo height** control (24–240px, slider or number; width scales automatically from that height; the published header keeps 15px of space above and below the logo), a **favicon upload** (square PNG/JPG/WebP, up to 2 MB — shown in the browser tab on the published site), and a **site title** with an On/Off toggle next to it. Off leaves the title out of the published header (logo only, if you have one). On, leave the field blank to use the directory name. Saving branding then **Publish** (or republish) is what makes that choice live. The favicon is independent of the header layout, so it is still available if you choose Text only. Dropdown menus under the header's navigation use the header background and text colour too.
-  - **Hero banner** — optional full-width image behind the header and the top of every published page (homepage, entries, and content pages). It fades into the **background colour** so listing cards and body text sit on a solid colour. While a banner is set, the header background colours are shown at 40% transparency so the image shows through, and the image extends 100px further down the page than the height slider. Upload a wide PNG/JPG/WebP (up to 5 MB), set **banner height**, or remove it. Save branding, then **Publish**.
-  - **Body** — **primary colour** (links, buttons), **accent colour**, and **background colour** (the page behind the cards) are shown up front; click **Advanced colours…** to set **link hover colour**, **cards and panels**, **logo areas, tags, and hover**, **main text**, **secondary text**, **borders and dividers**, **badge background** (also the homepage search band), and **badge text**.
-  - **Footer** — background (solid or gradient, same editor as the header), text colour, link colour, and a separate link-hover colour.
-  - Every published directory footer also carries a **Built on Layercake Maps** panel (logo, tagline, and a **Discover Layercake Maps** button linking to layercake-cx.biz/maps) and a bottom bar with the copyright and the editorial disclaimer. The panel has no settings of its own: its colours follow your footer background, text colour, and primary colour, and its logo darkens automatically on a light footer. Clicks on it are counted in the directory's engagement analytics.
-- A background's **Gradient** option adds a colour-stop editor (2–4 stops, each with its own colour and position) and, for a linear gradient, an angle slider — switching back to **Solid colour** keeps whatever colour you last had, so nothing is lost switching between the two.
-- **Typography** is its own section: pick a **heading font** and **body font** from a curated list of ~45 Google Fonts, and set the **base text size** plus **H1/H2/H3 sizes**. Every heading on the published site (entry titles, section headings, the homepage title) scales proportionally from these, so the relative sizing between, say, a homepage title and an entry title stays the same — only the overall scale changes.
-- **Presets** — a fourth section, below Typography: type a name and click **Save current as preset** to save the current unsaved draft as a reusable, organisation-wide preset (visible from any of your directories, not just this one). Every saved preset appears in a list alongside the 5 built-in ones, each with a small colour-swatch preview; click **Apply** on any of them (built-in or saved) to fill the draft above with its values — like the Theme preset dropdown, this only updates the draft, so click **Save branding** afterward to persist it. Saved presets can also be **Renamed** or **Deleted**; built-in presets can't. Applying a preset is a one-time copy, not a link — editing or deleting a saved preset later never changes a directory that already applied it.
-- **Contrast warnings**: next to each text and link colour field, a small ✓ or ⚠ badge shows its contrast ratio against that region's background (e.g. header text vs the header background, a link vs its region's background) — ✓ means it meets WCAG AA, ⚠ means it doesn't. This is a warning only; it never blocks saving, since a client may have their own brand reasons for a colour choice.
-- Click **Save branding**, then **Publish** again for it to appear on the live site — saving branding doesn't publish automatically. A colour, font, logo, or banner change updates the shared stylesheet. Changing the **site title** wording or the **favicon** rewrites the public pages.
+- **Save and publish are separate.** The bar at the bottom shows how many changes are unsaved. **Save** writes them; **Discard** reverts to the last saved look (after a confirmation). Saving does not change the live site: open **Publishing** (or follow the **Review and publish →** link that appears after a save) to put it live. Leaving the page with unsaved changes asks you to confirm.
+- **Theme** — **Your themes** lists looks your organisation saved (visible from all its directories); the one matching your current colours and fonts is marked **In use**. Use the **⋯** menu to **Apply**, **Rename** or **Delete**. **Save current as theme** asks for a name. **Built-in themes** — Natural, Midnight, Coastal, Heritage and Slate — each have an **Apply** button. Applying replaces colours, fonts, header and footer styling and asks first if you have unsaved edits. Built-in themes keep your logo, favicon, banner, site name and text sizes; a theme you saved also carries the logo, favicon and banner it was saved with. Applying is a one-time copy, not a link.
+- **Logo & identity** — the logo (PNG/JPG/WebP, up to 2 MB) and its height (24–240px, width follows), **Header shows** (Logo only / Logo + site name / Site name only), the **site name** (blank uses the directory name; it also labels the logo link for screen readers), and the **favicon** (square PNG/JPG/WebP, up to 2 MB, shown in the browser tab).
+- **Colours** — Primary (links and buttons), Accent (highlights and the AI search icon) and Page background, each with a hex field and a readability badge measured against the page background: *Readable · AAA* (7:1+), *Readable · AA* (4.5:1+), *Large text only* (3:1+) or *Hard to read*. **More colours** holds link hover, cards and panels, logo areas/tags/hover, main and secondary text, borders, and badge colours. Badges warn only; they never block saving.
+- **Ask AI** — colours for the Ask AI sidebar and its buttons: accent, text on accent, tint, text on tint, border, panel background, your message bubble and text, and the floating launcher with its text. Every colour is optional; anything left blank follows your Primary colour, so switching theme restyles Ask AI too, and a colour you set stays when you change theme. Hover a colour to outline where it is used in the preview, which shows the open panel with AI picks applied. Readability badges cover the four text-on-colour pairs. A value that is not a hex colour is not saved. **Reset Ask AI colours** clears them all, and a checkbox hides the floating Ask AI button (it still appears while the panel is minimised). The tab only offers colours once Ask AI is turned on in the AI tab; if no accent is set and white text would be hard to read on your Primary colour, the default accent is darkened slightly so the text stays readable.
+- **Typography** — heading and body fonts from a curated list of Google Fonts, with a live sample of each, and a table of text sizes: body (px) and headings 1–3 (rem), each with a sample at that size.
+- **Header** — background (solid, or a linear/radial gradient with angle and 2–4 colour stops) and text colour with a readability badge (gradients are checked against every stop). Dropdown menus under the header use these colours too.
+- **Hero banner** — an optional full-width image behind the header and the top of every published page (wide PNG/JPG/WebP, up to 5 MB) with a **banner height** slider. It fades into the page background colour. While a banner is set, the header goes 40% transparent so the image shows through, and the image runs 100px past the chosen height.
+- **Footer** — background (same editor as the header, colour stops behind **Edit colour stops**), and text, link and link-hover colours with readability badges. **Match header** copies the header background and keeps the footer in step with it until you untick it. Every published footer also carries a **Built on Layercake Maps** panel with no settings of its own; its colours follow your footer background, text colour and primary colour.
 
 Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
 
-### Entry layout
+### Entry pages
 
-Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each category the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Contact button when messaging is on and the entry has an email address, the website's domain, and the address), a **map card** (the interactive directory map focused on this entry's pin, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), a quiet **Claim this listing** link when claims are open on this entry, then **Directory attributes** (every single/boolean category, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select category. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, claim, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
+Every published entry page has a fixed shell — a **hero band** (a landscape logo tile, or the organisation's initials if it has no logo; the name as a large heading; a one-line summary drawn from the entry's meta description, or the first sentence of its notes if that's blank; and a chip for each category the entry holds a value for, each linking to that filtered view of the directory) — above a **breadcrumb** (Directory → the entry's first single-select category → its name). When claims are open on the entry, a full-width **Claim this listing** banner sits between the hero and the two-column layout (see *Claim banner* under Claims). Below the hero, a two-column layout holds the body sections on the left and a sidebar on the right: a **Contact & address panel** (Visit website button, Contact button when messaging is on and the entry has an email address, the website's domain, and the address), a **map card** (the interactive directory map showing only this entry's pin, centred, with no zoom bar, when a map is attached to the directory; otherwise a static map thumbnail if the entry has coordinates), then **Directory attributes** (every single/boolean category, including "—"/"No" for values the entry doesn't hold) and a chip list per multi-select category. A full-width **Related entries** section (up to 4, sharing a tag) sits below the two-column layout. On narrow screens, the whole sidebar (contact, map, attributes) renders before the body text, not after. Every one of these appears exactly once on the page — none of it is duplicated between the hero, sidebar, and body.
 
-On a directory's **Entry Layout** tab (owners and managers only), the panel still controls the order of the sections (blocks) in the *main column*: hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per category attached to this directory (shown as clickable tag chips). **Logo, Name, Address and Contact details are no longer configurable here** — those moved into the fixed hero and sidebar described above, so adding one of those four blocks back on this tab has no visible effect on the published page (they're kept only so an existing saved layout doesn't error).
+Under **Experience › Entry pages** (owners and managers only), you control the order of the sections (blocks) in the *main column*: hero image, photo gallery, accreditation badges, notes, evidence, product tiles, links, and one block per category attached to this directory (shown as clickable tag chips). **Logo, Name, Address and Contact details are no longer configurable here** — those moved into the fixed hero and sidebar described above, so adding one of those four blocks back on this tab has no visible effect on the published page (they're kept only so an existing saved layout doesn't error).
 
-- **Drag a block** to reorder it, or click **Remove** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
-- **+ Add a block** adds one you've previously removed, or a category's tag block.
-- **Section label** (optional, per block) — when set, the published entry page wraps that block in its own anchored section with a heading, and adds a chip for it to the sticky "On this page" bar at the top. Leave it blank for a block that should just render inline with no heading or chip (the previous behaviour). Note: the **Evidence** block no longer shows its own heading automatically — give it a label (e.g. "Evidence") to get one back.
-- The **live preview** on the right shows a real entry from the directory (or a placeholder if it has none yet) reflecting your unsaved changes — it approximates only these main-column blocks, not the fixed hero/sidebar, which don't change based on anything set on this tab.
-- Click **Save layout**, then **Publish** again for it to reach the live site.
-- **Additional templates**: click **+ New template** to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch between templates using the tabs above the block list.
+- **Reorder a section** by dragging it, with the ▲/▼ buttons, or with the keyboard (focus the ⋮⋮ handle and press Alt + Up/Down). Click **×** to leave it out entirely — removing a block only hides that section; the underlying data (e.g. notes) is kept and reappears if you add the block back later.
+- **Show** (checkbox per section) — untick to hide a section on the published page without removing it. Its heading and "On this page" chip disappear too; the section and its settings stay in the list, dimmed, and reappear when you tick it again. Hidden sections are skipped in the preview as well.
+- **+ Add section** adds one you've previously removed, or a category's tag block.
+- **Heading on page** (optional, per section) — when set, the published entry page wraps that block in its own anchored section with a heading, and adds a chip for it to the sticky "On this page" bar at the top. Leave it blank for a section that should just render inline with no heading or chip. The **Evidence** section does not show its own heading automatically — give it one (e.g. "Evidence") to get one back.
+- The **preview** on the right shows an entry you pick from the directory (or a placeholder if it has none yet) reflecting your unsaved changes — it approximates only these main-column blocks, not the fixed hero/sidebar, which don't change based on anything set on this tab.
+- Use the bar at the bottom to **Save** (or **Discard**), then **Publish** from the Publishing page for it to reach the live site.
+- **Additional templates**: click **+ New template** (it asks for a name and what it applies to) to create a layout that only applies to a specific **group** or **category term** — e.g. a different page layout for entries tagged "Healthcare". Only one template can target a given group or term; entries with no matching template use the **Default** layout. Switch templates with the **Template** selector, which shows how many entries use each one.
 
 A directory that has never opened this panel keeps its original section order — nothing changes until you save a layout here.
 
@@ -237,6 +292,17 @@ From a directory's page (owners and managers only):
 
 - **Archive** — hides the directory from your list; entries are kept. If a map uses this directory as its live pin source, archiving does **not** remove it from that map's public embed — you'll see a warning naming the map(s); archive or delete the map itself to take it out of public view.
 - **Delete** — permanently removes the directory and all its entries. Requires typing **DELETE** to confirm. If a map uses this directory as its live pin source, you'll see a warning naming the map(s) — deleting the directory removes that link and the map reverts to being manually-edited data, rather than losing its pins with no explanation.
+
+### Reordering lists
+
+Anywhere you can change the order of a list (a directory's or map's attached categories, map filter fields and groups, directory pages, entry page sections, and the lists of links, product tiles, media, team members, evidence and accreditation schemes), every row has a **grip handle** on the left and a **⋯ menu**.
+
+- **Mouse:** drag the handle to the new position and let go. Press **Esc** or drop outside the list to cancel.
+- **Touch:** press and hold the handle for a moment, then drag. Scrolling the page still works anywhere else.
+- **Keyboard:** Tab to the handle, press **Space** or **Enter** to pick the row up, use **↑ / ↓** (or **Home / End**) to move it, **Space** or **Enter** to drop, **Esc** to cancel.
+- **⋯ menu:** **Move to top / up / down / bottom**, plus the row's other actions.
+
+On lists that save by themselves, the new order is saved the moment you drop, with an **Order saved.** message and an **Undo** button for a few seconds; if saving fails, the list goes back to the old order and says so. On lists inside a form (entry page sections), reordering counts as an unsaved change until you click **Save**. Directory pages can be nested one level: drag a page 32px to the right (or press **→**) to nest it under the page above, and left (or **←**) to move it back out. Reordering a directory's lists (and attaching or detaching a category) turns its publish status amber, **Unpublished changes**, until you publish.
 
 ### Categories
 
@@ -250,7 +316,7 @@ When creating a category, choose its **facet type** — this can't be changed la
 - **Single choice** — an entry can carry at most one term (e.g. Region); picking a different value replaces the previous one.
 - **Yes / No toggle** — a plain on/off switch (e.g. "Awards chartered status") with no term list to manage.
 
-Add a label and, for Tags/Single choice, a set of terms (each with an optional colour) — a new category isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from its **Settings** tab. The same category can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Where a directory or map has several categories attached, use the ▲/▼ buttons next to each one to set the order they're offered in. Archiving hides a category without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the category, its terms, and every tag using it.
+Add a label and, for Tags/Single choice, a set of terms (each with an optional colour) — a new category isn't usable anywhere yet. To make it usable, **attach** it to one or more maps or directories: on a map, from the Filters panel; on a directory, from **Content › Categories** (that page only chooses which categories are available; tags are applied to individual entries, not to the directory itself). The same category can be attached to any number of maps and directories independently, and detached again at any time — attaching/detaching doesn't delete any tags already applied. Where a directory or map has several categories attached, use the ▲/▼ buttons next to each one to set the order they're offered in. Archiving hides a category without losing its tags; permanent deletion (typing **DELETE** to confirm) removes the category, its terms, and every tag using it.
 
 Once a category is attached to a directory, it appears as a checkbox picker (Tags), a set of single-pick chips (Single choice), or a switch (Yes/No):
 - On that directory's **Settings** tab, to tag the whole directory.
@@ -266,7 +332,7 @@ Open an existing entry (**Edit**) to see these below the main form — they're n
 
 - **Evidence** — record a claim (e.g. "No riding") with an optional value, source URL, date checked, confidence (Verified / Unverified / Disputed), and note. Where something couldn't be verified, record that rather than leaving it blank.
 - **Media** — pick a gallery photo (PNG/JPG/WebP, max 5MB) to see a preview, then either type alt text or click **Generate with AI** to have Claude describe the actual image (not just guess from the entry's name) — alt text is required before you can upload. Mark one image as the **hero** image.
-- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed) — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
+- **Team** — the people shown publicly on this entry (Claimed Directory Listings epic). Name, role/title, photo URL, and a short bio; **Hide**/**Show** without deleting. Separate from who's allowed to *edit* the listing (that's the claim's own Users tab, once the entry is claimed). Listing owners and editors don't have a Team tab in the Listing Manager (removed 2026-11-13), so only admins and client staff manage these people — a CEO can be shown here without editing access, and a claim editor can have editing access without appearing here.
 - **Accreditations** — a checkbox list of the accreditation schemes your directory has defined (see below); tick to grant, untick to remove. Nothing to check if the directory hasn't defined any schemes yet.
 - **Prominent links** — this entry's own link tiles (distinct from the directory-level ones below), e.g. a booking page or brochure. Primary/secondary styling, open-in-new-tab, and a sponsored/affiliate flag are all set per link.
 - **Product tiles** — external booking cards (e.g. a Viator listing): title, image, price, currency, rating, provider, and a destination URL. These never affect where an entry appears in search or listings.
@@ -288,31 +354,57 @@ On a directory's **Accreditations** and **Prominent Links** tabs (owners and man
   1. Pick one of this directory's unclaimed listings.
   2. Enter the owner's name and email.
   3. Verify: either against the listing's own website domain (automatic — the owner's email domain must match), or an **admin override** with a required note, for cases where the organisation's email and website domains legitimately differ.
-  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim. **Activating republishes that one listing automatically** — the public page updates within moments, without needing a separate Publish click (revoking doesn't do this yet — republish the directory manually afterwards if you need the claim button back immediately).
-- **Settings** — turn claiming on or off for this directory, set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
+  4. The claim is created and verified in one step. Click a claim's row to expand it and: send (or resend) a magic-link sign-in invitation to the owner, record a payment status for an offline/invoiced arrangement, **Activate** the claim once ready, **Transfer ownership** to someone else (enter their email — see below), and **Suspend**/**Reactivate**/**Revoke** it later. Revoking keeps the historical record but frees the listing for a new claim, and republishes that one listing so **Claim this listing** comes back on its public page. **Activating** republishes that listing too.
+- **Settings** — turn claiming on or off for this directory, choose **how claims are handled** (below), set the price, currency, and payment type (one-off or annual recurring), and write the introduction shown to an organisation before it starts claiming a listing.
 
 Without the Professional plan, the tab shows an upgrade message instead of these controls. Claims can now be created two ways: manually by an admin (above), or by the organisation itself — see below. There's still no online payment; a self-service claim activates immediately once the organisation verifies its email, and an admin-created claim's payment status is still recorded manually. Online payment ships in a separate, later epic.
 
+#### Automatic or manual claims
+
+Under **Claims → Settings**, **How claims are handled** has two options:
+
+- **Automatic verification** (default): the visitor enters a work email that matches the listing's website and signs in with an emailed link (see *Claiming a listing yourself* below).
+- **Manual review**: the claim dialog asks for **Your name**, **Email** and a **Message**, and **Send request** emails them to the mailbox you enter under **Send requests to**. Nothing is verified automatically and no sign-in link is sent. Reply to the email to talk to the person (their address is the Reply-To).
+
+Every request also appears straight away in the **Claims** list with the status **Awaiting review**, which reserves the listing so nobody else can claim it meanwhile (the claim banner and dialog disappear from that listing's public page straight away, even if the page hasn't been republished, and nothing is shown in their place). Expand the row to read their name and message, then **Approve request** (optional note) to make them the listing's owner, or **Revoke** to reject it and free the listing again. Approving verifies the claim and lets that email sign in; you can then **Send invitation** and **Activate** as for any claim. Until a claim is approved, nobody can sign in to manage the listing: a sign-in link sent to that email gives no access.
+
+The email is a notification: the request is recorded and reviewable in Claims even if email isn't set up or fails. Emails are sent with the directory's own email settings (Settings → Email sending): messaging must be enabled with a sending profile chosen, and in test mode the request goes to the test recipient instead of your mailbox. The same person asking about the same listing twice in a day is only emailed once. Each request is also stored for the record. Changing the mode takes effect on listing pages the next time the directory is published. Visitor activity is recorded as `listing_cta_click` (`cta_type: claim`) when the dialog opens and `listing_claim_request_sent` when a request is sent.
+
+#### Claim banner
+
+Under **Claims → Settings**, the **Claim banner** section controls the call to action shown on every unclaimed listing while **Claims enabled** is on (there is no separate switch: turning claims off hides the banner too).
+
+- **Heading, Body text, Button label** (80, 240 and 30 characters). Required while claims are enabled. You can use **`{{org_name}}`** (the listing's name, with or without spaces inside the braces) in any of the three; use **Insert variable…** beside a field to add it at the cursor. An unknown variable such as `{{foo}}` shows a warning and is left blank on the page. Organisation names are always shown as plain text.
+- **Secondary link label and URL** (optional, e.g. "How claiming works"). The link only appears when both are filled in; the URL must be `https://…` or a path starting with `/`.
+- **Four colours**: button and icon, button text, banner background, banner border.
+- A **live preview** (desktop or mobile width) uses the directory's fonts, your unsaved values and the first unclaimed listing's name.
+- A **contrast warning** with the ratio appears if the button text on the button colour, or the body text on the banner background, is below 4.5:1. It does not block saving. Note: the default theme's grey body text on the default banner background is 4.1:1, so the warning appears out of the box; darken the background or the theme's muted text colour to clear it.
+
+Changes reach the public site the next time the directory is published. Everyone who can edit Claims settings (Owner or Manager) can edit the banner. Visitor activity is recorded as `claim_banner_view`, the button's `listing_cta_click` (`cta_type: claim`), and `claim_banner_secondary_click`.
+
 ### Claiming a listing yourself (self-service)
 
-When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a quiet **Claim this listing** link under the sidebar map card ("Represent this organisation?"). Clicking it shows the directory's own introduction and price, then asks for a work email:
+When a directory has claiming enabled (Settings tab above) and the listing has no claim already in progress, its public page shows a **Claim this listing** banner between the listing's heading and its details. Clicking the banner's button shows the directory's own introduction and price, then asks for a work email:
 
 1. **Enter your work email.** It must use the same domain as the listing's own website (e.g. `you@ioic.org.uk` for a listing whose website is `ioic.org.uk`) — personal email providers (Gmail, Outlook, etc.) aren't accepted as proof of organisational control.
 2. If the domain matches, a sign-in link is emailed immediately — no payment, no waiting for an admin.
-3. Clicking that link signs you in at `/claim/login` and activates the claim straight away — the listing's public page updates automatically at the same time (no button, correct provenance) — taking you into the **Listing Manager** (see above).
+3. Clicking that link signs you in on the directory’s own login page — the same header and layout as the rest of the site — and activates the claim straight away. The listing’s public page updates automatically at the same time (no button, correct provenance). **Edit your listing** on that page opens the **Listing Manager** (see above), still on the directory’s address.
 
 If your email domain doesn't match the listing's website (a common, legitimate situation — e.g. a rebrand, or a listing whose website belongs to a parent organisation), self-service can't verify you — ask the directory's admin to create the claim manually with an override instead.
 
-Once a claim has started on a listing (self-service or admin-created), the **Claim this listing** link disappears from that listing's public page until the claim is revoked.
+Once a claim has started on a listing (self-service or admin-created), the claim banner disappears from that listing's public page until the claim is revoked. Revoking puts **Claim this listing** back. A listing page that was published while a claim was active already contains the banner, hidden, so it can reappear without another publish. A page built before that still needs one **Publish** of the directory after the revoke.
 
-**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient visits `/claim/login`, enters their email, and gets a one-time sign-in link — no password. If they're linked to exactly one listing, signing in takes them straight into the **Listing Manager**; linked to more than one, they choose which to open first.
+#### Claimant login link
 
-The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then five tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
+While **Claims enabled** is on (and your plan includes claims), every page of your published directory shows a person icon at the end of the header (on a phone it sits beside the menu button). Its name is **Listing login**. It opens a login page on your directory’s own address, where a claimant enters their email and is shown “Check your email”. When the directory has an active custom domain, that email opens the same login page on the directory’s address, inside the directory’s own header and layout. Once you are signed in, that icon shows your organisation’s logo or initials and opens an account menu: **Edit my listing**, **View public listing**, and **Sign out**. Clicking it no longer returns you to the login form. **Edit your listing** opens the Listing Manager on that same address, with the directory’s header rather than the Layercake Maps header. Without a custom domain, the email opens the Listing Manager on the Layercake address. There is no separate switch: turning claims off removes the icon, but only after you **Publish** the directory again. Clicks on the icon are counted in Insights as `claim_login_click`.
 
-- **Listing** — the same rich-text editor used elsewhere in the app, for the listing's body content.
+**Signing in as a claimed listing's owner or editor:** after an admin (or, for an editor, the claim owner) sends an invitation, the recipient opens the login page on the directory, enters their email, and gets a one-time sign-in link — no password. The invitation and the sign-in link are branded emails from the directory (wording editable under [System emails](#system-emails-branded-editable)); a sign-in link is only sent if that email belongs to a live claim, and the page shows the same "check your email" message either way. The link returns to that same login page. **Edit your listing** opens the Listing Manager. If they're linked to exactly one listing, that opens it straight away; linked to more than one, they choose which to open first.
+
+The Listing Manager shows the listing name, the signed-in person's role and the claim's status, then four tabs. **Editing any of them requires the claim to be Active** — a claim that's only verified or payment-pending can look but not touch yet:
+
+- **Listing** — the same rich-text editor used elsewhere in the app, for the listing's body content. A **Generate with AI** button puts a draft in the editor. The AI works from the details held for the listing, including the web address in Contact details, and follows the drafting prompt the directory's administrators set. Nothing is saved or published until you press **Save listing content** and **Publish**. If you have unsaved edits you're asked before they're replaced. **View drafting prompt** (in the note under the title, and in the side panel) shows that prompt read-only. The button is greyed out, with a hint, when the listing has no web address or the claim isn't Active.
 - **SEO** — page title and meta description.
 - **Contact details** — website, email, phone, and address, each with its own "Show publicly" checkbox.
-- **Team** — add, hide/show, or delete the people shown publicly on the listing. Either the owner or an editor can do this.
 - **Users** — anyone linked can see who else has access; the **owner** can invite a new editor (name + email — sends them their own magic-link invitation immediately) and remove one. The owner themselves can't be removed here directly — use **Transfer ownership** below instead.
 
 Every edit marks the listing's content as organisation-managed (shown under the Listing tab as "Source: Claimed organisation · Last edited …"), so a future automated content refresh won't silently overwrite what an organisation has written.
@@ -331,7 +423,7 @@ On a directory's **Content › AI enrichment** page (owners and managers only), 
 1. **Set a content prompt** — describe what you want written (e.g. "a warm, factual 2–3 paragraph description covering what this organisation does, who it serves, and why it's included"). Leave it blank to turn this off for the directory.
 2. **New entries** with no content yet are written automatically once a prompt is set — this can take a couple of minutes, since it runs in the background rather than instantly.
 3. **One entry, any time** — on that entry's **Content** tab, click **Generate with AI**. This always runs immediately, even if the entry already has content (you'll be asked to confirm, since it overwrites what's there).
-4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; the panel shows a progress count while it runs.
+4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; a progress card shows how many entries are done while it runs, and you can leave the page.
 
 Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
 
@@ -340,21 +432,25 @@ Every save — whether you typed it or AI wrote it — is kept in that entry's *
 The next panel on the **AI** tab shows how many active entries are missing any of their SEO/social fields (meta title, meta description, keywords, social title, social description, AI summary) and lets you fill them all in one go:
 
 1. It tells you upfront how many entries are missing something, before you click anything.
-2. **Backfill missing metadata** queues a background job for exactly those entries — never entries that already have everything, so there's nothing to confirm or type first (unlike "Generate all entry content" above, this can't overwrite anything you've written). A progress count shows while it runs.
+2. **Backfill missing metadata** queues a background job for exactly those entries — never entries that already have everything, so there's nothing to confirm or type first (unlike "Generate all entry content" above, this can't overwrite anything you've written). A progress card shows how many entries are done while it runs, and you can leave the page.
 3. New entries missing any of these fields get them filled in automatically as they're created, without needing this button at all.
 4. Each field this fills in shows a small "auto-drafted by AI" note on that entry's own Search & Metadata tab, so you know it's worth a quick look — though there's no obligation to change anything.
 
 This is separate from the single-entry **Generate with AI** button on an entry's own Search & Metadata tab, which works immediately and lets you review before saving; this panel is for catching up a whole directory's backlog at once.
 
-### Help me choose
+### Ask AI (formerly Help me choose)
 
-Below the content panel on the same **AI** tab, a second panel controls **Help me choose** on the published site (not the main search box):
+Below the content panel on the same **AI** tab, a second panel controls **Ask AI** on the published site (not the main search box). The tab and panel are still labelled "Help me choose" in the admin; visitors only ever see **Ask AI**.
 
-1. **Set Help me choose instructions** — free text describing how the AI should interpret a visitor's circumstances and pick relevant entries. Leave it blank to turn this off — the published homepage then has keyword search only, and no Help me choose button.
-2. Once instructions are set, visitors see **Help me choose** next to search. It opens a conversation that asks what they would like an association to help them with. The AI may ask a follow-up, then shows matching listings (and map pins) as the normal directory results, with optional "Why this might suit you" notes. Visitors can **Refine with AI** or **Clear**. If they already typed a keyword search, that text is used as the first message and the AI narrows those results.
-3. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation. This never adds a result that isn't already an entry in the directory.
+1. **Set Help me choose instructions** — free text describing how the AI should interpret a visitor's circumstances and pick relevant entries. Leave it blank to turn this off — the published homepage then has keyword search only, and no Ask AI controls.
+2. Once instructions are set, visitors get **Ask AI** as a chat sidebar docked beside the results. They can open it from the **Ask AI** button next to Search, the "Describe your situation" line under the search box, the **Narrow these N with AI** chip beside the result count, or a floating **Ask AI** button at the bottom right (after scrolling past the search box; you can switch that button off in Look & feel › Ask AI).
+3. With nothing searched, Ask AI opens by asking what the visitor is looking for (support for them or their business) and their profession or industry, using your directory's own **Industry sector** options as quick answers. If the visitor has already searched, it says what it sees ("I see you've searched for…") and works from just those results. The AI may ask follow-up questions (often with tap-to-answer options), then shows its picks as cards (with **View entry** and **Show on map**) and applies them to the list, result count and map. Picked entries get a short reason, the heading shows a **Picked by Ask AI** pill, and its **×** (or **Show all N**) restores the previous results.
+4. The panel has the controls you would expect in a chat window: **New conversation**, **Expand**, **Minimise** and **Close**, **Send** (which becomes **Stop** while the AI is thinking) and **Esc** to close. On phones it is a full-screen sheet, and Minimise collapses it to a bar at the bottom. The conversation and picks survive a page reload in the same tab.
+5. **Let Claude search the web for extra context** (optional, off by default) — lets the AI look things up online to better understand a place, term, or accreditation. This never adds a result that isn't already an entry in the directory.
 
-Turning Help me choose on sends visitors' conversation text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration. The search box does not.
+If Ask AI is busy (rate limited), visitors see a short "busy" message and a 60-second countdown; keyword search and filters keep working.
+
+Turning Ask AI on sends visitors' conversation text (and, with web search enabled, related lookups) to Anthropic (Claude's API) — see `docs/DATA_AND_PRIVACY.md` for the full detail on this integration. The search box does not. Visitor use is counted in the directory's **Insights** (opens, messages sent, picks applied or cleared, thumbs up/down, rate-limit hits); message text is never recorded there.
 
 ### Content pages
 
@@ -557,7 +653,7 @@ If any sync run has failed for your organisation, a red **Sync errors detected**
 
 Only **published** maps are visible on the embed.
 
-**Fullscreen in a directory:** When a map is embedded in a published directory, its sidebar (search, filters, listings) is hidden because the directory page does the filtering. The ⛶ button now expands the map to the whole browser window (directory pages include `allowfullscreen` on the map frame), and the sidebar is shown while it is fullscreen so visitors can still search and filter. It hides again on exit. Directories must be republished to pick up the fix.
+**Fullscreen in a directory:** When a map is embedded in a published directory, its sidebar (search, filters, listings) is hidden because the directory page does the filtering. The ⛶ button now expands the map to the whole browser window (directory pages include `allowfullscreen` on the map frame), and the sidebar is shown while it is fullscreen so visitors can still search and filter. The fullscreen sidebar follows the map's settings: the map's filter fields are shown, and the search box and group buttons appear only if **Show search** / **Show group dropdowns** are on for the map. It hides again on exit. Directories must be republished to pick up the fix.
 
 **Fullscreen zoom:** Normally the map ignores mouse-wheel/trackpad scrolling so the surrounding page can still scroll (visitors zoom with the +/− buttons, or Ctrl/⌘ + scroll). When a visitor enters **fullscreen** (the ⛶ button), the standard Google Maps gestures take over — scroll-to-zoom, pinch-to-zoom and one-finger pan all work — and revert automatically on exit.
 
@@ -577,8 +673,8 @@ Owners and managers can open **Team** (`/client/team`) to:
 - See each person’s **status** (Active, Invite pending, Awaiting verification, etc.) and **last logged in**
 - **Send invitation email** to a colleague’s address
 - **Cancel** a pending invitation if needed
-- Invited people join with the access level you chose. **Members** can use every map and directory in your organisation (there is no per-map or per-directory picking for new invitations); **Managers** also manage the team and organisation settings; **Primary contacts** are managers who are also marked as a primary contact. More than one primary contact is fine.
-- Older Members who were set up with per-map or per-directory checkboxes keep them. Click **Give access to all** on their row to switch them to full access.
+- Invited people join with the access level you chose. **Members** can open every directory in your organisation (there is no directory picking for new invitations, and no map picking on the invite form; tick the maps a Member can use on the Team page once they have joined, under **Map access**); **Managers** also manage the team and organisation settings; **Primary contacts** are managers who are also marked as a primary contact. More than one primary contact is fine.
+- Older Members who were set up with per-directory checkboxes keep them. Click **Give access to all** on their row to switch them to all directories. Primary contacts show a **Primary** label, as do pending invitations for one.
 - Change roles, **Make primary** / **Remove primary**, or remove members (owners and primary contacts only)
 
 ### Inviting someone
@@ -677,7 +773,7 @@ Custom domains for **maps** require the **Professional plan or above** — on th
 ### Verify a domain
 
 1. Add both records shown to your DNS provider (wherever you manage DNS for that domain — often Cloudflare, GoDaddy, Namecheap, your IT team, etc.). Use the **copy button** next to each value to avoid transcription errors. **If your provider offers a "proxy" toggle for the routing record (Cloudflare calls this the orange cloud), turn it off** — set it to "DNS only." A proxied record hides the real destination from our verification check and it will never succeed.
-2. Click **Verify DNS settings**. This checks DNS ownership immediately, then connects the domain to hosting — that second part can take a minute or two the first time. DNS propagation itself can take anywhere from a few minutes to 48 hours depending on your provider.
+2. Click **Verify DNS settings**. This checks DNS ownership immediately, then connects the domain to hosting — that second part can take a minute or two the first time. DNS propagation itself can take anywhere from a few minutes to 48 hours depending on your provider. For a directory, the same step allows listing-owner sign-in emails to open that domain. Removing the domain withdraws that. There is no separate setting.
 3. When the status badge turns green ("Active"), your domain is live.
 
 ### Remove a domain
@@ -706,7 +802,7 @@ Layercake provides the AI-enabled capabilities (search, content and metadata gen
 
 ### Choose providers and models for each AI feature
 
-Below the provider cards, **AI features** lists each AI task (SEO & social metadata, image alt text, Help me choose, listing content, content page drafts) and shows which model it currently runs on.
+Below the provider cards, **AI features** lists each AI task (SEO & social metadata, image alt text, Ask AI (Help me choose), listing content, content page drafts) and shows which model it currently runs on.
 
 - **Default AI provider** applies to every feature unless that feature has its own. "Automatic" uses your first connected provider.
 - **Use recommended model** (the default) lets Layercake pick the cheapest model that is suitable for the task, with a short explanation. Most tasks, such as metadata, classification and search interpretation, don't need a premium model.
@@ -729,7 +825,7 @@ Two things to keep in mind:
 
 ### When no provider is connected
 
-AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Help me choose stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)
+AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Ask AI stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)
 
 ### Bulk AI runs
 
@@ -771,18 +867,20 @@ Staff can open the same page for any customer from **Customers → (customer) �
 | Add a custom domain for just one directory | Directory → Settings → Domain → Add domain |
 | Verify a custom domain | `/client/domains` → Verify DNS settings |
 | Add or reorder directory content pages | Directory → Pages |
-| Show or hide the directory header title | Directory → Branding → Site title (On/Off) |
-| Set the directory header logo height | Directory → Branding → Logo height |
-| Set the published directory favicon | Directory → Branding → Favicon |
-| Set a full-width hero banner | Directory → Branding → Hero banner |
+| Show or hide the directory header title | Directory → Look & feel → Logo & identity → Header shows |
+| Set the directory header logo height | Directory → Look & feel → Logo & identity → Logo height |
+| Set the published directory favicon | Directory → Look & feel → Logo & identity → Favicon |
+| Set a full-width hero banner | Directory → Look & feel → Hero banner |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Web Analytics |
 | Turn on location search | Directory → Settings → Search → Location search, then Publish |
 | Read a published directory's AI overview | `llms.txt` on the public site (updates when you Publish) |
 | Filter a published directory by distance | Published homepage → Distance from |
-| Turn on Help me choose for a directory | Directory → AI → Help me choose instructions |
+| Turn on Ask AI for a directory | Directory → AI → Help me choose instructions |
+| Change Ask AI colours or hide the floating Ask AI button | Directory → Look & feel → Ask AI |
 | Invite team member | `/client/team` → Send invitation email |
 | Accept invite (invitee) | Link in email → create account and set password → automatic sign-in |
+| Listing owner sign-in | Directory header → Listing login. Once signed in, the icon opens the account menu. |
 
 ---
 

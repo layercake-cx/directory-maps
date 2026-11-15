@@ -1,0 +1,31 @@
+/* Wave B, agent 5: messaging (ClientEmail, MessagingPanel, profiles, sent messages, EntityMessagingSettings).
+   Scoped under .shell, tokens only. */
+
+.shell .wb5-form { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .wb5-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .wb5-stack--tight { gap: 12px; }
+.shell .wb5-tabbody { margin-top: 16px; }
+.shell p.wb5-note { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell p.wb5-text { margin: 0; font-size: var(--fs-ui); color: var(--shell-text); }
+.shell .wb5-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shell .wb5-nowrap { white-space: nowrap; }
+.shell .wb5-cell-sub { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+/* Sent messages */
+.shell .wb5-person { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.shell .wb5-person a { color: var(--shell-accent); overflow-wrap: anywhere; }
+.shell .wb5-wrap { overflow-wrap: anywhere; }
+.shell .wb5-msg-btn { display: inline; padding: 0; border: 0; background: none; font: inherit; color: var(--shell-accent); text-align: left; cursor: pointer; text-decoration: underline; }
+.shell .wb5-msg-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .wb5-detail { display: flex; flex-direction: column; gap: 8px; }
+.shell .wb5-detail h3 { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--shell-ink); }
+.shell .wb5-detail p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.shell .wb5-detail pre { margin: 0; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--fs-small); background: var(--shell-danger-bg); color: var(--shell-danger-text); border-radius: var(--radius-item); }
+
+/* DNS records */
+.shell .wb5-dns-value { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.shell .wb5-dns-value code { overflow-wrap: anywhere; min-width: 0; }
+.shell .wb5-dns-kind { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .wb5-steps { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.shell .wb5-guide-note { margin: 8px 0 0; }
+.shell .wb5-instructions { font-family: var(--font-mono); font-size: var(--fs-small); min-height: 280px; }

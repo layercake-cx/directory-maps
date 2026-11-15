@@ -1,18 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { getDirectory, updateDirectoryEntry } from "../../../lib/directories.js";
 import { uploadEntryPanelImage } from "../../../lib/entryImages.js";
 import EntryCardPreview from "./EntryCardPreview.jsx";
-
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--lc-border)",
-  fontSize: 13,
-};
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
+import { Button, Callout, Field, Section, TextInput } from "../../ui/index.js";
+import "../../../styles/wave-a/batch-2.css";
 
 const BG_SWATCHES = [
   { label: "None", value: "" },
@@ -89,64 +80,53 @@ export default function EntryPanelTab({ directoryId, entryId, entry, canEdit, re
   const previewBg = form.panel_background_color || themeSurfaceAlt;
 
   return (
-    <form onSubmit={handleSave} style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-      <div className="admin-card" style={{ padding: 20, maxWidth: 400, flex: 1 }}>
-        <Stack gap="sm">
-          <Text size="sm" fw={600}>Panel style</Text>
-          <Text size="xs" c="dimmed">
-            Overrides the image and background of this entry's card on the directory homepage. Leave blank to use the logo and the directory's own theme.
-          </Text>
-
-          <div>
-            <label style={labelStyle}>Panel image</label>
-            <input value={form.panel_image_url} onChange={(e) => fSet("panel_image_url", e.target.value)} disabled={!canEdit} placeholder={entry?.logo_url ? "Defaults to the logo" : "https://…/image.png"} type="url" style={inputStyle} />
-            {canEdit && (
-              <label style={{ display: "inline-block", marginTop: 6, fontSize: 12 }}>
-                <span style={{ color: "var(--lc-brand, #4a9baa)", textDecoration: "underline", cursor: "pointer" }}>
-                  {uploading ? "Uploading…" : "Upload an image"}
-                </span>
-                <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={handleImageFile} disabled={uploading} style={{ display: "none" }} />
-              </label>
-            )}
-            <Text size="xs" c="dimmed" mt={4}>PNG, JPG or WebP, max 2 MB.</Text>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Panel background colour</label>
-            <Group gap={6} mb={6}>
-              {BG_SWATCHES.map((s) => (
-                <button
-                  key={s.label}
-                  type="button"
-                  disabled={!canEdit}
-                  onClick={() => fSet("panel_background_color", s.value)}
-                  title={s.label}
-                  style={{
-                    width: 26, height: 26, borderRadius: 6, cursor: canEdit ? "pointer" : "default",
-                    border: form.panel_background_color === s.value ? "2px solid var(--lc-brand, #4a9baa)" : "1px solid var(--lc-border)",
-                    background: s.value || "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 10px 10px",
-                  }}
-                />
-              ))}
-            </Group>
-            <input value={form.panel_background_color} onChange={(e) => fSet("panel_background_color", e.target.value)} disabled={!canEdit} placeholder="Defaults to the directory theme, e.g. #1a1a1a" style={inputStyle} />
-          </div>
-
-          {err && <Alert color="red" variant="light">{err}</Alert>}
-
+    <form onSubmit={handleSave} className="panel-tab-grid">
+      <Section
+        title="Panel style"
+        description="Overrides the image and background of this entry's card on the directory homepage. Leave blank to use the logo and the directory's own theme."
+        footer={canEdit ? <Button variant="primary" type="submit" loading={saving} loadingLabel="Saving…">Save panel style</Button> : null}
+      >
+        <div className="editor-stack">
+          <Field label="Panel image" hint="PNG, JPG or WebP, max 2 MB.">
+            <TextInput value={form.panel_image_url} onChange={(e) => fSet("panel_image_url", e.target.value)} disabled={!canEdit} placeholder={entry?.logo_url ? "Defaults to the logo" : "https://…/image.png"} type="url" />
+          </Field>
           {canEdit && (
-            <Group justify="flex-end" mt={4}>
-              <Button size="sm" type="submit" loading={saving}>Save panel style</Button>
-            </Group>
+            <div className="upload-row">
+              <label className="shell-btn shell-btn--sm file-btn" aria-disabled={uploading ? "true" : undefined}>
+                {uploading ? "Uploading…" : "Upload an image"}
+                <input type="file" className="sr-only" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onChange={handleImageFile} disabled={uploading} />
+              </label>
+            </div>
           )}
-        </Stack>
-      </div>
+        </div>
 
-      <div className="admin-card" style={{ padding: 20 }}>
-        <Text size="sm" fw={600} mb={10}>Preview</Text>
+        <div className="editor-stack">
+          <Field label="Panel background colour">
+            <TextInput value={form.panel_background_color} onChange={(e) => fSet("panel_background_color", e.target.value)} disabled={!canEdit} placeholder="Defaults to the directory theme, e.g. #1a1a1a" />
+          </Field>
+          <div className="swatch-row" role="group" aria-label="Background colour presets">
+            {BG_SWATCHES.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => fSet("panel_background_color", s.value)}
+                title={s.label}
+                aria-label={s.label}
+                aria-pressed={form.panel_background_color === s.value}
+                className={`swatch-choice ${s.value ? "" : "swatch-choice--none"}`.trim()}
+                style={s.value ? { background: s.value } : undefined /* dynamic: each preset previews its own colour */}
+              />
+            ))}
+          </div>
+        </div>
+
+        {err && <Callout tone="danger">{err}</Callout>}
+      </Section>
+
+      <Section title="Preview" description="Approximates the homepage card — actual fonts/spacing come from the directory's theme.">
         <EntryCardPreview name={entry?.name} imageUrl={previewImage} backgroundColor={previewBg} />
-        <Text size="xs" c="dimmed" mt={8}>Approximates the homepage card — actual fonts/spacing come from the directory's theme.</Text>
-      </div>
+      </Section>
     </form>
   );
 }

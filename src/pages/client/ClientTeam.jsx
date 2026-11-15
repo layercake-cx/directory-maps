@@ -4,6 +4,10 @@ import { supabase } from "../../lib/supabase";
 import { getContactForCurrentUser, canManageOrg } from "../../lib/clientAuth";
 import { sendInvitation } from "../../lib/inviteHelpers";
 import {
+  Button, Callout, Checkbox, DataTable, EmptyState, Field, PageLayout, Pill, Section, Select, Skeleton, TextInput, useConfirm,
+} from "../../components/ui/index.js";
+import "../../styles/wave-b/client-pages.css";
+import {
   formatLastLoggedIn,
   getTeamStatus,
   sortTeamRows,
@@ -11,39 +15,24 @@ import {
 
 const ROLE_LABELS = { owner: "Owner", manager: "Manager", member: "Member" };
 
+// Invite form's single access selector. "primary" is sent as a manager invitation with isPrimary.
 const ACCESS_LEVELS = [
-  { value: "member", label: "Member — can use all maps and directories" },
+  { value: "member", label: "Member — can use all directories" },
   { value: "manager", label: "Manager — also manages the team and organisation settings" },
   { value: "primary", label: "Primary contact — manager, plus listed as a primary contact" },
 ];
 
-const STATUS_STYLES = {
-  active: { background: "#ecfdf5", color: "#065f46" },
-  pending: { background: "#fffbeb", color: "#92400e" },
-  warning: { background: "#eff6ff", color: "#1e40af" },
-  muted: { background: "#f3f4f6", color: "#4b5563" },
-};
+// getTeamStatus tones (teamDirectory.js) mapped onto Pill tones.
+const STATUS_TONES = { active: "ok", pending: "warn", warning: "info", muted: "neutral" };
 
 function StatusBadge({ row }) {
   const { label, tone } = getTeamStatus(row);
-  const style = STATUS_STYLES[tone] ?? STATUS_STYLES.muted;
-  return (
-    <span
-      className="badge"
-      style={{
-        ...style,
-        fontWeight: 600,
-        fontSize: 12,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </span>
-  );
+  return <Pill tone={STATUS_TONES[tone] ?? "neutral"} className="cw-nowrap">{label}</Pill>;
 }
 
 export default function ClientTeam() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [myContact, setMyContact] = useState(null);
   const [client, setClient] = useState(null);
@@ -63,6 +52,7 @@ export default function ClientTeam() {
   const [msg, setMsg] = useState({ text: "", error: false });
 
   const isOwner = myContact?.role === "owner" || myContact?.is_primary === true;
+  // Only owners and primary contacts can hand out the primary-contact level.
   const accessLevels = isOwner ? ACCESS_LEVELS : ACCESS_LEVELS.filter((l) => l.value !== "primary");
 
   useEffect(() => {
@@ -220,7 +210,14 @@ export default function ClientTeam() {
   }
 
   async function handleRemove(contactId) {
-    if (!window.confirm("Remove this team member? They will lose access immediately.")) return;
+    const target = teamRows.find((r) => r.row_kind === "member" && r.row_id === contactId);
+    const ok = await confirm({
+      title: `Remove ${target?.email ?? "this team member"}?`,
+      body: "They will lose access immediately.",
+      confirmLabel: "Remove team member",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await supabase.from("contacts").delete().eq("id", contactId);
       setTeamRows((prev) => prev.filter((r) => !(r.row_kind === "member" && r.row_id === contactId)));
@@ -240,7 +237,15 @@ export default function ClientTeam() {
   }
 
   async function handleCancelInvite(invitationId) {
-    if (!window.confirm("Cancel this invitation? They will no longer be able to use the invite link.")) return;
+    const target = teamRows.find((r) => r.row_kind === "invite_pending" && r.row_id === invitationId);
+    const ok = await confirm({
+      title: `Cancel the invitation${target?.email ? ` to ${target.email}` : ""}?`,
+      body: "They will no longer be able to use the invite link.",
+      confirmLabel: "Cancel invitation",
+      cancelLabel: "Keep invitation",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const { error } = await supabase.from("invitations").delete().eq("id", invitationId);
       if (error) throw error;
@@ -307,249 +312,200 @@ export default function ClientTeam() {
     }
   }
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) {
+    return (
+      <PageLayout head={{ title: "Team", subtitle: "Manage team members and their map access" }}>
+        <Skeleton variant="table" label="Loading team" />
+      </PageLayout>
+    );
+  }
 
-  const hasRows = teamRows.length > 0;
+  const checkList = (items, granted, onToggle, emptyText) => (
+    <div className="cw-check-list">
+      {items.map((it) => (
+        <Checkbox key={it.id} label={it.name} checked={granted(it.id)} onChange={() => onToggle(it.id, granted(it.id))} />
+      ))}
+      {items.length === 0 && <span className="cw-muted">{emptyText}</span>}
+    </div>
+  );
+
+  const columns = [
+    {
+      key: "email",
+      label: "Email / Name",
+      render: (row) => (
+        <>
+          <div>{row.email}</div>
+          {row.display_name ? <span className="cw-cell-sub">{row.display_name}</span> : null}
+          {row.row_kind === "invite_pending" && row.invite_expires_at ? (
+            <span className="cw-cell-sub">
+              Expires{" "}
+              {new Date(row.invite_expires_at).toLocaleDateString("en-GB", {
+                dateStyle: "medium",
+              })}
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: "role",
+      label: "Role",
+      render: (row) => {
+        const isMember = row.row_kind === "member";
+        const isSelf = isMember && row.row_id === myContact?.id;
+        const roleControl = isMember && isOwner && !isSelf && row.role !== "owner" ? (
+          <Select
+            aria-label={`Role for ${row.email}`}
+            value={row.role}
+            onChange={(e) => handleRoleChange(row.row_id, e.target.value)}
+            className="cw-role-select"
+          >
+            <option value="manager">Manager</option>
+            <option value="member">Member</option>
+          </Select>
+        ) : (
+          <Pill>{ROLE_LABELS[row.role] ?? row.role}</Pill>
+        );
+        const isPrimaryRow = row.is_primary || (row.row_kind === "invite_pending" && invitePrimary[row.row_id]);
+        return (
+          <div className="cw-row-actions">
+            {roleControl}
+            {isPrimaryRow ? <Pill tone="info" className="cw-nowrap">Primary</Pill> : null}
+          </div>
+        );
+      },
+    },
+    { key: "status", label: "Status", render: (row) => <StatusBadge row={row} /> },
+    { key: "last_login", label: "Last logged in", className: "cw-nowrap", render: (row) => formatLastLoggedIn(row) },
+    {
+      key: "map_access",
+      label: "Map access",
+      render: (row) => {
+        const isMember = row.row_kind === "member";
+        const perms = isMember ? mapPerms[row.row_id] ?? new Set() : new Set();
+        if (row.row_kind === "invite_pending") {
+          return (
+            <span className="cw-muted">
+              {row.role === "member" ? "Set after they join" : "All maps (when joined)"}
+            </span>
+          );
+        }
+        if (row.role === "owner" || row.role === "manager" || row.is_primary) {
+          return <span className="cw-muted">All maps</span>;
+        }
+        return checkList(maps, (id) => perms.has(id), (id, granted) => handleMapPermToggle(row.row_id, id, granted), "No maps");
+      },
+    },
+    {
+      key: "directory_access",
+      label: "Directory access",
+      render: (row) => {
+        const isMember = row.row_kind === "member";
+        const dPerms = isMember ? dirPerms[row.row_id] ?? new Set() : new Set();
+        if (row.row_kind === "invite_pending") {
+          return <span className="cw-muted">All directories (when joined)</span>;
+        }
+        if (row.role === "owner" || row.role === "manager" || row.is_primary || allAccess[row.row_id]) {
+          return <span className="cw-muted">All directories</span>;
+        }
+        return (
+          <div className="cw-stack">
+            {isOwner && (
+              <div>
+                <Button size="sm" onClick={() => handleAllAccessToggle(row.row_id, true)}>
+                  Give access to all
+                </Button>
+              </div>
+            )}
+            {checkList(directories, (id) => dPerms.has(id), (id, granted) => handleDirectoryPermToggle(row.row_id, id, granted), "No directories")}
+          </div>
+        );
+      },
+    },
+  ];
+
+  if (isOwner) {
+    columns.push({
+      key: "actions",
+      label: "Actions",
+      render: (row) => {
+        const isSelf = row.row_kind === "member" && row.row_id === myContact?.id;
+        if (row.row_kind === "invite_pending") {
+          return (
+            <Button size="sm" onClick={() => handleCancelInvite(row.row_id)}>
+              Cancel invite
+            </Button>
+          );
+        }
+        return !isSelf && row.role !== "owner" ? (
+          <div className="cw-row-actions">
+            <Button size="sm" onClick={() => handlePrimaryToggle(row.row_id, !row.is_primary)}>
+              {row.is_primary ? "Remove primary" : "Make primary"}
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => handleRemove(row.row_id)}>
+              Remove
+            </Button>
+          </div>
+        ) : null;
+      },
+    });
+  }
 
   return (
-    <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">Team</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--shell-text-muted)" }}>
-            Manage team members and their map access
-          </p>
-        </div>
-        <button type="button" className="shell-btn" onClick={() => navigate("/client")}>
-          ← Back
-        </button>
-      </div>
+    <PageLayout
+      head={{
+        title: "Team",
+        subtitle: "Manage team members and their map access",
+        actions: <Button onClick={() => navigate("/client")}>Back</Button>,
+      }}
+    >
+      <div className="cw-stack">
+        {msg.text ? <Callout tone={msg.error ? "danger" : "ok"}>{msg.text}</Callout> : null}
 
-      {msg.text ? (
-        <p style={{ color: msg.error ? "var(--shell-danger)" : "inherit", marginBottom: 12 }}>
-          {msg.text}
-        </p>
-      ) : null}
+        <Section title="Team members" flush>
+          <DataTable
+            caption="Team members"
+            columns={columns}
+            rows={teamRows}
+            getRowId={(row) => `${row.row_kind}-${row.row_id}`}
+            getRowLabel={(row) => row.email}
+            empty={<EmptyState art="none" title="No team members yet" />}
+          />
+        </Section>
 
-      <div className="card card-pad" style={{ marginBottom: 24 }}>
-        <p className="card-title">Team members</p>
-        {!hasRows ? (
-          <p style={{ margin: 0, opacity: 0.8 }}>No team members yet.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="admin-table" style={{ marginTop: 0, minWidth: 720 }}>
-              <thead>
-                <tr>
-                  <th>Email / Name</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Last logged in</th>
-                  <th>Map access</th>
-                  <th>Directory access</th>
-                  {isOwner && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {teamRows.map((row) => {
-                  const isMember = row.row_kind === "member";
-                  const isPending = row.row_kind === "invite_pending";
-                  const isSelf = isMember && row.row_id === myContact?.id;
-                  const perms = isMember ? mapPerms[row.row_id] ?? new Set() : new Set();
-                  const dPerms = isMember ? dirPerms[row.row_id] ?? new Set() : new Set();
-                  const isPrivileged = row.role === "owner" || row.role === "manager" || row.is_primary === true;
-                  const hasAll = isMember && !!allAccess[row.row_id];
-                  const rowKey = `${row.row_kind}-${row.row_id}`;
-
-                  return (
-                    <tr
-                      key={rowKey}
-                      style={isPending ? { background: "rgba(251, 191, 36, 0.06)" } : undefined}
-                    >
-                      <td>
-                        <div>{row.email}</div>
-                        {row.display_name ? (
-                          <div style={{ fontSize: 12, opacity: 0.7 }}>{row.display_name}</div>
-                        ) : null}
-                        {isPending && row.invite_expires_at ? (
-                          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>
-                            Expires{" "}
-                            {new Date(row.invite_expires_at).toLocaleDateString(undefined, {
-                              dateStyle: "medium",
-                            })}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td>
-                        {isMember && isOwner && !isSelf && row.role !== "owner" ? (
-                          <select
-                            value={row.role}
-                            onChange={(e) => handleRoleChange(row.row_id, e.target.value)}
-                            className="auth-form__input"
-                            style={{ padding: "2px 6px", width: "auto" }}
-                          >
-                            <option value="manager">Manager</option>
-                            <option value="member">Member</option>
-                          </select>
-                        ) : (
-                          <span className="badge">{ROLE_LABELS[row.role] ?? row.role}</span>
-                        )}
-                        {(row.is_primary || (isPending && invitePrimary[row.row_id])) && (
-                          <span className="badge" style={{ marginLeft: 6 }}>Primary</span>
-                        )}
-                      </td>
-                      <td>
-                        <StatusBadge row={row} />
-                      </td>
-                      <td style={{ fontSize: 13, whiteSpace: "nowrap" }}>{formatLastLoggedIn(row)}</td>
-                      <td>
-                        {isPending ? (
-                          <span style={{ opacity: 0.75, fontSize: 13 }}>All maps (when joined)</span>
-                        ) : isPrivileged || hasAll ? (
-                          <span style={{ opacity: 0.6, fontSize: 13 }}>All maps</span>
-                        ) : (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {maps.map((m) => {
-                              const granted = perms.has(m.id);
-                              return (
-                                <label
-                                  key={m.id}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    fontSize: 13,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={granted}
-                                    onChange={() => handleMapPermToggle(row.row_id, m.id, granted)}
-                                  />
-                                  {m.name}
-                                </label>
-                              );
-                            })}
-                            {maps.length === 0 && <span style={{ opacity: 0.6 }}>No maps</span>}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        {isPending ? (
-                          <span style={{ opacity: 0.75, fontSize: 13 }}>All directories (when joined)</span>
-                        ) : isPrivileged || hasAll ? (
-                          <span style={{ opacity: 0.6, fontSize: 13 }}>All directories</span>
-                        ) : (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {isOwner && (
-                              <button
-                                type="button"
-                                className="shell-btn shell-btn--sm"
-                                onClick={() => handleAllAccessToggle(row.row_id, true)}
-                              >
-                                Give access to all
-                              </button>
-                            )}
-                            {directories.map((d) => {
-                              const granted = dPerms.has(d.id);
-                              return (
-                                <label
-                                  key={d.id}
-                                  style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={granted}
-                                    onChange={() => handleDirectoryPermToggle(row.row_id, d.id, granted)}
-                                  />
-                                  {d.name}
-                                </label>
-                              );
-                            })}
-                            {directories.length === 0 && <span style={{ opacity: 0.6 }}>No directories</span>}
-                          </div>
-                        )}
-                      </td>
-                      {isOwner && (
-                        <td>
-                          {isPending ? (
-                            <button
-                              type="button"
-                              className="shell-btn shell-btn--sm"
-                              onClick={() => handleCancelInvite(row.row_id)}
-                            >
-                              Cancel invite
-                            </button>
-                          ) : !isSelf && row.role !== "owner" ? (
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              <button
-                                type="button"
-                                className="shell-btn shell-btn--sm"
-                                onClick={() => handlePrimaryToggle(row.row_id, !row.is_primary)}
-                              >
-                                {row.is_primary ? "Remove primary" : "Make primary"}
-                              </button>
-                              <button
-                                type="button"
-                                className="shell-btn shell-btn--sm"
-                                onClick={() => handleRemove(row.row_id)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : null}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {isOwner && (
+          <Section
+            title="Invite a team member"
+            description="We’ll email them a link to set a password and join your organisation. Each person can only belong to one organisation. If they already have an account, you’ll see an error instead."
+          >
+            <form onSubmit={handleInvite} className="cw-form">
+              <Field label="Email address" required>
+                <TextInput
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="colleague@example.com"
+                />
+              </Field>
+              <Field label="Access level">
+                <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+                  {accessLevels.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <div>
+                <Button variant="primary" type="submit" loading={inviting} loadingLabel="Sending…">
+                  Send invitation email
+                </Button>
+              </div>
+            </form>
+          </Section>
         )}
       </div>
-
-      {isOwner && (
-        <div className="card card-pad">
-          <p className="card-title">Invite a team member</p>
-          <p style={{ opacity: 0.8, marginTop: 0 }}>
-            We&rsquo;ll email them a link to set a password and join your organisation. Each person can only belong to
-            one organisation—if they already have an account, you&rsquo;ll see an error instead.
-          </p>
-          <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}>
-            <div>
-              <label className="auth-form__label">Email address</label>
-              <input
-                type="email"
-                className="auth-form__input"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                placeholder="colleague@example.com"
-              />
-            </div>
-            <div>
-              <label className="auth-form__label">Access level</label>
-              <select
-                className="auth-form__input"
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-              >
-                {accessLevels.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <button type="submit" className="shell-btn shell-btn--primary" disabled={inviting}>
-                {inviting ? "Sending…" : "Send invitation email"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </>
+    </PageLayout>
   );
 }

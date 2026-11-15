@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRightIcon } from "../icons/shellIcons.jsx";
+import { SparkIcon } from "../ui/icons.jsx";
 
 /**
  * Feature side panel: heading, optional back link/subtitle, optional primary action, grouped
@@ -44,13 +45,14 @@ export default function FeaturePanel({ title, backHref, backLabel, subtitle, pri
     return (
       <Link key={item.route} to={item.route} className="nav-item" aria-current={active ? "page" : undefined}>
         <span>{item.label}</span>
+        {item.ai ? <SparkIcon size={12} className="spark--sm nav-spark" /> : null}
         {item.count != null && <span className="nav-count">{item.count}</span>}
       </Link>
     );
   }
 
   return (
-    <nav className="panel" aria-label={title ? `${title} navigation` : "Feature navigation"}>
+    <nav className="panel" id="shell-panel" aria-label={title ? `${title} navigation` : "Feature navigation"}>
       {backHref && (
         <Link to={backHref} className="panel-back">
           <ChevronRightIcon size={14} style={{ transform: "rotate(180deg)" }} />
@@ -58,7 +60,7 @@ export default function FeaturePanel({ title, backHref, backLabel, subtitle, pri
         </Link>
       )}
       <div className="panel-head">
-        <h2 className="panel-title">{title}</h2>
+        <h2 className="panel-title" title={typeof title === "string" ? title : undefined}>{title}</h2>
       </div>
       {subtitle}
       {primaryAction}

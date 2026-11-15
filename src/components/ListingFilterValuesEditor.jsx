@@ -1,4 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { Checkbox, Field, Select, TextInput } from "./ui/index.js";
+import "../styles/wave-b/map-pages.css";
 import { loadFilterFields, loadListingFilterValues, saveListingFieldValue, isSelectType } from "../lib/filterFields.js";
 
 /**
@@ -71,48 +73,43 @@ const ListingFilterValuesEditor = forwardRef(function ListingFilterValuesEditor(
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Filters</p>
+    <div className="mp-stack">
+      <h3 className="mp-subhead">Filters</h3>
       {fields.map((f) => {
         const sel = selections[f.id] || { optionIds: new Set(), text: "" };
         if (f.field_type === "text") {
           return (
-            <label key={f.id} style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>{f.label}</span>
-              <input value={sel.text || ""} onChange={(e) => setText(f.id, e.target.value)} style={{ width: "100%", boxSizing: "border-box" }} />
-            </label>
+            <Field key={f.id} label={f.label}>
+              <TextInput value={sel.text || ""} onChange={(e) => setText(f.id, e.target.value)} />
+            </Field>
           );
         }
         if (f.field_type === "single_select") {
           const current = sel.optionIds && sel.optionIds.size > 0 ? [...sel.optionIds][0] : "";
           return (
-            <label key={f.id} style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>{f.label}</span>
-              <select value={current} onChange={(e) => setSingle(f.id, e.target.value)} style={{ width: "100%" }}>
+            <Field key={f.id} label={f.label}>
+              <Select value={current} onChange={(e) => setSingle(f.id, e.target.value)}>
                 <option value="">—</option>
                 {(f.options || []).map((o) => (
                   <option key={o.id} value={o.id}>{o.label}</option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           );
         }
         // multi_select
         return (
-          <div key={f.id} style={{ fontSize: 13 }}>
-            <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>{f.label}</span>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <fieldset key={f.id} className="choice-group">
+            <legend className="field-label">{f.label}</legend>
+            <div className="mp-choice-row">
               {(f.options || []).map((o) => (
-                <label key={o.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input type="checkbox" checked={!!sel.optionIds?.has(o.id)} onChange={() => toggleMulti(f.id, o.id)} />
-                  {o.label}
-                </label>
+                <Checkbox key={o.id} label={o.label} checked={!!sel.optionIds?.has(o.id)} onChange={() => toggleMulti(f.id, o.id)} />
               ))}
               {isSelectType(f.field_type) && (f.options || []).length === 0 && (
-                <span style={{ opacity: 0.6 }}>No options defined.</span>
+                <span className="mp-muted">No options defined.</span>
               )}
             </div>
-          </div>
+          </fieldset>
         );
       })}
     </div>

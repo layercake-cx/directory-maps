@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listAttachedCategorisations } from "../../lib/categorisations";
+import { Field, Select, Switch, XIcon, PlusIcon } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 /**
  * Renders one control per categorisation attached to this directory, for
@@ -21,6 +23,7 @@ import { listAttachedCategorisations } from "../../lib/categorisations";
 export default function CategoryTagPicker({ directoryId, selectedTermIds, onChange }) {
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(null); // id of the categorisation whose "add" select is open
 
   useEffect(() => {
     if (!directoryId) return;
@@ -58,96 +61,63 @@ export default function CategoryTagPicker({ directoryId, selectedTermIds, onChan
   if (applicable.length === 0) return null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="b3-stack">
       {applicable.map((cat) => {
         if (cat.field_type === "boolean") {
           const term = cat.terms[0];
           const on = term ? selected.has(term.id) : false;
+          const labelId = `cat-switch-${cat.id}`;
           return (
-            <label key={cat.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: term ? "pointer" : "default" }}>
-              <span
-                onClick={() => term && toggle(cat, term.id)}
-                role="switch"
-                aria-checked={on}
-                tabIndex={term ? 0 : -1}
-                onKeyDown={(e) => { if (term && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(cat, term.id); } }}
-                style={{
-                  width: 36, height: 20, flex: "none", position: "relative", cursor: term ? "pointer" : "default",
-                  borderRadius: 10, border: "1px solid var(--lc-border)",
-                  background: on ? "#4A9BAA" : "transparent",
-                }}
-              >
-                <span style={{ position: "absolute", top: 1, left: on ? 17 : 1, width: 16, height: 16, borderRadius: "50%", background: on ? "#fff" : "var(--lc-border)", transition: "left 0.12s" }} />
-              </span>
-              {cat.label}
-            </label>
-          );
-        }
-
-        if (cat.field_type === "single_select") {
-          const activeId = cat.terms.find((t) => selected.has(t.id))?.id || "";
-          return (
-            <div key={cat.id}>
-              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{cat.label}</div>
-              {cat.terms.length === 0 ? (
-                <div style={{ fontSize: 12, opacity: 0.6 }}>No terms defined yet.</div>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {cat.terms.map((t) => (
-                    <label
-                      key={t.id}
-                      style={{
-                        display: "flex", gap: 6, alignItems: "center", fontSize: 12,
-                        padding: "4px 8px", borderRadius: 14, border: "1px solid var(--lc-border)",
-                        background: activeId === t.id ? (t.color || "#4A9BAA") : "transparent",
-                        color: activeId === t.id ? "#fff" : "inherit",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name={`cat-${cat.id}`}
-                        checked={activeId === t.id}
-                        onChange={() => toggle(cat, t.id)}
-                        style={{ display: "none" }}
-                      />
-                      {t.label}
-                    </label>
-                  ))}
-                </div>
-              )}
+            <div key={cat.id} className="b3-row">
+              <Switch checked={on} disabled={!term} aria-labelledby={labelId} onChange={() => term && toggle(cat, term.id)} />
+              <span id={labelId} className="b3-text">{cat.label}</span>
             </div>
           );
         }
 
+        const isSingle = cat.field_type === "single_select";
+        const chosen = cat.terms.filter((t) => selected.has(t.id));
+        const unchosen = cat.terms.filter((t) => !selected.has(t.id));
         return (
-          <div key={cat.id}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{cat.label}</div>
+          <div key={cat.id} className="b3-cat-group">
+            <h3 className="b3-subhead">{cat.label}</h3>
             {cat.terms.length === 0 ? (
-              <div style={{ fontSize: 12, opacity: 0.6 }}>No terms defined yet.</div>
+              <p className="b3-muted">No terms defined yet.</p>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {cat.terms.map((t) => (
-                  <label
-                    key={t.id}
-                    style={{
-                      display: "flex", gap: 6, alignItems: "center", fontSize: 12,
-                      padding: "4px 8px", borderRadius: 14, border: "1px solid var(--lc-border)",
-                      background: selected.has(t.id) ? (t.color || "#4A9BAA") : "transparent",
-                      color: selected.has(t.id) ? "#fff" : "inherit",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(t.id)}
-                      onChange={() => toggle(cat, t.id)}
-                      style={{ display: "none" }}
-                    />
-                    {t.label}
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="tag-picker">
+                  {chosen.map((t) => (
+                    <span key={t.id} className="chip-removable">
+                      {t.label}
+                      <button type="button" className="chip-remove" aria-label={`Remove ${t.label}`} onClick={() => toggle(cat, t.id)}>
+                        <XIcon size={14} />
+                      </button>
+                    </span>
+                  ))}
+                  {unchosen.length > 0 ? (
+                    <button type="button" className="chip-add" aria-expanded={adding === cat.id} onClick={() => setAdding(adding === cat.id ? null : cat.id)}>
+                      <PlusIcon size={14} />
+                      {isSingle && chosen.length > 0 ? `Change ${cat.label.toLowerCase()}` : `Add ${cat.label.toLowerCase()}`}
+                    </button>
+                  ) : null}
+                </div>
+                {adding === cat.id && unchosen.length > 0 ? (
+                  <Field label={`Choose a term for ${cat.label}`}>
+                    <Select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) toggle(cat, e.target.value);
+                        setAdding(null);
+                      }}
+                    >
+                      <option value="">Choose a term…</option>
+                      {unchosen.map((t) => (
+                        <option key={t.id} value={t.id}>{t.label}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : null}
+              </>
             )}
           </div>
         );

@@ -219,7 +219,7 @@ export async function listDirectoryEntries(directoryId, { search = "", page = 0,
 /**
  * Full column set needed by the CSV export (DIR-E1-S7) and by CSV import's
  * slug-preservation lookup — kept separate from listDirectoryEntries's
- * (narrower) admin-table column set rather than widening that query's
+ * (narrower) table column set rather than widening that query's
  * payload for a view that doesn't need these fields.
  */
 const ENTRY_EXPORT_COLUMNS =
@@ -340,6 +340,14 @@ export async function isDirectoryAiContentEnabled(directoryId) {
     .maybeSingle();
   if (error) throw error;
   return !!data?.ai_content_prompt?.trim();
+}
+
+/** The directory's admin-configured entry drafting prompt, shown read-only next to AI buttons. */
+export async function getDirectoryAiContentPrompt(directoryId) {
+  if (!directoryId) return "";
+  const { data, error } = await supabase.from("directories").select("ai_content_prompt").eq("id", directoryId).maybeSingle();
+  if (error) throw error;
+  return data?.ai_content_prompt ?? "";
 }
 
 /** Synchronous single-entry generation — invoked by the "Generate with AI" button. */

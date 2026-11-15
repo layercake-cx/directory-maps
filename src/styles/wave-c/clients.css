@@ -1,0 +1,23 @@
+/* Wave C, platform customers / directories admin pages (AdminClients, AdminClientDetail, AdminContactDetail,
+   AdminClientNew, AdminDirectories, AdminDirectoryNew, EntitlementsPanel). Tokens only. */
+
+.shell .wc-stack { display: flex; flex-direction: column; gap: 16px; }
+.shell .wc-form-stack { display: flex; flex-direction: column; gap: 16px; }
+.shell .wc-form { display: flex; flex-direction: column; gap: 16px; max-width: 560px; }
+.shell .wc-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.shell .wc-checks { display: flex; flex-direction: column; gap: 8px; }
+.shell .wc-pills { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+.shell .wc-muted { margin: 0; color: var(--shell-text-muted); font-size: var(--fs-small); }
+.shell .wc-cell-sub { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); font-weight: 400; }
+
+.shell .wc-block { display: flex; flex-direction: column; gap: 8px; }
+.shell .wc-subhead { margin: 0; font-size: var(--fs-body); font-weight: 600; }
+.shell .wc-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.shell .wc-field-auto { width: auto; min-width: 200px; }
+
+.shell .wc-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--shell-line); }
+.shell .wc-field-grow { flex: 1; min-width: 220px; }
+
+.shell .wc-input-narrow { width: 120px; }
+.shell .wc-input-auto { width: auto; }

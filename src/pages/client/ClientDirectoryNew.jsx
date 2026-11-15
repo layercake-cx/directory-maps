@@ -4,6 +4,8 @@ import { useClient } from "../../hooks/useClient.js";
 import { createDirectory, slugify } from "../../lib/directories.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
+import { Button, Callout, Field, FieldGrid, Section, SettingsLayout, TextInput, Textarea } from "../../components/ui/index.js";
+import "../../styles/wave-b/client-pages.css";
 
 export default function ClientDirectoryNew() {
   const navigate = useNavigate();
@@ -39,37 +41,44 @@ export default function ClientDirectoryNew() {
   }
 
   return (
-    <>
-      <div className="page-head" style={{ marginBottom: 16 }}>
-        <div>
-          <Link to="/client/directories" style={{ fontSize: 13 }}>← Back to directories</Link>
-          <h1 className="page-title" style={{ marginTop: 4 }}>Create directory</h1>
-        </div>
-      </div>
-
-      <div className="card card-pad" style={{ maxWidth: 640 }}>
-        <form onSubmit={handleCreate}>
-          <div style={{ display: "grid", gap: 14 }}>
-            <div className="field-grid">
+    <SettingsLayout
+      head={{
+        title: "Create directory",
+        breadcrumb: [{ label: "Directories", to: "/client/directories" }, { label: "Create directory" }],
+      }}
+    >
+      <form onSubmit={handleCreate}>
+        <Section
+          footer={
+            <>
+              <Button variant="primary" type="submit" loading={saving} loadingLabel="Creating…">
+                Create directory
+              </Button>
+              <Button as={Link} to="/client/directories">
+                Cancel
+              </Button>
+            </>
+          }
+        >
+          <div className="cw-add-form">
+            <FieldGrid>
               <Field label="Directory name">
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
+                <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Accredited Suppliers" />
               </Field>
-              <Field label="Web address (short name)">
-                <input
-                  className="input"
+              <Field
+                label="Web address (short name)"
+                hint={<>This becomes part of the directory's public URL. Suggested: <strong>{suggestedSlug || "—"}</strong></>}
+              >
+                <TextInput
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder={suggestedSlug || "e.g. accredited-suppliers"}
                 />
-                <div className="field-hint">
-                  This becomes part of the directory's public URL. Suggested: <strong>{suggestedSlug || "—"}</strong>
-                </div>
               </Field>
-            </div>
+            </FieldGrid>
 
             <Field label="Description (optional)">
-              <textarea
-                className="textarea"
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
@@ -77,28 +86,10 @@ export default function ClientDirectoryNew() {
               />
             </Field>
 
-            {err ? <p style={{ margin: 0, color: "var(--shell-danger)" }}>{err}</p> : null}
-
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className="shell-btn shell-btn--primary" type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create directory"}
-              </button>
-              <Link className="shell-btn" to="/client/directories">
-                Cancel
-              </Link>
-            </div>
+            {err ? <Callout tone="danger">{err}</Callout> : null}
           </div>
-        </form>
-      </div>
-    </>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
+        </Section>
+      </form>
+    </SettingsLayout>
   );
 }

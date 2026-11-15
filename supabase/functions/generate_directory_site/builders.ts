@@ -11,7 +11,9 @@
  */
 
 import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
+import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
+import { OWNER_ACCOUNT_STYLE } from "../../../ownerAccount.js";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -37,7 +39,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 7;
+export const ENTRY_TEMPLATE_VERSION = 21;
 
 export type Entry = {
   id: string;
@@ -138,9 +140,27 @@ export type DirectoryTheme = {
   showHeaderTitle?: boolean;
   siteTitle?: string;
   logoMaxHeight?: number;
+  // Ask AI sidebar tokens (docs/ASK_AI_SIDEBAR). Every one is optional: an
+  // unset token follows the theme's primary colour, resolved to a concrete
+  // hex at publish time by resolveAiTokens() below.
+  aiAccent?: string;
+  aiOnAccent?: string;
+  aiTint?: string;
+  aiTintText?: string;
+  aiBorder?: string;
+  aiPanelBg?: string;
+  aiUserBubble?: string;
+  aiUserBubbleText?: string;
+  aiLauncherBg?: string;
+  aiLauncherText?: string;
+  // false hides the floating "Ask AI" launcher (it still appears while the
+  // panel is minimised). Unset = shown.
+  aiShowLauncher?: boolean;
 };
 
-export type BlockDescriptor = { type: string; key?: string; label?: string };
+// `hidden: true` keeps the block in the saved layout but renders nothing (no section, heading or
+// jump chip). Absent/false = shown, so every layout saved before this flag is unchanged.
+export type BlockDescriptor = { type: string; key?: string; label?: string; hidden?: boolean };
 export type EntryTemplateRow = {
   id: string;
   is_default: boolean;
@@ -341,6 +361,72 @@ export const EXTRA_STYLE = `
   .dir-nav-desktop { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
   .dir-nav-desktop a { color: var(--hdr-text); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px; }
   .dir-nav-desktop a:hover { color: var(--primary); }
+  .dir-nav-desktop a.dir-listing-login { padding: 0; }
+  .dir-nav-desktop a.dir-listing-login:hover { color: var(--hdr-text); }
+  .dir-header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+  .dir-listing-login-bar { display: none; }
+  .dir-listing-login {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 40px; height: 40px; margin-left: 8px; flex: none;
+    border-radius: 999px; text-decoration: none; color: var(--hdr-text); background: transparent;
+  }
+  .dir-listing-login__face {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 999px;
+    border: 1.5px solid color-mix(in srgb, var(--hdr-text) 70%, transparent);
+    background: color-mix(in srgb, var(--hdr-text) 12%, transparent);
+  }
+  .dir-listing-login:hover .dir-listing-login__face,
+  .dir-listing-login:focus-visible .dir-listing-login__face {
+    background: color-mix(in srgb, var(--hdr-text) 20%, transparent);
+  }
+  .dir-listing-login:focus-visible { outline: 2px solid var(--hdr-text); outline-offset: 3px; }
+  .dir-listing-login__icon { display: block; }
+  .dir-listing-login__tip {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 12;
+    padding: 6px 10px; border-radius: 999px; background: #1c1917; color: #fff;
+    font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+    pointer-events: none; opacity: 0; visibility: hidden;
+  }
+  .dir-listing-login:hover .dir-listing-login__tip,
+  .dir-listing-login:focus-visible .dir-listing-login__tip {
+    opacity: 1; visibility: visible;
+  }
+  .dir-owner-login { padding: 48px 0 72px; }
+  .dir-owner-login__title { margin: 0 0 12px; text-align: center; font-family: var(--font-heading); font-size: 40px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); }
+  .dir-owner-login__lead { max-width: 620px; margin: 0 auto 32px; text-align: center; font-size: 16px; line-height: 1.5; color: var(--muted); }
+  .dir-owner-login__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
+  .dir-owner-login__card { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 36px; }
+  .dir-owner-login__card--claim { background: var(--claim-bg, #ECEEFA); border-color: var(--claim-border, #CFD4EA); }
+  .dir-owner-login__card h2 { margin: 0 0 12px; font-family: var(--font-heading); font-size: 26px; letter-spacing: -0.02em; }
+  .dir-owner-login__card p { margin: 0 0 16px; font-size: 15px; line-height: 1.5; color: var(--ink); }
+  .dir-owner-login__label { display: block; margin: 0 0 6px; font-size: 14px; font-weight: 650; }
+  .dir-owner-login__input { width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; background: #fff; }
+  .dir-owner-login__help, .dir-owner-login__fine { margin: 8px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+  .dir-owner-login__error { margin: 8px 0 0; font-size: 13.5px; color: #b91c1c; }
+  .dir-owner-login__submit, .dir-owner-login__outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; min-height: 48px; margin-top: 16px; padding: 0 16px; border-radius: 10px;
+    font: inherit; font-size: 16px; font-weight: 650; cursor: pointer; text-decoration: none;
+  }
+  .dir-owner-login__submit { border: 0; background: var(--claim-accent, var(--primary)); color: var(--claim-btn-text, #fff); }
+  .dir-owner-login__submit:disabled { opacity: .65; cursor: default; }
+  .dir-owner-login__outline { margin-top: auto; background: #fff; color: var(--ink); border: 1.5px solid color-mix(in srgb, var(--claim-accent, var(--primary)) 55%, var(--line)); }
+  .dir-owner-login__steps { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 14px; }
+  .dir-owner-login__steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.45; }
+  .dir-owner-login__num { flex: none; width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--claim-accent, var(--primary)); color: var(--claim-btn-text, #fff); font-size: 13px; font-weight: 700; }
+  .dir-owner-login__sent { max-width: 560px; margin: 24px auto 0; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 40px 36px 28px; text-align: center; }
+  .dir-owner-login__mail { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: var(--claim-bg, #ECEEFA); color: var(--claim-accent, var(--primary)); }
+  .dir-owner-login__sent h1 { margin-bottom: 12px; }
+  .dir-owner-login__sent p { margin: 0 auto 14px; max-width: 440px; font-size: 15px; line-height: 1.5; }
+  .dir-owner-login__resend { margin-top: 8px; background: #fff; color: var(--claim-accent, var(--primary)); border: 1.5px solid var(--claim-accent, var(--primary)); }
+  .dir-owner-login__textbtn { display: inline-block; margin: 16px 0; background: none; border: 0; padding: 8px; color: var(--claim-accent, var(--primary)); font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
+  .dir-owner-login__sent-foot { margin: 8px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  @media (max-width: 800px) {
+    .dir-owner-login__grid { grid-template-columns: 1fr; }
+    .dir-owner-login__title { font-size: 32px; }
+    .dir-owner-login__card, .dir-owner-login__sent { padding: 24px 20px; }
+  }
   .dir-nav-item { position: relative; }
   .dir-nav-item--dropdown > a::after { content: " ▾"; font-size: 11px; opacity: .7; }
   .dir-nav-dropdown {
@@ -384,6 +470,8 @@ export const EXTRA_STYLE = `
   @media (max-width: 800px) {
     .dir-nav-desktop { display: none; }
     .dir-nav-mobile { display: block; }
+    .dir-listing-login-bar { display: flex; align-items: center; }
+    .dir-listing-login-bar .dir-listing-login { width: 44px; height: 44px; margin-left: 0; }
   }
   .dir-breadcrumb { margin: 20px 0; }
   .dir-breadcrumb ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13.5px; font-weight: 600; color: var(--muted); }
@@ -499,32 +587,6 @@ const LAYOUT_STYLE = `
   .dir-map-count { position: absolute; top: 16px; left: 16px; z-index: 2; }
   .dir-search-form { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px 10px 10px 18px; box-shadow: 0 12px 32px -18px rgba(0,0,0,.35); }
   .dir-search-form input { flex: 1 1 220px; min-width: 0; border: 0; outline: 0; font-size: 16px; font-family: inherit; background: transparent; color: var(--ink); }
-  .dir-hmc-btn { flex: none; }
-  .dir-ai-banner { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 14px; }
-  .dir-ai-banner[hidden] { display: none; }
-  .dir-ai-banner strong { font-family: var(--font-heading); }
-  .dir-ai-banner__based { color: var(--muted); font-size: 13px; }
-  .dir-ai-banner__actions { display: flex; gap: 12px; margin-left: auto; }
-  .dir-ai-banner__actions button { background: transparent; border: 0; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; font-family: inherit; }
-  .dir-row__why { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 8px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
-  .dir-row__why[hidden] { display: none; }
-  .dir-row__why strong { display: block; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-  .dir-hmc-backdrop { display: none; position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.4); align-items: flex-end; justify-content: center; padding: 16px; }
-  .dir-hmc-backdrop.dir-hmc-backdrop--open { display: flex; }
-  .dir-hmc-dialog { width: min(560px, 100%); max-height: min(82vh, 720px); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.22); display: flex; flex-direction: column; overflow: hidden; }
-  .dir-hmc-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .dir-hmc-dialog header h2 { margin: 0; font-family: var(--font-heading); font-size: 18px; }
-  .dir-hmc-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .dir-hmc-msg { font-size: 14.5px; line-height: 1.55; padding: 10px 12px; border-radius: 12px; max-width: 92%; white-space: pre-wrap; }
-  .dir-hmc-msg--assistant { background: var(--surface-2); align-self: flex-start; }
-  .dir-hmc-msg--user { background: var(--primary); color: #fff; align-self: flex-end; }
-  .dir-hmc-form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
-  .dir-hmc-form textarea { flex: 1; min-height: 44px; max-height: 120px; resize: vertical; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14.5px; }
-  .dir-hmc-error { color: #b91c1c; font-size: 13px; margin: 0 16px 12px; }
-  .dir-hmc-error[hidden] { display: none; }
-  @media (min-width: 641px) {
-    .dir-hmc-backdrop { align-items: center; }
-  }
 
   /* Desktop: results and map render permanently side by side (the List/Map
      segmented control is mobile-only, see below) — .dir-pane-hidden is only
@@ -602,6 +664,7 @@ const LAYOUT_STYLE = `
   .dir-enquiry__close { border: 0; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; color: var(--ink); padding: 4px 8px; }
   .dir-enquiry__body { padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px; }
   .dir-enquiry__to, .dir-enquiry__prompt { margin: 0; font-size: 14px; color: var(--muted); }
+  .dir-claim__org { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; color: var(--text, inherit); }
   .dir-enquiry__test { margin: 0; font-size: 13px; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: 8px; }
   .dir-enquiry__label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
   .dir-enquiry__label input, .dir-enquiry__label textarea {
@@ -640,8 +703,29 @@ const LAYOUT_STYLE = `
   .dir-static-map, .dir-map-embed { width: 100%; height: 260px; object-fit: cover; border: 0; display: block; }
   .dir-map-card__link { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; border-top: 1px solid var(--line); }
 
-  .dir-claim-quiet { margin: 0; padding: 4px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
-  .dir-claim-quiet button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--primary); text-decoration: underline; cursor: pointer; }
+  /* Claim banner: colours arrive as --cb-* custom properties on the section (sanitised hex). */
+  .dir-claim-banner-wrap { padding-top: 32px; padding-bottom: 28px; }
+  .dir-claim-banner { display: flex; align-items: center; gap: 20px; padding: 20px 24px; background: var(--cb-bg); border: 1px solid var(--cb-border); border-radius: 12px; }
+  .dir-claim-banner__icon { flex: none; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--cb-border); border-radius: 12px; color: var(--cb-accent); }
+  .dir-claim-banner__text { flex: 1 1 auto; min-width: 0; }
+  .dir-claim-banner__text h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; line-height: 1.25; }
+  .dir-claim-banner__text p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .dir-claim-banner__actions { flex: none; display: flex; align-items: center; gap: 20px; }
+  .dir-claim-banner__secondary { font-size: 13px; font-weight: 600; color: var(--primary); text-decoration: none; }
+  .dir-claim-banner__secondary:hover, .dir-claim-banner__secondary:focus-visible { text-decoration: underline; }
+  .dir-claim-banner__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; padding: 13px 20px; font: inherit; font-size: 14px; font-weight: 700; background: var(--cb-accent); color: var(--cb-btn-text); cursor: pointer; }
+  .dir-claim-banner__btn:hover { filter: brightness(.92); }
+  .dir-claim-banner__btn:focus-visible, .dir-claim-banner__secondary:focus-visible { outline: 2px solid var(--cb-accent); outline-offset: 2px; }
+  @media (max-width: 767px) {
+    .dir-claim-banner { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon heading" "body body" "actions actions"; gap: 12px 16px; align-items: center; }
+    .dir-claim-banner__icon { grid-area: icon; }
+    .dir-claim-banner__text { display: contents; }
+    .dir-claim-banner__text h2 { grid-area: heading; margin: 0; }
+    .dir-claim-banner__text p { grid-area: body; }
+    .dir-claim-banner__actions { grid-area: actions; flex-direction: column; align-items: stretch; gap: 4px; }
+    .dir-claim-banner__btn { order: 1; width: 100%; min-height: 44px; }
+    .dir-claim-banner__secondary { order: 2; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  }
 
   .dir-attrs { display: flex; flex-direction: column; }
   .dir-attr-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
@@ -745,6 +829,17 @@ export const NATURAL_DEFAULTS: Required<
     | "showHeaderTitle"
     | "siteTitle"
     | "logoMaxHeight"
+    | "aiAccent"
+    | "aiOnAccent"
+    | "aiTint"
+    | "aiTintText"
+    | "aiBorder"
+    | "aiPanelBg"
+    | "aiUserBubble"
+    | "aiUserBubbleText"
+    | "aiLauncherBg"
+    | "aiLauncherText"
+    | "aiShowLauncher"
   >
 > = {
   primaryColor: "#2E5A39",
@@ -853,6 +948,67 @@ function hexRelativeLuminance(hex: string): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** #rgb / #rrggbb(aa) -> [r,g,b] (alpha dropped); null when unparseable. */
+function hexToRgb(hex: string): [number, number, number] | null {
+  let h = hex.replace("#", "");
+  if (h.length === 3 || h.length === 4) h = [...h].map((c) => c + c).join("");
+  if (h.length < 6) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return ch.some((n) => Number.isNaN(n)) ? null : [ch[0], ch[1], ch[2]];
+}
+
+/** `pct`% of colour `a` mixed over colour `b`, as #rrggbb. */
+function mixHex(a: string, b: string, pct: number): string {
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
+  if (!ra || !rb) return a;
+  const k = pct / 100;
+  return "#" + ra.map((v, i) => Math.round(v * k + rb[i] * (1 - k)).toString(16).padStart(2, "0")).join("");
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = hexRelativeLuminance(a);
+  const lb = hexRelativeLuminance(b);
+  if (la === null || lb === null) return 21;
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Resolved Ask AI colours. Mirrors src/lib/askAiTheme.js (hand-synced across
+ * the Deno/JS boundary, like FONT_CATALOG). Every token is a concrete #rrggbb
+ * so the generated CSS needs no color-mix fallbacks. A token left unset (or
+ * failing the strict hex check) follows the theme's primary colour. */
+export function resolveAiTokens(theme: DirectoryTheme, base: { primaryColor: string; backgroundColor: string; inkColor: string }) {
+  const hex = (v: string | undefined) => (v && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null);
+  let accent = hex(theme.aiAccent) ?? base.primaryColor;
+  const darkText = (hexRelativeLuminance(base.inkColor) ?? 1) < 0.4 ? base.inkColor : "#111827";
+  if (!hex(theme.aiAccent)) {
+    // Default only: when neither white nor dark text reads on the primary (e.g. Midnight's light
+    // blue), darken it just enough for white text to reach 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio("#FFFFFF", accent) < 4.5 && contrastRatio(darkText, accent) < 4.5; i++) accent = mixHex(accent, "#000000", 92);
+  }
+  const onAccent = hex(theme.aiOnAccent) ?? (contrastRatio("#FFFFFF", accent) >= 4.5 || contrastRatio("#FFFFFF", accent) >= contrastRatio(darkText, accent) ? "#FFFFFF" : darkText);
+  const tint = hex(theme.aiTint) ?? mixHex(accent, "#FFFFFF", 8);
+  let tintText = hex(theme.aiTintText) ?? accent;
+  if (!hex(theme.aiTintText)) {
+    // Default only: darken the accent until it reads on the tint, so every preset passes 4.5:1.
+    for (let i = 0; i < 10 && contrastRatio(tintText, tint) < 4.5; i++) tintText = mixHex(tintText, "#000000", 85);
+  }
+  return {
+    accent,
+    onAccent,
+    tint,
+    tintText,
+    border: hex(theme.aiBorder) ?? mixHex(accent, "#FFFFFF", 30),
+    panelBg: hex(theme.aiPanelBg) ?? mixHex(base.backgroundColor, "#000000", 99),
+    userBubble: hex(theme.aiUserBubble) ?? accent,
+    userBubbleText: hex(theme.aiUserBubbleText) ?? onAccent,
+    launcherBg: hex(theme.aiLauncherBg) ?? accent,
+    launcherText: hex(theme.aiLauncherText) ?? onAccent,
+    showLauncher: theme.aiShowLauncher !== false,
+  };
+}
+
 /** Tokens for the "Built on Layercake Maps" footer panel. Every colour is
  * derived from the footer/primary tokens (tints via color-mix, never a
  * literal), so a theme change restyles the panel. Two values depend on
@@ -874,6 +1030,7 @@ function platformPanelVars(t: { primaryColor: string; footerText: string }): str
 
 export function themeStyleBlock(theme: DirectoryTheme): string {
   const t = resolvedTheme(theme);
+  const ai = resolveAiTokens(theme, t);
   const banner = resolvedHeroBanner(theme);
   const headerBackground = banner ? applyAlphaToCssColors(t.headerBackground, 0.6) : t.headerBackground;
   const logoUrl = sanitizeHttpUrl(theme.logoUrl);
@@ -896,6 +1053,9 @@ export function themeStyleBlock(theme: DirectoryTheme): string {
     --ftr-bg: ${t.footerBackground}; --ftr-text: ${t.footerText};
     --ftr-link: ${t.footerLink}; --ftr-link-hover: ${t.footerLinkHover};
     ${platformPanelVars(t)}
+    --ai-accent: ${ai.accent}; --ai-on-accent: ${ai.onAccent}; --ai-tint: ${ai.tint}; --ai-tint-text: ${ai.tintText};
+    --ai-border: ${ai.border}; --ai-panel-bg: ${ai.panelBg}; --ai-user-bubble: ${ai.userBubble}; --ai-user-bubble-text: ${ai.userBubbleText};
+    --ai-launcher-bg: ${ai.launcherBg}; --ai-launcher-text: ${ai.launcherText};
     --fs-base: ${t.fontSizeBase}; --fs-h1: ${t.fontSizeH1}; --fs-h2: ${t.fontSizeH2}; --fs-h3: ${t.fontSizeH3};
     --logo-max-height: ${clampLogoMaxHeight(theme.logoMaxHeight)}px;
     --logo-display: ${showLogo ? "block" : "none"};
@@ -919,7 +1079,7 @@ export function fontImportRule(theme: DirectoryTheme): string {
  * colour, type, logo, or banner change does not rewrite every HTML page. */
 export function buildThemeCss(theme: DirectoryTheme): string {
   const font = fontImportRule(theme);
-  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n`;
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${ASK_AI_STYLE}\n${OWNER_ACCOUNT_STYLE}\n`;
 }
 
 export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
@@ -1052,7 +1212,20 @@ export type SiteNav = {
   homeUrl: string;
   homeLabel: string;
   items: SiteNavItem[];
+  /** On-directory listing-owner login page. Set only when claims are on
+   * (settings enabled AND maps.claims entitlement). Null renders no control. */
+  claimLoginUrl?: string | null;
 };
+
+const LISTING_LOGIN_LABEL = "Listing login";
+const LISTING_LOGIN_ICON = `<svg class="dir-listing-login__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.2 19.5c.9-3.3 3.4-5 6.8-5s5.9 1.7 6.8 5"/></svg>`;
+
+/** Icon-only "Listing login" control. Last item in the desktop nav, and a
+ * second copy in the mobile header bar (the desktop nav is hidden there). */
+function listingLoginControl(nav: SiteNav | null | undefined): string {
+  if (!nav?.claimLoginUrl) return "";
+  return `<a class="dir-listing-login" href="${escapeAttr(nav.claimLoginUrl)}" aria-label="${LISTING_LOGIN_LABEL}" data-dm-event="claim_login_click" data-dm-cta="nav" rel="nofollow"><span class="dir-listing-login__face">${LISTING_LOGIN_ICON}</span><span class="dir-listing-login__tip" role="tooltip">${LISTING_LOGIN_LABEL}</span></a>`;
+}
 
 function renderDesktopNav(nav: SiteNav): string {
   const home = `<a href="${escapeAttr(nav.homeUrl)}">${escapeHtml(nav.homeLabel)}</a>`;
@@ -1071,7 +1244,7 @@ function renderDesktopNav(nav: SiteNav): string {
 </div>`;
     })
     .join("\n");
-  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}</nav>`;
+  return `<nav class="dir-nav-desktop" aria-label="Primary">${home}${items}${listingLoginControl(nav)}</nav>`;
 }
 
 function renderMobileNav(nav: SiteNav): string {
@@ -1147,7 +1320,9 @@ export function siteHeader(opts: {
         ${opts.tagline ? `<div class="muted" style="font-size:12.5px;font-weight:600;">${escapeHtml(opts.tagline)}</div>` : ""}
       </div>`;
   const nav = opts.nav;
-  const navHtml = nav ? `${renderDesktopNav(nav)}${renderMobileNav(nav)}` : "";
+  const navHtml = nav
+    ? `<div class="dir-header-tools">${renderDesktopNav(nav)}<div class="dir-listing-login-bar">${listingLoginControl(nav)}</div>${renderMobileNav(nav)}</div>`
+    : "";
   return `<header class="dir-site-header">
   <div class="wrap dir-site-header__inner">
     <a class="dir-brand" href="${escapeAttr(opts.homeUrl)}" aria-label="${escapeAttr(displayTitle)}">
@@ -1195,6 +1370,248 @@ export function siteFooter(opts: { directoryName: string; homeUrl: string; nav?:
     </div>
   </div>
 </footer>`;
+}
+
+/** Supabase magic-link lifetime this page tells the visitor. The project default
+ * is 60 minutes; the design's "{X} minutes" is filled with that, not a shorter
+ * number the link would outlive. */
+export const OWNER_LOGIN_LINK_MINUTES = 60;
+
+const OWNER_LOGIN_MAIL_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg>`;
+
+/** Listing-owner login, published on the directory's own site (not the platform
+ * app). The form calls the existing send_claim_link function. The emailed link
+ * returns to this same page. */
+export function buildOwnerLoginPage(opts: {
+  clientSlug: string;
+  directorySlug: string;
+  directoryName: string;
+  theme: DirectoryTheme;
+  nav?: SiteNav | null;
+  analytics?: SiteAnalytics | null;
+  accentColour: string;
+  buttonTextColour: string;
+  backgroundColour: string;
+  borderColour: string;
+  contactHref?: string | null;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  /** App that can hold the claim session. Defaults to the live site. Staging publishes pass localhost. */
+  appOrigin?: string;
+}): string {
+  const homeUrl = `/directories/${opts.clientSlug}/${opts.directorySlug}`;
+  const canonicalUrl = `${SITE_ORIGIN}${homeUrl}/login`;
+  const appOrigin = (opts.appOrigin || SITE_ORIGIN).replace(/\/$/, "");
+  const claimLogin = `${appOrigin}/claim/login`;
+  const minutes = String(OWNER_LOGIN_LINK_MINUTES);
+  const contact = opts.contactHref
+    ? ` Can&rsquo;t get into that inbox? <a href="${escapeAttr(opts.contactHref)}">Contact us</a>`
+    : "";
+  const cfg = JSON.stringify({
+    supabaseUrl: opts.supabaseUrl,
+    anonKey: opts.supabaseAnonKey,
+    redirectTo: claimLogin,
+  }).replace(/</g, "\\u003c");
+  const claimStyle = `--claim-accent:${opts.accentColour};--claim-btn-text:${opts.buttonTextColour};--claim-bg:${opts.backgroundColour};--claim-border:${opts.borderColour}`;
+  const body = `
+${siteHeader({ directoryName: opts.directoryName, tagline: null, homeUrl, logoUrl: opts.theme.logoUrl, headerMode: opts.theme.headerMode, showHeaderTitle: opts.theme.showHeaderTitle, siteTitle: opts.theme.siteTitle, logoMaxHeight: opts.theme.logoMaxHeight, nav: opts.nav ?? null })}
+<main class="wrap dir-owner-login" style="${claimStyle}">
+  <div id="owner-login-request">
+    <h1 class="dir-owner-login__title">Listing owner login</h1>
+    <p class="dir-owner-login__lead">For organisations that have claimed their listing on ${escapeHtml(opts.directoryName)}. Log in to keep your organisation&rsquo;s details, description and logo up to date.</p>
+    <div class="dir-owner-login__grid">
+      <section class="dir-owner-login__card" aria-labelledby="owner-login-form-title">
+        <h2 id="owner-login-form-title">Log in with your email</h2>
+        <p>No password needed. We&rsquo;ll email you a secure link that logs you straight in.</p>
+        <form id="owner-login-form" novalidate>
+          <label class="dir-owner-login__label" for="owner-login-email">Email address</label>
+          <input class="dir-owner-login__input" id="owner-login-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@organisation.org" aria-describedby="owner-login-help owner-login-error">
+          <p class="dir-owner-login__help" id="owner-login-help">Use the email address you used to claim your listing.</p>
+          <p class="dir-owner-login__error" id="owner-login-error" hidden></p>
+          <button class="dir-owner-login__submit" type="submit">${OWNER_LOGIN_MAIL_ICON} Email me a login link</button>
+        </form>
+        <p class="dir-owner-login__fine">The link works once and expires after ${minutes} minutes.${contact}</p>
+      </section>
+      <section class="dir-owner-login__card dir-owner-login__card--claim" aria-labelledby="owner-login-claim-title">
+        <h2 id="owner-login-claim-title">Haven&rsquo;t claimed a listing yet?</h2>
+        <p>If you represent an organisation in the directory, you can claim its listing for free. Once your claim is approved, you can log in here.</p>
+        <ol class="dir-owner-login__steps">
+          <li><span class="dir-owner-login__num" aria-hidden="true">1</span><span><strong>Find your organisation</strong> in the directory.</span></li>
+          <li><span class="dir-owner-login__num" aria-hidden="true">2</span><span>Select <strong>Claim this listing</strong> on its page and tell us who you are.</span></li>
+          <li><span class="dir-owner-login__num" aria-hidden="true">3</span><span>We check your claim and <strong>email you</strong> when it&rsquo;s approved.</span></li>
+        </ol>
+        <a class="dir-owner-login__outline" href="${escapeAttr(homeUrl)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Find your organisation</a>
+      </section>
+    </div>
+  </div>
+  <div id="owner-login-done" hidden>
+    <h1 class="dir-owner-login__title">You&rsquo;re signed in</h1>
+    <p class="dir-owner-login__lead">You&rsquo;re signed in as <strong id="owner-login-done-email"></strong>. You can update your organisation&rsquo;s listing from here.</p>
+    <div class="dir-owner-login__grid" style="grid-template-columns:minmax(0,480px);justify-content:center;">
+      <section class="dir-owner-login__card">
+        <h2>Your listing</h2>
+        <p>Open the listing editor to change the description, contact details and logo. It stays on this website.</p>
+        <a class="dir-owner-login__submit" href="/claim/login" style="text-align:center;text-decoration:none;">Edit your listing</a>
+      </section>
+    </div>
+  </div>
+  <div id="owner-login-sent" hidden>
+    <section class="dir-owner-login__sent" aria-labelledby="owner-login-sent-title">
+      <div class="dir-owner-login__mail" aria-hidden="true">${OWNER_LOGIN_MAIL_ICON.replace('width="18" height="18"', 'width="28" height="28"')}</div>
+      <h1 class="dir-owner-login__title" id="owner-login-sent-title">Check your email</h1>
+      <p>If <strong id="owner-login-sent-email"></strong> is linked to a claimed listing, we&rsquo;ve sent it a login link. Open the email on this device and select the link to log in.</p>
+      <p class="dir-owner-login__fine">The link expires after ${minutes} minutes. Nothing there? Check your spam or junk folder.</p>
+      <button type="button" class="dir-owner-login__submit dir-owner-login__resend" id="owner-login-resend">Resend link</button>
+      <button type="button" class="dir-owner-login__textbtn" id="owner-login-reset">Use a different email address</button>
+      <p class="dir-owner-login__sent-foot">Not claimed your listing yet? <a href="${escapeAttr(homeUrl)}">Find your organisation</a> and select <strong>Claim this listing</strong>.</p>
+    </section>
+  </div>
+</main>
+${siteFooter({ directoryName: opts.directoryName, homeUrl, nav: opts.nav ?? null })}
+<script>
+(function () {
+  var cfg = ${cfg};
+  function storeReturnSession() {
+    var hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+    var access = hash.get('access_token');
+    var refresh = hash.get('refresh_token');
+    if (!access || !refresh) return null;
+    var user = {};
+    try {
+      var part = access.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (part.length % 4) part += '=';
+      var payload = JSON.parse(atob(part));
+      user = { id: payload.sub, aud: payload.aud, role: payload.role, email: payload.email || '', app_metadata: payload.app_metadata || {}, user_metadata: payload.user_metadata || {} };
+    } catch (e) {}
+    var refMatch = String(cfg.supabaseUrl || '').match(/https:\\/\\/([^.]+)/);
+    var ref = (refMatch && refMatch[1]) || 'auth';
+    var expiresIn = Number(hash.get('expires_in') || 3600);
+    var expiresAt = Number(hash.get('expires_at') || 0) || Math.floor(Date.now() / 1000) + expiresIn;
+    localStorage.setItem('sb-' + ref + '-auth-token', JSON.stringify({
+      access_token: access,
+      refresh_token: refresh,
+      expires_in: expiresIn,
+      expires_at: expiresAt,
+      token_type: 'bearer',
+      user: user
+    }));
+    return user;
+  }
+  if (location.hash && /access_token=/.test(location.hash)) {
+    var signedIn = storeReturnSession();
+    history.replaceState(null, '', location.pathname);
+    if (signedIn) {
+      requestEl = document.getElementById('owner-login-request');
+      sentEl = document.getElementById('owner-login-sent');
+      if (requestEl) requestEl.hidden = true;
+      if (sentEl) sentEl.hidden = true;
+      var done = document.getElementById('owner-login-done');
+      if (done) {
+        done.hidden = false;
+        var doneEmail = document.getElementById('owner-login-done-email');
+        if (doneEmail && signedIn.email) doneEmail.textContent = signedIn.email;
+      }
+      return;
+    }
+  }
+  var requestEl = document.getElementById('owner-login-request');
+  var sentEl = document.getElementById('owner-login-sent');
+  var form = document.getElementById('owner-login-form');
+  var input = document.getElementById('owner-login-email');
+  var errorEl = document.getElementById('owner-login-error');
+  var sentEmail = document.getElementById('owner-login-sent-email');
+  var resendBtn = document.getElementById('owner-login-resend');
+  var resetBtn = document.getElementById('owner-login-reset');
+  var emailRe = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  var stored = '';
+  var resendTimer = 0;
+
+  function showError(msg) {
+    errorEl.hidden = !msg;
+    errorEl.textContent = msg || '';
+    if (msg) input.focus();
+  }
+  function showSent(email) {
+    stored = email;
+    sentEmail.textContent = email;
+    requestEl.hidden = true;
+    sentEl.hidden = false;
+    armResend();
+  }
+  function showForm() {
+    stored = '';
+    sentEl.hidden = true;
+    requestEl.hidden = false;
+    input.value = '';
+    showError('');
+    input.focus();
+  }
+  function armResend() {
+    var left = 30;
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Resend in ' + left + 's';
+    clearInterval(resendTimer);
+    resendTimer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(resendTimer);
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend link';
+        return;
+      }
+      resendBtn.textContent = 'Resend in ' + left + 's';
+    }, 1000);
+  }
+  function requestLink(email) {
+    return fetch(cfg.supabaseUrl + '/functions/v1/send_claim_link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+      body: JSON.stringify({ email: email, kind: 'sign_in', redirectTo: cfg.redirectTo })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.status === 400) throw new Error((body && body.error) || 'Enter a valid email address.');
+        showSent(email);
+      });
+    }).catch(function (err) {
+      if (err && err.message && /valid email/i.test(err.message)) {
+        showError(err.message);
+        return;
+      }
+      showSent(email);
+    });
+  }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = String(input.value || '').trim().toLowerCase();
+    if (!emailRe.test(email)) {
+      showError('Enter the email address you used to claim your listing.');
+      return;
+    }
+    showError('');
+    var btn = form.querySelector('button');
+    btn.disabled = true;
+    requestLink(email).then(function () { btn.disabled = false; });
+  });
+  resendBtn.addEventListener('click', function () {
+    if (!stored || resendBtn.disabled) return;
+    resendBtn.disabled = true;
+    requestLink(stored);
+  });
+  resetBtn.addEventListener('click', showForm);
+})();
+</script>`.trim();
+
+  return directoryPageShell({
+    title: `Listing owner login — ${opts.directoryName}`,
+    description: `Log in to manage a claimed listing on ${opts.directoryName}.`,
+    canonicalUrl,
+    jsonLd: { "@context": "https://schema.org", "@type": "WebPage", name: "Listing owner login", url: canonicalUrl },
+    body,
+    noindex: true,
+    theme: opts.theme,
+    themeCssHref: themeStylesheetHref(opts.clientSlug, opts.directorySlug),
+    analytics: opts.analytics ? { ...opts.analytics, pageKind: "content" } : null,
+  });
 }
 
 export function linkTiles(links: EntryLink[]): string {
@@ -1390,8 +1807,9 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
         }
       });
     }).catch(function (err) {
-      errEl.hidden = false;
       var raw = (err && err.message) || '';
+      if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+      errEl.hidden = false;
       errEl.textContent = (!raw || raw === 'Failed to fetch')
         ? 'The message could not be sent. Please try again.'
         : raw;
@@ -1409,11 +1827,9 @@ function buildEnquiryDrawer(enquiry: DirectoryEnquiry, entry: Entry): string {
  * client's maps.claims entitlement both resolve true AND the entry has no
  * current_claim_id (index.ts checks all three before ever passing this
  * non-null) -- never on the homepage, search results, cards, or map
- * results, per the epic's non-negotiable rule. Once a claim is started for
- * this item, index.ts stops passing this at all on the next publish (the
- * item's own current_claim_id gets set immediately by
- * start_self_service_claim), which is what actually removes the CTA --
- * this file only renders what it's told.
+ * results, per the epic's non-negotiable rule. A listing that already has a
+ * claim still gets the banner, hidden. The page shows it again when
+ * is_listing_claimable says the listing is open.
  */
 export type ClaimWidgetOptions = {
   priceCents: number | null;
@@ -1422,7 +1838,145 @@ export type ClaimWidgetOptions = {
   introHtml: string | null;
   supabaseUrl: string;
   supabaseAnonKey: string;
+  banner: ClaimBannerSettings;
+  /** 'auto' = verified self-service claim; 'manual' = name/email/message sent to the directory's mailbox. */
+  mode: "auto" | "manual";
+  directoryId: string;
+  /** The entry already had a claim when this page was built. The banner stays
+   * in the HTML, hidden, and the page shows it again if that claim is revoked. */
+  reserved?: boolean;
 };
+
+/**
+ * Inline "Claim this listing" banner (sits between the hero and the body of an
+ * unclaimed entry page). Content and colours are per directory, stored on
+ * directory_claim_settings (banner_* columns) and edited in Claims > Settings.
+ * src/lib/claimBanner.js mirrors the defaults, limits and variable resolver for
+ * the admin preview; claimBanner_test.ts keeps the two in step.
+ */
+export type ClaimBannerSettings = {
+  heading: string;
+  body: string;
+  buttonLabel: string;
+  secondaryLabel: string;
+  secondaryUrl: string;
+  accentColour: string;
+  buttonTextColour: string;
+  backgroundColour: string;
+  borderColour: string;
+};
+
+export const CLAIM_BANNER_DEFAULTS: ClaimBannerSettings = {
+  heading: "Is this your organisation?",
+  body: "This listing hasn't been claimed. Claim it for free to update {{org_name}}'s details, description and logo.",
+  buttonLabel: "Claim this listing",
+  secondaryLabel: "How claiming works",
+  secondaryUrl: "",
+  accentColour: "#3F4C8A",
+  buttonTextColour: "#FFFFFF",
+  backgroundColour: "#ECEEFA",
+  borderColour: "#CFD4EA",
+};
+
+export const CLAIM_BANNER_LIMITS = { heading: 80, body: 240, buttonLabel: 30, secondaryLabel: 30, secondaryUrl: 500 } as const;
+
+/** Variables available in the banner heading, body and button label. Listings have no short-name field, so only org_name exists. */
+export const CLAIM_BANNER_VARIABLES = ["org_name"] as const;
+
+/** Resolves {{ name }} placeholders to PLAIN text (callers escape it). Unknown names become "". Single pass, so a value containing "{{x}}" is never re-expanded. */
+export function resolveClaimVars(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_m, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name) ? vars[name] : "");
+}
+
+/** Placeholder names used in `text` that are not in CLAIM_BANNER_VARIABLES (for the admin warning). */
+export function unknownClaimVars(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g)) {
+    if (!(CLAIM_BANNER_VARIABLES as readonly string[]).includes(m[1]) && !out.includes(m[1])) out.push(m[1]);
+  }
+  return out;
+}
+
+/** A relative path ("/how-claiming-works") or an https URL; anything else (javascript:, http:, //host) is rejected. */
+export function isValidClaimBannerUrl(url: string): boolean {
+  if (!url || url.length > CLAIM_BANNER_LIMITS.secondaryUrl) return false;
+  if (url.startsWith("/")) return !url.startsWith("//") && !/[\s\\]/.test(url);
+  if (!url.startsWith("https://")) return false;
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Builds publish-ready banner settings from a directory_claim_settings row, falling back to the defaults for anything missing or invalid. */
+export function normaliseClaimBanner(row: Record<string, unknown> | null | undefined): ClaimBannerSettings {
+  const d = CLAIM_BANNER_DEFAULTS;
+  const text = (v: unknown, fallback: string, max: number) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : fallback;
+  const optional = (v: unknown, fallback: string, max: number) =>
+    v === null ? "" : typeof v === "string" ? v.trim().slice(0, max) : fallback;
+  const hex = (v: unknown, fallback: string) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback);
+  const r = row ?? {};
+  const url = typeof r.banner_secondary_url === "string" ? r.banner_secondary_url.trim() : "";
+  return {
+    heading: text(r.banner_heading, d.heading, CLAIM_BANNER_LIMITS.heading),
+    body: text(r.banner_body, d.body, CLAIM_BANNER_LIMITS.body),
+    buttonLabel: text(r.banner_button_label, d.buttonLabel, CLAIM_BANNER_LIMITS.buttonLabel),
+    secondaryLabel: optional(r.banner_secondary_label, d.secondaryLabel, CLAIM_BANNER_LIMITS.secondaryLabel),
+    secondaryUrl: isValidClaimBannerUrl(url) ? url : "",
+    accentColour: hex(r.banner_accent_colour, d.accentColour),
+    buttonTextColour: hex(r.banner_button_text_colour, d.buttonTextColour),
+    backgroundColour: hex(r.banner_background_colour, d.backgroundColour),
+    borderColour: hex(r.banner_border_colour, d.borderColour),
+  };
+}
+
+/** The banner markup. Returns "" when claiming is off for this entry (the caller passes `claim` only for unclaimed entries of enabled, entitled directories). */
+export function buildClaimBanner(claim: ClaimWidgetOptions | null | undefined, entry: Pick<Entry, "id" | "name">): string {
+  if (!claim) return "";
+  const b = claim.banner ?? CLAIM_BANNER_DEFAULTS;
+  const vars = { org_name: entry.name };
+  const heading = escapeHtml(resolveClaimVars(b.heading, vars));
+  const body = escapeHtml(resolveClaimVars(b.body, vars));
+  const buttonLabel = escapeHtml(resolveClaimVars(b.buttonLabel, vars));
+  const secondary = b.secondaryLabel && b.secondaryUrl && isValidClaimBannerUrl(b.secondaryUrl)
+    ? `<a class="dir-claim-banner__secondary" href="${escapeAttr(b.secondaryUrl)}" data-dm-event="claim_banner_secondary_click" data-dm-cta="claim_secondary">${escapeHtml(b.secondaryLabel)}</a>`
+    : "";
+  const style = `--cb-accent:${sanitizeHexColor(b.accentColour, CLAIM_BANNER_DEFAULTS.accentColour)};--cb-btn-text:${sanitizeHexColor(b.buttonTextColour, CLAIM_BANNER_DEFAULTS.buttonTextColour)};--cb-bg:${sanitizeHexColor(b.backgroundColour, CLAIM_BANNER_DEFAULTS.backgroundColour)};--cb-border:${sanitizeHexColor(b.borderColour, CLAIM_BANNER_DEFAULTS.borderColour)}`;
+  const listingIdJs = JSON.stringify(entry.id).replace(/</g, "\\u003c");
+  const supabaseUrlJs = JSON.stringify(claim.supabaseUrl.replace(/\/$/, "")).replace(/</g, "\\u003c");
+  const anonKeyJs = JSON.stringify(claim.supabaseAnonKey).replace(/</g, "\\u003c");
+  const reserved = claim.reserved ? " hidden" : "";
+  return `<div class="wrap dir-claim-banner-wrap" id="dir-claim-banner-wrap"${reserved}>
+<section class="dir-claim-banner" aria-label="Claim this listing" style="${style}">
+  <div class="dir-claim-banner__icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg></div>
+  <div class="dir-claim-banner__text"><h2>${heading}</h2><p>${body}</p></div>
+  <div class="dir-claim-banner__actions">
+    ${secondary}
+    <button type="button" class="dir-claim-banner__btn" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>${buttonLabel}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+</section>
+<script>(function(){
+var id=${listingIdJs},base=${supabaseUrlJs},key=${anonKeyJs};
+window.dmClaimRetire=function(){var w=document.getElementById('dir-claim-banner-wrap');if(w&&w.parentNode)w.parentNode.removeChild(w);var d=document.getElementById('dir-claim');if(d&&d.parentNode)d.parentNode.removeChild(d);};
+function view(){if(window.dmRecordEngagement)window.dmRecordEngagement('claim_banner_view',{listingId:id,meta:{path:location.pathname}});}
+function run(){
+  fetch(base+'/rest/v1/rpc/is_listing_claimable',{method:'POST',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({p_directory_item_id:id})})
+    .then(function(r){return r.ok?r.json():true;})
+    .then(function(ok){
+      var w=document.getElementById('dir-claim-banner-wrap');
+      if(ok===false){window.dmClaimRetire();return;}
+      if(w)w.hidden=false;
+      view();
+    })
+    .catch(function(){var w=document.getElementById('dir-claim-banner-wrap');if(w&&w.hidden)return;view();});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+})();</script>
+</div>`;
+}
 
 function formatClaimPrice(priceCents: number, currency: string): string {
   const amount = (priceCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1431,7 +1985,8 @@ function formatClaimPrice(priceCents: number, currency: string): string {
 }
 
 function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
-  const priceLine = claim.priceCents != null && claim.currency
+  // Manual mode is a request to the directory, not a purchase, so no price is shown.
+  const priceLine = claim.mode !== "manual" && claim.priceCents != null && claim.currency
     ? `<p class="dir-claim__price">${escapeHtml(formatClaimPrice(claim.priceCents, claim.currency))}${claim.paymentType === "annual_recurring" ? " / year" : ""}</p>`
     : "";
   const intro = claim.introHtml?.trim()
@@ -1442,7 +1997,10 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
     supabaseUrl: claim.supabaseUrl.replace(/\/$/, ""),
     anonKey: claim.supabaseAnonKey,
     loginUrl: `${SITE_ORIGIN}/claim/login`,
+    directoryId: claim.directoryId,
+    manual: claim.mode === "manual",
   });
+  const manual = claim.mode === "manual";
   return `<div id="dir-claim" class="dir-enquiry" hidden>
   <button type="button" class="dir-enquiry__backdrop" data-dm-claim-close aria-label="Close"></button>
   <div class="dir-enquiry__panel" role="dialog" aria-modal="true" aria-labelledby="dir-claim-title">
@@ -1451,10 +2009,21 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
       <button type="button" class="dir-enquiry__close" data-dm-claim-close aria-label="Close">&times;</button>
     </div>
     <div class="dir-enquiry__body">
-      <p class="dir-enquiry__to">${escapeHtml(entry.name)}</p>
+      <h3 class="dir-claim__org">${escapeHtml(entry.name)}</h3>
       ${intro}
       ${priceLine}
-      <form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+      ${manual ? `<form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
+        <label class="dir-enquiry__label">Your name<input type="text" name="name" autocomplete="name" required maxlength="200"></label>
+        <label class="dir-enquiry__label">Email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
+        <label class="dir-enquiry__label">Message<textarea name="message" rows="4" maxlength="4000" placeholder="Tell us your role and how you're connected to this organisation."></textarea></label>
+        <div style="position:absolute;left:-9999px;" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
+        <button type="submit" class="btn btn-primary" id="dir-claim-submit">Send request</button>
+      </form>
+      <div id="dir-claim-success" hidden>
+        <p class="dir-enquiry__success">Thanks. Your request has been sent and the directory will be in touch.</p>
+        <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
+      </div>` : `<form id="dir-claim-form" class="dir-enquiry__body" style="padding:0;">
         <label class="dir-enquiry__label">Work email<input type="email" name="email" autocomplete="email" required placeholder="you@yourorganisation.com"></label>
         <p style="font-size:13px;opacity:0.7;margin:0 0 8px;">Use your organisation email address -- it must match this listing's website domain. We'll send you a sign-in link, no password needed.</p>
         <p class="dir-enquiry__error" id="dir-claim-error" hidden></p>
@@ -1463,7 +2032,7 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
       <div id="dir-claim-success" hidden>
         <p class="dir-enquiry__success">Check your email for a sign-in link to finish claiming this listing.</p>
         <button type="button" class="btn btn-primary" data-dm-claim-close>Close</button>
-      </div>
+      </div>`}
     </div>
   </div>
 </div>
@@ -1496,6 +2065,49 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
     if (e.key === 'Escape' && !root.hidden) setOpen(false);
   });
 
+  if (cfg.manual) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var data = new FormData(form);
+      var name = String(data.get('name') || '').trim();
+      var email = String(data.get('email') || '').trim();
+      errEl.hidden = true;
+      errEl.textContent = '';
+      if (!name || !email) {
+        errEl.hidden = false;
+        errEl.textContent = 'Name and email are required.';
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+      fetch(cfg.supabaseUrl + '/functions/v1/submit_claim_request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
+        body: JSON.stringify({
+          directoryId: cfg.directoryId, entryId: cfg.entryId, name: name, email: email,
+          message: String(data.get('message') || '').trim(), website: String(data.get('website') || '')
+        })
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) throw new Error((body && body.error) || 'Could not send your request.');
+          form.hidden = true;
+          successEl.hidden = false;
+          if (window.dmRecordEngagement) {
+            window.dmRecordEngagement('listing_claim_request_sent', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
+          }
+        });
+      }).catch(function (err) {
+        var raw = (err && err.message) || '';
+        if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+        errEl.hidden = false;
+        errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send request';
+      });
+    });
+    return;
+  }
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var data = new FormData(form);
@@ -1516,10 +2128,11 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) {
         if (!res.ok) throw new Error((body && body.message) || (body && body.error) || 'Could not start claim.');
-        return fetch(cfg.supabaseUrl + '/auth/v1/otp', {
+        // Branded sign-in email from this directory (send_claim_link), not Supabase Auth's generic one.
+        return fetch(cfg.supabaseUrl + '/functions/v1/send_claim_link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': cfg.anonKey },
-          body: JSON.stringify({ email: email, create_user: true, options: { email_redirect_to: cfg.loginUrl } })
+          body: JSON.stringify({ email: email, kind: 'sign_in', redirectTo: cfg.loginUrl })
         });
       });
     }).then(function (res) {
@@ -1530,8 +2143,9 @@ function buildClaimWidget(claim: ClaimWidgetOptions, entry: Entry): string {
         window.dmRecordEngagement('listing_claim_start', { listingId: cfg.entryId, meta: { path: location.pathname, cta_type: 'claim' } });
       }
     }).catch(function (err) {
-      errEl.hidden = false;
       var raw = (err && err.message) || '';
+      if (/already has a claim/i.test(raw) && window.dmClaimRetire) { window.dmClaimRetire(); return; }
+      errEl.hidden = false;
       errEl.textContent = (!raw || raw === 'Failed to fetch') ? 'Something went wrong. Please try again.' : raw;
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send sign-in link';
@@ -1729,6 +2343,7 @@ export function buildEntryPage(opts: {
   // existing configured layouts are unaffected until an admin opts in.
   const jumpChips: string[] = [];
   const sections = layout.map((block, i) => {
+    if (block.hidden === true) return "";
     const content = renderBlockContent(block);
     if (!content) return "";
     if (!block.label) return content;
@@ -1800,12 +2415,10 @@ export function buildEntryPage(opts: {
 </div>`
     : "";
 
-  // Quiet claim link, directly under the map — no longer a header button,
-  // same gating (only rendered when the directory has claims configured
-  // and this entry is open to claim, per claimWidgetFor in index.ts).
-  const claimLink = claim
-    ? `<p class="dir-claim-quiet">Represent this organisation?<br><button type="button" data-dm-event="listing_cta_click" data-dm-cta="claim" data-dm-claim-open>Claim this listing</button></p>`
-    : "";
+  // The claim call to action is the full-width banner between the hero and
+  // the body (buildClaimBanner), gated by claimWidgetFor in index.ts. It
+  // replaced the quiet link that used to sit under the map.
+  const claimBanner = buildClaimBanner(claim, entry);
 
   // Directory attributes: every single_select/boolean categorisation gets
   // a row, even ones this entry has no value for ("—" / "No") — a
@@ -1862,7 +2475,7 @@ export function buildEntryPage(opts: {
 </section>`
     : "";
 
-  const aside = [contactPanel, mapCard, claimLink, attrsBlock, tagBlocks].filter(Boolean).join("\n");
+  const aside = [contactPanel, mapCard, attrsBlock, tagBlocks].filter(Boolean).join("\n");
 
   const description = entry.meta_description || (location ? `${entry.name} — ${location}` : entry.name);
 
@@ -1875,6 +2488,7 @@ ${breadcrumb}
 ${heroSection}
 </div>
 ${jumpBar}
+${claimBanner}
 <div class="wrap dir-entry-body">
   <div class="dir-entry-main">${sections}</div>
   ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
@@ -1944,6 +2558,7 @@ export function buildSiteNav(opts: {
   directorySlug: string;
   homeNavLabel?: string | null;
   pages: ContentPage[];
+  claimLoginUrl?: string | null;
 }): SiteNav {
   const homeUrl = `/directories/${opts.clientSlug}/${opts.directorySlug}`;
   const homeLabel = opts.homeNavLabel?.trim() || "Home";
@@ -1963,7 +2578,7 @@ export function buildSiteNav(opts: {
         href: `${homeUrl}/${contentPagePublicPath(c, byId)}`,
       })),
     }));
-  return { homeUrl, homeLabel, items };
+  return { homeUrl, homeLabel, items, claimLoginUrl: opts.claimLoginUrl ?? null };
 }
 
 export function breadcrumbListJsonLd(items: { name: string; url: string }[]): Record<string, unknown> {
@@ -2167,15 +2782,26 @@ export function filterRail(categorisations: FilterBarCategorisation[], locationS
   return `<aside id="dir-filter-rail" class="dir-rail">${drawerHeader}${distanceGroup}${groups}</aside>`;
 }
 
-// Ported from the Claude Design concept's own logic class (design doc:
-// "the filter/search algorithms in it are directly portable") — tokenize,
-// drop stopwords, score by distinct-token presence, sort by score.
-const SEARCH_STOPWORDS = [
+// Search is relevance-ranked in the browser (see scoreRows() in
+// buildFilterAndSearchScript): words are weighted by how rare they are across
+// this directory's listings (IDF) and by which field they appear in, so a word
+// that is in nearly every listing ("association", in a directory of
+// associations) counts for almost nothing. Only filler words are dropped from
+// a query; generic words stay in and are down-weighted by their own frequency,
+// which also means a query made only of them ("association") still searches
+// for them instead of matching every listing.
+const SEARCH_FILLER_WORDS = [
   "find", "for", "an", "the", "and", "with", "who", "that", "are",
-  "association", "associations", "body", "bodies", "organisation", "organisations",
-  "working", "looking", "need", "want", "professionals", "professional",
-  "uk", "member", "members", "membership", "near", "me", "in", "of", "a",
+  "working", "looking", "need", "want", "near", "me", "in", "of", "a",
 ];
+
+/** Separates the per-field texts inside a row's data-search attribute. */
+const SEARCH_FIELD_SEP = "¦";
+
+/** Field order in data-search, with the weight a hit in each carries. Must
+ * stay in step with buildSearchFields() below. The last field is the free-text
+ * body, the only one the script discounts for ubiquitous words. */
+const SEARCH_FIELD_WEIGHTS = [5, 3, 2, 2, 1];
 
 const SEARCH_HAYSTACK_MAX = 8000;
 
@@ -2184,24 +2810,26 @@ function stripHtmlForSearch(html: string | null | undefined): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-/** Public listing text baked into each row's data-search attribute. */
-function buildSearchHaystack(e: Entry, termLabels: string[]): string {
+function searchField(parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(" ").split(SEARCH_FIELD_SEP).join(" ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Public listing text baked into each row's data-search attribute, as
+ * SEARCH_FIELD_SEP-separated fields in SEARCH_FIELD_WEIGHTS order:
+ * name, keywords + category labels, summary + meta description,
+ * location + website, notes body. The notes body is truncated so the whole
+ * attribute stays within SEARCH_HAYSTACK_MAX, as the single blob used to. */
+function buildSearchFields(e: Entry, termLabels: string[]): string {
   const street = e.show_address ? e.address : null;
-  const parts = [
-    e.name,
-    e.slug,
-    e.website_url,
-    street,
-    e.city,
-    e.postcode,
-    e.country,
-    e.meta_description,
-    e.keywords,
-    e.ai_summary,
-    stripHtmlForSearch(e.notes_html).slice(0, SEARCH_HAYSTACK_MAX),
-    ...termLabels,
+  const fields = [
+    searchField([e.name, e.slug]),
+    searchField([e.keywords, ...termLabels]),
+    searchField([e.ai_summary, e.meta_description]),
+    searchField([street, e.city, e.postcode, e.country, e.website_url]),
   ];
-  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim().toLowerCase().slice(0, SEARCH_HAYSTACK_MAX);
+  const used = fields.reduce((n, f) => n + f.length + 1, 0);
+  fields.push(searchField([stripHtmlForSearch(e.notes_html)]).slice(0, Math.max(0, SEARCH_HAYSTACK_MAX - used)));
+  return fields.join(SEARCH_FIELD_SEP);
 }
 
 /** Embeds a JSON value as a JS literal inside an inline <script> — escapes
@@ -2449,9 +3077,19 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 <script>
 (function () {
   var CATS = ${embedJson(catsMeta)};
-  var STOPWORDS = ${embedJson(SEARCH_STOPWORDS)};
-  var stopwordSet = {};
-  STOPWORDS.forEach(function (w) { stopwordSet[w] = true; });
+  var FILLER_WORDS = ${embedJson(SEARCH_FILLER_WORDS)};
+  var fillerSet = {};
+  FILLER_WORDS.forEach(function (w) { fillerSet[w] = true; });
+  var FIELD_SEP = ${embedJson(SEARCH_FIELD_SEP)};
+  var FIELD_WEIGHTS = ${embedJson(SEARCH_FIELD_WEIGHTS)};
+  // A word found in more than this share of listings is "ubiquitous": it only
+  // counts when it appears in a short field (name, keywords, categories...),
+  // not in free-text notes. Ignored below MIN_ROWS_FOR_UBIQUITY listings,
+  // where a share is meaningless.
+  var UBIQUITOUS_SHARE = 0.5;
+  var MIN_ROWS_FOR_UBIQUITY = 20;
+  // Results scoring under this share of the best score are dropped.
+  var SCORE_CUTOFF = 0.15;
 
   var LOCATION_SEARCH = ${embedJson(!!locationSearch)};
   var PLACES = ${embedJson(locationSearch?.places ?? {})};
@@ -2474,32 +3112,18 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   var AI_SEARCH_DIRECTORY_ID = ${embedJson(aiSearch?.directoryId ?? null)};
   var AI_SEARCH_URL = ${embedJson(aiSearch ? aiSearch.supabaseUrl + "/functions/v1/directory_ai_search" : null)};
   var AI_SEARCH_ANON_KEY = ${embedJson(aiSearch?.supabaseAnonKey ?? null)};
-  var HMC_OPENING = ${embedJson("What would you like an association to help you with?\n\nTell me a little about your work, career or business and what you’d like support with.\n\nFor example: “I’ve recently started working in publishing and I’d like to develop my skills and meet people in the industry.”")};
-  var resultEntryIds = null; // null = keyword+facets; array = Help me choose allow-list
+  var resultEntryIds = null; // null = keyword+facets; array = Ask AI picks (shown in the AI's order)
   var aiReasons = {};
   var aiBasedOn = [];
   var aiMessages = [];
   var aiCandidateIds = null;
   var aiSearchToken = 0;
-  var hmcStorageKey = AI_SEARCH_DIRECTORY_ID ? ('dm-help-me-choose:' + AI_SEARCH_DIRECTORY_ID) : null;
 
   var form = document.getElementById('dir-search-form');
   var input = document.getElementById('dir-search-input');
   var rows = Array.prototype.slice.call(document.querySelectorAll('[data-search]'));
   var totalCount = rows.length;
   var countEl = document.getElementById('dir-result-count');
-  var toolbarHelpBtn = document.getElementById('dir-toolbar-hmc');
-  var aiBanner = document.getElementById('dir-ai-banner');
-  var aiBannerCount = document.getElementById('dir-ai-banner-count');
-  var aiBannerBased = document.getElementById('dir-ai-banner-based');
-  var hmcBackdrop = document.getElementById('dir-hmc-backdrop');
-  var hmcMessagesEl = document.getElementById('dir-hmc-messages');
-  var hmcForm = document.getElementById('dir-hmc-form');
-  var hmcInput = document.getElementById('dir-hmc-input');
-  var hmcError = document.getElementById('dir-hmc-error');
-  var hmcCloseBtn = document.getElementById('dir-hmc-close');
-  var hmcRefineBtn = document.getElementById('dir-ai-refine');
-  var hmcClearBtn = document.getElementById('dir-ai-clear');
   var chipsEl = document.getElementById('dir-active-chips');
   var clearAllBtn = document.getElementById('dir-clear-all');
   var emptyClearBtn = document.getElementById('dir-empty-clear');
@@ -2547,7 +3171,87 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
   function tokens(q) {
     var m = q.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
-    return m.filter(function (t) { return !stopwordSet[t]; });
+    return m.filter(function (t) { return !fillerSet[t]; });
+  }
+
+  // Relevance scoring. Fields are parsed once; each query word's document
+  // frequency (rows containing it) is cached, since the rows never change.
+  var rowFields = null;
+  var dfCache = {};
+  function fieldsOf() {
+    if (!rowFields) {
+      rowFields = rows.map(function (row) {
+        return (row.getAttribute('data-search') || '').split(FIELD_SEP);
+      });
+    }
+    return rowFields;
+  }
+  function docFreq(t) {
+    if (dfCache[t] === undefined) {
+      var n = 0;
+      fieldsOf().forEach(function (fs) {
+        for (var i = 0; i < fs.length; i++) { if (fs[i].indexOf(t) !== -1) { n++; break; } }
+      });
+      dfCache[t] = n;
+    }
+    return dfCache[t];
+  }
+  // Best field weight word t earns in one row (0 = absent). A ubiquitous word
+  // is ignored in the last (free-text notes) field unless relaxed.
+  function hitWeight(fs, t, skipNotes) {
+    var best = 0;
+    for (var i = 0; i < fs.length; i++) {
+      if (skipNotes && i === fs.length - 1) break;
+      if (fs[i].indexOf(t) !== -1 && (FIELD_WEIGHTS[i] || 1) > best) best = FIELD_WEIGHTS[i] || 1;
+    }
+    return best;
+  }
+  // Returns { entryId: score } for matching rows, or null when there is no
+  // keyword query. First pass needs every distinctive word (all words, if
+  // none is distinctive); if nothing matches, a second pass accepts any word
+  // anywhere. Rows far below the best score are dropped.
+  function scoreRows(toks) {
+    if (!toks.length) return null;
+    var all = fieldsOf();
+    var n = all.length;
+    var seen = {};
+    var uniq = toks.filter(function (t) { if (seen[t]) return false; seen[t] = true; return true; });
+    var info = uniq.map(function (t) {
+      var d = docFreq(t);
+      return {
+        t: t,
+        idf: Math.log(1 + (n - d + 0.5) / (d + 0.5)),
+        ubiquitous: n >= MIN_ROWS_FOR_UBIQUITY && d > n * UBIQUITOUS_SHARE,
+      };
+    });
+    function run(strict) {
+      var required = strict ? info.filter(function (w) { return !w.ubiquitous; }) : [];
+      if (strict && !required.length) required = info;
+      var out = {};
+      var best = 0;
+      var found = false;
+      rows.forEach(function (row, i) {
+        var fs = all[i];
+        var score = 0;
+        var any = false;
+        var weights = info.map(function (w) {
+          var hw = hitWeight(fs, w.t, strict && w.ubiquitous);
+          if (hw) { any = true; score += w.idf * hw; }
+          return hw;
+        });
+        var ok = strict
+          ? required.every(function (w) { return weights[info.indexOf(w)] > 0; })
+          : any;
+        if (!ok) return;
+        found = true;
+        out[row.getAttribute('data-entry-id')] = score;
+        if (score > best) best = score;
+      });
+      if (!found) return null;
+      Object.keys(out).forEach(function (id) { if (out[id] < best * SCORE_CUTOFF) delete out[id]; });
+      return out;
+    }
+    return run(true) || run(false) || {};
   }
 
   function placeKey(s) {
@@ -2902,6 +3606,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function apply() {
     var q = input ? input.value.trim() : '';
     var toks = tokens(keywordQuery());
+    var scored = scoreRows(toks);
     var shown = 0;
     var alsoCount = 0;
     var shownIds = [];
@@ -2921,12 +3626,10 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         var aiIdx = resultEntryIds.indexOf(entryId);
         searchMatch = aiIdx !== -1;
         order = aiIdx === -1 ? 0 : aiIdx;
-      } else if (toks.length) {
-        var hay = (row.getAttribute('data-search') || '');
-        var score = 0;
-        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
-        searchMatch = score > 0;
-        order = -score;
+      } else if (scored) {
+        var score = scored[entryId];
+        searchMatch = score !== undefined;
+        order = searchMatch ? -Math.round(score * 100) : 0;
       }
       var textMatch = searchMatch && categoryMatch;
       var lat = parseFloat(row.getAttribute('data-lat'));
@@ -2967,7 +3670,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         var reason = match && resultEntryIds && aiReasons[entryId] ? aiReasons[entryId] : '';
         if (reason) {
           whyEl.hidden = false;
-          whyEl.innerHTML = '<strong>Why this might suit you</strong>' + escapeWhy(reason);
+          whyEl.innerHTML = aiSvg('sparkle', 14) + '<span>' + escapeWhy(reason) + '</span>';
         } else {
           whyEl.hidden = true;
           whyEl.textContent = '';
@@ -2977,10 +3680,13 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
 
     if (countEl) {
       var line;
-      if (distanceOn) {
+      if (resultEntryIds) {
+        var scopeN = aiScoped && aiCandidateIds ? aiCandidateIds.length : 0;
+        line = scopeN
+          ? shown + ' of ' + scopeN + ' entries' + (aiScopeQuery ? ' for \\u201c' + aiScopeQuery + '\\u201d' : '')
+          : shown + (shown === 1 ? ' entry' : ' entries');
+      } else if (distanceOn) {
         line = shown + (shown === 1 ? ' entry' : ' entries') + ' within ' + distanceMiles + ' miles of ' + distanceLabel;
-      } else if (resultEntryIds) {
-        line = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
       } else if (q) {
         line = shown + (shown === 1 ? ' entry matches \\u201c' + q + '\\u201d' : ' entries match \\u201c' + q + '\\u201d');
       } else if (shown === totalCount) {
@@ -2990,7 +3696,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       }
       countEl.textContent = line;
     }
-    if (mapCountEl) mapCountEl.textContent = shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
+    if (mapCountEl) mapCountEl.textContent = resultEntryIds ? shown + (shown === 1 ? ' AI pick' : ' AI picks') : shown + (shown === 1 ? ' entry' : ' entries') + ' \\u00b7 same filters';
     if (drawerCountEl) drawerCountEl.textContent = String(shown);
     if (rowsWrap) rowsWrap.hidden = shown === 0;
     if (alsoWrap) alsoWrap.hidden = alsoCount === 0;
@@ -3000,23 +3706,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         : 'Nothing matches these filters';
     }
     if (emptyEl) emptyEl.hidden = shown !== 0 || alsoCount !== 0;
-    if (toolbarHelpBtn) toolbarHelpBtn.hidden = !AI_SEARCH_ENABLED || !!resultEntryIds || shown === 0;
-
-    if (aiBanner) {
-      aiBanner.hidden = !resultEntryIds;
-      if (resultEntryIds && aiBannerCount) {
-        aiBannerCount.textContent = shown + (shown === 1 ? ' entry may be relevant to you' : ' entries may be relevant to you');
-      }
-      if (aiBannerBased) {
-        if (aiBasedOn.length) {
-          aiBannerBased.hidden = false;
-          aiBannerBased.textContent = 'Based on: ' + aiBasedOn.join(' · ');
-        } else {
-          aiBannerBased.hidden = true;
-          aiBannerBased.textContent = '';
-        }
-      }
-    }
+    aiAfterApply(shown);
 
     renderChips();
     syncUrl();
@@ -3033,7 +3723,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
 
   function matchingIdsIgnoringAi() {
-    var toks = tokens(keywordQuery());
+    var scored = scoreRows(tokens(keywordQuery()));
     var ids = [];
     rows.forEach(function (row) {
       var terms = rowTermIds(row);
@@ -3043,12 +3733,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
         return terms.some(function (t) { return selected.indexOf(t) !== -1; });
       });
       var searchMatch = true;
-      if (toks.length) {
-        var hay = (row.getAttribute('data-search') || '');
-        var score = 0;
-        toks.forEach(function (t) { if (hay.indexOf(t) !== -1) score++; });
-        searchMatch = score > 0;
-      }
+      if (scored) searchMatch = scored[row.getAttribute('data-entry-id')] !== undefined;
       var textMatch = searchMatch && categoryMatch;
       var lat = parseFloat(row.getAttribute('data-lat'));
       var lng = parseFloat(row.getAttribute('data-lng'));
@@ -3064,7 +3749,8 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   ${hasMap ? `
   function postToMap(shownIds) {
     if (!mapFrame || !mapFrame.contentWindow) return;
-    var msg = { type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [] };
+    var msg = { type: 'directory-filter-change', activeFilters: active, visibleEntryIds: shownIds || [], aiPicks: !!resultEntryIds };
+    if (resultEntryIds) msg.aiAccent = getComputedStyle(document.documentElement).getPropertyValue('--ai-accent').trim();
     if (LOCATION_SEARCH && distanceOrigin) {
       msg.focus = { lat: distanceOrigin.lat, lng: distanceOrigin.lng, radiusMiles: distanceMiles };
     }
@@ -3072,139 +3758,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   }
   ` : ""}
 
-  function persistHmc() {
-    if (!hmcStorageKey || !window.sessionStorage) return;
-    try {
-      sessionStorage.setItem(hmcStorageKey, JSON.stringify({
-        messages: aiMessages,
-        resultEntryIds: resultEntryIds,
-        reasons: aiReasons,
-        basedOn: aiBasedOn,
-        candidateIds: aiCandidateIds
-      }));
-    } catch (err) {}
-  }
-  function restoreHmc() {
-    if (!hmcStorageKey || !window.sessionStorage) return;
-    try {
-      var raw = sessionStorage.getItem(hmcStorageKey);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && Array.isArray(data.messages)) aiMessages = data.messages;
-      if (data && Array.isArray(data.resultEntryIds)) resultEntryIds = data.resultEntryIds;
-      if (data && data.reasons && typeof data.reasons === 'object') aiReasons = data.reasons;
-      if (data && Array.isArray(data.basedOn)) aiBasedOn = data.basedOn;
-      if (data && Array.isArray(data.candidateIds)) aiCandidateIds = data.candidateIds;
-    } catch (err) {}
-  }
-  function renderHmcMessages() {
-    if (!hmcMessagesEl) return;
-    hmcMessagesEl.innerHTML = '';
-    function add(role, text) {
-      var el = document.createElement('div');
-      el.className = 'dir-hmc-msg dir-hmc-msg--' + role;
-      el.textContent = text;
-      hmcMessagesEl.appendChild(el);
-    }
-    if (!aiMessages.length) add('assistant', HMC_OPENING);
-    aiMessages.forEach(function (m) { add(m.role, m.content); });
-    hmcMessagesEl.scrollTop = hmcMessagesEl.scrollHeight;
-  }
-  function setHmcError(msg) {
-    if (!hmcError) return;
-    if (!msg) { hmcError.hidden = true; hmcError.textContent = ''; return; }
-    hmcError.hidden = false;
-    hmcError.textContent = msg;
-  }
-  function openHmc() {
-    if (!AI_SEARCH_ENABLED || !hmcBackdrop) return;
-    hmcBackdrop.classList.add('dir-hmc-backdrop--open');
-    document.body.style.overflow = 'hidden';
-    renderHmcMessages();
-    setHmcError('');
-    if (hmcInput) hmcInput.focus();
-  }
-  function closeHmc() {
-    if (!hmcBackdrop) return;
-    hmcBackdrop.classList.remove('dir-hmc-backdrop--open');
-    document.body.style.overflow = '';
-  }
-  function startHelpMeChoose() {
-    if (!AI_SEARCH_ENABLED) return;
-    var q = input ? input.value.trim() : '';
-    if (!aiMessages.length && !resultEntryIds) {
-      var ids = matchingIdsIgnoringAi();
-      aiCandidateIds = ids.length === totalCount ? null : ids;
-      if (q) {
-        aiMessages = [{ role: 'user', content: q.slice(0, 2000) }];
-        openHmc();
-        runHelpMeChooseTurn();
-        return;
-      }
-    }
-    openHmc();
-  }
-  function clearAiState() {
-    resultEntryIds = null;
-    aiReasons = {};
-    aiBasedOn = [];
-    aiMessages = [];
-    aiCandidateIds = null;
-    aiSearchToken++;
-    if (hmcStorageKey && window.sessionStorage) {
-      try { sessionStorage.removeItem(hmcStorageKey); } catch (err) {}
-    }
-    closeHmc();
-    apply();
-  }
-  function runHelpMeChooseTurn() {
-    if (!AI_SEARCH_URL || !aiMessages.length) return;
-    var token = ++aiSearchToken;
-    setHmcError('');
-    var hasAbort = typeof AbortController !== 'undefined';
-    var controller = hasAbort ? new AbortController() : null;
-    var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-    var payload = {
-      directory_id: AI_SEARCH_DIRECTORY_ID,
-      messages: aiMessages
-    };
-    if (aiCandidateIds) payload.candidate_entry_ids = aiCandidateIds;
-    fetch(AI_SEARCH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': AI_SEARCH_ANON_KEY },
-      body: JSON.stringify(payload),
-      signal: controller ? controller.signal : undefined
-    })
-      .then(function (res) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (!res.ok) throw new Error('directory_ai_search returned ' + res.status);
-        return res.json();
-      })
-      .then(function (body) {
-        if (token !== aiSearchToken) return;
-        if (!body || body.disabled) throw new Error('Help me choose is not available right now.');
-        if (body.follow_up && body.follow_up.question) {
-          aiMessages.push({ role: 'assistant', content: body.follow_up.question });
-          persistHmc();
-          renderHmcMessages();
-          return;
-        }
-        if (!Array.isArray(body.entry_ids)) throw new Error('Unexpected Help me choose response.');
-        resultEntryIds = body.entry_ids;
-        aiReasons = body.reasons && typeof body.reasons === 'object' ? body.reasons : {};
-        aiBasedOn = Array.isArray(body.based_on) ? body.based_on : [];
-        persistHmc();
-        renderHmcMessages();
-        apply();
-        closeHmc();
-      })
-      .catch(function () {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (token !== aiSearchToken) return;
-        setHmcError('Something went wrong. Your current results are unchanged — try again.');
-        renderHmcMessages();
-      });
-  }
+${buildAskAiScript({ hasMap })}
 
   var searchLogTimer = null;
   function emitDirectorySearch(q) {
@@ -3216,12 +3770,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   function scheduleSearch(immediate) {
     var q = input ? input.value.trim() : '';
     if (LOCATION_SEARCH) applyParsed(parseLocationQuery(q));
-    if (resultEntryIds) {
-      resultEntryIds = null;
-      aiReasons = {};
-      aiBasedOn = [];
-      persistHmc();
-    }
+    aiDropPicks('search_changed', true);
     if (immediate) emitDirectorySearch(q);
     apply();
     if (searchLogTimer) { clearTimeout(searchLogTimer); searchLogTimer = null; }
@@ -3260,7 +3809,6 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
   if (drawerClearBtn) drawerClearBtn.addEventListener('click', clearAll);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && railEl && railEl.classList.contains('dir-rail--open')) closeDrawer();
-    if (e.key === 'Escape' && hmcBackdrop && hmcBackdrop.classList.contains('dir-hmc-backdrop--open')) closeHmc();
   });
 
   if (form && input) {
@@ -3309,28 +3857,6 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
       }, 400);
     });
   }
-  document.querySelectorAll('[data-hmc-open]').forEach(function (btn) {
-    btn.addEventListener('click', function () { startHelpMeChoose(); });
-  });
-  if (hmcCloseBtn) hmcCloseBtn.addEventListener('click', closeHmc);
-  if (hmcBackdrop) hmcBackdrop.addEventListener('click', function (e) {
-    if (e.target === hmcBackdrop) closeHmc();
-  });
-  if (hmcRefineBtn) hmcRefineBtn.addEventListener('click', function () { openHmc(); });
-  if (hmcClearBtn) hmcClearBtn.addEventListener('click', clearAiState);
-  if (hmcForm) {
-    hmcForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var text = hmcInput ? hmcInput.value.trim() : '';
-      if (!text) return;
-      aiMessages.push({ role: 'user', content: text.slice(0, 2000) });
-      if (hmcInput) hmcInput.value = '';
-      persistHmc();
-      renderHmcMessages();
-      runHelpMeChooseTurn();
-    });
-  }
-
   document.querySelectorAll('.dir-msel__checkbox[data-cat-id][data-kind="multi_select"]').forEach(function (cb) {
     cb.addEventListener('change', function () {
       var catId = cb.getAttribute('data-cat-id');
@@ -3406,7 +3932,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     active = {};
     if (input) input.value = '';
     if (LOCATION_SEARCH) clearDistance(true);
-    clearAiState();
+    aiDropPicks('clear_all', true);
     setRowControlState();
     apply();
   }
@@ -3449,7 +3975,7 @@ export function buildFilterAndSearchScript(hasMap: boolean, categorisations: Fil
     if (v === 'map' && mapPane) setView('map');
   })();
 
-  restoreHmc();
+  aiInit();
   apply();
   if (mapFrame) mapFrame.addEventListener('load', function () { apply(); });
 })();
@@ -3503,6 +4029,8 @@ export function buildDirectoryLandingPage(opts: {
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const visibleEntries = entries.filter((e) => !e.noindex);
+  // No per-directory noun setting yet; Ask AI copy uses the neutral plural.
+  const aiNounMany = "entries";
 
   const termMeta = buildTermMetaIndex(categorisations);
 
@@ -3523,7 +4051,7 @@ export function buildDirectoryLandingPage(opts: {
         .slice(0, 3);
       const asideTerm = terms.find((t) => t.catFieldType === "single_select");
 
-      const searchHaystack = buildSearchHaystack(e, terms.map((t) => t.label));
+      const searchHaystack = buildSearchFields(e, terms.map((t) => t.label));
       const searchText = escapeAttr(searchHaystack);
       const termIdsAttr = escapeAttr(termIds.join(","));
       const coordAttr = locationSearch && typeof e.lat === "number" && typeof e.lng === "number" && Number.isFinite(e.lat) && Number.isFinite(e.lng)
@@ -3613,6 +4141,7 @@ export function buildDirectoryLandingPage(opts: {
 
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
+${aiSearch?.enabled ? `<div class="dir-ai-shell" id="dir-ai-shell" data-show-launcher="${resolveAiTokens(theme, resolvedTheme(theme)).showLauncher ? "1" : "0"}"><div class="dir-ai-main">` : ""}
 <div class="dir-home-intro">
   <div class="wrap" style="padding-top:56px;padding-bottom:56px;text-align:center;">
     <div class="eyebrow" style="margin-bottom:14px;">${visibleEntries.length} entr${visibleEntries.length === 1 ? "y" : "ies"}</div>
@@ -3621,29 +4150,25 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
     <form id="dir-search-form" class="dir-search-form">
       <input id="dir-search-input" type="text" placeholder="Search by name, acronym, profession, industry, interest or keyword…" autocomplete="off">
       <button type="submit" class="btn btn-primary">Search</button>
-      ${aiSearch?.enabled ? `<button type="button" class="btn btn-ghost dir-hmc-btn" data-hmc-open>Help me choose</button>` : ""}
+      ${aiSearch?.enabled ? `<button type="button" class="dir-ai-btn" id="dir-ai-e1" data-ai-open="E1" aria-pressed="false">${askAiIcon("sparkle", 18)}Ask AI</button>` : ""}
     </form>
+    ${aiSearch?.enabled ? `<p class="dir-ai-helper" id="dir-ai-e2">Not sure what to search for? <button type="button" class="dir-ai-link" data-ai-open="E2">Describe your situation</button> and Ask AI will suggest ${aiNounMany}.</p>` : ""}
   </div>
 </div>
 <div class="wrap" style="padding-top:40px;padding-bottom:20px;">
   <div class="dir-toolbar">
     <div class="dir-toolbar__left">
       <h2 class="dir-count" id="dir-result-count">${visibleEntries.length}${visibleEntries.length === 1 ? " entry" : " entries"}</h2>
-      ${aiSearch?.enabled ? `<button type="button" class="dir-clear-all" id="dir-toolbar-hmc" data-hmc-open hidden>Help me choose</button>` : ""}
+      ${aiSearch?.enabled ? `<span class="dir-ai-pill" id="dir-ai-pill" hidden>${askAiIcon("sparkle", 14)}Picked by Ask AI<button type="button" aria-label="Clear AI picks"><span aria-hidden="true">\u00d7</span></button></span>
+      <button type="button" class="dir-clear-all" id="dir-ai-showall" hidden></button>
+      <button type="button" class="dir-ai-e3" id="dir-ai-e3" data-ai-open="E3" hidden>${askAiIcon("sparkle", 14)}<span></span></button>
+      <span class="dir-ai-e3 dir-ai-e3--static" id="dir-ai-e3-static" hidden>${askAiIcon("sparkle", 14)}<span></span></span>` : ""}
       <div id="dir-active-chips"></div>
       <button type="button" class="dir-clear-all" id="dir-clear-all" hidden>Clear all</button>
     </div>
     ${filtersTrigger}
     ${viewToggle}
   </div>
-  ${aiSearch?.enabled ? `<div id="dir-ai-banner" class="dir-ai-banner" hidden>
-    <strong id="dir-ai-banner-count"></strong>
-    <span class="dir-ai-banner__based" id="dir-ai-banner-based" hidden></span>
-    <div class="dir-ai-banner__actions">
-      <button type="button" id="dir-ai-refine">Refine with AI</button>
-      <button type="button" id="dir-ai-clear">Clear</button>
-    </div>
-  </div>` : ""}
   ${linkTiles(directoryLinks)}
   <div class="dir-body">
     ${rail}
@@ -3666,21 +4191,12 @@ ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme
     </div>
   </div>
 </div>
-${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
-${aiSearch?.enabled ? `<div id="dir-hmc-backdrop" class="dir-hmc-backdrop">
-  <div class="dir-hmc-dialog" role="dialog" aria-modal="true" aria-labelledby="dir-hmc-title">
-    <header>
-      <h2 id="dir-hmc-title">Help me choose</h2>
-      <button type="button" class="btn btn-ghost" id="dir-hmc-close">Close</button>
-    </header>
-    <div class="dir-hmc-messages" id="dir-hmc-messages"></div>
-    <p class="dir-hmc-error" id="dir-hmc-error" hidden></p>
-    <form class="dir-hmc-form" id="dir-hmc-form">
-      <textarea id="dir-hmc-input" rows="2" placeholder="Describe what you’d like help with…"></textarea>
-      <button type="submit" class="btn btn-primary">Send</button>
-    </form>
-  </div>
+${aiSearch?.enabled ? `</div>
+${askAiPanelMarkup({ total: visibleEntries.length, nounMany: aiNounMany })}
 </div>` : ""}
+${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
+${aiSearch?.enabled ? `<div class="dir-ai-live" id="dir-ai-live" role="status" aria-live="polite"></div>
+${askAiFloatingMarkup()}` : ""}
 ${locationSearch ? "<!-- Place names: GeoNames (https://www.geonames.org/), CC-BY 4.0 -->" : ""}
 ${buildFilterAndSearchScript(hasMap, categorisations, aiSearch ?? null, locationSearch ?? null)}
 `.trim();

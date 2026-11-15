@@ -1,0 +1,62 @@
+/* Phase 6, Wave A, batch 2: directory entries list and the entry editor.
+   Scoped under .shell, tokens only. Imported by DirectoryEntriesPanel and the entryEdit components. */
+
+/* ---- Entries list ---- */
+.shell .entries-stack { display: flex; flex-direction: column; gap: 16px; }
+.shell .entries-search { flex: 1 1 260px; max-width: 380px; }
+.shell .entries-filter { flex: 0 1 220px; }
+.shell .entries-pre { margin: 0; white-space: pre-wrap; font-family: inherit; }
+.shell .entries-muted { color: var(--shell-text-muted); font-size: var(--fs-small); }
+.shell .csv-file { font-size: var(--fs-small); color: var(--shell-text); }
+.shell .csv-preview-table { min-width: 480px; }
+.shell .dialog-actions { display: flex; flex-direction: column; gap: 8px; }
+.shell .dialog-actions .shell-btn { width: 100%; }
+.shell .dialog-note { margin: 0 0 12px; font-size: var(--fs-ui); color: var(--shell-text); }
+
+/* ---- Bulk tag dialog ---- */
+.shell .bulk-tag-form { display: flex; flex-direction: column; gap: 16px; }
+.shell .bulk-tag-count { margin: 0; font-size: var(--fs-ui); color: var(--shell-text-soft); }
+.shell .choice-row { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+/* ---- Entry editor ---- */
+.shell .editor-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .editor-form { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .editor-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.shell .group-row { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.shell .group-row > .field { align-self: stretch; }
+.shell .subpanel { padding: 14px 16px; background: var(--shell-ground); border: 1px solid var(--shell-line); border-radius: var(--radius-control); display: flex; flex-direction: column; gap: 12px; }
+.shell .inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.shell .inline-form .field { flex: 1 1 200px; }
+.shell .upload-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.shell .logo-thumb { width: 32px; height: 32px; object-fit: contain; border-radius: var(--radius-item); border: 1px solid var(--shell-line); background: var(--shell-surface); }
+.shell .file-btn { cursor: pointer; }
+.shell .file-btn:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .file-btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+.shell .swatch-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.shell .swatch-choice { width: 36px; height: 36px; padding: 0; border-radius: var(--radius-item); border: 1px solid var(--shell-line); cursor: pointer; }
+.shell .swatch-choice[aria-pressed="true"] { border: 2px solid var(--shell-accent); }
+.shell .swatch-choice:disabled { cursor: default; opacity: 0.7; }
+.shell .swatch-choice--none { background: repeating-conic-gradient(var(--shell-line) 0% 25%, var(--shell-surface) 0% 50%) 50% / 10px 10px; }
+.shell .panel-tab-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+@media (max-width: 1099px) { .shell .panel-tab-grid { grid-template-columns: minmax(0, 1fr); } }
+.shell .preview-split { display: flex; flex-wrap: wrap; gap: 20px; }
+.shell .preview-split-main { flex: 1; min-width: 280px; }
+.shell .preview-caption { margin: 0 0 8px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--shell-text-muted); }
+.shell .preview-frame { border: 1px solid var(--shell-line); border-radius: var(--radius-control); padding: 14px; background: var(--shell-surface); max-height: 420px; overflow-y: auto; }
+.shell .version-list { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--shell-line); display: flex; flex-direction: column; gap: 8px; }
+.shell .version-list-items { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.shell .version-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-small); color: var(--shell-text-soft); }
+.shell .link-out { font-size: var(--fs-small); }
+
+/* ---- Rich text editor chrome ---- */
+.shell .rte { border: 1px solid var(--shell-line); border-radius: var(--radius-control); overflow: hidden; background: var(--shell-surface); }
+.shell .rte:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.shell .rte-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid var(--shell-line); background: var(--shell-ground); }
+.shell .rte-btn { min-width: 36px; height: 36px; padding: 0 8px; border-radius: var(--radius-item); border: 1px solid var(--shell-line); background: var(--shell-surface); color: var(--shell-ink); font: 600 var(--fs-small) var(--font-body); cursor: pointer; }
+.shell .rte-btn:hover:not(:disabled) { background: var(--shell-ground); }
+.shell .rte-btn[aria-pressed="true"] { background: var(--shell-accent); border-color: var(--shell-accent); color: var(--lc-on-ink); }
+.shell .rte-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.shell .rte-content { padding: 10px 12px; min-height: 160px; font-size: var(--fs-body); line-height: 1.5; }
+
+/* ---- Entry editor tabs: inert tab while the entry has not been saved ---- */
+.shell .tab--disabled { color: var(--shell-text-muted); cursor: not-allowed; }

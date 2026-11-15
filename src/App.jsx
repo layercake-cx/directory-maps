@@ -20,8 +20,10 @@ import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
 import ClaimLogin from "./pages/claim/ClaimLogin.jsx";
 import ClaimManager from "./pages/claim/ClaimManager.jsx";
+import DirectorySiteFrame from "./components/claim/DirectorySiteFrame.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
+import AdminUiKit from "./pages/admin/AdminUiKit.jsx";
 import AdminListings from "./pages/admin/AdminListings.jsx";
 import AdminEditListing from "./pages/admin/AdminEditListing.jsx";
 import AdminClientDetail from "./pages/admin/AdminClientDetail.jsx";
@@ -70,7 +72,8 @@ import DirectoryAiEnrichmentRoute from "./components/directoryPanel/DirectoryAiE
 import DirectoryPagesRoute from "./components/directoryPanel/DirectoryPagesRoute.jsx";
 import DirectoryCategoriesRoute from "./components/directoryPanel/DirectoryCategoriesRoute.jsx";
 import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryAccreditationsRoute.jsx";
-import DirectoryDesignRoute from "./components/directoryPanel/DirectoryDesignRoute.jsx";
+import DirectoryLookAndFeelRoute from "./components/directoryPanel/DirectoryLookAndFeelRoute.jsx";
+import DirectoryEntryPagesRoute from "./components/directoryPanel/DirectoryEntryPagesRoute.jsx";
 import DirectorySearchRoute from "./components/directoryPanel/DirectorySearchRoute.jsx";
 import DirectoryClaimsRoute from "./components/directoryPanel/DirectoryClaimsRoute.jsx";
 import DirectoryEnquiriesRoute from "./components/directoryPanel/DirectoryEnquiriesRoute.jsx";
@@ -97,8 +100,8 @@ export default function App() {
       <Route path="/embed" element={<EmbedMap />} />
       <Route path="/map" element={<CustomDomainMap />} />
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
-      <Route path="/claim/login" element={<ClaimLogin />} />
-      <Route path="/claim/manage/:claimId" element={<ClaimManager />} />
+      <Route path="/claim/login" element={<DirectorySiteFrame><ClaimLogin /></DirectorySiteFrame>} />
+      <Route path="/claim/manage/:claimId" element={<DirectorySiteFrame><ClaimManager /></DirectorySiteFrame>} />
 
       {/* Client portal */}
       <Route
@@ -133,7 +136,10 @@ export default function App() {
           <Route path="categories" element={<DirectoryCategoriesRoute />} />
           <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
           <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
-          <Route path="design" element={<DirectoryDesignRoute />} />
+          <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
+          <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+          {/* Old URL, before Design split into Look & feel and Entry pages */}
+          <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
           <Route path="search" element={<DirectorySearchRoute />} />
           <Route path="claims" element={<DirectoryClaimsRoute />} />
           <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
@@ -146,7 +152,6 @@ export default function App() {
           <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
           <Route path="seo" element={<DirectorySettingsSeoRoute />} />
           <Route path="publishing" element={<DirectoryPublishingRoute />} />
-        <Route path="domain" element={<DirectoryDomainRoute />} />
           <Route path="domain" element={<DirectoryDomainRoute />} />
           <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
           <Route path="entries/:entryId" element={<ClientDirectoryEntryEdit tab="basic" />} />
@@ -161,6 +166,16 @@ export default function App() {
 
       {/* Admin root -> clients */}
       <Route path="/admin" element={<Navigate to="/admin/clients" replace />} />
+
+      {/* Admin · UI kit review page (Discover UI; staff only, not linked from the nav) */}
+      <Route
+        path="/admin/ui-kit"
+        element={
+          <AdminGate>
+            <AdminUiKit />
+          </AdminGate>
+        }
+      />
 
       {/* Admin · Clients */}
       <Route
@@ -320,7 +335,10 @@ export default function App() {
         <Route path="categories" element={<DirectoryCategoriesRoute />} />
         <Route path="accreditations" element={<DirectoryAccreditationsRoute />} />
         <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
-        <Route path="design" element={<DirectoryDesignRoute />} />
+        <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
+        <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+        {/* Old URL, before Design split into Look & feel and Entry pages */}
+        <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
         <Route path="search" element={<DirectorySearchRoute />} />
         <Route path="claims" element={<DirectoryClaimsRoute />} />
         <Route path="email-settings" element={<DirectoryEnquiriesRoute section="settings" />} />
@@ -333,6 +351,7 @@ export default function App() {
         <Route path="settings" element={<DirectorySettingsGeneralRoute />} />
         <Route path="seo" element={<DirectorySettingsSeoRoute />} />
         <Route path="publishing" element={<DirectoryPublishingRoute />} />
+        <Route path="domain" element={<DirectoryDomainRoute />} />
         <Route path="integrations" element={<DirectoryIntegrationsRoute />} />
         <Route path="entries/:entryId" element={<AdminDirectoryEntryEdit tab="basic" />} />
         <Route path="entries/:entryId/categories" element={<AdminDirectoryEntryEdit tab="categories" />} />

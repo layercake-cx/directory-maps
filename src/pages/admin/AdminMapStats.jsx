@@ -26,17 +26,9 @@ export default function AdminMapStats() {
     };
   }, [clientId, mapId]);
 
-  const mapPath = `/admin/clients/${encodeURIComponent(clientId)}/maps/${encodeURIComponent(mapId)}`;
 
   return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-        { label: map?.name ?? "Map", path: mapPath },
-        { label: "Stats" },
-      ]}
-    >
+    <AdminLayout>
       <MapStats />
     </AdminLayout>
   );

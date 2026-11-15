@@ -3,6 +3,7 @@ import { useDirectory } from "../../hooks/useDirectory.js";
 import { getDirectoryPanelGroups } from "../../config/navConfig.js";
 import FeaturePanel from "./FeaturePanel.jsx";
 import DirectoryPublishStatus from "./DirectoryPublishStatus.jsx";
+import { DirectoryJobsWatcher } from "../jobs/index.js";
 
 /** Thin FeaturePanel consumer for the directory workspace — reads everything from DirectoryContext. */
 export default function DirectoryFeaturePanel() {
@@ -21,12 +22,15 @@ export default function DirectoryFeaturePanel() {
       backLabel={backLabel}
       subtitle={
         directory?.id ? (
+          <>
+          <DirectoryJobsWatcher directoryId={directory.id} base={basePath} scopeLabel={directory?.name} />
           <DirectoryPublishStatus
             directoryId={directory.id}
             publishingRoute={`${basePath}/publishing`}
             publishedAtKey={directory.published_at}
             fallbackUrl={fallbackUrl}
           />
+          </>
         ) : null
       }
       groups={groups}

@@ -10,6 +10,7 @@ import React from "react";
  * the directory has none yet".
  */
 export default function PreviewBlock({ block, entry, extras }) {
+  if (block.hidden === true) return null;
   if (!entry) {
     const placeholders = {
       logo: "Logo image",

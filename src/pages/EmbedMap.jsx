@@ -196,6 +196,11 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [externalActiveFilters, setExternalActiveFilters] = useState(null);
   /** Directory homepage shown-set (keyword + facets + Help me choose), posted with directory-filter-change. */
   const [externalVisibleEntryIds, setExternalVisibleEntryIds] = useState(null);
+  /** Ask AI picks are showing: pins render in the accent colour at a larger size. */
+  const [externalAiPicks, setExternalAiPicks] = useState(false);
+  const [externalAiAccent, setExternalAiAccent] = useState(null);
+  /** { id, n } — "Show on map" request from the directory page's Ask AI sidebar. */
+  const [externalFocusEntry, setExternalFocusEntry] = useState(null);
   /** Distance-from camera target from the directory homepage, or null. */
   const [externalFocus, setExternalFocus] = useState(null);
   /** Normalized publication snapshot (map + group styling); listings stay live. */
@@ -224,18 +229,20 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
-  const focusApplied = useRef(false);
 
-  // Directory entry detail page embed (?focus=<directory_entries.id>): apply
-  // once listings are in, via the same centerOnListingId pan/zoom/select path
-  // list-panel clicks already use — DirectoryMap.jsx pans to selectZoom
-  // (15 desktop) and opens the pin's detail card. Guarded to run once so a
-  // later listings refetch doesn't re-trigger the pan animation.
-  useEffect(() => {
-    if (!focusListingId || focusApplied.current || listings.length === 0) return;
-    focusApplied.current = true;
-    setCenterOnListingId(focusListingId);
-  }, [focusListingId, listings]);
+  // Directory entry detail page embed (?focus=<directory_entries.id>): the map
+  // shows only that one listing's pin, centred. PublishedMapView does the
+  // centring (singleFocus) so there is no drawer pan offset or auto-opened card.
+  const focusedListing = useMemo(
+    () => (focusListingId ? listings.find((l) => String(l.id) === String(focusListingId)) ?? null : null),
+    [focusListingId, listings]
+  );
+  const singleFocus =
+    focusedListing && focusedListing.lat != null && focusedListing.lng != null
+      ? { lat: Number(focusedListing.lat), lng: Number(focusedListing.lng) }
+      : null;
+  const onlyFocused = (arr) =>
+    focusListingId && singleFocus ? (arr || []).filter((l) => String(l.id) === String(focusListingId)) : arr;
 
   useEffect(() => {
     let cancelled = false;
@@ -505,7 +512,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     function handleMessage(event) {
       if (event.source !== window.parent) return;
       const data = event.data;
-      if (!data || data.type !== "directory-filter-change") return;
+      if (!data) return;
+      if (data.type === "directory-focus-entry") {
+        // Ask AI "Show on map": select this entry's pin and pan to it.
+        if (typeof data.entryId === "string" && data.entryId) setExternalFocusEntry({ id: data.entryId, n: Date.now() });
+        return;
+      }
+      if (data.type !== "directory-filter-change") return;
+      setExternalAiPicks(data.aiPicks === true);
+      // The parent page is on another origin, so it sends its Ask AI accent; only a strict hex is trusted.
+      setExternalAiAccent(typeof data.aiAccent === "string" && /^#[0-9a-fA-F]{6}$/.test(data.aiAccent) ? data.aiAccent : null);
       setExternalActiveFilters(data.activeFilters && typeof data.activeFilters === "object" ? data.activeFilters : null);
       setExternalVisibleEntryIds(Array.isArray(data.visibleEntryIds) ? data.visibleEntryIds : null);
       const focus = data.focus;
@@ -850,12 +866,16 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
           center={{ lat: effectiveDefaults.lat, lng: effectiveDefaults.lng }}
           zoom={effectiveDefaults.zoom}
           mapTypeId={parsedMapTypeId}
-          listings={listings}
-          listingsWithColor={listingsForView}
+          listings={onlyFocused(listings)}
+          listingsWithColor={onlyFocused(listingsForView)}
+          singleFocus={singleFocus}
           groups={groupsForEmbed}
           filterFields={filterFieldsForEmbed}
           externalActiveFilters={externalActiveFilters}
           externalVisibleEntryIds={externalVisibleEntryIds}
+          externalAiPicks={externalAiPicks}
+          externalAiAccent={externalAiAccent}
+          externalFocusEntry={externalFocusEntry}
           externalFocus={externalFocus}
           hideFilterBar={hideFilterBar}
           recordEngagement={recordEngagement ?? undefined}

@@ -2,6 +2,7 @@ import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient, requireUser } from "../_shared/supabase.ts";
 import { resolveTxt } from "../_shared/dns.ts";
 import { attachVercelDomain, detachVercelDomain, isVercelDomainConfigured, recommendedRoutingRecord } from "../_shared/vercel.ts";
+import { directoryLoginRedirectUrl, setAuthRedirectUrl } from "../_shared/authRedirects.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 
 const CORS_HEADERS = {
@@ -215,6 +216,12 @@ Deno.serve(async (req) => {
       const allVerified = txtVerified && routingConfigured === true;
       const status = allVerified ? "active" : "verifying";
 
+      let authRedirectWarning: string | undefined;
+      if (allVerified && existing.directory_id) {
+        const allowed = await setAuthRedirectUrl(directoryLoginRedirectUrl(existing.hostname as string), true);
+        if (!allowed.ok) authRedirectWarning = allowed.error;
+      }
+
       const { data, error } = await service
         .from("client_domains")
         .update({
@@ -231,10 +238,12 @@ Deno.serve(async (req) => {
       if (error) throw error;
 
       const normalized = normalizeClientDomainRow(data as Record<string, unknown>);
-      return jsonResponse({
-        ok: true,
-        domain: vercelAttachWarning ? { ...normalized, vercel_attach_warning: vercelAttachWarning } : normalized,
-      });
+      const domain = {
+        ...normalized,
+        ...(vercelAttachWarning ? { vercel_attach_warning: vercelAttachWarning } : {}),
+        ...(authRedirectWarning ? { auth_redirect_warning: authRedirectWarning } : {}),
+      };
+      return jsonResponse({ ok: true, domain });
     }
 
     if (action === "remove") {
@@ -243,7 +252,7 @@ Deno.serve(async (req) => {
 
       const { data: existing } = await service
         .from("client_domains")
-        .select("hostname,vercel_domain_id")
+        .select("hostname,vercel_domain_id,directory_id")
         .eq("id", domainId)
         .eq("client_id", clientId)
         .maybeSingle();
@@ -253,6 +262,10 @@ Deno.serve(async (req) => {
 
       if (existing?.vercel_domain_id) {
         await detachVercelDomain(existing.hostname as string);
+      }
+      if (existing?.directory_id && existing.hostname) {
+        const removed = await setAuthRedirectUrl(directoryLoginRedirectUrl(existing.hostname as string), false);
+        if (!removed.ok) console.error("manage_client_domain auth redirect:", removed.error);
       }
 
       return jsonResponse({ ok: true });

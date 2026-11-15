@@ -34,8 +34,6 @@ git checkout -b feat/YYYY-MM-DD-short-description
 # e.g. feat/2026-06-01-logo-bg-toggle
 ```
 
-**Raise the Monday ticket at the same moment you create the branch** — not later, and not only when writing the deployment log. Follow "Feature ticket" under *Monday.com feature/deployment tracking* below: search the Tasks board for a matching open item, create one in `Product Backlog` if none exists, and set it to `Working on it`. Put the branch name in the ticket description (first update) so the two can be matched up. Skip only for work that genuinely has no ticket-worthy content (e.g. a one-line typo), and say so.
-
 Use the prefix that matches the work:
 - `feat/` — new user-facing feature
 - `fix/` — bug fix
@@ -70,6 +68,7 @@ gh pr create --title "…" --body "…"
 - **Never push directly to `main`** — always go through a PR.
 - The PR body should say what changed, why, and how to verify it.
 - Add a `docs/DEPLOYMENTS.md` entry (see below) in the same branch before opening the PR.
+- **One piece of work = one branch = one PR, including its deployment records.** Staging and production outcomes go in that same PR's `DEPLOYMENTS.md` entry, not in a separate docs-only branch afterwards. See "Deploy before you merge" under *Deployment log*.
 - Leave the PR open for the user to review and merge. Do not merge it yourself unless the user explicitly asks.
 
 ### If you resumed a session from a summary and skipped the opening checks
@@ -112,25 +111,6 @@ See `.cursor/rules/user-guide-documentation.mdc` for full rules (Cursor applies 
 
 **Doc index:** `docs/README.md` · **Integrations & secrets:** `docs/INTEGRATION_ARCHITECTURE.md` · **Repo overview:** `README.md`
 
-## Monday.com feature/deployment tracking
-
-The monday.com MCP connection (Layercake's `layercake-cx.monday.com` account) is available in Claude Code sessions. Use it to keep the **"Tasks" board** (board id `5094351513`) in the **"Maps" workspace** (workspace id `6134662`) as the running record of Directory Maps feature work — this is the board Justyna already uses for this project, so reuse it rather than creating a new board.
-
-Board reference (so you don't need to re-query it every session):
-- Groups: `Product Backlog` (`group_mm5j96jb`) for incoming/unstarted requests, `Non-Functional Req` (`new_group29179`) for other work, `Client Tasks` (`new_group43041`).
-- `project_status` (status column): `Not Started`, `Working on it`, `Testing`, `Stuck`, `Done`.
-- `project_owner` (people), `people` (collaborators), `status_1` (priority: `Critical ⚠`/`High`/`Medium`/`Low`).
-
-**1 — Feature ticket (raise it when you create the branch):** whenever the user requests a new feature, or a change to an existing feature — and in any case at the same time as `git checkout -b` — search the board for a matching open item first (`get_board_items_page` / `search`). If none exists, create one (`create_item`) in `Product Backlog` with `project_status: "Not Started"`. Move it to `"Working on it"` once you start implementing. Keep the title short and human; put the actual ask/scope in the item description or a first update.
-
-**2 — Deployment log → Monday comment:** every time you write a `docs/DEPLOYMENTS.md` entry (see below), also post that entry's content as an update (`create_update`) on the matching Monday item — same "what changed" text, environment, and rollback plan. Then:
-- Set `project_status` to `"Testing"` once staging is verified.
-- Set `project_status` to `"Done"` once deployed to production and verified.
-
-If a deployment doesn't map to any specific feature ticket (e.g. a small fix bundled into other work), create a lightweight ticket for it too rather than skipping the log.
-
-**Never** put secrets, API keys, tokens, connection strings, or end-user/client personal data in a Monday ticket title, description, or comment — same rule as admin event `meta` fields below. Monday tickets are internal engineering notes (what/why/rollback), not data exports.
-
 ## Deployment log (write an entry for every meaningful change)
 
 Every time you implement a meaningful change — feature, fix, migration, configuration — add an entry to **`docs/DEPLOYMENTS.md`** before the work is considered done. This is the plain-English record of what this codebase has become and why.
@@ -149,6 +129,18 @@ Every time you implement a meaningful change — feature, fix, migration, config
 - Mark the verification checklist honestly — leave boxes unchecked if staging hasn't been tested yet; don't tick them speculatively.
 
 **Format:** newest entry at the top, use the template in `docs/DEPLOYMENTS.md`. Each entry is headed `## YYYY-MM-DD — [Staging | Production]`.
+
+### Deploy before you merge (so the log never needs a second branch)
+
+An Edge Function or migration deploy is not part of a merge, so if the production deploy happens *after* the PR merges, the log needs a follow-up edit, and that used to mean a second docs-only branch and PR for one paragraph. Don't do that. Order the work so the PR carries its own deployment record:
+
+1. Deploy to staging from the feature branch; write the `DEPLOYMENTS.md` entry (staging outcome, unchecked verification boxes) and commit it in the same branch.
+2. The user verifies staging and explicitly signs off on production (the production rules above are unchanged).
+3. **Before deploying to production from the branch, make sure the branch contains current `origin/main`** (merge or rebase). Deploying from a stale branch can silently roll back someone else's merged change to the same function. Check `git log origin/main..HEAD` and `git diff origin/main...HEAD` look like only your work.
+4. Deploy to production, then update the entry in the same branch (production version, time, outcome; tick only what was actually verified), and push.
+5. Only then does the user merge the PR. One branch, one PR, one merge, with the log already true.
+
+If the user merges *before* the production deploy, don't open a docs-only branch to record it. Tell the user the entry is stale, and fold the correction into the next PR's `DEPLOYMENTS.md` edit unless they ask for it sooner. For a deploy that has no feature branch of its own (e.g. redeploying an already-merged function), record it in the next PR the same way, or open a single `chore/` branch only if the user asks.
 
 ## Stack
 
@@ -231,6 +223,7 @@ Migration files live in `supabase/migrations/` and are named `YYYYMMDDHHMMSS_sho
 - Minimize scope; match existing patterns in `src/`.
 - Do not commit unless the user asks.
 - Auth is **email + password** for signup/login; team invites use invitation links to signup/login, not magic-link OTP.
+- **UI:** build in-app (`/client`, `/admin`) screens with the kit in `src/components/ui/` and the layouts, not hand-rolled styles; check `/admin/ui-kit` first, and run `scripts/check-ui.sh` before opening a PR. See `docs/FRONTEND_ARCHITECTURE.md` §5.
 
 ## Directory entries CSV import/export contract
 
@@ -273,6 +266,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory content pages**: `directory_content_page_*`
   - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
   - **AI model configuration**: `ai_*`
+  - **Assistant (Ask Pip preview)**: `admin_assistant_*`
 
 ### 2) Required metadata (for all admin events)
 
@@ -382,6 +376,9 @@ Use these event types and metadata fields as the baseline. When implementing, pr
 - **`email_profile_created` / `email_profile_updated` / `email_profile_deleted`**
   - `meta`: `client_id`, `profile_id`, `email_provider` (`resend`), `source`; `changed_fields` (string[], updated); `maps_affected`, `directories_affected` (counts, deleted)
   - Messaging profiles are organisation-level sending identities (`messaging_profiles`). Never put the From address in `meta`.
+- **`email_directory_template_updated` / `email_directory_template_reset` / `email_directory_template_test_sent`**
+  - `meta`: `client_id`, `directory_id`, `template_key` (`claim_sign_in` / `claim_invite` / `claim_request_notification`), `source`; `changed_fields` (string[], updated only)
+  - Fired from `DirectoryEmailTemplatesEditor.jsx` (Email settings → System emails). Never store subject, heading or body text, or the test recipient.
 - **`email_map_settings_updated` / `email_directory_settings_updated`**
   - `meta`: `client_id`, `map_id` or `directory_id`, `profile_id`, `enabled`, `test_mode`, `changed_fields` (string[]), `source`
   - Fired from `EntityMessagingSettings.jsx` (map Messaging tab, directory Settings → Email sending page). Never store the test recipient or message text.
@@ -428,7 +425,7 @@ A domain publishes exactly one entity — a map or a directory (`client_domains.
 - **`domain_added`**
   - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source` (`client_portal` / `admin_dashboard`)
 - **`domain_verified`**
-  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
+  - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`, `login_redirect_registered` (boolean, directory domains only — whether `https://<hostname>/login` was added to the Auth redirect allow list)
 - **`domain_verify_failed`**
   - `meta`: `client_id`, `map_id`, `directory_id`, `hostname`, `source`
   - Fired when a verify attempt completes but DNS isn't fully correct yet — not a hard error, just "not active yet."
@@ -544,9 +541,19 @@ Platform Integrations framework (AI providers first). Emitted by `AiProvidersTab
   - `meta`: `client_id`, `product` (`directory_maps`, or null for the organisation default), `feature` (null for the organisation default), `provider` (null = automatic), `model` (null when using the recommended model), `use_recommended`, `source`
   - Fired from `AiFeaturesConfig.jsx` on save. Never put prompts or keys in `meta`.
 
+#### Assistant (Ask Pip preview)
+
+The Ask Pip drawer is a UI preview with canned replies (no network, no LLM). Only two interactions are logged, from `AssistantProvider.jsx`. Never record what the user types.
+
+- **`admin_assistant_opened`**
+  - `meta`: `actor_user_id`, `actor_contact_id`, `actor_role`, `actor_admin_scope`, `client_id`, `route_group` (e.g. `directory-search`), `trigger` (`topbar` / `shortcut` / `section` / `empty_state` / `error_state`), `source`
+- **`admin_assistant_prompt_selected`**
+  - `meta`: same actor keys, `client_id`, `route_group`, `prompt_id` (the canned prompt's id, never free text), `source`
+  - Fired when a suggested prompt is clicked, not when free text is sent.
+
 #### Claims
 
-Claimed Directory Listings epic (Monday: "Claimed Directory Listings (Epic)"). Lets an organisation
+Claimed Directory Listings epic. Lets an organisation
 represented in a directory claim, verify, and manage its own `directory_entries` row without becoming
 a directory administrator — a claim grants rights to one directory item, never the directory. Gated by
 the `claims` feature flag + the `maps.claims` commercial entitlement (`resolve_claims_entitlement()`).
@@ -562,7 +569,7 @@ its own event — don't invent new names for either.
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `created_by` (`self_service`/`admin`), `source`
 - **`claim_email_verification_sent`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`
-- **`claim_email_verified`** / **`claim_verification_overridden`**
+- **`claim_email_verified`** / **`claim_verification_overridden`** (the latter also fires when an admin approves a manual claim request)
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `verification_method` (`domain_email`/`admin_override`)
 - **`claim_payment_started`** / **`claim_payment_completed`** / **`claim_payment_failed`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `payment_type`, `error` (on fail)
@@ -578,7 +585,13 @@ its own event — don't invent new names for either.
 - **`claimed_listing_published`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `trigger` (optional: `auto_on_activation` when fired automatically right after a claim goes active — self-service or admin-manual — rather than by someone clicking Publish themselves; absent for a manual click)
   - Fired by `publish_directory_item()` (see §5's item-only publishing isolation requirement) — never the general `map_published`/directory publish events, since a claim publish must never touch unrelated directory content.
-  - Also fired automatically, best-effort, right after a claim reaches `active` (`ClaimLogin.jsx` for self-service, `DirectoryClaimsPanel.jsx`'s Activate button for admin) — so the public page (claim button gone, provenance switched) reflects reality immediately rather than waiting on a separate manual Publish. A failed auto-publish never blocks activation itself. **Revoke does not get the same treatment** (a revoked claim's entry stays looking claimed, and the claim button stays absent, until someone manually republishes) — a known, deliberately-not-yet-fixed asymmetry, flagged rather than silently left inconsistent.
+  - Also fired automatically, best-effort, right after a claim reaches `active` (`ClaimLogin.jsx` for self-service, `DirectoryClaimsPanel.jsx`'s Activate button for admin) and right after **Revoke** (`trigger: auto_on_revoke`) — so the public page (claim button gone or back, provenance switched) reflects reality immediately rather than waiting on a separate manual Publish. A failed auto-publish never blocks activation or revoke itself.
+- **`claimed_listing_ai_draft_requested`** / **`_generated`** / **`_failed`**
+  - `meta`: `directory_id`, `directory_item_id`, `claim_id`, `mode` (`draft`), `error` (on fail)
+  - Fired from the Listing Manager's Generate with AI button (`claim_listing_ai`). The draft only lands in the unsaved editor; saving fires `claimed_listing_updated`.
+- **`claimed_listing_ai_prompt_viewed`**
+  - `meta`: `directory_id`, `directory_item_id`, `claim_id`
+  - Fired when a claim user opens the read-only drafting prompt.
 - **`claim_suspended`** / **`claim_reactivated`** / **`claim_revoked`**
   - `meta`: `client_id`, `directory_id`, `directory_item_id`, `claim_id`, `reason` (optional, `claim_revoked` only)
 - **`directory_claim_settings_updated`**

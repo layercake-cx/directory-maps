@@ -1,9 +1,12 @@
+import AIButton from "../ai/AIButton.jsx";
+import AiProvenanceNote from "../ai/AiProvenanceNote.jsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { markDirectoryContentChanged } from "../../lib/directoryPublications";
 import { useAiFeature } from "../../hooks/useAiFeature.js";
 import AiUnavailableNotice from "../../components/ai/AiUnavailableNotice.jsx";
-import { deleteMediaAsset, generateMediaAltText, listMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid var(--lc-border)", fontSize: 13 };
+import { deleteMediaAsset, generateMediaAltText, listMediaAssets, reorderMediaAssets, setHeroMediaAsset, uploadMediaAsset } from "../../lib/mediaAssets";
+import { Button, Callout, Checkbox, EmptyState, Field, Pill, Skeleton, SortableList, SortableRow, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 /**
  * Gallery/hero image list on an entry (build-scope §5.6). Picking a file no
@@ -24,7 +27,6 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
   const [caption, setCaption] = useState("");
   const [credit, setCredit] = useState("");
   const [isHero, setIsHero] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -71,13 +73,11 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
     if (!pendingFile) return;
     setErr("");
     try {
-      setGenerating(true);
       const suggested = await generateMediaAltText(entryId, pendingFile, isHero ? "hero" : "gallery");
       setAltText(suggested);
     } catch (e) {
       setErr(e?.message ?? String(e));
-    } finally {
-      setGenerating(false);
+      return false;
     }
   }
 
@@ -107,6 +107,12 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
     }
   }
 
+  async function handleReorder(next) {
+    await reorderMediaAssets(next.map((a) => a.id));
+    await markDirectoryContentChanged({ directoryId, entryId });
+    setAssets(next);
+  }
+
   async function remove(asset) {
     try {
       await deleteMediaAsset(asset.id);
@@ -118,72 +124,88 @@ export default function MediaAssetsEditor({ directoryId, entryId, recordEvent })
   }
 
   return (
-    <div>
-      <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Media</p>
+    <div className="b3-stack">
+      <h3 className="b3-subhead">Media</h3>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: "0 0 8px" }}>{err}</p>}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
 
-      <div style={{ display: "grid", gap: 8, marginBottom: 12, padding: 12, background: "#f9fafb", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPickFile} disabled={uploading} style={{ fontSize: 12 }} />
+      <div className="b3-form">
+        <Field label="Image" hint="PNG, JPEG or WebP. You add alt text before it uploads.">
+          <TextInput ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPickFile} disabled={uploading} />
+        </Field>
 
         {pendingFile && (
           <>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <img src={previewUrl} alt="" style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 6, border: "1px solid var(--lc-border)" }} />
-              <div style={{ flex: 1, display: "grid", gap: 6 }}>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input value={altText} onChange={(e) => setAltText(e.target.value)} placeholder="Alt text (required before upload)" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" className="btn" style={{ fontSize: 11, padding: "5px 8px", whiteSpace: "nowrap" }} onClick={handleGenerateAltText} disabled={generating || !ai.available}>
-                    {generating ? "Generating…" : "Generate with AI"}
-                  </button>
+            <div className="b3-media-pending">
+              <img src={previewUrl} alt="" className="b3-media-preview" />
+              <div className="b3-media-fields">
+                <div className="b3-row b3-row--end">
+                  <div className="b3-grow">
+                    <Field label="Alt text" hint="Required before upload." required>
+                      <TextInput value={altText} onChange={(e) => setAltText(e.target.value)} />
+                    </Field>
+                  </div>
+                  <AIButton compact variant="subtle" label="Suggest" onGenerate={handleGenerateAltText} disabled={!ai.available} />
                 </div>
-                {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} style={{ margin: 0 }} />}
-                <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption (optional)" style={inputStyle} />
-                <input value={credit} onChange={(e) => setCredit(e.target.value)} placeholder="Credit (optional)" style={inputStyle} />
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}>
-                  <input type="checkbox" checked={isHero} onChange={(e) => setIsHero(e.target.checked)} />
-                  Set as hero image
-                </label>
+                {!ai.available && <AiUnavailableNotice message={ai.message} href={ai.integrationsHref} />}
+                <AiProvenanceNote entityName="image" compact>AI looks at the image and suggests alt text. Check it before you upload.</AiProvenanceNote>
+                <Field label="Caption" hint="Optional.">
+                  <TextInput value={caption} onChange={(e) => setCaption(e.target.value)} />
+                </Field>
+                <Field label="Credit" hint="Optional.">
+                  <TextInput value={credit} onChange={(e) => setCredit(e.target.value)} />
+                </Field>
+                <Checkbox label="Set as hero image" checked={isHero} onChange={(e) => setIsHero(e.target.checked)} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} onClick={handleUpload} disabled={uploading || !altText.trim()}>
-                {uploading ? "Uploading…" : "Upload"}
-              </button>
-              <button type="button" className="btn" style={{ fontSize: 12, padding: "5px 12px" }} onClick={resetPending} disabled={uploading}>
+            <div className="b3-form-actions">
+              <Button variant="primary" onClick={handleUpload} loading={uploading} loadingLabel="Uploading…" disabled={!altText.trim()}>
+                Upload
+              </Button>
+              <Button onClick={resetPending} disabled={uploading}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </>
         )}
       </div>
 
       {loading ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Loading…</p>
+        <Skeleton variant="tiles" label="Loading media" />
       ) : assets.length === 0 ? (
-        <p style={{ fontSize: 13, opacity: 0.6 }}>No media uploaded yet.</p>
+        <EmptyState art="none" title="No media uploaded yet" body="Choose an image above to add the first one." />
       ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {assets.map((a) => (
-            <div key={a.id} style={{ width: 120, border: "1px solid var(--lc-border)", borderRadius: 8, overflow: "hidden" }}>
-              <img src={a.url} alt={a.alt_text} style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} />
-              <div style={{ padding: 6, fontSize: 11 }}>
-                {a.is_hero && <div style={{ fontWeight: 600, color: "#0f9da8" }}>Hero</div>}
-                {a.caption && <div style={{ opacity: 0.75 }}>{a.caption}</div>}
-                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+        <SortableList
+          items={assets}
+          getId={(a) => a.id}
+          getLabel={(a) => a.alt_text || a.caption || "Untitled image"}
+          ariaLabel="Images, in display order"
+          onReorder={handleReorder}
+          renderItem={(a, { row }) => (
+            <SortableRow
+              row={row}
+              title={(
+                <span className="sortable-thumb-title">
+                  <img src={a.url} alt={a.alt_text} className="sortable-thumb" />
+                  <span>{a.caption || a.alt_text || "Untitled image"}</span>
+                  {a.is_hero && <Pill tone="ok">Hero</Pill>}
+                </span>
+              )}
+              actions={(
+                <div className="b3-list-actions">
                   {!a.is_hero && (
-                    <button type="button" className="btn" style={{ fontSize: 10, padding: "2px 5px" }} onClick={() => makeHero(a)}>
+                    <Button size="sm" onClick={() => makeHero(a)}>
                       Make hero
-                    </button>
+                    </Button>
                   )}
-                  <button type="button" className="btn" style={{ fontSize: 10, padding: "2px 5px", color: "#b91c1c" }} onClick={() => remove(a)}>
+                  <Button variant="danger" size="sm" aria-label={`Delete image: ${a.alt_text || a.caption || "untitled"}`} onClick={() => remove(a)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              )}
+            />
+          )}
+        />
       )}
     </div>
   );

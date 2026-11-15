@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FIELD_TYPES,
   DISPLAY_CONTROLS,
@@ -19,18 +19,20 @@ import {
   countListingsUsingOption,
 } from "../lib/filterFields.js";
 import CategorisationAttachmentPicker from "./directories/CategorisationAttachmentPicker.jsx";
+import {
+  Button, Callout, Checkbox, Dialog, EmptyState, Field, PlusIcon, Section, Select,
+  Skeleton, SortableHandle, TextInput, XIcon, Pill, useSavedOrder, useSortable,
+} from "./ui/index.js";
+import "../styles/wave-b/map-pages.css";
 
-const DEFAULT_OPTION_COLOR = "#4A9BAA";
+const DEFAULT_OPTION_COLOR = "#4A9BAA"; // data: default pin colour for a new filter option
 
 function MiniColorRow({ value, onChange, ariaLabel }) {
   const v = value || DEFAULT_OPTION_COLOR;
   return (
-    <div className="color-row" style={{ width: 128 }}>
-      <label className="color-swatch" title="Click to pick colour">
-        <span className="color-swatch__fill" style={{ background: v }} />
-        <input type="color" value={v} onChange={(e) => onChange(e.target.value)} className="color-swatch__input" aria-label={ariaLabel} />
-      </label>
-      <input type="text" value={v} onChange={(e) => onChange(e.target.value)} className="color-hex-input" aria-label={`${ariaLabel} hex`} />
+    <div className="mp-colour">
+      <input type="color" className="swatch" value={v} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} />
+      <TextInput value={v} onChange={(e) => onChange(e.target.value)} aria-label={`${ariaLabel} hex`} />
     </div>
   );
 }
@@ -96,6 +98,30 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
   );
   const activeFields = useMemo(() => fields.filter((f) => f.is_active), [fields]);
 
+  // Active fields reorder by drag (saves on drop, with Undo); archived ones are listed separately and don't move.
+  const announceRef = useRef(() => {});
+  const savedOrder = useSavedOrder(activeFields, saveFieldOrder, announceRef);
+  const fieldSort = useSortable({
+    items: savedOrder.items,
+    getId: (f) => f.id,
+    getLabel: (f) => f.label,
+    ariaLabel: "Filter fields, in search bar order",
+    disabled: busy,
+    onReorder: (next, meta) => { void savedOrder.save(next, meta); },
+  });
+  announceRef.current = fieldSort.announce;
+
+  // Options inside the field editor: form rule (the form's own Save writes them).
+  const optionKey = (o) => o.id || o._k;
+  const optionSort = useSortable({
+    items: form?.options ?? [],
+    getId: optionKey,
+    getLabel: (o) => o.label || "Untitled option",
+    ariaLabel: "Options, in display order",
+    variant: "compact",
+    onReorder: (next) => setForm((f) => ({ ...f, options: next })),
+  });
+
   // ---- form helpers ----
   function openCreate() {
     setForm({ ...emptyForm, options: [] });
@@ -140,7 +166,7 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     });
   }
   function addOption() {
-    setForm((f) => ({ ...f, options: [...f.options, { id: null, label: "", value: "", color: "" }] }));
+    setForm((f) => ({ ...f, options: [...f.options, { id: null, _k: `new-${Math.random().toString(36).slice(2)}`, label: "", value: "", color: "" }] }));
   }
   function updateOption(index, patch) {
     setForm((f) => ({ ...f, options: f.options.map((o, i) => (i === index ? { ...o, ...patch } : o)) }));
@@ -148,16 +174,6 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
   function removeOptionRow(index) {
     setForm((f) => ({ ...f, options: f.options.filter((_, i) => i !== index) }));
   }
-  function moveOption(index, dir) {
-    setForm((f) => {
-      const arr = f.options.slice();
-      const j = index + dir;
-      if (j < 0 || j >= arr.length) return f;
-      [arr[index], arr[j]] = [arr[j], arr[index]];
-      return { ...f, options: arr };
-    });
-  }
-
   const keyConflict = useMemo(() => {
     if (!form) return false;
     const k = (form.key || "").trim();
@@ -260,22 +276,11 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
     }
   }
 
-  async function move(field, dir) {
-    const ordered = activeFields.slice();
-    const index = ordered.findIndex((f) => f.id === field.id);
-    const j = index + dir;
-    if (index < 0 || j < 0 || j >= ordered.length) return;
-    [ordered[index], ordered[j]] = [ordered[j], ordered[index]];
-    setBusy(true);
-    try {
-      await reorderFilterFields(ordered.map((f) => f.id));
-      emit("map_design_filter_field_reordered", { order: ordered.map((f) => f.id) });
-      await notifyChanged();
-    } catch (e) {
-      setError(e.message || "Failed to reorder");
-    } finally {
-      setBusy(false);
-    }
+  /** Throws on failure so useSavedOrder can put the order back. */
+  async function saveFieldOrder(next) {
+    await reorderFilterFields(next.map((f) => f.id));
+    emit("map_design_filter_field_reordered", { order: next.map((f) => f.id) });
+    await notifyChanged();
   }
 
   async function doPermanentDelete() {
@@ -294,161 +299,200 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
   }
 
   // ---------- render ----------
-  if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading filters…</p>;
+  if (loading) return <Skeleton variant="list" rows={3} label="Loading filters" />;
 
   if (form) {
     const controls = allowedControlsForType(form.fieldType);
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
-        <div className="panel-section">
-          <p className="panel-section__title">{form.id ? "Edit filter field" : "New filter field"}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Label</span>
-              <input value={form.label} onChange={(e) => setFormLabel(e.target.value)} placeholder="e.g. Sector" style={{ width: "100%", boxSizing: "border-box" }} />
-            </label>
-            <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Key (used in CSV/Sheet columns as <code>filter_{form.key || "key"}</code>)</span>
-              <input
+      <div className="mp-stack">
+        {error ? <Callout tone="danger">{error}</Callout> : null}
+        <Section title={form.id ? "Edit filter field" : "New filter field"} as="h3">
+          <div className="mp-stack">
+            <Field label="Label">
+              <TextInput value={form.label} onChange={(e) => setFormLabel(e.target.value)} placeholder="e.g. Sector" />
+            </Field>
+            <Field
+              label="Key"
+              hint={<>Used in CSV/Sheet columns as <code className="mp-key-code">filter_{form.key || "key"}</code></>}
+              error={keyConflict ? "Another field already uses this key." : undefined}
+            >
+              <TextInput
                 value={form.key}
                 onChange={(e) => setForm((f) => ({ ...f, key: slugifyKey(e.target.value), keyTouched: true }))}
                 placeholder="sector"
-                style={{ width: "100%", boxSizing: "border-box" }}
               />
-              {keyConflict && <span style={{ color: "#b91c1c", fontSize: 12 }}>Another field already uses this key.</span>}
-            </label>
+            </Field>
           </div>
-        </div>
+        </Section>
 
-        <div className="panel-section">
-          <p className="panel-section__title">Type</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {FIELD_TYPES.map((t) => (
-              <label key={t.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-                <input
-                  type="radio"
-                  name="filterFieldType"
-                  checked={form.fieldType === t.id}
-                  disabled={!!form.id && form.originalFieldType && form.originalFieldType !== t.id}
-                  onChange={() => setFormType(t.id)}
-                  style={{ marginTop: 3 }}
-                />
-                <span>
-                  <strong>{t.label}</strong>
-                  <span style={{ display: "block", opacity: 0.7 }}>{t.hint}</span>
-                </span>
-              </label>
-            ))}
+        <Section title="Type" as="h3">
+          <div className="mp-stack">
+            <fieldset className="radio-cards">
+              <legend className="sr-only">Field type</legend>
+              {FIELD_TYPES.map((t) => (
+                <label key={t.id} className="radio-card">
+                  <input
+                    type="radio"
+                    name="filterFieldType"
+                    checked={form.fieldType === t.id}
+                    disabled={!!form.id && form.originalFieldType && form.originalFieldType !== t.id}
+                    onChange={() => setFormType(t.id)}
+                  />
+                  <span className="setting-row-label">{t.label}</span>
+                  <span className="setting-row-desc">{t.hint}</span>
+                </label>
+              ))}
+            </fieldset>
             {form.id && (
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
+              <p className="mp-muted">
                 Field type can't be changed after creation (it would orphan existing tags). Delete and recreate the field to change it.
               </p>
             )}
           </div>
-        </div>
+        </Section>
 
         {hasEditableOptions(form.fieldType) && (
-          <div className="panel-section">
-            <p className="panel-section__title">Options</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {form.options.map((o, i) => (
-                <div key={o.id || `new-${i}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ display: "flex", flexDirection: "column" }}>
-                    <button type="button" className="btn" style={{ padding: "0 6px", lineHeight: 1.2 }} onClick={() => moveOption(i, -1)} disabled={i === 0} aria-label="Move up">▲</button>
-                    <button type="button" className="btn" style={{ padding: "0 6px", lineHeight: 1.2 }} onClick={() => moveOption(i, 1)} disabled={i === form.options.length - 1} aria-label="Move down">▼</button>
-                  </span>
-                  <input
-                    value={o.label}
-                    onChange={(e) => updateOption(i, { label: e.target.value })}
-                    placeholder="Option label"
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <MiniColorRow value={o.color} onChange={(v) => updateOption(i, { color: v })} ariaLabel={`${o.label || "option"} colour`} />
-                  <button type="button" className="btn" onClick={() => removeOptionRow(i)} aria-label="Remove option">×</button>
-                </div>
-              ))}
+          <Section title="Options" as="h3">
+            <div className="mp-stack">
+              <ol {...optionSort.listProps}>
+                {optionSort.items.map((o, i) => {
+                  const r = optionSort.rowFor(o, i);
+                  return (
+                    <li key={optionKey(o)} {...r.rowProps}>
+                      <SortableHandle {...(r.handleProps || {})} />
+                      <span className="sortable-pos">{i + 1}</span>
+                      <Field label="Option label">
+                        <TextInput
+                          value={o.label}
+                          onChange={(e) => updateOption(i, { label: e.target.value })}
+                          placeholder="Option label"
+                        />
+                      </Field>
+                      <MiniColorRow value={o.color} onChange={(v) => updateOption(i, { color: v })} ariaLabel={`${o.label || "option"} colour`} />
+                      <Button size="sm" iconOnly icon={<XIcon />} aria-label="Remove option" onClick={() => removeOptionRow(i)} />
+                    </li>
+                  );
+                })}
+                {optionSort.slot}
+              </ol>
+              {optionSort.after}
               <div>
-                <button type="button" className="btn" onClick={addOption}>+ Add option</button>
+                <Button size="sm" icon={<PlusIcon size={14} />} onClick={addOption}>Add option</Button>
               </div>
             </div>
-          </div>
+          </Section>
         )}
 
         {form.fieldType === "text" && (
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
+          <p className="mp-muted">
             Free-text fields have no option list. Viewers filter them with a type-to-search box (typeahead).
           </p>
         )}
 
         {form.fieldType === "boolean" && (
-          <div className="panel-section">
-            <p className="panel-section__title">Colour (optional)</p>
-            <p style={{ margin: "0 0 8px", fontSize: 12, opacity: 0.75 }}>
-              Yes/No fields have a single implicit "Yes" option — nothing to add or rename. Set a colour here if you want to use this field to colour pins.
-            </p>
+          <Section
+            title="Colour (optional)"
+            as="h3"
+            description={'Yes/No fields have a single implicit "Yes" option, so there is nothing to add or rename. Set a colour here if you want to use this field to colour pins.'}
+          >
             <MiniColorRow
               value={form.options[0]?.color}
               onChange={(v) => updateOption(0, { color: v })}
               ariaLabel="Yes option colour"
             />
-          </div>
+          </Section>
         )}
 
-        <div className="panel-section">
-          <p className="panel-section__title">Display in search bar</p>
-          <label style={{ fontSize: 13 }}>
-            <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Control</span>
-            <select value={form.displayControl} onChange={(e) => setForm((f) => ({ ...f, displayControl: e.target.value }))} style={{ width: "100%" }}>
+        <Section title="Display in search bar" as="h3">
+          <Field label="Control">
+            <Select value={form.displayControl} onChange={(e) => setForm((f) => ({ ...f, displayControl: e.target.value }))}>
               {DISPLAY_CONTROLS.map((c) => (
                 <option key={c.id} value={c.id} disabled={!controls.includes(c.id)}>
                   {c.label}{!controls.includes(c.id) ? " (not available for this type)" : ""}
                 </option>
               ))}
-            </select>
-          </label>
-        </div>
+            </Select>
+          </Field>
+        </Section>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="btn btn-primary" onClick={saveForm} disabled={!canSave || busy}>
-            {busy ? "Saving…" : form.id ? "Save changes" : "Create field"}
-          </button>
-          <button type="button" className="btn" onClick={closeForm} disabled={busy}>Cancel</button>
+        <div className="mp-row">
+          <Button variant="primary" onClick={saveForm} loading={busy} loadingLabel="Saving…" disabled={!canSave}>
+            {form.id ? "Save changes" : "Create field"}
+          </Button>
+          <Button onClick={closeForm} disabled={busy}>Cancel</Button>
         </div>
       </div>
     );
   }
 
+  const renderFieldBody = (f, handle) => {
+    const controls = allowedControlsForType(f.field_type);
+    return (
+      <>
+        <div className="mp-filter-main">
+          {handle}
+          <span className="mp-filter-text">
+            <span className="mp-filter-name">{f.label}</span>
+            <span className="mp-muted">
+              {typeLabel(f.field_type)}
+              {hasEditableOptions(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
+              {!f.is_active ? <>{" · "}<Pill>Archived</Pill></> : null}
+            </span>
+          </span>
+          <Button size="sm" onClick={() => openEdit(f)} disabled={busy}>Edit</Button>
+        </div>
+
+        {f.is_active && (
+          <div className="mp-filter-controls">
+            <Checkbox label="Show in search bar" checked={!!f.show_in_filter_bar} onChange={() => toggleFilterBar(f)} disabled={busy} />
+            {f.show_in_filter_bar && (
+              <Field label="Display as">
+                <Select value={f.display_control} onChange={(e) => changeControl(f, e.target.value)} disabled={busy}>
+                  {DISPLAY_CONTROLS.filter((c) => controls.includes(c.id)).map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <span className="mp-push" />
+            <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Archive</Button>
+            <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
+          </div>
+        )}
+        {!f.is_active && (
+          <div className="mp-filter-controls">
+            <Button size="sm" onClick={() => toggleActive(f)} disabled={busy}>Restore</Button>
+            <Button size="sm" variant="danger" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy}>Delete</Button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
-      <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
-        Filter fields are custom, filterable metadata for this map (e.g. Sector, Languages spoken) — separate from Groups.
+    <div className="mp-stack">
+      {error ? <Callout tone="danger">{error}</Callout> : null}
+      <p className="mp-note">
+        Filter fields are custom, filterable metadata for this map (e.g. Sector, Languages spoken), separate from Groups.
         Turn on "Show in search bar" and Publish to make a field visible to viewers.
       </p>
 
       {typeof onColorFieldChange === "function" && (
-        <div className="panel-section">
-          <p className="panel-section__title">Pin colour</p>
-          <label style={{ fontSize: 13 }}>
-            <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Colour pins by</span>
-            <select
-              value={colorFieldId || ""}
-              onChange={(e) => onColorFieldChange(e.target.value || null)}
-              style={{ width: "100%" }}
-            >
+        <Section title="Pin colour" as="h3">
+          <Field
+            label="Colour pins by"
+            hint={'Which field\'s option colours set each pin\'s colour. "Group (default)" keeps today\'s current behaviour. Only single-choice and Yes/No fields can be used, because a listing can only have one pin colour. Takes effect on next Publish.'}
+          >
+            <Select value={colorFieldId || ""} onChange={(e) => onColorFieldChange(e.target.value || null)}>
               <option value="">Group (default)</option>
               {activeFields
                 .filter((f) => f.field_type === "single_select" || f.field_type === "boolean")
                 .map((f) => (
                   <option key={f.id} value={f.id}>{f.label}</option>
                 ))}
-            </select>
-          </label>
-          <p style={{ margin: "6px 0 0", fontSize: 12, opacity: 0.7 }}>
-            Which field's option colours set each pin's colour. "Group (default)" keeps today's current behaviour. Only single-choice and Yes/No fields can be used — a listing can only have one pin colour. Takes effect on next Publish.
-          </p>
-        </div>
+            </Select>
+          </Field>
+        </Section>
       )}
 
       {clientId && (
@@ -456,75 +500,47 @@ export default function FilterFieldsPanel({ mapId, recordEvent, onChange, client
       )}
 
       {visibleFields.length === 0 ? (
-        <div className="panel-section" style={{ textAlign: "center" }}>
-          <p style={{ margin: "0 0 10px", opacity: 0.8 }}>No filter fields yet.</p>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Create your first filter field</button>
-        </div>
+        <EmptyState
+          art="encouraging"
+          title="No filter fields yet"
+          actions={<Button variant="primary" onClick={openCreate}>Create your first filter field</Button>}
+        />
       ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-          {visibleFields.map((f) => {
-            const controls = allowedControlsForType(f.field_type);
-            return (
-              <li key={f.id} style={{ padding: "10px 12px", background: "var(--lc-card)", border: "1px solid var(--lc-border)", borderRadius: 10, opacity: f.is_active ? 1 : 0.6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {f.is_active && (
-                    <span style={{ display: "flex", flexDirection: "column" }}>
-                      <button type="button" className="btn" style={{ padding: "0 6px", lineHeight: 1.2 }} onClick={() => move(f, -1)} disabled={busy} aria-label="Move up">▲</button>
-                      <button type="button" className="btn" style={{ padding: "0 6px", lineHeight: 1.2 }} onClick={() => move(f, 1)} disabled={busy} aria-label="Move down">▼</button>
-                    </span>
-                  )}
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 600 }}>{f.label}</span>
-                    <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
-                      {typeLabel(f.field_type)}
-                      {hasEditableOptions(f.field_type) ? ` · ${f.options.length} option${f.options.length === 1 ? "" : "s"}` : ""}
-                      {!f.is_active ? " · Archived" : ""}
-                    </span>
-                  </span>
-                  <button type="button" className="btn" onClick={() => openEdit(f)} disabled={busy}>Edit</button>
-                </div>
-
-                {f.is_active && (
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--lc-border)" }}>
-                    <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-                      <input type="checkbox" checked={!!f.show_in_filter_bar} onChange={() => toggleFilterBar(f)} disabled={busy} />
-                      Show in search bar
-                    </label>
-                    {f.show_in_filter_bar && (
-                      <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-                        <span style={{ opacity: 0.75 }}>as</span>
-                        <select value={f.display_control} onChange={(e) => changeControl(f, e.target.value)} disabled={busy}>
-                          {DISPLAY_CONTROLS.filter((c) => controls.includes(c.id)).map((c) => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    <span style={{ flex: 1 }} />
-                    <button type="button" className="btn" onClick={() => toggleActive(f)} disabled={busy}>Archive</button>
-                    <button type="button" className="btn" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy} style={{ color: "#b91c1c" }}>Delete</button>
-                  </div>
-                )}
-                {!f.is_active && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--lc-border)" }}>
-                    <button type="button" className="btn" onClick={() => toggleActive(f)} disabled={busy}>Restore</button>
-                    <button type="button" className="btn" onClick={() => setConfirmDelete({ field: f, text: "" })} disabled={busy} style={{ color: "#b91c1c" }}>Delete</button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {savedOrder.error ? <Callout tone="danger">{savedOrder.error}</Callout> : null}
+          {fieldSort.items.length > 0 ? (
+            <ol {...fieldSort.listProps}>
+              {fieldSort.items.map((f, i) => {
+                const r = fieldSort.rowFor(f, i);
+                return (
+                  <li key={f.id} {...r.rowProps} className={`${r.rowProps.className} sortable-row--stack mp-filter-item`}>
+                    {renderFieldBody(f, (
+                      <>
+                        <SortableHandle {...(r.handleProps || {})} />
+                        <span className="sortable-pos">{r.position}</span>
+                      </>
+                    ))}
+                  </li>
+                );
+              })}
+              {fieldSort.slot}
+            </ol>
+          ) : null}
+          {fieldSort.items.length > 0 ? fieldSort.after : null}
+          {visibleFields.some((f) => !f.is_active) ? (
+            <ul className="mp-filter-list">
+              {visibleFields.filter((f) => !f.is_active).map((f) => (
+                <li key={f.id} className="mp-filter-item mp-filter-item--archived">{renderFieldBody(f, null)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </>
       )}
 
       {visibleFields.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" className="btn btn-primary" onClick={openCreate} disabled={busy}>+ New filter field</button>
-          <span style={{ flex: 1 }} />
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
-            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-            Show archived
-          </label>
+        <div className="mp-row mp-row--between">
+          <Button variant="primary" icon={<PlusIcon size={14} />} onClick={openCreate} disabled={busy}>New filter field</Button>
+          <Checkbox label="Show archived" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
         </div>
       )}
 
@@ -560,21 +576,28 @@ function ConfirmDelete({ field, onCancel, onConfirm, busy }) {
   }, [field]);
 
   return (
-    <div className="panel-section" style={{ border: "1px solid #b91c1c" }}>
-      <p className="panel-section__title" style={{ color: "#b91c1c" }}>Delete "{field.label}" permanently?</p>
-      <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-        This removes the field, its options, and all listing values for it.
-        {usage != null && usage > 0 ? ` ${usage} listing tag${usage === 1 ? "" : "s"} will be removed.` : ""}
-        {" "}This can't be undone.
-      </p>
-      <p style={{ margin: "0 0 6px", fontSize: 13 }}>Type <strong>DELETE</strong> to confirm:</p>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" style={{ width: "100%", boxSizing: "border-box" }} />
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button type="button" className="btn" onClick={onConfirm} disabled={busy || text !== "DELETE"} style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}>
-          {busy ? "Deleting…" : "Delete permanently"}
-        </button>
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+    <Dialog
+      title={`Delete "${field.label}" permanently?`}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button data-autofocus onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button variant="danger-solid" onClick={onConfirm} loading={busy} loadingLabel="Deleting…" disabled={text !== "DELETE"}>
+            Delete permanently
+          </Button>
+        </>
+      }
+    >
+      <div className="mp-stack">
+        <p className="mp-note">
+          This removes the field, its options, and all listing values for it.
+          {usage != null && usage > 0 ? ` ${usage} listing tag${usage === 1 ? "" : "s"} will be removed.` : ""}
+          {" "}This can't be undone.
+        </p>
+        <Field label="Type DELETE to confirm">
+          <TextInput value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" />
+        </Field>
       </div>
-    </div>
+    </Dialog>
   );
 }

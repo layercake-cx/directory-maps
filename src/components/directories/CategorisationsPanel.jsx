@@ -9,6 +9,11 @@ import {
   replaceCategorisationTerms,
   countUsageForTerm,
 } from "../../lib/categorisations";
+import {
+  Button, Callout, Checkbox, DataTable, Dialog, EmptyState, Field, FieldGrid, Pill, PlusIcon, RadioCards,
+  Skeleton, TextInput, Toolbar, XIcon,
+} from "../ui/index.js";
+import "../../styles/wave-a/batch-3.css";
 
 const emptyForm = {
   id: null,
@@ -19,7 +24,7 @@ const emptyForm = {
   terms: [],
 };
 
-const DEFAULT_TERM_COLOR = "#4A9BAA";
+const DEFAULT_TERM_COLOR = "#4A9BAA"; // stored default for a new term colour (data value, not a style)
 
 const FIELD_TYPE_OPTIONS = [
   { value: "multi_select", label: "Tags", hint: "Pick any number of values (e.g. Sector)." },
@@ -82,6 +87,7 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
     });
   }
   function closeForm() { setForm(null); }
+  const cancelDelete = useCallback(() => setConfirmDelete(null), []);
 
   function setFormLabel(label) {
     setForm((f) => ({ ...f, label, key: f.keyTouched ? f.key : slugify(label) }));
@@ -176,153 +182,144 @@ export default function CategorisationsPanel({ clientId, recordEvent }) {
     }
   }
 
-  if (loading) return <p style={{ margin: 0, opacity: 0.7 }}>Loading categories…</p>;
+  if (loading) return <Skeleton variant="list" rows={3} label="Loading categories" />;
 
   if (form) {
+    const selectedType = FIELD_TYPE_OPTIONS.find((o) => o.value === form.fieldType);
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
-        <div className="panel-section">
-          <p className="panel-section__title">{form.id ? "Edit category" : "New category"}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Label</span>
-              <input value={form.label} onChange={(e) => setFormLabel(e.target.value)} placeholder="e.g. Sector" style={{ width: "100%", boxSizing: "border-box" }} />
-            </label>
-            <label style={{ fontSize: 13 }}>
-              <span style={{ display: "block", marginBottom: 4, opacity: 0.8 }}>Key</span>
-              <input
+      <div className="b3-stack b3-stack--loose">
+        {error ? <Callout tone="danger">{error}</Callout> : null}
+
+        <div className="b3-stack">
+          <h3 className="b3-subhead">{form.id ? "Edit category" : "New category"}</h3>
+          <FieldGrid>
+            <Field label="Label">
+              <TextInput value={form.label} onChange={(e) => setFormLabel(e.target.value)} placeholder="e.g. Sector" />
+            </Field>
+            <Field label="Key" error={keyConflict ? "Another category already uses this key." : undefined}>
+              <TextInput
                 value={form.key}
                 onChange={(e) => setForm((f) => ({ ...f, key: slugify(e.target.value), keyTouched: true }))}
                 placeholder="sector"
-                style={{ width: "100%", boxSizing: "border-box" }}
               />
-              {keyConflict && <span style={{ color: "#b91c1c", fontSize: 12 }}>Another category already uses this key.</span>}
-            </label>
-          </div>
+            </Field>
+          </FieldGrid>
         </div>
 
-        <div className="panel-section">
-          <p className="panel-section__title">Facet type</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {FIELD_TYPE_OPTIONS.map((opt) => (
-              <label key={opt.value} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, opacity: form.id && form.fieldType !== opt.value ? 0.5 : 1 }}>
-                <input
-                  type="radio"
-                  name="fieldType"
-                  checked={form.fieldType === opt.value}
-                  disabled={!!form.id}
-                  onChange={() => setForm((f) => ({ ...f, fieldType: opt.value }))}
-                  style={{ marginTop: 2 }}
-                />
-                <span>
-                  <span style={{ display: "block", fontWeight: 600 }}>{opt.label}</span>
-                  <span style={{ display: "block", opacity: 0.7 }}>{opt.hint}</span>
-                </span>
-              </label>
-            ))}
-            {form.id && (
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Facet type can't be changed after a category is created.</p>
-            )}
-          </div>
+        <div className="b3-stack">
+          {form.id ? (
+            <>
+              <h3 className="b3-subhead">Facet type</h3>
+              <p className="b3-text"><strong>{selectedType?.label}</strong>. {selectedType?.hint}</p>
+              <p className="b3-muted">Facet type can't be changed after a category is created.</p>
+            </>
+          ) : (
+            <RadioCards
+              legend="Facet type"
+              name="fieldType"
+              value={form.fieldType}
+              options={FIELD_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label, description: opt.hint }))}
+              onChange={(v) => setForm((f) => ({ ...f, fieldType: v }))}
+            />
+          )}
         </div>
 
-        <div className="panel-section">
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-            A new category isn't attached anywhere yet — attach it to a map or a directory from that map's
-            Filters panel or that directory's settings to make its terms usable there.
-          </p>
-        </div>
+        <Callout tone="info">
+          A new category isn't attached anywhere yet — attach it to a map or a directory from that map's
+          Filters panel or that directory's settings to make its terms usable there.
+        </Callout>
 
         {form.fieldType !== "boolean" && (
-        <div className="panel-section">
-          <p className="panel-section__title">Terms</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="b3-stack">
+            <h3 className="b3-subhead">Terms</h3>
             {form.terms.map((t, i) => (
-              <div key={t.id || `new-${i}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
+              <div key={t.id || `new-${i}`} className="b3-term-row">
+                <TextInput
                   value={t.label}
                   onChange={(e) => updateTermRow(i, { label: e.target.value })}
                   placeholder="Term label"
-                  style={{ flex: 1, minWidth: 0 }}
+                  aria-label={`Term ${i + 1} label`}
                 />
-                <label className="color-swatch" title="Click to pick colour" style={{ display: "inline-flex" }}>
-                  <span style={{ display: "inline-block", width: 20, height: 20, borderRadius: 4, background: t.color || DEFAULT_TERM_COLOR, border: "1px solid rgba(0,0,0,0.2)" }} />
-                  <input type="color" value={t.color || DEFAULT_TERM_COLOR} onChange={(e) => updateTermRow(i, { color: e.target.value })} style={{ width: 0, height: 0, opacity: 0, position: "absolute" }} aria-label={`${t.label || "term"} colour`} />
-                </label>
-                <button type="button" className="btn" onClick={() => removeTermRow(i)} aria-label="Remove term">×</button>
+                <input
+                  type="color"
+                  className="swatch b3-term-swatch"
+                  value={t.color || DEFAULT_TERM_COLOR}
+                  onChange={(e) => updateTermRow(i, { color: e.target.value })}
+                  aria-label={`${t.label || `Term ${i + 1}`} colour`}
+                />
+                <Button variant="ghost" iconOnly onClick={() => removeTermRow(i)} aria-label={`Remove term ${t.label || i + 1}`}>
+                  <XIcon />
+                </Button>
               </div>
             ))}
             <div>
-              <button type="button" className="btn" onClick={addTerm}>+ Add term</button>
+              <Button icon={<PlusIcon size={16} />} onClick={addTerm}>Add term</Button>
             </div>
           </div>
-        </div>
         )}
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="btn btn-primary" onClick={saveForm} disabled={!canSave || busy}>
-            {busy ? "Saving…" : form.id ? "Save changes" : "Create category"}
-          </button>
-          <button type="button" className="btn" onClick={closeForm} disabled={busy}>Cancel</button>
+        <div className="b3-form-actions">
+          <Button variant="primary" onClick={saveForm} loading={busy} loadingLabel="Saving…" disabled={!canSave}>
+            {form.id ? "Save changes" : "Create category"}
+          </Button>
+          <Button onClick={closeForm} disabled={busy}>Cancel</Button>
         </div>
       </div>
     );
   }
 
+  const columns = [
+    {
+      key: "label",
+      label: "Category",
+      render: (c) => (
+        <button type="button" className="b3-expand-btn" onClick={() => openEdit(c)} disabled={busy}>{c.label}</button>
+      ),
+    },
+    { key: "type", label: "Type", render: (c) => FIELD_TYPE_OPTIONS.find((o) => o.value === (c.field_type || "multi_select"))?.label },
+    { key: "terms", label: "Terms", render: (c) => (c.field_type !== "boolean" ? c.terms.length : "—") },
+    { key: "status", label: "Status", render: (c) => (c.is_active ? <Pill tone="live">Active</Pill> : <Pill tone="neutral">Archived</Pill>) },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {error && <p style={{ color: "#b91c1c", margin: 0 }}>{error}</p>}
-      <p style={{ margin: 0, fontSize: 13, opacity: 0.85 }}>
+    <div className="b3-stack">
+      {error ? <Callout tone="danger">{error}</Callout> : null}
+      <p className="b3-text">
         Categories are reusable taxonomies (e.g. Sector, Region) shared across every directory you own —
         separate from a directory's simple Group field.
       </p>
 
-      {visibleCats.length === 0 ? (
-        <div className="panel-section" style={{ textAlign: "center" }}>
-          <p style={{ margin: "0 0 10px", opacity: 0.8 }}>No categories yet.</p>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Create your first category</button>
-        </div>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-          {visibleCats.map((c) => (
-            <li key={c.id} style={{ padding: "10px 12px", background: "var(--lc-card)", border: "1px solid var(--lc-border)", borderRadius: 10, opacity: c.is_active ? 1 : 0.6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontWeight: 600 }}>{c.label}</span>
-                  <span style={{ display: "block", fontSize: 12, opacity: 0.7 }}>
-                    {FIELD_TYPE_OPTIONS.find((o) => o.value === (c.field_type || "multi_select"))?.label}
-                    {c.field_type !== "boolean" ? ` · ${c.terms.length} term${c.terms.length === 1 ? "" : "s"}` : ""}
-                    {!c.is_active ? " · Archived" : ""}
-                  </span>
-                </span>
-                <button type="button" className="btn" onClick={() => openEdit(c)} disabled={busy}>Edit</button>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--lc-border)" }}>
-                <button type="button" className="btn" onClick={() => toggleActive(c)} disabled={busy}>
-                  {c.is_active ? "Archive" : "Restore"}
-                </button>
-                <span style={{ flex: 1 }} />
-                <button type="button" className="btn" onClick={() => setConfirmDelete({ cat: c })} disabled={busy} style={{ color: "#b91c1c" }}>Delete</button>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {visibleCats.length > 0 && (
+        <Toolbar>
+          <Checkbox label="Show archived" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          <span className="toolbar-spacer" />
+          <Button variant="primary" icon={<PlusIcon size={16} />} onClick={openCreate} disabled={busy}>New category</Button>
+        </Toolbar>
       )}
 
-      {visibleCats.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" className="btn btn-primary" onClick={openCreate} disabled={busy}>+ New category</button>
-          <span style={{ flex: 1 }} />
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
-            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-            Show archived
-          </label>
-        </div>
-      )}
+      <DataTable
+        caption="Categories"
+        columns={columns}
+        rows={visibleCats}
+        getRowId={(c) => c.id}
+        getRowLabel={(c) => c.label}
+        rowMenu={(c) => [
+          { label: "Edit", onSelect: () => openEdit(c), disabled: busy },
+          { label: c.is_active ? "Archive" : "Restore", onSelect: () => toggleActive(c), disabled: busy },
+          { label: "Delete", onSelect: () => setConfirmDelete({ cat: c }), danger: true, disabled: busy },
+        ]}
+        empty={
+          <EmptyState
+            art="encouraging"
+            title="No categories yet"
+            body="Create a category to group your entries, for example by sector or region."
+            actions={<Button variant="primary" onClick={openCreate}>Create your first category</Button>}
+          />
+        }
+      />
 
       {confirmDelete && (
-        <ConfirmDelete cat={confirmDelete.cat} onCancel={() => setConfirmDelete(null)} onConfirm={doPermanentDelete} busy={busy} />
+        <ConfirmDelete cat={confirmDelete.cat} onCancel={cancelDelete} onConfirm={doPermanentDelete} busy={busy} />
       )}
     </div>
   );
@@ -349,21 +346,28 @@ function ConfirmDelete({ cat, onCancel, onConfirm, busy }) {
   }, [cat]);
 
   return (
-    <div className="panel-section" style={{ border: "1px solid #b91c1c" }}>
-      <p className="panel-section__title" style={{ color: "#b91c1c" }}>Delete "{cat.label}" permanently?</p>
-      <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-        This removes the category, its terms, and all directory/entry tags for it.
-        {usage != null && usage > 0 ? ` ${usage} tag${usage === 1 ? "" : "s"} will be removed.` : ""}
-        {" "}This can't be undone.
-      </p>
-      <p style={{ margin: "0 0 6px", fontSize: 13 }}>Type <strong>DELETE</strong> to confirm:</p>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" style={{ width: "100%", boxSizing: "border-box" }} />
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button type="button" className="btn" onClick={onConfirm} disabled={busy || text !== "DELETE"} style={{ color: "#fff", background: "#b91c1c", borderColor: "#b91c1c" }}>
-          {busy ? "Deleting…" : "Delete permanently"}
-        </button>
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+    <Dialog
+      title={`Delete "${cat.label}" permanently?`}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button variant="danger-solid" onClick={onConfirm} loading={busy} loadingLabel="Deleting…" disabled={text !== "DELETE"}>
+            Delete permanently
+          </Button>
+        </>
+      }
+    >
+      <div className="b3-stack">
+        <p className="b3-text">
+          This removes the category, its terms, and all directory/entry tags for it.
+          {usage != null && usage > 0 ? ` ${usage} tag${usage === 1 ? "" : "s"} will be removed.` : ""}
+          {" "}This can't be undone.
+        </p>
+        <Field label="Type DELETE to confirm">
+          <TextInput value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" />
+        </Field>
       </div>
-    </div>
+    </Dialog>
   );
 }

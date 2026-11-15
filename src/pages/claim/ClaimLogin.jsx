@@ -6,6 +6,30 @@ import { publishDirectoryItem } from "../../lib/claimManager.js";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import { supabase } from "../../lib/supabase";
 
+/** admin.generateLink redirects with an implicit grant (#access_token). The
+ * shared Supabase client is PKCE and rejects that URL, so the session has to
+ * be stored from the hash here. */
+function implicitGrantFromLocation() {
+  if (typeof window === "undefined") return null;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const error = hash.get("error_description") || query.get("error_description");
+  if (error) return { error: error.replace(/\+/g, " ") };
+  const access_token = hash.get("access_token");
+  const refresh_token = hash.get("refresh_token");
+  if (access_token && refresh_token) return { access_token, refresh_token };
+  return null;
+}
+
+function clearAuthParams() {
+  const url = new URL(window.location.href);
+  url.hash = "";
+  url.searchParams.delete("error");
+  url.searchParams.delete("error_code");
+  url.searchParams.delete("error_description");
+  window.history.replaceState(window.history.state, "", url.pathname + url.search);
+}
+
 const STATUS_LABELS = {
   claim_started: "Claim started",
   email_verification_pending: "Email verification pending",
@@ -31,13 +55,29 @@ export default function ClaimLogin() {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState("");
-
+  const [grant] = useState(implicitGrantFromLocation);
+  const [err, setErr] = useState(grant?.error ?? "");
   const [linking, setLinking] = useState(true);
   const [claims, setClaims] = useState([]);
+  const [acceptingLink, setAcceptingLink] = useState(Boolean(grant?.access_token));
 
   useEffect(() => {
-    if (initializing) return;
+    if (grant?.error) clearAuthParams();
+    if (!grant?.access_token) return;
+    let cancelled = false;
+    supabase.auth.setSession({ access_token: grant.access_token, refresh_token: grant.refresh_token }).then(({ error }) => {
+      if (cancelled) return;
+      clearAuthParams();
+      if (error) setErr(error.message || "That sign-in link could not be used.");
+      setAcceptingLink(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [grant]);
+
+  useEffect(() => {
+    if (initializing || acceptingLink) return;
     if (!user) {
       setLinking(false);
       return;
@@ -107,7 +147,7 @@ export default function ClaimLogin() {
     return () => {
       cancelled = true;
     };
-  }, [initializing, user, navigate]);
+  }, [initializing, acceptingLink, user, navigate]);
 
   async function handleRequestLink(e) {
     e.preventDefault();
@@ -123,7 +163,7 @@ export default function ClaimLogin() {
     }
   }
 
-  if (initializing || linking) {
+  if (initializing || acceptingLink || linking) {
     return (
       <div className="page-main auth-page">
         <div className="admin-card auth-page__card">

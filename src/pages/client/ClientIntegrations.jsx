@@ -1,5 +1,6 @@
 import React from "react";
 import { useClient } from "../../hooks/useClient.js";
+import { Callout, PageLayout } from "../../components/ui/index.js";
 import IntegrationsPanel from "../../components/integrations/IntegrationsPanel.jsx";
 
 export default function ClientIntegrations() {
@@ -8,12 +9,12 @@ export default function ClientIntegrations() {
 
   if (!canManage) {
     return (
-      <div className="card card-pad" style={{ marginTop: 16 }}>
-        <p style={{ margin: 0 }}>
+      <PageLayout head={{ title: "Integrations" }}>
+        <Callout tone="warn">
           You don&apos;t have permission to manage integrations. Ask your account owner or someone with
           &quot;Manage maps&quot; access.
-        </p>
-      </div>
+        </Callout>
+      </PageLayout>
     );
   }
 

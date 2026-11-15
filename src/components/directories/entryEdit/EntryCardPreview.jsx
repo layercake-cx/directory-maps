@@ -1,5 +1,5 @@
 import React from "react";
-import { Text } from "@mantine/core";
+import { Text } from "../../ui/mantine.js";
 
 /**
  * Approximates generate_directory_site/index.ts's homepage `.card`/

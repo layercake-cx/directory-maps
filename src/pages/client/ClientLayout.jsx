@@ -15,6 +15,8 @@ import {
   clearPublishPanelOpen,
   isPublishPanelOpenInStorage,
 } from "../../lib/publishPanelStorage.js";
+import { Button, Callout, ErrorState, Section, Skeleton } from "../../components/ui/index.js";
+import "../../styles/wave-b/client-pages.css";
 import "../admin/admin.css";
 
 function isClientMapDesignPath(pathname) {
@@ -160,95 +162,67 @@ export default function ClientLayout() {
 
   let inner = null;
 
+  // Gate screens render outside AppShell, so they carry their own `.shell` scope for the kit styles.
+  const gate = (content) => (
+    <div className="shell cw-gate">
+      <div className="page-main">{content}</div>
+    </div>
+  );
+
   if ((loading && client === null) || (roleLoading && client === null)) {
-    inner = (
-      <div className="page-main">
-        <p>Loading…</p>
-      </div>
-    );
+    inner = gate(<Skeleton variant="form" label="Loading your organisation" />);
   } else if (err && client === null) {
-    inner = (
-      <div className="page-main">
-        <div className="admin-card" style={{ maxWidth: 560 }}>
-          <p>{err}</p>
-        </div>
-      </div>
-    );
+    inner = gate(<ErrorState title="We could not load your account" body={err} />);
   } else if (client === null) {
     if (signupProvisionError) {
-      inner = (
-        <div className="page-main">
-          <div className="admin-card" style={{ maxWidth: 560 }}>
-            <h2 style={{ marginTop: 0 }}>Could not finish signup</h2>
-            <p>{signupProvisionError}</p>
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <button type="button" className="btn btn-primary" onClick={() => clearSignupProvisionError()}>
-                Dismiss
-              </button>
-              <button type="button" className="btn" onClick={handleSignOut}>
-                Sign out
-              </button>
-            </div>
+      inner = gate(
+        <Section title="Could not finish signup" className="cw-gate-card">
+          <Callout tone="danger">{signupProvisionError}</Callout>
+          <div className="cw-actions">
+            <Button variant="primary" onClick={() => clearSignupProvisionError()}>
+              Dismiss
+            </Button>
+            <Button onClick={handleSignOut}>Sign out</Button>
           </div>
-        </div>
+        </Section>,
       );
     } else if (isAdmin) {
-      inner = (
-        <div className="page-main">
-          <div className="admin-card" style={{ maxWidth: 560 }}>
-            <h2 style={{ marginTop: 0 }}>Admin account</h2>
-            <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
-            <p>
-              Use the <a href="/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
-              client account to use the client portal.
-            </p>
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <a href="/admin/clients" className="btn btn-primary">
-                Go to Admin
-              </a>
-              <button type="button" className="btn" onClick={handleSignOut}>
-                Sign out
-              </button>
-            </div>
+      inner = gate(
+        <Section title="Admin account" className="cw-gate-card">
+          <p>You're signed in as an admin. Client accounts are not created for admin users.</p>
+          <p>
+            Use the <a href="/admin/clients">Admin area</a> to manage clients and maps, or sign out and sign in with a
+            client account to use the client portal.
+          </p>
+          <div className="cw-actions">
+            <Button as="a" href="/admin/clients" variant="primary">
+              Go to Admin
+            </Button>
+            <Button onClick={handleSignOut}>Sign out</Button>
           </div>
-        </div>
+        </Section>,
       );
     } else {
-      inner = (
-        <div className="page-main">
-          <div className="admin-card" style={{ maxWidth: 560 }}>
-            <h2 style={{ marginTop: 0 }}>No organisation linked</h2>
-            <p>
-              Your account is not linked to an organisation yet. Complete email sign-up from the link we sent you, or
-              contact support.
-            </p>
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <a href="/signup" className="btn btn-primary">
-                Sign up with email
-              </a>
-              <button type="button" className="btn" onClick={handleSignOut}>
-                Sign out
-              </button>
-            </div>
+      inner = gate(
+        <Section title="No organisation linked" className="cw-gate-card">
+          <p>
+            Your account is not linked to an organisation yet. Complete email sign-up from the link we sent you, or
+            contact support.
+          </p>
+          <div className="cw-actions">
+            <Button as="a" href="/signup" variant="primary">
+              Sign up with email
+            </Button>
+            <Button onClick={handleSignOut}>Sign out</Button>
           </div>
-        </div>
+        </Section>,
       );
     }
   } else {
     const verifiedBanner = showVerifiedBanner && (
-      <div
-        style={{
-          background: "#ecfdf5",
-          color: "#065f46",
-          padding: "12px 20px",
-          fontSize: 14,
-          fontWeight: 500,
-          textAlign: "center",
-          borderBottom: "1px solid #a7f3d0",
-        }}
-      >
+      <Callout tone="ok" className="cw-verified">
         Email verified successfully — your account is ready to go.
-      </div>
+      </Callout>
     );
 
     const shellBody = directoryIdFromPath ? (

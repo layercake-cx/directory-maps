@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import LogsFeaturePanel from "../../components/shell/LogsFeaturePanel.jsx";
-import { Alert, Badge, Button, Group, Loader, Select, Text } from "@mantine/core";
+import { Button, Callout, Checkbox, EmptyState, Field, PageLayout, Pill, Section, Select, Skeleton, TextInput, Toolbar } from "../../components/ui/index.js";
+import "../../styles/wave-c/ops.css";
 
 const PAGE_SIZE = 100;
 
@@ -16,10 +17,10 @@ function formatDuration(startedAt, completedAt) {
 }
 
 function StatusBadge({ status }) {
-  if (status === "success") return <Badge color="green" variant="light" size="xs">Success</Badge>;
-  if (status === "warning") return <Badge color="yellow" variant="light" size="xs">Warning</Badge>;
-  if (status === "error") return <Badge color="red" variant="light" size="xs">Error</Badge>;
-  return <Badge color="gray" variant="light" size="xs">Running</Badge>;
+  if (status === "success") return <Pill tone="ok">Success</Pill>;
+  if (status === "warning") return <Pill tone="warn">Warning</Pill>;
+  if (status === "error") return <Pill tone="danger">Error</Pill>;
+  return <Pill tone="neutral">Running</Pill>;
 }
 
 export default function AdminSyncLog() {
@@ -74,67 +75,61 @@ export default function AdminSyncLog() {
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <AdminLayout
-      panel={<LogsFeaturePanel />}
-      breadcrumbs={[{ label: "Sync log" }]}
-      subtitle="Google Sheets sync history across all maps."
-    >
-      <div style={{ maxWidth: 1100 }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="Search by client or map name…"
-            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13, minWidth: 240 }}
-          />
-          <Select
-            size="sm"
-            value={clientFilter}
-            onChange={(v) => { setClientFilter(v ?? ""); setPage(0); }}
-            data={clientOptions}
-            style={{ minWidth: 180 }}
-          />
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
-            <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
-            Show all syncs
-          </label>
-        </div>
-
-        {loading && (
-          <div style={{ padding: "40px 0", textAlign: "center", opacity: 0.5 }}>
-            <Loader size="sm" />
+    <AdminLayout panel={<LogsFeaturePanel />}>
+      <PageLayout
+        head={{ title: "Sync log", subtitle: "Google Sheets sync history across all maps." }}
+      >
+        <Toolbar>
+          <Field label="Search" className="ops-toolbar-search">
+            <TextInput
+              type="search"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              placeholder="Client or map name"
+            />
+          </Field>
+          <Field label="Client" className="ops-toolbar-field">
+            <Select
+              value={clientFilter}
+              onChange={(e) => { setClientFilter(e.target.value ?? ""); setPage(0); }}
+              options={clientOptions}
+            />
+          </Field>
+          <div className="ops-toolbar-check">
+            <Checkbox label="Show all syncs" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
           </div>
-        )}
+        </Toolbar>
 
-        {err && <Alert color="red" variant="light" mb="md">{err}</Alert>}
+        {err ? <Callout tone="danger">{err}</Callout> : null}
 
-        {!loading && (
-          <>
-            <div style={{ overflowX: "auto", border: "1px solid var(--lc-border)", borderRadius: 8 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 900 }}>
+        <Section flush>
+          {loading ? (
+            <Skeleton variant="table" label="Loading sync log" />
+          ) : pageRows.length === 0 ? (
+            <EmptyState
+              art="searching"
+              title="No results"
+              body={showAll ? "No syncs match these filters." : "No failed syncs match these filters. Show all syncs to see successful ones."}
+            />
+          ) : (
+            <div className="table-wrap">
+              <table className="table ops-sync-table">
+                <caption className="sr-only">Sync log</caption>
                 <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "1px solid var(--lc-border)", background: "rgba(0,0,0,0.02)" }}>
-                    <th style={{ padding: "9px 12px" }}>Started</th>
-                    <th style={{ padding: "9px 12px" }}>Client</th>
-                    <th style={{ padding: "9px 12px" }}>Map</th>
-                    <th style={{ padding: "9px 12px" }}>Duration</th>
-                    <th style={{ padding: "9px 12px" }}>Status</th>
-                    <th style={{ padding: "9px 12px" }}>Provider</th>
-                    <th style={{ padding: "9px 12px" }}>Total rows</th>
-                    <th style={{ padding: "9px 12px" }}>Inserted</th>
-                    <th style={{ padding: "9px 12px" }}>Updated</th>
-                    <th style={{ padding: "9px 12px" }}>Error message</th>
+                  <tr>
+                    <th>Started</th>
+                    <th>Client</th>
+                    <th>Map</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Provider</th>
+                    <th>Total rows</th>
+                    <th>Inserted</th>
+                    <th>Updated</th>
+                    <th>Error message</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.length === 0 && (
-                    <tr>
-                      <td colSpan={10} style={{ padding: "16px 12px", opacity: 0.6, textAlign: "center" }}>
-                        No results.
-                      </td>
-                    </tr>
-                  )}
                   {pageRows.map((row) => {
                     const isExpanded = expanded === row.id;
                     const errTrunc = row.error_message
@@ -142,38 +137,42 @@ export default function AdminSyncLog() {
                       : "—";
                     return (
                       <React.Fragment key={row.id}>
-                        <tr
-                          style={{ borderBottom: isExpanded ? "none" : "1px solid var(--lc-border)", cursor: "pointer" }}
-                          onClick={() => setExpanded(isExpanded ? null : row.id)}
-                        >
-                          <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>{new Date(row.started_at).toLocaleString()}</td>
-                          <td style={{ padding: "8px 12px" }}>{row.clients?.name ?? "—"}</td>
-                          <td style={{ padding: "8px 12px" }}>{row.maps?.name ?? "—"}</td>
-                          <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>{formatDuration(row.started_at, row.completed_at)}</td>
-                          <td style={{ padding: "8px 12px" }}><StatusBadge status={row.status} /></td>
-                          <td style={{ padding: "8px 12px", opacity: 0.7 }}>{row.provider ?? "—"}</td>
-                          <td style={{ padding: "8px 12px" }}>{row.total_rows ?? "—"}</td>
-                          <td style={{ padding: "8px 12px" }}>{row.inserted_count ?? "—"}</td>
-                          <td style={{ padding: "8px 12px" }}>{row.updated_count ?? "—"}</td>
-                          <td style={{ padding: "8px 12px", opacity: 0.7 }}>{errTrunc}</td>
+                        <tr className="ops-row-click" onClick={() => setExpanded(isExpanded ? null : row.id)}>
+                          <td className="ops-nowrap">
+                            <button
+                              type="button"
+                              className="ops-linkbtn"
+                              aria-expanded={isExpanded}
+                              onClick={(e) => { e.stopPropagation(); setExpanded(isExpanded ? null : row.id); }}
+                            >
+                              {new Date(row.started_at).toLocaleString("en-GB")}
+                            </button>
+                          </td>
+                          <td>{row.clients?.name ?? "—"}</td>
+                          <td>{row.maps?.name ?? "—"}</td>
+                          <td className="ops-nowrap">{formatDuration(row.started_at, row.completed_at)}</td>
+                          <td><StatusBadge status={row.status} /></td>
+                          <td className="ops-cell-muted">{row.provider ?? "—"}</td>
+                          <td>{row.total_rows ?? "—"}</td>
+                          <td>{row.inserted_count ?? "—"}</td>
+                          <td>{row.updated_count ?? "—"}</td>
+                          <td className="ops-cell-muted">{errTrunc}</td>
                         </tr>
                         {isExpanded && (
-                          <tr style={{ borderBottom: "1px solid var(--lc-border)" }}>
-                            <td colSpan={10} style={{ padding: "8px 12px 12px", background: "rgba(0,0,0,0.02)" }}>
-                              {row.error_code && (
-                                <Text size="xs" mb={4}><strong>Error code:</strong> {row.error_code}</Text>
-                              )}
-                              {row.error_message && (
-                                <Text size="xs" mb={4}><strong>Message:</strong> {row.error_message}</Text>
-                              )}
-                              {row.error_detail && (
-                                <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "rgba(0,0,0,0.04)", padding: 8, borderRadius: 4 }}>
-                                  {row.error_detail}
-                                </pre>
-                              )}
-                              {!row.error_code && !row.error_message && !row.error_detail && (
-                                <Text size="xs" c="dimmed">No detail available.</Text>
-                              )}
+                          <tr className="ops-detail">
+                            <td colSpan={10}>
+                              <div className="ops-detail-body">
+                                {row.error_code && (
+                                  <p><span className="ops-detail-label">Error code:</span> {row.error_code}</p>
+                                )}
+                                {row.error_message && (
+                                  <p><span className="ops-detail-label">Message:</span> {row.error_message}</p>
+                                )}
+                                {row.error_detail && <pre className="ops-pre">{row.error_detail}</pre>}
+                                {!row.error_code && !row.error_message && !row.error_detail && (
+                                  <p className="ops-cell-muted">No detail available.</p>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -182,20 +181,17 @@ export default function AdminSyncLog() {
                   })}
                 </tbody>
               </table>
+              <div className="table-foot">
+                <span>{filtered.length > 0 ? `Page ${page + 1} of ${totalPages} (${filtered.length} rows)` : "No rows"}</span>
+                <span className="table-foot-actions">
+                  <Button size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>Previous</Button>
+                  <Button size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
+                </span>
+              </div>
             </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12 }}>
-              <Text size="xs" c="dimmed">
-                {filtered.length > 0 ? `Page ${page + 1} of ${totalPages} (${filtered.length} rows)` : "No rows"}
-              </Text>
-              <Group gap="xs">
-                <Button size="xs" variant="default" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page <= 0}>Prev</Button>
-                <Button size="xs" variant="default" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
-              </Group>
-            </div>
-          </>
-        )}
-      </div>
+          )}
+        </Section>
+      </PageLayout>
     </AdminLayout>
   );
 }

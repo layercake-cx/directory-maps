@@ -28,6 +28,8 @@ export default function LogoImage({
   return (
     <div
       className={wrapClassName}
+      // Inline on purpose: this component also renders inside published maps (PublishedMapView), which sit
+      // outside the admin shell, so shell-scoped classes would not apply. maxWidth/maxHeight are dynamic props.
       style={{
         maxWidth,
         maxHeight,
@@ -40,6 +42,7 @@ export default function LogoImage({
         src={src}
         alt=""
         className={imgClassName}
+        // dynamic: the scaled size measured from the loaded image
         style={
           size
             ? { width: size.width, height: size.height, objectFit: "contain" }

@@ -1,0 +1,60 @@
+/* Listing Manager restyle (handoff 01-styling.md). Scoped under .lm so nothing leaks to the rest of the app.
+   AI components (button, note, modal) are styled in src/components/ai/ai.css. */
+.lm {
+  --lm-indigo: #4F5A94; --lm-indigo-hover: #434D83;
+  max-width: 1200px; margin: 0 auto; padding: 24px 32px 48px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--uka-text);
+}
+.lm button:focus-visible, .lm a:focus-visible { outline: 2px solid var(--uka-teal-heading); outline-offset: 2px; }
+.lm__crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--uka-text-muted); margin-bottom: 8px; }
+.lm__crumbs svg { width: 14px; height: 14px; }
+.lm__crumbs [aria-current] { color: var(--uka-text); }
+.lm__header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.lm__title-block { flex: 1 1 520px; }
+.lm__title { margin: 0; font: 700 42px/1.15 var(--uka-font-display); color: var(--uka-teal-heading); overflow-wrap: anywhere; }
+.lm__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.lm__pill { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.lm__pill--active { background: #E4F4EA; color: #1C6B3A; }
+.lm__pill--neutral { background: #F0F1F5; color: var(--uka-text-2); }
+.lm__pill--role { background: #E8EAF3; color: #3A4270; }
+.lm__dot { width: 7px; height: 7px; border-radius: 50%; background: #23934D; }
+.lm__signed { font-size: 14px; color: var(--uka-text-muted); }
+.lm__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.lm__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 22px; border-radius: 10px; font: 600 15px Inter, inherit; cursor: pointer; border: 1px solid transparent; }
+.lm__btn svg { width: 18px; height: 18px; }
+.lm__btn--primary { background: var(--lm-indigo); color: #fff; }
+.lm__btn--primary:hover:not(:disabled) { background: var(--lm-indigo-hover); }
+.lm__btn--outline { background: #fff; color: var(--uka-text); border-color: var(--uka-border-input); }
+.lm__btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.lm__error { color: #b91c1c; font-size: 14px; margin: 8px 0; }
+.lm__ok { color: #15803d; font-size: 14px; margin: 8px 0; }
+
+/* Tabs: underline active state, no box */
+.lm__tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--uka-border-strong); overflow-x: auto; }
+.lm__tab {
+  display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; background: none; border: 0;
+  border-bottom: 3px solid transparent; margin-bottom: -1px; font: 500 15px Inter, inherit; color: var(--uka-text-muted); cursor: pointer; white-space: nowrap;
+}
+.lm__tab svg { width: 17px; height: 17px; }
+.lm__tab.is-active { color: var(--uka-navy); font-weight: 600; border-bottom-color: var(--uka-teal-heading); }
+
+/* Layout */
+.lm__layout { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.lm__main { flex: 999 1 600px; min-width: 0; }
+.lm__aside { flex: 1 1 280px; display: flex; flex-direction: column; gap: 24px; }
+.lm__card, .lm .admin-card { background: #fff; border: 1px solid var(--uka-border); border-radius: 14px; box-shadow: 0 1px 2px rgba(20, 24, 46, 0.04); padding: 24px 28px; }
+.lm__card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.lm__card-title { margin: 0; font: 600 18px Inter, inherit; }
+.lm__card-sub { margin: 4px 0 0; font-size: 14px; color: var(--uka-text-2); }
+.lm__editor { border: 1px solid var(--uka-border-strong); border-radius: 10px; overflow: hidden; }
+.lm__card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.lm__source { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--uka-text-muted); }
+.lm__chip { padding: 3px 10px; border-radius: 999px; background: #F0F1F5; color: var(--uka-text-2); font-weight: 600; }
+.lm__side { padding: 24px; }
+.lm__side-head { display: flex; align-items: center; gap: 10px; }
+.lm__side-title { margin: 0; font: 600 16px Inter, inherit; }
+.lm__side-text { margin: 12px 0 0; font-size: 14px; line-height: 1.6; color: var(--uka-text-2); }
+.lm__tips { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.lm__prompt-link { margin-top: 14px; display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .lm * { transition: none !important; } }
+@media (max-width: 600px) { .lm { padding: 16px; } .lm__title { font-size: 32px; } }

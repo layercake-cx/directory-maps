@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, DataTable, EmptyState, Field, PageLayout, Section, TextInput, Toolbar } from "../../components/ui/index.js";
+import "../../styles/wave-b/map-pages.css";
 
 export default function AdminMaps() {
   const [maps, setMaps] = useState([]);
@@ -80,102 +82,94 @@ export default function AdminMaps() {
     });
   }, [maps, clientsById, q]);
 
+  const columns = [
+    {
+      key: "name",
+      label: "Map name",
+      render: (m) => {
+        const adminMapUrl = m.client_id
+          ? `/admin/clients/${encodeURIComponent(m.client_id)}/maps/${encodeURIComponent(m.id)}`
+          : null;
+        return (
+          <>
+            {adminMapUrl ? (
+              <Link to={adminMapUrl} className="row-link">{m.name ?? "—"}</Link>
+            ) : (
+              <strong>{m.name ?? "—"}</strong>
+            )}
+            {m.slug ? <span className="mp-cell-sub">{m.slug}</span> : null}
+          </>
+        );
+      },
+    },
+    {
+      key: "customer",
+      label: "Customer",
+      render: (m) => {
+        const client = clientsById[m.client_id];
+        return client ? <Link to={`/admin/clients/${encodeURIComponent(m.client_id)}`}>{client.name}</Link> : "—";
+      },
+    },
+    { key: "listings", label: "Listings", className: "mp-num", align: "right", render: (m) => listingCountByMapId[m.id] ?? 0 },
+    {
+      key: "launch",
+      label: "Launch map",
+      align: "right",
+      render: (m) => {
+        const client = clientsById[m.client_id];
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const launchUrl =
+          client?.slug && m.slug
+            ? `${origin}/${client.slug}/${m.slug}`
+            : `${origin}/embed?map=${encodeURIComponent(m.id)}`;
+        return (
+          <Button as="a" size="sm" href={launchUrl} target="_blank" rel="noopener noreferrer">
+            Launch map
+          </Button>
+        );
+      },
+    },
+  ];
+
   return (
-    <AdminLayout
-      breadcrumbs={[{ label: "Maps" }]}
-    >
-      <div className="card card-pad">
-        <div className="admin-controls">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by map name or customer name…"
-          />
-          <button className="shell-btn" onClick={load} type="button">
-            Refresh
-          </button>
+    <AdminLayout>
+      <PageLayout head={{ title: "Maps" }}>
+        <div className="mp-stack">
+          {err ? <Callout tone="danger">{err}</Callout> : null}
+
+          <Section>
+            <div className="mp-stack">
+              <Toolbar>
+                <Field label="Search" className="mp-grow">
+                  <TextInput
+                    type="search"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Search by map name or customer name…"
+                  />
+                </Field>
+                <Button onClick={load}>Refresh</Button>
+              </Toolbar>
+
+              <DataTable
+                columns={columns}
+                rows={filtered}
+                getRowId={(m) => m.id}
+                getRowLabel={(m) => m.name ?? "Map"}
+                loading={loading}
+                caption="Maps"
+                empty={
+                  maps.length === 0 ? (
+                    <EmptyState art="welcome" title="No maps yet" body="Maps created for customers will appear here." />
+                  ) : (
+                    <EmptyState art="searching" title="No maps match your search" body="Try a different search." />
+                  )
+                }
+              />
+            </div>
+          </Section>
         </div>
-
-        {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
-        {err ? <p style={{ marginTop: 12 }}>{err}</p> : null}
-
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Map name</th>
-              <th>Customer</th>
-              <th>Listings</th>
-              <th>Settings</th>
-              <th style={{ textAlign: "right" }}>Launch map</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((m) => {
-              const client = clientsById[m.client_id];
-              const adminMapUrl = m.client_id
-                ? `/admin/clients/${encodeURIComponent(m.client_id)}/maps/${encodeURIComponent(m.id)}`
-                : null;
-              const origin = typeof window !== "undefined" ? window.location.origin : "";
-              const launchUrl =
-                client?.slug && m.slug
-                  ? `${origin}/${client.slug}/${m.slug}`
-                  : `${origin}/embed?map=${encodeURIComponent(m.id)}`;
-              const listingCount = listingCountByMapId[m.id] ?? 0;
-              return (
-                <tr key={m.id}>
-                  <td>
-                    {adminMapUrl ? (
-                      <Link to={adminMapUrl} style={{ fontWeight: 600, textDecoration: "none" }}>
-                        {m.name ?? "—"}
-                      </Link>
-                    ) : (
-                      <strong>{m.name ?? "—"}</strong>
-                    )}
-                    {m.slug ? (
-                      <span style={{ fontSize: 12, opacity: 0.8, display: "block" }}>{m.slug}</span>
-                    ) : null}
-                  </td>
-                  <td>
-                    {client ? (
-                      <Link to={`/admin/clients/${encodeURIComponent(m.client_id)}`}>
-                        {client.name}
-                      </Link>
-                    ) : (
-                      <span style={{ opacity: 0.6 }}>—</span>
-                    )}
-                  </td>
-                  <td>{listingCount}</td>
-                  <td>
-                    {adminMapUrl ? (
-                      <Link className="shell-btn shell-btn--sm" to={adminMapUrl}>
-                        Open
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <a
-                      className="shell-btn shell-btn--sm"
-                      href={launchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Launch map
-                    </a>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {!loading && !err && filtered.length === 0 ? (
-          <p style={{ marginTop: 12, color: "var(--lc-muted)" }}>
-            {maps.length === 0 ? "No maps yet." : "No maps match your search."}
-          </p>
-        ) : null}
-      </div>
+      </PageLayout>
     </AdminLayout>
   );
 }

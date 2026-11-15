@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { updateDirectory } from "../../lib/directories.js";
-import { analyticsFormFromJson, analyticsJsonEqual, analyticsJsonFromForm, emptyAnalyticsForm } from "../../lib/directoryAnalytics.js";
-
-const inputStyle = { width: "100%", boxSizing: "border-box", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--lc-border)", fontSize: 13 };
-const labelStyle = { fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 };
-const hintStyle = { margin: "4px 0 0", fontSize: 11.5, opacity: 0.6 };
+import { analyticsFormFromJson, analyticsJsonEqual, analyticsJsonFromForm } from "../../lib/directoryAnalytics.js";
+import { Button, Callout, Checkbox, Field, Section, TextInput } from "../ui/index.js";
+import "../../styles/wave-a/batch-1.css";
 
 /**
  * Directory Settings tab — Analytics & Tracking (GA4 / GTM destinations).
  * Saved on directories.analytics_json; baked into the public site on next Publish.
  */
 export default function DirectoryAnalyticsPanel({ directory, directoryId, canManage, recordEvent, onSaved }) {
+  const formId = useId();
   const [form, setForm] = useState(() => analyticsFormFromJson(directory?.analytics_json));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -57,70 +56,51 @@ export default function DirectoryAnalyticsPanel({ directory, directoryId, canMan
   const disabled = !canManage;
 
   return (
-    <form onSubmit={handleSave} style={{ display: "grid", gap: 16 }}>
-      <div>
-        <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Analytics & Tracking</p>
-        <p style={{ margin: "0 0 12px", fontSize: 12, opacity: 0.65 }}>
-          Optional Google Analytics 4 and Google Tag Manager IDs for this directory's published pages. Each can be turned on independently. The live site asks visitors for analytics consent before loading Google tags. First-party directory events are still recorded in Directory Maps (no personal data). Changes apply after you Publish.
-        </p>
-      </div>
-
-      <div>
-        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 8, cursor: disabled ? "default" : "pointer" }}>
-          <input
-            type="checkbox"
-            checked={form.ga4Enabled}
-            onChange={(e) => patch({ ga4Enabled: e.target.checked })}
-            disabled={disabled}
-          />
-          Enable Google Analytics 4
-        </label>
-        <label style={labelStyle}>GA4 Measurement ID</label>
-        <input
-          value={form.ga4MeasurementId}
-          onChange={(e) => patch({ ga4MeasurementId: e.target.value })}
+    <Section
+      title="Analytics & Tracking"
+      description="Optional Google Analytics 4 and Google Tag Manager IDs for this directory's published pages. Each can be turned on independently. The live site asks visitors for analytics consent before loading Google tags. First-party directory events are still recorded in Directory Maps (no personal data). Changes apply after you Publish."
+      footer={canManage ? (
+        <Button type="submit" form={formId} variant="primary" loading={saving} loadingLabel="Saving…">Save analytics</Button>
+      ) : null}
+    >
+      <form id={formId} onSubmit={handleSave} className="b1-form">
+        <Checkbox
+          label="Enable Google Analytics 4"
+          checked={form.ga4Enabled}
+          onChange={(e) => patch({ ga4Enabled: e.target.checked })}
           disabled={disabled}
-          placeholder="G-XXXXXXXXXX"
-          autoComplete="off"
-          spellCheck={false}
-          style={inputStyle}
         />
-        <p style={hintStyle}>From Google Analytics → Admin → Data streams.</p>
-      </div>
-
-      <div>
-        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 8, cursor: disabled ? "default" : "pointer" }}>
-          <input
-            type="checkbox"
-            checked={form.gtmEnabled}
-            onChange={(e) => patch({ gtmEnabled: e.target.checked })}
+        <Field label="GA4 Measurement ID" hint="From Google Analytics → Admin → Data streams.">
+          <TextInput
+            value={form.ga4MeasurementId}
+            onChange={(e) => patch({ ga4MeasurementId: e.target.value })}
             disabled={disabled}
+            placeholder="G-XXXXXXXXXX"
+            autoComplete="off"
+            spellCheck={false}
           />
-          Enable Google Tag Manager
-        </label>
-        <label style={labelStyle}>GTM Container ID</label>
-        <input
-          value={form.gtmContainerId}
-          onChange={(e) => patch({ gtmContainerId: e.target.value })}
+        </Field>
+
+        <Checkbox
+          label="Enable Google Tag Manager"
+          checked={form.gtmEnabled}
+          onChange={(e) => patch({ gtmEnabled: e.target.checked })}
           disabled={disabled}
-          placeholder="GTM-XXXXXXX"
-          autoComplete="off"
-          spellCheck={false}
-          style={inputStyle}
         />
-        <p style={hintStyle}>From Google Tag Manager → your container. Directory events are pushed to the data layer after consent.</p>
-      </div>
+        <Field label="GTM Container ID" hint="From Google Tag Manager → your container. Directory events are pushed to the data layer after consent.">
+          <TextInput
+            value={form.gtmContainerId}
+            onChange={(e) => patch({ gtmContainerId: e.target.value })}
+            disabled={disabled}
+            placeholder="GTM-XXXXXXX"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
 
-      {err && <p style={{ color: "#b91c1c", fontSize: 12, margin: 0 }}>{err}</p>}
-      {msg && <p style={{ color: "#15803d", fontSize: 12, margin: 0 }}>{msg}</p>}
-
-      {canManage && (
-        <div>
-          <button type="submit" className="btn btn-primary" style={{ fontSize: 12, padding: "5px 12px" }} disabled={saving}>
-            {saving ? "Saving…" : "Save analytics"}
-          </button>
-        </div>
-      )}
-    </form>
+        {err ? <Callout tone="danger">{err}</Callout> : null}
+        {msg ? <Callout tone="ok">{msg}</Callout> : null}
+      </form>
+    </Section>
   );
 }

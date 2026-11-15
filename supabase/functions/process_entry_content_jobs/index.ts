@@ -62,7 +62,9 @@ async function processJob(service: ReturnType<typeof createServiceClient>, job: 
 
   const { error: updateErr } = await service
     .from("directory_entries")
-    .update({ notes_html: html, allow_html: true, ai_content_generated_at: new Date().toISOString() })
+    // updated_at is bumped explicitly: nothing in the DB does it, and the publish status chip
+    // (getDirectoryPublishState) relies on it to show "Unpublished changes".
+    .update({ notes_html: html, allow_html: true, ai_content_generated_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", job.entry_id);
   if (updateErr) throw updateErr;
 

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { markDirectoryContentChanged } from "./directoryPublications";
 
 const COLUMNS = "id, directory_id, name, is_default, applies_to_group_id, applies_to_term_id, layout_json, created_at, updated_at";
 
@@ -26,7 +27,7 @@ const COLUMNS = "id, directory_id, name, is_default, applies_to_group_id, applie
  * the designer will see it do nothing, same as `logo`/`heading` already did
  * before this redesign.
  *
- * A block descriptor is `{ type, key?, label? }` — `label` is optional and
+ * A block descriptor is `{ type, key?, label?, hidden? }` — `hidden: true` keeps the block saved but renders nothing on the page and preview (Show checkbox, Experience › Entry pages) — `label` is optional and
  * new (directory browse/entry redesign, 2026-09): when an admin sets one,
  * generate_directory_site wraps that block in an anchored `<section>` and
  * contributes one entry to the entry page's sticky jump-chip bar, titled
@@ -128,6 +129,7 @@ export async function saveDefaultLayout(directoryId, layoutJson) {
       .update({ layout_json: layoutJson, updated_at: new Date().toISOString() })
       .eq("id", existing.id);
     if (error) throw error;
+    await markDirectoryContentChanged({ directoryId });
     return existing.id;
   }
 
@@ -137,6 +139,7 @@ export async function saveDefaultLayout(directoryId, layoutJson) {
     .select("id")
     .single();
   if (error) throw error;
+  await markDirectoryContentChanged({ directoryId });
   return data.id;
 }
 
@@ -164,18 +167,23 @@ export async function createTargetedTemplate({ directoryId, name, layoutJson, ap
     }
     throw error;
   }
+  await markDirectoryContentChanged({ directoryId });
   return data;
 }
 
 export async function updateTemplateLayout(templateId, layoutJson) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("entry_templates")
     .update({ layout_json: layoutJson, updated_at: new Date().toISOString() })
-    .eq("id", templateId);
+    .eq("id", templateId)
+    .select("directory_id")
+    .maybeSingle();
   if (error) throw error;
+  await markDirectoryContentChanged({ directoryId: data?.directory_id });
 }
 
 export async function deleteTargetedTemplate(templateId) {
-  const { error } = await supabase.from("entry_templates").delete().eq("id", templateId).eq("is_default", false);
+  const { data, error } = await supabase.from("entry_templates").delete().eq("id", templateId).eq("is_default", false).select("directory_id");
   if (error) throw error;
+  await markDirectoryContentChanged({ directoryId: data?.[0]?.directory_id });
 }

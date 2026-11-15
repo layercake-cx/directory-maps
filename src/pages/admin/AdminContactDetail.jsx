@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
+import { Button, Callout, Checkbox, Field, Section, SettingsLayout, Skeleton, TextInput } from "../../components/ui/index.js";
+import "../../styles/wave-c/clients.css";
 
 export default function AdminContactDetail() {
   const { clientId, contactId } = useParams();
@@ -104,77 +106,60 @@ export default function AdminContactDetail() {
     }
   }
 
-  return (
-    <AdminLayout
-      breadcrumbs={[
-        { label: "Customers", path: "/admin/clients" },
-        { label: client?.name ?? "…", path: `/admin/clients/${encodeURIComponent(clientId)}` },
-        { label: "Contact" },
-      ]}
-    >
-      <div className="card card-pad">
-        <div style={{ marginBottom: 12 }}>
-          <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>← Back to customer</Link>
-        </div>
+  const clientHref = `/admin/clients/${encodeURIComponent(clientId)}`;
 
-        {loading ? <p>Loading…</p> : null}
-        {err ? <p>{err}</p> : null}
+  return (
+    <AdminLayout>
+      <SettingsLayout
+        head={{
+          title: "Contact",
+          breadcrumb: [
+            { label: "Customers", to: "/admin/clients" },
+            { label: client?.name ?? "…", to: clientHref },
+            { label: "Contact" },
+          ],
+          actions: <Button as={Link} to={clientHref}>Back to customer</Button>,
+        }}
+      >
+        {loading ? <Skeleton variant="form" label="Loading contact" /> : null}
+        {err ? <Callout tone="danger">{err}</Callout> : null}
 
         {contact && client && !loading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ fontSize: 13, marginBottom: 8 }}>
-              <strong>Customer:</strong>{" "}
-              <Link to={`/admin/clients/${encodeURIComponent(clientId)}`}>{client.name}</Link>
-              {client.slug ? ` (${client.slug})` : ""}
-              {" · "}
-              <span style={{ opacity: 0.75 }}>Has login: {contact.user_id ? "Yes" : "No"}</span>
-              {contact.user_id ? ` · User ID: ${contact.user_id}` : ""}
-            </div>
+          <>
+            <Section title="Customer">
+              <p className="wc-muted">
+                <strong>Customer:</strong> <Link to={clientHref}>{client.name}</Link>
+                {client.slug ? ` (${client.slug})` : ""}
+                {" · "}
+                Has login: {contact.user_id ? "Yes" : "No"}
+                {contact.user_id ? ` · User ID: ${contact.user_id}` : ""}
+              </p>
+            </Section>
 
-            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12, marginBottom: 4, color: "var(--lc-muted)" }}>Email</label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", boxSizing: "border-box" }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, marginBottom: 4, color: "var(--lc-muted)" }}>Name (optional)</label>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--lc-border)", boxSizing: "border-box" }}
-                />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={editIsPrimary} onChange={(e) => setEditIsPrimary(e.target.checked)} />
-                  Primary contact
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={editCanManageMaps} onChange={(e) => setEditCanManageMaps(e.target.checked)} />
-                  Manage maps
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={editCanManageUsers} onChange={(e) => setEditCanManageUsers(e.target.checked)} />
-                  Manage users
-                </label>
-              </div>
-              <button type="submit" className="shell-btn shell-btn--primary" disabled={saving}>
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-            </form>
-
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              Contact ID: {contact.id}
-            </div>
-          </div>
+            <Section title="Contact details">
+              <form onSubmit={handleSave} className="wc-form">
+                <Field label="Email">
+                  <TextInput type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required />
+                </Field>
+                <Field label="Name (optional)">
+                  <TextInput value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </Field>
+                <div className="wc-checks">
+                  <Checkbox label="Primary contact" checked={editIsPrimary} onChange={(e) => setEditIsPrimary(e.target.checked)} />
+                  <Checkbox label="Manage maps" checked={editCanManageMaps} onChange={(e) => setEditCanManageMaps(e.target.checked)} />
+                  <Checkbox label="Manage users" checked={editCanManageUsers} onChange={(e) => setEditCanManageUsers(e.target.checked)} />
+                </div>
+                <div className="wc-actions">
+                  <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving…">
+                    Save changes
+                  </Button>
+                </div>
+              </form>
+              <p className="wc-muted">Contact ID: {contact.id}</p>
+            </Section>
+          </>
         ) : null}
-      </div>
+      </SettingsLayout>
     </AdminLayout>
   );
 }

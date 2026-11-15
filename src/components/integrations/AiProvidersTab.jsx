@@ -7,7 +7,8 @@ import {
   integrationStatusTone,
   invokeManageClientIntegrations,
 } from "../../lib/clientIntegrations.js";
-import styles from "../../pages/client/ClientEmail.module.css";
+import { Button, Callout, Field, Pill, Section, Skeleton, TextInput, useConfirm } from "../ui/index.js";
+import "../../styles/wave-a/batch-4.css";
 
 function formatWhen(iso) {
   if (!iso) return "Never";
@@ -29,6 +30,7 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
   const [editing, setEditing] = useState(null); // { provider, mode }
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(null); // provider id while a request is in flight
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -111,13 +113,13 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
   }
 
   async function handleDisconnect(provider, label) {
-    if (
-      !window.confirm(
-        `Disconnect ${label}? AI features that use it will stop working until a provider is connected. The stored key is deleted.`
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Disconnect ${label}?`,
+      body: "AI features that use it will stop working until a provider is connected. The stored key is deleted.",
+      confirmLabel: "Disconnect",
+      tone: "danger",
+    });
+    if (!ok) return;
     setErr("");
     setMsg("");
     setBusy(provider);
@@ -135,25 +137,27 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
     }
   }
 
+  const TONE = { success: "live", error: "danger", muted: "neutral" };
+
   return (
     <>
-      <p className={styles.hint} style={{ marginTop: 16 }}>
+      <Callout tone="info">
         Connect your own AI provider account. Layercake&apos;s AI features (search, content and metadata
         generation) then use your account, and the provider bills you directly for that usage. Most tasks work
         well on small, low-cost models, so Layercake recommends the cheapest suitable model for each task.
-      </p>
-      <p className={styles.note}>
+      </Callout>
+      <p className="b4-note">
         Using your own provider means the listing and visitor information needed for each AI request is sent to
         that provider under your own agreement with them.
       </p>
 
-      {err ? <p className={styles.error}>{err}</p> : null}
-      {msg ? <p className={styles.success}>{msg}</p> : null}
+      {err ? <Callout tone="danger">{err}</Callout> : null}
+      {msg ? <Callout tone="ok">{msg}</Callout> : null}
 
       {loading ? (
-        <p>Loading…</p>
+        <Skeleton variant="list" rows={3} label="Loading AI providers" />
       ) : (
-        <div className={styles.messagingGrid} style={{ marginTop: 12 }}>
+        <div className="b4-provider-grid">
           {AI_PROVIDERS.map((p) => {
             const row = integrations.find((i) => i.provider === p.id) ?? null;
             const status = row?.status ?? "not_connected";
@@ -161,69 +165,63 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
             const isEditing = editing?.provider === p.id;
             const working = busy === p.id;
             return (
-              <section
+              <Section
                 key={p.id}
-                className={`${styles.panelBox} ${status === "connected" ? styles.panelBoxActive : ""}`}
+                title={p.label}
+                className={status === "connected" ? "b4-provider-active" : ""}
+                actions={<Pill tone={TONE[tone] || "neutral"}>{integrationStatusLabel(status)}</Pill>}
               >
-                <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>{p.label}</h2>
-                  <span className={`${styles.badge} ${styles[`badge--${tone}`]}`}>
-                    {integrationStatusLabel(status)}
-                  </span>
-                </div>
-
                 {row ? (
-                  <p className={styles.hint}>
+                  <p className="field-hint">
                     Key ending <strong>…{row.key_hint ?? "????"}</strong> · last tested {formatWhen(row.last_tested_at)}
                   </p>
                 ) : (
-                  <p className={styles.hint}>Use {p.models} models with your own {p.label} account.</p>
+                  <p className="field-hint">Use {p.models} models with your own {p.label} account.</p>
                 )}
-                {row?.status === "error" && row.last_error ? <p className={styles.error}>{row.last_error}</p> : null}
+                {row?.status === "error" && row.last_error ? <Callout tone="danger">{row.last_error}</Callout> : null}
 
                 {isEditing ? (
-                  <form onSubmit={handleSaveKey} className={styles.panelSubsection}>
-                    <label className={styles.field}>
-                      <span>
-                        API key <span className={styles.required}>*</span>
-                      </span>
-                      <input
+                  <form onSubmit={handleSaveKey} className="b4-stack">
+                    <Field
+                      label="API key"
+                      required
+                      hint={
+                        <>
+                          We test the key before saving it. It is stored encrypted and can&apos;t be viewed again.{" "}
+                          <a href={p.keyUrl} target="_blank" rel="noreferrer">
+                            Get a key from {p.label}
+                          </a>
+                          .
+                        </>
+                      }
+                    >
+                      <TextInput
                         type="password"
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder={p.keyPlaceholder}
                         autoComplete="off"
                         spellCheck={false}
-                        required
                         autoFocus
                       />
-                    </label>
-                    <p className={styles.fieldHint}>
-                      We test the key before saving it. It is stored encrypted and can&apos;t be viewed again.{" "}
-                      <a href={p.keyUrl} target="_blank" rel="noreferrer">
-                        Get a key from {p.label}
-                      </a>
-                      .
-                    </p>
-                    <div className={styles.actions}>
-                      <button type="submit" className="btn btn-primary" disabled={working || !apiKey.trim()}>
-                        {working ? "Testing…" : editing.mode === "replace" ? "Test & replace key" : "Test & connect"}
-                      </button>
-                      <button type="button" className="btn" onClick={closeForm} disabled={working}>
+                    </Field>
+                    <div className="b4-actions">
+                      <Button type="submit" variant="primary" loading={working} loadingLabel="Testing…" disabled={!apiKey.trim()}>
+                        {editing.mode === "replace" ? "Test & replace key" : "Test & connect"}
+                      </Button>
+                      <Button onClick={closeForm} disabled={working}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
-                  <div className={styles.actions} style={{ marginTop: "auto", paddingTop: 12 }}>
+                  <div className="b4-actions b4-actions--end">
                     {row ? (
                       <>
-                        <button type="button" className="btn" disabled={working} onClick={() => handleTest(p.id)}>
-                          {working ? "Testing…" : "Test connection"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
+                        <Button loading={working} loadingLabel="Testing…" onClick={() => handleTest(p.id)}>
+                          Test connection
+                        </Button>
+                        <Button
                           disabled={working}
                           onClick={() => {
                             setErr("");
@@ -233,15 +231,14 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
                           }}
                         >
                           Replace key
-                        </button>
-                        <button type="button" className="btn" disabled={working} onClick={() => handleDisconnect(p.id, p.label)}>
+                        </Button>
+                        <Button variant="danger" disabled={working} onClick={() => handleDisconnect(p.id, p.label)}>
                           Disconnect
-                        </button>
+                        </Button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
+                      <Button
+                        variant="primary"
                         onClick={() => {
                           setErr("");
                           setMsg("");
@@ -250,16 +247,16 @@ export default function AiProvidersTab({ clientId, eventSource = "client_portal"
                         }}
                       >
                         Connect
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
-                <p className={styles.fieldHint} style={{ marginTop: 8 }}>
+                <p className="field-hint">
                   <a href={p.pricingUrl} target="_blank" rel="noreferrer">
                     {p.label} pricing
                   </a>
                 </p>
-              </section>
+              </Section>
             );
           })}
         </div>
