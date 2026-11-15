@@ -425,6 +425,14 @@ On a directory's **Content › AI enrichment** page (owners and managers only), 
 3. **One entry, any time** — on that entry's **Content** tab, click **Generate with AI**. This always runs immediately, even if the entry already has content (you'll be asked to confirm, since it overwrites what's there).
 4. **The whole directory at once** — click **Generate all entry content**. This regenerates *every* entry's content, including ones you've already written by hand, so it asks you to type **CREATE** to confirm before it starts. It queues in the background; a progress card shows how many entries are done while it runs, and you can leave the page.
 
+**How each listing is written.** Every entry goes through three steps, so the listing is built from research and not from the data held about the entry:
+
+1. **Research.** Claude reads the supplier's own website (the web address on the entry, plus a few of its most informative pages) and, when your organisation's AI provider supports web search, looks for independent sources too. It records specific, source-backed facts, and notes anything it couldn't confirm. Those notes are kept internally for your team and are never published.
+2. **Write.** Claude writes the listing from those findings only, following your content prompt for voice and structure. Any instruction in the prompt to browse, research or produce SEO fields is ignored at this step: research is already done, and SEO titles, descriptions and keywords are filled in separately (see **SEO metadata backfill**).
+3. **Check.** The draft is rejected if it sounds like database documentation ("recorded range"), mentions missing information or verification, includes SEO text, or doesn't use the supplier-specific details that were found. It gets one rewrite; if it still fails, nothing is saved.
+
+If research doesn't find enough (for example the website can't be reached, or there's very little to say), **the existing listing is left exactly as it was** and the job is marked failed with a plain reason, such as "Couldn't research Oxton Organics well enough to write a listing… Check the website address is correct and publicly reachable." Fix the website address, or add one, and run it again. Because each entry is researched, runs are slower than before: expect roughly a minute per entry, and a few entries per two minutes for a whole-directory run.
+
 Every save — whether you typed it or AI wrote it — is kept in that entry's **version history**, shown at the bottom of the Content tab. Click **Restore** on an older version to load it back into the editor for review; it doesn't go live until you click **Save notes**, so nothing is ever silently lost, even after a bulk regenerate.
 
 ### SEO metadata backfill

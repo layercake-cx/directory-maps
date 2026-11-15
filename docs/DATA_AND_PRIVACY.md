@@ -329,11 +329,12 @@ Previously (2026-08-21 to 2026-09-06) this integration was used for a map-level 
 
 **AI content generation** requests send:
 
-- **Entry content already stored in Supabase**: business/organisation name, address, city, postcode, country, website URL, and any existing free-text notes (`directory_entries.notes_html`, stripped of markup) — this is **listing subject** data (see People table above), not platform-user or visitor personal data.
+- **Entry content already stored in Supabase**: business/organisation name, address, city, postcode, country and website URL (existing free-text notes are no longer sent, as of 2026-11-15) — this is **listing subject** data (see People table above), not platform-user or visitor personal data.
+- **Research (added 2026-11-15)**: before writing, the Edge Function fetches the supplier's own public website (the homepage plus up to three informative same-site pages, as text; public http(s) hosts only, with private/internal addresses blocked) and sends that text to the AI provider. Where the organisation's provider supports web search (currently Anthropic), the provider also runs web searches (queries it generates from the supplier's name and location) against third-party sites. The structured findings, including sources and unverified claims, are stored in `directory_entry_research` (internal only, never published).
 - The client's own admin-authored content-generation prompt (`directories.ai_content_prompt`) describing what to write — this is Layercake/client configuration text, not personal data.
 - No account credentials or payment data is ever included in a request to Anthropic.
 
-The response (the generated page content) is written back into Supabase (`directory_entries.notes_html`, plus a version snapshot in `directory_entry_versions`) and is not retained by Layercake Maps outside those tables.
+The response (the generated page content) is written back into Supabase (`directory_entries.notes_html`, plus a version snapshot in `directory_entry_versions`, and the research findings in `directory_entry_research`) and is not retained by Layercake Maps outside those tables.
 
 **Help me choose** requests send:
 
