@@ -11,11 +11,11 @@ A plain-English record of every deployment to staging and production. Newest ent
 ## 2026-11-15 — [Staging backend + preview frontend; production pending] Invitations carry primary status and all-access
 
 **Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
-**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08); production **not** deployed
+**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08; production migration, functions and frontend 2026-11-15)
 
 ### Current state
 - **Staging** has migration `20261008140000` and both edge functions. Its frontend is the older hand-rolled Team page.
-- **Production (2026-11-15, user-approved):** migration `20261008140000` applied with `supabase db push --include-all` (the only pending migration; `VERIFY PASSED`), then `send_team_invitation` and `complete_invited_signup` deployed to `gxixwdjfmegxcxfeflro`. Frontend: GitHub Pages deployed from `main` on merge of PR 349; **Vercel (`maps.layercake-cx.biz`) not yet redeployed** (needs `npm run deploy:live` by the user).
+- **Production (2026-11-15, user-approved):** migration `20261008140000` applied with `supabase db push --include-all` (the only pending migration; `VERIFY PASSED`), then `send_team_invitation` and `complete_invited_signup` deployed to `gxixwdjfmegxcxfeflro`. Frontend: GitHub Pages deployed from `main` on merge of PR 349; Vercel production (`maps.layercake-cx.biz`) redeployed from `main` the same day with `npm run deploy:live` (status Ready, includes PR 349).
 - The new Team page has not been checked in a browser; invite -> signup on production is unverified.
 
 ### What changed
