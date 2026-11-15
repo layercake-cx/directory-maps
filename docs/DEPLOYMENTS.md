@@ -27,7 +27,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 2. Edge Functions to staging, then production after sign-off: `process_entry_content_jobs`, `generate_entry_content`, `claim_listing_ai`.
 
 ### Staging outcome
-- Not deployed yet. `deno check` passes; `deno test --allow-env supabase/functions/_shared/entryResearch_test.ts` passes (9 tests, no network).
+- 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `claim_listing_ai` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes; `deno test --allow-env supabase/functions/_shared/entryResearch_test.ts` passes (9 tests, no network).
+- **Migration not applied by the agent.** `supabase db push --dry-run` against staging stops with "Remote migration versions not found in local migrations directory" (remote has `20261008140000`, which isn't in the repo), so the CLI can't push. `migration repair` was deliberately not run. The migration must be applied by pasting it into the staging SQL editor (dry run first). Until then the functions still work; research notes just aren't stored (a console error is logged).
 
 ### Production outcome
 - Not deployed yet.
