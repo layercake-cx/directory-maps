@@ -1,0 +1,26 @@
+-- ============================================================
+-- Rollback of: 20261115120000_directory_entry_research
+-- Description: Drops the internal research notes table. The notes are
+--              regenerable (the next AI generation rewrites them), but any
+--              existing notes are lost — export first if they matter.
+-- Affected tables: public.directory_entry_research (dropped)
+-- Rolls back: 20261115120000_directory_entry_research.sql
+-- Author: Claude Code
+-- Date: 2026-11-15
+-- ============================================================
+--
+-- DRY-RUN BLOCK (run first, no persistent changes):
+--   BEGIN;
+--   <paste the migration body below here>
+--   ROLLBACK;
+--
+-- RUN ORDER: dry-run -> STAGING (beqejxneehilplrtpntn) -> verification ->
+-- PRODUCTION (gxixwdjfmegxcxfeflro) only after explicit sign-off.
+--
+-- Forbidden operations: DROP TABLE — requires explicit user sign-off.
+-- Back up first: select * from public.directory_entry_research;
+--
+-- PRE-MIGRATION INTEGRITY: select count(*) from public.directory_entry_research;
+-- ============================================================
+
+drop table if exists public.directory_entry_research;

@@ -11,7 +11,7 @@
 import { createServiceClient } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 import { AiUnavailableError } from "../_shared/ai/gateway.ts";
-import { generateContentForEntry, recordEntryContentVersion } from "../_shared/entryContentGeneration.ts";
+import { generateListing, recordEntryContentVersion, recordEntryResearch } from "../_shared/entryContentGeneration.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +26,9 @@ function json(body: unknown, status = 200) {
   });
 }
 
-const DEFAULT_BATCH_SIZE = 5;
+// Each entry is now researched (website pages + web search) before it is written, which takes far longer than a single
+// model call, so a tick processes fewer entries to stay inside the Edge Function time limit.
+const DEFAULT_BATCH_SIZE = 2;
 
 type ContentJob = {
   id: string;
@@ -54,7 +56,7 @@ async function processJob(service: ReturnType<typeof createServiceClient>, job: 
   const prompt = directory?.ai_content_prompt;
   if (!prompt || !prompt.trim()) throw new Error("Directory has no ai_content_prompt configured");
 
-  const html = await generateContentForEntry(
+  const { html, research } = await generateListing(
     { db: service, clientId: directory!.client_id, productInstanceId: job.directory_id, batchJobId: job.id },
     entry,
     prompt,
@@ -69,6 +71,7 @@ async function processJob(service: ReturnType<typeof createServiceClient>, job: 
   if (updateErr) throw updateErr;
 
   await recordEntryContentVersion(service, job.entry_id, html, job.requested_by === "auto" ? "ai_auto" : "ai_bulk");
+  await recordEntryResearch(service, job.entry_id, research);
 
   await service
     .from("entry_content_jobs")
