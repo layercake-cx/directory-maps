@@ -25,7 +25,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes. Behaviour not yet verified on staging.
 
 ### Production outcome
-- Not deployed yet. Production Edge Function deploy needs the user's explicit go-ahead.
+- 2026-11-15: deployed the same three functions to production (`gxixwdjfmegxcxfeflro`) on the user's explicit go-ahead, from this branch (contains current `origin/main`, 0 commits behind). Behaviour not yet verified.
 
 ### Rollback plan
 Revert the commit and redeploy the three functions. The vault secret change is separate and should not be reverted (the legacy key no longer works).
