@@ -26,7 +26,6 @@ Revert the commit to restore the workflow.
 
 ---
 
-=======
 ## 2026-11-17 — [Migration + Edge Functions + frontend] Archive and Restore
 
 **Branch:** `feat/2026-11-17-archive` (stacked on `feat/2026-11-17-list-layout`; merge that first)
@@ -141,7 +140,6 @@ Revert the branch's commits and redeploy `generate_directory_site` (template ver
 - [ ] Staging: publish a directory with Cards on in each built-in preset; check search, filters, distance sort, Ask AI "why" lines and the List/Map toggle on mobile, tablet and desktop.
 - [x] Production deploy of `generate_directory_site` and the Vercel frontend (see Production outcome).
 
->>>>>>> origin/main
 ## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
 
 **Branch:** `fix/2026-11-15-publish-card-stale-status`
