@@ -61,7 +61,7 @@ flowchart TB
 | Layer | Technology | Role |
 |-------|------------|------|
 | Frontend | Vite 7, React 19, React Router 7 (BrowserRouter, clean paths) | SPA: marketing, client portal, admin, embed |
-| Hosting | Vercel (primary) or GitHub Pages (alternate) | Static build (`dist/`), env at build time |
+| Hosting | Vercel | Static build (`dist/`), env at build time |
 | API / data | Supabase Postgres | Maps, listings, clients, contacts, engagement, invitations |
 | Auth | Supabase Auth | Email + password; email verification; password reset |
 | Serverless API | Supabase Edge Functions (Deno) | Geocode, Google sync, email, Stripe, team invites |
@@ -144,7 +144,6 @@ These must be available for core product behaviour. Treat outages as **P1**.
 | Stripe | Checkout UI; subscription gate not fully wired |
 | Vercel Deploy Hooks | Admin one-click deploy |
 | `pg_cron` | Scheduled sheet sync |
-| GitHub Pages workflow | Alternate hosting path |
 
 ---
 

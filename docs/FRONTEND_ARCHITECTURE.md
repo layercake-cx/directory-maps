@@ -245,7 +245,7 @@ The service/data layer. Grouped by concern:
 - **`vite.config.js`**: `base: process.env.VITE_BASE_PATH || "/"` (root for Vercel, sub-path for GitHub Pages); `server.historyApiFallback: true` (required for `BrowserRouter` deep links in dev/preview).
 - **`index.html`**: preconnects/loads `DM Sans` + `Poppins`; ships the legacy `#/...` → clean-path redirect shim (pre-mount inline script); a `Loading…` fallback in `#root` before React mounts.
 - Environment variables are injected at **build time** via `VITE_*` — see [INTEGRATION_ARCHITECTURE.md §7.1](./INTEGRATION_ARCHITECTURE.md#71-frontend-vercel--build-time) for the full list and secrets handling.
-- Deploy targets: Vercel (primary, per `INTEGRATION_ARCHITECTURE.md`) and GitHub Pages (automatic via GitHub Actions on push to `main`, per `AGENTS.md`). See [DEPLOY.md](./DEPLOY.md).
+- Deploy target: Vercel, deployed explicitly with `npm run deploy:live` (the GitHub Pages workflow was removed 2026-11-17; see `AGENTS.md`). See [DEPLOY.md](./DEPLOY.md).
 
 ---
 
