@@ -1,3 +1,5 @@
+import { fetchEntityStatus } from "../lib/archive.js";
+import MapUnavailable from "../components/MapUnavailable.jsx";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
@@ -229,6 +231,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
   const [contactFormSubmitting, setContactFormSubmitting] = useState(false);
   const [contactFormSent, setContactFormSent] = useState(false);
   const [contactFormError, setContactFormError] = useState("");
+  const [unavailable, setUnavailable] = useState(false);
 
   // Directory entry detail page embed (?focus=<directory_entries.id>): the map
   // shows only that one listing's pin, centred. PublishedMapView does the
@@ -254,6 +257,12 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
 
         if (!mapId) {
           setErr("Missing map parameter. Use /embed?map=<MAP_ID>");
+          return;
+        }
+
+        // Archived map (or customer): show the unavailable state before loading anything, snapshot included.
+        if ((await fetchEntityStatus("map", mapId)) === "archived") {
+          if (!cancelled) setUnavailable(true);
           return;
         }
 
@@ -674,6 +683,7 @@ export default function EmbedMap({ mapId: mapIdProp, overlay = null } = {}) {
     recordEngagement("session_start", {});
   }, [recordEngagement, map?.id, publicationConfig]);
 
+  if (unavailable) return <MapUnavailable />;
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (err) return <div style={{ padding: 16 }}>{err}</div>;
   if (!map) return <div style={{ padding: 16 }}>Map not found.</div>;

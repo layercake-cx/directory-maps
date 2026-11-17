@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Button from "./Button.jsx";
 import { TextInput, Field } from "./forms.jsx";
 import { Callout } from "./feedback.jsx";
@@ -211,19 +211,38 @@ export function useConfirm() {
  */
 export function OverflowMenu({ label, items }) {
   const [open, setOpen] = useState(false);
+  // Fixed position (set from the trigger's rect) so the list escapes scroll containers such as `.table-wrap`
+  // instead of being clipped by them or making the table scroll.
+  const [pos, setPos] = useState(null);
   const wrap = useRef(null);
   const trigger = useRef(null);
+  const list = useRef(null);
   const close = useCallback((returnFocus = true) => {
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
   }, []);
+  useLayoutEffect(() => {
+    if (!open || !trigger.current) { setPos(null); return; }
+    const t = trigger.current.getBoundingClientRect();
+    const h = list.current?.offsetHeight ?? 0;
+    const below = t.bottom + 4;
+    const top = below + h > window.innerHeight - 8 && t.top - 4 - h > 8 ? t.top - 4 - h : below;
+    setPos({ top, right: Math.max(8, window.innerWidth - t.right) });
+  }, [open]);
   useEffect(() => {
     if (!open) return undefined;
     wrap.current?.querySelector('[role="menuitem"]:not([disabled])')?.focus();
     const onDoc = (e) => { if (!wrap.current?.contains(e.target)) close(false); };
+    const onMove = () => close(false); // a fixed menu would drift from its trigger
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, close]);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open, close, pos !== null]); // re-run once positioned: a hidden menu cannot take focus
   const onKeyDown = (e) => {
     if (e.key === "Escape") { e.stopPropagation(); close(); return; }
     if (e.key === "Tab") { close(false); return; }
@@ -245,7 +264,7 @@ export function OverflowMenu({ label, items }) {
         <DotsIcon />
       </Button>
       {open && (
-        <div className="avatar-menu-list" role="menu">
+        <div className="avatar-menu-list" role="menu" ref={list} style={pos ? { position: "fixed", top: pos.top, right: pos.right, left: "auto", bottom: "auto" } : { visibility: "hidden" }}>
           {items.map((it, idx) => {
             if (it.divider) return <div key={`sep-${idx}`} role="separator" className="avatar-menu-sep" />;
             const cls = `avatar-menu-item ${it.danger ? "avatar-menu-item--danger" : ""}`.trim();

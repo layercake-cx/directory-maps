@@ -1,4 +1,5 @@
 import { requireMapAccess, createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive, NOT_LIVE_MESSAGE } from "../_shared/liveness.ts";
 import { refreshAccessToken, fetchSheetValues, fetchDriveFileAsText } from "../_shared/google.ts";
 import { normalizeHeader, parseCSV, validateSheetRows } from "../_shared/sheetData.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
@@ -449,6 +450,22 @@ Deno.serve(async (req) => {
 
   for (const src of sources ?? []) {
     const startedAt = new Date().toISOString();
+
+    // Archived map (or customer): skip, and say so in the sync log. The schedule resumes on restore.
+    if (!(await isEntityLive(service, "map", src.map_id))) {
+      await service.from("sync_logs").insert({
+        map_id: src.map_id,
+        client_id: src.client_id,
+        provider: "google_sheets",
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        status: "warning",
+        error_code: "ARCHIVED",
+        error_message: "skipped: archived",
+      });
+      results.push({ map_id: src.map_id, ok: false, skipped: true, error: "skipped: archived" });
+      continue;
+    }
 
     const { data: logRow } = await service.from("sync_logs").insert({
       map_id: src.map_id,

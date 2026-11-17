@@ -6,6 +6,7 @@
 // Public endpoint (verify_jwt = false in config.toml), so every check is server-side.
 import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive, NOT_LIVE_MESSAGE } from "../_shared/liveness.ts";
 import { buildFromHeader, getResendApiKey } from "../_shared/resend.ts";
 import { loadDirectoryMessaging, messagingBlockedReason } from "../_shared/messaging.ts";
 import { sendSystemEmail } from "../_shared/systemEmail.ts";
@@ -42,6 +43,8 @@ async function handle(body: Record<string, unknown>): Promise<Response> {
   if (!email || !EMAIL_RE.test(email)) return json({ error: "A valid email is required." }, 400);
 
   const service = createServiceClient();
+
+  if (!(await isEntityLive(service, "directory", directoryId))) return json({ error: NOT_LIVE_MESSAGE, not_live: true }, 410);
 
   const { data: settings } = await service
     .from("directory_claim_settings")

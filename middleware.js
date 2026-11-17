@@ -80,6 +80,47 @@ function htmlResponse(status, title, body) {
   );
 }
 
+/**
+ * Archived directory/map: a neutral 410 (gone), noindex, no client branding and no marketing — visitors only learn it
+ * is no longer available. s-maxage is deliberately short so a Restore shows up within a minute.
+ */
+function unavailableResponse(kind) {
+  const thing = kind === "map" ? "map" : "directory";
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>No longer available</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#2c3338;background:#f4f2ee"><main style="padding:32px;max-width:480px;text-align:center"><h1 style="font-size:22px;margin:0 0 12px">This ${thing} is no longer available.</h1><p style="margin:0;line-height:1.5;color:#5c6469">It may have moved or been taken down by the organisation that ran it.</p></main></body></html>`,
+    {
+      status: 410,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "x-robots-tag": "noindex, nofollow",
+        "cache-control": "public, max-age=0, s-maxage=60",
+      },
+    },
+  );
+}
+
+/**
+ * 'live' | 'archived' | 'missing' for a branded-host path (/directories/:client/:dir or /:client/:map/directory).
+ * One RPC round trip. Fails open ('live') so an outage of this lookup never takes a working site offline.
+ */
+async function getEntityStatus(entityType, clientSlug, entitySlug) {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) return "live";
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/entity_status_by_slug`, {
+      method: "POST",
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_entity_type: entityType, p_client_slug: clientSlug, p_entity_slug: entitySlug }),
+    });
+    if (!res.ok) return "live";
+    const status = await res.json();
+    return typeof status === "string" ? status : "live";
+  } catch {
+    return "live";
+  }
+}
+
 async function fetchBlobHtml(blobBase, pathname) {
   try {
     const upstream = await fetch(`${blobBase}/${pathname}`);
@@ -132,9 +173,10 @@ async function resolveCustomDomain(host) {
     // order. Detected by the new entity_type column's presence, not a
     // version flag, since the RPC itself carries no version marker.
     if ("entity_type" in row) {
-      return { status: row.status, entityType: row.entity_type, clientSlug: row.client_slug, entitySlug: row.entity_slug };
+      // is_live arrived with the archive migration (20261117150000); absent on older shapes = live.
+      return { status: row.status, entityType: row.entity_type, clientSlug: row.client_slug, entitySlug: row.entity_slug, isLive: row.is_live !== false };
     }
-    return { status: row.status, entityType: "map", clientSlug: row.client_slug, entitySlug: row.map_slug };
+    return { status: row.status, entityType: "map", clientSlug: row.client_slug, entitySlug: row.map_slug, isLive: true };
   } catch {
     return null;
   }
@@ -148,6 +190,10 @@ async function handleCustomDomain(host, segments, blobBase) {
   if (domain.status !== "active") {
     return htmlResponse(200, "This domain is being verified", "DNS setup is still in progress. Check back soon.");
   }
+
+  // Archived (item or its customer): 410 for every path on the domain, including sitemap/robots/llms and the
+  // interactive map and embeds, so nothing keeps indexing or embedding it. Restore flips is_live back.
+  if (domain.isLive === false) return unavailableResponse(domain.entityType);
 
   // /map and /embed — the live interactive SPA, map-hosted domains only.
   // /map's client-side route resolves client/map by hostname itself; /embed
@@ -361,6 +407,8 @@ async function handleDirectorySite(segments, blobBase) {
 
   const base = `directories/${clientSlug}/${directorySlug}`;
 
+  if ((await getEntityStatus("directory", clientSlug, directorySlug)) === "archived") return unavailableResponse("directory");
+
   let pathname;
   let contentType;
   if (rest.length === 0) {
@@ -440,6 +488,8 @@ export default async function middleware(request) {
   const [clientSlug, mapSlug] = segments;
   const listingSlug = segments[3];
   if (!blobBase) return; // misconfigured — fail open to the normal SPA route rather than break the site
+
+  if ((await getEntityStatus("map", clientSlug, mapSlug)) === "archived") return unavailableResponse("map");
 
   let pathname;
   let contentType;

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import EmbedMap from "./EmbedMap.jsx";
+import MapUnavailable from "../components/MapUnavailable.jsx";
+import { fetchEntityStatus } from "../lib/archive.js";
 
 /**
  * Serves the interactive map at /map on a client's verified custom domain.
@@ -17,6 +19,7 @@ import EmbedMap from "./EmbedMap.jsx";
 export default function CustomDomainMap() {
   const [mapId, setMapId] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,13 +31,20 @@ export default function CustomDomainMap() {
         .eq("status", "active")
         .maybeSingle();
       if (cancelled) return;
-      if (data?.map_id) setMapId(data.map_id);
-      else setNotFound(true);
+      if (data?.map_id) {
+        if ((await fetchEntityStatus("map", data.map_id)) === "archived") {
+          if (!cancelled) setUnavailable(true);
+          return;
+        }
+        if (!cancelled) setMapId(data.map_id);
+      } else setNotFound(true);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (unavailable) return <MapUnavailable />;
 
   if (notFound) {
     return (
