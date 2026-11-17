@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-17 — [Migration] Retire the `ai_platform_provider` feature flag
+
+**Branch:** `feat/2026-11-17-remove-ai-platform-fallback` (PR 360)
+
+### What changed
+- Deletes the `ai_platform_provider` row from `feature_flags` and all of its `feature_flag_overrides`. The AI Gateway stopped reading the flag when the Layercake AI account fallback was removed (entry above), so these rows were dead config. The user explicitly signed off this DELETE on 2026-11-17; only that flag's rows are touched.
+- Migration `20261117120000_retire_ai_platform_provider_flag.sql`, rollback `_20261117120000_retire_ai_platform_provider_flag.rollback.sql` (restores the flag and an ON override per client; restoring the old behaviour also needs the code change reverted and `ANTHROPIC_API_KEY` re-set).
+
+### Staging / production outcome
+- Written and committed. **Not applied to staging or production yet.** `supabase db push --linked --dry-run` against staging lists only this migration as pending. The real apply was blocked by the session's permission guard and is waiting on the user.
+
+### Rollback plan
+Run the rollback file in the SQL editor.
+
+### Verification
+- [x] Staging dry run lists only this migration as pending.
+- [ ] Staging: apply, expect notice `VERIFY PASSED: ai_platform_provider flag and overrides removed`; flags -1, overrides reduced by that flag's count, clients unchanged.
+- [ ] Production: same, only after separate explicit go-ahead.
+
+---
+
 ## 2026-11-17 — [Edge Functions + frontend] Removed the Layercake AI account fallback
 
 **Branch:** `feat/2026-11-17-remove-ai-platform-fallback`
