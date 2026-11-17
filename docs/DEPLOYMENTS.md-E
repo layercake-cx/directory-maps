@@ -8,10 +8,1773 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-10-03 — [Staging] Messaging: sending profiles, per-map and per-directory settings
+<<<<<<< HEAD
+## 2026-11-17 — [Frontend only] GitHub Pages deploy workflow removed
+
+**Branch:** `chore/2026-11-17-remove-github-pages-deploy`
+
+### What changed
+- Deleted `.github/workflows/deploy.yml`, the only GitHub Actions workflow. Pushes to `main` no longer build and publish to GitHub Pages (`layercake-cx.github.io/directory-maps/`). The branded Vercel frontend was never deployed by it and is unaffected; it still needs `npm run deploy:live`.
+- `AGENTS.md`, `docs/INTEGRATION_ARCHITECTURE.md` and `docs/FRONTEND_ARCHITECTURE.md` now describe Vercel as the only production frontend. `docs/DATA_AND_PRIVACY.md`, `docs/DEPLOY.md` and `docs/DIRECTORIES.md` still mention GitHub Pages and were left as they are.
+- No migration, no schema, no Edge Function.
+
+### Rollback plan
+Revert the commit to restore the workflow.
+
+### Verification
+- [ ] After merge, `gh run list --limit 5` shows no new workflow run.
+- [ ] The GitHub repository's Pages setting (Settings → Pages) can be switched off if the old site should come down; not done here.
+
+---
+
+=======
+## 2026-11-17 — [Migration + Edge Functions + frontend] Archive and Restore
+
+**Branch:** `feat/2026-11-17-archive` (stacked on `feat/2026-11-17-list-layout`; merge that first)
+
+### What changed
+- Customers, maps and directories can be archived and restored. Archiving never deletes anything: it flips `is_active` and records `archived_at` / `archived_by`. An archived directory or map goes offline to visitors (including custom domains, sitemaps and embeds, which get a 410 "no longer available" page). Archiving a customer locks out its users and takes all its maps and directories offline; items archived separately before stay archived when the customer is restored.
+- Migration `20261117150000_archive_and_restore.sql`, rollback `_20261117150000_archive_and_restore.rollback.sql`. Adds the columns; `is_entity_live`, `entity_status`, `entity_status_by_slug`, `my_client_is_archived`; changes `current_user_client_id()` (null for an archived customer), the anon read policies on maps, groups, listings, map_publications, directories and directory_entries, the "Clients manage their own maps" policy, and `resolve_custom_domain` (adds `is_live`). No backfill.
+- Edge Functions that now skip archived items: `complete_invited_signup`, `sync_sheet_listings` (logs "skipped: archived"), `send_claim_link`, `send_contact_message`, `submit_claim_request`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (jobs are put back in the queue and resume on restore). New shared helper `_shared/liveness.ts`. The other AI `generate_*` functions are user-initiated and not yet guarded (BACKLOG).
+- Frontend: ArchiveDialog (typed ARCHIVE), archived banner and read-only mode, row and bulk Archive, Undo toast, customer sign-in lock-out with `/login?archived=1`, edge 410 in `middleware.js`, unavailable state on `SlugMap`/`EmbedMap`/`CustomDomainMap`. The ⋯ row menu is now fixed-position so it is not clipped by the scrolling table.
+- Admin events: `directory_archived`/`_restored`, `map_archived`/`_restored`, `client_archived`/`_restored`, plus `_bulk_` variants (`count`, `ids`); meta carries `was_live` and `trigger`. `admin_events.event_type` is free text, so no constraint change.
+
+### Staging / production outcome
+- **Staging, 2026-11-17:** migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions above deployed to the test project. Frontend and `middleware.js` not deployed to a Vercel preview; staging was tested by the user against the local app.
+- **Production, 2026-11-17:** user signed off. Branch already contained current `origin/main`. Migration applied with `supabase db push` (linked to `gxixwdjfmegxcxfeflro`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions deployed to production (all ACTIVE, confirmed with `supabase functions list`). Frontend and `middleware.js` deployed with `npm run deploy:live` (`directory-maps-byhg7wwa5-layercake-apps.vercel.app`, aliased to uk-associations.com). CLI relinked to staging afterwards. GitHub Pages deploys on merge.
+
+### Rollback plan
+Restore anything archived, then run the rollback file (it refuses while archived rows exist). Revert the commits and redeploy the seven functions and the frontend.
+
+### Verification
+- [x] Staging: migration applied, `VERIFY PASSED` seen.
+- [ ] Staging: row counts before/after compared (the migration prints them; not compared by hand).
+- [x] Staging: user tested the archive flows (not the edge 410 pages, which need Vercel).
+- [x] Production: migration applied, `VERIFY PASSED` seen; functions ACTIVE; frontend deployed. Row counts not compared by hand; 410 pages and the customer lock-out not yet checked on production.
+
+---
+
+## 2026-11-17 — [Migration] Retire the `ai_platform_provider` feature flag
+
+**Branch:** `feat/2026-11-17-remove-ai-platform-fallback` (PR 360)
+
+### What changed
+- Deletes the `ai_platform_provider` row from `feature_flags` and all of its `feature_flag_overrides`. The AI Gateway stopped reading the flag when the Layercake AI account fallback was removed (entry above), so these rows were dead config. The user explicitly signed off this DELETE on 2026-11-17; only that flag's rows are touched.
+- Migration `20261117120000_retire_ai_platform_provider_flag.sql`, rollback `_20261117120000_retire_ai_platform_provider_flag.rollback.sql` (restores the flag and an ON override per client; restoring the old behaviour also needs the code change reverted and `ANTHROPIC_API_KEY` re-set).
+
+### Staging / production outcome
+- **Staging, 2026-11-17:** applied by the user with `supabase db push --linked --yes` (linked to `beqejxneehilplrtpntn`); only this migration was pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`.
+- **Production, 2026-11-17:** applied on the user's explicit go-ahead with `supabase db push --linked --yes` after linking to `gxixwdjfmegxcxfeflro`; the dry run listed only this migration as pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`. CLI re-linked to staging afterwards.
+
+### Rollback plan
+Run the rollback file in the SQL editor.
+
+### Verification
+- [x] Staging dry run lists only this migration as pending.
+- [x] Staging: applied, notice `VERIFY PASSED: ai_platform_provider flag and overrides removed` seen.
+- [ ] Staging: before/after row counts compared (flags -1, other flags' overrides and clients unchanged). Not run.
+- [x] Production: applied, `VERIFY PASSED` notice seen. Row counts not compared (no remote SQL from the CLI).
+
+---
+
+## 2026-11-17 — [Edge Functions + frontend] Removed the Layercake AI account fallback
+
+**Branch:** `feat/2026-11-17-remove-ai-platform-fallback`
+
+### What changed
+- Until now, an organisation with no connected AI provider still ran AI features on Layercake's own Anthropic account (`ANTHROPIC_API_KEY`) if the `ai_platform_provider` flag was on, which it was for every client that existed on 2026-10-05. That fallback is gone. Every AI request now runs on the organisation's own connected provider, or is refused with "AI isn't set up for this organisation yet."
+- Gateway (`_shared/ai/resolve.ts`, `types.ts`): the platform branch, the flag check and the `ANTHROPIC_API_KEY` read are removed; `AiConnectionSource` is now only `"customer"`. `get_ai_route_preview` no longer special-cases the platform key. Plain-English unavailable messages.
+- `claim_listing_ai` gains a `status` action so the claimed-listing manager (whose users are not members of the organisation, and so cannot call the route preview) can grey out its AI button and say why.
+- UI: every AI button and bulk action was already disabled when unavailable; the shared notice now reads "Set up your AI account in Integrations" and links there. The run summary no longer says "Layercake's account". The claimed-listing manager shows a disabled button with a note that the directory's administrators need to connect an AI account. Prompt settings stay editable so they can be prepared before connecting.
+- Tests: `gateway_test.ts` now proves there is no fallback even with the flag row and `ANTHROPIC_API_KEY` present.
+- No migration. The `ai_platform_provider` flag and its per-client overrides are left in place, unused (deleting them is a bulk DELETE and needs explicit sign-off). Old `ai_usage_events` rows keep `connection_source = 'platform'`.
+- Docs: USER_GUIDE, FEATURES, DATA_AND_PRIVACY, INTEGRATION_ARCHITECTURE.
+
+### Impact to check before production
+- **Any organisation that has not connected its own provider loses AI features on deploy.** Before deploying, list them: clients with `ai_usage_events.connection_source = 'platform'` in the last 90 days and no `integrations` row of type `ai` with status `connected`. Tell them to connect a key first.
+- Functions that import the gateway need redeploying: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_media_alt_text`, `generate_content_page_draft`, `generate_content_page_seo`, `directory_ai_search`, `claim_listing_ai`, `get_ai_route_preview`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `manage_client_integrations`, plus anything importing `_shared/seoMetadataBackfill.ts`/`entryResearch.ts` (e.g. the publish function).
+- After production is confirmed, delete the `ANTHROPIC_API_KEY` secret from both Supabase projects.
+
+### Production outcome
+- **Staging, 2026-11-17:** the 13 gateway-dependent Edge Functions deployed to the test project (`beqejxneehilplrtpntn`): `claim_listing_ai`, `directory_ai_search`, `generate_content_page_draft`, `generate_content_page_seo`, `generate_directory_seo_metadata`, `generate_directory_site` (no `builders.ts` change, so no `ENTRY_TEMPLATE_VERSION` bump), `generate_entry_content`, `generate_entry_seo_metadata`, `generate_media_alt_text`, `get_ai_route_preview`, `manage_client_integrations`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`. Frontend preview deployed to Vercel (`directory-maps-d5ygxewsf-layercake-apps.vercel.app`).
+- **Production, 2026-11-17:** user verified staging and signed off. Branch merged with current `origin/main` first (already up to date). The same 13 Edge Functions deployed to `gxixwdjfmegxcxfeflro` (all ACTIVE, confirmed with `supabase functions list`), and the frontend deployed with `npm run deploy:live` (Vercel READY, aliased to uk-associations.com). The list of organisations that relied on the Layercake account was not run before deploying; any that have not connected a provider now see AI greyed out.
+- Still to do: delete the `ANTHROPIC_API_KEY` secret from both Supabase projects; GitHub Pages deploys on merge.
+
+### Rollback plan
+Revert the commit and redeploy the same Edge Functions and the frontend; re-set `ANTHROPIC_API_KEY` if it was deleted. The flag overrides were never touched, so the old behaviour returns as it was.
+
+### Verification
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` passes (13 tests); `deno check` on `claim_listing_ai` and `get_ai_route_preview` passes.
+- [x] `vite build` and `scripts/check-ui.sh` pass.
+- [x] Staging (user-verified): a test org with no provider connected shows every AI button greyed out with the notice and link (entry content, entry SEO, directory SEO backfill, content pages, image alt text, Help me choose); the link opens Integrations.
+- [x] Staging (user-verified): the claimed-listing manager shows the disabled button and note for a claim user.
+- [x] Staging (user-verified): after connecting a key, the same buttons work and write `ai_usage_events` with `connection_source = customer`.
+
+---
+
+## 2026-11-15 — [Production] Card listing layout for the directory home page
+
+**Branch:** `feat/2026-11-15-directory-card-layout`
+
+### What changed
+- **Why:** directory home pages could only show entries as one long list. A client's brand canvas uses a grid of supplier cards, coloured by category. Spec: `docs/DIRECTORY_CARD_LAYOUT_SPEC.md` (§14 records where the build differs).
+- **New setting, Look & feel › Listings:** Layout List / Cards. With Cards: *Colour cards by* (Automatic, any attached category, or Don't colour), *Show summary on cards*, and *Button text*. Stored as four optional `theme_json` keys (`listingLayout`, `cardColourBy`, `cardShowSummary`, `cardCtaLabel`); no migration. List stays the default, and a directory that never touches the tab publishes byte-identical HTML (golden test).
+- **`generate_directory_site`:** in card mode each entry renders as a card (category-coloured stripe, badge, name, location, button line) on the same `<a class="dir-row">` element with the same data attributes, so search, facet filters, distance, Ask AI "why" lines and the map behave exactly as in the list. Term colours (`category_terms.color`, already editable in Categories) are now loaded and hex-validated before reaching any `style` attribute. Colour-category filter options and active chips show a matching dot. With no map attached, card-mode results use the full width (3–4 columns). `ENTRY_TEMPLATE_VERSION` 21 → 22 so the next ordinary Publish picks up the new CSS.
+- **Editor fix found on the way:** `themeFromDirectory()` only copied known keys, so new `theme_json` keys would have been dropped on load and wiped by the next save. `cardKeysFrom()` now carries the card keys through.
+- **Events:** no new visitor action (a card is the same link to the entry page a row was), so no `map_engagement_events` change. `directory_branding_updated` gains `changed_fields` and `listing_layout` (AGENTS.md catalogue updated).
+
+### Staging outcome
+- 2026-11-15: `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`) from this branch.
+
+### Production outcome
+- 2026-11-15 21:49 GMT: on the user's instruction ("just deploy into live"), `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`) from this branch, which already contained current `origin/main` (template version 22). The staging checks below were skipped at the user's request.
+- Frontend deployed to Vercel production from this branch with `npm run deploy:live` (deployment `directory-maps-bca9vkxld`, status Ready, aliased to maps.layercake-cx.biz; the live bundle contains the new Listings tab). GitHub Pages updates when the PR merges.
+- Existing directories are unaffected until an owner picks Cards and republishes. The next ordinary Publish of any directory does a full rebuild because of the template version bump.
+
+### Rollback plan
+Revert the branch's commits and redeploy `generate_directory_site` (template version goes back to 21, which forces a full rebuild on the next Publish). No data to undo: the four `theme_json` keys are ignored by the old generator.
+
+### Verification
+- [x] `deno test --allow-read supabase/functions/generate_directory_site/` passes (50 tests, including 19 new card-layout tests: list byte-identity, data attributes, stripe colour rules, CTA escaping, address and summary toggles).
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [x] Generated card pages checked in a browser with the real theme CSS: Natural and Midnight presets, with and without a map (2 vs 3 columns at 1024px), one column at 375px with no horizontal scroll; filtering hides cards without grid gaps and the chip shows its colour dot.
+- [ ] Look & feel › Listings tab not yet checked in the running app (needs a login): switch to Cards, change each setting, check the preview, save, and confirm the settings survive a reload.
+- [ ] Staging: publish a directory with Cards on in each built-in preset; check search, filters, distance sort, Ask AI "why" lines and the List/Map toggle on mobile, tablet and desktop.
+- [x] Production deploy of `generate_directory_site` and the Vercel frontend (see Production outcome).
+
+>>>>>>> origin/main
+## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
+
+**Branch:** `fix/2026-11-15-publish-card-stale-status`
+
+### What changed
+- Clicking Publish showed the job as running, then polled the directory's status row. The Edge Function only flips that row to "running" a moment later, so an early poll could read the *previous* run's "succeeded" row and the card announced "Version N is live, took 0 s" while the real build was still writing pages (seen on a production directory: card done at once, page files still being rewritten two minutes later).
+- New `src/components/jobs/jobGate.js` (pure `evaluateGate`): `begin()` in `useJob` now records when the run was started from this browser. Until the server row is running, or shows a run that started at or after that moment (5 s clock-skew allowance), a finished-looking row is treated as stale and the card stays "running". The gate is released by the Edge Function's own reply (`refresh({ final: true })`, used by the Publish panel's three `onResult` callbacks) or after 3 minutes, so a run that never starts can't spin forever. The same gate applies to the AI content and SEO backfill cards, which use `useJob` too.
+- No migration, no schema, no Edge Function.
+
+### Production outcome
+- 2026-11-15: PR 357 merged and `main` (`cbf3bf7`) deployed to Vercel production with `npm run deploy:live` on the user's go-ahead (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. The browser check below is still unconfirmed.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `node --test src/components/jobs/jobGate.test.js` passes (5 tests: stale previous-run row held, released on running, on a newer start with clock skew, and on timeout).
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): click Publish on a directory with changes; the card should stay "Publishing" until pages are written, then show a realistic duration. Also check an AI bulk run's card still behaves.
+
+---
+
+## 2026-11-15 — [Frontend only] Publish tab warns when no entries (or only some) will be listed
+
+**Branch:** `feat/2026-11-15-publish-no-entries-warning`
+
+### What changed
+- A directory could have entries and still publish an empty site: the generator skips hidden entries and leaves `noindex` entries off the homepage listing, sitemap and `llms.txt`. Nothing said so. A real production directory published "0 entries" after a CSV with `noindex = true` on every row, with every status staying green.
+- New `getDirectoryPublishableCounts` (`src/lib/directoryPublications.js`) returns total / hidden / noindex / listed, mirroring `visibleEntries` in `builders.ts`. The Publish tab (`DirectoryPublishPanel.jsx`) shows an amber warning when entries exist but none would be listed, naming the causes with counts, and a quieter note when only some are left out.
+- No migration, no schema, no Edge Function. Admin event instrumentation: none added; this is a read-only display on an existing page.
+
+### Production outcome
+- 2026-11-15: PR 348 merged and `main` deployed to Vercel production with `npm run deploy:live` (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. Not yet seen rendering in a browser.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): a directory whose entries are all noindex, all hidden, and mixed, plus one with every entry listed (no message).
+
+---
+
+## 2026-11-15 — [Migration + Edge Functions] AI listings are researched, written, then validated
+
+**Branch:** `feat/2026-11-15-ai-listing-research-pipeline`
+
+### What changed
+- **Why:** a client's AI-generated listings read like database documentation ("recorded range", "listed categories", "isn't described here"), published research caveats and SEO text, and contained nothing about the supplier. Diagnosis: the generation call told the model to use only the entry's stored data and "not outside knowledge", passed no web tool, forced the write tool on the first turn (so it could not search first), and fed the entry's own placeholder notes back in as the source of truth. One `html` output field meant SEO and notes had nowhere to go but the public text. Nothing validated the result, and it always overwrote the existing listing.
+- **Research stage** (`_shared/entryResearch.ts`): fetches the supplier's website (homepage plus up to three informative same-site pages; public http(s) hosts only, redirects re-checked, timeouts and size caps), and uses provider web search when the adapter supports it (Anthropic); otherwise falls back to the supplier's pages alone. Produces structured, source-backed findings. If confidence is poor, fewer than three distinctive details were found, or there are no sources, it throws `ResearchInsufficientError` and nothing is written.
+- **Write stage** (`_shared/entryContentGeneration.ts`): writes from the findings only (stored notes are no longer sent), with the editorial voice rules in the system prompt. The directory's own prompt is passed as the brief; instructions in it to browse, research or produce SEO fields are ignored (SEO is generated by its own feature).
+- **Validate stage** (`_shared/entryListingQuality.ts`): rejects database wording, missing-information or verification language, SEO or metadata text, repeated sentences, too short or too long, and drafts that use fewer than two of the researched distinctive details. One rewrite with the reasons is attempted; then `ListingQualityError`. On any failure the existing listing is untouched and the job is marked failed with an actionable message.
+- **Internal notes:** findings go to a new `directory_entry_research` table (migration `20261115120000_directory_entry_research.sql` + rollback), RLS admin-all and own-client select, separate from `directory_entries` so they can never be exposed with the anon-readable entry rows. Recording them is best-effort and never blocks saving a good listing.
+- **Throughput:** `process_entry_content_jobs` batch size 5 to 2, because research takes far longer per entry than one model call.
+- Callers updated: `process_entry_content_jobs`, `generate_entry_content`; `claim_listing_ai` goes through the same pipeline via the back-compat wrapper.
+- Docs: `USER_GUIDE.md` (how each listing is written, failure behaviour) and `DATA_AND_PRIVACY.md` (new data flow: supplier website fetched and sent to the AI provider, provider web search, stored findings).
+
+### Deployment order
+1. Migration: dry-run, staging, verify, then production (production only with explicit sign-off). The functions work without the table (notes are not stored), so the migration can safely land first.
+2. Edge Functions to staging, then production after sign-off: `process_entry_content_jobs`, `generate_entry_content`, `claim_listing_ai`.
+
+### Staging outcome
+- 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `claim_listing_ai` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes; `deno test --allow-env supabase/functions/_shared/entryResearch_test.ts` passes (9 tests, no network).
+- 2026-11-15: migration `20261115120000_directory_entry_research` applied to staging (`beqejxneehilplrtpntn`) with `supabase db push` after PR 349 landed `20261008140000` on `main` (the history drift that blocked the first attempt is gone); the dry run listed only this migration. The migration's verification queries are comments, and the CLI has no raw-SQL command, so table existence and `rowsecurity = true` still need a check in the SQL editor. Production: not applied.
+
+### Production outcome
+- 2026-11-15: on the user's explicit instruction ("deploy to prod and I'll test there", skipping a staging behaviour test), migration `20261115120000_directory_entry_research` applied to production (`gxixwdjfmegxcxfeflro`) with `supabase db push` (dry run listed only this migration; branch was 0 commits behind `origin/main`), then `process_entry_content_jobs`, `generate_entry_content` and `claim_listing_ai` deployed. The first push attempt was blocked by the agent permission check and succeeded after the user confirmed in chat. CLI relinked to staging afterwards. Table existence and RLS not yet confirmed by query; behaviour not yet verified on production.
+
+### Rollback plan
+Redeploy the three functions from the previous commit; `_20261115120000_directory_entry_research.rollback.sql` drops the table (back up first; the notes are regenerable).
+
+### Verification
+- [x] `deno check` and unit tests pass (validator rejects the real Abel & Cole text; URL guard blocks internal addresses).
+- [ ] Not yet checked on staging with a real AI provider: run one entry (an Anthropic connection, to exercise web search) and read the listing against its stored findings.
+- [ ] Not yet checked: a thin or unreachable website produces a failed job with the reason, and the previous listing is unchanged.
+- [ ] Not yet checked: a non-Anthropic provider falls back to website-only research.
+- [ ] Not yet checked: a whole-directory run finishes inside the function time limit at batch size 2.
+
+---
+
+## 2026-11-15 — [Frontend only] Publish chip updates straight after AI generation or a save on the entry Content tab
+
+**Branch:** `fix/2026-11-15-ai-generate-refreshes-publish-chip`
+
+### What changed
+- After **Draft with AI** (single-entry generation) succeeded, the content was saved and the entry's `updated_at` bumped (server side, since PR 346), but the side-panel publish chip only re-checks on navigation or when something announces a change. Nothing did, so it kept showing green "Published" next to content that wasn't live. `EntryContentTab.jsx` now calls `markDirectoryContentChanged` after a successful AI generation and after **Save notes**, which fires the existing `directory:content-changed` event so the chip flips to "Unpublished changes" at once.
+- Not covered: whole-directory and automatic AI runs finish on the server, so the chip still catches up on the next navigation or reload.
+- No migration, no schema, no Edge Function.
+
+### Production outcome
+- 2026-11-15: PR 352 merged and `main` deployed to Vercel production with `npm run deploy:live` (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): generate content for an entry in a published directory and confirm the chip turns amber without leaving the page; then Publish and confirm it returns to green.
+
+---
+
+## 2026-11-15 — [Migration + Edge Functions + frontend, staging and production] Invitations carry primary status and all-access
+
+**Branch/commit:** `claude/invite-permissions-port-7ba459` (PR; ports `fix/2026-10-08-invite-permissions`, which was never merged, onto the UI-kit Team page)
+**Deployed by:** Claude Code (migration and edge functions to staging, 2026-10-08; production migration, functions and frontend 2026-11-15)
+
+### Current state
+- **Staging** has migration `20261008140000` and both edge functions. Its frontend is the older hand-rolled Team page.
+- **Production (2026-11-15, user-approved):** migration `20261008140000` applied with `supabase db push --include-all` (the only pending migration; `VERIFY PASSED`), then `send_team_invitation` and `complete_invited_signup` deployed to `gxixwdjfmegxcxfeflro`. Frontend: GitHub Pages deployed from `main` on merge of PR 349; Vercel production (`maps.layercake-cx.biz`) redeployed from `main` the same day with `npm run deploy:live` (status Ready, includes PR 349).
+- The new Team page has not been checked in a browser; invite -> signup on production is unverified.
+
+### What changed
+- An invitation used to store only a role and a list of maps, so an invited person could never be a primary contact and never got directory access; both signup paths also hard-coded `is_primary = false`. Now the invite form has one **Access level** (Member / Manager / Primary contact; the primary option only shows for primaries, owners and admins) and the choice survives signup.
+- New `contacts.has_all_access` flag (set on every contact created from an invitation): a Member with it sees every directory without `contact_directory_permissions` rows. `DirectoryContext` honours it. (Per-map access is unchanged: it still comes from `contact_map_permissions`, which owners tick on the Team page after the person joins.) Existing members are unchanged; owners can click **Give access to all** or **Make primary** in the Team table.
+- Map checkboxes are removed from the invite form: the new `create_team_invitation` signature has no `p_map_ids` parameter (it was replaced by `p_is_primary`), so the form could not send them. Restoring them needs a new migration; not done here.
+- The Team page is re-ported onto the UI kit (`PageLayout`, `Section`, `Select`, `Pill`, `Button`), keeping status pills, skeleton loading and the confirm dialogs.
+- Fixed in passing: `getClientAndContact` did not select `role`, so non-primary Managers failed `canManageOrg` inside the client layout. It now selects `role` and `has_all_access`.
+- Multiple primaries are allowed; nothing assumes a single one.
+
+### Database migrations applied
+- `20261008140000_invite_primary_and_all_access.sql` (adds `contacts.has_all_access`, `invitations.is_primary`; replaces `create_team_invitation` with a `(text, text, text, boolean)` signature and updates `accept_team_invitation`) — applied to staging (`beqejxneehilplrtpntn`) with `supabase db push`; its built-in `VERIFY PASSED` notice fired. A separate `BEGIN; … ROLLBACK;` dry run wasn't possible (CLI 2.75.0 has no raw-SQL command, see docs/DATABASE_MIGRATIONS.md), so the atomic push plus the verification block was the check. Production: applied 2026-11-15.
+
+### Edge functions deployed
+- `send_team_invitation`, `complete_invited_signup` — deployed to staging (`beqejxneehilplrtpntn`) after the migration. Production: deployed 2026-11-15.
+
+### Rollback plan
+- Run `_20261008140000_invite_primary_and_all_access.rollback.sql` (restores the old functions and drops both columns), redeploy the previous edge functions, revert the PR.
+
+### Verified
+- [x] Migration applied; `VERIFY PASSED` (columns exist, one `create_team_invitation` overload, no existing contact has `has_all_access`)
+- [x] Older (pre-UI-kit) frontend deployed to the Vercel preview on 2026-10-08 (https://directory-maps-143sieyre-layercake-apps.vercel.app, behind Vercel deployment protection). The UI-kit port in this PR has **not** been deployed anywhere or checked in a browser; it needs a login. `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Invite as Member, Manager and Primary; sign up; contact has the right role, `is_primary` and `has_all_access`
+- [ ] A manager cannot invite a primary; Member sees all directories
+
+---
+
+## 2026-11-15 — [Frontend only] Stop the job-status request loop on Publish and AI enrichment pages
+
+**Branch:** `fix/2026-11-15-jobs-request-loop`
+
+### What changed
+- Opening a page that calls `useJob` without `runningOnly` (Publish, AI enrichment) sent the same `directories` status request many times a second, indefinitely. `JobsProvider` rebuilt its `getJob` function on every state change; `useJob`'s `poll` and `refresh` depend on it, and `useJob`'s mount effect re-ran whenever `refresh` changed. Each run upserted the job, which changed state, which rebuilt `getJob`: fetch, render, fetch, and so on.
+- `getJob` is now a stable `useCallback`, and the initial status read in `useJob` is keyed on `[kind, directoryId]` through a ref instead of on `refresh`, so a changing callback can't retrigger it.
+- Introduced with the Phase 4 processing pattern (28cec34, 2026-11-14). No migration, no schema, no Edge Function.
+
+### Production outcome
+- 2026-11-15: PR 347 merged and `main` (`f48d619`) deployed to Vercel production with `npm run deploy:live` on the user's go-ahead (status Ready, aliased to maps.layercake-cx.biz); GitHub Pages deployed on merge. The Network-tab check below is still unconfirmed.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked in the browser (needs a login): open Publish and AI enrichment and confirm the Network tab shows one status request on load, then one every 3 s only while a job is running.
+
+---
+
+## 2026-11-15 — [Edge Functions, not yet deployed] AI content now marks entries as changed; stale cron key recorded
+
+**Branch:** `fix/2026-11-15-ai-writers-bump-updated-at`
+
+### What changed
+- `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` now set `directory_entries.updated_at` when they save AI-written content. Nothing in the database does this, and the publish status chip compares entry `updated_at` with the last build, so after an AI enrichment run the chip stayed green ("live") even though the public pages were behind. Entries now show as unpublished changes until the directory is published again.
+- Geocoding (`geocode_directory_entries`) also writes without bumping `updated_at`; left alone here, noted for a follow-up.
+
+### Incident recorded (no code change)
+- AI enrichment sat at 0 of 25 (jobs all `pending`) on production. The `process-entry-content-dispatch` pg_cron job fired every 2 minutes, but every call got `401 Legacy API keys are disabled`: the vault secret `anon_key` still held the legacy anon key, which Supabase disabled on 2026-09-26 (the earlier key migration changed functions, Vercel and GitHub secrets but not the vault).
+- Fixed by the user on 2026-11-15: `vault.update_secret` on `anon_key` with the production `sb_publishable_...` key. The next tick processed jobs. The same secret feeds the daily Google Sheets sync, the SEO-metadata backfill and the error-log Teams notification schedules, so those were failing from 2026-09-26 to 2026-11-15 and should now be working again.
+- Separately found: directory entries imported hidden (`is_active = false`) are skipped by both AI enrichment and site generation. Cause was `false`-like values in the CSV's `is_active` column.
+
+### Staging outcome
+- 2026-11-15: deployed `process_entry_content_jobs`, `generate_entry_content` and `process_entry_seo_metadata_jobs` to staging (`beqejxneehilplrtpntn`) on the user's go-ahead. `deno check` passes. Behaviour not yet verified on staging.
+
+### Production outcome
+- 2026-11-15: deployed the same three functions to production (`gxixwdjfmegxcxfeflro`) on the user's explicit go-ahead, from this branch (contains current `origin/main`, 0 commits behind). Behaviour not yet verified.
+
+### Rollback plan
+Revert the commit and redeploy the three functions. The vault secret change is separate and should not be reverted (the legacy key no longer works).
+
+### Verification
+- [x] `deno check` passes on all three functions.
+- [ ] Not yet checked: run enrichment on a published directory and confirm the status chip turns amber, then Publish and confirm it returns to green.
+- [ ] Not yet checked: the sheet-sync and SEO-backfill schedules succeed (`net._http_response` shows 200 for them).
+
+---
+
+## 2026-11-14 — [Frontend only] Reordering marks a directory as having unpublished changes
+
+**Branch:** `feat/2026-11-14-reorder-marks-unpublished`
+
+### What changed
+- The publish status chip compares `updated_at` on the directory, its entries and its pages with the last publish. Reordering attached categories, an entry's links/tiles/media/team/evidence, directory accreditation schemes and entry page layouts (plus attaching/detaching a category) didn't touch any of those timestamps, so the chip stayed green even though the live site's order had changed.
+- New `markDirectoryContentChanged` (`src/lib/directoryPublications.js`) bumps the entry's `updated_at` (entry-level lists) or the directory's (everything else). It is called after each of those saves, from `categorisations.js` (directory targets only; map attachments are unaffected), `entryTemplates.js` (layout save/create/update/delete) and the six editor lists. It also fires a `directory:content-changed` event so the side-panel chip re-checks immediately instead of on the next navigation.
+- Directory pages already bumped their own timestamps. No migration, no schema, no Edge Function.
+
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch (`directory-maps-1jy0gzo9p-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so edits there are real.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-7w6vl3nhi-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the commit and redeploy the frontend. The bumped `updated_at` values are harmless.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [ ] Not yet checked against a published directory: reorder a category or an entry's links and confirm the chip turns amber at once, then Publish and confirm it returns to green.
+
+---
+
+## 2026-11-14 — [Frontend only] Drag-to-reorder everywhere lists have an order
+
+**Branch:** `feat/2026-11-14-drag-to-reorder`
+
+### What changed
+- New shared `SortableList` / `useSortable` / `useSavedOrder` (`src/components/ui/sortable.jsx`), built on Pointer Events with no new dependency: mouse, touch (hold 200ms), keyboard (Space/Enter, arrows, Home/End, Esc) and a ⋯ menu with Move to top/up/down/bottom. Standalone lists save on drop with an "Order saved." toast and Undo, revert with a danger message on failure, and never overlap saves. `GripIcon` added; `OverflowMenu` gained `{ divider: true }`.
+- Applied to: Directory and map Categories (also reworked: page-head Attach action and dialog, confirmed Detach, Edit terms link, hint line, empty state), map filter fields (and the options inside the field editor), map Groups (the separate Save order button is gone; it saves on drop), directory Pages (nestable), Entry pages sections (form rule, SaveBar), and the prominent links, product tiles, media, team members, evidence and accreditation scheme lists.
+- Three small new write functions (`reorderAccreditationSchemes`, `reorderTeamMembers`, `reorderEvidenceItems`) update `sort_order` on existing tables; no schema or RLS change, no Edge Function, no migration. The six editor lists had no reorder UI before, so they gain one.
+- `scripts/check-ui.sh` now fails on `draggable` / `onDragStart`; `/admin/ui-kit` has a SortableList section; `USER_GUIDE.md` has a "Reordering lists" section. BACKLOG: per-category "Edit terms" route.
+
+### Preview
+- 2026-11-14: Vercel preview deployed from this branch for a click-through (`directory-maps-jc6lk1ohl-layercake-apps.vercel.app`, behind Vercel sign-in). It uses the production Supabase project, so reorders you make there are real.
+
+### Production outcome
+- Deployed to production (frontend, after PR 344 merged) and tested by the user, who confirmed on 2026-11-15. The deploy date and the exact checks run weren't recorded at the time.
+
+### Rollback plan
+Revert the merge commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [x] Component tested in an isolated page: mouse drag, keyboard lift/move/drop, ⋯ menu items, Undo, failed save reverts with an error.
+- [x] Checked on the real pages (they need a login): Categories (directory and map), filter fields, map groups, directory pages (nesting), entry pages, and the six editor lists. (confirmed by the user on 2026-11-15, all items)
+- [x] Checked: touch devices (iOS Safari, Android Chrome), VoiceOver announcements, reduced motion, and before/after screenshots or a keyboard screen recording. (confirmed by the user on 2026-11-15, all items)
+
+---
+
+## 2026-11-14 — [Frontend only] Directory Categories page only attaches categories
+
+**Branch:** `fix/2026-11-14-directory-categories-attach-only`
+
+### What changed
+- Content › Categories on a directory also showed a "Directory categories" picker that tagged the directory itself with category terms. That mixed up attaching available categories with tagging. The section is removed; the page now only attaches and orders the categories available to the directory. Terms are still applied to entries (entry editor Categories tab, bulk tag).
+- Removed the unused term state and save handler from `DirectoryContext`. The `directory_category_terms` table and its data are untouched (dropping it would be a separate migration). `USER_GUIDE.md` corrected.
+- No migration, no Edge Function.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-o3qg0p7gr-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the commit and redeploy the frontend.
+
+### Verification
+- [x] `npm run build` passes.
+- [ ] Not yet checked in the browser: open a directory's Content › Categories and confirm only the attach/order controls show.
+
+---
+
+## 2026-11-14 — [Frontend only] Discover by Layercake rebrand (admin), Schibsted Grotesk headings, top bar clean-up
+
+**Branch:** `feat/2026-11-14-discover-rebrand` (brief: `docs/design/discover-ui/REBRAND_BRIEF.md`)
+
+### What changed
+- The admin and client portal are now branded **Discover by Layercake**: new logo in the top bar (on teal in the client context, reversed on ink in the platform context), new favicon and app icon, and the product name in admin copy (DNS setup instructions). Admin tabs read "{page} · Discover by Layercake"; public routes keep their title.
+- Heading font is now Schibsted Grotesk (was Bricolage Grotesque).
+- The top bar no longer has the disabled search box or the help icon (it linked nowhere). No replacement help item until there is a real help URL.
+- `scripts/check-ui.sh` has three new must-be-zero checks (Bricolage, top bar search/support, "Layercake Maps" in admin files).
+- Deliberately unchanged (see BACKLOG): sign-up, login and marketing pages, the outgoing email sender name, the "Built on Layercake Maps" panel on published sites (`public/layercake-maps-white.png` is kept for it), the custom-domain "not connected" page.
+- Addendum A (same day, after review of the live top bar): the client-context logo is now white on teal (`discover-by-layercake-white-on-teal.svg`) and the logo is larger in both contexts: 40px, or 32px below 640px.
+- 2026-11-14: Addendum A frontend redeployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-22ax80964-layercake-apps.vercel.app`).
+- No data fetching, route, permission, event or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead, skipping a separate staging deploy (`directory-maps-g7a9vbt3x-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes with the new checks.
+- [x] Damian checked the first deploy on live (2026-11-14), which led to Addendum A.
+- [x] Damian re-checked Addendum A on live (2026-11-14): looks good. Not independently checked by the agent: logo on teal and reversed on ink, nothing wraps at 1440/1024/768/390px, headings render in Schibsted Grotesk (DevTools computed font), tab title and favicon, fit checks in brief §1.5.
+
+## 2026-11-14 — [Frontend only] Ask Pip is available to every user of the app
+
+**Branch:** `feat/2026-11-14-ask-pip-all-users`
+
+### What changed
+- The Ask Pip preview (top-bar button, Cmd/Ctrl+J, "Ask Pip about this" links) was staff-only. Product decision: it should appear for everyone who uses the app. It is now on for staff and customers alike in the client portal and the staff admin. It is still a preview with canned replies: no AI calls, nothing changes or publishes.
+- The `assistant_preview` flag now defaults to on for everyone; a `feature_flags` row set to `false` turns it off. Only the `/error` and `/unavailable` test commands remain staff-only.
+- The two admin events are unchanged; customers get the client actor scopes (`client_owner`/`client_manager`/`client_member`) already supported.
+- Note: the assistant shows only inside the app shell. An admin who opens `/client` with no organisation of their own sees the "Admin account" card, which is outside the shell, so no Ask Pip there (use `/admin/clients`).
+- No data fetching, route, permission or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-bu3mxi4ey-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the commit and redeploy with `npm run deploy:live`, or set a `feature_flags` row `assistant_preview` to `false` (needs a migration or direct row insert). No Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes.
+- [ ] Not yet seen with a customer (non-staff) account. Please sign in as a client user and check the Ask Pip button, Cmd+J, and a suggested question.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 7: clean-up and enforcement
+
+**Branch:** `feat/2026-11-14-discover-ui-cleanup`
+
+### What changed
+- Deleted the phase 1 bridge CSS (the `.shell .btn*`, `.xp-*`, `.admin-card`, `.admin-table` look-alike rules), the `admin-actions` rule in `admin-shell.css`, `components/experience/experience.css` and the `components/experience/ui.jsx` re-exports. The few rules `SitePreview` still needs moved to `components/experience/site-preview.css`.
+- `src/pages/admin/admin.css` pruned from 1,736 to 310 lines with a script that removed every rule whose classes are referenced nowhere else in the app. What remains is the global `.btn`/`.admin-card` look used by the auth, claim, pricing and embed pages and the map workspace layout classes.
+- `@mantine/core` is now imported only through `src/components/ui/mantine.js` (claim-page modal and entry card preview); the dependency stays (BACKLOG proposes removing it).
+- Added `scripts/check-ui.sh` and `npm run check:ui`; one line added to `AGENTS.md` Conventions; `docs/FRONTEND_ARCHITECTURE.md` §5 rewritten as the UI system guide.
+- Renamed the tab/panel element ids from `xp-tab-*`/`xp-panel-*` to `ui-tab-*`/`ui-panel-*` (kit tab keyboard handling and Look & feel).
+- Result: in scope, legacy buttons 0, legacy containers 0, `xp-*` 0, Mantine outside `ui/` 0, native confirm/alert 0, inline styles 37 (all dynamic), from a baseline of 2047 inline styles and 276 legacy buttons.
+- No data fetching, route, permission, event or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-6wuysoviv-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; `scripts/check-ui.sh` passes and fails correctly when a legacy class is added.
+- [x] Every class removed from `admin.css` was checked as unreferenced in `src`, `index.html` and `supabase/functions` (dynamic class names checked separately: only `ai-btn--*` and `shell-btn--*`, both kept).
+- [ ] **Not seen running.** This phase deletes CSS, so the main risk is a page that lost styling. Please click through one page of each kind: login and sign-up (should be unchanged), the claim Listing Manager, a published-map embed, pricing, then in-app: client home, a map design page, map Data, a directory (Entries, Look & feel), Email, staff Customers and Sync log. Look for missing spacing, unstyled buttons or lost colours.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave C: platform admin
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-c-platform`
+
+### What changed
+- 33 files in the staff admin moved onto the kit: `AdminMapDashboard` (3,239 to 1,973 lines) and `AdminMapData` (1,744 to 1,342) now compose the shared `mapDashboard`/`mapData` components with the client portal; `AdminClientDetail`, entitlements panel and modal, contacts, clients, directories, maps, map listings and stats, listings, users, leads, error log, user activity, sync log, deployments, `AdminGate`, `AdminLayout` (head via `PageHead`), `EntitlementGate`, `EntitlementUsageHint` and the workspace switcher menu.
+- Whole-app counts after Waves A-C: inline styles 2047 to 155, legacy buttons 276 to 21, legacy containers 248 to 23, `window.confirm` 0 outside the kit's fallback, Mantine files outside `ui/` 15 to 2. What remains is almost entirely out-of-scope files (published map, pricing, auth, site previews) and `admin.css`/`experience.css`, removed in Phase 7.
+- Kit fix: `OverflowMenu` items with an internal `href` now use the router (no full page reload).
+- Behaviour-adjacent change to review: `AdminMapDashboard`'s publish tab became the client's full-page publish view, with new embed-size state and a thumbnail embed (no Supabase calls); admin-only "Embed URL" box and two notes were dropped. `AdminEditListing` now renders inside `AdminLayout`.
+- No data fetching, RPC, Edge Function, route, permission, flag, entitlement-logic or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage, `fetch(`, `submitContactMessage(` and `.from(` calls across the 33 changed files against `main`: identical, except one `Array.from(` that moved into an existing shared helper. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-98ralp59m-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; call totals unchanged.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data. Please click through as staff: Customers list and a customer (every tab: details, entitlements, categories, users, messaging, domains, integrations), contact, new customer, Directories and new directory, Maps and a map (design page: every settings tab, publish page, restore; Data: sync, CSV, manual), map listings and stats, Listings and edit listing, Users and user detail, Leads, Error log, User activity, Sync log, Deployments (do NOT trigger a live deploy to test), and the sign-in gate in a private window.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave B: client workspace
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-b-client`
+
+### What changed
+- 30 files changed, 22 added, 6 CSS modules deleted: `ClientMapDashboard` (3,298 to 1,942 lines; panels extracted to `src/components/mapDashboard/`), `ClientMapData` (shared pieces in `src/components/mapData/`), map pages (new, listings, stats, maps list), filters panel and sub-nav, Home, Team, Users, Domains, Integrations, Categories, Layout gate screens, Email and the messaging components (shared with admin customer pages and the directory/map email settings).
+- Whole-app counts: inline styles 1270 to 743, legacy buttons 169 to 87, legacy containers 189 to 99, `window.confirm` 11 to 6.
+- Visible changes: map Data job cards now sit above the tabs; maps list lost its non-functional search, Filter and Sort controls and placeholder tiles; map settings strip is light with a "Unpublished changes" pill; Team, Email and map filter deletes use dialogs; many empty/error states reworded or added (see the PR report). `ClientMapListings` no longer renders a second shell inside the client shell.
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing totals of `recordEvent`/`recordAdminEvent`, `.rpc(`, `invokeFunction`, `functions.invoke`, `supabase.auth`, storage and `.from(` calls across all changed and new files against `main`: identical, except one `Array.from(` in removed placeholder tiles. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-e7k9g429o-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes; call totals unchanged.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data. Please click through as a client owner/manager and a view-only user: Home, maps list, new map, map Data (Sheets sync, CSV import with a real file, manual add/edit, bulk edit, link to directory), map Listings, map and listing stats, map design page (every settings tab, drag groups, publish, restore, message drawer), Team (invite, remove, cancel), Users, Domains, Integrations, Email (profiles, DNS verify, sent messages, delete), Categories. Also the admin pages that render migrated components: `AdminClientDetail` (messaging, categories), `AdminMapDashboard`, `AdminMapData`, `AdminMapListings`.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 6, Wave A: directory workspace
+
+**Branch:** `feat/2026-11-14-discover-ui-wave-a-directory`
+
+### What changed
+- 65 files in the directory workspace moved onto the Discover UI kit: route pages (Overview, Entries, Publishing, Domain, Search, AI enrichment, SEO, Claims, Insights, Email, General, Pages, Categories, Accreditations, Look & feel, Entry pages, web analytics), the entry editor and its tabs, the sub-editors, integrations/AI components and engagement shells. Inline styles, `.btn`, `.xp-*`, `.admin-card`, `.panel-section`, emoji, hard-coded colours and most Mantine components are gone from them. Whole-app counts: inline styles 2047 to 1270, legacy buttons 276 to 169, legacy containers 248 to 189.
+- Visible changes: every route has a page title; Entries actions sit in a More menu; Claims list is a DataTable with a details card; `window.prompt`/`window.confirm` replaced by dialogs (Claims revoke/approve/transfer, SEO and content overwrite confirms, domain removal, scheme delete, AI provider disconnect); several empty and error states reworded or added (see the PR report).
+- Kit fix: `Dialog` no longer re-focuses its first control on every parent render (the effect depended on `onClose` identity).
+- `DraftingPromptModal` and `AiProvenanceNote` render the new look only inside the admin shell; claim pages (out of scope) are unchanged.
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes. Verified by comparing counts of `recordEvent`/`recordAdminEvent` calls and Supabase/RPC/function calls in all 65 changed files against `main`: identical. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-dyrhhfj10-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Event and data-call counts unchanged across all changed files.
+- [ ] **Not seen running.** Nothing in this wave has been rendered with real data (no signed-in session was available). Please click through, in client and staff-in-client contexts: Overview, Entries (search, filters, bulk, import, export, row menu), an entry editor on every tab, Publishing, Domain, Search, AI enrichment, SEO, Claims (list, details, settings, revoke/approve/transfer), Insights, Email settings and log, General (archive/delete), Pages (tree, delete, AI draft), Categories, Accreditations, Look & feel, Entry pages. Also the other pages that render migrated components: `ClientDomains`, `AdminClientDetail`, `ClientCategorisations`, the map filters panel, and the claim Listing Manager (should be unchanged).
+
+## 2026-11-14 — [Frontend only] Discover UI phase 5: Ask Pip preview
+
+**Branch:** `feat/2026-11-14-discover-ui-assistant-preview`
+
+### What changed
+- New **Ask Pip** drawer (`src/components/assistant/`): a UI preview with canned replies. It is **on for Layercake staff only** and invisible to customers. No AI, no network calls for content, nothing is ever written or published by it.
+- Triggers: **Ask Pip** button in the top bar, Cmd/Ctrl+J, and "Ask Pip about this" links on the directory Overview (Needs attention), Search, AI enrichment, an empty Entries table, and a failed publish card.
+- Drawer: preview notice on first open per session, context chip, welcome with three suggested questions per page, thinking state with Stop, sources as real links, Helpful/Not helpful/Copy (toast only), suggested-action cards (Apply shows a "Preview" toast and, for drafting actions, a clearly fake progress card; Show me where navigates), fallback reply, staff-only `/error` and `/unavailable`, conversation kept per workspace in sessionStorage.
+- Two **admin events**: `admin_assistant_opened` and `admin_assistant_prompt_selected` (route group and canned prompt id only; free text is never recorded). Added to the `AGENTS.md` catalogue. `admin_events` has no event-type constraint, so **no migration was needed**.
+- **Flag** `assistant_preview` (`ASSISTANT_PREVIEW_FLAG`): not in the `feature_flags` registry, so the default is on for staff and off for customers without a migration. Enabling it for customers later means adding a registry row (a migration), which I did not write.
+- No behaviour, data, route, permission or Edge Function changes. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-326vqgvok-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. The two event types simply stop being written; existing rows are harmless. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Exercised in a local harness (not committed) as staff: open from button, shortcut and links; focus lands in the composer; Esc/close returns focus to the trigger; suggested prompt gives a thinking state then a reply with real links; fallback, `/error`, `/unavailable`; New conversation clears sessionStorage; Apply toast and fake job card running to done; link pre-fills without sending. As non-staff: no button, no links, shortcut does nothing.
+- [x] The only network traffic is the two `admin_events` inserts (IDs, no text); no AI or content requests.
+- [ ] Not yet checked on real pages (needs a signed-in session): the five triggers in place, the drawer over real directory pages, and the admin event rows landing. Also not done: VoiceOver pass, 768-1279px scrim and mobile sheet on real pages.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 4: processing pattern
+
+**Branch:** `feat/2026-11-14-discover-ui-processing`
+
+### What changed
+- New `src/components/jobs/`: `JobsProvider`, `useJob`, `JobCard`, top-bar `TaskIndicator`, `KeepOpenBanner`, `DirectoryJobsWatcher`. Long work now shows a progress card on its page and a "N running" indicator in the top bar from any page, then a Toast and a green "Done" if it finishes while you are elsewhere, or a red card that stays until dismissed.
+- **Publishing:** the three stacked status lines and the hourglass are gone; a three-step card (Settings saved, Generating pages, Live) sits above the form. **Publish update** and **Restore** are disabled with a reason while a run is going. Restore asks through a dialog instead of `window.confirm`. The side-panel publish chip shows a spinner, elapsed time and a thin moving bar while generating.
+- **AI content and SEO backfill:** determinate cards with "x of y entries done", percentage and a time-left estimate only once there is a measured rate. On finish, the primary action jumps to the existing run report.
+- **Google Sheets sync:** indeterminate card with an elapsed timer replaces the blur overlay (client and admin map Data pages).
+- **CSV import** (map Data pages and directory Entries): a **Keep this tab open** banner and a leave guard replace the blocking overlay, then a done or failed card.
+- Server jobs keep polling after you leave the page and come back after a reload (including runs started in another tab).
+- **Deviations from the brief:** geocoding is a server-side queue here (no browser loop, no progress source), so it is unchanged and logged in `BACKLOG.md`; CSV import has no per-row progress or safe stop point, so it is indeterminate with no Stop button; no Contact support action yet (support link is a placeholder). No cancel flags were added anywhere, so no loop behaviour changed.
+- The "Last full run completed {date}" muted line on the AI panels is gone (the card replaces status lines; that date isn't shown until a run is watched).
+- No data fetching, RPC, Edge Function, route, permission, flag or event changes; every `recordEvent` call is as it was. No migration.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-8gx438ldn-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Job surfaces driven in a local harness (not committed): determinate AI run (percentage, striped bar, counts, "Running for 26 s · about 1 min left"), done state with Review drafts, three-step indeterminate publish card with `aria-valuetext`, failed card (`role=alert`, technical details, Try again), top-bar indicator ("1 running", green Done, red "1 failed") and popover list.
+- [ ] Not yet checked against real server jobs (needs a signed-in session): publish, restore, AI content run, SEO backfill, Sheets sync, CSV import in both portals; reload mid-run; started-in-another-tab; reduced motion; VoiceOver.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 3: shell updates
+
+**Branch:** `feat/2026-11-14-discover-ui-shell`
+
+### What changed
+- **Top bar** has slots, in order after search: task indicator (phase 4), Ask Pip button (phase 5), support link, avatar. The two new slots render nothing yet.
+- **PageHead** takes `eyebrow`, `breadcrumb`, `status` and `size`; existing call sites render as before.
+- **Feature panel:** AI items (AI enrichment, Search & Discovery) show a small spark after the label (`ai: true` in `navConfig.js`).
+- **Publish status chip** state colours moved from hard-coded hex to the status tokens (logic untouched).
+- **Layout helpers** `PageLayout`, `SettingsLayout` and `RecordLayout` (`components/ui/layouts.jsx`). No existing page uses them yet; phase 6 migrates pages onto them.
+- **Responsive shell:** below 1024px the feature panel is a drawer behind a Menu button in the top bar; below 640px the rail is a bottom bar. This didn't exist before.
+- No behaviour, data, route, event, migration or Edge Function changes.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-64x8skjy1-layercake-apps.vercel.app`). GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Rendered the shell in a local harness (not committed) with each template at 1440px, the drawer at 900px (opens, scrim, Esc closes, `aria-expanded` follows) and the bottom-bar rail at 390px with no horizontal overflow.
+- [ ] Not yet checked on signed-in pages: real directory, map and customer pages in client and platform contexts, and staff view; keyboard focus order in the drawer.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 2: shared UI kit
+
+**Branch:** `feat/2026-11-14-discover-ui-kit`
+
+### What changed
+- New component kit in `src/components/ui/` (about 40 components, one `index.js`) built to `docs/design/discover-ui/COMPONENTS.md`, plus the icon set with the Discover spark. Pip SVGs and the spark are copied to `src/assets/`.
+- `/admin/ui-kit` (staff only, not in the nav) renders every component in every state. It is the review surface for this phase and the regression page afterwards.
+- `AIButton` now uses the spark instead of the two-star sparkle, and its default label is "Draft with AI" (callers that pass a label are unchanged). Inside the shell it takes the new ink-outline look. Claim pages (outside the shell) keep their own styling but get the spark.
+- `components/experience/ui.jsx` is now a re-export of the kit, so the Look & feel and Entry pages use the new Dialog, ConfirmDialog, SaveBar, OverflowMenu, SegmentedControl and colour fields. Engagement `MetricCards`, `Panel`, `EmptyChart`, `LoadingState` and `DataTable` are thin wrappers over the kit.
+- `ToastProvider` and `ConfirmProvider` mount in `AppShell`. `useUnsavedGuard`'s in-app prompt now uses a dialog instead of `window.confirm`.
+- Not built: a searchable-select wrapper (the spec makes it optional; native `Select` covers current needs).
+- No behaviour, data, route (other than `/admin/ui-kit`), event, migration or Edge Function changes.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-cieizefu9-layercake-apps.vercel.app`). `maps.layercake-cx.biz` serves the new bundle. GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] UI kit page rendered in a local harness at desktop and 375px width, no horizontal scroll; Dialog focus/Esc, `useConfirm`, Toast, OverflowMenu arrow keys, Switch naming and SegmentedControl arrow keys checked.
+- [ ] Not yet checked on signed-in pages: `/admin/ui-kit` itself, the Look & feel and Entry pages (now on the new dialogs, save bar and colour fields), engagement pages, and the AI buttons in the entry editor.
+- [ ] Reduced-motion and VoiceOver passes not done.
+
+## 2026-11-14 — [Frontend only] Discover UI phase 1: tokens, type and theme
+
+**Branch:** `feat/2026-11-14-discover-ui-tokens`
+
+### What changed
+- Admin and client portal chrome now use the Discover UI tokens: Bricolage Grotesque for titles (replaces Source Serif 4), teal primary buttons at 44px, and the new status, progress, spark, focus, elevation, layering and motion tokens (`src/styles/admin-shell-tokens.css`, `src/styles/discover-ui.css`).
+- The Mantine theme is teal-based (shade 6 = `#0f5e63`) with 10px radius and the shell fonts, so unmigrated Mantine pieces sit closer to the new look.
+- Legacy `.btn*`, `.xp-btn*`, `.xp-input`, `.admin-card`, `.panel-section`, `.xp-card` and `.admin-table` now render with the shell look **only inside `.shell`**. The brief proposed changing them globally, but Login, Forgot/Reset password, claim pages, Privacy and Terms use the same classes and are out of scope, so the bridge is scoped. Marked `DISCOVER-UI bridge: delete in phase 7`.
+- Feature panel titles truncate with an ellipsis and a `title` tooltip.
+- No behaviour, data, route, event, migration or Edge Function changes.
+
+### Production outcome
+- 2026-11-14: frontend deployed to Vercel production from this branch (contains current `origin/main`) with `npm run deploy:live` on the user's explicit go-ahead (`directory-maps-heevrh0jv-layercake-apps.vercel.app`). `maps.layercake-cx.biz` serves the new Bricolage font link. GitHub Pages deploys on merge. No migration, no Edge Function.
+
+### Rollback plan
+Revert the branch's commits and redeploy with `npm run deploy:live`. No migration, no Edge Function.
+
+### Verification
+- [x] `npm run build` passes.
+- [x] Live `maps.layercake-cx.biz` index serves the Bricolage font request.
+- [x] Login page unchanged (button still 36px, near-black, 8px radius).
+- [x] A `.shell` test fragment on the dev server computes teal 44px primaries, 36px small, Bricolage 700 titles, ellipsis panel titles, 800 stat values, 16px card radius.
+- [ ] Not yet checked on real signed-in pages (needs a signed-in session): client and platform contexts at 1440px and 390px.
+- [ ] Bricolage rendering not yet confirmed visually.
+
+## 2026-11-13 — [Production] One AI button everywhere + Listing Manager redesign
+
+**Branch:** `feat/2026-11-13-ai-button`
+
+### What changed
+- New shared `AIButton`, `AiProvenanceNote` and `DraftingPromptModal` (`src/components/ai/`). Every existing "Generate with AI" button (entry Content and SEO tabs, directory SEO settings, content pages, media alt text) and the two bulk-run buttons use them, so state, errors and screen-reader announcements behave the same, and each has a short note on what the AI does. Buttons that use a built-in prompt show the note without a "View drafting prompt" link; only the entry Content tab shows the admin prompt.
+- Listing Manager (`ClaimManager.jsx`) restyled to the handoff: breadcrumb, pills, underline tabs, two-column layout. The parked Team tab code is deleted (route and tab were already hidden).
+- Listing tab gets **Generate with AI** plus the read-only drafting prompt. New Edge Function `claim_listing_ai` (`prompt` and `draft` actions). It never saves; it returns 409 `no_web_address` when the entry has no website.
+- Fonts: Inter, Playfair Display and IBM Plex Mono added to the existing Google Fonts link in `index.html`.
+- Not built: "Improve current text" (hidden for v1), a Suggest button on the claim SEO tab (the draft endpoint writes body HTML, not SEO fields), and per-user rate limiting.
+
+### Staging outcome
+- 2026-11-13: `claim_listing_ai` (new) deployed to the test project (`beqejxneehilplrtpntn`). 
+
+### Production outcome
+- 2026-11-13: `claim_listing_ai` (new) deployed to production (`gxixwdjfmegxcxfeflro`) from this branch (contains current `origin/main`) on the user's explicit go-ahead. Not yet verified live. Frontend: deployed by the user with `npm run deploy:live` from this branch (Vercel production `directory-maps-1nygr4r9k-layercake-apps.vercel.app`, aliased to `https://uk-associations.com`, ready in 24s). GitHub Pages deploys on merge. Live behaviour not yet checked.
+
+### Rollback plan
+Revert the branch's commits; undeploy `claim_listing_ai`. No migration.
+
+### Verification
+- [x] `npm run build` passes; `deno check` passes for `claim_listing_ai`.
+- [ ] Not yet tested in the running app (needs a signed-in claim user): Listing tab generate, disabled state with no web address, prompt modal, keyboard and focus, mobile width.
+- [ ] Other AI buttons not yet clicked through after the swap.
+
+## 2026-11-13 — [Frontend only] Hide the Team tab in the Listing Manager
+
+**Branch:** `chore/2026-11-13-hide-listing-team-tab`
+
+### What changed
+- Listing owners and editors no longer see a **Team** tab in the Listing Manager. It sat next to **Users** and read as the same thing, and wasn't specced for now. The tab and its component are commented out in `ClaimManager.jsx`, not deleted, so restoring it is a two-line uncomment.
+- Nothing in the database changed. Team members already added still show on published listing pages, and admins can still manage them from the directory Entries editor.
+
+### Preview outcome (2026-11-13)
+- Vercel preview deployed from this branch: https://directory-maps-l8wlym4rs-layercake-apps.vercel.app. Production (`maps.layercake-cx.biz`) not yet deployed; waiting on sign-off.
+
+### Production outcome (2026-11-13)
+- Deployed by the user with `npm run deploy:live` from this branch (Vercel production `directory-maps-ldpbbu1of-layercake-apps.vercel.app`, aliased to `https://uk-associations.com`). Ready in 24s. Not yet checked: Listing Manager tabs on the live site.
+
+### Rollback plan
+Revert this commit (or uncomment the two marked lines in `ClaimManager.jsx`).
+
+### Verification
+- [ ] Listing Manager shows Listing, SEO, Contact details, Users only. Not yet tested in the running app.
+
+## 2026-11-13 — [Staging + Production] System emails use the directory's name
+
+**Branch:** `fix/2026-11-13-system-email-directory-name`
+
+### What changed
+- `{{directory_name}}` in the three editable system emails (sign-in, invite, claim request) was the Look and Feel site title when set, otherwise the directory name. It is now always `directories.name`. UK Associations emails were printing "NA", which points to a bad site title.
+- The From name for these emails is the email profile's From name. A verified profile with a blank From name now falls back to the directory name instead of a bare address.
+- Only `_shared/systemEmail.ts` changed; `send_claim_link`, `submit_claim_request` and `directory_email_preview` need redeploying to pick it up.
+
+### Staging outcome (2026-11-13)
+- `send_claim_link`, `submit_claim_request` and `directory_email_preview` deployed to staging (`beqejxneehilplrtpntn`) from this branch merged with current `origin/main`. Production untouched.
+
+### Production outcome (2026-11-13)
+- Deployed on the user's instruction to production (`gxixwdjfmegxcxfeflro`) after confirming the branch contains current `origin/main`: `send_claim_link`, `submit_claim_request`, `directory_email_preview`. No frontend change, so no Vercel deploy was needed. Not yet checked: a test email from UK Associations.
+
+### Rollback plan
+Revert the commit and redeploy those three functions.
+
+### Verification
+- [x] `deno check` on `_shared/systemEmail.ts`
+- [ ] Staging: deploy the three functions, use "Send test to me" on UK Associations, confirm the name and From
+
+---
+---
+
+## 2026-11-13 — [Staging + Production] Listing login stays on the directory
+
+**Branch:** `feat/2026-11-13-listing-login-icon`
+
+### What changed
+- The header control is the person icon from the design brief (accessible name **Listing login**, tooltip on hover and focus). On a phone it sits beside the menu. The footer text link is gone.
+- The icon opens `/login` on the directory’s own address: the two-column “Listing owner login” page, then “Check your email” on that same page. Colours come from the claim banner. The form still uses `send_claim_link`. When the directory has an active custom domain, the sign-in and invitation emails open `https://<that-domain>/login`, and the Listing Manager (`/claim/login`) stays on that same domain. With no custom domain, the email opens the Listing Manager on the Layercake address. Verifying a directory domain adds `https://<that-domain>/login` to the project's Auth redirect allow list, and removing the domain takes it off. A sign-in or invitation email adds it too if it is missing. This uses the `MANAGEMENT_API_TOKEN` secret and the Supabase Management API. Edge secrets cannot be named `SUPABASE_*`.
+- `ENTRY_TEMPLATE_VERSION` is 21. A magic link that returns to the directory login page stays on that page. When a listing session is stored, the header person icon opens an account menu. Revoking a claim republishes that one listing so **Claim this listing** comes back. Entry pages also keep the banner, hidden, while a claim is active, and show it again when the listing is claimable.
+
+### Staging outcome (2026-11-13)
+- `generate_directory_site` and an earlier `send_claim_link` (directory redirect URL, no allow-list update) deployed to staging (`beqejxneehilplrtpntn`). Production untouched.
+- A directory picks up the icon and `/login` page on its next Publish.
+- `manage_client_domain`, `send_claim_link` and `generate_directory_site` redeployed to staging after the allow-list change. No new migration: dry-run reported the staging database already up to date (`20261113150000` is already applied). The temporary local copy of `20261008140000` was removed and not committed.
+- `MANAGEMENT_API_TOKEN` is set on staging. It is a scoped access token for the staging project only: Auth Config read-write and Project Settings read-write. Supabase rejects secrets whose names start with `SUPABASE_`, so it is stored under this name. A directory domain still has to be verified before `https://<domain>/login` is confirmed on the Auth redirect list.
+- A magic link from `generateLink` returns tokens in the URL hash. The app uses PKCE and was discarding that hash, so the link opened the login form again. The claim login page now stores that session. A link requested from localhost stays on localhost, because that is the staging app. `DIRECTORY_APP_ORIGIN` on staging is `http://localhost:5173`, used the next time a directory is published.
+- 2026-11-13 22:08 UTC: `send_claim_link` (version 8), `manage_client_domain` (version 15) and `generate_directory_site` (version 82, template 21) redeployed to staging so it matches production. That includes the directory magic-link address, the login page that stays on the directory, the signed-in account menu script, and the claim banner that returns after a revoke. No migration. `DIRECTORY_APP_ORIGIN` was left as `http://localhost:5173`. The staging app is still localhost for day-to-day work. A Vercel preview of this branch was then deployed: `dpl_BkeYvg1r4iT5ZRZRNCpUmWvTRcb7`, https://directory-maps-n5u4fqcw6-layercake-apps.vercel.app (Preview environment, Vercel authentication on). Production aliases were not changed.
+
+### Production outcome (2026-11-13)
+- `send_claim_link`, `manage_client_domain` and `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`). No new migration. CLI left linked to staging.
+- Vercel production deploy `dpl_58SiVLu7kaQdAAi1T2qkqxivEdYf` is Ready and aliased to `maps.layercake-cx.biz`, `uk-associations.com`, `ethical-elephant-sanctuaries.com` and `directory-maps.vercel.app`. That build includes the claim login page accepting the magic-link session. A later production deploy (`dpl_9cudCKeAvjSaEi1K7x8Ye8GMmEhD`) stops the app treating a claim magic link (`type=magiclink`) as a password reset. `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps `/claim/*` on the directory host. `dpl_9j7MRWfAXXzqe6F67MAR6bnULR67` (2026-11-13) stops the published login page bouncing a magic link into the Layercake app: the link stays on the directory login page, and the Listing Manager on that domain uses the directory header. `dpl_6DbrJRmSkxdS5WtSi2RtBbh74oH3` turns the header person icon into an account menu when a listing session is already stored on that domain (logo or initials, edit, view, sign out). `generate_directory_site` was redeployed at 14:26 UTC with template version 21. Vercel `dpl_CdXjUmK3NJhhG4LcjrzQQ2QYbkrW` includes revoke republishing the listing.
+- Final Vercel production deploy from the committed branch (HEAD `bc293bb`, so production matches the merged code exactly): `dpl_Bqx15qaH1pU9hoPPe3efY6nrKgy7`, https://directory-maps-17a9d0kb4-layercake-apps.vercel.app, Ready in 21s, aliased to `uk-associations.com` (the deploy output listed only that alias).
+- `MANAGEMENT_API_TOKEN` is set on production (scoped to the production project). Do not set `DIRECTORY_APP_ORIGIN` on production; an unset value keeps the handoff on `maps.layercake-cx.biz`.
+- GitHub Pages is unchanged until this branch is merged. A directory shows the icon and `/login` page on its next Publish.
+- Vercel `dpl_JD1E6sHo5yDRByXaTJ7Uxsf22Db5` keeps the magic-link session on the directory domain. `https://uk-associations.com/login` no longer forwards to `maps.layercake-cx.biz`, and `https://uk-associations.com/claim/login` serves the Listing Manager. `generate_directory_site` was redeployed so the next Publish bakes the same handoff.
+- [x] Production: `MANAGEMENT_API_TOKEN` is set
+- [x] Production: `https://<domain>/login` confirmed fine by the user
+
+### Rollback plan
+Redeploy `generate_directory_site`, `send_claim_link` and `manage_client_domain` from `main` and republish. No new migration. A directory URL already added to the Auth allow list stays until it is removed by hand or by a later domain removal.
+
+### Verification
+- [x] `deno test` on `listingLogin_test.ts`
+- [x] Staging: `generate_directory_site` and `send_claim_link` (redirect URL only) deployed
+- [x] Staging: `manage_client_domain`, `send_claim_link` and `generate_directory_site` deployed with the allow-list code
+- [x] Staging: `MANAGEMENT_API_TOKEN` is set (scoped to the staging project)
+- [ ] Staging: verify a directory domain and confirm `https://<domain>/login` is on the Auth redirect list
+- [ ] Staging: republish a directory on its own domain, confirm the icon stays on that domain and the login page matches the design
+- [ ] An approved claimant’s email shows “Check your email” and the message signs them into the Listing Manager
+- [ ] An unknown email shows the same “Check your email” card
+
+## 2026-11-13 — [Staging + Production] Claimant login link on published directory sites
+
+**Branch:** `feat/2026-11-13-claimant-login-link` · Spec: `docs/CLAIMANT_LOGIN_SPEC.md`
+
+### What changed
+- Claimants could only reach `/claim/login` from an email. Published directory pages now show **Manage your listing** in the header (and mobile menu) and **Listing owner log in** in the footer, linking to it.
+- The links render only when claims are on for the directory: `directory_claim_settings.enabled` and the `maps.claims` entitlement, the same check as the claim banner (`claimWidgetBase` in `generate_directory_site/index.ts`). With claims off there is no link and no markup. Turning claims off takes effect on the next Publish.
+- Clicks record a new visitor event `claim_login_click` (`cta_type` header/footer) through the existing `data-dm-event` handler. Migration `20261113150000_claim_login_click_event` (+ rollback) widens the `map_engagement_event_type` check.
+- `builders.ts` markup changed, so `ENTRY_TEMPLATE_VERSION` is bumped 14 -> 15. `generate_directory_site` must be deployed, then each directory republished.
+
+### Staging outcome (2026-11-13)
+- Migration `20261113150000` applied to staging (`beqejxneehilplrtpntn`); its own post-migration check printed VERIFY PASSED. Dry-run listed only this migration. As before, `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `generate_directory_site` deployed to staging. Production untouched.
+- Not yet checked: republishing a test directory and inspecting the links, and a click recording a `claim_login_click` row.
+
+### Production outcome (2026-11-13)
+- Deployed on the user's explicit instruction. Branch already contained current `origin/main` (`git log HEAD..origin/main` empty).
+- CLI was already linked to production (`gxixwdjfmegxcxfeflro`). `db push --dry-run` listed only `20261113150000_claim_login_click_event.sql`, which was applied. The migration's own check printed VERIFY PASSED. CLI relinked to staging afterwards.
+- `generate_directory_site` deployed to production (`ENTRY_TEMPLATE_VERSION` 15, `builders.ts` included in the upload). Directories pick up the login link after their next Publish.
+- Staging checks below were still unticked at deploy time.
+
+### Rollback plan
+Run `_20261113150000_claim_login_click_event.rollback.sql` (it refuses to run if `claim_login_click` rows exist). Redeploy `generate_directory_site` from `main` and republish; already-published pages keep the link until republished, which is harmless.
+
+### Verification
+- [x] `deno check` on `generate_directory_site/index.ts`
+- [ ] Staging: migration applied, function deployed, directory republished with claims on, off, and entitlement removed
+- [ ] Link visible in header, mobile menu and footer on landing, content and entry pages only when claims are on
+- [ ] Click records one `claim_login_click` row with no personal data
+
+---
+
+## 2026-11-13 — [Staging + Production] Branded, editable system emails for claims
+
+**Branch:** `feat/2026-11-13-branded-system-emails`
+
+### What changed
+- Claim sign-in links and invitations were Supabase Auth's generic, unbranded email. They now go through a new `send_claim_link` Edge Function: it generates the one-time link with the admin API and sends it via Resend, from the directory's sending profile, in a simple email themed from the directory's Branding (logo, fonts, header colours, primary colour). The claim-request notification (`submit_claim_request`) uses the same template.
+- The public **Claim this listing** dialog (self-service mode) called Supabase's OTP endpoint straight from the published page, so that email was generic too. It now calls `send_claim_link` instead. This is a change to `builders.ts`, so `ENTRY_TEMPLATE_VERSION` is bumped 13 -> 14 and `generate_directory_site` must be deployed, then each directory republished, before the page uses it. Deploy `send_claim_link` first.
+- New `_shared/systemEmail.ts` (layout, defaults, branding, sending) and `directory_email_preview` Edge Function (live preview and "send test to me" for the editor).
+- New table `directory_email_templates` (migration `20261113120000`, + rollback): per-directory subject, heading, body and button label for `claim_sign_in`, `claim_invite`, `claim_request_notification`. Null/missing = default.
+- New **System emails** editor under Emails → Email settings (`DirectoryEmailTemplatesEditor.jsx`), with placeholders, preview, test send and reset. Admin events `email_directory_template_updated` / `_reset` / `_test_sent`.
+- Behaviour changes to know about: a sign-in link is now only sent if the email belongs to a live (non-revoked) claim user, and the login page always says "check your email" so emails can't be probed. Supabase's own one-per-minute limit no longer applies, so there is a best-effort per-instance throttle instead. These emails ignore the messaging on/off switch and test mode.
+- Not covered: team invitations to staff (still platform-branded), password reset and email verification (Supabase Auth templates).
+
+### Staging outcome (2026-11-13)
+- Migration `20261113120000` applied to staging (`beqejxneehilplrtpntn`) after a dry-run that listed only it. As before, `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `send_claim_link`, `directory_email_preview`, `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+- Smoke test with curl: unknown email on sign_in returns `{ok:true}` with no email, a non-`/claim/login` redirect returns 400, an unauthenticated invite returns 401.
+- Not yet checked: real branded emails arriving, the editor UI, and a republish of a test directory.
+
+### Production outcome (2026-11-13)
+- Deployed on the user's explicit instruction, before the staging checks below were ticked.
+- Branch already contained current `origin/main` (`git log HEAD..origin/main` empty; diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`); `db push --dry-run` listed only `20261113120000_directory_email_templates.sql`, which was applied. (Unlike staging, production has no `20261008140000`, so no placeholder file was needed.) CLI relinked to staging afterwards.
+- `send_claim_link`, `directory_email_preview`, `submit_claim_request` and `generate_directory_site` deployed to production, in that order, after the migration.
+- Curl smoke test on production: unknown email on sign_in returns `{ok:true}`; a bad redirect returns 400.
+- Not yet done: the frontend (System emails editor, `sendClaimUserMagicLink`) is live only after PR 325 merges (GitHub Pages) and `npm run deploy:live` (Vercel). Until then the app still uses Supabase's email for claim sign-in links. Directories pick up the branded claim dialog after their next Publish.
+
+### Rollback plan
+Run `_20261113120000_directory_email_templates.rollback.sql` (custom wording is lost). Redeploy `submit_claim_request` from `main` and revert the frontend commit so `sendClaimUserMagicLink` goes back to `supabase.auth.signInWithOtp`. Redeploy `generate_directory_site` from `main` (and republish) so the public dialog goes back to the OTP endpoint. Delete `send_claim_link` and `directory_email_preview`.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes on the three functions
+- [x] Dry-run and apply migration on staging (table created; additive only)
+- [x] Staging: deploy `send_claim_link`, `directory_email_preview`, `submit_claim_request`
+- [ ] Staging: `/claim/login` sign-in email arrives branded, link signs in and lands in Listing Manager
+- [ ] Staging: invitation (owner and editor) arrives branded
+- [ ] Staging: deploy `generate_directory_site`, republish a test directory, self-service claim email arrives branded
+- [ ] Staging: edit text in System emails, preview updates, test email matches, reset works
+- [ ] Redirect URL `https://<app>/claim/login` is in Supabase Auth's allowed redirect list (it already was for `signInWithOtp`)
+
+## 2026-11-11 — [Staging + Production backend] Manual claim requests create a claim for review; approval-gated claim access
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price` (also carries the next entry's dialog changes)
+
+### What changed
+- Submitting a manual claim request now also creates a real claim (`claim_started`, shown in Claims as **Awaiting review**) and reserves the listing, atomically (`create_manual_claim_request()`, service role only). The email is now just a notification; a request is recorded even if email isn't set up or fails.
+- New **Approve request** action (`admin_approve_manual_claim()`): verifies the claim by admin override and adds the requester as owner. Reject = existing Revoke. No `claim_users` row exists before approval, so an unreviewed requester can never be linked at sign-in.
+- Hardening (applies to all claims): `link_claim_user_by_email`, `can_access_claim`, `is_claim_owner` and `get_my_claim_context` now require the claim to be approved (verified or later, not revoked). Previously access depended only on a `claim_users` row existing, whatever the claim status. Side effect: users of revoked claims lose their Listing Manager access.
+- Migration `20261111100000_manual_claim_review.sql` (+ rollback); `submit_claim_request` rewritten; admin Claims panel shows request details and the Approve button.
+- Published pages are static, so the claim banner and dialog now ask a new public RPC, `is_listing_claimable()`, on load and remove themselves if the listing has a claim (no pending message, nothing shown). A dialog submit that hits "already has a claim" removes them the same way. The banner-view event only fires if the listing is still open. Needs the migration applied before `generate_directory_site` is deployed (an unapplied RPC fails open: the banner just stays).
+- Note: an approved manual claim is `verified` + `self_service`, so the claimant's first sign-in activates it automatically, like any approved self-service claim.
+
+### Staging outcome (2026-11-11)
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; its post-check passed. As before, `20261008140000` (from the unmerged branch `fix/2026-10-08-invite-permissions`) was placed locally for the push and removed afterwards, never committed.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-11)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261111100000_manual_claim_review.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production, migration first.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin Claims panel (request details, Approve request) is frontend code, live only after PR 322 merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the dialog/banner changes after their next Publish.
+
+### Rollback plan
+Run `_20261111100000_manual_claim_review.rollback.sql` (restores the old access functions; claims already created stay as `claim_started`, revoke them in the Claims tab), redeploy `submit_claim_request` from `main`.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes
+- [x] Migration applied to staging, post-check passed
+- [ ] Staging: submit a request, claim appears as Awaiting review, listing reserved
+- [ ] Staging: a sign-in link for that email gives no access before approval; works after Approve request
+- [ ] Staging: an existing active claim owner can still sign in and edit
+
+## 2026-11-11 — [Not deployed] Claim dialog: hide price in manual mode, org name as h3
+
+**Branch:** `fix/2026-11-11-manual-claim-no-price`
+
+### What changed
+- In manual claim mode the claim dialog no longer shows the price line (a visitor sent "£0.00" next to a request form). Manual mode is a request to the directory, not a purchase. Automatic mode still shows the price. `generate_directory_site` only; `ENTRY_TEMPLATE_VERSION` 12 → 13 so already-published pages pick it up on the next Publish.
+
+- The organisation name at the top of the claim dialog is now an `h3` heading (larger, bolder) in both modes, instead of small grey text.
+
+### Rollback plan
+Revert the branch's commit and redeploy `generate_directory_site`.
+
+### Verification
+- [x] `claimBanner_test.ts` passes (price hidden in manual, shown in auto)
+- [ ] Staging: manual-mode dialog has no price line after a Publish
+
+## 2026-11-10 — [Staging + Production backend] Manual claim mode
+
+**Branch:** `feat/2026-11-10-manual-claim`
+
+### What changed
+- A directory can now handle claims manually. Claims → Settings has a new "How claims are handled" choice: Automatic verification (unchanged, the default) or Manual review. Manual shows name, email and message in the claim dialog and emails them to a mailbox set per directory; an admin then creates the claim by hand from the Claims tab.
+- Migration `20261110140000_manual_claim_mode.sql`: `claim_mode` and `claim_notify_email` on `directory_claim_settings`, a new `claim_requests` table (stored requests, RLS read-only for admins and the owning organisation), and the visitor event `listing_claim_request_sent`.
+- New Edge Function `submit_claim_request` (public, `verify_jwt = false`): checks claims are enabled, mode is manual, entitlement, listing unclaimed, and that the directory's messaging is ready; honeypot field; one email per person per listing per day. Uses the directory's messaging profile and test mode.
+- `generate_directory_site`: claim dialog renders the manual form when the mode is manual, mode added to the claims publish hash, `ENTRY_TEMPLATE_VERSION` 11 → 12. Directories need a Publish to pick up the change.
+- Settings form in `DirectoryClaimsPanel.jsx` (shared by admin and client portal).
+- Not done: an in-app list of requests (email plus stored rows only), and the later fallback from automatic to manual when a domain doesn't match.
+
+### Staging outcome (2026-11-10)
+- Migration applied to staging (`beqejxneehilplrtpntn`); its post-check passed. The first attempt failed and rolled back because `directory_id` / `directory_item_id` were declared `uuid` while `directories.id` and `directory_entries.id` are `text`; fixed to `text` (matching `claims`) and re-applied. As with the claim banner deploy, staging's history holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, so that file was placed locally for the push and removed afterwards (never committed); no history repair.
+- `submit_claim_request` and `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-10)
+- Branch already contained current `origin/main` (diff against `main` was only this work). CLI linked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only `20261110140000_manual_claim_mode.sql`, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `submit_claim_request` and `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the Settings form is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories use manual mode only after it is chosen and they are next published.
+
+### Rollback plan
+Run `_20261110140000_manual_claim_mode.rollback.sql` (drops `claim_requests`, so export first), redeploy `generate_directory_site` from `main`, delete `submit_claim_request`, revert the branch.
+
+### Verification
+- [x] `vite build` passes; `deno check` passes for the three changed functions
+- [x] Migration applied to staging, post-check passed (row counts not separately recorded: the migration is additive)
+- [ ] Staging: manual-mode dialog sends the email, stores a row, repeat is not re-sent
+- [ ] Staging: automatic mode dialog unchanged
+- [ ] Admin and client portal Settings form saves both modes
+
+## 2026-11-10 — [Not deployed] Admin directory Settings › Domain page
+
+**Branch:** `fix/2026-11-10-admin-domain-route`
+
+### What changed
+- In the admin view of a directory, clicking Settings › Domain did nothing useful and dropped you on the maps home page, because the admin route table had no `domain` route (only the client portal did). The route now exists, so admins see the directory's custom domain settings. Also removed an accidental duplicate `domain` route in the client portal. Frontend only.
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Admin › directory › Settings › Domain shows the domain settings (preview, then live)
+
+## 2026-11-10 — [Staging + Production backend] Claim banner on unclaimed listing pages
+
+**Branch:** `feat/2026-11-10-claim-banner`
+
+### What changed
+- Unclaimed listing pages now show a full-width "Claim this listing" banner between the hero and the body, replacing the small "Represent this organisation?" link under the map. The button opens the same claim dialog as before.
+- Banner wording, an optional secondary link and four colours are set per directory in Claims → Settings, with a live preview, an Insert variable control (`{{org_name}}`) and contrast warnings. It follows the existing "Claims enabled" setting; there is no second switch.
+- Migration `20261110120000_claim_banner_settings.sql` adds `banner_*` columns (with defaults, so existing directories need no action) to `directory_claim_settings` and allows two new engagement events (`claim_banner_view`, `claim_banner_secondary_click`).
+- `generate_directory_site`: new banner markup/CSS, `ENTRY_TEMPLATE_VERSION` 10 → 11, banner settings added to the claim part of the publish hash so a settings change forces a rebuild. Directories need a Publish to show the banner.
+- Not done: `{{org_short_name}}` (listings have no short-name field).
+
+### Staging outcome
+- Migration applied to staging (`beqejxneehilplrtpntn`) with the CLI; the migration's own post-check passed. Staging's history also holds `20261008140000` from the unmerged branch `fix/2026-10-08-invite-permissions`, which blocks a plain `db push`; it was applied by placing that file locally (uncommitted, since removed) so only this migration was pushed. No history repair was done.
+- `generate_directory_site` deployed to staging. Production untouched.
+
+### Production outcome (2026-11-10)
+- Branch merged with current `origin/main` first (diff against `main` was only this work). CLI relinked to production (`gxixwdjfmegxcxfeflro`), `db push --dry-run` listed only this migration, applied; the migration's post-check passed. CLI relinked to staging afterwards.
+- `generate_directory_site` deployed to production.
+- Deployed on the user's explicit instruction before the staging checks below were ticked.
+- Not yet done: the admin form (Claims → Settings) is frontend code, live only after the branch merges (GitHub Pages) and `npm run deploy:live` (Vercel). Directories show the banner after their next Publish.
+
+### Rollback plan
+Revert the branch; run `_20261110120000_claim_banner_settings.rollback.sql` (drops the banner columns and the two events; refuses if `claim_banner_*` rows exist); redeploy `generate_directory_site` from `main`; republish directories.
+
+### Verification
+- [x] `deno test` (`claimBanner_test.ts`, `askAiTheme_test.ts`) passes; `deno check` of the function and `vite build` pass
+- [x] Migration applied to staging, in-migration verification passed (CLI `--dry-run` listed only this migration; no separate row-count check was run)
+- [ ] Edge Function deployed to staging; a test directory republished; banner shown on an unclaimed listing, absent on a claimed one
+- [ ] Claims → Settings saves and previews correctly
+- [ ] Banner at mobile width; keyboard order (link, then button)
+- [x] Production migration and function deployed (see above)
+- [ ] Frontend live on both hosts; a production directory republished and the banner seen
+
+## 2026-11-10 — [Not deployed] Entry-page map: no zoom bar
+
+**Branch:** `fix/2026-11-10-listing-map-no-zoom-bar`
+
+### What changed
+- The single-pin map on a listing page no longer shows the +/− zoom bar (which also holds the fullscreen button). Visitors can still zoom with Ctrl/⌘ + scroll or pinch, and "Open in directory map" opens the full map. Frontend only.
+- Production record: the fullscreen-sidebar fix and the single-pin listing map fix (PRs 315, 316) were deployed to production by the user on 2026-11-10 (Vercel, aliased to uk-associations.com).
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Listing page map has no zoom bar (preview, then live)
+
+## 2026-11-10 — [Not deployed] Entry-page map shows only the listing, centred
+
+**Branch:** `fix/2026-11-10-listing-map-single-pin`
+
+### What changed
+- The map card on an individual listing page loaded the whole directory map and then panned to the listing with a sideways offset meant for the pin detail drawer, so it looked off-centre and other pins showed. With `?focus=<entry id>` the embed now shows only that listing's pin, centred at zoom 15, and clicking the pin no longer opens a detail card.
+- Frontend only: no republish of directories needed (the iframe URL is unchanged).
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] A listing page's map shows one centred pin (preview, then live)
+- [ ] Earlier 2026-11-10 fullscreen fix: production deploy done by the user; record folded into this PR
+
+## 2026-11-10 — [Not deployed] Fullscreen directory map honours map sidebar settings
+
+**Branch:** `fix/2026-11-10-fullscreen-sidebar-settings`
+
+### What changed
+- A map embedded in a directory is told to hide its filter bar (the directory draws its own). In fullscreen that left the sidebar with no filters. The filter fields now show while fullscreen.
+- `PublishedMapView` never used the `showSearch` and `showGroupDropdowns` map settings, so the search box and group buttons always appeared. It now honours them (live embeds and both editor previews).
+- Frontend only; no migration or Edge Function change, so no directory republish is needed.
+
+### Rollback plan
+Revert the branch's commit.
+
+### Verification
+- [x] `vite build` passes
+- [ ] Directory page: fullscreen shows filters; search/group buttons follow map settings
+- [ ] Staging / production frontend deploy
+
+## 2026-11-02 — [Production] Ask AI: production deploy and large-directory fix
+
+**Branch/commit:** `fix/2026-11-02-ai-search-error-message`
+**Deployed by:** Claude Code, on the user's explicit instructions ("deploy the backend too", "Deploy to prod" twice)
+
+### What changed
+- Ask AI (PR 313) went to production: migrations `20261008120000_platform_footer_click_event` (a merged earlier change that was still pending on production; additive, and `20261031120000` includes it) and `20261031120000_ask_ai_events`, both with VERIFY blocks passed; `generate_directory_site` and `directory_ai_search` deployed from `main`; Vercel production deployed with `npm run deploy:live` (aliased to `uk-associations.com`).
+- Bug found after release: on UK Associations every Ask AI request failed with a 500. `directory_ai_search` fetched category terms with one `.in("entry_id", ...)` listing every entry id, which overflowed the request URL limit on a large directory. This predates PR 313. It is now fetched in chunks of 100.
+- The function also logged `[object Object]` for database errors; it now logs the JSON of the error.
+
+### Verification
+- [x] Production: direct call for UK Associations returns a follow-up question with options (HTTP 200)
+- [x] Production: Ask AI tried in the browser on the republished site (user confirmed working 2026-11-02)
+- [ ] Production: `ask_ai_*` rows seen in `map_engagement_events`
+- [ ] Look & feel Ask AI colours, map pins and Show on map checked on the live site
+
+### Rollback plan
+- Migrations: `_20261031120000_ask_ai_events.rollback.sql` then `_20261008120000_platform_footer_click_event.rollback.sql`.
+- Functions: revert the commits and redeploy `directory_ai_search` and `generate_directory_site` (bump `ENTRY_TEMPLATE_VERSION` to 11 for the latter).
+
+## 2026-10-31 — [Staging] Ask AI sidebar replaces Help me choose
+
+**Branch/commit:** `feat/2026-10-31-ask-ai-sidebar`
+**Deployed by:** Claude Code, to staging only, 2026-11-02, on the user's explicit "Deploy staging". Production untouched.
+
+### What changed
+- On published directory sites, **Help me choose** is replaced by **Ask AI**, a chat sidebar docked beside the results (400px, expandable; a full-screen sheet below 900px). It pushes the page content, so the list and map stay usable. Entry points: a search-bar button, a "Describe your situation" line, a **Narrow these N with AI** chip beside the count, and a floating launcher. Why: the old modal did not read as an AI feature and sat apart from search.
+- The opening message is built in the browser. With no search it asks what the visitor is looking for and their profession or industry, using the directory's own *Industry sector* options. With a search it says what it sees and scopes every request to those results (`candidate_entry_ids`). Picks drive the same list, count and map as keyword search, with a **Picked by Ask AI** pill, reason strips, accent-coloured larger map pins, and **View entry** / **Show on map** cards.
+- Controls: New conversation, Expand, Minimise, Close, Send/Stop, Esc, retry on error, and a 60-second countdown when rate limited. Conversation, picks and panel state survive a reload (`sessionStorage`).
+- `directory_ai_search`: `ask_follow_up` can return up to five short answer `options` (sanitised: strings of 40 characters or fewer). Backward compatible.
+- **Look & feel** gains an **Ask AI** tab: ten optional colour tokens in `theme_json` (`aiAccent` and nine others) plus `aiShowLauncher`. Unset tokens follow the primary colour and are resolved to hex at publish time. Where white text on the primary would fail 4.5:1 (Midnight's blue), the default accent is darkened slightly. This is a deliberate departure from "default is the primary" so every preset passes the contrast check.
+- Map embed (`EmbedMap` / `PublishedMapView`): new `aiPicks` / `aiAccent` fields on `directory-filter-change` and a new `directory-focus-entry` message. These ship with the frontend, not the Edge Function.
+- Visitor events: six new `map_engagement_events` types (`ask_ai_open`, `ask_ai_message_sent`, `ask_ai_picks_applied`, `ask_ai_picks_cleared`, `ask_ai_feedback`, `ask_ai_rate_limited`), no message text. Documented in `docs/MAP_ENGAGEMENT.md`. Admin events unchanged: Look & feel saves already fire `directory_branding_updated`.
+- `ENTRY_TEMPLATE_VERSION` bumped 9 to 10 so each directory's next ordinary Publish rebuilds with the sidebar.
+- Not covered by an event, by choice: purely cosmetic panel controls (Expand, Minimise, Close, New conversation, Copy, View entry, Show on map). Say if you want any of them counted.
+
+### Database migrations applied
+- `20261031120000_ask_ai_events.sql` (rollback: `_20261031120000_ask_ai_events.rollback.sql`): swaps the `map_engagement_event_type` check to add the six types. Additive; no row changes. **Applied to staging 2026-11-02** (its own VERIFY block passed: ask_ai events allowed); **not applied to production.** Pending migrations on staging were confirmed as exactly this one from an isolated worktree, because staging already holds `20261008140000` (from the unmerged `fix/2026-10-08-invite-permissions`), which blocks `db push` from a checkout without that file. No migration history was repaired.
+- A real `BEGIN … ROLLBACK` dry run is not possible with CLI 2.75.0 (documented tooling gap); the migration's own pre/post-flight checks stand in for it.
+
+### Edge functions deployed
+- `generate_directory_site` and `directory_ai_search`: deployed to staging (`beqejxneehilplrtpntn`) 2026-11-02 from this branch (`5cedacd`). Production is untouched. The frontend (map pins, Look & feel tab) is not yet deployed to a preview.
+
+### Rollback plan
+- Migration: run `_20261031120000_ask_ai_events.rollback.sql` (it refuses while `ask_ai_*` rows exist, so delete those first).
+- Code: revert the PR and redeploy both functions, bumping `ENTRY_TEMPLATE_VERSION` again (to 11) so published pages rebuild. Stray `ai*` keys in `theme_json` are ignored by the old code.
+
+### Verified
+- [x] `deno check` on `builders.ts`; `askAiTheme_test.ts` passes (default text pairs reach 4.5:1 on all five presets; editor mirror matches the generator; invalid hex ignored)
+- [x] `vite build` passes
+- [x] Generated landing page, run in a browser against a local stub (no real Supabase, Anthropic or Google Maps): opening message with and without a search, chips, follow-up options, picks applied to heading/pill/reason strips, Clear picks, Stop, error and Retry, rate-limit countdown, context change while open, reload restore, Esc and focus return, Expand, Minimise to launcher, mobile sheet and bottom bar, all six events recorded with `surface: directory_site`, and the map message carrying `aiPicks`, `aiAccent` and the focus entry
+- [x] Staging: migration applied; `generate_directory_site` and `directory_ai_search` deployed
+- [ ] Staging: a real directory republished and Ask AI tried with a real AI provider
+- [ ] Staging: real map shows accent-coloured larger pins for picks and **Show on map** pans to and opens the pin (not testable locally; needs the frontend deployed too)
+- [ ] Look & feel › Ask AI colours saved, published and visible on the live site
+- [ ] Production (separate sign-off): branch contains current `origin/main` before deploying
+
+---
+
+## 2026-10-30 — [Production] Entry pages: Show / hide a section
+
+**Branch/commit:** `feat/2026-10-30-entry-section-show-flag`
+**Deployed by:** Claude Code (staging 2026-10-30 15:19 UTC; production 2026-10-30 16:48 UTC on the user's explicit "deploy and merge")
+
+### What changed
+- Entry pages (Experience) gets a **Show** checkbox per section. Unticking it stores `hidden: true` on that block in `entry_templates.layout_json` (ticking removes the key), so the section keeps its place and settings but no longer appears on the published entry page, including its heading and "On this page" chip. Absent or false means shown, so every layout saved before this is unchanged.
+- `generate_directory_site/builders.ts`: `BlockDescriptor` gains `hidden?`, and the section renderer skips hidden blocks. `ENTRY_TEMPLATE_VERSION` bumped 8 to 9 so each directory's next ordinary Publish rebuilds its entry pages (without it, an incremental publish would never pick this up).
+- The in-admin preview (`EntryPreviewBlock.jsx`) also skips hidden blocks, including in the entry editor's Preview tab.
+- Admin events unchanged (`directory_entry_layout_updated` already fires on save). No visitor action added.
+
+### Database migrations applied
+- None (`layout_json` is jsonb).
+
+### Edge functions deployed
+- `generate_directory_site`: staging (`beqejxneehilplrtpntn`) v70, 2026-10-30 15:19 UTC, from this branch (cut from `origin/main` after PR 311).
+- `generate_directory_site`: production (`gxixwdjfmegxcxfeflro`) v58, 2026-10-30 16:48 UTC, from this branch after confirming it contained current `origin/main` (nothing behind, only these two commits ahead). Existing published directories pick up the change on their next Publish (`ENTRY_TEMPLATE_VERSION` 9).
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site`, bumping `ENTRY_TEMPLATE_VERSION` again (to 10) so published pages rebuild. A stray `hidden` key left in `layout_json` is ignored by the old code.
+
+### Verified
+- [x] Local `preview.ts` run with a hidden block: its heading and chip are absent from the generated entry page (baseline had both)
+- [x] `vite build` passes
+- [ ] On staging: hide a section on a real directory, save, publish, confirm it is gone from the live entry page and returns when shown again (not confirmed by the user before production was deployed)
+- [x] Production deploy: branch contained current `origin/main`; function deployed and listed ACTIVE as v58
+- [ ] On production: hide a section, save, publish, confirm it is gone from the live entry page
+
+---
+
+## 2026-10-30 — [Production] Experience: Look & feel and Entry pages
+
+**Branch/commit:** `feat/2026-10-30-experience-look-and-feel`
+**Deployed by:** frontend-only. Merged to `main` on explicit user instruction (2026-10-30), which deploys GitHub Pages automatically. The Vercel production deploy (`npm run deploy:live`, maps.layercake-cx.biz) needs the user's authenticated CLI session and is run by the user; until then the branded domain serves the old Design page.
+
+### What changed
+- The single **Experience › Design** page (a long Branding form plus an Entry layout section, with two unrelated save buttons) is replaced by two pages. **Look & feel** has seven deep-linkable ARIA tabs (Theme, Logo & identity, Colours, Typography, Header, Hero banner, Footer) over one shared draft, a live preview that outlines the region being edited, readability badges (AAA / AA / large text only / hard to read), and a single bottom save bar. **Entry pages** has a template selector that shows how many entries use each template, an inline "Heading on page" per section, keyboard and button reordering, and a preview with an entry picker.
+- Nav labels now match page titles. `/design` redirects to `/look-and-feel` (client and admin route trees). Old `DirectoryBrandingPanel`, `EntryLayoutDesigner` and `DirectoryDesignRoute` are removed; shared pieces live in `src/components/experience/` and `src/lib/directoryThemeDraft.js`.
+- There is no draft layer: Save writes straight to `directories.theme_json` / `entry_templates`, and the Publishing page regenerates the live site, as before. The bar offers Discard + Save and links to Publishing.
+- Header shows and site title are one three-way control writing `headerMode` and `showHeaderTitle` together, so they cannot contradict.
+- Applying the Natural preset now resets header/footer to defaults (it previously left them untouched, unlike the other four presets).
+- Data model: no migration. `theme_json` gains an optional UI-only `footerLinkedToHeader` flag (Match header); `generate_directory_site` ignores it.
+- Admin events unchanged (`directory_branding_updated`, `directory_theme_preset_*`, `directory_entry_layout_updated`, `directory_entry_template_*`). No visitor action added.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the PR and redeploy the frontend. Saved `theme_json` values stay valid (the extra flag is ignored).
+
+### Verified
+- [x] `vite build` passes; Vercel preview deploys succeeded
+- [ ] Not verified in a browser before merge (user chose to skip). Each tab, the redirect, save/discard, apply-theme confirmation, Match header, template counts and keyboard reorder checked in the browser at 1280px and phone width
+- [ ] Console clean on both pages
+
+---
+
+## 2026-10-30 — [Staging + Production] Relevance-ranked search on published directory pages
+
+**Branch/commit:** `feat/2026-10-30-relevance-directory-search`
+**Deployed by:** Claude Code (staging and production, 2026-10-30); production on explicit sign-off
+
+### What changed
+- The search box on a published directory homepage used to show any listing containing at least one query word, with every field weighted equally. A search for "association" (a word removed from queries as a stopword) matched every listing while the count read "501 entries match association"; a multi-word search like "association of plumbers" ranked a listing mentioning only a common word the same as one that was actually about plumbers.
+- Search now ranks by relevance, still entirely in the visitor's browser (no new endpoint or database change). Each listing's text is baked in as five weighted fields (name, keywords + tags, summary + description, location, body). Query words are weighted by how rare they are across the directory's listings, a listing must contain every distinctive word (falling back to any word if none does), words found in over half the listings only count outside the body text, and results under 15% of the best score are dropped. Only filler words ("find", "of", "the"…) are removed from queries; generic words like "association" are kept and weigh themselves down.
+- `ENTRY_TEMPLATE_VERSION` bumped 7 → 8 so every directory's next ordinary Publish rebuilds its pages with the new search script and attribute format.
+- No new visitor action (still the existing search), so no new engagement event. No admin workflow changed.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — deployed to staging (`beqejxneehilplrtpntn`) 2026-10-30, from this branch (cut from `origin/main`). Then deployed to production (`gxixwdjfmegxcxfeflro`) the same day, 14:48 UTC (v56 to v57), from `main` at merge commit `c8f4bb2` (PR #308); it was the only change to the function since production's previous deploy on 2026-10-08. Already-published directories keep the old search until republished.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site`; republish affected directories. The bump to `ENTRY_TEMPLATE_VERSION` 8 means a revert should bump it again (to 9) so published pages are rebuilt back to the old script.
+
+### Verified
+- [x] Locally, against a 64-listing fixture built with the real `builders.ts` and driven in a browser: "association" → 13 listings with the word in their name (not all 64); "association of plumbers" → 3 plumbers listings, best first; "find me plumbers" ignores the filler; a nonsense word → 0
+- [ ] On staging and on a live directory after republishing: publish a real directory, search with a generic word and a multi-word query, confirm ranking and that category filters, distance search, Help me choose and map pins still combine with it
+- [ ] Check the page size of the largest directory is acceptable (per-field separators add a few bytes per row; the 8000-character cap per row is unchanged)
+
+---
+
+## 2026-10-08 — [Staging] Bing verification file setting
+
+**Branch/commit:** `feat/2026-10-08-bing-site-auth-file`
+**Deployed by:** not yet deployed
+
+### What changed
+- Settings › SEO has a new **Bing verification file (BingSiteAuth.xml)** box. The pasted XML is stored in `directories.seo_defaults_json.bing_site_auth_xml` (no migration) and validated as a `<users>…</users>` file on save.
+- `generate_directory_site` writes it as `BingSiteAuth.xml` next to `robots.txt` on every publish (an empty file when cleared, so removal overwrites an earlier copy). `middleware.js` serves it at a directory custom domain's root and returns 404 for an empty file.
+- Saving fires the existing `directory_settings_updated` event with `seo_defaults_json.bing_site_auth_xml` in `changed_fields`. No visitor-facing control, so no engagement event.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — pending (staging first, `beqejxneehilplrtpntn`).
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site`; stored XML in `seo_defaults_json` is harmless if left.
+
+### Verified
+- [ ] Paste a Bing file, save, publish; `/BingSiteAuth.xml` on a custom domain returns it
+- [ ] Clear it, publish; the URL returns 404
+
+---
+
+## 2026-10-08 — [Staging] Header dropdown uses the header colours
+
+**Branch/commit:** `fix/2026-10-08-subnav-dropdown-header-colours`
+**Deployed by:** Claude Code (staging); production pending sign-off
+
+### What changed
+- The sub-navigation dropdown in a published directory's header was filled with the page surface colour and a fixed border, so it clashed with a themed header. It now uses the header background and header text colour from Branding. Because the header background can be translucent or a gradient, it is painted over a solid page-colour base so the menu never lets page content show through. Hover state is a tint of the header text colour.
+- The phone menu panel is unchanged.
+- `ENTRY_TEMPLATE_VERSION` bumped 6 → 7 so existing pages pick it up on the next publish.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`); production only after sign-off.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site` (bump `ENTRY_TEMPLATE_VERSION` again).
+
+### Verified
+- [ ] Staging: republish a directory with a dark or coloured header and open a dropdown on desktop
+
+---
+
+## 2026-10-08 — [Staging] "Built on Layercake Maps" footer panel
+
+**Branch/commit:** `feat/2026-10-08-built-on-layercake-footer`
+**Deployed by:** Claude Code — migration and function on staging 2026-10-08; production pending sign-off
+**Monday:** https://layercake-cx.monday.com/boards/5094351513/pulses/3269038439
+
+### What changed
+- Every published directory page footer now shows a "Built on Layercake Maps" panel (eyebrow, logo linking to layercake-cx.biz/maps, "Finding your people" tagline, a one-line pitch and a **Discover Layercake Maps** button) in the right-hand column, replacing the old "Powered by Layercake Maps" line.
+- The editorial disclaimer moved to a full-width bottom bar under a thin divider: "© year Directory name" on the left, "Content is editorial. Commercial links never affect inclusion." on the right.
+- Layout: four columns on desktop; two columns up to 1000px with the panel full-width below; one column up to 640px.
+- No hard-coded colours: the panel tints, border, muted text and button all derive from the existing footer and primary tokens (new `--ftr-*` variables). The button label and logo colour are chosen for contrast from the theme.
+- New visitor event `platform_footer_click` (logo and button), recorded in `map_engagement_events` and documented in `docs/MAP_ENGAGEMENT.md`.
+- Logo is `public/layercake-maps-white.png` (the admin header's white PNG; no SVG exists). It loads from `maps.layercake-cx.biz`, so it shows on live sites only after the Vercel frontend deploy.
+- `ENTRY_TEMPLATE_VERSION` bumped 5 → 6 so incremental publishes rebuild existing pages.
+- Not built, as briefed: an entitlement flag to hide or rebrand the panel for higher licence tiers.
+
+### Database migrations applied
+- `20261008120000_platform_footer_click_event.sql` — adds `platform_footer_click` to the `map_engagement_event_type` check (additive). Rollback: `_20261008120000_platform_footer_click_event.rollback.sql`.
+
+### Edge functions deployed
+- `generate_directory_site` — staging (`beqejxneehilplrtpntn`) first; production only after sign-off.
+
+### Rollback plan
+- Revert the PR and redeploy `generate_directory_site` (bumping `ENTRY_TEMPLATE_VERSION` again so pages rebuild), then run the rollback migration (refuses if `platform_footer_click` rows exist).
+
+### Verified
+- [ ] Staging: migration applied, function deployed, a directory republished shows the panel and bottom bar
+- [ ] Logo and both links work; click recorded as `platform_footer_click`
+
+---
+
+## 2026-10-07 — [Staging] Separate AI generation for content page SEO
+
+**Branch/commit:** `feat/2026-10-07-content-page-ai-seo-separate`
+**Deployed by:** not yet deployed
+
+### What changed
+- On the Pages tab, "Generate with AI" only ever wrote the page body; the meta title and description had no AI help at all. Content and SEO are now two separate actions.
+- The content box is relabelled **Generate content with AI** (behaviour unchanged).
+- New **Generate SEO with AI** button in a **Search engine (SEO)** section drafts the meta title and description from the page title and the content currently in the editor (including unsaved edits). It needs content to work from and never changes the body. Both land in the unsaved form for review.
+- New Edge Function `generate_content_page_seo`; new `generateContentPageSeoMetadataDraft` in `_shared/seoMetadataGeneration.ts`. Uses the existing `seo_metadata` AI feature, so model routing and the AI usage dashboard need no change.
+- New admin events `directory_content_page_ai_seo_requested` / `_generated` / `_failed`.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_content_page_seo` (new) — to be deployed to staging (`beqejxneehilplrtpntn`) first; production only after sign-off.
+
+### Rollback plan
+- Revert the PR and delete the `generate_content_page_seo` function; no data or schema involved.
+
+### Verified
+- [x] `npm run build` passes
+- [x] Staging: function deployed; on a page with content, Generate SEO fills meta title/description without altering the body; Generate content leaves the SEO fields alone
+
+---
+
+## 2026-10-07 — [Staging] Consistent page headings across admin and client portal
+
+**Branch/commit:** `chore/2026-10-07-consistent-page-headings` (PR pending)
+**Deployed by:** not yet deployed (frontend only)
+
+### What changed
+- Every page now opens with the same heading as Directories: serif page title, one-line muted subtitle, actions on the right. Before, pages used a mix of card titles, bare `h2`s, a teal in-card heading (Integrations), no heading at all (admin Domains) or a differently styled "My Maps".
+- New shared `PageHead` component (`src/components/shell/PageHead.jsx`); `AdminLayout` gained a `subtitle` prop so platform admin pages put their description under the title.
+- Staff customer workspace: Maps, Categories, Entitlements, Customer details, Users, Domains, Messaging and Integrations now use the page head. The `showPageTitle` switch on the Messaging and Integrations panels is gone (both always show it).
+- Platform admin pages (Leads, Admin Users, Deployments, Error log, User activity, Sync log, Map data): removed the duplicate in-card title that repeated the page title; Refresh buttons moved into the page head.
+- Client portal: Maps (was "My Maps"), Team (no customer name in the title), Map data, and the map/listing stats titles.
+- No behaviour, data or events changed.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the PR; no data or schema involved.
+
+### Verified
+- [x] `npm run build` passes
+- [ ] Staging: walk each admin customer-workspace section and each client portal page and confirm one heading, matching Directories
+
+---
+
+## 2026-10-07 — [Production] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR #301)
+**Deployed by:** Claude Code, with Damian's explicit go-ahead after staging testing
+
+### What changed
+- The AI usage tab described in the staging entry below is now on production: requests, tokens and estimated provider cost for a period, tokens per day, and breakdowns by feature, directory and provider/model, with period/directory/provider filters. Lives under Integrations, so customers see it only where the `integrations` flag is on.
+- Cost reads "Not available" until model prices are set in `ai_models`; token and request figures work from the usage already being recorded.
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`). The only migration pending on production. Forced-rollback dry run first, including a behavioural test of the function against production's own `clients` data (all assertions passed, rolled back), then applied with post-migration `VERIFY PASSED`. Function only, no table changes.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert PR #301 and redeploy both frontends.
+
+### Deployed
+- Supabase migration: done (above). GitHub Pages: run for `bb4f271` succeeded. Vercel: `npm run deploy:live` from `main` at `bb4f271`, deployment `dpl_8pamstavMkVBfzrkbYR4TiznRG1K`, target production, Ready, aliased to `uk-associations.com`, `maps.layercake-cx.biz`, `ethical-elephant-sanctuaries.com`, `directory-maps.vercel.app` and `directory-maps-layercake-apps.vercel.app`. As on 2026-10-05, the first `deploy:live` call failed with `Not authorized` and the immediate retry succeeded; likely a first-call token refresh (unconfirmed), so just retry once.
+
+### Verified
+- [x] Migration recorded on production (`supabase migration list`); staging testing of the tab signed off by Damian before this deploy
+- [x] Production sites return HTTP 200 and the live JS bundle contains the usage code (`get_ai_usage_summary`)
+- [ ] Production: AI usage tab loads for an admin and shows real usage; another organisation's usage is not visible
+
+---
+
+## 2026-10-06 — [Staging] AI usage dashboard (Integrations → AI usage)
+
+**Branch/commit:** `feat/2026-10-06-ai-usage-dashboard` (PR pending)
+**Deployed by:** Claude Code — migration applied to staging (`beqejxneehilplrtpntn`) 2026-10-06; production untouched
+
+### What changed
+- New **AI usage** tab on the Integrations page (client portal and admin customer Integrations tab): requests, input/output/total tokens and estimated provider cost for a chosen period, tokens per day, and tables by feature, directory, and provider/model (with whether a request ran on the customer's account or Layercake's). Filters: period, directory, provider.
+- It shows Layercake-attributable usage only and says so; cost is labelled an estimate with the provider account named as the authoritative source for billing. Cost is shown only where the model's price was known when the request ran: partial coverage is marked "≥" and the number of uncosted requests is stated; amounts in different currencies are never added. Until prices are set in `ai_models`, the cost card reads "Not available".
+- No new Edge Functions. No admin events (a read-only report).
+
+### Database migrations applied
+- `20261006120000_ai_usage_summary.sql` (rollback: `_20261006120000_ai_usage_summary.rollback.sql`): one function, `get_ai_usage_summary` (security invoker, so `ai_usage_events` RLS applies; not executable by anon). No table changes. Tested on staging with a forced-rollback transaction that inserted known rows and asserted totals, cached-token handling, failed counts, platform/customer split, ordering, provider filter, mixed-currency refusal and an empty window (all passed, rolled back). **Applied to staging 2026-10-06** (post-migration `VERIFY PASSED`). **Not applied to production.**
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Run `_20261006120000_ai_usage_summary.rollback.sql` (drops the function), revert the branch and redeploy both frontends. Nothing else depends on it.
+
+### Verified
+- [x] Forced-rollback behavioural test of the SQL on staging; Node tests of the period/day-fill/format helpers (including month and year boundaries); `vite build`
+- [ ] Applied to staging; AI usage tab loads with real `ai_usage_events` from staging testing; filters work
+- [ ] Customer cannot see another organisation's usage (RLS)
+- [ ] Production: migration applied, frontend deployed (needs sign-off)
+
+---
+
+## 2026-10-06 — [Production] Directory nav: "Integrations" renamed Web Analytics, moved above SEO
+
+**Branch/commit:** `feat/2026-10-06-web-analytics-nav` (PR #299, merge `d862658`)
+**Deployed by:** Claude Code (frontend only); live in production, verified by Damian
+
+### What changed
+- In the directory Settings menu, **Integrations** is now **Web Analytics** (GA4 / GTM tracking IDs) and sits above **SEO**. Route (`/integrations`) is unchanged, so existing links keep working. The customer-level Integrations page (AI providers) is untouched.
+- Docs and nav config references updated. No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Verified
+- [x] Menu order and label correct in client and admin panels (staging and production)
+
+---
+
+## 2026-10-06 — [Staging] Directory nav: Insights under Engagement, Emails as its own category
+
+**Branch/commit:** `feat/2026-10-06-nav-insights-emails`
+**Deployed by:** Claude Code (frontend only; nothing deployed yet)
+
+### What changed
+- The directory side panel's Analytics page is now called **Insights** and sits in the Engagement group; the separate "Insights" group label is gone. Visible to anyone with access to the directory (it was before too).
+- Emails moved out of Settings into its own **Emails** group with two pages: **Email settings** (sending profile, switch, test mode, message text) and **Email log** (recent contact messages). Owners/managers only, as before.
+- Routes: `/insights`, `/email-settings`, `/email-log`. Old `/analytics`, `/email-sending` and `/enquiries` redirect. The Overview "Enquiries" tile now links to the Email log.
+- Client and admin panels share these routes, so both change. No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Verified
+- [x] `vite build` succeeds
+- [ ] Nav groups and redirects work in client and admin panels on staging
+
+---
+
+## 2026-10-06 — [Production] Directory Overview: title, compact status tiles, tile links
+
+**Branch/commit:** PR #295, merged to `main` as `1308a29`
+**Deployed by:** Claude Code, with Damian's explicit go-ahead to skip staging (frontend-only, no data or schema change)
+
+### What changed
+- The directory Overview page now has an "Overview" heading and a first tile showing the number of entries. Tiles are about half their previous height and sit in an auto-fitting grid; the Publishing, Claims and Visitor features cards beneath share one row.
+- Each tile is green when there is nothing to do and amber when action is needed, and amber tiles link to where it can be fixed: Publishing (unpublished changes), Settings › SEO (missing metadata, which has the backfill), the single affected entry when exactly one entry is missing a logo/content/coordinates, otherwise the Entries list pre-filtered with the existing Gaps dropdown.
+- The Entries list now reads `?gap=` from the URL for its initial Gaps filter and keeps the URL in step when the dropdown changes. Shared by client and admin panels, so both get the change.
+- No database, Edge Function or visitor-site change, so no `map_engagement_events` impact.
+
+### Rollback plan
+- Revert the merge commit; no data or schema was touched.
+
+### Deployed
+- GitHub Pages: automatic on merge, run succeeded. Vercel: `npm run deploy:live` from `main` at `1308a29`, deployment `directory-maps-pnkdlwksq-layercake-apps.vercel.app`, READY, target production, aliased to `maps.layercake-cx.biz` (HTTP 200). The first attempt failed with `Not authorized`; the retry succeeded with no change (same as the 2026-10-05 deploy).
+
+### Verified
+- [x] `vite build` succeeds; both hosts deployed; `maps.layercake-cx.biz` returns 200
+- [ ] Staging was skipped; Overview tiles render, colour and link correctly on staging (admin and client panels)
+- [ ] `/entries?gap=no_logo` opens pre-filtered; changing the dropdown updates the URL
+
+---
+
+## 2026-10-05 — [Production] Platform Integrations framework + AI Gateway (stages 1-3)
+
+**Branch/commit:** PRs #291 (`03905df`), #292 (`8c72231`) and #293, merged to `main` in that order
+**Deployed by:** Claude Code, with Damian's explicit go-ahead at each production step
+
+### What changed
+- Everything in the three staging entries below, now on production: all AI calls go through the AI Gateway (metered into `ai_usage_events`); customers can connect their own Anthropic / OpenAI / Gemini key under Integrations; per-feature model choice, honest "no provider" states and bulk-run tooling. The Integrations area is behind the `integrations` feature flag (off for customers, on for admins/@layercake-cx.biz; enable per customer under feature flags).
+- **No customer-visible behaviour change today.** Migration `20261005120000` inserted an `ai_platform_provider` override (ON) for every existing client, so all current AI usage continues on Layercake's Anthropic account (`ANTHROPIC_API_KEY`, already set on production) with the same model. New clients default OFF and must connect their own provider to use AI features.
+- Staging found and fixed two issues before this went out: the OpenAI adapter now sends `reasoning_effort: "none"` with function tools, and the client surfaces functions' real error messages.
+
+### Database migrations applied
+- `20261005120000_integrations_ai_gateway.sql`, `20261005130000_integrations_providers_seed.sql`, `20261005140000_ai_bulk_run_tools.sql` (rollbacks: matching `_…rollback.sql`). Applied to production one at a time, each after a forced-rollback dry run on production, each with post-migration `VERIFY PASSED`. Applied individually (not in one `db push`) because `db push` commits each migration as it goes, so a dry-run marker on the last would have applied the first two.
+
+### Edge functions deployed
+- To production (`gxixwdjfmegxcxfeflro`) from `main`'s lineage (branch `feat/2026-10-05-integrations-model-config` at `2eeb89c`): new `manage_client_integrations` (v1), `get_ai_route_preview` (v1); updated `generate_entry_content` (v3→v4), `generate_entry_seo_metadata` (v3→v4), `generate_directory_seo_metadata` (v3→v4), `generate_content_page_draft` (v3→v4), `generate_media_alt_text` (v3→v4), `directory_ai_search` (v5→v6), `process_entry_content_jobs` (v3→v4), `process_entry_seo_metadata_jobs` (v3→v4), `generate_directory_site` (v52→v53; no markup change, `ENTRY_TEMPLATE_VERSION` not bumped).
+
+### Rollback plan
+- Redeploy the nine updated functions from `main` at `8cac5b3` and delete `manage_client_integrations` and `get_ai_route_preview`; revert the merges and redeploy both frontends. The new tables/functions are inert without the new code. Only if truly needed, run the three `_20261005…rollback.sql` files in reverse order (they drop `ai_usage_events` and any customer connections; disconnect providers and take a copy of `ai_usage_events` first).
+
+### Deployed
+- Supabase migrations and Edge Functions: done (above). GitHub Pages: automatic on merge to `main`, run for `bd1865e` succeeded (the runs for the two earlier merges were cancelled as superseded). Vercel: `npm run deploy:live` from `main` at `bd1865e`, deployment `dpl_ApS1ojyoNUEpj4xh2PW8rb3e8i3V`, target production, Ready, aliased to `uk-associations.com`, `maps.layercake-cx.biz`, `ethical-elephant-sanctuaries.com` and `directory-maps.vercel.app`. The first `deploy:live` attempt failed with `Not authorized`; the same command succeeded on retry with no change (cause not established, likely a stale CLI session).
+
+### Verified
+- [x] Production migrations recorded (`supabase migration list`), functions ACTIVE at the versions above, CORS preflight 204 on the public search function and both new functions, unauthenticated call to `get_ai_route_preview` returns a clean 401
+- [ ] A real production AI call (e.g. generate SEO metadata for one entry) succeeds on Layercake's account and writes an `ai_usage_events` row with `connection_source = platform`
+- [ ] Production Teams error alerts quiet after the first AI calls
+- [x] GitHub Pages deploy green; Vercel `deploy:live` Ready; `uk-associations.com` and `maps.layercake-cx.biz` return HTTP 200
+- [ ] `/client/integrations` visible to an admin and hidden from a customer without the flag
+- [ ] Gemini adapter still unproven against the live API: test on staging before enabling it for anyone
+
+---
+
+## 2026-10-05 — [Staging] Platform Integrations framework, stage 3 (model choice, unavailable states, bulk-run tooling)
+
+**Branch/commit:** `feat/2026-10-05-integrations-model-config` (stacked on `feat/2026-10-05-integrations-ui-providers`, PR pending)
+**Deployed by:** Claude Code + Damian — migration applied to staging (`beqejxneehilplrtpntn`) and all eleven affected Edge Functions deployed there on 2026-10-05; production untouched
+
+### What changed
+- **Choose providers and models** (Integrations → AI providers → *AI features*): a default provider plus, per AI feature, "use recommended model" (default) or a manual provider + model, with £-tier cost guidance, a rationale from the capability profile, and non-blocking "not recommended for this task" advice. Stored in `ai_model_configuration`; the gateway already honoured it. Event `ai_model_config_updated`.
+- **Honest unavailable states.** New Edge Function `get_ai_route_preview` reports, per feature, what would run now or why it can't. Generate-with-AI buttons (entry content, entry/directory SEO, content page drafts, image alt text), the two bulk actions and Help me choose now explain a missing provider with a link to Integrations instead of failing on click. Help me choose with web search on a non-Anthropic provider is flagged (web search is Anthropic-only).
+- **Bulk runs.** The confirm dialog for "Generate all entry content" (and the SEO backfill panel) shows records, provider/model and a usage band + estimated cost from the organisation's own usage history (cost only where model prices are known; labelled an estimate). Finished runs show requests, tokens, estimated cost and failures with the reason, plus **Retry failed**. The directory's error line now includes the first failure reason.
+- Jobs stuck in `processing` for 15+ minutes (crashed worker) are reclaimed, up to 3 attempts.
+- One registry (`_shared/ai/features.ts`) now maps each AI feature to its capability; call sites name only the feature. `resolveRoute` is split into a credential-free `planRoute` plus the credential step; behaviour is unchanged.
+- Provider-neutral wording replaces "Claude/Anthropic" in the AI panels.
+- **OpenAI fix found on staging:** the first real OpenAI tool call failed with a 400 (`Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions`). The OpenAI adapter now sends `reasoning_effort: "none"` whenever tools are used (the Responses API is the longer-term alternative). The Gemini adapter is still unproven against the live API.
+- `invokeFunction` (`src/lib/supabase.js`) now surfaces the function's own error message instead of supabase-js's generic "Edge Function returned a non-2xx status code", which is what made the OpenAI error diagnosable.
+
+### Database migrations applied
+- `20261005140000_ai_bulk_run_tools.sql` (rollback: `_20261005140000_ai_bulk_run_tools.rollback.sql`): functions only (claim functions replaced, `retry_failed_entry_content_jobs`, `retry_failed_entry_seo_metadata_jobs`, `get_ai_bulk_run_summary`); no table changes. **Applied to staging 2026-10-05** after a forced-rollback dry run passed; post-migration `VERIFY PASSED`. **Not applied to production.** Requires stages 1-2 first.
+
+### Edge functions deployed
+- Deployed to staging 2026-10-05. New: `get_ai_route_preview`. Changed: `manage_client_integrations` (adds `save_model_config`), `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (failure reason in the directory error), and every function importing the gateway (registry refactor). Staging (`beqejxneehilplrtpntn`) first; production only with explicit sign-off.
+
+### Rollback plan
+- Run `_20261005140000_ai_bulk_run_tools.rollback.sql` (drops the three new functions, restores the original claim functions; no table data touched), redeploy the previous Edge Functions, revert the branch and redeploy both frontends. Saved model choices in `ai_model_configuration` are inert if the UI is reverted (the gateway keeps honouring them; clear them with a DELETE if unwanted).
+
+### Verified
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` (12 pass); `deno check` on the changed functions; `vite build`; migration dry run on staging
+- [ ] Staging: pick a manual model for one feature, run that feature, and confirm `ai_usage_events` shows that provider/model; reset to recommended and confirm the row is removed
+- [ ] Staging: disconnect all providers (and with `ai_platform_provider` off for the test client): every AI button/bulk action is disabled with the notice, Help me choose is hidden to visitors, publish still succeeds
+- [ ] Staging: bulk content run on a small directory shows usage, then force a failure (disconnect mid-run), see the reason, reconnect, **Retry failed** completes it
+- [ ] Staging: the bulk confirm shows a usage band after a few runs, and a cost once `ai_models` prices are filled in
+- [ ] Browser check of Integrations → AI features and the AI enrichment / SEO pages (needs a signed-in staging session)
+
+---
+
+## 2026-10-05 — [Staging] Platform Integrations framework, stage 2 (connect your own AI provider)
+
+**Branch/commit:** `feat/2026-10-05-integrations-ui-providers` (stacked on `feat/2026-10-05-integrations-ai-gateway`, PR pending)
+**Deployed by:** Claude Code + Damian — migration applied to staging and `manage_client_integrations` plus the gateway functions deployed there on 2026-10-05; production untouched
+
+### What changed
+- New **Integrations** area (`/client/integrations`; rail item and admin customer tab). Organisation owners/managers can connect Anthropic, OpenAI or Google Gemini with their own API key, test the connection, replace the key, or disconnect. Behind a new `integrations` feature flag: off for customers, on for admins and @layercake-cx.biz users, grantable per customer (Customers → feature flags).
+- New Edge Function `manage_client_integrations` (list / connect / replace / test / disconnect). A key is tested with one tiny request before it is saved; it is stored only in Supabase Vault, never returned, never logged, and error messages are curated so provider text can't leak a key fragment. Only the last four characters are shown.
+- The AI Gateway now has OpenAI and Gemini adapters, so once a customer connects a provider its AI features run on it (recommended low-cost model per provider by default). With a connected customer provider the Layercake key is not used for that organisation. Web search in Help me choose is Anthropic-only; on other providers that feature reports "AI unavailable" to visitors rather than silently using another provider.
+- Admin events: `integration_connected`, `integration_credentials_replaced`, `integration_tested`, `integration_disconnected` (documented in `AGENTS.md`, registered in `src/lib/adminEvents.js`).
+- Not in this stage: choosing models per feature, recommendations/cost guidance UI, unavailable-state messages inside each AI panel, usage dashboard (stage 3 and later).
+
+### Database migrations applied
+- `20261005130000_integrations_providers_seed.sql` (rollback: `_20261005130000_integrations_providers_seed.rollback.sql`). **Applied to staging 2026-10-05** (applied in the same `supabase db push` as stage 1, post-migration `VERIFY PASSED`; it did not get its own separate dry run). **Not applied to production.** Registers the `integrations` flag and the OpenAI/Gemini model catalogue and recommendations. The model IDs came from the vendors' published model lists on 2026-10-05 and are data: fix any wrong one with an UPDATE on `ai_models` / `ai_capability_profiles`. Requires `20261005120000` first.
+
+### Edge functions deployed
+- Deployed to staging 2026-10-05. New: `manage_client_integrations`. Changed (adapters registered in the gateway): every function that calls the AI Gateway (`_shared/ai/resolve.ts`), i.e. the nine from stage 1. Deploy to the test project (`beqejxneehilplrtpntn`) first; production (`gxixwdjfmegxcxfeflro`) only with explicit sign-off.
+
+### Rollback plan
+- Disconnect any customers' OpenAI/Gemini connections, run `_20261005130000_integrations_providers_seed.rollback.sql` (it refuses while any exist), redeploy the previous Edge Functions, revert the branch and redeploy both frontends.
+
+### Verified
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` (10 pass, including adapter request/response mapping and curated connection-test errors); `deno check` on `manage_client_integrations`; `vite build`
+- [ ] Staging: connect a real key for each provider (OpenAI and Gemini adapters have **never run against the live APIs**; a failure here is expected to be a model ID or request-shape fix)
+- [ ] Staging: a bad key is rejected and not saved; Test connection, Replace key and Disconnect behave; the key never appears in network responses, `admin_events` or function logs
+- [ ] Staging: with a customer provider connected, an AI feature produces an `ai_usage_events` row with `connection_source = customer` and the right provider/model
+- [ ] Staging: another organisation cannot read the first one's integrations; non-managers see the no-permission message
+- [ ] Browser check of `/client/integrations` and the admin Integrations tab (not done: needs a signed-in staging session)
+
+---
+
+## 2026-10-05 — [Staging] Platform Integrations framework + AI Gateway, stage 1 (routing and metering only)
+
+**Branch/commit:** `feat/2026-10-05-integrations-ai-gateway` (PR pending)
+**Deployed by:** Claude Code + Damian — migration applied to staging (`beqejxneehilplrtpntn`) and the nine Edge Functions deployed there on 2026-10-05; production untouched
+
+### What changed
+- Stage 1 of the platform Integrations / AI provider work. No user-visible change: every AI feature still runs on Layercake's Anthropic account and the same model (`claude-haiku-4-5`). What changes is *how* it is called, to prepare for customers connecting their own provider.
+- New **AI Gateway** (`supabase/functions/_shared/ai/`). The seven places that each had their own copy of the Anthropic `fetch` (entry content, SEO metadata, page drafts, alt text, directory SEO backfill, Help me choose, and the two queue workers) now call one function. Products ask for a *capability* (economy / fast / standard / advanced), never a model name; the gateway resolves provider, model and credentials.
+- **Usage metering.** Every request now writes an `ai_usage_events` row (organisation, directory, feature, provider, model, input/output/cached tokens, duration, status, and the queue job id for bulk work). Cost estimates are blank until model prices are entered in `ai_models`.
+- **No silent fallback.** Layercake's own key is used only while the new `ai_platform_provider` feature flag is on for the organisation. The migration turns it **on for every existing client** so nothing changes today; new clients default to off. When no provider is usable, AI features return a clear "AI isn't available because no provider is connected" message instead of failing (Help me choose reports itself as disabled to visitors, and the publish-time directory SEO backfill is skipped).
+- Schema for the later stages is created now: `integrations`, `integration_credentials` (Supabase Vault pointer; no client access at all), `ai_models`, `ai_capability_profiles`, `ai_model_configuration`, plus service-role-only Vault helper functions. Nothing reads or writes the customer-facing tables yet.
+- Fixed an existing bug in both queue workers: their "bulk run completed" admin event omitted the NOT NULL `event_category` and was silently dropped. It now records correctly with `client_id` set.
+- "AI unavailable" and queue-worker "no provider" outcomes are no longer sent to the error log / Teams alerts, since they are configuration states.
+
+### Database migrations applied
+- `20261005120000_integrations_ai_gateway.sql` (rollback: `_20261005120000_integrations_ai_gateway.rollback.sql`). **Applied to staging 2026-10-05** after a forced-rollback dry run on staging passed; its post-migration `VERIFY PASSED`. **Not applied to production.** Still to confirm on staging: that the migration role can `delete from vault.secrets` (used by the Vault delete helper and the rollback) — first exercised by Disconnect.
+- Model IDs seeded for Anthropic (`claude-haiku-4-5`, `claude-sonnet-5-5`, `claude-opus-5-5`) should be confirmed against a real call on staging.
+- Recommendations are set so behaviour is unchanged: every capability except ADVANCED maps to Haiku. Raise STANDARD (listing content) to a stronger model later by editing `ai_capability_profiles`; no release needed.
+
+### Edge functions deployed
+- Deployed to staging 2026-10-05: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_content_page_draft`, `generate_media_alt_text`, `directory_ai_search`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `generate_directory_site`. Production (`gxixwdjfmegxcxfeflro`): migration first, then these functions, only with explicit sign-off. `generate_directory_site` changes no markup, so `ENTRY_TEMPLATE_VERSION` is not bumped.
+
+### Rollback plan
+- Redeploy the nine Edge Functions from the previous commit **first**, then run the rollback migration (it drops `ai_usage_events` and the new tables, removes the flag, and deletes any `integration_*` Vault secrets). Take a copy of `ai_usage_events` first if the usage data matters.
+
+### Verified
+- [x] `deno check` passes for all nine functions; `deno test --allow-env supabase/functions/_shared/ai/gateway_test.ts` passes (routing, platform-flag gating, specificity, disabled model, metering, failed-request metering)
+- [ ] Staging migration dry run and integrity checklist
+- [ ] Staging: each AI feature still works; one `ai_usage_events` row per call with sensible token counts
+- [ ] Staging: a bulk content run and a bulk SEO backfill produce usage rows sharing job ids, and the "bulk completed" admin event now appears
+- [ ] Staging: with the flag overridden off for a test client, AI buttons show the "no provider connected" message and publish still succeeds
+
+---
+
+## 2026-10-05 — [Production] Embedded map: real fullscreen + sidebar in fullscreen
+
+**Branch/commit:** `fix/2026-10-05-embedded-map-fullscreen` (PR #289, merged as `d6ddf9e`)
+**Deployed by:** Claude Code
+
+### What changed
+- The map iframes on published directory pages lacked `allowfullscreen`, so the browser refused real fullscreen and the map only filled its own box. Added `allowfullscreen` to both iframes (directory page map pane, entry-page map card).
+- A map embedded with `hideListPanel=1` (directory pages) now shows its sidebar while fullscreen, since the page's filters aren't visible then. It hides again on exit. Works for real and fallback fullscreen.
+- `ENTRY_TEMPLATE_VERSION` bumped 4 → 5 so the next ordinary Publish rebuilds existing pages.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- `generate_directory_site` to staging, then production (`gxixwdjfmegxcxfeflro`).
+
+### Rollback plan
+- Revert the branch; redeploy `generate_directory_site` and republish directories.
+
+### Deployed
+- GitHub Pages: automatic on merge. Vercel: `npm run deploy:live`, Ready (aliased `uk-associations.com`). Directories need a republish to pick up the iframe fix.
+
+### Verified
+- [x] Staging: republish a directory, click ⛶ on its map: fills the browser window, sidebar appears, hides on exit
+- [ ] Entry page map card fullscreen works
+
+---
+
+## 2026-10-04 — [Production] Move AI content generation to Content › AI enrichment
+
+**Branch/commit:** `feat/2026-10-04-ai-enrichment-section` (PR #287, merged as `5261bca`)
+**Deployed by:** Claude Code
+
+### What changed
+- AI content generation (the content prompt and "Generate all entry content") used to sit above the entries table on the Entries page. It now has its own page, **Content › AI enrichment** (`/directories/:id/ai-enrichment`), in the directory side panel, so Entries is only the entries table. Owner/manager-only, as before.
+- No behaviour, events or data changed; the panel is the same component in a new route.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`, then redeploy both frontends (GitHub Pages runs on push; `npm run deploy:live` for Vercel).
+
+### Deployed
+- GitHub Pages: automatic on merge to `main`. Vercel (`maps.layercake-cx.biz`): `npm run deploy:live`, Ready.
+
+### Verified
+- [ ] "AI enrichment" appears under Content for managers, not for members
+- [ ] Entries page no longer shows the AI panel; the AI enrichment page saves a prompt and starts a bulk run
+
+---
+
+## 2026-10-04 — [Production] Rename "Categorisations" to "Categories" in the UI
+
+**Branch/commit:** `chore/2026-10-04-categories-label` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The user-facing label "Categorisations" is now "Categories" everywhere visible: the portal and admin navigation, the page heading, the admin customer tab and feature-flag description, the panel's form text and buttons, and `docs/USER_GUIDE.md`, `docs/FEATURES.md` and `docs/DIRECTORIES.md`.
+- Internals are unchanged on purpose: the `/client/categorisations` route, the `categorisations` tables, file and function names, and the CSV column contract.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Nav, page heading and admin tab read "Categories" on staging
+
+---
+
+## 2026-10-04 — [Staging] Fix map design page layout in the new admin shell
+
+**Branch/commit:** `fix/2026-10-04-map-design-fill-body` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The map Design view was broken after the shell redesign: `.admin-main--map-page` gave every child `flex: 1` and a fixed `100vh - 130px` height, so the page title, sub-nav and map split the space equally and the map was squashed to the bottom. Now the title and sub-nav keep their natural height and the map area stretches to fill the rest of the main body (minimum 560px). 
+- Map sub-nav is now dark teal with white links and a white Save button, thinner with vertical padding.
+- Follow-up: on the admin map Design page the page title/breadcrumbs and the shell's main padding are removed; the map sub-nav (now carrying the Save button on the right) and the map run edge to edge in the main area.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [ ] Admin map Design view: map fills the body below the title and sub-nav; settings rail and panels still overlay correctly
+- [ ] Client portal map Design view still fills its page
+
+---
+
+## 2026-10-04 — [Staging] Publish status box: View live site link
+
+**Branch/commit:** `feat/2026-10-04-publish-status-live-link` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- Under the publish status box in the directory side panel there is now a **View live site** link (new tab). It uses the directory's active custom domain when it has one (primary first, from `client_domains`), otherwise `maps.layercake-cx.biz/directories/<client>/<directory>`. Hidden until the directory is first published.
+- `getDirectoryPublishState` now also returns `customHostname`. No schema change.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through: directory without a domain links to the Maps address; directory with an active domain links to the domain
+
+---
+
+## 2026-10-04 — [Staging] Directory side panel: publish status
+
+**Branch/commit:** `feat/2026-10-04-panel-publish-status` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- Under the directory name in the side panel there is now a publish status box linking to Settings › Publishing: green = published and up to date, amber = published but edited since, red = last page generation failed, blue = generating, grey = never published. Hovering the amber state shows how many items changed.
+- "Changed" is computed in the browser (`getDirectoryPublishState` in `directoryPublications.js`): the directory row, active entries or active content pages with `updated_at` later than the last successful site generation (falling back to `published_at`). It re-checks on every navigation and polls while generating. Known limits: deleting an entry isn't detected, and a claim-item publish moves the baseline.
+- Shared panel, so client and admin both get it. No schema change, no new visitor events.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: publish → green; edit an entry → amber after navigating; click box opens Publishing
+
+---
+
+## 2026-10-04 — [Staging] Directory side panel: collapsible sections
+
+**Branch/commit:** `feat/2026-10-04-collapsible-directory-nav` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The directory side panel's group headings (Content, Experience, Engagement, Insights, Settings) are now accordion headers: bolder, with an arrow, and their items are indented under a guide line. Only one section is open at a time, and the section holding the current page opens automatically. This makes headings read as controls rather than nav items, and the panel fits a laptop screen without scrolling.
+- Implemented once in `FeaturePanel.jsx` + `admin-shell.css`, so client and admin directory workspaces both get it. Panels with unlabelled groups (Customers, Logs, customer workspace) render exactly as before.
+- Docs: `USER_GUIDE.md` describes the new behaviour.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: open a directory in client and admin, expand/collapse sections, confirm the active page's section is open
+
+---
+
+## 2026-10-04 — [Staging] Rename "Email sending" to "Emails"; link to create a sending profile
+
+**Branch/commit:** `feat/2026-10-04-emails-label-and-new-profile-link` (PR pending)
+**Deployed by:** Claude Code
+
+### What changed
+- The directory **Settings → Email sending** item and page title are now **Emails**. Route (`/email-sending`) is unchanged, so existing links keep working.
+- The **Sending profile** panel (directory Emails page and each map's Messaging tab, client and admin) now has a **Create a new profile** link (owners/managers only). It opens the organisation's Messaging page with the New profile form already open (`?new=1`), so nobody has to hunt for where profiles live. Staff are sent to the customer's Messaging tab.
+- Docs: `USER_GUIDE.md` and `FEATURES.md` use the new name.
+
+### Database migrations applied
+- None.
+
+### Edge functions deployed
+- None.
+
+### Rollback plan
+- Revert the merge commit on `main`. No data or schema changes.
+
+### Verified
+- [x] `npm run build` succeeds
+- [ ] Click-through in staging: directory → Settings → Emails → Create a new profile opens the form
+
+---
+
+## 2026-10-04 — [Production] send_contact_message: allow the apikey header (directory Contact "NetworkError")
+
+**Branch/PR:** `fix/2026-10-04-contact-message-cors-apikey` ([PR #279](https://github.com/layercake-cx/directory-maps/pull/279))
+**Deployed by:** Claude Code. Staging, then production on the user's explicit instruction.
+
+### What changed
+
+- Sending a message from a published directory entry page failed in the browser with "NetworkError when attempting to fetch resource". The page script posts to `send_contact_message` with an `apikey` header, but the function's CORS `Access-Control-Allow-Headers` only listed `Authorization, Content-Type`, so the browser blocked the cross-origin preflight before the request was sent. Map messages were unaffected (they use `invokeEdgeFunction`, which deliberately omits `apikey`).
+- The function now also allows `apikey` and `x-client-info`. This fixes every already-published directory page with no republish, so `ENTRY_TEMPLATE_VERSION` is unchanged.
+
+### Database migrations applied
+- None.
+
+### Edge Functions deployed
+- `send_contact_message` (`--no-verify-jwt`) — staging (`beqejxneehilplrtpntn`) and production (`gxixwdjfmegxcxfeflro`), 2026-10-04.
+
+### Rollback plan
+Redeploy `send_contact_message` from the previous commit.
+
+### Verified
+- [x] Preflight on staging with `Access-Control-Request-Headers: apikey,content-type` now returns the header in `access-control-allow-headers`
+- [x] Preflight on production returns `apikey` in `access-control-allow-headers`
+- [x] A real Contact send from a published directory entry page (tested by the user, 2026-10-04, all OK)
+
+---
+
+## 2026-10-03 — [Production] Messaging: sending profiles, per-map and per-directory settings
 
 **Branch/PR:** `feat/2026-10-03-messaging-profiles`
-**Deployed by:** Claude Code. Migration and Edge Functions applied to staging (`beqejxneehilplrtpntn`) on 2026-10-04. Frontend not deployed to a preview yet. Production: not deployed.
+**Deployed by:** Claude Code. Migration and Edge Functions applied to staging (`beqejxneehilplrtpntn`) and then production (`gxixwdjfmegxcxfeflro`) on 2026-10-04, on the user's explicit instruction. Frontend: PR #277 merged to `main` (`9f33f1f`) on 2026-10-04 (GitHub Pages deploy succeeded); the Vercel deploy for `maps.layercake-cx.biz` was triggered via a Vercel deploy hook after `npm run deploy:live` failed with `Error: Not authorized` (CLI session). The live bundle was confirmed to contain the new messaging code and the site loads with no console errors.
 
 ### What changed
 
@@ -20,16 +1783,19 @@ A plain-English record of every deployment to staging and production. Newest ent
 - **Per map and per directory:** each map (new Messaging tab in the map settings) and each directory (Email tab) chooses a sending profile, switches messaging on, sets test mode and a test recipient, and writes its own prompt, email subject and opening message. Message text lives only on the map/directory.
 - **Blocked until a profile is chosen:** the "Send message" / "Make an Enquiry" controls only appear, and `send_contact_message` only sends, when the toggle is on AND a profile is chosen AND the plan includes messaging. `send_contact_message` also no longer falls back to platform defaults when a map can't be resolved (it now returns 404).
 - `manage_client_email` now manages profiles (`create`, `save`, `delete`, `setup_domain`, `verify`, `refresh`). `generate_directory_site` reads the per-directory view (markup unchanged, so no `ENTRY_TEMPLATE_VERSION` bump). `EmbedMap` and both map dashboards read the per-map view.
+- **Directory "Make an Enquiry" replaced by "Contact" (2026-10-04):** the button on published entry pages is now **Contact**, under Visit website, opening the same side drawer as maps. The message goes to the entry's own email (looked up server-side from the entry id), not a directory-wide inbox; entries without an email show no button (independent of `show_email`). The "Contact email" field is gone from the directory settings page, and `directories.enquiry_email` is no longer read (column kept). `ENTRY_TEMPLATE_VERSION` bumped 3 → 4 so every published directory rebuilds the new button on its next Publish. Engagement event names are unchanged. The Email sending page moved from Engagement → Enquiries to Settings → Email sending.
+- **Directory Settings: Domain and Publishing separated (2026-10-04):** "Domain & Publishing" is now two menu items and pages, in both client and admin views: **Publishing** (the publish panel) and **Domain** (custom domains for this directory only, owner/manager). `DomainSettings` gained an optional `directoryId` scope, which closes the BACKLOG item for a per-directory domain view. No database or function changes.
 - Known gap, unchanged: in map test mode the recipient is still supplied by the browser, so a direct call to `send_contact_message` could send to a real listing address with test mode on.
 - Admin events added: `email_profile_created/updated/deleted`, `email_map_settings_updated`, `email_directory_settings_updated` (domain events now carry `profile_id`).
 
 ### Database migrations applied
-- `20261003120000_messaging_profiles.sql` — staging (`beqejxneehilplrtpntn`), 2026-10-04: applied with `supabase db push`; its built-in post-migration check printed `VERIFY PASSED: 1 profiles created and linked`. Production: NOT APPLIED. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
+- `20261003120000_messaging_profiles.sql` — staging (`beqejxneehilplrtpntn`), 2026-10-04: applied with `supabase db push`; its built-in post-migration check printed `VERIFY PASSED: 1 profiles created and linked`. Production (`gxixwdjfmegxcxfeflro`), 2026-10-04: `db push --dry-run` showed only this file pending, matching staging; applied; notice `VERIFY PASSED: 2 profiles created and linked`. The pre-apply production check showed the largest affected client (IAPCO) has 3 maps, messaging enabled, test mode off — all three were linked to one Default profile with those values copied. Creates `messaging_profiles`; adds `messaging_profile_id`, `messaging_enabled`, `email_test_mode`, `email_test_recipient`, `message_prompt`, `message_subject`, `message_intro` to `maps` and `directories`; adds `resolve_messaging_entitlement()`, a same-client trigger, and the `map_messaging_settings` / `directory_messaging_settings` views. Backfill: every client with messaging on or any email config gets one "Default" profile copied from its `clients` columns, and all its maps and directories are linked to it and receive the client's current enable/test-mode/prompt/subject/intro values, so behaviour is unchanged on day one. Old `clients` columns and the `client_messaging_settings` view are left in place.
 
 ### Edge Functions deployed
-- Staging (`beqejxneehilplrtpntn`), 2026-10-04: `send_contact_message` (`--no-verify-jwt`), `manage_client_email`, `generate_directory_site`. Production: not deployed. They must go to production together with the frontend — the old org-level Messaging screen writes columns these functions no longer read.
+- Staging (`beqejxneehilplrtpntn`), 2026-10-04: `send_contact_message` (`--no-verify-jwt`), `manage_client_email`, `generate_directory_site`. Production (`gxixwdjfmegxcxfeflro`), 2026-10-04: the same three functions, after the migration. Until the frontend is deployed, the old org-level Messaging screen still writes the legacy `clients` columns, which the new functions no longer read. The frontend followed straight after (see above) — the old org-level Messaging screen writes columns these functions no longer read.
 
 ### Frontend
+- Production: GitHub Pages + Vercel (via deploy hook), 2026-10-04.
 - New: `MessagingProfiles.jsx`, `MessagingProfileEditor.jsx` (split from the old `MessagingSettings.jsx`), `EntityMessagingSettings.jsx`, `useMessagingAllowed.js`. Changed: both map dashboards, `EmbedMap.jsx`, `DirectoryEnquiryPanel.jsx`. Frontend must ship together with the migration and functions.
 
 ### Rollback plan
@@ -42,6 +1808,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 - [ ] Migration dry run in the SQL editor (not done — applied directly via `supabase db push` on the user's instruction; the file's own assertions passed)
 - [x] Migration applied on staging
 - [ ] Post-migration row counts, orphan checks and the parity check (must return 0 rows) reviewed
+- [x] Production frontend serves the new bundle; landing page loads, no console errors
 - [ ] Create a profile, set up and verify a domain (`/client/email`)
 - [ ] Map: choose a profile, enable, test-mode send; confirm the button is hidden with no profile chosen
 - [ ] Directory: choose a profile, enable, publish, Make an Enquiry send; confirm blocked with no profile
@@ -1337,6 +3104,33 @@ Run `_20260923121000_gate_claims_entitlement.rollback.sql` then `_20260923120000
 
 ---
 
+## 2026-09-22 — [Production] Directory `llms.txt` v2 overview
+
+**Branch/PR:** `feat/2026-09-22-llms-txt`, merged as https://github.com/layercake-cx/directory-maps/pull/230 (`f3a7146`)
+**Deployed by:** Cursor agent, after an explicit go-ahead.
+
+### What changed
+The production generator now writes the short llms.txt v2 overview on the next publish that rebuilds a directory's indexes. The live site already serves `llms.txt` as `text/markdown`. Files already in storage are still the previous per-listing list until that directory is published again.
+
+### Database migrations applied
+None.
+
+### Edge Functions deployed
+- `generate_directory_site` — production (`gxixwdjfmegxcxfeflro`).
+
+### Frontend
+- Vercel production: https://directory-maps-2rzea7xlh-layercake-apps.vercel.app (`dpl_DXs7RF55q7sNr3hhmxG1FBRxtczg`), aliased to https://uk-associations.com. https://maps.layercake-cx.biz is serving this deployment too (`text/markdown` on both).
+
+### Rollback plan
+Redeploy the previous `generate_directory_site` on production. Redeploy the previous Vercel production deployment (`directory-maps-lzfuce38z-layercake-apps.vercel.app`, `dpl_2zy1AiYiz7ifSPyMf5HvwZFE4ztv`). Republish any directory that has already received the new file. No migration to roll back.
+
+### Verified on production
+- [x] Function deployed
+- [x] Branded `llms.txt` and `https://uk-associations.com/llms.txt` return `text/markdown`
+- [ ] A republish so an existing file shows the v2 overview (current files are still the previous per-listing list)
+
+---
+
 ## 2026-09-22 — [Staging] Directory `llms.txt` v2 overview
 
 **Branch/PR:** `feat/2026-09-22-llms-txt`
@@ -1525,7 +3319,7 @@ Run `_20260922093000_directory_enquiry.rollback.sql` on production (it refuses i
 **Deployed by:** Cursor Grok. Staging first, then production, with explicit go-ahead in the same request.
 
 ### What changed
-A published directory entry can offer **Make an Enquiry** beside **Visit website** when the directory has a contact email and organisation messaging is on. The visitor writes in a side drawer; the message is emailed through the existing contact-email path (test mode, from address, subject, and opening line included). The directory **Email** tab holds that contact inbox plus the same messaging settings maps already use. Opening the drawer and a successful send are recorded as `listing_enquiry_open` and `listing_enquiry_sent`.
+A published directory entry can offer **Make an Enquiry** beside **Visit website** when the directory has a contact email and organisation messaging is on. The visitor writes in a side drawer; the message is emailed through the existing contact-email path (test mode, from address, subject, and opening line included). The directory **Settings → Email sending** page holds that contact inbox plus the same messaging settings maps already use. Opening the drawer and a successful send are recorded as `listing_enquiry_open` and `listing_enquiry_sent`.
 
 The button is written into the public HTML at publish time, so a live directory needs a republish after the contact email is saved.
 

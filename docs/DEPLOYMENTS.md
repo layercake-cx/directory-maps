@@ -8,6 +8,24 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-17 — [Frontend only] GitHub Pages deploy workflow removed
+
+**Branch:** `chore/2026-11-17-remove-github-pages-deploy`
+
+### What changed
+- Deleted `.github/workflows/deploy.yml`, the only GitHub Actions workflow. Pushes to `main` no longer build and publish to GitHub Pages (`layercake-cx.github.io/directory-maps/`). The branded Vercel frontend was never deployed by it and is unaffected; it still needs `npm run deploy:live`.
+- `AGENTS.md`, `docs/INTEGRATION_ARCHITECTURE.md` and `docs/FRONTEND_ARCHITECTURE.md` now describe Vercel as the only production frontend. `docs/DATA_AND_PRIVACY.md`, `docs/DEPLOY.md` and `docs/DIRECTORIES.md` still mention GitHub Pages and were left as they are.
+- No migration, no schema, no Edge Function.
+
+### Rollback plan
+Revert the commit to restore the workflow.
+
+### Verification
+- [ ] After merge, `gh run list --limit 5` shows no new workflow run.
+- [ ] The GitHub repository's Pages setting (Settings → Pages) can be switched off if the old site should come down; not done here.
+
+---
+
 ## 2026-11-17 — [Migration + Edge Functions + frontend] Archive and Restore
 
 **Branch:** `feat/2026-11-17-archive` (stacked on `feat/2026-11-17-list-layout`; merge that first)

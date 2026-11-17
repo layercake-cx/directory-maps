@@ -148,22 +148,15 @@ Vite + React (BrowserRouter) · Supabase · Google Maps · Resend · Stripe (par
 
 ## Frontend deployment
 
-**There are two live production frontends, not one** — this was undocumented until Epic 3 (2026-08-23) discovered it by testing the real branded domain directly:
+**Vercel is the only production frontend.** A GitHub Pages deploy (`layercake-cx.github.io/directory-maps/`) used to run from `.github/workflows/deploy.yml` on every push to `main`; that workflow was removed on 2026-11-17, so merging to `main` no longer deploys anything. Any copy still at the github.io address is stale and is not updated.
 
-1. **GitHub Pages** (`layercake-cx.github.io/directory-maps/`) — deployed automatically by GitHub Actions on every push to `main`. No manual step needed.
-   - Workflow file: `.github/workflows/` — job name "Deploy to GitHub Pages"
-   - Build command: `npm run build` (output: `dist/`)
-   - VITE env vars are injected from GitHub repository secrets at build time (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_SNAPSHOT_BASE_URL`)
-   - Check deploy status: `gh run list --limit 5`
-   - A successful merge to `main` = deployed. Typical deploy time ~35 seconds.
-
-2. **Vercel** (`maps.layercake-cx.biz`, the real branded domain real users hit) — a linked Vercel project (`directory-maps`), same static Vite build, **does not redeploy automatically on push to `main`**. Requires an explicit deploy:
+1. **Vercel** (`maps.layercake-cx.biz`, the real branded domain real users hit) — a linked Vercel project (`directory-maps`), same static Vite build, **does not redeploy automatically on push to `main`**. Requires an explicit deploy:
    - `npm run deploy:test` (`scripts/deploy-to-test.sh`, `npx vercel --yes`) — preview deploy, safe default.
    - `npm run deploy:live` (`scripts/deploy-live.sh`, `npx vercel --prod --yes`) — **production** deploy, only after explicit user sign-off, same discipline as a database migration.
    - Also has an SPA rewrite in `vercel.json` and, since Epic 3, a `middleware.js` at the repo root (Vercel Edge Middleware — the only server-side logic either frontend host runs).
    - Requires an authenticated Vercel CLI session (`npx vercel login`) — an agent cannot do this step itself; ask the user to run it once per environment.
 
-**When deploying a frontend change that matters on the live customer-facing site, both need updating** — a GitHub Pages-only deploy leaves the real branded domain on stale code.
+**A frontend change reaches users only after `npm run deploy:live`** — merging to `main` does not deploy it.
 
 ## Supabase CLI — use the installed binary, never `npx supabase`
 
