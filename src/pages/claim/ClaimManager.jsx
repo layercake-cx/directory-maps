@@ -5,6 +5,7 @@ import { getMyClaimContext, sendClaimUserMagicLink, transferClaimOwnership } fro
 import {
   getClaimedListing,
   getClaimUsers,
+  getListingAiStatus,
   inviteClaimEditor,
   publishDirectoryItem,
   removeClaimUser,
@@ -280,6 +281,8 @@ function ListingTabs({ tabs, activeTab, onChange }) {
   );
 }
 
+const AI_NOT_SET_UP_CLAIM = "AI drafting isn't switched on for this directory yet. Its administrators need to connect an AI account first. You can still write your listing by hand.";
+
 function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEvent, onSaved, onGoToContact }) {
   const [html, setHtml] = useState(listing?.notes_html || "");
   const [saving, setSaving] = useState(false);
@@ -289,8 +292,15 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
 
   useEffect(() => { setHtml(listing?.notes_html || ""); }, [listing?.notes_html]);
 
+  const [aiAvailable, setAiAvailable] = useState(true); // optimistic until the check returns
+  useEffect(() => {
+    let cancelled = false;
+    getListingAiStatus(entryId).then((r) => { if (!cancelled) setAiAvailable(r.available); });
+    return () => { cancelled = true; };
+  }, [entryId]);
+
   const hasWebAddress = !!listing?.website_url?.trim();
-  const aiDisabled = !canEdit || !hasWebAddress;
+  const aiDisabled = !canEdit || !hasWebAddress || !aiAvailable;
   const loadPrompt = useCallback(() => getListingDraftingPrompt(entryId), [entryId]);
 
   function openPrompt() {
@@ -346,7 +356,7 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
             <AIButton
               onGenerate={handleGenerate}
               disabled={aiDisabled}
-              disabledReason={!hasWebAddress ? "Add a web address in Contact details to use AI drafting." : undefined}
+              disabledReason={!aiAvailable ? AI_NOT_SET_UP_CLAIM : !hasWebAddress ? "Add a web address in Contact details to use AI drafting." : undefined}
               describedBy={aiDisabled && canEdit ? hintId : undefined}
             />
           )}
@@ -357,7 +367,10 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
             AI drafts this listing from the details we hold for it, including its web address, following a drafting prompt set by the directory&rsquo;s administrators. Check the draft before you save it.
           </AiProvenanceNote>
         )}
-        {canEdit && !hasWebAddress && (
+        {canEdit && !aiAvailable && (
+          <p className="ai-hint" id={hintId}>{AI_NOT_SET_UP_CLAIM}</p>
+        )}
+        {canEdit && aiAvailable && !hasWebAddress && (
           <p className="ai-hint" id={hintId}>
             Add a web address in{" "}
             <button type="button" className="ai-note__link" onClick={onGoToContact}>Contact details</button>{" "}

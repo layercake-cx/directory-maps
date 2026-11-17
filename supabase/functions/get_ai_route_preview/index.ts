@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
     await requireClientMember(req, clientId);
 
     const db = createServiceClient();
-    const platformKeyPresent = !!Deno.env.get("ANTHROPIC_API_KEY");
 
     const features = [];
     for (const key of AI_FEATURE_KEYS) {
@@ -61,15 +60,6 @@ Deno.serve(async (req) => {
       const base = { key, label: def.label, description: def.description, capability: def.capability, recommendation: def.recommendation };
       try {
         const plan = await planRoute(directoryMapsContext({ db, clientId, productInstanceId: directoryId }, key));
-        if (plan.source === "platform" && !platformKeyPresent) {
-          features.push({
-            ...base,
-            available: false,
-            code: "no_connection",
-            message: "AI features aren't currently available because an AI provider hasn't been connected for this organisation.",
-          });
-          continue;
-        }
         const row = plan.modelRow;
         features.push({
           ...base,

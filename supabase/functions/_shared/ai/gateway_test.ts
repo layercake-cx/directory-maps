@@ -1,5 +1,5 @@
 // Run: deno test --allow-env supabase/functions/_shared/ai/gateway_test.ts
-// Exercises route resolution, platform-fallback gating and usage metering with
+// Exercises route resolution, the absence of any platform fallback and usage metering with
 // an in-memory fake of the Supabase client and a stubbed fetch -- no network.
 
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
@@ -52,8 +52,6 @@ function tablesWith(extra: Record<string, Row[]> = {}) {
   return {
     ai_models: MODELS,
     ai_capability_profiles: PROFILES,
-    feature_flags: [{ key: "ai_platform_provider", default_enabled: false }],
-    feature_flag_overrides: [],
     integrations: [],
     ai_model_configuration: [],
     ...extra,
@@ -82,18 +80,17 @@ function scope(db: AiScope["db"]): AiScope {
   return { db, clientId: "c1", productInstanceId: "dir1", batchJobId: "00000000-0000-0000-0000-000000000001" };
 }
 
-Deno.test("platform key is used only while the ai_platform_provider flag is on, and usage is metered", async () => {
-  Deno.env.set("ANTHROPIC_API_KEY", "platform-key");
-  const { db, inserted } = fakeDb(tablesWith({ feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }] }));
+Deno.test("a request runs on the organisation's own key and usage is metered", async () => {
+  const { db, inserted } = fakeDb(tablesWith({ integrations: [{ id: "i1", client_id: "c1", integration_type: "ai", status: "connected", provider: "anthropic" }] }), { i1: "customer-key" });
   const f = stubFetch(OK_RESPONSE);
   try {
     const res = await generate(directoryMapsContext(scope(db), "seo_metadata"), REQ);
-    assertEquals(f.calls[0].headers["x-api-key"], "platform-key");
+    assertEquals(f.calls[0].headers["x-api-key"], "customer-key");
     assertEquals(f.calls[0].body.model, "claude-haiku-4-5");
     assertEquals(res.toolCalls[0].input, { html: "<p>x</p>" });
 
     const ev = inserted["ai_usage_events"][0];
-    assertEquals(ev.connection_source, "platform");
+    assertEquals(ev.connection_source, "customer");
     assertEquals(ev.client_id, "c1");
     assertEquals(ev.product, "directory_maps");
     assertEquals(ev.product_instance_id, "dir1");
@@ -110,8 +107,14 @@ Deno.test("platform key is used only while the ai_platform_provider flag is on, 
   }
 });
 
-Deno.test("no customer connection and flag off -> AiUnavailableError, no provider call", async () => {
-  const { db, inserted } = fakeDb(tablesWith());
+Deno.test("no customer connection -> AiUnavailableError and no provider call, even if a platform key and the retired flag exist", async () => {
+  Deno.env.set("ANTHROPIC_API_KEY", "platform-key");
+  const { db, inserted } = fakeDb(
+    tablesWith({
+      feature_flags: [{ key: "ai_platform_provider", default_enabled: true }],
+      feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }],
+    }),
+  );
   const f = stubFetch(OK_RESPONSE);
   try {
     const err = await assertRejects(
@@ -126,23 +129,20 @@ Deno.test("no customer connection and flag off -> AiUnavailableError, no provide
   }
 });
 
-Deno.test("a connected customer integration wins over the platform key and uses the stored secret", async () => {
+Deno.test("a provider named in the configuration but not connected is unavailable, with no fallback to another account", async () => {
   Deno.env.set("ANTHROPIC_API_KEY", "platform-key");
-  const { db, inserted } = fakeDb(
+  const { db } = fakeDb(
     tablesWith({
-      integrations: [{ id: "i1", client_id: "c1", integration_type: "ai", status: "connected", provider: "anthropic" }],
-      feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }],
+      ai_model_configuration: [
+        { client_id: "c1", product: "directory_maps", product_instance_id: null, feature: null, provider: "openai", model: null, integration_id: null, use_recommended: true },
+      ],
     }),
-    { i1: "customer-key" },
   );
-  const f = stubFetch(OK_RESPONSE);
-  try {
-    await generate(directoryMapsContext(scope(db), "intent_search"), REQ);
-    assertEquals(f.calls[0].headers["x-api-key"], "customer-key");
-    assertEquals(inserted["ai_usage_events"][0].connection_source, "customer");
-  } finally {
-    f.restore();
-  }
+  const err = await assertRejects(
+    () => generate(directoryMapsContext(scope(db), "intent_search"), REQ),
+    AiUnavailableError,
+  );
+  assertEquals(err.code, "provider_not_connected");
 });
 
 Deno.test("most specific configuration wins: feature override beats product default", async () => {
@@ -183,8 +183,7 @@ Deno.test("a disabled model is refused", async () => {
 });
 
 Deno.test("provider errors are rethrown and metered as failed requests", async () => {
-  Deno.env.set("ANTHROPIC_API_KEY", "platform-key");
-  const { db, inserted } = fakeDb(tablesWith({ feature_flag_overrides: [{ client_id: "c1", flag_key: "ai_platform_provider", enabled: true }] }));
+  const { db, inserted } = fakeDb(tablesWith({ integrations: [{ id: "i1", client_id: "c1", integration_type: "ai", status: "connected", provider: "anthropic" }] }), { i1: "customer-key" });
   const f = stubFetch("overloaded", 529);
   try {
     await assertRejects(() => generate(directoryMapsContext(scope(db), "seo_metadata"), REQ), Error, "529");
@@ -192,7 +191,7 @@ Deno.test("provider errors are rethrown and metered as failed requests", async (
     assertEquals(ev.status, "error");
     assertEquals(ev.total_tokens, 0);
     assert(String(ev.error).includes("529"));
-    assert(!JSON.stringify(ev).includes("platform-key"));
+    assert(!JSON.stringify(ev).includes("customer-key"));
   } finally {
     f.restore();
   }

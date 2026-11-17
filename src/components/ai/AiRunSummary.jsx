@@ -31,8 +31,7 @@ export default function AiRunSummary({ plan, count, clientId, directoryId, featu
     <div className="b4-ai-summary">
       <div>
         <strong>{count == null ? "Every" : count} {count === 1 ? "record" : "records"}</strong> will be processed by{" "}
-        <strong>{model?.label ?? plan.model}</strong> ({plan.provider}
-        {plan.source === "platform" ? ", Layercake's account" : ", your account"})
+        <strong>{model?.label ?? plan.model}</strong> ({plan.provider}, your account)
         {model ? ` · ${costTierSymbol(model.cost_tier)} ${costTierLabel(model.cost_tier)}` : ""}.
       </div>
       {avg === undefined ? null : avg === null ? (

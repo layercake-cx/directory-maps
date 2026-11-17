@@ -347,7 +347,7 @@ The response (matching entry ids, optional follow-up question, optional per-entr
 
 ### AI Gateway and usage metering (2026-10-05)
 
-All calls described above are routed through a central AI Gateway inside the Edge Functions. Today every organisation still uses Layercake's Anthropic account (the `ai_platform_provider` flag is on for existing clients); the gateway is the groundwork for customers connecting their own AI provider, after which the relevant data is sent to *that* provider under the customer's own agreement with them, and this section will be extended per provider.
+All calls described above are routed through a central AI Gateway inside the Edge Functions. Since 2026-11-17 every request runs on the organisation's **own** connected AI provider (Integrations → AI providers); Layercake no longer holds or uses an AI account on customers' behalf, and there is no fallback. Before that date, organisations without a connected provider ran on Layercake's Anthropic account (the retired `ai_platform_provider` flag). The relevant data is sent to the customer's chosen provider under the customer's own agreement with them (see the per-provider sections below).
 
 The gateway records one `ai_usage_events` row per request: organisation, directory, feature, provider, model, token counts, duration, status and a short error string on failure. It stores **no prompt text, response text or entry content**, and no personal data beyond the organisation and directory ids. Customer-supplied provider API keys (see §12) are held in Supabase Vault and never returned to the browser.
 
@@ -384,7 +384,7 @@ Cloudflare operates a global anycast network; a DoH query resolves at whichever 
 
 ## 12. Customer-connected AI providers (OpenAI, Google Gemini, Anthropic)
 
-**Role:** an organisation can connect its **own** AI provider account (Integrations → AI providers, added 2026-10-05) so that Layercake's AI features run on, and are billed by, that provider rather than Layercake's Anthropic account.
+**Role:** an organisation can connect its **own** AI provider account (Integrations → AI providers, added 2026-10-05) so that Layercake's AI features run on, and are billed by, that provider. This is now the only way AI features run (the former Layercake Anthropic account fallback was removed 2026-11-17).
 
 **Who is the processor:** the provider the customer connects. The customer holds the agreement (terms and DPA) with that provider directly, and chooses the provider. Layercake sends AI requests to the provider on the customer's behalf using the customer's key. Providers: Anthropic PBC (US), OpenAI (US), Google (Gemini API, global/US).
 
@@ -403,7 +403,7 @@ Determined by the provider and the customer's account settings with it. Layercak
 
 ### Legal basis & agreements
 
-The customer contracts with the provider directly. The Integrations page tells the customer that connecting a provider sends the relevant information to that provider under their own agreement. Organisations that have not connected a provider continue to use Layercake's Anthropic account (§10) while the `ai_platform_provider` flag is on for them.
+The customer contracts with the provider directly. The Integrations page tells the customer that connecting a provider sends the relevant information to that provider under their own agreement. Organisations that have not connected a provider cannot use AI features at all: since 2026-11-17 there is no Layercake-held account to fall back on, and no AI request data is sent anywhere for them.
 
 > **Action item:** when this moves beyond early access, confirm the customer-facing terms say the customer is responsible for their provider agreement, and add each provider's current DPA link here.
 

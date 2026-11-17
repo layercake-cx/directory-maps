@@ -1,16 +1,14 @@
 // Route resolution for the AI Gateway: organisation -> connected providers ->
 // configuration (most specific wins) -> capability -> provider -> model ->
-// credentials. There is no silent fallback to Layercake's own AI account: the
-// platform key is used only while the `ai_platform_provider` feature flag is
-// on for the organisation (see 20261005120000_integrations_ai_gateway.sql).
+// credentials. Every request runs on the organisation's OWN connected AI
+// provider. There is no fallback to a Layercake-held key (removed 2026-11-17):
+// an organisation with no usable connection gets an AiUnavailableError and the
+// UI greys the AI action out with a link to Integrations.
 
-import { resolveFeatureFlag } from "../featureFlags.ts";
 import { anthropicAdapter } from "./adapters/anthropic.ts";
 import { geminiAdapter } from "./adapters/gemini.ts";
 import { openaiAdapter } from "./adapters/openai.ts";
 import { AiAdapter, AiContext, AiModelRow, AiRoute, AiUnavailableError } from "./types.ts";
-
-export const PLATFORM_AI_FLAG = "ai_platform_provider";
 
 const ADAPTERS: Record<string, AiAdapter> = {
   anthropic: anthropicAdapter,
@@ -146,41 +144,23 @@ export async function planRoute(ctx: AiContext): Promise<AiRoutePlan> {
     };
   }
 
-  // No usable customer connection. Layercake's own account only if explicitly allowed.
-  if (await resolveFeatureFlag(ctx.db, ctx.clientId, PLATFORM_AI_FLAG)) {
-    const modelId = await recommendedModel(ctx, "anthropic");
-    if (!modelId) throw new AiUnavailableError("no_model", "No recommended AI model is configured for this feature yet.");
-    return {
-      provider: "anthropic",
-      model: modelId,
-      source: "platform",
-      integrationId: null,
-      modelRow: await loadModelRow(ctx, "anthropic", modelId),
-    };
-  }
-
+  // No usable customer connection, and no fallback to a Layercake-held key.
   if (configNamesProvider) {
     const named = config?.provider ?? "the selected provider";
     throw new AiUnavailableError(
       "provider_not_connected",
-      `The AI provider chosen for this feature (${providerLabel(named)}) isn't connected for this organisation.`,
+      `This feature is set to use ${providerLabel(named)}, but ${providerLabel(named)} isn't connected for this organisation.`,
     );
   }
   throw new AiUnavailableError(
     "no_connection",
-    "AI features aren't currently available because an AI provider hasn't been connected for this organisation.",
+    "AI isn't set up for this organisation yet. To use it, connect your own AI account (Anthropic, OpenAI or Google Gemini).",
   );
 }
 
 /** Plan + credentials: the route a request actually runs on. */
 export async function resolveRoute(ctx: AiContext): Promise<AiRoute> {
   const plan = await planRoute(ctx);
-
-  if (plan.source === "platform") {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
-    return { ...plan, apiKey };
-  }
 
   const { data: secret, error: secretErr } = await ctx.db.rpc("read_integration_secret", { p_integration_id: plan.integrationId });
   if (secretErr) throw secretErr;

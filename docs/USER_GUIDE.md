@@ -831,16 +831,16 @@ The **AI usage** tab on the Integrations page shows the AI usage generated throu
 
 - headline totals: requests, input tokens, output tokens, total tokens and an estimated provider cost;
 - tokens per day;
-- tables by feature (with each feature's share), by directory, and by provider and model, including whether a request ran on **your** provider account or on Layercake's own account.
+- tables by feature (with each feature's share), by directory, and by provider and model, including the provider account each request ran on. Every request now runs on your own account; older rows from before 2026-11-17 may show "Layercake's".
 
 Two things to keep in mind:
 
-- **It is Layercake's usage, not your whole account.** If you use the same provider account for other things, those are not included. Requests that ran on Layercake's own account are counted but flagged, because your provider doesn't bill those.
+- **It is Layercake's usage, not your whole account.** If you use the same provider account for other things, those are not included. Older requests that ran on Layercake's own account (before 2026-11-17) are counted but flagged, because your provider didn't bill those.
 - **Costs are estimates.** They use published provider pricing, shown only for models whose price is known (otherwise the page says how many requests were left out). Cached tokens, discounts, agreements, credits and currency conversion can all make your real bill differ. Your provider account is the authoritative source for billing.
 
 ### When no provider is connected
 
-AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Ask AI stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)
+**AI only runs on your own AI account.** Layercake no longer provides an AI account to fall back on (removed 2026-11-17, including for organisations that used it before). Until you connect Anthropic, OpenAI or Google Gemini under **Integrations → AI providers**, every AI action is greyed out and says so in plain English, with a link to set it up: the "Generate with AI" buttons on entries, SEO fields, content pages and image descriptions, the bulk "Generate all entry content" and "Backfill missing metadata" actions, and the Help me choose settings. Visitors to your published site don't see Help me choose while it is unavailable, and keyword search carries on. In the claimed-listing manager, a claim user sees the same greyed-out button with a note that the directory's administrators need to connect an AI account, and can still write the listing by hand. Browsing, keyword search, publishing and manual editing are never affected.
 
 ### Bulk AI runs
 
