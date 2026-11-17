@@ -10,7 +10,8 @@
 // alter them. The draft lands in the user's (unsaved) editor; Save and Publish stay their own actions.
 import { createServiceClient, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
-import { AiUnavailableError, aiUnavailableBody, getDirectoryClientId } from "../_shared/ai/gateway.ts";
+import { AiUnavailableError, aiUnavailableBody, directoryMapsContext, getDirectoryClientId } from "../_shared/ai/gateway.ts";
+import { planRoute } from "../_shared/ai/resolve.ts";
 import { generateContentForEntry } from "../_shared/entryContentGeneration.ts";
 
 const CORS = {
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     entryId = typeof body?.entry_id === "string" ? body.entry_id : undefined;
-    const action = body?.action === "prompt" ? "prompt" : body?.action === "draft" ? "draft" : null;
+    const action = body?.action === "prompt" ? "prompt" : body?.action === "draft" ? "draft" : body?.action === "status" ? "status" : null;
     if (!entryId || !action) return json({ error: "Missing entry_id or action" }, 400);
 
     let access;
@@ -41,6 +42,21 @@ Deno.serve(async (req) => {
     }
 
     const service = createServiceClient();
+
+    // "status": can AI drafting run for this directory's organisation right now? Claim users are
+    // not members of that organisation, so they cannot call get_ai_route_preview; this lets the
+    // Listing Manager grey the button out with a plain explanation instead of failing on click.
+    if (action === "status") {
+      try {
+        const clientId = await getDirectoryClientId(service, access.directoryId);
+        await planRoute(directoryMapsContext({ db: service, clientId, productInstanceId: access.directoryId }, "content_generation"));
+        return json({ available: true });
+      } catch (err) {
+        if (err instanceof AiUnavailableError) return json({ available: false, code: err.code });
+        throw err;
+      }
+    }
+
     const { data: directory, error: dirErr } = await service
       .from("directories")
       .select("ai_content_prompt")

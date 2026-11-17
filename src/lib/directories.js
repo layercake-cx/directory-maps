@@ -8,6 +8,7 @@
  */
 
 import { supabase, invokeFunction } from "./supabase";
+import { setArchived } from "./archive.js";
 import { sanitizeNotesHtml } from "./sanitizeHtml.js";
 
 export const ENTRIES_PAGE_SIZE = 100;
@@ -27,7 +28,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
   if (!clientId) return [];
   let query = supabase
     .from("directories")
-    .select("id, client_id, name, slug, description, is_active, published_at, seo_og_image_url, created_at, updated_at, directory_entries(count)")
+    .select("id, client_id, name, slug, description, is_active, archived_at, archived_by, published_at, seo_og_image_url, created_at, updated_at, directory_entries(count)")
     .eq("client_id", clientId)
     .order("updated_at", { ascending: false });
   if (!includeArchived) query = query.eq("is_active", true);
@@ -38,7 +39,7 @@ export async function listDirectories(clientId, { includeArchived = false } = {}
 }
 
 const DIRECTORY_COLUMNS =
-  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label, analytics_json, enquiry_email, location_search_enabled";
+  "id, client_id, name, slug, description, is_active, seo_defaults_json, seo_og_image_url, theme_json, current_publication_id, published_at, archived_at, archived_by, created_at, updated_at, ai_content_prompt, ai_content_generation_status, ai_content_generation_started_at, ai_content_generated_at, ai_content_generation_error, ai_content_generation_total, ai_content_generation_processed, ai_search_prompt, ai_search_web_enabled, home_nav_label, analytics_json, enquiry_email, location_search_enabled";
 
 /**
  * Schema-drift fallback: a DB migration and a frontend deploy are two
@@ -123,12 +124,13 @@ export async function updateDirectory(directoryId, patch) {
   if (error) throw error;
 }
 
+/** Archive/restore stamp who and when (archived_at / archived_by) — see archive.js. */
 export async function archiveDirectory(directoryId) {
-  await updateDirectory(directoryId, { is_active: false });
+  await setArchived("directory", [directoryId], true);
 }
 
 export async function restoreDirectory(directoryId) {
-  await updateDirectory(directoryId, { is_active: true });
+  await setArchived("directory", [directoryId], false);
 }
 
 export async function deleteDirectoryPermanently(directoryId) {

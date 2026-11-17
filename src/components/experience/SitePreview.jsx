@@ -19,7 +19,14 @@ const REGION_LABELS = { header: "header", hero: "hero banner", body: "body", foo
  * computes — builders.ts is Deno code and can't be imported here, so defaults are hand-synced in
  * directoryThemeDraft.js. `highlight` outlines the region the active tab edits.
  */
-export default function SitePreview({ theme, directoryName, highlight = null, aiToken = null }) {
+const PREVIEW_ENTRIES = [
+  ["Academy of Medical Educators", "Cardiff"],
+  ["Royal Society Example", "London"],
+  ["Northern Growers", "Leeds"],
+  ["Coastal Collective", "Bristol"],
+];
+
+export default function SitePreview({ theme, directoryName, highlight = null, aiToken = null, cardColours = [] }) {
   const headerBgRaw = backgroundToCss(theme.headerBackground, HEADER_BG_DEFAULT.color);
   const hasBanner = !!theme.heroBannerUrl;
   const headerBg = hasBanner ? applyAlphaToCssColors(headerBgRaw, 0.6) : headerBgRaw;
@@ -115,14 +122,33 @@ export default function SitePreview({ theme, directoryName, highlight = null, ai
               <span aria-hidden="true" style={{ color: theme.accentColor, fontWeight: 700 }}>✦</span>
               <span style={{ color: theme.mutedColor }}>Search the directory…</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {["Academy of Medical Educators", "Royal Society Example"].map((n) => (
-                <div key={n} style={{ background: theme.surfaceColor, border: `1px solid ${theme.lineColor}`, borderRadius: 8, padding: 8 }}>
-                  <div style={{ fontWeight: 600 }}>{n}</div>
-                  <div style={{ color: theme.mutedColor, fontSize: baseSize * 0.9 }}>Cardiff</div>
-                </div>
-              ))}
-            </div>
+            {theme.listingLayout === "cards" ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {PREVIEW_ENTRIES.map(([n, place], i) => (
+                  <div key={n} style={{ background: theme.surfaceColor, border: `1px solid ${theme.lineColor}`, borderRadius: 8, overflow: "hidden" }}>
+                    {/* dynamic: the term colour (or primary) this card's stripe would use */}
+                    <div style={{ height: 4, background: cardColours[i % (cardColours.length || 1)] || theme.primaryColor }} />
+                    <div style={{ padding: 8 }}>
+                      <div style={{ fontFamily: headingFont, fontWeight: 600 }}>{n}</div>
+                      <div style={{ color: theme.mutedColor, fontSize: baseSize * 0.9 }}>{place}</div>
+                      <div style={{ color: theme.primaryColor, fontSize: baseSize * 0.85, fontWeight: 700, marginTop: 4 }}>{(theme.cardCtaLabel || "").trim() || "View details"} →</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ background: theme.surfaceColor, border: `1px solid ${theme.lineColor}`, borderRadius: 8, overflow: "hidden" }}>
+                {PREVIEW_ENTRIES.slice(0, 3).map(([n, place], i) => (
+                  <div key={n} style={{ display: "flex", gap: 8, padding: 8, borderTop: i ? `1px solid ${theme.lineColor}` : 0 }}>
+                    <div style={{ width: 28, flex: "none", borderRadius: 4, background: theme.surfaceAltColor }} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{n}</div>
+                      <div style={{ color: theme.mutedColor, fontSize: baseSize * 0.9 }}>{place}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div><span style={{ display: "inline-block", background: theme.primaryColor, color: "#fff", borderRadius: 6, padding: "5px 10px", fontWeight: 600 }}>View all</span> <a href="#" onClick={(e) => e.preventDefault()} style={{ color: theme.primaryColor }}>link</a></div>
           </div>
           <div className="xp-region" data-hl={hl("footer")} style={{ position: "relative", background: footerBg, color: theme.footerText, padding: "10px 14px", display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>

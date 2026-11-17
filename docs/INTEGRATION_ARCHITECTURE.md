@@ -198,7 +198,7 @@ Set per project: `supabase secrets set KEY=value --project-ref <ref>` or Dashboa
 | `SUPABASE_URL` | PUBLIC | Auto / yes | Same as project URL (often auto-injected) |
 | `SUPABASE_ANON_KEY` | PUBLIC | Auto / yes | Anon key for user-scoped clients in functions |
 | `SUPABASE_SERVICE_ROLE_KEY` | **PRIVILEGED** | Yes | Bypasses RLS — server-only |
-| `ANTHROPIC_API_KEY` | SECRET | For AI features | Layercake's own Anthropic account. Used by the AI Gateway **only** for organisations with the `ai_platform_provider` flag on (see §7.6). Customer-connected provider keys do not use this. |
+| `ANTHROPIC_API_KEY` | SECRET | **Retired 2026-11-17** | No longer read by any Edge Function (the platform fallback was removed, see §7.6). Safe to delete from the Supabase secrets of both projects. |
 | `GOOGLE_GEOCODING_API_KEY` | SECRET | Yes** | Server-side geocode (**or** fallback `GOOGLE_MAPS_API_KEY` in some functions) |
 | `GOOGLE_MAPS_API_KEY` | SECRET | Optional | Fallback for geocode functions |
 | `GOOGLE_OAUTH_CLIENT_ID` | SECRET | For Sheets | OAuth client ID |
@@ -242,7 +242,7 @@ Prefer **service role** only if the function is hardened to require a cron secre
 All LLM calls go through `supabase/functions/_shared/ai/gateway.ts`. Products request a *capability*; the gateway resolves organisation → connected providers → configuration (`ai_model_configuration`, most specific scope wins) → capability profile (`ai_capability_profiles`) → model (`ai_models`) → credentials, runs the provider adapter (`_shared/ai/adapters/`), and writes one `ai_usage_events` row.
 
 - **Customer API keys** live in Supabase Vault (secret name `integration_<integration id>`). `integration_credentials` stores only the Vault secret id and the key's last four characters. The table has no client-role access; the Vault helper functions (`store_/read_/delete_integration_secret`) are executable by `service_role` only, and keys are decrypted only inside Edge Functions. Keys are never returned to the browser and must never be logged or placed in admin event `meta`.
-- **Layercake's own key** (`ANTHROPIC_API_KEY`, §7.2) is a fallback used only when the `ai_platform_provider` feature flag is on for the organisation. There is no other silent fallback to it.
+- **No Layercake-held key.** Every request uses the organisation's own connected provider. With none connected, the gateway throws `AiUnavailableError` (`no_connection`) and the UI greys the AI action out with a link to Integrations. The `ai_platform_provider` flag and `ANTHROPIC_API_KEY` secret are retired (2026-11-17); the flag row is left in the database but nothing reads it.
 - **Usage events** record tokens and attribution only — never prompts, responses or entry content.
 
 ### 7.5 Sensitive data at rest (Postgres)

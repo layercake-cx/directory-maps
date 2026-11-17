@@ -26,6 +26,122 @@ Revert the commit to restore the workflow.
 
 ---
 
+=======
+## 2026-11-17 — [Migration + Edge Functions + frontend] Archive and Restore
+
+**Branch:** `feat/2026-11-17-archive` (stacked on `feat/2026-11-17-list-layout`; merge that first)
+
+### What changed
+- Customers, maps and directories can be archived and restored. Archiving never deletes anything: it flips `is_active` and records `archived_at` / `archived_by`. An archived directory or map goes offline to visitors (including custom domains, sitemaps and embeds, which get a 410 "no longer available" page). Archiving a customer locks out its users and takes all its maps and directories offline; items archived separately before stay archived when the customer is restored.
+- Migration `20261117150000_archive_and_restore.sql`, rollback `_20261117150000_archive_and_restore.rollback.sql`. Adds the columns; `is_entity_live`, `entity_status`, `entity_status_by_slug`, `my_client_is_archived`; changes `current_user_client_id()` (null for an archived customer), the anon read policies on maps, groups, listings, map_publications, directories and directory_entries, the "Clients manage their own maps" policy, and `resolve_custom_domain` (adds `is_live`). No backfill.
+- Edge Functions that now skip archived items: `complete_invited_signup`, `sync_sheet_listings` (logs "skipped: archived"), `send_claim_link`, `send_contact_message`, `submit_claim_request`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (jobs are put back in the queue and resume on restore). New shared helper `_shared/liveness.ts`. The other AI `generate_*` functions are user-initiated and not yet guarded (BACKLOG).
+- Frontend: ArchiveDialog (typed ARCHIVE), archived banner and read-only mode, row and bulk Archive, Undo toast, customer sign-in lock-out with `/login?archived=1`, edge 410 in `middleware.js`, unavailable state on `SlugMap`/`EmbedMap`/`CustomDomainMap`. The ⋯ row menu is now fixed-position so it is not clipped by the scrolling table.
+- Admin events: `directory_archived`/`_restored`, `map_archived`/`_restored`, `client_archived`/`_restored`, plus `_bulk_` variants (`count`, `ids`); meta carries `was_live` and `trigger`. `admin_events.event_type` is free text, so no constraint change.
+
+### Staging / production outcome
+- **Staging, 2026-11-17:** migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions above deployed to the test project. Frontend and `middleware.js` not deployed to a Vercel preview; staging was tested by the user against the local app.
+- **Production, 2026-11-17:** user signed off. Branch already contained current `origin/main`. Migration applied with `supabase db push` (linked to `gxixwdjfmegxcxfeflro`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions deployed to production (all ACTIVE, confirmed with `supabase functions list`). Frontend and `middleware.js` deployed with `npm run deploy:live` (`directory-maps-byhg7wwa5-layercake-apps.vercel.app`, aliased to uk-associations.com). CLI relinked to staging afterwards. GitHub Pages deploys on merge.
+
+### Rollback plan
+Restore anything archived, then run the rollback file (it refuses while archived rows exist). Revert the commits and redeploy the seven functions and the frontend.
+
+### Verification
+- [x] Staging: migration applied, `VERIFY PASSED` seen.
+- [ ] Staging: row counts before/after compared (the migration prints them; not compared by hand).
+- [x] Staging: user tested the archive flows (not the edge 410 pages, which need Vercel).
+- [x] Production: migration applied, `VERIFY PASSED` seen; functions ACTIVE; frontend deployed. Row counts not compared by hand; 410 pages and the customer lock-out not yet checked on production.
+
+---
+
+## 2026-11-17 — [Migration] Retire the `ai_platform_provider` feature flag
+
+**Branch:** `feat/2026-11-17-remove-ai-platform-fallback` (PR 360)
+
+### What changed
+- Deletes the `ai_platform_provider` row from `feature_flags` and all of its `feature_flag_overrides`. The AI Gateway stopped reading the flag when the Layercake AI account fallback was removed (entry above), so these rows were dead config. The user explicitly signed off this DELETE on 2026-11-17; only that flag's rows are touched.
+- Migration `20261117120000_retire_ai_platform_provider_flag.sql`, rollback `_20261117120000_retire_ai_platform_provider_flag.rollback.sql` (restores the flag and an ON override per client; restoring the old behaviour also needs the code change reverted and `ANTHROPIC_API_KEY` re-set).
+
+### Staging / production outcome
+- **Staging, 2026-11-17:** applied by the user with `supabase db push --linked --yes` (linked to `beqejxneehilplrtpntn`); only this migration was pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`.
+- **Production, 2026-11-17:** applied on the user's explicit go-ahead with `supabase db push --linked --yes` after linking to `gxixwdjfmegxcxfeflro`; the dry run listed only this migration as pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`. CLI re-linked to staging afterwards.
+
+### Rollback plan
+Run the rollback file in the SQL editor.
+
+### Verification
+- [x] Staging dry run lists only this migration as pending.
+- [x] Staging: applied, notice `VERIFY PASSED: ai_platform_provider flag and overrides removed` seen.
+- [ ] Staging: before/after row counts compared (flags -1, other flags' overrides and clients unchanged). Not run.
+- [x] Production: applied, `VERIFY PASSED` notice seen. Row counts not compared (no remote SQL from the CLI).
+
+---
+
+## 2026-11-17 — [Edge Functions + frontend] Removed the Layercake AI account fallback
+
+**Branch:** `feat/2026-11-17-remove-ai-platform-fallback`
+
+### What changed
+- Until now, an organisation with no connected AI provider still ran AI features on Layercake's own Anthropic account (`ANTHROPIC_API_KEY`) if the `ai_platform_provider` flag was on, which it was for every client that existed on 2026-10-05. That fallback is gone. Every AI request now runs on the organisation's own connected provider, or is refused with "AI isn't set up for this organisation yet."
+- Gateway (`_shared/ai/resolve.ts`, `types.ts`): the platform branch, the flag check and the `ANTHROPIC_API_KEY` read are removed; `AiConnectionSource` is now only `"customer"`. `get_ai_route_preview` no longer special-cases the platform key. Plain-English unavailable messages.
+- `claim_listing_ai` gains a `status` action so the claimed-listing manager (whose users are not members of the organisation, and so cannot call the route preview) can grey out its AI button and say why.
+- UI: every AI button and bulk action was already disabled when unavailable; the shared notice now reads "Set up your AI account in Integrations" and links there. The run summary no longer says "Layercake's account". The claimed-listing manager shows a disabled button with a note that the directory's administrators need to connect an AI account. Prompt settings stay editable so they can be prepared before connecting.
+- Tests: `gateway_test.ts` now proves there is no fallback even with the flag row and `ANTHROPIC_API_KEY` present.
+- No migration. The `ai_platform_provider` flag and its per-client overrides are left in place, unused (deleting them is a bulk DELETE and needs explicit sign-off). Old `ai_usage_events` rows keep `connection_source = 'platform'`.
+- Docs: USER_GUIDE, FEATURES, DATA_AND_PRIVACY, INTEGRATION_ARCHITECTURE.
+
+### Impact to check before production
+- **Any organisation that has not connected its own provider loses AI features on deploy.** Before deploying, list them: clients with `ai_usage_events.connection_source = 'platform'` in the last 90 days and no `integrations` row of type `ai` with status `connected`. Tell them to connect a key first.
+- Functions that import the gateway need redeploying: `generate_entry_content`, `generate_entry_seo_metadata`, `generate_directory_seo_metadata`, `generate_media_alt_text`, `generate_content_page_draft`, `generate_content_page_seo`, `directory_ai_search`, `claim_listing_ai`, `get_ai_route_preview`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`, `manage_client_integrations`, plus anything importing `_shared/seoMetadataBackfill.ts`/`entryResearch.ts` (e.g. the publish function).
+- After production is confirmed, delete the `ANTHROPIC_API_KEY` secret from both Supabase projects.
+
+### Production outcome
+- **Staging, 2026-11-17:** the 13 gateway-dependent Edge Functions deployed to the test project (`beqejxneehilplrtpntn`): `claim_listing_ai`, `directory_ai_search`, `generate_content_page_draft`, `generate_content_page_seo`, `generate_directory_seo_metadata`, `generate_directory_site` (no `builders.ts` change, so no `ENTRY_TEMPLATE_VERSION` bump), `generate_entry_content`, `generate_entry_seo_metadata`, `generate_media_alt_text`, `get_ai_route_preview`, `manage_client_integrations`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`. Frontend preview deployed to Vercel (`directory-maps-d5ygxewsf-layercake-apps.vercel.app`).
+- **Production, 2026-11-17:** user verified staging and signed off. Branch merged with current `origin/main` first (already up to date). The same 13 Edge Functions deployed to `gxixwdjfmegxcxfeflro` (all ACTIVE, confirmed with `supabase functions list`), and the frontend deployed with `npm run deploy:live` (Vercel READY, aliased to uk-associations.com). The list of organisations that relied on the Layercake account was not run before deploying; any that have not connected a provider now see AI greyed out.
+- Still to do: delete the `ANTHROPIC_API_KEY` secret from both Supabase projects; GitHub Pages deploys on merge.
+
+### Rollback plan
+Revert the commit and redeploy the same Edge Functions and the frontend; re-set `ANTHROPIC_API_KEY` if it was deleted. The flag overrides were never touched, so the old behaviour returns as it was.
+
+### Verification
+- [x] `deno test --allow-env supabase/functions/_shared/ai/` passes (13 tests); `deno check` on `claim_listing_ai` and `get_ai_route_preview` passes.
+- [x] `vite build` and `scripts/check-ui.sh` pass.
+- [x] Staging (user-verified): a test org with no provider connected shows every AI button greyed out with the notice and link (entry content, entry SEO, directory SEO backfill, content pages, image alt text, Help me choose); the link opens Integrations.
+- [x] Staging (user-verified): the claimed-listing manager shows the disabled button and note for a claim user.
+- [x] Staging (user-verified): after connecting a key, the same buttons work and write `ai_usage_events` with `connection_source = customer`.
+
+---
+
+## 2026-11-15 — [Production] Card listing layout for the directory home page
+
+**Branch:** `feat/2026-11-15-directory-card-layout`
+
+### What changed
+- **Why:** directory home pages could only show entries as one long list. A client's brand canvas uses a grid of supplier cards, coloured by category. Spec: `docs/DIRECTORY_CARD_LAYOUT_SPEC.md` (§14 records where the build differs).
+- **New setting, Look & feel › Listings:** Layout List / Cards. With Cards: *Colour cards by* (Automatic, any attached category, or Don't colour), *Show summary on cards*, and *Button text*. Stored as four optional `theme_json` keys (`listingLayout`, `cardColourBy`, `cardShowSummary`, `cardCtaLabel`); no migration. List stays the default, and a directory that never touches the tab publishes byte-identical HTML (golden test).
+- **`generate_directory_site`:** in card mode each entry renders as a card (category-coloured stripe, badge, name, location, button line) on the same `<a class="dir-row">` element with the same data attributes, so search, facet filters, distance, Ask AI "why" lines and the map behave exactly as in the list. Term colours (`category_terms.color`, already editable in Categories) are now loaded and hex-validated before reaching any `style` attribute. Colour-category filter options and active chips show a matching dot. With no map attached, card-mode results use the full width (3–4 columns). `ENTRY_TEMPLATE_VERSION` 21 → 22 so the next ordinary Publish picks up the new CSS.
+- **Editor fix found on the way:** `themeFromDirectory()` only copied known keys, so new `theme_json` keys would have been dropped on load and wiped by the next save. `cardKeysFrom()` now carries the card keys through.
+- **Events:** no new visitor action (a card is the same link to the entry page a row was), so no `map_engagement_events` change. `directory_branding_updated` gains `changed_fields` and `listing_layout` (AGENTS.md catalogue updated).
+
+### Staging outcome
+- 2026-11-15: `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`) from this branch.
+
+### Production outcome
+- 2026-11-15 21:49 GMT: on the user's instruction ("just deploy into live"), `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`) from this branch, which already contained current `origin/main` (template version 22). The staging checks below were skipped at the user's request.
+- Frontend deployed to Vercel production from this branch with `npm run deploy:live` (deployment `directory-maps-bca9vkxld`, status Ready, aliased to maps.layercake-cx.biz; the live bundle contains the new Listings tab). GitHub Pages updates when the PR merges.
+- Existing directories are unaffected until an owner picks Cards and republishes. The next ordinary Publish of any directory does a full rebuild because of the template version bump.
+
+### Rollback plan
+Revert the branch's commits and redeploy `generate_directory_site` (template version goes back to 21, which forces a full rebuild on the next Publish). No data to undo: the four `theme_json` keys are ignored by the old generator.
+
+### Verification
+- [x] `deno test --allow-read supabase/functions/generate_directory_site/` passes (50 tests, including 19 new card-layout tests: list byte-identity, data attributes, stripe colour rules, CTA escaping, address and summary toggles).
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [x] Generated card pages checked in a browser with the real theme CSS: Natural and Midnight presets, with and without a map (2 vs 3 columns at 1024px), one column at 375px with no horizontal scroll; filtering hides cards without grid gaps and the chip shows its colour dot.
+- [ ] Look & feel › Listings tab not yet checked in the running app (needs a login): switch to Cards, change each setting, check the preview, save, and confirm the settings survive a reload.
+- [ ] Staging: publish a directory with Cards on in each built-in preset; check search, filters, distance sort, Ask AI "why" lines and the List/Map toggle on mobile, tablet and desktop.
+- [x] Production deploy of `generate_directory_site` and the Vercel frontend (see Production outcome).
+
+>>>>>>> origin/main
 ## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
 
 **Branch:** `fix/2026-11-15-publish-card-stale-status`

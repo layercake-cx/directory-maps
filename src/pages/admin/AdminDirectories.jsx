@@ -3,21 +3,28 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AdminLayout from "./AdminLayout.jsx";
 import {
-  Button, Callout, DataTable, EmptyState, Field, PageLayout, Pill, Section, TextInput, Toolbar,
+  Button, EmptyState, ListPage, NameCell, Pill, formatListDate, useListView,
 } from "../../components/ui/index.js";
-import "../../styles/wave-c/clients.css";
+import { useArchiveFlow } from "../../components/archive/useArchiveFlow.jsx";
+
+const VIEWS = [
+  { key: "all", label: "All directories" },
+  { key: "published", label: "Published" },
+  { key: "unpublished", label: "Not yet published" },
+  { key: "archived", label: "Archived" },
+];
 
 /**
- * Top-level, cross-client Directories list (DIR-E1 hardening) — mirrors
- * AdminMaps.jsx. Directories were previously only reachable via a per-customer
- * tab in AdminClientDetail.jsx; this gives admin the same "/admin/maps"-style
- * searchable overview for the Directories entity.
+ * Platform › All directories (DIR-E1 hardening): the shared list layout with a Customer column,
+ * across every customer. Mirrors AdminMaps.jsx.
  */
 export default function AdminDirectories() {
   const [directories, setDirectories] = useState([]);
   const [clientsById, setClientsById] = useState({});
   const [entryCountByDirectoryId, setEntryCountByDirectoryId] = useState({});
   const [q, setQ] = useState("");
+  const [view, setView] = useListView(VIEWS.map((v) => v.key));
+  const { requestArchive, restore, dialog } = useArchiveFlow({ entityType: "directory", isStaff: true, onChanged: () => load() });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -33,8 +40,8 @@ export default function AdminDirectories() {
       ] = await Promise.all([
         supabase
           .from("directories")
-          .select("id, name, slug, client_id, is_active")
-          .order("name", { ascending: true }),
+          .select("id, name, slug, client_id, is_active, archived_at, archived_by, published_at, updated_at")
+          .order("updated_at", { ascending: false }),
         supabase.from("clients").select("id, name, slug").order("name", { ascending: true }),
         supabase.from("directory_entries").select("directory_id"),
       ]);
@@ -43,16 +50,13 @@ export default function AdminDirectories() {
       if (clientsError) throw clientsError;
       if (entriesError) throw entriesError;
 
-      const byId = {};
-      (clientsData ?? []).forEach((c) => { byId[c.id] = c; });
-
       const countByDirectoryId = {};
       (entriesData ?? []).forEach((row) => {
         if (row.directory_id) countByDirectoryId[row.directory_id] = (countByDirectoryId[row.directory_id] ?? 0) + 1;
       });
 
       setDirectories(dirsData ?? []);
-      setClientsById(byId);
+      setClientsById(Object.fromEntries((clientsData ?? []).map((c) => [c.id, c])));
       setEntryCountByDirectoryId(countByDirectoryId);
     } catch (e) {
       setErr(e.message ?? String(e));
@@ -65,91 +69,93 @@ export default function AdminDirectories() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
-    const query = (q || "").trim().toLowerCase();
-    if (!query) return directories;
-    return directories.filter((d) => {
-      const client = clientsById[d.client_id];
-      return (
-        (d.name ?? "").toLowerCase().includes(query) ||
-        (d.slug ?? "").toLowerCase().includes(query) ||
-        (client?.name ?? "").toLowerCase().includes(query) ||
-        (client?.slug ?? "").toLowerCase().includes(query)
-      );
+  const counts = useMemo(
+    () => ({
+      all: directories.filter((d) => d.is_active).length,
+      published: directories.filter((d) => d.is_active && d.published_at).length,
+      unpublished: directories.filter((d) => d.is_active && !d.published_at).length,
+      archived: directories.filter((d) => !d.is_active).length,
+    }),
+    [directories],
+  );
+
+  const rows = useMemo(() => {
+    let list;
+    if (view === "published") list = directories.filter((d) => d.is_active && d.published_at);
+    else if (view === "unpublished") list = directories.filter((d) => d.is_active && !d.published_at);
+    else if (view === "archived") list = directories.filter((d) => !d.is_active);
+    else list = directories.filter((d) => d.is_active);
+    const query = q.trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((d) => {
+      const c = clientsById[d.client_id];
+      return [d.name, d.slug, c?.name, c?.slug].some((v) => (v ?? "").toLowerCase().includes(query));
     });
-  }, [directories, clientsById, q]);
+  }, [directories, clientsById, view, q]);
 
   const adminUrlFor = (d) =>
-    d.client_id ? `/admin/clients/${encodeURIComponent(d.client_id)}/directories/${encodeURIComponent(d.id)}` : null;
+    d.client_id ? `/admin/clients/${encodeURIComponent(d.client_id)}/directories/${encodeURIComponent(d.id)}` : "#";
+
+  const liveUrl = (d) => {
+    const slug = clientsById[d.client_id]?.slug;
+    return d.is_active && d.published_at && slug && d.slug ? `https://maps.layercake-cx.biz/directories/${slug}/${d.slug}` : null;
+  };
+
+  const rowMenu = (d) => {
+    const open = { label: "Open", href: adminUrlFor(d) };
+    if (!d.is_active) return [{ label: "Restore", onSelect: () => restore([d]) }, open];
+    const items = [open];
+    const url = liveUrl(d);
+    if (url) items.push({ label: "View live site ↗", href: url });
+    items.push({ divider: true }, { label: "Archive…", danger: true, onSelect: () => requestArchive([d]) });
+    return items;
+  };
 
   const columns = [
-    {
-      key: "name",
-      label: "Directory name",
-      render: (d) => (
-        <>
-          <strong>{d.name ?? "—"}</strong>
-          {d.slug ? <span className="wc-cell-sub">{d.slug}</span> : null}
-        </>
-      ),
-    },
+    { key: "name", label: "Directory", render: (d) => <NameCell name={d.name ?? "—"} sub={d.slug} /> },
     {
       key: "customer",
       label: "Customer",
       render: (d) => {
-        const client = clientsById[d.client_id];
-        return client ? (
-          <Link to={`/admin/clients/${encodeURIComponent(d.client_id)}`}>{client.name}</Link>
-        ) : (
-          <span className="wc-muted">—</span>
-        );
+        const c = clientsById[d.client_id];
+        return c ? <Link to={`/admin/clients/${encodeURIComponent(d.client_id)}`}>{c.name}</Link> : "—";
       },
     },
-    { key: "entries", label: "Entries", render: (d) => entryCountByDirectoryId[d.id] ?? 0 },
     {
       key: "status",
       label: "Status",
-      render: (d) => <Pill tone={d.is_active ? "ok" : "neutral"}>{d.is_active ? "Active" : "Archived"}</Pill>,
+      render: (d) => {
+        if (!d.is_active) return <Pill>Archived</Pill>;
+        return d.published_at ? <Pill tone="live">Published</Pill> : <Pill tone="warn">Not yet published</Pill>;
+      },
     },
+    { key: "entries", label: "Entries", className: "cell-num", align: "right", render: (d) => entryCountByDirectoryId[d.id] ?? 0 },
+    { key: "updated", label: "Updated", render: (d) => formatListDate(d.updated_at) },
   ];
 
   return (
     <AdminLayout>
-      <PageLayout head={{ title: "Directories", actions: <Button onClick={load}>Refresh</Button> }}>
-        <div className="wc-stack">
-          {err ? <Callout tone="danger">{err}</Callout> : null}
-
-          <Section flush>
-            <Toolbar className="wc-toolbar">
-              <Field label="Search directories" className="wc-field-grow">
-                <TextInput
-                  type="search"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search by directory name or customer name…"
-                />
-              </Field>
-            </Toolbar>
-            <DataTable
-              caption="Directories"
-              columns={columns}
-              rows={filtered}
-              getRowId={(d) => d.id}
-              getRowLabel={(d) => d.name ?? "directory"}
-              rowLink={(d) => adminUrlFor(d) ?? "#"}
-              loading={loading}
-              empty={
-                err ? null : (
-                  <EmptyState
-                    art="none"
-                    title={directories.length === 0 ? "No directories yet" : "No directories match your search"}
-                  />
-                )
-              }
-            />
-          </Section>
-        </div>
-      </PageLayout>
+      {dialog}
+      <ListPage
+        head={{ title: "Directories", subtitle: "Every directory across all customers.", actions: <Button onClick={load}>Refresh</Button> }}
+        noun="directories"
+        error={err}
+        itemCount={directories.length}
+        alwaysShowToolbar
+        views={{ label: "Filter directories", value: view, onChange: setView, options: VIEWS.map((v) => ({ ...v, count: counts[v.key] })) }}
+        search={{ label: "Search directories", value: q, onChange: setQ, placeholder: "Search by directory name or customer…" }}
+        emptyAll={<EmptyState art="none" title="No directories yet" />}
+        table={{
+          caption: "Directories",
+          columns,
+          rows,
+          getRowId: (d) => d.id,
+          getRowLabel: (d) => d.name ?? "directory",
+          rowLink: adminUrlFor,
+          rowMenu,
+          loading,
+        }}
+      />
     </AdminLayout>
   );
 }

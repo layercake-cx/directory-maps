@@ -258,7 +258,7 @@ If generation fails with a temporary file-host error (for example "Blob service 
 
 ### Look & feel
 
-Under **Experience › Look & feel** (owners and managers only; the old **Design** link redirects here) you set how the published directory looks. The page has eight tabs in two groups, each deep-linkable (for example `…/look-and-feel?tab=footer`): **Whole site** — Theme, Logo & identity, Colours, Ask AI, Typography — and **Page areas** — Header, Hero banner, Footer. A **live preview** beside the editor shows your unsaved edits and outlines the part of the page the current tab changes. All tabs share one set of edits, so switching tabs never loses anything.
+Under **Experience › Look & feel** (owners and managers only; the old **Design** link redirects here) you set how the published directory looks. The page has nine tabs in two groups, each deep-linkable (for example `…/look-and-feel?tab=footer`): **Whole site** — Theme, Logo & identity, Colours, Ask AI, Typography — and **Page areas** — Header, Hero banner, Listings, Footer. A **live preview** beside the editor shows your unsaved edits and outlines the part of the page the current tab changes. All tabs share one set of edits, so switching tabs never loses anything.
 
 - **Save and publish are separate.** The bar at the bottom shows how many changes are unsaved. **Save** writes them; **Discard** reverts to the last saved look (after a confirmation). Saving does not change the live site: open **Publishing** (or follow the **Review and publish →** link that appears after a save) to put it live. Leaving the page with unsaved changes asks you to confirm.
 - **Theme** — **Your themes** lists looks your organisation saved (visible from all its directories); the one matching your current colours and fonts is marked **In use**. Use the **⋯** menu to **Apply**, **Rename** or **Delete**. **Save current as theme** asks for a name. **Built-in themes** — Natural, Midnight, Coastal, Heritage and Slate — each have an **Apply** button. Applying replaces colours, fonts, header and footer styling and asks first if you have unsaved edits. Built-in themes keep your logo, favicon, banner, site name and text sizes; a theme you saved also carries the logo, favicon and banner it was saved with. Applying is a one-time copy, not a link.
@@ -268,6 +268,11 @@ Under **Experience › Look & feel** (owners and managers only; the old **Design
 - **Typography** — heading and body fonts from a curated list of Google Fonts, with a live sample of each, and a table of text sizes: body (px) and headings 1–3 (rem), each with a sample at that size.
 - **Header** — background (solid, or a linear/radial gradient with angle and 2–4 colour stops) and text colour with a readability badge (gradients are checked against every stop). Dropdown menus under the header use these colours too.
 - **Hero banner** — an optional full-width image behind the header and the top of every published page (wide PNG/JPG/WebP, up to 5 MB) with a **banner height** slider. It fades into the page background colour. While a banner is set, the header goes 40% transparent so the image shows through, and the image runs 100px past the chosen height.
+- **Listings** — how entries are laid out on the directory's home page. **Layout** is **List** (the default: one row per entry, logo on the left) or **Cards** (a grid of panels). Each card has a coloured stripe along the top, a badge with the entry's category, the name, the location (only when the entry shows its address), and a button line at the bottom; the whole card is the link to the entry. With a map beside the results you get two columns on a desktop screen; without a map, three or four; on a phone, one. Search, filters, distance and Ask AI work the same in both layouts. When Cards is on:
+  - **Colour cards by** picks the category whose colours set each card's stripe and badge. **Automatic** (the default) uses the first single-choice category that has colours; the hint says which one. **Don't colour** gives every stripe your Primary colour. Colours come from each category value's colour in **Categories** — if the category you pick has none, a link takes you there. An entry with no value in that category, or a value with no colour, gets the Primary colour. The filter options for that category (and the chips above the results when one is selected) show a small dot in the same colour, so visitors can read the colours.
+  - **Show summary on cards** adds the entry's short description (up to three lines) and up to three tags. Off by default.
+  - **Button text** is the line at the bottom of every card, followed by an arrow (default "View details", up to 30 characters).
+  Applying a built-in theme never changes these settings; a theme your organisation saved carries the settings it was saved with. Save, then publish, for the change to appear.
 - **Footer** — background (same editor as the header, colour stops behind **Edit colour stops**), and text, link and link-hover colours with readability badges. **Match header** copies the header background and keeps the footer in step with it until you untick it. Every published footer also carries a **Built on Layercake Maps** panel with no settings of its own; its colours follow your footer background, text colour and primary colour.
 
 Corner radius isn't built yet. Logo and favicon uploads only accept PNG/JPG/WebP — SVG isn't supported (the underlying storage bucket deliberately restricts SVG uploads platform-wide).
@@ -826,16 +831,16 @@ The **AI usage** tab on the Integrations page shows the AI usage generated throu
 
 - headline totals: requests, input tokens, output tokens, total tokens and an estimated provider cost;
 - tokens per day;
-- tables by feature (with each feature's share), by directory, and by provider and model, including whether a request ran on **your** provider account or on Layercake's own account.
+- tables by feature (with each feature's share), by directory, and by provider and model, including the provider account each request ran on. Every request now runs on your own account; older rows from before 2026-11-17 may show "Layercake's".
 
 Two things to keep in mind:
 
-- **It is Layercake's usage, not your whole account.** If you use the same provider account for other things, those are not included. Requests that ran on Layercake's own account are counted but flagged, because your provider doesn't bill those.
+- **It is Layercake's usage, not your whole account.** If you use the same provider account for other things, those are not included. Older requests that ran on Layercake's own account (before 2026-11-17) are counted but flagged, because your provider didn't bill those.
 - **Costs are estimates.** They use published provider pricing, shown only for models whose price is known (otherwise the page says how many requests were left out). Cached tokens, discounts, agreements, credits and currency conversion can all make your real bill differ. Your provider account is the authoritative source for billing.
 
 ### When no provider is connected
 
-AI actions explain why they are unavailable instead of failing: "Generate with AI" buttons are greyed out with a link to Integrations, the bulk "Generate all entry content" and "Backfill missing metadata" actions are disabled, and Ask AI stays hidden to visitors while keyword search carries on. Nothing falls back to another account behind your back. Browsing, keyword search and manual editing are never affected. (Organisations that predate customer-managed AI keep using Layercake's account until they connect their own.)
+**AI only runs on your own AI account.** Layercake no longer provides an AI account to fall back on (removed 2026-11-17, including for organisations that used it before). Until you connect Anthropic, OpenAI or Google Gemini under **Integrations → AI providers**, every AI action is greyed out and says so in plain English, with a link to set it up: the "Generate with AI" buttons on entries, SEO fields, content pages and image descriptions, the bulk "Generate all entry content" and "Backfill missing metadata" actions, and the Help me choose settings. Visitors to your published site don't see Help me choose while it is unavailable, and keyword search carries on. In the claimed-listing manager, a claim user sees the same greyed-out button with a note that the directory's administrators need to connect an AI account, and can still write the listing by hand. Browsing, keyword search, publishing and manual editing are never affected.
 
 ### Bulk AI runs
 
@@ -846,6 +851,27 @@ Afterwards the AI enrichment and SEO pages show how many requests and tokens the
 Staff can open the same page for any customer from **Customers → (customer) → Integrations**. Connecting, testing, replacing and disconnecting are recorded in the admin event log.
 
 ---
+
+## Archiving and restoring
+
+You can archive a directory, a map, or (Layercake staff only) a whole customer when it is no longer needed. **Nothing is deleted.** You can restore it at any time and it comes back exactly as it was.
+
+**What goes offline**
+- An archived **directory** shows visitors a "no longer available" page, on its address and on any custom domain. Linked maps stop updating from it.
+- An archived **map** and every embed of it show "This map is no longer available". Scheduled Google Sheets syncs pause.
+- An archived **customer** takes all its maps and directories offline and its users cannot sign in: they see "This account is archived. Contact Layercake to restore it." Billing and plan are not changed. Items archived separately before stay archived when the customer is restored.
+
+**What is kept:** listings, entries, pages, settings, publish history, files and queued AI jobs.
+
+**How to archive**
+1. Open the ⋯ menu on a row in **Directories**, **Maps** or **Customers** (or select several directories or maps and use **Archive…**). Directory settings and a customer's details tab also have an Archive control.
+2. Read what will happen, type `ARCHIVE` in capitals and confirm. The row moves to the **Archived** view and a message appears with **Undo**.
+
+**How to restore:** open the **Archived** view and choose **Restore** from the row's ⋯ menu, or use the **Restore** button in the banner on an archived item's page. Restoring needs no typing. If it was published, it is live again within about a minute.
+
+**Who can:** managers of the organisation and Layercake staff can archive and restore directories and maps. Only staff can archive or restore a customer. View-only users can see archived items, read-only, with no archive or restore controls.
+
+An archived item's pages show a banner and are read-only: you can look around and export, but not edit, publish, sync, import or invite.
 
 ## Quick reference
 
@@ -881,6 +907,7 @@ Staff can open the same page for any customer from **Customers → (customer) �
 | Set the directory header logo height | Directory → Look & feel → Logo & identity → Logo height |
 | Set the published directory favicon | Directory → Look & feel → Logo & identity → Favicon |
 | Set a full-width hero banner | Directory → Look & feel → Hero banner |
+| Show entries as cards instead of a list | Directory → Look & feel → Listings, then Publish |
 | Set the published site's Home nav label | Directory → Settings → Home navigation label |
 | Connect GA4 or GTM to a directory | Directory → Settings → Web Analytics |
 | Turn on location search | Directory → Settings → Search → Location search, then Publish |

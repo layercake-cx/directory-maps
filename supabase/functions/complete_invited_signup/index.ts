@@ -1,4 +1,5 @@
 import { createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive, NOT_LIVE_MESSAGE } from "../_shared/liveness.ts";
 import { errorMessage } from "../_shared/errors.ts";
 import { checkSeatAvailability } from "../_shared/seats.ts";
 
@@ -44,6 +45,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (invitationError) throw invitationError;
     if (!invitation) return jsonResponse({ error: "This invitation is invalid or has expired." }, 404);
+    if (!(await isEntityLive(service, "client", invitation.client_id))) {
+      return jsonResponse({ error: "This account is archived. Contact Layercake to restore it." }, 403);
+    }
     if (invitation.accepted_at) return jsonResponse({ error: "This invitation has already been accepted." }, 409);
     if ((invitation.email ?? "").trim().toLowerCase() !== email) {
       return jsonResponse({ error: "Use the same email address this invitation was sent to." }, 400);

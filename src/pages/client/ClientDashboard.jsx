@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../hooks/useClient.js";
+import { canManageOrg } from "../../lib/clientAuth.js";
 import { Callout } from "../../components/ui/index.js";
+import { fetchMapsForList } from "../../lib/mapsList.js";
 import MapsView from "./MapsView.jsx";
 import "../../styles/wave-b/map-pages.css";
 
@@ -17,7 +19,8 @@ function relativeTime(iso) {
 }
 
 export default function ClientDashboard() {
-  const { client } = useClient();
+  const { client, contact } = useClient();
+  const [reloadKey, setReloadKey] = useState(0);
   const [maps, setMaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -31,12 +34,8 @@ export default function ClientDashboard() {
         setLoading(true);
         setErr("");
 
-        const [{ data: ms, error: mErr }, { data: fs }] = await Promise.all([
-          supabase
-            .from("maps")
-            .select("id,name,slug,updated_at,default_lat,default_lng,default_zoom,published_at,map_data_sources(provider,spreadsheet_id,sheet_name),listings(count)")
-            .eq("client_id", client.id)
-            .order("updated_at", { ascending: false }),
+        const [ms, { data: fs }] = await Promise.all([
+          fetchMapsForList({ clientId: client.id }),
           supabase
             .from("sync_logs")
             .select("map_id, started_at, error_message, maps(name)")
@@ -45,7 +44,6 @@ export default function ClientDashboard() {
             .order("started_at", { ascending: false }),
         ]);
 
-        if (mErr) throw mErr;
         setMaps(ms ?? []);
 
         // Deduplicate to most recent failure per map_id (first occurrence since ordered desc)
@@ -62,7 +60,7 @@ export default function ClientDashboard() {
         setLoading(false);
       }
     })();
-  }, [client?.id]);
+  }, [client?.id, reloadKey]);
 
   const syncNotice = failedSyncs.length > 0 ? (
     <Callout tone="danger" title="Sync errors detected">
@@ -80,10 +78,12 @@ export default function ClientDashboard() {
   return (
     <MapsView
       maps={maps}
-      workspaceName={client?.name}
+      clientSlug={client?.slug}
       loading={loading}
       error={err}
       notice={syncNotice}
+      canManage={canManageOrg(contact)}
+      onChanged={() => setReloadKey((k) => k + 1)}
     />
   );
 }
