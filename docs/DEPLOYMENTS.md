@@ -20,8 +20,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Admin events: `directory_archived`/`_restored`, `map_archived`/`_restored`, `client_archived`/`_restored`, plus `_bulk_` variants (`count`, `ids`); meta carries `was_live` and `trigger`. `admin_events.event_type` is free text, so no constraint change.
 
 ### Staging / production outcome
-- **Staging, 2026-11-17:** migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions above deployed to the test project. Frontend and `middleware.js` not yet deployed to a Vercel preview.
-- **Production:** not applied. Needs explicit sign-off. Before deploying, merge current `origin/main` into the branch.
+- **Staging, 2026-11-17:** migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions above deployed to the test project. Frontend and `middleware.js` not deployed to a Vercel preview; staging was tested by the user against the local app.
+- **Production, 2026-11-17:** user signed off. Branch already contained current `origin/main`. Migration applied with `supabase db push` (linked to `gxixwdjfmegxcxfeflro`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions deployed to production (all ACTIVE, confirmed with `supabase functions list`). Frontend and `middleware.js` deployed with `npm run deploy:live` (`directory-maps-byhg7wwa5-layercake-apps.vercel.app`, aliased to uk-associations.com). CLI relinked to staging afterwards. GitHub Pages deploys on merge.
 
 ### Rollback plan
 Restore anything archived, then run the rollback file (it refuses while archived rows exist). Revert the commits and redeploy the seven functions and the frontend.
@@ -29,8 +29,8 @@ Restore anything archived, then run the rollback file (it refuses while archived
 ### Verification
 - [x] Staging: migration applied, `VERIFY PASSED` seen.
 - [ ] Staging: row counts before/after compared (the migration prints them; not compared by hand).
-- [ ] Staging acceptance table in `docs/design/discover-ui/ARCHIVE_BRIEF.md` §2.8 (manager, view-only user, staff).
-- [ ] Production: not applied.
+- [x] Staging: user tested the archive flows (not the edge 410 pages, which need Vercel).
+- [x] Production: migration applied, `VERIFY PASSED` seen; functions ACTIVE; frontend deployed. Row counts not compared by hand; 410 pages and the customer lock-out not yet checked on production.
 
 ---
 
