@@ -95,7 +95,9 @@ export interface AiAdapter {
   generate(apiKey: string, model: string, req: AiGenerateRequest): Promise<AiAdapterResult>;
 }
 
-export type AiConnectionSource = "customer" | "platform";
+// Always "customer": requests run on the organisation's own connected provider.
+// (ai_usage_events rows written before 2026-11-17 may still say "platform".)
+export type AiConnectionSource = "customer";
 
 export type AiModelRow = {
   provider: string;
