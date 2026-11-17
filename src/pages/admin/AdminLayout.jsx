@@ -1,3 +1,4 @@
+import ArchivedMapFrame from "../../components/archive/ArchivedFrame.jsx";
 import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import MapEditSubNav from "../../components/MapEditSubNav.jsx";
@@ -48,6 +49,7 @@ export default function AdminLayout({
   const pathname = location.pathname || "/";
   const showMapSubNav = isAdminClientMapRoute(pathname);
   const clientWorkspaceId = clientWorkspaceIdFromPath(pathname);
+  const adminMapId = showMapSubNav ? pathname.match(/^\/admin\/clients\/[^/]+\/maps\/([^/]+)/)?.[1] ?? null : null;
   // The map design page is edge-to-edge: no page title/padding; the sub-nav carries the actions instead.
   const flush = showMapSubNav && mainClassName.includes("admin-main--map-page");
   const context = clientWorkspaceId ? "client" : "platform";
@@ -84,7 +86,9 @@ export default function AdminLayout({
 
         {showMapSubNav && <MapEditSubNav standalone actions={flush ? rightActions : null} />}
 
-        {children}
+        {adminMapId ? (
+          <ArchivedMapFrame mapId={adminMapId} isStaff canManage>{children}</ArchivedMapFrame>
+        ) : children}
       </div>
     </AppShell>
   );

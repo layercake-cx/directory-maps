@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase.js";
 import { recordAdminEvent } from "../lib/adminEvents.js";
 import { canManageOrg } from "../lib/clientAuth.js";
 import {
-  archiveDirectory,
   deleteDirectoryPermanently,
   getContactDirectoryPermission,
   getDirectory,
@@ -42,7 +41,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
   const [permission, setPermission] = useState(null);
   const [permissionChecked, setPermissionChecked] = useState(isAdminView);
 
-  const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
@@ -103,26 +101,6 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
 
   const afterDeleteHref = isAdminView ? `/admin/clients/${encodeURIComponent(clientId)}` : "/client/directories";
 
-  const handleArchive = useCallback(async () => {
-    const publishedLinkedMaps = linkedMaps.filter((m) => m.current_publication_id);
-    const warning = linkedMaps.length
-      ? `\n\nWarning: ${linkedMaps.length === 1 ? "the map" : "maps"} "${linkedMaps.map((m) => m.name).join('", "')}" use${linkedMaps.length === 1 ? "s" : ""} this directory as ${linkedMaps.length === 1 ? "its" : "their"} live pin source. Archiving does NOT remove ${linkedMaps.length === 1 ? "it" : "them"} from public view` +
-        (publishedLinkedMaps.length ? ` — ${publishedLinkedMaps.length === 1 ? "it is" : "they are"} published and will keep showing this directory's data. Archive or delete the map itself to remove it from public view.` : ".")
-      : "";
-    const audience = isAdminView ? "this customer's" : "your";
-    if (!window.confirm(`Archive "${directory?.name}"? It will be hidden from ${audience} directories list.${warning}`)) return;
-    try {
-      setArchiving(true);
-      await archiveDirectory(directoryId);
-      recordEvent("directory_archived", { directory_id: directoryId, name: directory?.name });
-      navigate(afterDeleteHref);
-    } catch (e) {
-      setError(e?.message ?? String(e));
-    } finally {
-      setArchiving(false);
-    }
-  }, [directoryId, directory?.name, linkedMaps, isAdminView, afterDeleteHref, navigate, recordEvent]);
-
   const handleDelete = useCallback(async () => {
     if (deleteText !== "DELETE") return;
     try {
@@ -166,13 +144,11 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       hasAccess,
       permissionChecked,
       linkedMaps,
-      archiving,
       deleting,
       deleteOpen,
       setDeleteOpen,
       deleteText,
       setDeleteText,
-      handleArchive,
       handleDelete,
     }),
     [
@@ -192,11 +168,9 @@ export function DirectoryProvider({ directoryId, clientId, client: clientProp, i
       hasAccess,
       permissionChecked,
       linkedMaps,
-      archiving,
       deleting,
       deleteOpen,
       deleteText,
-      handleArchive,
       handleDelete,
     ],
   );

@@ -9,6 +9,8 @@ import IntegrationsPanel from "../../components/integrations/IntegrationsPanel.j
 import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
 import { fetchMapsForList } from "../../lib/mapsList.js";
+import { useArchiveFlow } from "../../components/archive/useArchiveFlow.jsx";
+import { useArchivedByName } from "../../lib/archive.js";
 import MapsList from "../../components/maps/MapsList.jsx";
 import DirectoriesDashboard from "../../components/directories/DirectoriesDashboard.jsx";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
@@ -17,8 +19,8 @@ import EntitlementsPanel from "../../components/admin/EntitlementsPanel.jsx";
 import EntitlementLimitModal from "../../components/admin/EntitlementLimitModal.jsx";
 import { fetchClientEntitlements } from "../../lib/entitlements.js";
 import {
-  Button, Callout, Checkbox, DataTable, Dialog, EmptyState, Field, PageLayout, Pill, Section, SettingRow,
-  SettingsLayout, Skeleton, Switch, TextInput,
+  ArchivedBanner, Button, Callout, Checkbox, DataTable, Dialog, EmptyState, Field, PageLayout, Pill, Section, SettingRow,
+  ReadOnly, SettingsLayout, Skeleton, Switch, TextInput,
 } from "../../components/ui/index.js";
 import "../../styles/wave-c/clients.css";
 import { DOMAINS_SUBTITLE } from "../../lib/clientDomains.js";
@@ -91,7 +93,7 @@ export default function AdminClientDetail() {
       ] = await Promise.all([
         supabase
           .from("clients")
-          .select("id,name,slug,subscription_active_override,created_at,updated_at")
+          .select("id,name,slug,subscription_active_override,is_active,archived_at,archived_by,created_at,updated_at")
           .eq("id", clientId)
           .single(),
         fetchMapsForList({ clientId }).then((data) => ({ data, error: null }), (error) => ({ data: null, error })),
@@ -389,7 +391,8 @@ export default function AdminClientDetail() {
   const topError = showTopError ? <Callout tone="danger">{err}</Callout> : null;
 
   function handleNewMap() {
-    const atMapLimit = maxMapsLimit != null && maps.length >= maxMapsLimit;
+    const activeMapCount = maps.filter((m) => m.is_active !== false).length;
+    const atMapLimit = maxMapsLimit != null && activeMapCount >= maxMapsLimit;
     if (atMapLimit) {
       recordEvent("entitlements_limit_blocked", { feature_key: "max_maps", source: "admin_client_detail" });
       setMapLimitModalOpen(true);
@@ -473,6 +476,14 @@ export default function AdminClientDetail() {
     setDeleteConfirmText("");
   }
 
+  const clientArchived = client?.is_active === false;
+  const archivedByName = useArchivedByName(client?.archived_by);
+  const { requestArchive: requestArchiveClient, restore: restoreClient, dialog: archiveClientDialog, busyIds: archiveBusy } = useArchiveFlow({
+    entityType: "client",
+    isStaff: true,
+    onChanged: load,
+  });
+
   return (
     <AdminLayout panel={<CustomerWorkspaceFeaturePanel clientId={clientId} clientName={client?.name} />}>
       {loading ? (
@@ -481,6 +492,16 @@ export default function AdminClientDetail() {
         </PageLayout>
       ) : (
         <>
+          {clientArchived ? (
+            <ArchivedBanner
+              thing="customer"
+              archivedAt={client.archived_at}
+              archivedBy={archivedByName}
+              onRestore={() => restoreClient([client], "banner")}
+              restoring={archiveBusy.includes(client.id)}
+            />
+          ) : null}
+          <ReadOnly active={clientArchived}>
           {activeTab === "maps" && (
             <>
               {topError}
@@ -492,6 +513,9 @@ export default function AdminClientDetail() {
                 }}
                 maps={maps}
                 clientSlug={client?.slug}
+                canManage
+                isStaff
+                onChanged={load}
                 mapHref={(m) => `${clientBase}/maps/${encodeURIComponent(m.id)}`}
                 newMapAction={<Button variant="primary" onClick={handleNewMap}>New map</Button>}
                 error={err}
@@ -506,6 +530,7 @@ export default function AdminClientDetail() {
                 clientId={clientId}
                 clientSlug={client?.slug}
                 canManage
+                isStaff
                 basePath={`${clientBase}/directories`}
                 newHref={`${clientBase}/directories/new`}
               />
@@ -593,6 +618,15 @@ export default function AdminClientDetail() {
                   </Field>
                 </Section>
               </form>
+
+              {!clientArchived ? (
+                <Section
+                  title="Archive customer"
+                  description="Takes every map and directory offline and locks out this customer's users. Nothing is deleted: Restore brings it all back."
+                >
+                  <Button variant="danger" onClick={() => requestArchiveClient([client], "settings")}>Archive customer…</Button>
+                </Section>
+              ) : null}
             </SettingsLayout>
           )}
 
@@ -675,6 +709,7 @@ export default function AdminClientDetail() {
               <IntegrationsPanel clientId={clientId} clientName={client?.name} eventSource="admin_dashboard" />
             </>
           )}
+          </ReadOnly>
         </>
       )}
 
@@ -716,6 +751,7 @@ export default function AdminClientDetail() {
           </Field>
         </Dialog>
       ) : null}
+      {archiveClientDialog}
       <EntitlementLimitModal
         open={mapLimitModalOpen}
         onClose={() => setMapLimitModalOpen(false)}

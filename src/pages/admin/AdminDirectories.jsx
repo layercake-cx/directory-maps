@@ -5,6 +5,7 @@ import AdminLayout from "./AdminLayout.jsx";
 import {
   Button, EmptyState, ListPage, NameCell, Pill, formatListDate, useListView,
 } from "../../components/ui/index.js";
+import { useArchiveFlow } from "../../components/archive/useArchiveFlow.jsx";
 
 const VIEWS = [
   { key: "all", label: "All directories" },
@@ -23,6 +24,7 @@ export default function AdminDirectories() {
   const [entryCountByDirectoryId, setEntryCountByDirectoryId] = useState({});
   const [q, setQ] = useState("");
   const [view, setView] = useListView(VIEWS.map((v) => v.key));
+  const { requestArchive, restore, dialog } = useArchiveFlow({ entityType: "directory", isStaff: true, onChanged: () => load() });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -38,7 +40,7 @@ export default function AdminDirectories() {
       ] = await Promise.all([
         supabase
           .from("directories")
-          .select("id, name, slug, client_id, is_active, published_at, updated_at")
+          .select("id, name, slug, client_id, is_active, archived_at, archived_by, published_at, updated_at")
           .order("updated_at", { ascending: false }),
         supabase.from("clients").select("id, name, slug").order("name", { ascending: true }),
         supabase.from("directory_entries").select("directory_id"),
@@ -101,8 +103,12 @@ export default function AdminDirectories() {
 
   const rowMenu = (d) => {
     const open = { label: "Open", href: adminUrlFor(d) };
+    if (!d.is_active) return [{ label: "Restore", onSelect: () => restore([d]) }, open];
+    const items = [open];
     const url = liveUrl(d);
-    return url ? [open, { label: "View live site ↗", href: url }] : [open];
+    if (url) items.push({ label: "View live site ↗", href: url });
+    items.push({ divider: true }, { label: "Archive…", danger: true, onSelect: () => requestArchive([d]) });
+    return items;
   };
 
   const columns = [
@@ -129,6 +135,7 @@ export default function AdminDirectories() {
 
   return (
     <AdminLayout>
+      {dialog}
       <ListPage
         head={{ title: "Directories", subtitle: "Every directory across all customers.", actions: <Button onClick={load}>Refresh</Button> }}
         noun="directories"

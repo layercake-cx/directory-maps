@@ -41,6 +41,9 @@ export default function AdminMaps() {
         maps={maps}
         clientsById={clientsById}
         showCustomer
+        canManage
+        isStaff
+        onChanged={load}
         // A map without a customer has no admin route to open.
         mapHref={(m) => (m.client_id ? `/admin/clients/${encodeURIComponent(m.client_id)}/maps/${encodeURIComponent(m.id)}` : "#")}
         loading={loading}

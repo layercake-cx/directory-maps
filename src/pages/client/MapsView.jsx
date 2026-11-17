@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/index.js";
 import MapsList from "../../components/maps/MapsList.jsx";
 
 /** `notice` is an optional node (e.g. a Callout) shown under the page heading. */
-export default function MapsView({ maps = [], clientSlug, loading, error, notice = null }) {
+export default function MapsView({ maps = [], clientSlug, loading, error, notice = null, canManage = false, onChanged }) {
   const navigate = useNavigate();
   const newMap = <Button variant="primary" onClick={() => navigate("/client/maps/new")}>New map</Button>;
 
@@ -18,6 +18,8 @@ export default function MapsView({ maps = [], clientSlug, loading, error, notice
       loading={loading}
       error={error}
       notice={notice}
+      canManage={canManage}
+      onChanged={onChanged}
     />
   );
 }

@@ -69,13 +69,14 @@ export function NameCell({ name, sub }) {
  *   itemCount: number,                  // every item, archived included (drives the empty state)
  *   emptyAll: React.ReactNode,          // shown when there are no items at all
  *   table: object,                      // DataTable props (columns, rows, rowLink, rowMenu, ...)
+ *   bulkBar?: React.ReactNode,          // a BulkBar, shown above the table while rows are selected
  *   below?: React.ReactNode,            // secondary Sections, always below the table
  *   aside?: React.ReactNode,
  * }} props
  */
 export default function ListPage({
   head, notice, error, noun, views, search, filters, toolbarActions, alwaysShowToolbar = false,
-  itemCount, emptyAll, table, below, aside,
+  itemCount, emptyAll, table, bulkBar, below, aside,
 }) {
   // "Archived" is always its own view, always last, and shown even at zero.
   const options = [
@@ -119,6 +120,8 @@ export default function ListPage({
             {toolbarActions}
           </Toolbar>
         ) : null}
+
+        {bulkBar}
 
         <Section flush>
           <DataTable empty={error ? null : empty} {...table} />

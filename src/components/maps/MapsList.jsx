@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Button, EmptyState, ListPage, NameCell, Pill, formatListDate, useListView,
+  BulkBar, Button, EmptyState, ListPage, NameCell, Pill, formatListDate, useListView,
 } from "../ui/index.js";
+import { useArchiveFlow } from "../archive/useArchiveFlow.jsx";
 
 const VIEWS = [
   { key: "all", label: "All maps" },
@@ -35,9 +36,16 @@ export function mapDataSource(map) {
  */
 export default function MapsList({
   maps, mapHref, newMapAction = null, head, notice, error, loading, clientSlug, clientsById = {}, showCustomer = false,
+  canManage = false, isStaff = false, onChanged,
 }) {
   const [view, setView] = useListView(VIEWS.map((v) => v.key));
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState([]);
+  const { requestArchive, restore, dialog } = useArchiveFlow({
+    entityType: "map",
+    isStaff,
+    onChanged: () => { setSelected([]); onChanged?.(); },
+  });
   const isArchived = (m) => m.is_active === false; // is_active arrives with the archive migration
 
   const counts = useMemo(
@@ -94,11 +102,16 @@ export default function MapsList({
 
   const rowMenu = (m) => {
     const open = { label: "Open", href: mapHref(m) };
+    if (isArchived(m)) return canManage ? [{ label: "Restore", onSelect: () => restore([m]) }, open] : [open];
+    const items = [open];
     const url = liveUrl(m);
-    return url ? [open, { label: "View live map ↗", href: url }] : [open];
+    if (url) items.push({ label: "View live map ↗", href: url });
+    if (canManage) items.push({ divider: true }, { label: "Archive…", danger: true, onSelect: () => requestArchive([m]) });
+    return items;
   };
 
   return (
+    <>
     <ListPage
       head={head}
       notice={notice}
@@ -118,7 +131,19 @@ export default function MapsList({
         rowLink: mapHref,
         rowMenu,
         loading,
+        selectable: canManage && view !== "archived",
+        selected,
+        onSelectedChange: setSelected,
       }}
+      bulkBar={
+        selected.length > 0 ? (
+          <BulkBar count={selected.length} onClear={() => setSelected([])}>
+            <Button variant="danger" onClick={() => requestArchive(maps.filter((m) => selected.includes(m.id)), "bulk")}>Archive…</Button>
+          </BulkBar>
+        ) : null
+      }
     />
+    {dialog}
+    </>
   );
 }

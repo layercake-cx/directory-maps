@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../hooks/useClient.js";
+import { canManageOrg } from "../../lib/clientAuth.js";
 import { Callout } from "../../components/ui/index.js";
 import { fetchMapsForList } from "../../lib/mapsList.js";
 import MapsView from "./MapsView.jsx";
@@ -18,7 +19,8 @@ function relativeTime(iso) {
 }
 
 export default function ClientDashboard() {
-  const { client } = useClient();
+  const { client, contact } = useClient();
+  const [reloadKey, setReloadKey] = useState(0);
   const [maps, setMaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -58,7 +60,7 @@ export default function ClientDashboard() {
         setLoading(false);
       }
     })();
-  }, [client?.id]);
+  }, [client?.id, reloadKey]);
 
   const syncNotice = failedSyncs.length > 0 ? (
     <Callout tone="danger" title="Sync errors detected">
@@ -80,6 +82,8 @@ export default function ClientDashboard() {
       loading={loading}
       error={err}
       notice={syncNotice}
+      canManage={canManageOrg(contact)}
+      onChanged={() => setReloadKey((k) => k + 1)}
     />
   );
 }

@@ -8,7 +8,7 @@ import { supabase } from "./supabase";
 export async function fetchMapsForList({ clientId } = {}) {
   let query = supabase
     .from("maps")
-    .select("id,name,slug,client_id,updated_at,published_at,map_data_sources(provider,spreadsheet_id,sheet_name),listings(count)")
+    .select("id,name,slug,client_id,updated_at,published_at,is_active,archived_at,archived_by,map_data_sources(provider,spreadsheet_id,sheet_name),listings(count)")
     .order("updated_at", { ascending: false });
   if (clientId) query = query.eq("client_id", clientId);
   const { data: maps, error } = await query;

@@ -9,6 +9,7 @@ import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
 import {
   Button, Dialog, EmptyState, Field, ListPage, NameCell, Pill, Select, TextInput, formatListDate, useListView,
 } from "../../components/ui/index.js";
+import { useArchiveFlow } from "../../components/archive/useArchiveFlow.jsx";
 import "../../styles/wave-c/clients.css";
 
 function buildPrimaryContactByClientId(contacts) {
@@ -41,6 +42,11 @@ export default function AdminClients() {
   const [betaFilter, setBetaFilter] = useState("all");
   const [directoryCountByClientId, setDirectoryCountByClientId] = useState({});
   const [betaClientIds, setBetaClientIds] = useState([]);
+  const { requestArchive, restore, dialog: archiveDialog } = useArchiveFlow({
+    entityType: "client",
+    isStaff: true,
+    onChanged: () => load(),
+  });
 
   async function load() {
     try {
@@ -56,7 +62,7 @@ export default function AdminClients() {
       ] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, name, slug, plan_key, created_at, updated_at")
+          .select("id, name, slug, plan_key, is_active, archived_at, archived_by, created_at, updated_at")
           .order("name", { ascending: true }),
         supabase.from("maps").select("client_id"),
         supabase.from("contacts").select("id, client_id, email, is_primary, created_at").order("created_at", { ascending: true }),
@@ -263,9 +269,12 @@ export default function AdminClients() {
           getRowLabel: (r) => r.name,
           rowLink: (r) => `/admin/clients/${encodeURIComponent(r.id)}`,
           loading,
-          rowMenu: (r) => [
+          rowMenu: (r) => isArchived(r)
+            ? [{ label: "Restore", onSelect: () => restore([r]) }, { label: "Open (read-only)", href: `/admin/clients/${encodeURIComponent(r.id)}` }]
+            : [
             { label: "Open", href: `/admin/clients/${encodeURIComponent(r.id)}` },
             { divider: true },
+            { label: "Archive…", danger: true, onSelect: () => requestArchive([r]) },
             (mapCountByClientId[r.id] ?? 0) === 0
               ? {
                   label: "Delete customer",
@@ -279,6 +288,8 @@ export default function AdminClients() {
           ],
         }}
       />
+
+      {archiveDialog}
 
       {clientToDelete ? (
         <Dialog

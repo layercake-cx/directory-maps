@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Button, Callout, EmptyState, ListPage, NameCell, Pill, Section, formatListDate, useListView, useToast,
+  BulkBar, Button, Callout, EmptyState, ListPage, NameCell, Pill, Section, formatListDate, useListView,
 } from "../ui/index.js";
+import { useArchiveFlow } from "../archive/useArchiveFlow.jsx";
 import "../../styles/wave-a/batch-1.css";
-import { listDirectories, getMapsLinkedToDirectories, restoreDirectory } from "../../lib/directories.js";
+import { listDirectories, getMapsLinkedToDirectories } from "../../lib/directories.js";
 import { listPlans, fetchClientEntitlements, listFeatures, getClientPlanKey } from "../../lib/entitlements.js";
 
 const VIEWS = [
@@ -35,14 +36,20 @@ function statusLabel(directory) {
  *
  * Built on the Discover UI kit (PageLayout, DataTable, Pill, Callout).
  */
-export default function DirectoriesDashboard({ clientId, clientSlug, canManage, basePath, newHref }) {
-  const { toast } = useToast();
+export default function DirectoriesDashboard({ clientId, clientSlug, canManage, isStaff = false, basePath, newHref }) {
   const [directories, setDirectories] = useState([]);
   const [linkedMapsByDirectory, setLinkedMapsByDirectory] = useState({});
   const [planName, setPlanName] = useState(null);
   const [lockedFeatureNames, setLockedFeatureNames] = useState([]);
   const [view, setView] = useListView(VIEWS.map((v) => v.key));
   const [reloadKey, setReloadKey] = useState(0);
+  const [selected, setSelected] = useState([]);
+  const { requestArchive, restore, dialog } = useArchiveFlow({
+    entityType: "directory",
+    isStaff,
+    clientId,
+    onChanged: () => { setSelected([]); setReloadKey((k) => k + 1); },
+  });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -103,21 +110,14 @@ export default function DirectoriesDashboard({ clientId, clientSlug, canManage, 
       ? `https://maps.layercake-cx.biz/directories/${clientSlug}/${d.slug}`
       : null;
 
-  async function handleRestore(d) {
-    try {
-      await restoreDirectory(d.id);
-      toast(`${d.name} restored.`);
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setErr(e?.message ?? String(e));
-    }
-  }
-
   const rowMenu = (d) => {
     const open = { label: "Open", href: `${basePath}/${encodeURIComponent(d.id)}` };
-    if (!d.is_active) return canManage ? [{ label: "Restore", onSelect: () => handleRestore(d) }, open] : [open];
+    if (!d.is_active) return canManage ? [{ label: "Restore", onSelect: () => restore([d]) }, open] : [open];
+    const items = [open];
     const url = liveUrl(d);
-    return url ? [open, { label: "View live site ↗", href: url }] : [open];
+    if (url) items.push({ label: "View live site ↗", href: url });
+    if (canManage) items.push({ divider: true }, { label: "Archive…", danger: true, onSelect: () => requestArchive([d]) });
+    return items;
   };
 
   const columns = [
@@ -148,6 +148,7 @@ export default function DirectoriesDashboard({ clientId, clientSlug, canManage, 
   );
 
   return (
+    <>
     <ListPage
       head={{
         title: "Directories",
@@ -173,7 +174,17 @@ export default function DirectoriesDashboard({ clientId, clientSlug, canManage, 
         rowLink: (d) => `${basePath}/${encodeURIComponent(d.id)}`,
         rowMenu,
         loading,
+        selectable: canManage && view !== "archived",
+        selected,
+        onSelectedChange: setSelected,
       }}
+      bulkBar={
+        selected.length > 0 ? (
+          <BulkBar count={selected.length} onClear={() => setSelected([])}>
+            <Button variant="danger" onClick={() => requestArchive(directories.filter((d) => selected.includes(d.id)), "bulk")}>Archive…</Button>
+          </BulkBar>
+        ) : null
+      }
       below={
         planName || lockedFeatureNames.length > 0 ? (
           <Section title="Plan">
@@ -185,5 +196,7 @@ export default function DirectoriesDashboard({ clientId, clientSlug, canManage, 
         ) : null
       }
     />
+    {dialog}
+    </>
   );
 }

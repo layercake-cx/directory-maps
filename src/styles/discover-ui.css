@@ -545,3 +545,8 @@
 .shell .cell-sub { display: block; font-size: var(--fs-small); color: var(--shell-text-muted); font-weight: 400; }
 .shell .table td.cell-num, .shell .table th.cell-num { text-align: right; font-variant-numeric: tabular-nums; }
 .shell .cell-mono { font-family: var(--font-mono, ui-monospace, monospace); }
+
+/* Archive / Restore */
+.shell .archive-dialog { display: flex; flex-direction: column; gap: 14px; }
+.shell .archive-dialog-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.shell .readonly-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
