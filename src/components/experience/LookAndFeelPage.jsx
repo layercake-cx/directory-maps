@@ -12,7 +12,10 @@ import {
   deleteThemePreset,
 } from "../../lib/directoryThemePresets.js";
 import { uploadDirectoryLogo, uploadDirectoryFavicon, uploadDirectoryHeroBanner } from "../../lib/directoryBranding.js";
+import { listAttachedCategorisations } from "../../lib/categorisations.js";
 import {
+  CARD_CTA_DEFAULT,
+  CARD_CTA_MAX,
   FOOTER_BG_DEFAULT,
   HEADER_BG_DEFAULT,
   LOGO_HEIGHT_DEFAULT,
@@ -44,6 +47,8 @@ import {
   Section,
   SegmentedControl,
   Select,
+  SettingRow,
+  Switch,
   TextInput,
   contrastOf,
   useTabKeys,
@@ -57,16 +62,30 @@ const FONT_OPTIONS = Object.keys(FONT_CATALOG);
 
 const TAB_GROUPS = [
   { label: "Whole site", tabs: [["theme", "Theme"], ["identity", "Logo & identity"], ["colours", "Colours"], ["askai", "Ask AI"], ["typography", "Typography"]] },
-  { label: "Page areas", tabs: [["header", "Header"], ["hero", "Hero banner"], ["footer", "Footer"]] },
+  { label: "Page areas", tabs: [["header", "Header"], ["hero", "Hero banner"], ["listings", "Listings"], ["footer", "Footer"]] },
 ];
 const TAB_IDS = TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t[0]));
-const HIGHLIGHT = { theme: null, identity: "header", colours: "body", askai: "askai", typography: "body", header: "header", hero: "hero", footer: "footer" };
+const HIGHLIGHT = { theme: null, identity: "header", colours: "body", askai: "askai", typography: "body", header: "header", hero: "hero", listings: "body", footer: "footer" };
+
+const HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
+const hasColouredTerm = (cat) => (cat?.terms ?? []).some((t) => HEX_RE.test(t.color || ""));
+/** Mirrors resolveCardSettings()'s auto-pick in generate_directory_site/builders.ts. */
+function autoColourCategorisation(cats) {
+  return cats.find((c) => c.field_type === "single_select" && hasColouredTerm(c)) ?? null;
+}
 
 /** Keys a theme "matches" on for the "In use" badge — palette, fonts and header/footer styling. */
 const MATCH_KEYS = [
   "primaryColor", "primaryDarkColor", "accentColor", "backgroundColor", "surfaceColor", "surfaceAltColor", "inkColor", "mutedColor",
   "lineColor", "sageColor", "sageInkColor", "fontHeading", "fontBody",
 ];
+/** Up to four term colours for the preview's card stripes (empty = primary colour). */
+function cardPreviewColours(theme, cats) {
+  if (theme.listingLayout !== "cards" || theme.cardColourBy === null) return [];
+  const cat = theme.cardColourBy === undefined ? autoColourCategorisation(cats) : cats.find((c) => c.key === theme.cardColourBy);
+  return (cat?.terms ?? []).map((t) => t.color).filter((c) => HEX_RE.test(c || "")).slice(0, 4);
+}
+
 function themeInUse(theme, values) {
   return MATCH_KEYS.every((k) => values?.[k] === undefined || values[k] === theme[k]);
 }
@@ -151,6 +170,19 @@ export default function LookAndFeelPage() {
   const logoInput = useRef(null);
   const faviconInput = useRef(null);
   const heroInput = useRef(null);
+  const [categorisations, setCategorisations] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (directoryId) {
+      listAttachedCategorisations("directory", directoryId)
+        .then((rows) => !cancelled && setCategorisations(rows))
+        .catch((e) => !cancelled && setErr(e?.message ?? String(e)));
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [directoryId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,12 +281,15 @@ export default function LookAndFeelPage() {
     try {
       setSaving(true);
       const next = serializeTheme(theme);
+      const prev = serializeTheme(base);
       await updateDirectory(directoryId, { theme_json: next });
       recordEvent?.("directory_branding_updated", {
         directory_id: directoryId,
         has_logo: !!next.logoUrl,
         has_favicon: !!next.faviconUrl,
         has_hero_banner: !!next.heroBannerUrl,
+        changed_fields: [...new Set([...Object.keys(prev), ...Object.keys(next)])].filter((k) => JSON.stringify(prev[k]) !== JSON.stringify(next[k])).sort(),
+        listing_layout: next.listingLayout === "cards" ? "cards" : "list",
       });
       const saved = themeFromDirectory({ theme_json: next });
       setBase(saved);
@@ -296,7 +331,7 @@ export default function LookAndFeelPage() {
         subtitle: "How the published directory looks to visitors. Edits stay unsaved until you save, and go live when you publish.",
         actions: headActions,
       }}
-      preview={<SitePreview theme={theme} directoryName={directory?.name} highlight={HIGHLIGHT[tab]} aiToken={aiToken} />}
+      preview={<SitePreview theme={theme} directoryName={directory?.name} highlight={HIGHLIGHT[tab]} aiToken={aiToken} cardColours={cardPreviewColours(theme, categorisations)} />}
       saveBar={{
         dirtyCount,
         saving,
@@ -578,6 +613,57 @@ export default function LookAndFeelPage() {
             </Callout>
           </Section>
         )}
+
+        {tab === "listings" && (() => {
+          const cardsOn = theme.listingLayout === "cards";
+          const colourBy = theme.cardColourBy === undefined ? "__auto" : theme.cardColourBy === null ? "__none" : theme.cardColourBy;
+          const autoCat = autoColourCategorisation(categorisations);
+          const chosenCat = colourBy === "__auto" ? autoCat : colourBy === "__none" ? null : categorisations.find((c) => c.key === colourBy) ?? null;
+          const missingChosen = colourBy !== "__auto" && colourBy !== "__none" && !chosenCat;
+          return (
+            <Section title="Listings" description="How entries are laid out on your directory's home page.">
+              <SegmentedControl
+                label="Layout"
+                value={cardsOn ? "cards" : "list"}
+                onChange={(v) => set("listingLayout", v)}
+                options={[{ value: "list", label: "List" }, { value: "cards", label: "Cards" }]}
+              />
+              {cardsOn && (
+                <>
+                  <Field
+                    label="Colour cards by"
+                    hint={colourBy === "__auto" ? (autoCat ? `Automatic uses ${autoCat.label}.` : "Automatic: no single-choice category has colours yet, so cards use your Primary colour.") : "Sets each card's top stripe and badge."}
+                  >
+                    <Select
+                      value={missingChosen ? "__auto" : colourBy}
+                      onChange={(e) => set("cardColourBy", e.target.value === "__auto" ? undefined : e.target.value === "__none" ? null : e.target.value)}
+                      options={[
+                        { value: "__auto", label: "Automatic" },
+                        ...categorisations.map((c) => ({ value: c.key, label: c.label })),
+                        { value: "__none", label: "Don't colour (use primary colour)" },
+                      ]}
+                    />
+                  </Field>
+                  {missingChosen && <Callout tone="warning">The category this was set to is no longer attached to the directory, so cards use your Primary colour.</Callout>}
+                  {chosenCat && colourBy !== "__auto" && !hasColouredTerm(chosenCat) && (
+                    <p className="field-hint">
+                      <Link to={`${basePath}/categories`}>Give its terms colours in Categories</Link> to see them here.
+                    </p>
+                  )}
+                  <SettingRow
+                    label="Show summary on cards"
+                    description="Adds each entry's short description and up to three tags."
+                    control={<Switch checked={theme.cardShowSummary === true} onChange={(v) => set("cardShowSummary", v || undefined)} />}
+                  />
+                  <Field label="Button text" hint={`Shown at the bottom of every card, followed by an arrow. Up to ${CARD_CTA_MAX} characters.`}>
+                    <TextInput value={theme.cardCtaLabel || ""} placeholder={CARD_CTA_DEFAULT} maxLength={CARD_CTA_MAX} onChange={(e) => set("cardCtaLabel", e.target.value || undefined)} />
+                  </Field>
+                </>
+              )}
+              <p className="field-hint">Save, then publish for the change to appear on your site.</p>
+            </Section>
+          );
+        })()}
 
         {tab === "footer" && (
           <Section title="Footer" description="The bar at the bottom of every page.">

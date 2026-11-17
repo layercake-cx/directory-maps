@@ -191,6 +191,7 @@ RLS on all four follows the existing `_admin_all` / `_own_client` / `_anon_selec
 ### 4.6 Branding & domain — DIR-E3
 
 - `directories.theme_json` (§4.1) covers colour tokens/logo/favicon/hero banner — reuses the `maps.theme_json` + CSS-custom-property-injection pattern (§3.7), no new mechanism. Favicon is stored as `theme_json.faviconUrl` and baked into published HTML as `<link rel="icon">` by `generate_directory_site`. Colours, fonts, the logo image and height, and the hero banner are written to `theme.css` (linked from every page) so a visual change overwrites that one file. Hero banner is `theme_json.heroBannerUrl` plus optional `heroBannerHeight` (px); when set, every published page shows a full-width background image behind the header that fades into the page background colour. The published banner is 100px taller than the stored height, and header background colours are rendered at 40% transparency (alpha 0.6) so the image shows through. The site-title wording stays in the HTML.
+- Card listing layout (2026-11-15, `docs/DIRECTORY_CARD_LAYOUT_SPEC.md`): four optional `theme_json` keys edited on Look & feel › Listings — `listingLayout` (`"list"` | `"cards"`, unset = list), `cardColourBy` (a `categorisations.key`; `null` = no category colours; unset = auto-pick the first `single_select` categorisation with a coloured term), `cardShowSummary` (boolean, default false) and `cardCtaLabel` (string ≤ 30 chars, default "View details"). Resolved by `resolveCardSettings()` in `builders.ts` (mirrored by `cardKeysFrom()` in `src/lib/directoryThemeDraft.js`). Stripe colours come from `category_terms.color`, hex-validated before use. Unset keys render the list layout byte for byte (golden test in `cardLayout_test.ts`). Built-in presets never set them.
 - `directory_domain_mappings`: `id uuid`, `directory_id → directories.id`, `domain text unique`, `status text check in ('pending','verifying','verified','failed')` (naming precedent: `clients.email_domain_status`), `verification_token text`, `dns_instructions jsonb` (record type/name/value to show the client), `tls_status text check in ('pending','issued','failed')`, `verified_at timestamptz null`, `created_at`, `updated_at`. Per the §9 decision, this mirrors status returned by the **Vercel Domains API** rather than implementing DNS/TLS logic in this codebase — there is no existing domain-hosting mechanism to extend, only the unrelated Resend email-domain-verification naming convention borrowed above (§3.7).
 
 ### 4.7 Directory as a map datasource — DIR-E4
@@ -539,6 +540,24 @@ Then the save is rejected — domain uniqueness is enforced (unique constraint o
 *Tech guardrails:* **Decision (2026-07-14): Vercel Domains API** (§5) — `directory_domain_mappings` mirrors Vercel's verification/TLS status rather than implementing DNS-challenge/certificate-issuance logic in this codebase. Status-enum naming still borrows the `clients.email_domain_status` precedent for consistency (§3.7), but the underlying mechanism is Vercel's, not custom-built.
 
 ---
+
+**DIR-E3-S4 — Card listing layout** *(shipped 2026-11-15)*
+As a **Client Owner/Manager**, I want to show my directory's entries as cards coloured by category, so that the home page reads as a browsable catalogue rather than a long list.
+
+```gherkin
+Given I open Look & feel › Listings and choose Cards
+When I save and publish
+Then the home page shows entries as a responsive grid of cards (stripe, category badge, name, location, button line), and search, filters, distance and Ask AI behave exactly as in the list
+
+Given my "Produce type" category's values have colours set in Categories
+When Colour cards by is Automatic or "Produce type"
+Then each card's stripe and badge follow its Produce type value, and those filter options show matching colour dots
+
+Given I have never opened the Listings tab
+When the directory is published
+Then the home page is identical to before this feature
+```
+*Tech guardrails:* same `<a class="dir-row">` root and data attributes as a list row; theme variables only (no hard-coded colours); no migration. See `docs/DIRECTORY_CARD_LAYOUT_SPEC.md`.
 
 ### DIR-E4 — Directory as a map datasource
 

@@ -66,6 +66,36 @@ Revert the commit and redeploy the same Edge Functions and the frontend; re-set 
 
 ---
 
+## 2026-11-15 — [Production] Card listing layout for the directory home page
+
+**Branch:** `feat/2026-11-15-directory-card-layout`
+
+### What changed
+- **Why:** directory home pages could only show entries as one long list. A client's brand canvas uses a grid of supplier cards, coloured by category. Spec: `docs/DIRECTORY_CARD_LAYOUT_SPEC.md` (§14 records where the build differs).
+- **New setting, Look & feel › Listings:** Layout List / Cards. With Cards: *Colour cards by* (Automatic, any attached category, or Don't colour), *Show summary on cards*, and *Button text*. Stored as four optional `theme_json` keys (`listingLayout`, `cardColourBy`, `cardShowSummary`, `cardCtaLabel`); no migration. List stays the default, and a directory that never touches the tab publishes byte-identical HTML (golden test).
+- **`generate_directory_site`:** in card mode each entry renders as a card (category-coloured stripe, badge, name, location, button line) on the same `<a class="dir-row">` element with the same data attributes, so search, facet filters, distance, Ask AI "why" lines and the map behave exactly as in the list. Term colours (`category_terms.color`, already editable in Categories) are now loaded and hex-validated before reaching any `style` attribute. Colour-category filter options and active chips show a matching dot. With no map attached, card-mode results use the full width (3–4 columns). `ENTRY_TEMPLATE_VERSION` 21 → 22 so the next ordinary Publish picks up the new CSS.
+- **Editor fix found on the way:** `themeFromDirectory()` only copied known keys, so new `theme_json` keys would have been dropped on load and wiped by the next save. `cardKeysFrom()` now carries the card keys through.
+- **Events:** no new visitor action (a card is the same link to the entry page a row was), so no `map_engagement_events` change. `directory_branding_updated` gains `changed_fields` and `listing_layout` (AGENTS.md catalogue updated).
+
+### Staging outcome
+- 2026-11-15: `generate_directory_site` deployed to staging (`beqejxneehilplrtpntn`) from this branch.
+
+### Production outcome
+- 2026-11-15 21:49 GMT: on the user's instruction ("just deploy into live"), `generate_directory_site` deployed to production (`gxixwdjfmegxcxfeflro`) from this branch, which already contained current `origin/main` (template version 22). The staging checks below were skipped at the user's request.
+- Frontend deployed to Vercel production from this branch with `npm run deploy:live` (deployment `directory-maps-bca9vkxld`, status Ready, aliased to maps.layercake-cx.biz; the live bundle contains the new Listings tab). GitHub Pages updates when the PR merges.
+- Existing directories are unaffected until an owner picks Cards and republishes. The next ordinary Publish of any directory does a full rebuild because of the template version bump.
+
+### Rollback plan
+Revert the branch's commits and redeploy `generate_directory_site` (template version goes back to 21, which forces a full rebuild on the next Publish). No data to undo: the four `theme_json` keys are ignored by the old generator.
+
+### Verification
+- [x] `deno test --allow-read supabase/functions/generate_directory_site/` passes (50 tests, including 19 new card-layout tests: list byte-identity, data attributes, stripe colour rules, CTA escaping, address and summary toggles).
+- [x] `npm run build` and `scripts/check-ui.sh` pass.
+- [x] Generated card pages checked in a browser with the real theme CSS: Natural and Midnight presets, with and without a map (2 vs 3 columns at 1024px), one column at 375px with no horizontal scroll; filtering hides cards without grid gaps and the chip shows its colour dot.
+- [ ] Look & feel › Listings tab not yet checked in the running app (needs a login): switch to Cards, change each setting, check the preview, save, and confirm the settings survive a reload.
+- [ ] Staging: publish a directory with Cards on in each built-in preset; check search, filters, distance sort, Ask AI "why" lines and the List/Map toggle on mobile, tablet and desktop.
+- [x] Production deploy of `generate_directory_site` and the Vercel frontend (see Production outcome).
+
 ## 2026-11-15 — [Frontend only] Publish card no longer says "live, took 0 s" before the build has started
 
 **Branch:** `fix/2026-11-15-publish-card-stale-status`
