@@ -28,7 +28,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Production outcome
 - **Staging, 2026-11-17:** the 13 gateway-dependent Edge Functions deployed to the test project (`beqejxneehilplrtpntn`): `claim_listing_ai`, `directory_ai_search`, `generate_content_page_draft`, `generate_content_page_seo`, `generate_directory_seo_metadata`, `generate_directory_site` (no `builders.ts` change, so no `ENTRY_TEMPLATE_VERSION` bump), `generate_entry_content`, `generate_entry_seo_metadata`, `generate_media_alt_text`, `get_ai_route_preview`, `manage_client_integrations`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs`. Frontend preview deployed to Vercel (`directory-maps-d5ygxewsf-layercake-apps.vercel.app`).
-- Production: not deployed. Waiting on the user's verification of staging and sign-off, and on the list of organisations still relying on the Layercake account.
+- **Production, 2026-11-17:** user verified staging and signed off. Branch merged with current `origin/main` first (already up to date). The same 13 Edge Functions deployed to `gxixwdjfmegxcxfeflro` (all ACTIVE, confirmed with `supabase functions list`), and the frontend deployed with `npm run deploy:live` (Vercel READY, aliased to uk-associations.com). The list of organisations that relied on the Layercake account was not run before deploying; any that have not connected a provider now see AI greyed out.
+- Still to do: delete the `ANTHROPIC_API_KEY` secret from both Supabase projects; GitHub Pages deploys on merge.
 
 ### Rollback plan
 Revert the commit and redeploy the same Edge Functions and the frontend; re-set `ANTHROPIC_API_KEY` if it was deleted. The flag overrides were never touched, so the old behaviour returns as it was.
@@ -36,9 +37,9 @@ Revert the commit and redeploy the same Edge Functions and the frontend; re-set 
 ### Verification
 - [x] `deno test --allow-env supabase/functions/_shared/ai/` passes (13 tests); `deno check` on `claim_listing_ai` and `get_ai_route_preview` passes.
 - [x] `vite build` and `scripts/check-ui.sh` pass.
-- [ ] Staging: a test org with no provider connected shows every AI button greyed out with the notice and link (entry content, entry SEO, directory SEO backfill, content pages, image alt text, Help me choose); the link opens Integrations.
-- [ ] Staging: the claimed-listing manager shows the disabled button and note for a claim user.
-- [ ] Staging: after connecting a key, the same buttons work and write `ai_usage_events` with `connection_source = customer`.
+- [x] Staging (user-verified): a test org with no provider connected shows every AI button greyed out with the notice and link (entry content, entry SEO, directory SEO backfill, content pages, image alt text, Help me choose); the link opens Integrations.
+- [x] Staging (user-verified): the claimed-listing manager shows the disabled button and note for a claim user.
+- [x] Staging (user-verified): after connecting a key, the same buttons work and write `ai_usage_events` with `connection_source = customer`.
 
 ---
 
