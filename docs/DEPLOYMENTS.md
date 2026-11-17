@@ -17,14 +17,16 @@ A plain-English record of every deployment to staging and production. Newest ent
 - Migration `20261117120000_retire_ai_platform_provider_flag.sql`, rollback `_20261117120000_retire_ai_platform_provider_flag.rollback.sql` (restores the flag and an ON override per client; restoring the old behaviour also needs the code change reverted and `ANTHROPIC_API_KEY` re-set).
 
 ### Staging / production outcome
-- Written and committed. **Not applied to staging or production yet.** `supabase db push --linked --dry-run` against staging lists only this migration as pending. The real apply was blocked by the session's permission guard and is waiting on the user.
+- **Staging, 2026-11-17:** applied by the user with `supabase db push --linked --yes` (linked to `beqejxneehilplrtpntn`); only this migration was pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`.
+- **Production:** not applied yet, waiting on a separate explicit go-ahead.
 
 ### Rollback plan
 Run the rollback file in the SQL editor.
 
 ### Verification
 - [x] Staging dry run lists only this migration as pending.
-- [ ] Staging: apply, expect notice `VERIFY PASSED: ai_platform_provider flag and overrides removed`; flags -1, overrides reduced by that flag's count, clients unchanged.
+- [x] Staging: applied, notice `VERIFY PASSED: ai_platform_provider flag and overrides removed` seen.
+- [ ] Staging: before/after row counts compared (flags -1, other flags' overrides and clients unchanged). Not run.
 - [ ] Production: same, only after separate explicit go-ahead.
 
 ---
