@@ -472,3 +472,8 @@ Update this document when:
 ---
 
 *Last updated: 2026-11-13 (directory custom domain: hostname only is sent to the Supabase Management API to allow `https://<hostname>/login` as an Auth redirect; same processor, secret `MANAGEMENT_API_TOKEN`). Maintained by the Layercake Maps engineering and privacy team.*
+
+## Archived data (retention)
+
+Archiving a directory, map or customer in the app takes it offline and makes it read-only, but **does not delete anything**: every row, publication, file, setting and history entry is kept so it can be restored. Archived data is therefore still retained. This is not deletion, and a deletion request from a person or organisation is handled separately (see BACKLOG for the planned retention policy). No third party receives archived data; processing for archived items (syncs, AI jobs, outgoing email) is paused.
+

@@ -236,3 +236,12 @@ Cleanup that is safe to defer but should not be forgotten. Entries are removed w
 - **Shown meanwhile:** link to the Categories list
 - **Size guess:** S
 - **Status:** To do
+
+## Archive and Restore follow-ups (2026-11-17)
+- Retention policy for long-archived items (nothing is ever purged today).
+- Permanent delete for maps and customers is not built. Directories still have "Delete" in directory settings; the brief wanted it moved to the Archived view's row menu (staff only, typed DELETE), which is more than a move.
+- Customer-facing "archived" email notice when a customer is archived.
+- User-initiated AI `generate_*` functions and the publish function do not yet check liveness; the UI is read-only for archived items but a direct call would still run.
+- Archived banner sits above the page heading on directory and map pages (shared wrapper), not directly under it.
+- Per-row "Unpublished changes" status on the Maps list needs a draft-vs-snapshot comparison that is too heavy for a list.
+
