@@ -18,7 +18,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ### Staging / production outcome
 - **Staging, 2026-11-17:** applied by the user with `supabase db push --linked --yes` (linked to `beqejxneehilplrtpntn`); only this migration was pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`.
-- **Production:** not applied yet, waiting on a separate explicit go-ahead.
+- **Production, 2026-11-17:** applied on the user's explicit go-ahead with `supabase db push --linked --yes` after linking to `gxixwdjfmegxcxfeflro`; the dry run listed only this migration as pending. Notice: `VERIFY PASSED: ai_platform_provider flag and overrides removed`. CLI re-linked to staging afterwards.
 
 ### Rollback plan
 Run the rollback file in the SQL editor.
@@ -27,7 +27,7 @@ Run the rollback file in the SQL editor.
 - [x] Staging dry run lists only this migration as pending.
 - [x] Staging: applied, notice `VERIFY PASSED: ai_platform_provider flag and overrides removed` seen.
 - [ ] Staging: before/after row counts compared (flags -1, other flags' overrides and clients unchanged). Not run.
-- [ ] Production: same, only after separate explicit go-ahead.
+- [x] Production: applied, `VERIFY PASSED` notice seen. Row counts not compared (no remote SQL from the CLI).
 
 ---
 
