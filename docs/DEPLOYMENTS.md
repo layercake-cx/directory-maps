@@ -65,6 +65,7 @@ Revert the commit and redeploy the same Edge Functions and the frontend; re-set 
 - [x] Staging (user-verified): after connecting a key, the same buttons work and write `ai_usage_events` with `connection_source = customer`.
 
 ---
+
 ## 2026-11-15 — [Production] Card listing layout for the directory home page
 
 **Branch:** `feat/2026-11-15-directory-card-layout`
