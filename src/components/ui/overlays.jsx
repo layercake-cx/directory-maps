@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Button from "./Button.jsx";
 import { TextInput, Field } from "./forms.jsx";
+import { Callout } from "./feedback.jsx";
 import { DotsIcon } from "./icons.jsx";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -74,6 +75,74 @@ export function ConfirmDialog({ title, message, children, confirmLabel = "Confir
   );
 }
 
+/**
+ * ArchiveDialog: archiving needs the typed word ARCHIVE (exact, case-sensitive, spaces trimmed). Nothing is deleted,
+ * so the dialog lists the real consequences and says so. Restore needs no typing, so there is no dialog for it.
+ * @param {{ entityType: "directory"|"map"|"customer", name?: string, count?: number, consequences?: React.ReactNode[],
+ *   onConfirm: () => Promise<void>, onClose: () => void }} props `onConfirm` may throw: the dialog stays open with the error.
+ */
+export function ArchiveDialog({ entityType, name, count = 1, consequences = [], onConfirm, onClose }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const formId = useId();
+  const matches = text.trim() === "ARCHIVE";
+  const plural = { directory: "directories", map: "maps", customer: "customers" }[entityType];
+  const bulk = count > 1;
+  const title = bulk ? `Archive ${count} ${plural}?` : `Archive ${name}?`;
+  const confirmLabel = bulk ? `Archive ${count} ${plural}` : `Archive ${entityType}`;
+  const hint = text.length > 0 && !matches ? "Type ARCHIVE in capitals" : undefined;
+
+  async function submit(e) {
+    e?.preventDefault();
+    if (!matches || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError(err?.message ?? String(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      title={title}
+      onClose={() => { if (!busy) onClose(); }}
+      footer={
+        <>
+          <Button onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button type="submit" form={formId} variant="danger-solid" disabled={!matches} loading={busy} loadingLabel="Archiving…">
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="archive-dialog">
+        {error ? <Callout tone="danger">{error}</Callout> : null}
+        {consequences.length > 0 ? (
+          <ul className="archive-dialog-list">
+            {consequences.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        ) : null}
+        <Callout tone="ok"><strong>Nothing is deleted.</strong> Restore it from Archived at any time and it comes back as it was.</Callout>
+        <Field label="Type ARCHIVE to confirm" hint={hint}>
+          <TextInput
+            data-autofocus
+            className="cell-mono"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+            disabled={busy}
+          />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
 export function NameDialog({ title, label, initial = "", confirmLabel = "Save", busy, onSubmit, onCancel }) {
   const [name, setName] = useState(initial);
   const formId = useId();
@@ -142,19 +211,38 @@ export function useConfirm() {
  */
 export function OverflowMenu({ label, items }) {
   const [open, setOpen] = useState(false);
+  // Fixed position (set from the trigger's rect) so the list escapes scroll containers such as `.table-wrap`
+  // instead of being clipped by them or making the table scroll.
+  const [pos, setPos] = useState(null);
   const wrap = useRef(null);
   const trigger = useRef(null);
+  const list = useRef(null);
   const close = useCallback((returnFocus = true) => {
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
   }, []);
+  useLayoutEffect(() => {
+    if (!open || !trigger.current) { setPos(null); return; }
+    const t = trigger.current.getBoundingClientRect();
+    const h = list.current?.offsetHeight ?? 0;
+    const below = t.bottom + 4;
+    const top = below + h > window.innerHeight - 8 && t.top - 4 - h > 8 ? t.top - 4 - h : below;
+    setPos({ top, right: Math.max(8, window.innerWidth - t.right) });
+  }, [open]);
   useEffect(() => {
     if (!open) return undefined;
     wrap.current?.querySelector('[role="menuitem"]:not([disabled])')?.focus();
     const onDoc = (e) => { if (!wrap.current?.contains(e.target)) close(false); };
+    const onMove = () => close(false); // a fixed menu would drift from its trigger
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, close]);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open, close, pos !== null]); // re-run once positioned: a hidden menu cannot take focus
   const onKeyDown = (e) => {
     if (e.key === "Escape") { e.stopPropagation(); close(); return; }
     if (e.key === "Tab") { close(false); return; }
@@ -176,7 +264,7 @@ export function OverflowMenu({ label, items }) {
         <DotsIcon />
       </Button>
       {open && (
-        <div className="avatar-menu-list" role="menu">
+        <div className="avatar-menu-list" role="menu" ref={list} style={pos ? { position: "fixed", top: pos.top, right: pos.right, left: "auto", bottom: "auto" } : { visibility: "hidden" }}>
           {items.map((it, idx) => {
             if (it.divider) return <div key={`sep-${idx}`} role="separator" className="avatar-menu-sep" />;
             const cls = `avatar-menu-item ${it.danger ? "avatar-menu-item--danger" : ""}`.trim();

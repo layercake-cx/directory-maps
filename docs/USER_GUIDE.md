@@ -852,6 +852,27 @@ Staff can open the same page for any customer from **Customers → (customer) �
 
 ---
 
+## Archiving and restoring
+
+You can archive a directory, a map, or (Layercake staff only) a whole customer when it is no longer needed. **Nothing is deleted.** You can restore it at any time and it comes back exactly as it was.
+
+**What goes offline**
+- An archived **directory** shows visitors a "no longer available" page, on its address and on any custom domain. Linked maps stop updating from it.
+- An archived **map** and every embed of it show "This map is no longer available". Scheduled Google Sheets syncs pause.
+- An archived **customer** takes all its maps and directories offline and its users cannot sign in: they see "This account is archived. Contact Layercake to restore it." Billing and plan are not changed. Items archived separately before stay archived when the customer is restored.
+
+**What is kept:** listings, entries, pages, settings, publish history, files and queued AI jobs.
+
+**How to archive**
+1. Open the ⋯ menu on a row in **Directories**, **Maps** or **Customers** (or select several directories or maps and use **Archive…**). Directory settings and a customer's details tab also have an Archive control.
+2. Read what will happen, type `ARCHIVE` in capitals and confirm. The row moves to the **Archived** view and a message appears with **Undo**.
+
+**How to restore:** open the **Archived** view and choose **Restore** from the row's ⋯ menu, or use the **Restore** button in the banner on an archived item's page. Restoring needs no typing. If it was published, it is live again within about a minute.
+
+**Who can:** managers of the organisation and Layercake staff can archive and restore directories and maps. Only staff can archive or restore a customer. View-only users can see archived items, read-only, with no archive or restore controls.
+
+An archived item's pages show a banner and are read-only: you can look around and export, but not edit, publish, sync, import or invite.
+
 ## Quick reference
 
 | Action | Where |

@@ -13,6 +13,7 @@ export default function Login() {
   const redirect = searchParams.get("redirect") || "/client";
   const showUnlinkedBanner = searchParams.get("unlinked") === "1";
   const authError = searchParams.get("authError");
+  const showArchivedBanner = searchParams.get("archived") === "1";
   const { user } = useAuth();
   const showVerifyBanner =
     searchParams.get("needsVerification") === "1" || !!(user && !user.email_confirmed_at);
@@ -64,6 +65,16 @@ export default function Login() {
             ? `Sign in as ${teamInvite.email} (${ROLE_LABELS[teamInvite.role] ?? teamInvite.role}) to accept your team invitation.`
             : "Sign in to manage your maps and listings."}
         </p>
+        {showArchivedBanner ? (
+          <p
+            className="auth-page__sub"
+            role="alert"
+            style={{ background: "rgba(185, 28, 28, 0.12)", padding: "12px 14px", borderRadius: 8, marginBottom: 16 }}
+          >
+            <strong>This account is archived.</strong> Contact Layercake to restore it:{" "}
+            <a href="mailto:hello@layercake-cx.biz">hello@layercake-cx.biz</a>
+          </p>
+        ) : null}
         {inviteError ? (
           <p
             className="auth-page__sub"

@@ -1,5 +1,7 @@
 import React, { useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDirectory } from "../../hooks/useDirectory.js";
+import { useArchiveFlow } from "../archive/useArchiveFlow.jsx";
 import DirectoryGeneralSettingsPanel from "../directories/DirectoryGeneralSettingsPanel.jsx";
 import ProminentLinksEditor from "../directories/ProminentLinksEditor.jsx";
 import { Button, Callout, Dialog, Field, OverflowMenu, Section, SettingsLayout, TextInput } from "../ui/index.js";
@@ -19,15 +21,24 @@ export default function DirectorySettingsGeneralRoute() {
     recordEvent,
     refetch,
     linkedMaps,
-    archiving,
+    clientId,
+    isAdminView,
+    backHref,
     deleting,
     deleteOpen,
     setDeleteOpen,
     deleteText,
     setDeleteText,
-    handleArchive,
     handleDelete,
   } = useDirectory();
+
+  const navigate = useNavigate();
+  const { requestArchive, dialog: archiveDialog } = useArchiveFlow({
+    entityType: "directory",
+    isStaff: isAdminView,
+    clientId,
+    onChanged: () => navigate(backHref),
+  });
 
   // Stable so the Dialog's focus handling doesn't restart on every keystroke in the confirmation field.
   const closeDelete = useCallback(() => setDeleteOpen(false), [setDeleteOpen]);
@@ -36,7 +47,7 @@ export default function DirectorySettingsGeneralRoute() {
     <OverflowMenu
       label="More actions"
       items={[
-        { label: archiving ? "Archiving…" : "Archive", onSelect: handleArchive, disabled: archiving },
+        { label: "Archive…", onSelect: () => requestArchive([directory], "settings") },
         { label: "Delete", danger: true, onSelect: () => { setDeleteOpen(true); setDeleteText(""); } },
       ]}
     />
@@ -57,6 +68,8 @@ export default function DirectorySettingsGeneralRoute() {
           <ProminentLinksEditor directoryId={directoryId} recordEvent={recordEvent} title="Prominent links (directory homepage)" />
         </Section>
       )}
+
+      {archiveDialog}
 
       {deleteOpen && (
         <Dialog

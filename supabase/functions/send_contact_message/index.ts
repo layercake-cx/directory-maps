@@ -4,6 +4,7 @@
 // Sending is blocked until a profile is chosen (see _shared/messaging.ts).
 import { errorMessage } from "../_shared/errors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive, NOT_LIVE_MESSAGE } from "../_shared/liveness.ts";
 import { buildFromHeader, getResendApiKey, resendSendEmail } from "../_shared/resend.ts";
 import {
   loadDirectoryMessaging,
@@ -102,6 +103,7 @@ async function handleDirectoryEnquiry(body: Record<string, unknown>): Promise<Re
   const service = createServiceClient();
   const directory = await loadDirectoryMessaging(service, directoryId);
   if (!directory) return jsonResponse({ error: "Directory not found." }, 404);
+  if (!(await isEntityLive(service, "directory", directoryId))) return jsonResponse({ error: NOT_LIVE_MESSAGE, not_live: true }, 410);
 
   const { data: entry } = await service
     .from("directory_entries")

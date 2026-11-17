@@ -1,3 +1,5 @@
+import ArchivedMapFrame from "../../components/archive/ArchivedFrame.jsx";
+import { canManageOrg } from "../../lib/clientAuth.js";
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../../lib/auth";
@@ -241,7 +243,11 @@ export default function ClientLayout() {
       <AppShell context="client" isStaff={isAdmin} homeHref="/client" orgName={client?.name} contact={contact}>
         {verifiedBanner}
         {isMapDetailRoute && <MapEditSubNav standalone />}
-        {isMapDetailRoute ? <Outlet /> : <div className="page-main"><Outlet /></div>}
+        {isMapDetailRoute ? (
+          <ArchivedMapFrame mapId={mapIdFromPath && mapIdFromPath !== "new" ? decodeURIComponent(mapIdFromPath) : null} isStaff={isAdmin} canManage={isAdmin || canManageOrg(contact)}>
+            <Outlet />
+          </ArchivedMapFrame>
+        ) : <div className="page-main"><Outlet /></div>}
       </AppShell>
     );
 

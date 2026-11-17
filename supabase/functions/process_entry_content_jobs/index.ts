@@ -9,6 +9,7 @@
 //
 // LLM calls go through the AI Gateway (_shared/ai/gateway.ts), metered per job.
 import { createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive } from "../_shared/liveness.ts";
 import { logEdgeFunctionError } from "../_shared/errorLog.ts";
 import { AiUnavailableError } from "../_shared/ai/gateway.ts";
 import { generateListing, recordEntryContentVersion, recordEntryResearch } from "../_shared/entryContentGeneration.ts";
@@ -187,6 +188,11 @@ Deno.serve(async (req) => {
 
   const results = { processed: 0, failed: 0 };
   for (const job of (jobs ?? []) as ContentJob[]) {
+    // Archived directory (or customer): put the job back in the queue untouched; it resumes on restore.
+    if (!(await isEntityLive(service, "directory", job.directory_id))) {
+      await service.from("entry_content_jobs").update({ status: "pending", started_at: null }).eq("id", job.id);
+      continue;
+    }
     try {
       await processJob(service, job);
       results.processed += 1;

@@ -11,6 +11,7 @@
 // login page is anonymous; "invite" authenticates itself below.
 import { errorMessage } from "../_shared/errors.ts";
 import { createAnonClient, createServiceClient } from "../_shared/supabase.ts";
+import { isEntityLive, NOT_LIVE_MESSAGE } from "../_shared/liveness.ts";
 import { getResendApiKey } from "../_shared/resend.ts";
 import { sendSystemEmail } from "../_shared/systemEmail.ts";
 import { directoryLoginAllowPattern, resolveClaimLoginRedirect, setAuthRedirectUrl } from "../_shared/authRedirects.ts";
@@ -129,6 +130,8 @@ async function handle(req: Request, body: Record<string, unknown>): Promise<Resp
     });
     if (!usable) return json({ ok: true });
     const claim = usable.claims as unknown as { directory_id: string; directory_item_id: string };
+    // Archived directory (or customer): send nothing, and answer the same way as for an unknown email.
+    if (!(await isEntityLive(service, "directory", claim.directory_id))) return json({ ok: true });
     try {
       const signInRedirect = await loginRedirect(service, claim.directory_id, redirectTo);
       const allowed = await allowDirectoryRedirect(signInRedirect);
@@ -159,6 +162,7 @@ async function handle(req: Request, body: Record<string, unknown>): Promise<Resp
   // RLS decides who can see a claim: platform admins, the directory's organisation, and its claim users.
   const { data: claim } = await anon.from("claims").select("id, directory_id, directory_item_id").eq("id", claimId).maybeSingle();
   if (!claim) return json({ error: "Claim not found." }, 404);
+  if (!(await isEntityLive(service, "directory", claim.directory_id as string))) return json({ error: NOT_LIVE_MESSAGE, not_live: true }, 410);
   const { data: cu } = await service
     .from("claim_users")
     .select("id")

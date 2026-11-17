@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-17 — [Migration + Edge Functions + frontend] Archive and Restore
+
+**Branch:** `feat/2026-11-17-archive` (stacked on `feat/2026-11-17-list-layout`; merge that first)
+
+### What changed
+- Customers, maps and directories can be archived and restored. Archiving never deletes anything: it flips `is_active` and records `archived_at` / `archived_by`. An archived directory or map goes offline to visitors (including custom domains, sitemaps and embeds, which get a 410 "no longer available" page). Archiving a customer locks out its users and takes all its maps and directories offline; items archived separately before stay archived when the customer is restored.
+- Migration `20261117150000_archive_and_restore.sql`, rollback `_20261117150000_archive_and_restore.rollback.sql`. Adds the columns; `is_entity_live`, `entity_status`, `entity_status_by_slug`, `my_client_is_archived`; changes `current_user_client_id()` (null for an archived customer), the anon read policies on maps, groups, listings, map_publications, directories and directory_entries, the "Clients manage their own maps" policy, and `resolve_custom_domain` (adds `is_live`). No backfill.
+- Edge Functions that now skip archived items: `complete_invited_signup`, `sync_sheet_listings` (logs "skipped: archived"), `send_claim_link`, `send_contact_message`, `submit_claim_request`, `process_entry_content_jobs`, `process_entry_seo_metadata_jobs` (jobs are put back in the queue and resume on restore). New shared helper `_shared/liveness.ts`. The other AI `generate_*` functions are user-initiated and not yet guarded (BACKLOG).
+- Frontend: ArchiveDialog (typed ARCHIVE), archived banner and read-only mode, row and bulk Archive, Undo toast, customer sign-in lock-out with `/login?archived=1`, edge 410 in `middleware.js`, unavailable state on `SlugMap`/`EmbedMap`/`CustomDomainMap`. The ⋯ row menu is now fixed-position so it is not clipped by the scrolling table.
+- Admin events: `directory_archived`/`_restored`, `map_archived`/`_restored`, `client_archived`/`_restored`, plus `_bulk_` variants (`count`, `ids`); meta carries `was_live` and `trigger`. `admin_events.event_type` is free text, so no constraint change.
+
+### Staging / production outcome
+- **Staging, 2026-11-17:** migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions above deployed to the test project. Frontend and `middleware.js` not deployed to a Vercel preview; staging was tested by the user against the local app.
+- **Production, 2026-11-17:** user signed off. Branch already contained current `origin/main`. Migration applied with `supabase db push` (linked to `gxixwdjfmegxcxfeflro`, only this migration pending); notice `VERIFY PASSED: archive columns, helpers, policies and resolver in place`. The seven Edge Functions deployed to production (all ACTIVE, confirmed with `supabase functions list`). Frontend and `middleware.js` deployed with `npm run deploy:live` (`directory-maps-byhg7wwa5-layercake-apps.vercel.app`, aliased to uk-associations.com). CLI relinked to staging afterwards. GitHub Pages deploys on merge.
+
+### Rollback plan
+Restore anything archived, then run the rollback file (it refuses while archived rows exist). Revert the commits and redeploy the seven functions and the frontend.
+
+### Verification
+- [x] Staging: migration applied, `VERIFY PASSED` seen.
+- [ ] Staging: row counts before/after compared (the migration prints them; not compared by hand).
+- [x] Staging: user tested the archive flows (not the edge 410 pages, which need Vercel).
+- [x] Production: migration applied, `VERIFY PASSED` seen; functions ACTIVE; frontend deployed. Row counts not compared by hand; 410 pages and the customer lock-out not yet checked on production.
+
+---
+
 ## 2026-11-17 — [Migration] Retire the `ai_platform_provider` feature flag
 
 **Branch:** `feat/2026-11-17-remove-ai-platform-fallback` (PR 360)
