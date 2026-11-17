@@ -8,6 +8,8 @@ import MessagingPanel from "../../components/MessagingPanel.jsx";
 import IntegrationsPanel from "../../components/integrations/IntegrationsPanel.jsx";
 import DomainSettings from "../../components/DomainSettings.jsx";
 import { listDirectories } from "../../lib/directories.js";
+import { fetchMapsForList } from "../../lib/mapsList.js";
+import MapsList from "../../components/maps/MapsList.jsx";
 import DirectoriesDashboard from "../../components/directories/DirectoriesDashboard.jsx";
 import { recordAdminEvent } from "../../lib/adminEvents.js";
 import CategorisationsPanel from "../../components/directories/CategorisationsPanel.jsx";
@@ -92,11 +94,7 @@ export default function AdminClientDetail() {
           .select("id,name,slug,subscription_active_override,created_at,updated_at")
           .eq("id", clientId)
           .single(),
-        supabase
-          .from("maps")
-          .select("id,name,slug,default_lat,default_lng,default_zoom,show_list_panel,enable_clustering")
-          .eq("client_id", clientId)
-          .order("name", { ascending: true }),
+        fetchMapsForList({ clientId }).then((data) => ({ data, error: null }), (error) => ({ data: null, error })),
         supabase
           .from("contacts")
           .select("id, client_id, email, name, is_primary")
@@ -400,39 +398,6 @@ export default function AdminClientDetail() {
     navigate(`${clientBase}/maps/new`);
   }
 
-  const mapColumns = [
-    {
-      key: "name",
-      label: "Map",
-      render: (m) => (
-        <>
-          {m.name}
-          <span className="wc-cell-sub">{m.id}</span>
-        </>
-      ),
-    },
-    { key: "slug", label: "Slug" },
-    {
-      key: "defaults",
-      label: "Defaults",
-      render: (m) => (
-        <span className="wc-muted">
-          {Number(m.default_lat).toFixed(4)}, {Number(m.default_lng).toFixed(4)} · z{m.default_zoom}
-        </span>
-      ),
-    },
-    {
-      key: "options",
-      label: "Options",
-      render: (m) => (
-        <span className="wc-pills">
-          <Pill>{m.show_list_panel ? "List on" : "List off"}</Pill>
-          <Pill>{m.enable_clustering ? "Cluster on" : "Cluster off"}</Pill>
-        </span>
-      ),
-    },
-  ];
-
   const userColumns = [
     { key: "email", label: "Email" },
     { key: "name", label: "Name", render: (c) => c.name || "—" },
@@ -517,32 +482,21 @@ export default function AdminClientDetail() {
       ) : (
         <>
           {activeTab === "maps" && (
-            <PageLayout
-              head={{
-                title: "Maps",
-                subtitle: "Interactive maps for this customer.",
-                actions: (
-                  <Button variant="primary" onClick={handleNewMap}>
-                    New map
-                  </Button>
-                ),
-              }}
-            >
-              <div className="wc-stack">
-                {topError}
-                <Section flush>
-                  <DataTable
-                    caption="Maps"
-                    columns={mapColumns}
-                    rows={maps}
-                    getRowId={(m) => m.id}
-                    getRowLabel={(m) => m.name}
-                    rowLink={(m) => `${clientBase}/maps/${encodeURIComponent(m.id)}`}
-                    empty={err ? null : <EmptyState art="none" title="No maps yet for this customer" />}
-                  />
-                </Section>
-              </div>
-            </PageLayout>
+            <>
+              {topError}
+              <MapsList
+                head={{
+                  title: "Maps",
+                  subtitle: "Interactive maps for this customer.",
+                  actions: <Button variant="primary" onClick={handleNewMap}>New map</Button>,
+                }}
+                maps={maps}
+                clientSlug={client?.slug}
+                mapHref={(m) => `${clientBase}/maps/${encodeURIComponent(m.id)}`}
+                newMapAction={<Button variant="primary" onClick={handleNewMap}>New map</Button>}
+                error={err}
+              />
+            </>
           )}
 
           {activeTab === "directories" && (
@@ -550,6 +504,7 @@ export default function AdminClientDetail() {
               {topError}
               <DirectoriesDashboard
                 clientId={clientId}
+                clientSlug={client?.slug}
                 canManage
                 basePath={`${clientBase}/directories`}
                 newHref={`${clientBase}/directories/new`}

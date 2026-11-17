@@ -8,6 +8,7 @@ export default function ClientDirectories() {
   return (
     <DirectoriesDashboard
       clientId={client?.id}
+      clientSlug={client?.slug}
       canManage={canManageOrg(contact)}
       basePath="/client/directories"
       newHref="/client/directories/new"

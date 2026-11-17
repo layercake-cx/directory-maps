@@ -7,7 +7,7 @@ import { listPlans } from "../../lib/entitlements.js";
 import { listClientIdsWithBetaAccess } from "../../lib/featureFlags.js";
 import { getRecentCustomerIds } from "../../lib/recentCustomers.js";
 import {
-  Button, Callout, DataTable, Dialog, EmptyState, Field, PageLayout, Section, TextInput, Toolbar,
+  Button, Dialog, EmptyState, Field, ListPage, NameCell, Pill, Select, TextInput, formatListDate, useListView,
 } from "../../components/ui/index.js";
 import "../../styles/wave-c/clients.css";
 
@@ -36,7 +36,10 @@ export default function AdminClients() {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [view, setView] = useState("all");
+  const [view, setView] = useListView(["all", "archived"]);
+  const [planFilter, setPlanFilter] = useState("all");
+  const [betaFilter, setBetaFilter] = useState("all");
+  const [directoryCountByClientId, setDirectoryCountByClientId] = useState({});
   const [betaClientIds, setBetaClientIds] = useState([]);
 
   async function load() {
@@ -49,6 +52,7 @@ export default function AdminClients() {
         { data: mapsData, error: mapsError },
         { data: contactsData, error: contactsError },
         plansData,
+        { data: directoriesData },
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -58,6 +62,8 @@ export default function AdminClients() {
         supabase.from("contacts").select("id, client_id, email, is_primary, created_at").order("created_at", { ascending: true }),
         // Optional: entitlements may not be migrated in every environment yet — must not block the customers list.
         listPlans().catch(() => []),
+        // Optional: a directories read failure must not block the customers list.
+        supabase.from("directories").select("client_id"),
       ]);
 
       if (clientsError) throw clientsError;
@@ -95,6 +101,12 @@ export default function AdminClients() {
         primaryByClient = buildPrimaryContactByClientId(refetched);
       }
 
+      setDirectoryCountByClientId(
+        (directoriesData ?? []).reduce((acc, d) => {
+          if (d.client_id) acc[d.client_id] = (acc[d.client_id] ?? 0) + 1;
+          return acc;
+        }, {}),
+      );
       setRows(clientsData ?? []);
       setMapCountByClientId(countByClient);
       setPrimaryContactByClientId(primaryByClient);
@@ -126,23 +138,23 @@ export default function AdminClients() {
     listClientIdsWithBetaAccess().then(setBetaClientIds).catch(() => {});
   }, []);
 
+  const isArchived = (r) => r.is_active === false; // is_active arrives with the archive migration
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    let list = rows;
-    if (view === "beta") {
-      list = list.filter((r) => betaClientIds.includes(r.id));
-    } else if (view !== "all") {
-      list = list.filter((r) => r.plan_key === view);
-    }
+    let list = rows.filter((r) => (view === "archived" ? isArchived(r) : !isArchived(r)));
+    if (planFilter !== "all") list = list.filter((r) => (r.plan_key || "—") === planFilter);
+    if (betaFilter === "beta") list = list.filter((r) => betaClientIds.includes(r.id));
     if (!query) return list;
-    return list.filter((r) => {
-      return (
-        (r.name ?? "").toLowerCase().includes(query) ||
-        (r.slug ?? "").toLowerCase().includes(query) ||
-        (r.id ?? "").toLowerCase().includes(query)
-      );
-    });
-  }, [rows, q, view, betaClientIds]);
+    return list.filter((r) =>
+      [r.name, r.slug, r.id].some((v) => (v ?? "").toLowerCase().includes(query)),
+    );
+  }, [rows, q, view, planFilter, betaFilter, betaClientIds]);
+
+  const viewCounts = useMemo(
+    () => ({ all: rows.filter((r) => !isArchived(r)).length, archived: rows.filter(isArchived).length }),
+    [rows],
+  );
 
   const planCounts = useMemo(() => {
     const counts = {};
@@ -161,10 +173,15 @@ export default function AdminClients() {
   );
 
   const columns = [
-    { key: "name", label: "Customer", render: (r) => <strong>{r.name}</strong> },
+    {
+      key: "name",
+      label: "Customer",
+      render: (r) => <NameCell name={r.name} sub={r.slug ? <span className="cell-mono">{r.slug}</span> : null} />,
+    },
     { key: "plan", label: "Plan", render: (r) => planNameByKey[r.plan_key] ?? r.plan_key ?? "—" },
-    { key: "slug", label: "Slug" },
-    { key: "maps", label: "Number of maps", render: (r) => mapCountByClientId[r.id] ?? 0 },
+    { key: "status", label: "Status", render: (r) => (isArchived(r) ? <Pill>Archived</Pill> : <Pill tone="live">Active</Pill>) },
+    { key: "maps", label: "Maps", className: "cell-num", align: "right", render: (r) => mapCountByClientId[r.id] ?? 0 },
+    { key: "directories", label: "Directories", className: "cell-num", align: "right", render: (r) => directoryCountByClientId[r.id] ?? 0 },
     {
       key: "primary",
       label: "Primary contact",
@@ -179,26 +196,36 @@ export default function AdminClients() {
         );
       },
     },
-    { key: "created", label: "Created", render: (r) => (r.created_at ? new Date(r.created_at).toLocaleDateString() : "—") },
-    { key: "updated", label: "Updated", render: (r) => (r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—") },
+    { key: "updated", label: "Updated", render: (r) => formatListDate(r.updated_at) },
   ];
 
-  return (
-    <AdminLayout
-      panel={
-        <CustomersFeaturePanel
-          activeView={view}
-          onSelectView={setView}
-          allCount={rows.length}
-          planCounts={planCounts}
-          betaCount={betaClientIds.length}
-          recentClients={recentClients}
+  const filters = (
+    <>
+      <Field label="Plan">
+        <Select
+          value={planFilter}
+          onChange={(e) => setPlanFilter(e.target.value)}
+          options={[{ value: "all", label: "All plans" }, ...planCounts.map((p) => ({ value: p.key, label: `${p.label} (${p.count})` }))]}
         />
-      }
-    >
-      <PageLayout
+      </Field>
+      {betaClientIds.length > 0 ? (
+        <Field label="Beta access">
+          <Select
+            value={betaFilter}
+            onChange={(e) => setBetaFilter(e.target.value)}
+            options={[{ value: "all", label: "Everyone" }, { value: "beta", label: `With beta access (${betaClientIds.length})` }]}
+          />
+        </Field>
+      ) : null}
+    </>
+  );
+
+  return (
+    <AdminLayout panel={<CustomersFeaturePanel recentClients={recentClients} />}>
+      <ListPage
         head={{
           title: "Customers",
+          subtitle: "Every organisation on the platform.",
           actions: (
             <>
               <Button onClick={load}>Refresh</Button>
@@ -206,52 +233,52 @@ export default function AdminClients() {
             </>
           ),
         }}
-      >
-        <div className="wc-stack">
-          {err ? <Callout tone="danger">{err}</Callout> : null}
-
-          <Section flush>
-            <Toolbar className="wc-toolbar">
-              <Field label="Search customers" className="wc-field-grow">
-                <TextInput
-                  type="search"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search customer name, slug, id…"
-                />
-              </Field>
-            </Toolbar>
-            <DataTable
-              caption="Customers"
-              columns={columns}
-              rows={filtered}
-              getRowId={(r) => r.id}
-              getRowLabel={(r) => r.name}
-              rowLink={(r) => `/admin/clients/${encodeURIComponent(r.id)}`}
-              loading={loading}
-              rowMenu={(r) => [
-                (mapCountByClientId[r.id] ?? 0) === 0
-                  ? {
-                      label: "Delete customer",
-                      danger: true,
-                      onSelect: () => {
-                        setClientToDelete({ id: r.id, name: r.name });
-                        setDeleteConfirmText("");
-                      },
-                    }
-                  : { label: "Delete customer (remove maps first)", danger: true, disabled: true },
-              ]}
-              empty={
-                <EmptyState
-                  art="none"
-                  title={rows.length === 0 ? "No customers yet" : "No customers match your search"}
-                  actions={rows.length === 0 ? <Button as={Link} to="/admin/clients/new" variant="primary">New customer</Button> : null}
-                />
-              }
-            />
-          </Section>
-        </div>
-      </PageLayout>
+        noun="customers"
+        error={err}
+        itemCount={rows.length}
+        alwaysShowToolbar
+        views={{
+          label: "Filter customers",
+          value: view,
+          onChange: setView,
+          options: [
+            { key: "all", label: "All customers", count: viewCounts.all },
+            { key: "archived", label: "Archived", count: viewCounts.archived },
+          ],
+        }}
+        search={{ label: "Search customers", value: q, onChange: setQ, placeholder: "Search customer name, slug, id…" }}
+        filters={filters}
+        emptyAll={
+          <EmptyState
+            art="none"
+            title="No customers yet"
+            actions={<Button as={Link} to="/admin/clients/new" variant="primary">New customer</Button>}
+          />
+        }
+        table={{
+          caption: "Customers",
+          columns,
+          rows: filtered,
+          getRowId: (r) => r.id,
+          getRowLabel: (r) => r.name,
+          rowLink: (r) => `/admin/clients/${encodeURIComponent(r.id)}`,
+          loading,
+          rowMenu: (r) => [
+            { label: "Open", href: `/admin/clients/${encodeURIComponent(r.id)}` },
+            { divider: true },
+            (mapCountByClientId[r.id] ?? 0) === 0
+              ? {
+                  label: "Delete customer",
+                  danger: true,
+                  onSelect: () => {
+                    setClientToDelete({ id: r.id, name: r.name });
+                    setDeleteConfirmText("");
+                  },
+                }
+              : { label: "Delete customer (remove maps first)", danger: true, disabled: true },
+          ],
+        }}
+      />
 
       {clientToDelete ? (
         <Dialog
