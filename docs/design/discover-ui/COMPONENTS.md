@@ -231,6 +231,11 @@ Keep `.stat`, `.stat-grid`, `.stat--compact`, `.stat--ok`, `.stat--warn`. Compon
 
 The only way to change order in the admin. Drag handle (always visible) with mouse, touch (hold 200ms) and keyboard (Space to lift, arrows, Space to drop, Esc to cancel), plus Move to top/up/down/bottom in each row's ⋯ menu. Standalone lists save on drop with a Toast + Undo; lists inside SaveBar forms just mark the form dirty. No HTML5 `draggable`, no up/down arrow buttons. Full spec, API and where it applies: `REORDER_BRIEF.md`; visual: `reference/33-pattern-reorder.html`.
 
+## 5c. List screens and archiving
+
+- **ListPage** anatomy (every list of directories, maps, customers): PageHead · status views as a SegmentedControl with counts ("All" excludes archived; Archived always last) · Toolbar · DataTable with ⋯ row menu · secondary Sections below. Reference `reference/34-…`, `35-…`.
+- **ArchiveDialog**: Dialog with computed consequences, a "Nothing is deleted" note and a "Type ARCHIVE to confirm" field; confirm stays disabled until the text matches exactly. **ArchivedBanner** plus a `ReadOnly` context for archived items. Restore needs no typing. Full spec: `ARCHIVE_BRIEF.md`; visual: `reference/36-pattern-archive.html`.
+
 ## 6. Overlays
 
 ### Dialog and ConfirmDialog (move from `experience/ui.jsx`)
