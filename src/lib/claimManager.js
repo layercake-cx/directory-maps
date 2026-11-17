@@ -136,6 +136,16 @@ export async function getListingDraftingPrompt(entryId) {
 }
 
 /**
+ * Whether AI drafting can run for this listing's directory right now. Fails open (returns
+ * available) if the check itself errors -- the server is the real gate.
+ */
+export async function getListingAiStatus(entryId) {
+  const { data, error } = await invokeFunction("claim_listing_ai", { body: { entry_id: entryId, action: "status" } });
+  if (error || data?.error) return { available: true };
+  return { available: data?.available !== false };
+}
+
+/**
  * Asks for an AI draft of the listing body. NOTHING is saved by the server; the caller puts the
  * HTML in its unsaved editor. The server reads the prompt and the web address itself (the client
  * never sends either). Throws an Error with `.code === "no_web_address"` when the entry has none.
