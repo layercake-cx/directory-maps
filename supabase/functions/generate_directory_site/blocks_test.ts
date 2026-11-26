@@ -325,3 +325,15 @@ Deno.test("block CSS ships in the stylesheet with the --ds-* tokens", async () =
   assert(css.includes("--ds-color-accent: var(--primary)"));
   assert(css.includes(".ds-block"));
 });
+
+Deno.test("hero-region blocks sit inside the page-width container, never at the top level", () => {
+  const hero = block("hero", { title: "Badminton", media: "none" }, { region: "hero" });
+  const stats = block("stats", { items: [{ value: "12", label: "clubs" }] }, { region: "hero", position: 1 });
+  const html = buildEntryPage({ ...base, layout: [], blocks: [hero, stats, ...sidebar()] });
+  assertEquals(html.split('<div class="wrap ds-hero-region">').length - 1, 2);
+  assertFalse(/<\/div>\s*<section class="ds-block ds-block--hero/.test(html), "hero section must not follow a closed container at top level");
+  assertStringIncludes(html, '<div class="wrap ds-hero-region"><section class="ds-block ds-block--hero');
+  assertFalse(html.includes('class="wrap ds-hero__inner"'));
+  const page = buildContentPage({ ...pageOpts, blocks: [block("page_title", {}, { region: "hero" }), block("stats", { items: [{ value: "1" }] }, { region: "hero", position: 1 })] });
+  assertStringIncludes(page, '<div class="wrap ds-hero-region"><section class="ds-block ds-block--stats');
+});
