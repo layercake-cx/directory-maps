@@ -74,6 +74,7 @@ import DirectoryCategoriesRoute from "./components/directoryPanel/DirectoryCateg
 import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryAccreditationsRoute.jsx";
 import DirectoryLookAndFeelRoute from "./components/directoryPanel/DirectoryLookAndFeelRoute.jsx";
 import DirectoryEntryPagesRoute from "./components/directoryPanel/DirectoryEntryPagesRoute.jsx";
+import DirectoryBlockLibraryRoute from "./components/directoryPanel/DirectoryBlockLibraryRoute.jsx";
 import DirectorySearchRoute from "./components/directoryPanel/DirectorySearchRoute.jsx";
 import DirectoryClaimsRoute from "./components/directoryPanel/DirectoryClaimsRoute.jsx";
 import DirectoryEnquiriesRoute from "./components/directoryPanel/DirectoryEnquiriesRoute.jsx";
@@ -138,6 +139,7 @@ export default function App() {
           <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
           <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
           <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+          <Route path="page-blocks" element={<DirectoryBlockLibraryRoute />} />
           {/* Old URL, before Design split into Look & feel and Entry pages */}
           <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
           <Route path="search" element={<DirectorySearchRoute />} />
@@ -337,6 +339,7 @@ export default function App() {
         <Route path="ai-enrichment" element={<DirectoryAiEnrichmentRoute />} />
         <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
         <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
+        <Route path="page-blocks" element={<DirectoryBlockLibraryRoute />} />
         {/* Old URL, before Design split into Look & feel and Entry pages */}
         <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
         <Route path="search" element={<DirectorySearchRoute />} />

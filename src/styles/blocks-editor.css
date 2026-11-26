@@ -1,0 +1,34 @@
+/* Block editor (entry and content pages), block library, block picker.
+   Scoped under .shell, tokens only. */
+
+.shell .block-editor { display: flex; flex-direction: column; gap: var(--gap-section); min-width: 0; }
+.shell .block-editor__intro { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+
+.shell .block-row__summary { color: var(--shell-text-soft); margin-right: 8px; }
+.shell .block-picker { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.shell .block-picker .shell-btn { width: 100%; justify-content: flex-start; text-align: left; flex-wrap: wrap; gap: 4px 12px; min-height: var(--control-h); }
+
+.shell .block-dialog { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .block-dialog__sub { margin: 0; font-size: var(--fs-small); color: var(--shell-text-muted); }
+.shell .block-dialog__errors { margin: 0; padding-left: 18px; }
+.shell .block-dialog__settings { border: 1px solid var(--shell-line); border-radius: var(--radius-card); padding: 12px 16px; background: var(--shell-surface); }
+.shell .block-dialog__settings > summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.shell .block-dialog__settings[open] > summary { margin-bottom: 12px; }
+.shell .block-dialog__settings:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+.shell .block-fields { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.shell .block-list { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.shell .block-list__item { border: 1px solid var(--shell-line); border-radius: var(--radius-item); padding: 12px; display: flex; flex-direction: column; gap: 12px; background: var(--shell-surface); }
+.shell .block-list__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shell .block-list__n { font-weight: 600; font-size: var(--fs-small); }
+.shell .block-list__tools { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.shell .block-list__row { display: flex; align-items: center; gap: 8px; }
+.shell .block-list__row .input { flex: 1; min-width: 0; }
+
+.shell .block-table { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; }
+.shell .block-table__row { display: grid; gap: 6px; align-items: center; min-width: 360px; }
+
+.shell .block-link { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.shell .block-link__thumb { max-width: 160px; max-height: 100px; object-fit: cover; border-radius: var(--radius-item); border: 1px solid var(--shell-line); }
+
+.shell .block-library__usage { color: var(--shell-text-muted); font-size: var(--fs-small); }

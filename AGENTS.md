@@ -257,6 +257,7 @@ This is analogous to the public engagement framework documented in `docs/MAP_ENG
   - **Directory AI search**: `directory_ai_search_*`
   - **Directory entries (CSV & lifecycle)**: `directory_entry_*`
   - **Directory content pages**: `directory_content_page_*`
+  - **Directory page blocks**: `directory_page_block_*`, `directory_page_blocks_*`, `directory_block_template_*`
   - **Integrations (platform-level connections, e.g. AI providers)**: `integration_*`
   - **AI model configuration**: `ai_*`
   - **Assistant (Ask Pip preview)**: `admin_assistant_*`
@@ -486,6 +487,27 @@ Feature 6 of the Directory Searchability & AI Metadata plan — editor-built pag
 - **`directory_content_page_ai_seo_requested`** / **`_ai_seo_generated`** / **`_ai_seo_failed`**
   - `meta`: `directory_id`, `page_id`, `error` (on fail)
   - Separate "Generate SEO with AI" action: drafts the meta title and description only. Lands in the unsaved form, never persisted by the Edge Function.
+
+#### Directory page blocks
+
+Block pages (docs/FEATURES.md §4.4l). Emitted by `PageBlocksEditor.jsx` (entry Content tab, content Pages screen, Listing Manager) and `BlockLibraryPage.jsx`. Never put block content in `meta`.
+
+- **`directory_page_blocks_converted`**
+  - `meta`: `directory_id`, `page_kind` (`entry` / `content_page`), `page_id`, `blocks_created`, `source` (`page_editor` / `claim_manager`)
+- **`directory_page_block_added`**
+  - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, `region`, optional `template_id`, `source`
+- **`directory_page_block_updated`**
+  - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, `detached_from_template` (boolean)
+- **`directory_page_block_moved`**
+  - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, `region`, optional `to_index`, `from_region`
+- **`directory_page_block_removed`** / **`directory_page_block_reset`**
+  - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, optional `template_id`
+- **`directory_block_template_saved`**
+  - `meta`: `directory_id`, `template_id`, `block_type`, `source`; from the library also `page_kind`, `new`, `lock_position`, `lock_content`, `auto_add`; from "Save as library template" `from_page: true`
+- **`directory_block_template_stamped`**
+  - `meta`: `directory_id`, `template_id`, `block_type`, `pages_stamped`
+- **`directory_block_template_deleted`**
+  - `meta`: `directory_id`, `template_id`, `block_type`, `pages_detached`
 
 #### Directory AI content generation
 

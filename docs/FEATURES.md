@@ -498,6 +498,21 @@ Tables: `directory_content_pages` (`20260919150000`, columns extended `202609200
 
 Files: `src/lib/contentPages.js`, `src/components/directories/DirectoryContentPagesPanel.jsx`, `src/components/directories/DirectoryGeneralSettingsPanel.jsx`; `supabase/functions/generate_directory_site/builders.ts` + `index.ts`; `middleware.js`.
 
+### 4.4l Block pages (2026-11-26)
+
+Entry detail pages and directory content pages can be built from **blocks** in three regions (hero, main, sidebar). Replaces the single notes area and the fixed layout; `entry_templates` is superseded (still read for pages not yet converted; the Entry pages screen remains until every page is converted).
+
+- **Model**: a **block template** (`directory_block_templates`, a directory library entry: block type, preset content, `lock_position`, `lock_content`, `placement`, `auto_add`) and a **block instance** (`directory_page_blocks`, one per block on a page). An instance is linked to its template while its `data` is null; an editor's change gives it its own data (per block, not per field). Position-locked instances are pinned to the template's start or end of the region. Admins are never bound by locks.
+- **Registry**: `scripts/block-registry.json` generates `src/lib/blockRegistry.generated.js`, `supabase/functions/_shared/blockRegistry.generated.ts` and the SQL `block_registry()` (`node scripts/generate-block-registry.mjs [--sql|--check]`). 18 handoff blocks (Contact deferred) plus data-bound `entry_*` / `page_title` blocks that keep converted pages identical.
+- **Server rules** (RPCs): `get_page_blocks`, `add_page_block`, `update_page_block`, `reset_page_block_to_template`, `move_page_block`, `remove_page_block`, `convert_page_to_blocks`; admin `save_block_template`, `delete_block_template`, `stamp_block_template`, `promote_page_block_to_template`. Three callers: directory admins (platform admin, client owner/manager), page editors (other contacts), claim users (`p_claim_id`, own entry). Validation and lock checks are server-side; rich text is sanitised on output too.
+- **Public rendering**: `generate_directory_site` (`blocks.ts`, `buildEntryPage`, `buildContentPage`). A page with no blocks renders as before; a converted page reproduces it. `--ds-*` tokens come from the directory theme. `ENTRY_TEMPLATE_VERSION` 23.
+- **Editor** (`src/components/blocks/`): `PageBlocksEditor` (entry Content tab, content Pages screen; Listing Manager next), `BlockEditDialog`, registry-driven `BlockFields`, and the library at Experience › Page blocks (`BlockLibraryPage`). Reordering uses the shared SortableList; moving between regions is a menu action.
+- **Auto-add**: a trigger stamps `auto_add` templates onto newly created entries and content pages (converting the page first); it exits at once for directories without one and never fails the insert.
+- **Visitor events**: `listing_faq_toggle` plus `listing_cta_click` with block `cta_type` values (`docs/MAP_ENGAGEMENT.md`).
+- **Admin events**: `directory_page_blocks_converted`, `directory_page_block_added|updated|moved|removed|reset`, `directory_block_template_saved|deleted|stamped` (AGENTS.md catalogue).
+
+Migrations: `20261126120000_create_block_pages`, `20261126140000_block_pages_api`, `20261126160000_block_faq_event`, `20261126180000_block_pages_editor`. Not yet built: the Listing Manager editor for claim owners and users, a rendered preview inside the editor dialog, drag from the block list, an Organisation record and Contact block, nested block slots.
+
 ### 4.4l Directory entry Contact (2026-09-22, reworked 2026-10-04)
 
 The **Contact** button on published directory entry pages (originally "Make an Enquiry" to one directory-wide inbox), using organisation sending profiles with per-directory settings.

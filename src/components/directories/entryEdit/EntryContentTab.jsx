@@ -19,6 +19,7 @@ import AccreditationsEditor from "../AccreditationsEditor.jsx";
 import { markDirectoryContentChanged } from "../../../lib/directoryPublications.js";
 import ProminentLinksEditor from "../ProminentLinksEditor.jsx";
 import ProductTilesEditor from "../ProductTilesEditor.jsx";
+import PageBlocksEditor from "../../blocks/PageBlocksEditor.jsx";
 
 const SOURCE_LABELS = {
   manual: "Manual edit",
@@ -44,6 +45,8 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
   const confirm = useConfirm();
   const loadPrompt = useCallback(async () => ({ text: await getDirectoryAiContentPrompt(directoryId) }), [directoryId]);
   const [notesHtml, setNotesHtml] = useState(entry?.notes_html || "");
+  // Once the page uses blocks, notes are a block (the page ignores notes_html), so this editor is hidden.
+  const [blocksConverted, setBlocksConverted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -113,6 +116,18 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
 
   return (
     <div className="editor-stack">
+      <PageBlocksEditor
+        pageKind="entry"
+        pageId={entryId}
+        directoryId={directoryId}
+        entryName={entry?.name}
+        canEdit={canEdit}
+        recordEvent={recordEvent}
+        onLoaded={(s) => setBlocksConverted(!!s.converted)}
+        onChanged={onSaved}
+      />
+
+      {!blocksConverted && (
       <Section
         title="Notes"
         actions={canEdit && aiContentEnabled ? <AIButton compact onGenerate={handleGenerate} disabled={!ai.available} /> : null}
@@ -145,6 +160,7 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
           </div>
         )}
       </Section>
+      )}
 
       <EvidenceItemsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
       <MediaAssetsEditor directoryId={directoryId} entryId={entryId} recordEvent={recordEvent} />
