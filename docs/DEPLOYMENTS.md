@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-26 — [Migration, not yet applied] Block pages, phase 1 (schema only)
+
+**Branch:** `feat/2026-11-26-block-pages`
+
+### What changed
+- First of several phases that let admins and listing owners (claim owners and users) build entry detail pages and directory content pages from blocks. This phase adds tables only; nothing reads them, so no published page changes and no user-facing behaviour changes yet.
+- A **block template** (`directory_block_templates`) is a reusable content object in a directory's library: block type, preset content, lock flags (position, content) and an optional "add to every page" rule. A **block instance** (`directory_page_blocks`) belongs to one entry or content page and is what editors work with. An instance is linked to its template (its `data` is null and it inherits the template) until an editor changes it, which gives it its own content (per block, not per field).
+- Platform admins and client owners/managers can write the tables directly. Everyone else (other client members, claim users) will go through RPCs in later phases, because locks can only be enforced server-side. Visitors never read them.
+- Adds three converter functions (`convert_entry_to_blocks`, `convert_content_page_to_blocks`, `convert_directory_to_blocks`). The migration does **not** run them. They are idempotent, service-role only, and turn today's page content into instances so a page can be switched over on demand: the resolved `entry_templates` layout, `notes_html` and content-page `body_html`. They emit data-bound legacy block types (`entry_hero`, `entry_gallery`, `entry_contact_panel` and so on) so a converted page renders as it does today.
+- Migration `20261126120000_create_block_pages.sql`, rollback `_20261126120000_create_block_pages.rollback.sql`. No forbidden operations in the forward migration.
+
+### Rollback plan
+Run the rollback file. It refuses if any template exists or any instance was created or edited in the editor (only untouched conversions can be dropped without a backup).
+
+### Verification
+- [ ] Dry run against staging (not yet done: the CLI's read-only dump login cannot run a `BEGIN; … ROLLBACK;`, and no local Postgres is available).
+- [ ] Staging: `supabase db push`, `VERIFY PASSED` seen, row counts of `directory_entries`, `directory_content_pages` and `entry_templates` unchanged.
+- [ ] Staging: `convert_directory_to_blocks` run inside a rolled-back transaction on a real directory, block counts per region sensible.
+- [ ] SQL syntax not machine-checked; reviewed by reading only.
+
+---
+
 ## 2026-11-17 — [Frontend only] GitHub Pages deploy workflow removed
 
 **Branch:** `chore/2026-11-17-remove-github-pages-deploy`
