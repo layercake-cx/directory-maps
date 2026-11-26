@@ -228,7 +228,7 @@ declare
   v_elem jsonb;
   v_key text;
   v_num numeric;
-  v_unsafe constant text := '(<\s*(script|iframe|object|embed|style)\b|javascript:|\son[a-z]+\s*=)';
+  v_unsafe constant text := '(<\s*(script|iframe|object|embed|style)\y|javascript:|\son[a-z]+\s*=)';
 begin
   if p_val is null or jsonb_typeof(p_val) = 'null' then
     if v_req then
@@ -1236,7 +1236,7 @@ grant execute on function public.stamp_block_template(uuid, integer) to authenti
 do $$
 declare
   v_ok jsonb := '{"title":"Safe, inclusive sport","body":"<p>Everyone is welcome.</p>","tone":"info"}'::jsonb;
-  v_n integer;
+  v_missing text;
 begin
   -- valid blocks
   if jsonb_array_length(public.block_data_errors('entry', 'main', 'callout', v_ok, '{}')) <> 0 then
@@ -1258,8 +1258,7 @@ begin
   end if;
 
   -- invalid blocks, each must produce at least one error
-  v_n := 0;
-  select count(*) into v_n from (values
+  select string_agg(t.i::text, ',') into v_missing from (select row_number() over () as i, x.errs from (values
     (public.block_data_errors('entry', 'main', 'no_such_block', '{}', '{}')),
     (public.block_data_errors('entry', 'hero', 'callout', v_ok, '{}')),
     (public.block_data_errors('content_page', 'main', 'claim', '{"title":"x"}', '{}')),
@@ -1278,9 +1277,9 @@ begin
     (public.block_data_errors('entry', 'main', 'heading', '{"title":"A heading that is far far far far far too long to be allowed here at all"}', '{}')),
     (public.block_data_errors('entry', 'main', 'entry_categorisation', '{}', '{}')),
     (public.block_data_errors('entry', 'main', 'rich', null, '{}'))
-  ) as t(errs) where jsonb_array_length(t.errs) > 0;
-  if v_n <> 18 then
-    raise exception 'VERIFY FAILED: expected 18 invalid blocks to be rejected, % were', v_n;
+  ) as x(errs)) t where jsonb_array_length(t.errs) = 0;
+  if v_missing is not null then
+    raise exception 'VERIFY FAILED: these invalid blocks (by position in the list) were accepted: %', v_missing;
   end if;
 
   -- structure

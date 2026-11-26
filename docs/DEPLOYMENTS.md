@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-26 — [Migration, not yet applied] Block pages, phase 2 (server rules)
+## 2026-11-26 — [Migration, staging only] Block pages, phase 2 (server rules)
 
 **Branch:** `feat/2026-11-26-block-pages-api` (stacked on `feat/2026-11-26-block-pages`; phase 1 must be merged first)
 
@@ -27,7 +27,7 @@ Run the rollback file. It drops the functions and restores phase 1's policies; n
 ### Verification
 - [x] SQL parsed with a Postgres parser (pglast): both files and all 20 plpgsql bodies are syntactically valid. This does not check column names or logic.
 - [x] `node scripts/generate-block-registry.mjs --check` passes.
-- [ ] Staging: `supabase db push`; the migration's own verify block runs 23 validator cases (5 valid, 18 invalid) and checks policies and grants, then prints `VERIFY PASSED`.
+- [x] Staging, 2026-11-26: applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. The migration's verify block runs 23 validator cases (5 valid, 18 invalid) plus policy and grant checks. The first two pushes failed atomically (nothing applied): the verify block caught that `<script` was not being rejected, because `\b` in a Postgres regex is backspace, not a word boundary. Fixed to `\y` before the successful push.
 - [ ] Staging: RPCs exercised as a real admin, member and claim user (locks refuse, pins hold, detach and reset work). Not possible from the CLI; needs a signed-in session.
 
 ---
