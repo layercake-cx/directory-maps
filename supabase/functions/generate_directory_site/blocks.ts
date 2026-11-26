@@ -235,6 +235,9 @@ function imageTag(img: unknown, cls: string, eager = false): string {
   return `<img class="${cls}" src="${escapeAttr(url)}" alt="${escapeAttr(str(i.alt))}"${eager ? ' fetchpriority="high"' : ' loading="lazy"'}>`;
 }
 
+/** Blocks that are already a visible box (or are not content) do not get a second one. */
+const UNBOXED = new Set(["hero", "stats", "callout", "claim", "cards", "divider", "heading"]);
+
 /** Wraps a block's inner markup with the shared section attributes. */
 function wrap(b: PageBlock, inner: string, extraClass = ""): string {
   const theme = ["default", "inverse", "accent"].includes(str(b.common.theme)) ? str(b.common.theme) : "default";
@@ -250,7 +253,8 @@ function wrap(b: PageBlock, inner: string, extraClass = ""): string {
     .map(([k, v]) => ` ds-${k.toLowerCase()}-${String(v).toLowerCase()}`)
     .join("");
   const id = blockAnchorId(b);
-  return `<section class="ds-block ds-block--${escapeAttr(b.block_type)}${extraClass ? ` ${extraClass}` : ""}${vis}${variantClasses}" data-theme="${theme}"${id ? ` id="${id}"` : ""}${style.length ? ` style="${style.join(";")}"` : ""}>${inner}</section>`;
+  const box = UNBOXED.has(b.block_type) ? "" : " ds-box";
+  return `<section class="ds-block ds-block--${escapeAttr(b.block_type)}${box}${extraClass ? ` ${extraClass}` : ""}${vis}${variantClasses}" data-theme="${theme}"${id ? ` id="${id}"` : ""}${style.length ? ` style="${style.join(";")}"` : ""}>${inner}</section>`;
 }
 
 function titleHtml(b: PageBlock, ctx: BlockCtx, preferred?: string): string {
@@ -525,14 +529,18 @@ export const BLOCK_STYLE = `
   }
   @media (prefers-reduced-motion: reduce) { :root { --ds-motion-fast: 0ms; } }
 
-  .ds-block { margin: 0; min-width: 0; }
-  .ds-page-main > .ds-block { margin-top: var(--ds-space-6); }
-  .ds-page-side { margin-top: var(--ds-space-6); }
-  /* Same rhythm as .dir-entry-section so a converted page spaces out exactly as before. Existing sections are not touched. */
-  .dir-entry-main > .ds-block { padding-top: 28px; scroll-margin-top: 62px; }
-  .dir-aside > .ds-block { background: var(--ds-color-surface); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
-  .dir-entry-main > .ds-block[data-theme="inverse"], .ds-block[data-theme="inverse"] { background: var(--ds-color-inverse-bg); color: var(--ds-color-on-inverse); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
-  .dir-entry-main > .ds-block[data-theme="accent"], .ds-block[data-theme="accent"] { background: var(--ds-color-accent); color: var(--ds-color-on-accent); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
+  .ds-block { margin: 0; min-width: 0; scroll-margin-top: 62px; }
+  /* Every content block is its own box: surface, border, radius, padding. Blocks that are already a box (hero, stats, callout, claim, cards) are left out. */
+  .ds-box, .dir-entry-section.ds-box { background: var(--ds-color-surface); border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
+  .dir-entry-section.ds-box > h2 { margin-top: 0; }
+  /* The gap between boxes. Only block markup is targeted; existing standard sections are untouched. */
+  .dir-entry-main > .ds-block, .dir-entry-main > .dir-entry-section.ds-box { margin-top: var(--ds-space-5); }
+  .dir-entry-main > .ds-block:first-child, .dir-entry-main > .dir-entry-section.ds-box:first-child { margin-top: 0; }
+  .ds-page-main > .ds-block { margin-top: var(--ds-space-5); }
+  .ds-page-main > .ds-block:first-child { margin-top: 0; }
+  .ds-page-side { margin-top: var(--ds-space-5); }
+  .ds-block[data-theme="inverse"] { background: var(--ds-color-inverse-bg); color: var(--ds-color-on-inverse); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
+  .ds-block[data-theme="accent"] { background: var(--ds-color-accent); color: var(--ds-color-on-accent); border-radius: var(--ds-radius-lg); padding: var(--ds-space-5); }
   .ds-block__title { font-family: var(--ds-font-display); font-size: var(--ds-text-h2); line-height: 1.25; margin: 0 0 18px; }
   .dir-aside .ds-block__title { font-size: var(--ds-text-h3); }
   .ds-label, .ds-eyebrow { font-size: var(--ds-text-label); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ds-color-ink-muted); margin: 0 0 var(--ds-space-3); }
