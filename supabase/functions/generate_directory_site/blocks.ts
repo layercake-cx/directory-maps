@@ -443,7 +443,7 @@ const renderHero: Renderer = (b, ctx) => {
   const crumb = b.data.showBreadcrumb !== false && ctx.breadcrumbHtml ? ctx.breadcrumbHtml : "";
   const actions = [linkAnchor(b.data.primaryAction, ctx, "btn btn-primary", "hero_primary"), linkAnchor(b.data.secondaryAction, ctx, "btn btn-ghost", "hero_secondary")].filter(Boolean).join("");
   return {
-    html: wrap(b, `${img}<div class="ds-hero__shade ds-hero__shade--${overlay}"></div><div class="wrap ds-hero__inner">${crumb}${icon(b.data.icon)}<${tag} class="ds-hero__title">${escapeHtml(title)}</${tag}>${intro ? `<p class="ds-hero__intro">${escapeHtml(intro)}</p>` : ""}${actions ? `<div class="ds-hero__actions">${actions}</div>` : ""}</div>`),
+    html: wrap(b, `${img}<div class="ds-hero__shade ds-hero__shade--${overlay}"></div><div class="ds-hero__inner">${crumb}${icon(b.data.icon)}<${tag} class="ds-hero__title">${escapeHtml(title)}</${tag}>${intro ? `<p class="ds-hero__intro">${escapeHtml(intro)}</p>` : ""}${actions ? `<div class="ds-hero__actions">${actions}</div>` : ""}</div>`),
   };
 };
 
@@ -620,7 +620,10 @@ export const BLOCK_STYLE = `
   .ds-hero__shade--left-fade { background: var(--ds-overlay); }
   .ds-hero__shade--bottom-fade { background: linear-gradient(to top, rgb(0 0 0 / 0.85), rgb(0 0 0 / 0)); }
   .ds-hero__shade--full { background: rgb(0 0 0 / 0.55); } .ds-hero__shade--none { display: none; }
-  .ds-hero__inner { position: relative; padding-top: var(--ds-space-7); padding-bottom: var(--ds-space-7); width: 100%; }
+  .ds-hero__inner { position: relative; padding: var(--ds-space-7) var(--ds-space-6); width: 100%; }
+  /* Hero-region blocks sit inside .wrap (the same width as the entry header), so the banner is a contained, rounded band. */
+  .ds-hero-region { padding-top: var(--ds-space-4); padding-bottom: var(--ds-space-4); }
+  .ds-hero-region > .ds-block--hero { border-radius: var(--ds-radius-lg); }
   .ds-hero__title { font-family: var(--ds-font-display); font-size: clamp(36px, 7vw, 72px); line-height: 1; margin: 0 0 var(--ds-space-3); }
   .ds-align-centre .ds-hero__inner { text-align: center; }
   .ds-hero__intro { font-size: calc(var(--ds-text-body) * 1.2); max-width: 52ch; margin: 0 0 var(--ds-space-4); }
