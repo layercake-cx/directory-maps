@@ -198,6 +198,9 @@ export const movePageBlock = ({ blockId, region, index, claimId = null }) =>
 
 export const removePageBlock = (blockId, claimId) => rpc("remove_page_block", { p_block_id: blockId, ...claimArg(claimId) });
 
+/** Listing owners cannot read the library tables, so their templates and entry terms come from one RPC. */
+export const getClaimBlockContext = (claimId) => rpc("get_claim_block_context", { p_claim_id: claimId });
+
 // ---- Library (directory admins)
 
 export async function listBlockTemplates(directoryId) {
