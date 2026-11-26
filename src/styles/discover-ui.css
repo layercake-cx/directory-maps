@@ -120,13 +120,14 @@
 .shell .skeleton--chip { width: 36px; height: 36px; border-radius: var(--radius-item); }
 
 /* ---------- Dialog ---------- */
-.shell .dialog-backdrop { position: fixed; inset: 0; background: var(--scrim-modal); z-index: var(--z-dialog); display: grid; place-items: center; padding: 24px; }
-.shell .dialog { width: 100%; max-width: 460px; background: var(--shell-surface); border-radius: var(--radius-panel); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+.shell .dialog-backdrop { position: fixed; inset: 0; background: var(--scrim-modal); z-index: var(--z-dialog); display: grid; place-items: center; padding: 24px; overscroll-behavior: contain; }
+/* A dialog never grows past the window: the head and footer stay put and the body scrolls. */
+.shell .dialog { width: 100%; max-width: 460px; max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); background: var(--shell-surface); border-radius: var(--radius-panel); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
 .shell .dialog--wide { max-width: 640px; }
-.shell .dialog-head { padding: 22px 24px 8px; }
+.shell .dialog-head { padding: 22px 24px 8px; flex: none; }
 .shell .dialog-title { margin: 0; font-family: var(--font-display); font-weight: var(--fw-display); font-size: 20px; color: var(--shell-ink); }
-.shell .dialog-body { padding: 0 24px 18px; font-size: var(--fs-ui); line-height: 1.5; color: var(--shell-text-soft); }
-.shell .dialog-foot { padding: 14px 24px; border-top: 1px solid var(--shell-line); display: flex; justify-content: flex-end; gap: 10px; }
+.shell .dialog-body { padding: 0 24px 18px; font-size: var(--fs-ui); line-height: 1.5; color: var(--shell-text-soft); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.shell .dialog-foot { padding: 14px 24px; border-top: 1px solid var(--shell-line); display: flex; justify-content: flex-end; gap: 10px; flex: none; }
 
 /* ---------- SaveBar + Toast ---------- */
 .shell .savebar { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px var(--main-pad-x); margin: 0 calc(-1 * var(--main-pad-x)) -32px; background: var(--shell-surface); border-top: 1px solid var(--shell-line); }
