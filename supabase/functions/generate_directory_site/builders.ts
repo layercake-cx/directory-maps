@@ -40,7 +40,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 23; // v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
+export const ENTRY_TEMPLATE_VERSION = 24; // v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
 
 export type Entry = {
   id: string;
@@ -2568,7 +2568,8 @@ export function buildEntryPage(opts: {
         heroParts.push(`<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`);
       } else {
         const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: breadcrumb })));
-        if (r) heroParts.push(r.html);
+        // Held to the page width like the entry header, so a hero-region block never spans the whole window.
+        if (r) heroParts.push(`<div class="wrap ds-hero-region">${r.html}</div>`);
       }
     }
     // Every page needs one h1 and a way back: fall back to the standard header if the hero region gave none.
@@ -2817,7 +2818,7 @@ export function buildContentPage(opts: {
       if (b.block_type === "page_title") heroInside.push(`${breadcrumbHtml}\n${titleHtml}`);
       else {
         const html = render(b, "hero", { h1Taken: hasTitleBlock, breadcrumbHtml });
-        if (html) heroAbove.push(html);
+        if (html) heroAbove.push(`<div class="wrap ds-hero-region">${html}</div>`);
       }
     }
     // One h1 and a way back on every page: fall back to the standard header if the hero region gave none.
