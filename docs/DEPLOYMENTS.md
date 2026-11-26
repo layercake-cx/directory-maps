@@ -23,7 +23,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 Run the rollback file. It refuses if any template exists or any instance was created or edited in the editor (only untouched conversions can be dropped without a backup).
 
 ### Verification
-- [ ] Dry run against staging (not yet done: the CLI's read-only dump login cannot run a `BEGIN; … ROLLBACK;`, and no local Postgres is available).
+- [x] Staging, 2026-11-26: `supabase db push --dry-run` (CLI 2.75.0, linked to `beqejxneehilplrtpntn`) lists only `20261126120000_create_block_pages.sql` as pending. This confirms the file is picked up and nothing else is waiting; it does not execute the SQL.
+- [ ] A real `BEGIN; … ROLLBACK;` dry run is not possible with this CLI (its dump login is read-only) and no local Postgres is available, so the SQL has not been executed anywhere yet. The migration's own pre and post checks run on `db push`.
 - [ ] Staging: `supabase db push`, `VERIFY PASSED` seen, row counts of `directory_entries`, `directory_content_pages` and `entry_templates` unchanged.
 - [ ] Staging: `convert_directory_to_blocks` run inside a rolled-back transaction on a real directory, block counts per region sensible.
 - [ ] SQL syntax not machine-checked; reviewed by reading only.
