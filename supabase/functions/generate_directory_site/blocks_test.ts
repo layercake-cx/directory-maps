@@ -13,7 +13,7 @@ import {
   type BlockRow,
   type PageBlock,
 } from "./blocks.ts";
-import { buildContentPage, buildEntryPage, type ContentPage, type Entry, type SiteNav } from "./builders.ts";
+import { buildContentPage, buildEntryPage, linkTiles, type ContentPage, type Entry, type SiteNav } from "./builders.ts";
 
 const block = (block_type: string, data: Record<string, unknown>, over: Partial<PageBlock> = {}): PageBlock => ({
   id: crypto.randomUUID(), region: "main", position: 0, block_type, data, common: {}, ...over,
@@ -240,13 +240,29 @@ Deno.test("parity: converted data-bound blocks reproduce the standard entry page
     block("entry_links", { title: "Links" }, { position: 1 }),
     ...sidebar(),
   ];
-  assertEquals(buildEntryPage({ ...base, layout: [], blocks }), standard);
+  // The only difference in block mode is that each section is its own box.
+  assertEquals(buildEntryPage({ ...base, layout: [], blocks }).replaceAll(" ds-box", ""), standard);
 });
 
-Deno.test("parity: an unlabelled data-bound block keeps no section wrapper, as before", () => {
-  const standard = buildEntryPage({ ...base, layout: [{ type: "links" }] });
+Deno.test("an unlabelled data-bound block is wrapped in its own box with the same content", () => {
   const blocks = [block("entry_hero", {}, { region: "hero" }), block("entry_links", {}), ...sidebar()];
-  assertEquals(buildEntryPage({ ...base, layout: [], blocks }), standard);
+  const html = buildEntryPage({ ...base, layout: [], blocks });
+  assertStringIncludes(html, `<div class="dir-entry-section ds-box">${linkTiles(base.links)}</div>`);
+});
+
+Deno.test("content blocks are boxes; blocks that are already boxes, headings and dividers are not", () => {
+  for (const type of ["rich", "list", "faq", "table", "media", "chips", "actions", "tags", "attrs", "quote"]) {
+    const data: Record<string, unknown> = {
+      rich: { body: "<p>x</p>" }, list: { items: ["a"] }, faq: { items: [{ question: "q", answer: "a" }] }, table: { title: "T", rows: [["a"]] },
+      media: { items: [{ heading: "h" }] }, chips: { items: ["a"] }, actions: { title: "T", items: [{ label: "L", link: { kind: "url", target: "https://e.example" } }] },
+      tags: { sources: ["region"] }, attrs: {}, quote: { title: "q", who: "w" },
+    }[type]!;
+    const r = render(block(type, data), ctx({ entry: { id: "e", name: "N", city: "Leeds" }, terms: [{ termId: "t", catKey: "k", catLabel: "Flag", catFieldType: "boolean", label: "Yes", slug: "y" }] }));
+    if (r) assertStringIncludes(r.html, " ds-box", `${type} should be boxed`);
+  }
+  for (const [type, data] of [["callout", { title: "x", body: "y" }], ["stats", { items: [{ value: "1" }] }], ["cards", { items: [{ heading: "a" }, { heading: "b" }] }], ["divider", { style: "line" }]] as const) {
+    assertFalse(render(block(type, data as Record<string, unknown>))!.html.includes(" ds-box"), `${type} must not get a second box`);
+  }
 });
 
 Deno.test("a converted notes block renders as a rich block with the same text", () => {
@@ -336,4 +352,12 @@ Deno.test("hero-region blocks sit inside the page-width container, never at the 
   assertFalse(html.includes('class="wrap ds-hero__inner"'));
   const page = buildContentPage({ ...pageOpts, blocks: [block("page_title", {}, { region: "hero" }), block("stats", { items: [{ value: "1" }] }, { region: "hero", position: 1 })] });
   assertStringIncludes(page, '<div class="wrap ds-hero-region"><section class="ds-block ds-block--stats');
+});
+
+Deno.test("a hero banner does not repeat the breadcrumb the entry header already shows", () => {
+  const hero = block("hero", { title: "Try it", media: "none", showBreadcrumb: true }, { region: "hero", position: 1 });
+  const withHeader = buildEntryPage({ ...base, layout: [], blocks: [block("entry_hero", {}, { region: "hero" }), hero, ...sidebar()] });
+  assertEquals(withHeader.split('aria-label="Breadcrumb"').length - 1, 1);
+  const alone = buildEntryPage({ ...base, layout: [], blocks: [{ ...hero, position: 0 }, ...sidebar()] });
+  assertEquals(alone.split('aria-label="Breadcrumb"').length - 1, 1);
 });

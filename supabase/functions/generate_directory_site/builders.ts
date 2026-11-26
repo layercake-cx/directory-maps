@@ -40,7 +40,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 24; // v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
+export const ENTRY_TEMPLATE_VERSION = 25; // v25: every content block is its own box; v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
 
 export type Entry = {
   id: string;
@@ -2567,7 +2567,7 @@ export function buildEntryPage(opts: {
       if (b.block_type === "entry_hero") {
         heroParts.push(`<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`);
       } else {
-        const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: breadcrumb })));
+        const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: hasEntryHero ? undefined : breadcrumb })));
         // Held to the page width like the entry header, so a hero-region block never spans the whole window.
         if (r) heroParts.push(`<div class="wrap ds-hero-region">${r.html}</div>`);
       }
@@ -2595,13 +2595,14 @@ export function buildEntryPage(opts: {
       const content = renderBlockContent({ type: legacyType, key });
       if (!content) return;
       const label = typeof b.data.title === "string" ? b.data.title.trim() : "";
+      // In block mode every section is its own box (ds-box), labelled or not.
       if (!label) {
-        mainParts.push(content);
+        mainParts.push(`<div class="dir-entry-section ds-box">${content}</div>`);
         return;
       }
       const id = sectionAnchorId(label, i);
       chips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(label)}</a>`);
-      mainParts.push(`<div class="dir-entry-section" id="${id}"><h2>${escapeHtml(label)}</h2>${content}</div>`);
+      mainParts.push(`<div class="dir-entry-section ds-box" id="${id}"><h2>${escapeHtml(label)}</h2>${content}</div>`);
     });
     mainHtml = mainParts.join("\n");
     jumpBarHtml = chips.length ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${chips.join("")}</nav></div>` : "";
@@ -2817,7 +2818,7 @@ export function buildContentPage(opts: {
     for (const b of blocksInRegion(blocks, "hero")) {
       if (b.block_type === "page_title") heroInside.push(`${breadcrumbHtml}\n${titleHtml}`);
       else {
-        const html = render(b, "hero", { h1Taken: hasTitleBlock, breadcrumbHtml });
+        const html = render(b, "hero", { h1Taken: hasTitleBlock, breadcrumbHtml: hasTitleBlock ? undefined : breadcrumbHtml });
         if (html) heroAbove.push(`<div class="wrap ds-hero-region">${html}</div>`);
       }
     }
