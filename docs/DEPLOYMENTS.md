@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-26 — [Edge Function + migration, not yet deployed] Block pages, phase 3 (public renderer)
+## 2026-11-26 — [Edge Function + migration, staging only] Block pages, phase 3 (public renderer)
 
 **Branch:** `feat/2026-11-26-block-pages-render` (stacked on `feat/2026-11-26-block-pages-api`, which is stacked on `feat/2026-11-26-block-pages`; merge in that order)
 
@@ -25,8 +25,8 @@ Redeploy the previous Edge Function version. The event migration's rollback refu
 
 ### Verification
 - [x] `deno test --allow-read supabase/functions/generate_directory_site/`: 31 new tests plus the existing suite pass. `deno check` passes on `blocks.ts`, `builders.ts` and `index.ts`.
-- [ ] Staging: apply `20261126160000_block_faq_event.sql` (`supabase db push`).
-- [ ] Staging: deploy `generate_directory_site` to `beqejxneehilplrtpntn`, publish a directory with no blocks and confirm pages are unchanged, then convert one page, add blocks and publish.
+- [x] Staging, 2026-11-26: `20261126160000_block_faq_event.sql` applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. `generate_directory_site` deployed with `--project-ref beqejxneehilplrtpntn`.
+- [ ] Staging: publish a directory with no blocks and confirm its pages are unchanged, then convert one page, add blocks and publish (the editor does not exist yet, so blocks are added with SQL; see the chat for a script).
 - [ ] Not tested in a browser: block styling, mobile layout, sticky sidebar, hero banner.
 - [ ] `docs/USER_GUIDE.md` is not updated because nothing user-facing exists until the editor ships (phase 4).
 
