@@ -8,7 +8,7 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
-## 2026-11-26 — [Migration, not yet applied] Block pages, phase 1 (schema only)
+## 2026-11-26 — [Migration, staging only] Block pages, phase 1 (schema only)
 
 **Branch:** `feat/2026-11-26-block-pages`
 
@@ -25,7 +25,8 @@ Run the rollback file. It refuses if any template exists or any instance was cre
 ### Verification
 - [x] Staging, 2026-11-26: `supabase db push --dry-run` (CLI 2.75.0, linked to `beqejxneehilplrtpntn`) lists only `20261126120000_create_block_pages.sql` as pending. This confirms the file is picked up and nothing else is waiting; it does not execute the SQL.
 - [ ] A real `BEGIN; … ROLLBACK;` dry run is not possible with this CLI (its dump login is read-only) and no local Postgres is available, so the SQL has not been executed anywhere yet. The migration's own pre and post checks run on `db push`.
-- [ ] Staging: `supabase db push`, `VERIFY PASSED` seen, row counts of `directory_entries`, `directory_content_pages` and `entry_templates` unchanged.
+- [x] Staging, 2026-11-26: applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED` (tables empty, RLS on both, 6 policies, converters present and not callable by `authenticated`).
+- [ ] Staging: row counts of `directory_entries`, `directory_content_pages`, `entry_templates` and the map tables not compared by hand (the CLI cannot show query results and its login is read-only). The migration changes none of them.
 - [ ] Staging: `convert_directory_to_blocks` run inside a rolled-back transaction on a real directory, block counts per region sensible.
 - [ ] SQL syntax not machine-checked; reviewed by reading only.
 
