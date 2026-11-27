@@ -15,7 +15,7 @@ import { previewRows, useBlockWorkingCopy } from "./useBlockWorkingCopy.js";
 import { useBlockDrag } from "./useBlockDrag.js";
 import { canPreviewBlock, renderBlockPreview } from "./blockPreview.js";
 import {
-  blockDef, blockName, convertPageToBlocks, emptyData, listBlockTemplates,
+  blockDef, blockName, convertPageToBlocks, emptyData, getClaimBlockContext, listBlockTemplates,
 } from "../../lib/pageBlocks.js";
 import { getPagePublishState, isStaleSave, publishPage, renderPagePreview, validatePageBlocks } from "../../lib/pagePublish.js";
 import "../../styles/admin-shell-tokens.css";
@@ -119,9 +119,10 @@ function Editor({
     supabase.from("entry_media_assets").select("url").eq("entry_id", id).eq("is_hero", true).limit(1).then((r) => setHeroImageUrl(r.data?.[0]?.url ?? ""), () => {});
   }, [id, isEntry, claimId]);
 
+  // The library: read directly by admins and page editors; a listing owner gets it (with content) from one RPC.
   useEffect(() => {
-    if (claimId) return;
-    listBlockTemplates(directoryId).then((t) => setTemplates(t.filter((x) => x.page_kind === kind))).catch(() => {});
+    const load = claimId ? getClaimBlockContext(claimId).then((c) => c?.templates ?? []) : listBlockTemplates(directoryId);
+    load.then((t) => setTemplates(t.filter((x) => x.page_kind === kind))).catch(() => {});
   }, [directoryId, kind, claimId]);
 
   const refreshPublishState = useCallback(async () => {
@@ -230,6 +231,8 @@ function Editor({
       if (seoDirty) {
         const patch = seoPatch(seo, seoBase, seoFields);
         await (saveSeoOverride ? saveSeoOverride(patch, record) : isEntry ? saveEntrySeo(id)(patch) : savePageSeo(id)(patch));
+        // What was just saved is the new baseline, whether or not the record reload below hands back a new object.
+        setSeoBase(seo);
       }
       await loadRecord();
       await wc.load();

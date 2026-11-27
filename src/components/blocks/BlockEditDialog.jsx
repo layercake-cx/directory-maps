@@ -5,6 +5,17 @@ import { BlockFieldSet } from "./BlockFields.jsx";
 import { cleanData, emptyData, parseBlockError, regionLabel, validateFields } from "../../lib/pageBlocks.js";
 
 const COMMON_FIELDS = BLOCK_REGISTRY.commonFields;
+
+/**
+ * The rich text editor opens by writing an empty body (as "" or <p></p>) into a block that had none. That is not a change
+ * by the person, so empty text counts as absent when deciding whether the draft differs from what was opened.
+ */
+const emptyParagraph = (_k, v) => {
+  if (typeof v !== "string") return v;
+  const s = /^(<p>(<br\s*\/?>)?<\/p>)+$/.test(v.trim()) ? "" : v;
+  return s === "" ? undefined : s;
+};
+const fingerprint = (parts) => JSON.stringify(parts, emptyParagraph);
 const optionLabel = (o) => String(o).replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 function commonErrors(common) {
@@ -47,8 +58,8 @@ export default function BlockEditDialog({
   const [general, setGeneral] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const initial = useMemo(() => JSON.stringify([startData, startCommon, lib]), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const dirty = JSON.stringify([data, common, lib]) !== initial;
+  const initial = useMemo(() => fingerprint([startData, startCommon, lib]), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = fingerprint([data, common, lib]) !== initial;
 
   const contentLocked = mode === "edit" && block && block.can_edit_content === false;
   const wholeLocked = mode === "edit" && block && block.can_edit === false;

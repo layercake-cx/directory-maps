@@ -61,3 +61,4 @@
 
 /* Block editor embedded in the Listing tab (Discover UI scope, see components/blocks/EmbeddedBlocksEditor.jsx). */
 .lm__blocks { margin: 0 0 20px; }
+.lm__editor-link { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; font-size: 14px; }

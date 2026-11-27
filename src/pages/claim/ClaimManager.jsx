@@ -367,6 +367,10 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
         {!canEdit && <EditNotice />}
         {canEdit && (
           <div className="lm__blocks">
+            <p className="lm__editor-link">
+              <a className="lm__btn lm__btn--primary" href={`/claim/edit/${claimId}`}>Open the page editor</a>
+              <span> See your listing as visitors will, edit it on the page, preview it on desktop and mobile, and publish it.</span>
+            </p>
             <EmbeddedBlocksEditor
               pageKind="entry"
               pageId={entryId}

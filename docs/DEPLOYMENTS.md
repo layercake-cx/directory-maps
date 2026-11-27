@@ -8,6 +8,29 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Migration (staging) + frontend, not deployed] Focused block editor, stage 2
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (same draft PR as stage 1, #369). Completes the `discover-content-editor` spec.
+
+### What changed
+- **Drag and drop** (pointer events, `useBlockDrag`; the repo forbids HTML5 drag): drag a library block, or a block's grip, onto the page. While dragging, every region is outlined, dashed where the block may go and faded with "Doesn't accept …" where it may not; a drop line shows the position; the ghost follows the pointer; Escape cancels; a drop in a region that does not accept the block does nothing and says why in the live region. Dropping a new block opens its edit dialog. Every drag keeps a non-drag alternative (the + button, toolbar arrows, the outline's Move-to menu).
+- **Undo and redo** for the working copy (buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, not while typing in a field or with a dialog open).
+- **Live preview in the edit dialog**: the block is rendered with the same `blocks.ts` renderer the published page uses (shared source, bundled into the browser), in the directory's own theme taken from the canvas, on every keystroke. Data-bound blocks (gallery, contact panel and so on) show in the canvas instead.
+- **SEO surface**: search appearance (title and description with counts, URL), social sharing, indexing (allow indexing, canonical, structured data) on the left; live search result and social card previews and checks on the right. Checks state a status in words and an icon, never colour alone: title and description missing, short or over length, leftover `[bracketed]` placeholder text in the title, description **or blocks**, noindex. SEO is part of the draft: **Save draft** writes blocks first (they are checked against the page version) and then only the SEO fields that changed. **Publish** lists any SEO warnings in its confirmation ("Publish anyway"). Differences from the spec: there is no separate "Include in sitemap" switch (a noindex page is already left out of the sitemap, so one switch covers both); the social image is "Hero image" or a web address.
+- **Listing owners** (claim owners and editors): `/claim/edit/:claimId`, linked from the Listing Manager's Listing tab ("Open the page editor"). Same editor; they are bound by the locks, edit only the title and description in SEO (`update_claimed_listing_seo`), and publish only their own listing (`publish_page` already accepts the claim path). Migration `20261127160000_claim_block_context_content` (+ rollback) makes `get_claim_block_context` return each library template's content, so a block added from the library shows its text. Applied to staging, `VERIFY PASSED`.
+- Dialog fixes found while testing: cancelling a block you just added no longer asks "Discard your changes?" (the rich text editor writes an empty body on open, which counted as a change); the SEO "unsaved" state clears after a save; the Back link was unreadable (the shell's link colour won); confirmation messages keep their line breaks.
+
+### Rollback plan
+Revert the frontend commits; run `_20261127160000_claim_block_context_content.rollback.sql`.
+
+### Verification
+- [x] `vite build`, `check-ui.sh`, 89 function tests; SQL parsed; migration applied to staging.
+- [x] **Whole editor exercised end to end in a real browser** with the real `FocusedBlockEditor` against a test double of the data layer and the real generator behind a local server (not staging data): load, hover and click on the page, edit dialog with live preview, edit then Save draft (sends the expected version, all blocks, linked library blocks as `data: null`, edited blocks with their own data), add with + then cancel, drag from the library with zone labels and the drop line, undo and redo, a stale-save conflict refused with a reload prompt, SEO edit with live previews and checks, Save draft writing only the changed SEO field, Preview at Mobile (no controls), Publish confirmation with SEO warnings, Cancel publishing nothing, confirming publishing with the saved version, events recorded. Four bugs found and fixed in that run (see above).
+- [ ] **Not exercised against real data or a real sign-in:** the Supabase RPCs and Edge Function calls themselves (their server-side behaviour is covered by the migration end-to-end checks and anonymous-refusal test from stage 1), the claim route, the Listing Manager link, and touch dragging.
+- [ ] Known gaps: no keyboard "grab and move between regions" inside the canvas (the outline's Move-to menu and toolbar arrows cover it); the older row-list editor is still on the entry and page forms until you accept this one; undo history clears on save.
+
+---
+
 ## 2026-11-27 — [Migrations + Edge Function (staging) + frontend, not deployed] Focused block editor, stage 1 (draft PR)
 
 **Branch:** `feat/2026-11-27-focused-block-editor` (stacked on `feat/2026-11-27-block-pages-preserve-notes`, PR 368). Implements `discover-content-editor` (SPEC.md) on top of the block pages work. **Stage 1 of 2: usable, not complete.**
@@ -20,8 +43,8 @@ A plain-English record of every deployment to staging and production. Newest ent
 - **Migrations** (all applied to staging): `20261127140000_block_editor_save_publish_state` (`save_page_blocks`, `validate_page_blocks`, `get_page_publish_state`, `page_block_errors`, `get_page_blocks` now returns `page_updated_at`), `20261127150000_page_publish_preflight`; rollbacks alongside. The first one's verify step ran end to end on a real entry, rolled back, **including lock checks as a real non-admin contact** for the first time (removing a position-locked block and changing a content-locked block both refused).
 - **Not changed:** published output (89 function tests, byte parity kept). `claim_item` (Listing Manager publish) is untouched.
 
-### Not built yet (stage 2)
-Drag from the library and between regions (pointer-based, same canvas coordinates); live preview inside the edit dialog; the redesigned SEO surface (live search and social previews, checks; the existing SEO tab is embedded for now, entries only); the same editor for listing owners (`/claim/...`); undo/redo; removing the older row-list editor once this is accepted.
+### Not built in stage 1
+Built in stage 2 (entry above): drag and drop, dialog live preview, the SEO surface, listing owners, undo and redo. Still to decide: removing the older row-list editor.
 
 ### Rollback plan
 Run the two rollback files; redeploy the previous Edge Function; revert the frontend commits.

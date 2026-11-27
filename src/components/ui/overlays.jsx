@@ -74,7 +74,7 @@ export function ConfirmDialog({ title, message, children, confirmLabel = "Confir
         </>
       }
     >
-      {message ?? children}
+      {typeof message === "string" ? <span className="confirm-text">{message}</span> : (message ?? children)}
     </Dialog>
   );
 }
