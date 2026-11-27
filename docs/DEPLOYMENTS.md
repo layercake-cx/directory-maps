@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Production, Edge Function] `generate_directory_site` deployed with block pages
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369). The user explicitly signed off ("Yes, deploy function") after the production migrations above.
+
+### What was done
+- Stale-branch check passed: `origin/main` has no function changes this branch lacks, and the stack changes only `generate_directory_site/{blocks,builders,index}.ts`, `_shared/supabase.ts` and `_shared/blockRegistry.generated.ts`. 89 function tests and `deno check` passed.
+- `supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`. `supabase functions list` shows it ACTIVE, version 77, 2026-11-27 10:25 UTC. The CLI is linked to staging again. No other function was redeployed.
+- Checked on production with the project's publishable key (no user session): `preview_item` and `publish_page` (entry and content page) are refused with "This endpoint requires a valid Bearer token"; an invalid `kind` gets the 400 message. (A first attempt with the legacy anon key was stopped by the platform's "legacy keys disabled" gate, so it proved nothing about the function; the publishable-key run is the real check.)
+
+### What this changes on production now
+- Pages with no blocks render exactly as before (tested byte for byte), and nothing regenerates on deploy. **`ENTRY_TEMPLATE_VERSION` is now 26**, so the next ordinary Publish of any directory rebuilds all its entry pages and `theme.css` once (no visible change expected; the new rules only match block markup).
+- The function now reads `directory_block_templates` and `directory_page_blocks` on every publish and renders blocks for any page that has them. None have blocks yet. If those queries ever failed it logs and renders every page the standard way.
+- New scopes `preview_item` and `publish_page` exist and check the caller, but no screen calls them until the frontend is deployed.
+
+### Still to do (not done)
+- Deploy the frontend (`npm run deploy:live`, needs the user's Vercel session and their go-ahead). Only after that do the page editor, the block library and the Listing Manager link appear.
+- Merge the seven stacked PRs (363 to 369) in order.
+
+### Verification
+- [x] Deployed ACTIVE on production; refusal of unauthenticated callers confirmed.
+- [ ] Not exercised signed in: `preview_item` and `publish_page` on real production data. Not smoke-tested by publishing a directory (that is a full rebuild at version 26; do it deliberately and compare a page with a copy taken before, ideally on a directory with no maps linked).
+
+---
+
 ## 2026-11-27 — [Production] Block pages: all 10 migrations applied
 
 **Branch:** `feat/2026-11-27-focused-block-editor` (PR 369), which contains the whole stack (PRs 363 to 369). The user explicitly signed off production migrations on 2026-11-27 ("migrate to live first").
