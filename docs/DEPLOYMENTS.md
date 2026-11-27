@@ -8,6 +8,31 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Production] Block pages: all 10 migrations applied
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369), which contains the whole stack (PRs 363 to 369). The user explicitly signed off production migrations on 2026-11-27 ("migrate to live first").
+
+### What was done
+- CLI relinked to production (`gxixwdjfmegxcxfeflro`, confirmed from `supabase/.temp/project-ref`). Working tree clean, no stray migration files; `origin/main` has no migrations this branch lacks. `supabase db push --dry-run` listed exactly the 10 below and nothing else; `supabase db push` applied them in order. `supabase migration list` shows all 10 recorded. CLI relinked to staging afterwards.
+- `20261126120000_create_block_pages`, `20261126140000_block_pages_api`, `20261126160000_block_faq_event`, `20261126180000_block_pages_editor`, `20261126200000_block_pages_claim_context`, `20261127100000_block_pages_preserve_notes`, `20261127120000_block_pages_notes_sync`, `20261127140000_block_editor_save_publish_state`, `20261127150000_page_publish_preflight`, `20261127160000_claim_block_context_content`. Every one printed `VERIFY PASSED`.
+- The two end-to-end checks ran on a real production entry inside rolled-back sub-transactions: the notes sync check, and the Save draft check **including lock checks as a non-admin contact** (`lock checks ran as a non-admin contact`). Nothing they did was kept.
+
+### What this changes on production now
+- New tables (`directory_block_templates`, `directory_page_blocks`) and functions. Nothing reads them yet: the deployed Edge Function and frontend are the old versions, so no published page and no screen changes.
+- Two things touch existing tables and are live immediately: a trigger on `directory_entries` and `directory_content_pages` inserts (stamps `auto_add` templates; a no-op until a directory has one, errors swallowed), and a trigger on `directory_entries` that fires only when `notes_html` or `allow_html` changes (refreshes a converted notes block; a no-op until a page has been converted, errors swallowed). The engagement check constraint was recreated to allow `listing_faq_toggle`.
+
+### Still to do (not done)
+- Deploy the `generate_directory_site` Edge Function to production (needs its own go-ahead; it tolerates the tables existing and ships the renderer, `preview_item` and `publish_page`).
+- Deploy the frontend (`npm run deploy:live`, needs its own go-ahead) **after** the function.
+- Retire nothing yet: `entry_templates` and the Entry pages screen are untouched.
+
+### Verification
+- [x] Dry run listed only these 10; all applied; all `VERIFY PASSED`; all recorded in migration history.
+- [ ] Row counts for `directory_entries`, `directory_content_pages`, `entry_templates` and the map tables were not compared by hand (the CLI cannot show query results); none of these migrations modifies them, and the rolled-back checks left no rows.
+- [ ] Not smoke-tested on the live app: nothing user-visible changed. Worth watching: entry and page creation, CSV imports and notes saves (AI generation, import) on production, since they now pass through the two triggers.
+
+---
+
 ## 2026-11-27 — [Migration (staging) + frontend, not deployed] Focused block editor, stage 2
 
 **Branch:** `feat/2026-11-27-focused-block-editor` (same draft PR as stage 1, #369). Completes the `discover-content-editor` spec.
