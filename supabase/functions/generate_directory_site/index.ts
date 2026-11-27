@@ -74,7 +74,7 @@
  */
 
 import { errorMessage } from "../_shared/errors.ts";
-import { createServiceClient, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
+import { createServiceClient, requireDirectoryContentPageAccess, requireDirectoryItemPublishAccess } from "../_shared/supabase.ts";
 import { resolveFeatureFlag } from "../_shared/featureFlags.ts";
 import { backfillDirectorySeoMetadata } from "../_shared/seoMetadataBackfill.ts";
 import {
@@ -97,6 +97,7 @@ import {
   buildLlmsTxt,
   type LlmsTxtPage,
   buildThemeCss,
+  themeStylesheetHref,
   relatedEntries,
   buildSiteNav,
   contentPagePublicPath,
@@ -125,9 +126,11 @@ import { resolveBlocks, type BlockRow, type PageBlock, type TemplateData } from 
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 type Db = ReturnType<typeof createServiceClient>;
-type GenerationScope = "auto" | "full" | "style" | "features" | "entries" | "claim_item";
-type GenerationRequest = { scope: GenerationScope; entryIds?: string[] };
-type GenerationResult = { directory_id: string; skipped?: string; count?: number; scopes?: string[] };
+type GenerationScope = "auto" | "full" | "style" | "features" | "entries" | "claim_item" | "publish_page" | "preview_item";
+/** Render one page for the block editor without writing anything. `blocks` is the editor's unsaved working copy. */
+type PreviewRequest = { kind: "entry" | "content_page"; id: string; blocks: BlockRow[] | null; edit: boolean };
+type GenerationRequest = { scope: GenerationScope; entryIds?: string[]; pageIds?: string[]; preview?: PreviewRequest };
+type GenerationResult = { directory_id: string; skipped?: string; count?: number; scopes?: string[]; preview_html?: string };
 
 /** PostgREST caps a response at 1,000 rows. Page under that. */
 const PAGE_SIZE = 1000;
@@ -257,7 +260,7 @@ async function generateForDirectory(directoryId: string, request: GenerationRequ
   const db = createServiceClient();
   try {
     const result = await generateForDirectoryInner(db, directoryId, request);
-    if (!result.skipped) {
+    if (!result.skipped && !request.preview) {
       await db
         .from("directories")
         .update({ site_generation_status: "succeeded", site_generated_at: new Date().toISOString(), site_generation_error: null })
@@ -266,7 +269,8 @@ async function generateForDirectory(directoryId: string, request: GenerationRequ
     return result;
   } catch (e) {
     const msg = errorMessage(e);
-    await db.from("directories").update({ site_generation_status: "failed", site_generation_error: msg }).eq("id", directoryId);
+    // A failed preview is not a failed publish: never touch the directory's generation status for one.
+    if (!request.preview) await db.from("directories").update({ site_generation_status: "failed", site_generation_error: msg }).eq("id", directoryId);
     throw e;
   }
 }
@@ -308,10 +312,12 @@ async function generateForDirectoryInner(
   const flagEnabled = await resolveFeatureFlag(db, client.id, "directories");
   if (!flagEnabled) return { directory_id: directoryId, skipped: "flag_disabled" };
 
-  await db
-    .from("directories")
-    .update({ site_generation_status: "running", site_generation_started_at: new Date().toISOString() })
-    .eq("id", directoryId);
+  if (!request.preview) {
+    await db
+      .from("directories")
+      .update({ site_generation_status: "running", site_generation_started_at: new Date().toISOString() })
+      .eq("id", directoryId);
+  }
 
   const basePath = `directories/${client.slug}/${directory.slug}`;
   const manifest = parseManifest((directory as { site_generation_manifest?: unknown }).site_generation_manifest);
@@ -395,6 +401,7 @@ async function generateForDirectoryInner(
   // failed query degrades to "no blocks anywhere" instead of failing publish.
   const blocksByEntry = new Map<string, PageBlock[]>();
   const blocksByContentPage = new Map<string, PageBlock[]>();
+  let blockTemplates = new Map<string, TemplateData>();
   try {
     const { data: tplRows, error: tplErr } = await db
       .from("directory_block_templates")
@@ -402,6 +409,7 @@ async function generateForDirectoryInner(
       .eq("directory_id", directoryId);
     if (tplErr) throw new Error(tplErr.message);
     const tpls = new Map<string, TemplateData>((tplRows ?? []).map((r: TemplateData) => [r.id, r]));
+    blockTemplates = tpls;
     const rows: BlockRow[] = [];
     for (let from = 0; ; from += 1000) {
       const { data: pageRowsChunk, error: blockErr } = await db
@@ -521,7 +529,7 @@ async function generateForDirectoryInner(
   // (skipped silently when the organisation has no AI provider connected).
   // filterBarCategorisations' labels double as the "categorised by X"
   // context, no separate lookup needed.
-  const directorySeoBackfill = await backfillDirectorySeoMetadata(
+  const directorySeoBackfill = request.preview ? null : await backfillDirectorySeoMetadata(
     db,
     client.id,
     directory.id,
@@ -750,7 +758,18 @@ async function generateForDirectoryInner(
 
   const activeEntryIds = new Set(entries.map((e) => e.id));
   let work: Work;
-  if (request.scope === "claim_item") {
+  if (request.preview) {
+    // Editor preview: render one page, write nothing. Never touches the homepage, indexes, theme.css or the manifest.
+    const p = request.preview;
+    if (p.kind === "entry" && !activeEntryIds.has(p.id)) throw new Error("That entry is not an active entry of this directory");
+    if (p.kind === "content_page" && !contentPages.some((c) => c.id === p.id)) throw new Error("That page is not an active page of this directory");
+    work = { style: false, homepage: false, indexes: false, entryIds: p.kind === "entry" ? [p.id] : [], pageIds: p.kind === "content_page" ? [p.id] : [] };
+  } else if (request.scope === "publish_page" && request.pageIds?.length) {
+    // Isolated single content-page publish, same isolation rule as claim_item: only this page's file is written.
+    const ids = contentPages.filter((c) => request.pageIds!.includes(c.id)).map((c) => c.id);
+    if (ids.length !== 1) throw new Error("publish_page requires exactly one matching, active page_id");
+    work = { style: false, homepage: false, indexes: false, entryIds: [], pageIds: ids };
+  } else if (request.scope === "claim_item" || request.scope === "publish_page") {
     // Isolated single-entry publish (Claimed Directory Listings epic).
     // Deliberately never touches homepage/indexes, regardless of whether a
     // manifest exists yet -- a claim user must never be able to trigger a
@@ -758,7 +777,7 @@ async function generateForDirectoryInner(
     // fallback every other scope gets.
     const wanted = new Set(request.entryIds ?? []);
     const ids = entries.filter((e) => wanted.has(e.id)).map((e) => e.id);
-    if (ids.length !== 1) throw new Error("claim_item scope requires exactly one matching, active entry_id");
+    if (ids.length !== 1) throw new Error(`${request.scope} scope requires exactly one matching, active entry_id`);
     work = { style: false, homepage: false, indexes: false, entryIds: ids, pageIds: [] };
   } else if (!manifest || request.scope === "full") {
     work = FULL_WORK;
@@ -897,6 +916,7 @@ async function generateForDirectoryInner(
   // in-flight PUTs regularly 503s Vercel Blob on large directories (UK
   // Associations-scale) and failed the whole generation. 6 plus per-PUT
   // retries in uploadToBlob is the compromise.
+  let previewHtml: string | null = null;
   await mapWithConcurrency(entriesToBuild, 6, async (entry) => {
     const layout = resolveLayout(entry, templates, entryTermIdsByEntry.get(entry.id) ?? new Set(), termSortOrder);
     const html = buildEntryPage({
@@ -921,9 +941,14 @@ async function generateForDirectoryInner(
       analytics: siteAnalytics,
       enquiry: entryEnquiry,
       claim: claimWidgetFor(entry),
-      blocks: blocksByEntry.get(entry.id) ?? null,
+      blocks: request.preview ? (request.preview.blocks ? resolveBlocks(request.preview.blocks, blockTemplates) : blocksByEntry.get(entry.id) ?? null) : blocksByEntry.get(entry.id) ?? null,
       entrySlugs: entrySlugById,
+      render: request.preview ? { chrome: false, edit: request.preview.edit } : undefined,
     });
+    if (request.preview) {
+      previewHtml = html;
+      return;
+    }
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
 
@@ -938,7 +963,7 @@ async function generateForDirectoryInner(
   const pagesToUpload = work.pageIds === null ? contentPages : contentPages.filter((p) => work.pageIds!.includes(p.id));
   for (const page of pagesToUpload) {
     const publicPath = publishedPagePaths.get(page.id);
-    if (!publicPath) continue;
+    if (!publicPath && !request.preview) continue;
     const html = buildContentPage({
       clientSlug: client.slug,
       directorySlug: directory.slug,
@@ -950,9 +975,25 @@ async function generateForDirectoryInner(
       theme,
       nav,
       analytics: siteAnalytics,
-      blocks: blocksByContentPage.get(page.id) ?? null,
+      blocks: request.preview ? (request.preview.blocks ? resolveBlocks(request.preview.blocks, blockTemplates) : blocksByContentPage.get(page.id) ?? null) : blocksByContentPage.get(page.id) ?? null,
+      render: request.preview ? { chrome: false, edit: request.preview.edit } : undefined,
     });
+    if (request.preview) {
+      previewHtml = html;
+      continue;
+    }
     await uploadToBlob(`${basePath}/${publicPath}.html`, html, "text/html; charset=utf-8");
+  }
+
+  if (request.preview) {
+    if (!previewHtml) throw new Error("Nothing was rendered for that page");
+    // The editor has no published theme.css to link to (it may not exist yet, and it must show the current theme).
+    const css = buildThemeCss(theme);
+    const link = `<link rel="stylesheet" href="${themeStylesheetHref(client.slug, directory.slug)}">`;
+    let out = previewHtml.includes(link) ? previewHtml.replace(link, () => `<style>${css}</style>`) : previewHtml;
+    // Links resolve against the live site and open in a new tab, never inside the editor.
+    out = out.replace("<head>", () => `<head>\n<base href="${SITE_ORIGIN}/" target="_blank">`);
+    return { directory_id: directoryId, count: 1, scopes: ["preview"], preview_html: out };
   }
 
   if (work.homepage) {
@@ -1151,6 +1192,33 @@ async function generateForDirectoryInner(
   return { directory_id: directoryId, count: entriesToBuild.length, scopes };
 }
 
+/** The editor's unsaved blocks, as sent with a preview request. Loose shape checks only: the renderer escapes and sanitises. */
+function parsePreviewBlocks(raw: unknown): BlockRow[] | null | "invalid" {
+  if (raw === undefined || raw === null) return null;
+  if (!Array.isArray(raw) || raw.length > 200) return "invalid";
+  const out: BlockRow[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") return "invalid";
+    const o = r as Record<string, unknown>;
+    if (typeof o.id !== "string" || typeof o.block_type !== "string" || typeof o.region !== "string") return "invalid";
+    const isObj = (v: unknown) => v !== null && typeof v === "object" && !Array.isArray(v);
+    if (o.data != null && !isObj(o.data)) return "invalid";
+    if (o.common != null && !isObj(o.common)) return "invalid";
+    out.push({
+      id: o.id.slice(0, 64),
+      entry_id: null,
+      content_page_id: null,
+      region: o.region,
+      position: typeof o.position === "number" ? o.position : out.length,
+      block_type: o.block_type.slice(0, 40),
+      template_id: typeof o.template_id === "string" ? o.template_id : null,
+      data: (o.data as Record<string, unknown> | null | undefined) ?? null,
+      common: (o.common as Record<string, unknown> | null | undefined) ?? null,
+    });
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -1164,7 +1232,7 @@ Deno.serve(async (req) => {
     };
     const request: GenerationRequest = {
       scope:
-        scope === "full" || scope === "style" || scope === "features" || scope === "entries" || scope === "claim_item"
+        scope === "full" || scope === "style" || scope === "features" || scope === "entries" || scope === "claim_item" || scope === "publish_page" || scope === "preview_item"
           ? scope
           : "auto",
       entryIds: Array.isArray(entry_ids) ? entry_ids.filter((id) => typeof id === "string") : undefined,
@@ -1175,6 +1243,43 @@ Deno.serve(async (req) => {
     // itself from the entry rather than trusting whatever the client sent,
     // since a claim user should never be able to point this at a directory
     // other than the one their own claimed entry actually belongs to.
+    // The focused block editor's two calls. Both derive the directory from the page itself and check who is asking.
+    if (request.scope === "preview_item" || request.scope === "publish_page") {
+      const b = body as { kind?: string; id?: string; blocks?: unknown; mode?: string; expected_updated_at?: string };
+      const kind = b.kind === "entry" || b.kind === "content_page" ? b.kind : null;
+      const pageId = typeof b.id === "string" && b.id.length > 0 && b.id.length <= 64 ? b.id : null;
+      if (!kind || !pageId) return json({ error: `${request.scope} requires kind ("entry" or "content_page") and id` }, 400);
+
+      // 1. Identity and role. Never trusts a client-supplied directory_id.
+      const access = kind === "entry" ? await requireDirectoryItemPublishAccess(req, pageId) : await requireDirectoryContentPageAccess(req, pageId);
+
+      if (request.scope === "preview_item") {
+        const blocks = parsePreviewBlocks(b.blocks);
+        if (blocks === "invalid") return json({ error: "blocks must be a list of at most 200 block objects" }, 400);
+        request.preview = { kind, id: pageId, blocks, edit: b.mode !== "preview" };
+        const result = await generateForDirectory(access.directoryId, request);
+        return json({ ok: true, html: result.preview_html ?? "" });
+      }
+
+      // 2. Preflight: live and previously published directory and page, page switched on, the saved version is the
+      //    one being published, every block valid. Refuses with the reasons.
+      const db = createServiceClient();
+      const { data: pre, error: preErr } = await db.rpc("page_publish_preflight", {
+        p_page_kind: kind,
+        p_page_id: pageId,
+        p_expected_updated_at: typeof b.expected_updated_at === "string" ? b.expected_updated_at : null,
+      });
+      if (preErr) throw new Error(`Publish check failed: ${preErr.message}`);
+      if (!pre?.ok) return json({ error: (pre?.problems ?? ["This page cannot be published right now."]).join(" "), problems: pre?.problems ?? [], block_errors: pre?.block_errors ?? [] }, 409);
+
+      // 3. Rebuild exactly this one page (the same isolation as claim_item: no homepage, indexes, theme or other page).
+      if (kind === "entry") request.entryIds = [pageId];
+      else request.pageIds = [pageId];
+      const result = await generateForDirectory(access.directoryId, request);
+      console.log(`publish_page: ${kind} ${pageId} published by ${access.user.id}`);
+      return json({ ok: true, ...result, published_at: new Date().toISOString() });
+    }
+
     if (request.scope === "claim_item") {
       const targetEntryId = request.entryIds?.[0];
       if (!targetEntryId || request.entryIds?.length !== 1) {

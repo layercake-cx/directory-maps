@@ -15,6 +15,7 @@
  */
 
 import { escapeAttr, escapeHtml } from "../_shared/staticSiteRenderer.ts";
+import { BLOCK_REGISTRY } from "../_shared/blockRegistry.generated.ts";
 
 // ---------------------------------------------------------------- types
 
@@ -86,7 +87,37 @@ export type BlockCtx = {
   h1Taken?: boolean;
   /** True when the claim widget exists on the page, so a claim block can open it. */
   claimWidget?: boolean;
+  /** Editor canvas: mark every block so the editor can find it, and show a placeholder for one that renders nothing. */
+  edit?: boolean;
 };
+
+/** How a page is rendered. Published pages use neither option. */
+export type RenderOptions = {
+  /** false: leave out the public site's header, footer, enquiry drawer, claim widget and analytics (the editor shows only the page). */
+  chrome?: boolean;
+  /** true: add data-ds-* markers and placeholders for the block editor canvas. */
+  edit?: boolean;
+};
+
+const REGISTRY_BLOCKS = (BLOCK_REGISTRY as unknown as { blocks: { id: string; name: string }[] }).blocks;
+export function blockDisplayName(type: string): string {
+  return REGISTRY_BLOCKS.find((b) => b.id === type)?.name ?? type;
+}
+
+/** Attributes the editor reads to find a block on the canvas. */
+export function editAttrs(b: Pick<PageBlock, "id" | "block_type">): string {
+  return ` data-ds-block="${escapeAttr(b.id)}" data-ds-type="${escapeAttr(b.block_type)}"`;
+}
+
+/** Stands in for a block that renders nothing (empty, hidden, or no data yet), so it can still be selected. */
+export function editPlaceholder(b: PageBlock, why: string): string {
+  return `<div class="ds-block ds-placeholder"${editAttrs(b)}><strong>${escapeHtml(blockDisplayName(b.block_type))}</strong><span>${escapeHtml(why)}</span></div>`;
+}
+
+/** Adds the editor markers to a rendered block's outermost element. */
+export function markEditable(html: string, b: PageBlock): string {
+  return html.replace(/^<(section|div)\b/, (m) => `${m}${editAttrs(b)}`);
+}
 
 export type RenderedBlock = { html: string; jsonLd?: Record<string, unknown>[]; anchorId?: string; chipLabel?: string };
 
@@ -495,12 +526,14 @@ export function renderGenericBlock(b: PageBlock, ctx: BlockCtx): RenderedBlock |
   const r = RENDERERS[b.block_type];
   if (!r) return null;
   // "Hidden" keeps the block on the page (and in the editor) but shows visitors nothing.
-  if (b.common.visibility === "hidden") return null;
+  if (b.common.visibility === "hidden") {
+    return ctx.edit ? { html: editPlaceholder(b, "Hidden from visitors. Change its Visibility to show it.") } : null;
+  }
   const out = r(b, ctx);
-  if (!out) return null;
+  if (!out) return ctx.edit ? { html: editPlaceholder(b, "Nothing to show yet. Click to add content.") } : null;
   const anchorId = out.anchorId ?? blockAnchorId(b);
   const chipLabel = out.chipLabel ?? (anchorId ? str(b.data.title).trim() || undefined : undefined);
-  return { ...out, anchorId, chipLabel };
+  return { ...out, html: ctx.edit ? markEditable(out.html, b) : out.html, anchorId, chipLabel };
 }
 
 // ---------------------------------------------------------------- styles
@@ -651,6 +684,9 @@ export const BLOCK_STYLE = `
   .ds-claim__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-3); }
   .ds-claim__secondary { font-weight: 600; text-decoration: underline; color: var(--ds-color-link); }
 
+  /* Editor canvas only: a block with nothing to show yet, or hidden from visitors. Never appears on a published page. */
+  .ds-placeholder { display: flex; flex-direction: column; gap: 2px; padding: var(--ds-space-4) var(--ds-space-5); border: 2px dashed var(--ds-color-border); border-radius: var(--ds-radius-lg); background: var(--ds-color-subtle-bg); color: var(--ds-color-ink-muted); font-size: var(--ds-text-small); }
+  .ds-placeholder strong { color: var(--ds-color-ink); }
   .ds-vis-desktop { display: block; } .ds-vis-mobile { display: none; }
   @media (max-width: 899px) {
     .ds-vis-desktop { display: none; } .ds-vis-mobile { display: block; }

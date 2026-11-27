@@ -14,7 +14,7 @@ import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
 import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 import { OWNER_ACCOUNT_STYLE } from "../../../ownerAccount.js";
-import { BLOCK_STYLE, blocksInRegion, isGenericBlock, isHiddenBlock, mergeFaqJsonLd, renderGenericBlock, type BlockCtx, type BlockTerm, type PageBlock, type RegionId, type RenderedBlock } from "./blocks.ts";
+import { BLOCK_STYLE, blocksInRegion, isGenericBlock, isHiddenBlock, mergeFaqJsonLd, renderGenericBlock, editAttrs, editPlaceholder, markEditable, type BlockCtx, type BlockTerm, type PageBlock, type RegionId, type RenderedBlock, type RenderOptions } from "./blocks.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -2230,8 +2230,12 @@ export function buildEntryPage(opts: {
   blocks?: PageBlock[] | null;
   /** entry id -> slug, so an "entry" link in a block can resolve to its page. */
   entrySlugs?: Map<string, string> | null;
+  /** Editor canvas options (no site chrome, edit markers). Omitted for every published page. */
+  render?: RenderOptions;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, attachedMapFocusedEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim, blocks, entrySlugs } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, attachedMapFocusedEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim, blocks, entrySlugs, render } = opts;
+  const edit = !!render?.edit;
+  const chrome = render?.chrome !== false;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -2554,6 +2558,7 @@ export function buildEntryPage(opts: {
         return slug ? `${landingUrl}/${slug}` : null;
       },
       claimWidget: !!claim,
+      edit,
       ...extra,
     });
     const collect = (r: RenderedBlock | null) => {
@@ -2565,8 +2570,11 @@ export function buildEntryPage(opts: {
     const heroParts: string[] = [];
     for (const b of blocksInRegion(blocks, "hero")) {
       if (b.block_type === "entry_hero") {
-        if (isHiddenBlock(b)) continue;
-        heroParts.push(`<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`);
+        if (isHiddenBlock(b)) {
+          if (edit) heroParts.push(`<div class="wrap">${editPlaceholder(b, "Hidden from visitors. Change its Visibility to show it.")}</div>`);
+          continue;
+        }
+        heroParts.push(`<div class="wrap"${edit ? editAttrs(b) : ""}>\n${breadcrumb}\n${heroSection}\n</div>`);
       } else {
         const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: hasEntryHero ? undefined : breadcrumb })));
         // Held to the page width like the entry header, so a hero-region block never spans the whole window.
@@ -2591,19 +2599,27 @@ export function buildEntryPage(opts: {
         return;
       }
       const legacyType = legacyTypeOf[b.block_type];
-      if (!legacyType || isHiddenBlock(b)) return;
+      if (!legacyType) return;
+      if (isHiddenBlock(b)) {
+        if (edit) mainParts.push(editPlaceholder(b, "Hidden from visitors. Change its Visibility to show it."));
+        return;
+      }
       const key = typeof b.data.key === "string" ? b.data.key : undefined;
       const content = renderBlockContent({ type: legacyType, key });
-      if (!content) return;
+      if (!content) {
+        if (edit) mainParts.push(editPlaceholder(b, "Nothing to show for this entry yet."));
+        return;
+      }
       const label = typeof b.data.title === "string" ? b.data.title.trim() : "";
+      const attrs = edit ? editAttrs(b) : "";
       // In block mode every section is its own box (ds-box), labelled or not.
       if (!label) {
-        mainParts.push(`<div class="dir-entry-section ds-box">${content}</div>`);
+        mainParts.push(`<div class="dir-entry-section ds-box"${attrs}>${content}</div>`);
         return;
       }
       const id = sectionAnchorId(label, i);
       chips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(label)}</a>`);
-      mainParts.push(`<div class="dir-entry-section ds-box" id="${id}"><h2>${escapeHtml(label)}</h2>${content}</div>`);
+      mainParts.push(`<div class="dir-entry-section ds-box" id="${id}"${attrs}><h2>${escapeHtml(label)}</h2>${content}</div>`);
     });
     mainHtml = mainParts.join("\n");
     jumpBarHtml = chips.length ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${chips.join("")}</nav></div>` : "";
@@ -2612,7 +2628,14 @@ export function buildEntryPage(opts: {
     const sideParts: string[] = [];
     for (const b of blocksInRegion(blocks, "sidebar")) {
       if (b.block_type in sideFragments) {
-        if (sideFragments[b.block_type] && !isHiddenBlock(b)) sideParts.push(sideFragments[b.block_type]);
+        const frag = sideFragments[b.block_type];
+        if (isHiddenBlock(b)) {
+          if (edit) sideParts.push(editPlaceholder(b, "Hidden from visitors. Change its Visibility to show it."));
+        } else if (frag) {
+          sideParts.push(edit ? `<div class="ds-fragment"${editAttrs(b)}>${frag}</div>` : frag);
+        } else if (edit) {
+          sideParts.push(editPlaceholder(b, "Nothing to show for this entry yet."));
+        }
       } else {
         const r = collect(renderGenericBlock(b, ctxFor("sidebar")));
         if (r) sideParts.push(r.html);
@@ -2624,19 +2647,21 @@ export function buildEntryPage(opts: {
     if (blocks.some((b) => b.block_type === "claim")) claimBannerHtml = "";
   }
 
+  // Editor canvas only: zones are always present (even when empty) so a block can be dropped into them.
+  const zone = (name: string) => (edit ? ` data-ds-zone="${name}"` : "");
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
-${heroRegionHtml}
+${chrome ? siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null }) : ""}
+${edit ? `<div class="ds-zone"${zone("hero")}>${heroRegionHtml}</div>` : heroRegionHtml}
 ${jumpBarHtml}
 ${claimBannerHtml}
 <div class="wrap dir-entry-body">
-  <div class="dir-entry-main">${mainHtml}</div>
-  ${asideHtml ? `<div class="dir-aside">${asideHtml}</div>` : ""}
+  <div class="dir-entry-main"${zone("main")}>${mainHtml}</div>
+  ${asideHtml || edit ? `<div class="dir-aside"${zone("sidebar")}>${asideHtml}</div>` : ""}
 </div>
 ${relatedSection}
-${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
-${enquiry && entry.email && entry.email.trim() ? buildEnquiryDrawer(enquiry, entry) : ""}
-${claim ? buildClaimWidget(claim, entry) : ""}
+${chrome ? siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null }) : ""}
+${chrome && enquiry && entry.email && entry.email.trim() ? buildEnquiryDrawer(enquiry, entry) : ""}
+${chrome && claim ? buildClaimWidget(claim, entry) : ""}
 `.trim();
 
   return directoryPageShell({
@@ -2649,7 +2674,7 @@ ${claim ? buildClaimWidget(claim, entry) : ""}
     noindex: !!entry.noindex,
     theme,
     themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
-    analytics: analytics
+    analytics: chrome && analytics
       ? { ...analytics, pageKind: "entry", listingId: entry.id, listingName: entry.name }
       : null,
   });
@@ -2771,8 +2796,12 @@ export function buildContentPage(opts: {
   analytics?: SiteAnalytics | null;
   /** Block instances for this page. Absent or empty = the page renders exactly as before, from body_html. */
   blocks?: PageBlock[] | null;
+  /** Editor canvas options (no site chrome, edit markers). Omitted for every published page. */
+  render?: RenderOptions;
 }): string {
-  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav, analytics, blocks } = opts;
+  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav, analytics, blocks, render: renderOpts } = opts;
+  const edit = !!renderOpts?.edit;
+  const chrome = renderOpts?.chrome !== false;
   const landingUrl = nav.homeUrl;
   const hrefFor = (p: ContentPage) => contentPageHref(clientSlug, directorySlug, contentPagePublicPath(p, pagesById));
   const canonicalUrl = `${SITE_ORIGIN}${hrefFor(page)}`;
@@ -2807,7 +2836,7 @@ export function buildContentPage(opts: {
   let contentHtml = `${breadcrumbHtml}\n${titleHtml}\n<div class="prose">${page.body_html}</div>`;
   const blockJsonLd: Record<string, unknown>[] = [];
   if (blocks && blocks.length > 0) {
-    const ctxFor = (region: RegionId, extra: Partial<BlockCtx> = {}): BlockCtx => ({ pageKind: "content_page", region, ...extra });
+    const ctxFor = (region: RegionId, extra: Partial<BlockCtx> = {}): BlockCtx => ({ pageKind: "content_page", region, edit, ...extra });
     const hasTitleBlock = blocks.some((b) => b.block_type === "page_title");
     const render = (b: PageBlock, region: RegionId, extra: Partial<BlockCtx> = {}): string => {
       const r = renderGenericBlock(b, ctxFor(region, extra));
@@ -2817,8 +2846,13 @@ export function buildContentPage(opts: {
     const heroInside: string[] = [];
     const heroAbove: string[] = [];
     for (const b of blocksInRegion(blocks, "hero")) {
-      if (b.block_type === "page_title") heroInside.push(`${breadcrumbHtml}\n${titleHtml}`);
-      else {
+      if (b.block_type === "page_title") {
+        if (isHiddenBlock(b)) {
+          if (edit) heroInside.push(editPlaceholder(b, "Hidden from visitors. Change its Visibility to show it."));
+        } else {
+          heroInside.push(edit ? `<div class="ds-fragment"${editAttrs(b)}>${breadcrumbHtml}\n${titleHtml}</div>` : `${breadcrumbHtml}\n${titleHtml}`);
+        }
+      } else {
         const html = render(b, "hero", { h1Taken: hasTitleBlock, breadcrumbHtml: hasTitleBlock ? undefined : breadcrumbHtml });
         if (html) heroAbove.push(`<div class="wrap ds-hero-region">${html}</div>`);
       }
@@ -2827,18 +2861,20 @@ export function buildContentPage(opts: {
     const heroHtml = heroInside.length > 0 || heroAbove.length > 0 ? heroInside.join("\n") : `${breadcrumbHtml}\n${titleHtml}`;
     const main = blocksInRegion(blocks, "main").map((b) => render(b, "main")).filter(Boolean);
     const side = blocksInRegion(blocks, "sidebar").map((b) => render(b, "sidebar")).filter(Boolean);
-    aboveHtml = heroAbove.join("\n");
-    contentHtml = `${heroHtml}\n<div class="ds-page-main">${main.join("\n")}</div>${side.length ? `\n<div class="dir-aside ds-page-side">${side.join("\n")}</div>` : ""}`;
+    aboveHtml = edit ? `<div class="ds-zone" data-ds-zone="hero">${heroAbove.join("\n")}</div>` : heroAbove.join("\n");
+    const zoneAttr = (z: string) => (edit ? ` data-ds-zone="${z}"` : "");
+    const heroBlock = edit ? `<div class="ds-zone" data-ds-zone="hero">${heroHtml}</div>` : heroHtml;
+    contentHtml = `${heroBlock}\n<div class="ds-page-main"${zoneAttr("main")}>${main.join("\n")}</div>${side.length || edit ? `\n<div class="dir-aside ds-page-side"${zoneAttr("sidebar")}>${side.join("\n")}</div>` : ""}`;
   }
 
   const body = `
-${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav })}
+${chrome ? siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav }) : ""}
 ${aboveHtml}
 <div class="wrap" style="max-width:760px;">
 ${contentHtml}
 ${childList}
 </div>
-${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
+${chrome ? siteFooter({ directoryName, homeUrl: landingUrl, nav }) : ""}
 `.trim();
 
   return directoryPageShell({
@@ -2850,7 +2886,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
     noindex: !!page.noindex,
     theme,
     themeCssHref: themeStylesheetHref(clientSlug, directorySlug),
-    analytics: analytics ? { ...analytics, pageKind: "content" } : null,
+    analytics: chrome && analytics ? { ...analytics, pageKind: "content" } : null,
   });
 }
 

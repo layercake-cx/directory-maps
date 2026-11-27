@@ -169,3 +169,21 @@ export async function requireDirectoryItemPublishAccess(req: Request, directoryI
   return { user, directoryId: entry.directory_id as string, viaClaim: true, claimId: claim.id as string };
 }
 
+
+/**
+ * Same idea as requireDirectoryItemPublishAccess, for a directory content page: the caller must be a platform admin or
+ * a contact of the page's client. Content pages have no claim-user path (listing owners only ever edit their own
+ * entry). directory_id is always derived from the page, never taken from the client.
+ */
+export async function requireDirectoryContentPageAccess(req: Request, pageId: string) {
+  const user = await requireUser(req);
+  const service = createServiceClient();
+  const { data: page } = await service
+    .from("directory_content_pages")
+    .select("directory_id")
+    .eq("id", pageId)
+    .maybeSingle();
+  if (!page) throw new Error("Page not found");
+  await requireDirectoryAccess(req, page.directory_id);
+  return { user, directoryId: page.directory_id as string };
+}
