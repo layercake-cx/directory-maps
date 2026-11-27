@@ -1,5 +1,5 @@
 import React from "react";
-import { Outlet, useParams } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import AdminLayout from "./AdminLayout.jsx";
 import DirectoryFeaturePanel from "../../components/shell/DirectoryFeaturePanel.jsx";
 import DirectoryAccessGuard from "../../components/shell/DirectoryAccessGuard.jsx";
@@ -13,6 +13,17 @@ import { DirectoryProvider } from "../../context/DirectoryContext.jsx";
  */
 export default function AdminDirectoryPanelLayout() {
   const { clientId, directoryId } = useParams();
+  const { pathname } = useLocation();
+  // The focused block editor takes the whole window: no admin shell, only its own header.
+  if (/\/directories\/[^/]+\/edit\//.test(pathname)) {
+    return (
+      <DirectoryProvider directoryId={directoryId} clientId={clientId} isAdminView>
+        <DirectoryAccessGuard>
+          <Outlet />
+        </DirectoryAccessGuard>
+      </DirectoryProvider>
+    );
+  }
   return (
     <DirectoryProvider directoryId={directoryId} clientId={clientId} isAdminView>
       <AdminLayout panel={<DirectoryFeaturePanel />}>

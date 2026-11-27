@@ -112,6 +112,7 @@ export default function DirectoryEntryEditor({
               aiContentEnabled={aiContentEnabled}
               recordEvent={recordEvent}
               onSaved={reload}
+              focusedEditHref={`${basePath}/edit/entry/${encodeURIComponent(entryId)}`}
             />
           )}
           {!isNew && tab === "seo" && (

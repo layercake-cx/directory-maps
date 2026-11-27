@@ -315,6 +315,12 @@ Owners and Managers are never limited by locks. Deleting a template keeps what e
 
 Visitors do not need to do anything differently. An FAQ question that opens and closes is recorded as an engagement event (`listing_faq_toggle`), and links in blocks are recorded as call-to-action clicks.
 
+**Editing on the page (the page editor).** From an entry's **Content** tab choose **Open the page editor**, or from **Pages** choose **Edit on the page**. The editor takes the whole window: only a dark header with a **Back** button, the page's name and whether it is saved, a **Listing content / SEO** toggle (**Page content / SEO** on a site page), an **Editor / Preview** toggle, **Save draft** and **Publish**.
+- **Editor** shows the listing as visitors will see it, without the site's own header and footer. Hover a block for its outline and toolbar (Edit, Move up, Move down, Remove, plus **Position locked** or **Content locked** badges); click a block to edit it. The left panel adds blocks (**+** puts a block in the first region that accepts it) and, under **On this page**, lists every block with the same actions and a **Move to…** menu, so everything works from the keyboard.
+- **Preview** removes every control and shows the page exactly as visitors see it, at **Desktop** or **Mobile** width (390 px).
+- **Save draft** saves your changes together; until then they live only in the editor, and **Back** asks whether to stay, discard or save first. If someone else saved the page in the meantime you are told and asked to reload before saving.
+- **Publish** puts **only this page** live: other pages, the navigation, the listings page and the sitemap are not changed. It saves your draft first, checks every block, shows what will go live and asks you to confirm. It refuses, with the reason, if the directory has never been published, if this page has never been published (publish the directory first so it joins the navigation and listings), if the page is switched off, if the page changed since you loaded it, or if a block has a problem. Whatever is saved in the draft, including SEO settings, goes live.
+
 ### Archiving or deleting a directory
 
 From a directory's page (owners and managers only):

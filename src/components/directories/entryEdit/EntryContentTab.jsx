@@ -40,7 +40,7 @@ const SOURCE_LABELS = {
  * rule. Every save (this button or "Save notes") is recoverable via the
  * version history list below, fetched from directory_entry_versions.
  */
-export default function EntryContentTab({ directoryId, entryId, clientId, entry, canEdit, aiContentEnabled, recordEvent, onSaved }) {
+export default function EntryContentTab({ directoryId, entryId, clientId, entry, canEdit, aiContentEnabled, recordEvent, onSaved, focusedEditHref }) {
   const ai = useAiFeature("content_generation");
   const confirm = useConfirm();
   const loadPrompt = useCallback(async () => ({ text: await getDirectoryAiContentPrompt(directoryId) }), [directoryId]);
@@ -116,6 +116,15 @@ export default function EntryContentTab({ directoryId, entryId, clientId, entry,
 
   return (
     <div className="editor-stack">
+      {focusedEditHref ? (
+        <Callout
+          tone="info"
+          title="Edit this listing on the page"
+          action={<Button as="a" href={focusedEditHref} variant="primary">Open the page editor</Button>}
+        >
+          See the listing as visitors will, drag blocks into place, edit them in context, preview on desktop and mobile, and publish just this page.
+        </Callout>
+      ) : null}
       <PageBlocksEditor
         pageKind="entry"
         pageId={entryId}
