@@ -8,6 +8,27 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Migration + Edge Function + frontend, staging only] Block pages: never lose notes on conversion
+
+**Branch:** `feat/2026-11-27-block-pages-preserve-notes` (stacked on `feat/2026-11-26-block-pages-claim`; PR 6 of 6 in the block pages series)
+
+### What changed
+- **Bug found by review:** converting an entry only carried `notes_html` into a text block when the page's layout (its `entry_templates` row, or the implicit default) contained a visible notes block. An entry whose template left notes out, or hid them, lost the text on conversion.
+- `convert_entry_to_blocks()` now always keeps it. If the layout showed the notes, behaviour is unchanged (a visible Rich text block in the layout's position). If it did not, the notes become a **hidden** Rich text block at the end of the main region, so converting does not publish text the page was not showing; an editor changes its Visibility to show it. Content-page `body_html` was already always converted.
+- **Visibility gains "Hidden"** (registry change, `block_registry()` re-created): the block stays on the page and in the editor (shown with a "Hidden from visitors" pill) but the renderer outputs nothing for it. `ENTRY_TEMPLATE_VERSION` 26.
+- Migration `20261127100000_block_pages_preserve_notes.sql` (rollback `_20261127100000_block_pages_preserve_notes.rollback.sql`, refuses while hidden blocks exist). Entries converted before this migration are not changed.
+- **Still open (by design, not built):** notes written or imported after a page is converted (AI generation, CSV import, claim body save, version restore) are not copied into the block. Options: a trigger that refreshes a converted notes block that nobody has edited, or pointing those writers at the block.
+
+### Rollback plan
+Run the rollback file (restores the previous converter and registry). Redeploy the previous function.
+
+### Verification
+- [x] SQL parsed with pglast; 85 function tests pass (new: hidden blocks render nothing); `vite build`, `check-ui.sh`, `generate-block-registry.mjs --check` pass.
+- [x] Staging, 2026-11-27: migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. `generate_directory_site` deployed with `--project-ref beqejxneehilplrtpntn`.
+- [ ] The converter change has not run against real data; its verify block checks the definition and the registry, not a conversion. Run `convert_entry_to_blocks` on a staging entry whose layout omits notes, inside `begin; … rollback;`.
+
+---
+
 ## 2026-11-26 — [Migration (staging) + frontend, not deployed] Block pages, phase 5 (listing owners)
 
 **Branch:** `feat/2026-11-26-block-pages-claim` (stacked on `feat/2026-11-26-block-pages-editor`; merge the five block-pages branches in order)
