@@ -8,6 +8,125 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Production, frontend] Block pages and the focused page editor deployed
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369), whole stack (PRs 363 to 369). Deployed by the user from their own terminal with `npm run deploy:live` after the production migrations and the Edge Function (in that order, as required). The preview deploy (`npm run deploy:test`) was skipped.
+
+### What was done
+- Vercel CLI 67.0.0, production deployment `directory-maps-k0blvnngp-layercake-apps.vercel.app`, aliased to `uk-associations.com`, "Ready in 31s". Inspect: https://vercel.com/layercake-apps/directory-maps/FxpvMq5ipdPRsjEstM4KoAuSAQpz
+- Checked afterwards (no sign-in): `uk-associations.com/` and `/claim/login` return 200, and the live app bundle (`/assets/index-DLU7CF82.js`) contains "Open the page editor" and the `page-blocks` route.
+
+### What this changes for users now
+- Staff, Owners/Managers and team members: an entry's Content tab has **Open the page editor**; Pages has **Edit on the page**; Experience has **Page blocks**; the focused editor routes exist (`…/edit/entry/:id`, `…/edit/page/:id`). Listing owners: the Listing Manager's Listing tab links to `/claim/edit/:claimId`. The shared dialog now caps its height and scrolls inside the window for every dialog in the app.
+- Nothing changes on published directory sites, and no page uses blocks until someone chooses **Switch to blocks**.
+- Rollback: Vercel dashboard, Deployments, promote the previous production deployment (or `npx vercel rollback`). The migrations and function are safe with the older frontend.
+
+### Verification
+- [x] Deploy succeeded; live site serves; new code present in the live bundle.
+- [ ] **Not yet exercised signed in on production:** the page editor, Save draft and Publish, the block library, the Listing Manager link. Suggested first checks: open an entry's Content tab and Pages (no error box); save an entry's notes; open the page editor on a test entry and use Preview; do not Publish until ready. The first Publish of any directory does a one-off full rebuild (page template version 26).
+- [ ] Merge the stacked PRs (363 to 369) in order so `main` matches what is deployed.
+
+---
+
+## 2026-11-27 — [Production, Edge Function] `generate_directory_site` deployed with block pages
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369). The user explicitly signed off ("Yes, deploy function") after the production migrations above.
+
+### What was done
+- Stale-branch check passed: `origin/main` has no function changes this branch lacks, and the stack changes only `generate_directory_site/{blocks,builders,index}.ts`, `_shared/supabase.ts` and `_shared/blockRegistry.generated.ts`. 89 function tests and `deno check` passed.
+- `supabase functions deploy generate_directory_site --project-ref gxixwdjfmegxcxfeflro`. `supabase functions list` shows it ACTIVE, version 77, 2026-11-27 10:25 UTC. The CLI is linked to staging again. No other function was redeployed.
+- Checked on production with the project's publishable key (no user session): `preview_item` and `publish_page` (entry and content page) are refused with "This endpoint requires a valid Bearer token"; an invalid `kind` gets the 400 message. (A first attempt with the legacy anon key was stopped by the platform's "legacy keys disabled" gate, so it proved nothing about the function; the publishable-key run is the real check.)
+
+### What this changes on production now
+- Pages with no blocks render exactly as before (tested byte for byte), and nothing regenerates on deploy. **`ENTRY_TEMPLATE_VERSION` is now 26**, so the next ordinary Publish of any directory rebuilds all its entry pages and `theme.css` once (no visible change expected; the new rules only match block markup).
+- The function now reads `directory_block_templates` and `directory_page_blocks` on every publish and renders blocks for any page that has them. None have blocks yet. If those queries ever failed it logs and renders every page the standard way.
+- New scopes `preview_item` and `publish_page` exist and check the caller, but no screen calls them until the frontend is deployed.
+
+### Still to do (not done)
+- Deploy the frontend (`npm run deploy:live`, needs the user's Vercel session and their go-ahead). Only after that do the page editor, the block library and the Listing Manager link appear.
+- Merge the seven stacked PRs (363 to 369) in order.
+
+### Verification
+- [x] Deployed ACTIVE on production; refusal of unauthenticated callers confirmed.
+- [ ] Not exercised signed in: `preview_item` and `publish_page` on real production data. Not smoke-tested by publishing a directory (that is a full rebuild at version 26; do it deliberately and compare a page with a copy taken before, ideally on a directory with no maps linked).
+
+---
+
+## 2026-11-27 — [Production] Block pages: all 10 migrations applied
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369), which contains the whole stack (PRs 363 to 369). The user explicitly signed off production migrations on 2026-11-27 ("migrate to live first").
+
+### What was done
+- CLI relinked to production (`gxixwdjfmegxcxfeflro`, confirmed from `supabase/.temp/project-ref`). Working tree clean, no stray migration files; `origin/main` has no migrations this branch lacks. `supabase db push --dry-run` listed exactly the 10 below and nothing else; `supabase db push` applied them in order. `supabase migration list` shows all 10 recorded. CLI relinked to staging afterwards.
+- `20261126120000_create_block_pages`, `20261126140000_block_pages_api`, `20261126160000_block_faq_event`, `20261126180000_block_pages_editor`, `20261126200000_block_pages_claim_context`, `20261127100000_block_pages_preserve_notes`, `20261127120000_block_pages_notes_sync`, `20261127140000_block_editor_save_publish_state`, `20261127150000_page_publish_preflight`, `20261127160000_claim_block_context_content`. Every one printed `VERIFY PASSED`.
+- The two end-to-end checks ran on a real production entry inside rolled-back sub-transactions: the notes sync check, and the Save draft check **including lock checks as a non-admin contact** (`lock checks ran as a non-admin contact`). Nothing they did was kept.
+
+### What this changes on production now
+- New tables (`directory_block_templates`, `directory_page_blocks`) and functions. Nothing reads them yet: the deployed Edge Function and frontend are the old versions, so no published page and no screen changes.
+- Two things touch existing tables and are live immediately: a trigger on `directory_entries` and `directory_content_pages` inserts (stamps `auto_add` templates; a no-op until a directory has one, errors swallowed), and a trigger on `directory_entries` that fires only when `notes_html` or `allow_html` changes (refreshes a converted notes block; a no-op until a page has been converted, errors swallowed). The engagement check constraint was recreated to allow `listing_faq_toggle`.
+
+### Still to do (not done)
+- Deploy the `generate_directory_site` Edge Function to production (needs its own go-ahead; it tolerates the tables existing and ships the renderer, `preview_item` and `publish_page`).
+- Deploy the frontend (`npm run deploy:live`, needs its own go-ahead) **after** the function.
+- Retire nothing yet: `entry_templates` and the Entry pages screen are untouched.
+
+### Verification
+- [x] Dry run listed only these 10; all applied; all `VERIFY PASSED`; all recorded in migration history.
+- [ ] Row counts for `directory_entries`, `directory_content_pages`, `entry_templates` and the map tables were not compared by hand (the CLI cannot show query results); none of these migrations modifies them, and the rolled-back checks left no rows.
+- [ ] Not smoke-tested on the live app: nothing user-visible changed. Worth watching: entry and page creation, CSV imports and notes saves (AI generation, import) on production, since they now pass through the two triggers.
+
+---
+
+## 2026-11-27 — [Migration (staging) + frontend, not deployed] Focused block editor, stage 2
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (same draft PR as stage 1, #369). Completes the `discover-content-editor` spec.
+
+### What changed
+- **Drag and drop** (pointer events, `useBlockDrag`; the repo forbids HTML5 drag): drag a library block, or a block's grip, onto the page. While dragging, every region is outlined, dashed where the block may go and faded with "Doesn't accept …" where it may not; a drop line shows the position; the ghost follows the pointer; Escape cancels; a drop in a region that does not accept the block does nothing and says why in the live region. Dropping a new block opens its edit dialog. Every drag keeps a non-drag alternative (the + button, toolbar arrows, the outline's Move-to menu).
+- **Undo and redo** for the working copy (buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, not while typing in a field or with a dialog open).
+- **Live preview in the edit dialog**: the block is rendered with the same `blocks.ts` renderer the published page uses (shared source, bundled into the browser), in the directory's own theme taken from the canvas, on every keystroke. Data-bound blocks (gallery, contact panel and so on) show in the canvas instead.
+- **SEO surface**: search appearance (title and description with counts, URL), social sharing, indexing (allow indexing, canonical, structured data) on the left; live search result and social card previews and checks on the right. Checks state a status in words and an icon, never colour alone: title and description missing, short or over length, leftover `[bracketed]` placeholder text in the title, description **or blocks**, noindex. SEO is part of the draft: **Save draft** writes blocks first (they are checked against the page version) and then only the SEO fields that changed. **Publish** lists any SEO warnings in its confirmation ("Publish anyway"). Differences from the spec: there is no separate "Include in sitemap" switch (a noindex page is already left out of the sitemap, so one switch covers both); the social image is "Hero image" or a web address.
+- **Listing owners** (claim owners and editors): `/claim/edit/:claimId`, linked from the Listing Manager's Listing tab ("Open the page editor"). Same editor; they are bound by the locks, edit only the title and description in SEO (`update_claimed_listing_seo`), and publish only their own listing (`publish_page` already accepts the claim path). Migration `20261127160000_claim_block_context_content` (+ rollback) makes `get_claim_block_context` return each library template's content, so a block added from the library shows its text. Applied to staging, `VERIFY PASSED`.
+- Dialog fixes found while testing: cancelling a block you just added no longer asks "Discard your changes?" (the rich text editor writes an empty body on open, which counted as a change); the SEO "unsaved" state clears after a save; the Back link was unreadable (the shell's link colour won); confirmation messages keep their line breaks.
+
+### Rollback plan
+Revert the frontend commits; run `_20261127160000_claim_block_context_content.rollback.sql`.
+
+### Verification
+- [x] `vite build`, `check-ui.sh`, 89 function tests; SQL parsed; migration applied to staging.
+- [x] **Whole editor exercised end to end in a real browser** with the real `FocusedBlockEditor` against a test double of the data layer and the real generator behind a local server (not staging data): load, hover and click on the page, edit dialog with live preview, edit then Save draft (sends the expected version, all blocks, linked library blocks as `data: null`, edited blocks with their own data), add with + then cancel, drag from the library with zone labels and the drop line, undo and redo, a stale-save conflict refused with a reload prompt, SEO edit with live previews and checks, Save draft writing only the changed SEO field, Preview at Mobile (no controls), Publish confirmation with SEO warnings, Cancel publishing nothing, confirming publishing with the saved version, events recorded. Four bugs found and fixed in that run (see above).
+- [ ] **Not exercised against real data or a real sign-in:** the Supabase RPCs and Edge Function calls themselves (their server-side behaviour is covered by the migration end-to-end checks and anonymous-refusal test from stage 1), the claim route, the Listing Manager link, and touch dragging.
+- [ ] Known gaps: no keyboard "grab and move between regions" inside the canvas (the outline's Move-to menu and toolbar arrows cover it); the older row-list editor is still on the entry and page forms until you accept this one; undo history clears on save.
+
+---
+
+## 2026-11-27 — [Migrations + Edge Function (staging) + frontend, not deployed] Focused block editor, stage 1 (draft PR)
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (stacked on `feat/2026-11-27-block-pages-preserve-notes`, PR 368). Implements `discover-content-editor` (SPEC.md) on top of the block pages work. **Stage 1 of 2: usable, not complete.**
+
+### What changed
+- **Focused route** `…/directories/:id/edit/entry/:entryId` and `…/edit/page/:pageId` (admin and client portal): no app shell, only the Discover header (Back with an unsaved-changes dialog and a `beforeunload` guard, page name, save state, Content/SEO toggle, Editor/Preview toggle, Save draft, Publish). Reached from an entry's Content tab ("Open the page editor") and the Pages screen ("Edit on the page").
+- **The page as published, with controls on top.** The canvas is an iframe showing the page rendered by the real generator (`generate_directory_site`, new scope `preview_item`) from the real data and current theme, with the editor's **unsaved** blocks, so Editor and Preview show the same markup. Edit mode adds `data-ds-*` markers, always-present zones and placeholders (empty or hidden blocks stay selectable); hovering outlines a block and shows its toolbar (Edit/View, Move up, Move down, Remove, lock badges); clicking opens the existing edit dialog. Preview mode removes every control and offers Desktop and Mobile (390px, so the page's responsive CSS really responds). The iframe is sandboxed without scripts (`allow-same-origin` only). A "Page outline" tab lists every block with the same actions, a Move-to-region menu and keyboard-reachable buttons.
+- **Working copy and Save draft.** Edits change an in-browser copy; **Save draft** applies it in one transaction through `save_page_blocks`, which enforces the same lock and validation rules as the granular RPCs and refuses to save over a newer version (SQLSTATE 40001, with a reload prompt).
+- **Publish is single-page and safeguarded** (essential per the owner): (1) identity: `requireDirectoryItemPublishAccess` for entries, new `requireDirectoryContentPageAccess` for pages, directory always derived from the page; (2) `page_publish_preflight` refuses if the directory is archived or has never been published, the page was never published before (new pages need the navigation and listings updated, which only a directory publish does), the page is switched off, the saved version is not the one being published, or any block is invalid; (3) isolation: rebuilds exactly that one page file (no homepage, sitemap, theme, indexes or other page; the manifest records only that page); (4) the editor saves the draft first, validates, shows exactly what goes live and asks to confirm; (5) logged with the user id server-side and as `directory_page_published`. Refused anonymous callers confirmed on staging.
+- **Migrations** (all applied to staging): `20261127140000_block_editor_save_publish_state` (`save_page_blocks`, `validate_page_blocks`, `get_page_publish_state`, `page_block_errors`, `get_page_blocks` now returns `page_updated_at`), `20261127150000_page_publish_preflight`; rollbacks alongside. The first one's verify step ran end to end on a real entry, rolled back, **including lock checks as a real non-admin contact** for the first time (removing a position-locked block and changing a content-locked block both refused).
+- **Not changed:** published output (89 function tests, byte parity kept). `claim_item` (Listing Manager publish) is untouched.
+
+### Not built in stage 1
+Built in stage 2 (entry above): drag and drop, dialog live preview, the SEO surface, listing owners, undo and redo. Still to decide: removing the older row-list editor.
+
+### Rollback plan
+Run the two rollback files; redeploy the previous Edge Function; revert the frontend commits.
+
+### Verification
+- [x] SQL parsed (pglast); both migrations applied to staging; `VERIFY PASSED` and the end-to-end Save draft and lock check passed.
+- [x] 89 function tests pass (new: edit markers, zones, placeholders, chrome-less rendering; published pages carry no `data-ds-` markers). `vite build`, `check-ui.sh` pass.
+- [x] Canvas verified in a real browser with a throwaway harness (real generator output in the real `PageCanvas`): hover outline and toolbar, click opens, toolbar buttons call back, toolbar tracks scrolling, locked block shows its badge with Move and Remove disabled, Preview mode at Mobile shows no controls and the sidebar reflows.
+- [ ] **Not exercised signed in:** the whole route (loading, Save draft, Publish, the guards). Needs the app run against staging (the dev server on :5173 uses `.env.local`, which points at staging).
+- [ ] `preview_item` and `publish_page` have not been called by a signed-in user; only the refusal of anonymous callers is confirmed.
+
+---
+
 ## 2026-11-27 — [Migration + Edge Function + frontend, staging only] Block pages: never lose notes on conversion
 
 **Branch:** `feat/2026-11-27-block-pages-preserve-notes` (stacked on `feat/2026-11-26-block-pages-claim`; PR 6 of 6 in the block pages series)

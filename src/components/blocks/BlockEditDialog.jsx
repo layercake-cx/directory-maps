@@ -5,6 +5,17 @@ import { BlockFieldSet } from "./BlockFields.jsx";
 import { cleanData, emptyData, parseBlockError, regionLabel, validateFields } from "../../lib/pageBlocks.js";
 
 const COMMON_FIELDS = BLOCK_REGISTRY.commonFields;
+
+/**
+ * The rich text editor opens by writing an empty body (as "" or <p></p>) into a block that had none. That is not a change
+ * by the person, so empty text counts as absent when deciding whether the draft differs from what was opened.
+ */
+const emptyParagraph = (_k, v) => {
+  if (typeof v !== "string") return v;
+  const s = /^(<p>(<br\s*\/?>)?<\/p>)+$/.test(v.trim()) ? "" : v;
+  return s === "" ? undefined : s;
+};
+const fingerprint = (parts) => JSON.stringify(parts, emptyParagraph);
 const optionLabel = (o) => String(o).replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 function commonErrors(common) {
@@ -28,7 +39,7 @@ function cleanCommon(common) {
  */
 export default function BlockEditDialog({
   mode, def, block = null, template = null, region = null, isAdmin = false, ctx = {}, entryName = "this page",
-  onSave, onReset, onClose,
+  onSave, onReset, onClose, renderPreview = null,
 }) {
   const confirm = useConfirm();
   const startData = block?.data ?? template?.data ?? emptyData(def);
@@ -47,14 +58,19 @@ export default function BlockEditDialog({
   const [general, setGeneral] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  const initial = useMemo(() => JSON.stringify([startData, startCommon, lib]), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const dirty = JSON.stringify([data, common, lib]) !== initial;
+  const initial = useMemo(() => fingerprint([startData, startCommon, lib]), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = fingerprint([data, common, lib]) !== initial;
 
   const contentLocked = mode === "edit" && block && block.can_edit_content === false;
   const wholeLocked = mode === "edit" && block && block.can_edit === false;
   const readOnly = wholeLocked;
   const linkedTo = mode === "edit" && block?.template_id ? block.template_name : null;
   const variants = def.variants ?? {};
+  // Optional live preview (the focused editor passes one): the same renderer as the published page, on every keystroke.
+  const previewHtml = useMemo(
+    () => (renderPreview ? renderPreview(cleanData(def.fields, data), cleanCommon(common)) : null),
+    [renderPreview, def, data, common],
+  );
 
   async function close() {
     if (dirty && !readOnly && !(await confirm({ title: "Discard your changes?", body: "What you changed in this block has not been saved.", confirmLabel: "Discard", tone: "danger" }))) return;
@@ -88,7 +104,8 @@ export default function BlockEditDialog({
 
   return (
     <Dialog
-      wide
+      wide={!previewHtml}
+      xwide={!!previewHtml}
       title={title}
       onClose={close}
       footer={readOnly ? (
@@ -100,7 +117,8 @@ export default function BlockEditDialog({
         </>
       )}
     >
-      <div className="block-dialog" aria-live="polite">
+      <div className={`block-dialog${previewHtml ? " block-dialog--split" : ""}`} aria-live="polite">
+        <div className="block-dialog__form">
         <p className="block-dialog__sub">
           {mode === "template" ? "Reusable in this directory's block library." : `On ${entryName} · allowed in ${def.allowedRegions.map(regionLabel).join(", ")}`}
         </p>
@@ -168,6 +186,14 @@ export default function BlockEditDialog({
             </Field>
           ))}
         </details>
+        </div>
+        {previewHtml ? (
+          <aside className="block-dialog__preview" aria-label="Live preview">
+            <h3 className="block-dialog__preview-title">Live preview</h3>
+            <iframe className="block-dialog__preview-frame" title={`Preview of the ${def.name} block`} sandbox="allow-same-origin" srcDoc={previewHtml} />
+            <p className="field-hint">Shown as it will appear on the page. Nothing changes on the page until you save the block.</p>
+          </aside>
+        ) : null}
       </div>
     </Dialog>
   );

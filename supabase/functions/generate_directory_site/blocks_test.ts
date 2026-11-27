@@ -13,7 +13,7 @@ import {
   type BlockRow,
   type PageBlock,
 } from "./blocks.ts";
-import { buildContentPage, buildEntryPage, linkTiles, type ContentPage, type Entry, type SiteNav } from "./builders.ts";
+import { buildContentPage, buildEntryPage, linkTiles, siteFooter, siteHeader, type ContentPage, type Entry, type SiteNav } from "./builders.ts";
 
 const block = (block_type: string, data: Record<string, unknown>, over: Partial<PageBlock> = {}): PageBlock => ({
   id: crypto.randomUUID(), region: "main", position: 0, block_type, data, common: {}, ...over,
@@ -370,4 +370,64 @@ Deno.test("a hidden block stays on the page for editors but renders nothing for 
   assertFalse(html.includes("link-tile"));
   const shown = buildEntryPage({ ...base, layout: [], blocks: [block("entry_hero", {}, { region: "hero" }), { ...hidden, common: {} }, ...sidebar()] });
   assertStringIncludes(shown, "Hidden notes");
+});
+
+// ---------------------------------------------------------------- editor canvas (render options)
+
+Deno.test("edit mode marks every block, always renders the three zones, and leaves published pages untouched", () => {
+  const blocks = [
+    block("entry_hero", {}, { region: "hero" }),
+    block("rich", { body: "<p>Hello</p>" }, { position: 0 }),
+    block("entry_links", { title: "Links" }, { position: 1 }),
+    ...sidebar(),
+  ];
+  const published = buildEntryPage({ ...base, layout: [], blocks });
+  assertFalse(published.includes("data-ds-"), "a published page must carry no editor markers");
+
+  const editing = buildEntryPage({ ...base, layout: [], blocks, render: { chrome: false, edit: true } });
+  for (const b of blocks) assertStringIncludes(editing, `data-ds-block="${b.id}"`, `${b.block_type} should be marked`);
+  for (const z of ["hero", "main", "sidebar"]) assertStringIncludes(editing, `data-ds-zone="${z}"`);
+
+  const empty = buildEntryPage({ ...base, layout: [], blocks: [block("rich", { body: "<p>x</p>" })], render: { chrome: false, edit: true } });
+  assertStringIncludes(empty, 'data-ds-zone="sidebar"', "an empty sidebar is still a drop zone");
+  assertStringIncludes(empty, 'data-ds-zone="hero"');
+});
+
+Deno.test("edit mode leaves out the site header, footer, enquiry drawer and analytics", () => {
+  const blocks = [block("entry_hero", {}, { region: "hero" }), ...sidebar()];
+  const chromeOpts = { clientSlug: "c", directorySlug: "d", directoryName: "Dir", homeUrl: "/directories/c/d" };
+  const withChrome = buildEntryPage({ ...base, layout: [], blocks });
+  const without = buildEntryPage({ ...base, layout: [], blocks, render: { chrome: false } });
+  assertStringIncludes(withChrome, siteHeader({ directoryName: "Dir", tagline: null, homeUrl: chromeOpts.homeUrl, nav: null }));
+  assertStringIncludes(withChrome, siteFooter({ directoryName: "Dir", homeUrl: chromeOpts.homeUrl, nav: null }));
+  assertFalse(without.includes(siteHeader({ directoryName: "Dir", tagline: null, homeUrl: chromeOpts.homeUrl, nav: null })));
+  assertFalse(without.includes(siteFooter({ directoryName: "Dir", homeUrl: chromeOpts.homeUrl, nav: null })));
+  assertStringIncludes(without, 'class="dir-entry-hero"', "the page itself is still there");
+});
+
+Deno.test("edit mode shows a placeholder for blocks that would render nothing, published pages do not", () => {
+  const blocks = [
+    block("entry_hero", {}, { region: "hero" }),
+    block("rich", { body: "" }, { position: 0 }),
+    block("callout", { title: "Hidden one", body: "x" }, { position: 1, common: { visibility: "hidden" } }),
+    block("entry_gallery", {}, { position: 2 }),
+    ...sidebar(),
+  ];
+  const editing = buildEntryPage({ ...base, media: [], layout: [], blocks, render: { chrome: false, edit: true } });
+  assertEquals(editing.split("ds-placeholder").length - 1 >= 3, true, "empty, hidden and no-data blocks each get a placeholder");
+  assertStringIncludes(editing, "Hidden from visitors");
+  const published = buildEntryPage({ ...base, media: [], layout: [], blocks });
+  assertFalse(published.includes("ds-placeholder"));
+  assertFalse(published.includes("Hidden one"));
+});
+
+Deno.test("content page edit mode: markers, zones, no site chrome, nothing on the published page", () => {
+  const blocks = [block("page_title", {}, { region: "hero" }), block("rich", { body: "<p>Body</p>" }), block("callout", { title: "Side", body: "x" }, { region: "sidebar" })];
+  const published = buildContentPage({ ...pageOpts, blocks });
+  assertFalse(published.includes("data-ds-"));
+  const editing = buildContentPage({ ...pageOpts, blocks, render: { chrome: false, edit: true } });
+  for (const b of blocks) assertStringIncludes(editing, `data-ds-block="${b.id}"`);
+  for (const z of ["hero", "main", "sidebar"]) assertStringIncludes(editing, `data-ds-zone="${z}"`);
+  const noSide = buildContentPage({ ...pageOpts, blocks: blocks.slice(0, 2), render: { chrome: false, edit: true } });
+  assertStringIncludes(noSide, 'data-ds-zone="sidebar"');
 });

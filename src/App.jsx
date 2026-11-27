@@ -20,6 +20,7 @@ import CustomDomainMap from "./pages/CustomDomainMap.jsx";
 import MemcomMapsDemo from "./pages/MemcomMapsDemo.jsx";
 import ClaimLogin from "./pages/claim/ClaimLogin.jsx";
 import ClaimManager from "./pages/claim/ClaimManager.jsx";
+import ClaimFocusedEditor from "./pages/claim/ClaimFocusedEditor.jsx";
 import DirectorySiteFrame from "./components/claim/DirectorySiteFrame.jsx";
 
 import AdminClients from "./pages/admin/AdminClients.jsx";
@@ -75,6 +76,7 @@ import DirectoryAccreditationsRoute from "./components/directoryPanel/DirectoryA
 import DirectoryLookAndFeelRoute from "./components/directoryPanel/DirectoryLookAndFeelRoute.jsx";
 import DirectoryEntryPagesRoute from "./components/directoryPanel/DirectoryEntryPagesRoute.jsx";
 import DirectoryBlockLibraryRoute from "./components/directoryPanel/DirectoryBlockLibraryRoute.jsx";
+import DirectoryFocusedEditorRoute from "./components/directoryPanel/DirectoryFocusedEditorRoute.jsx";
 import DirectorySearchRoute from "./components/directoryPanel/DirectorySearchRoute.jsx";
 import DirectoryClaimsRoute from "./components/directoryPanel/DirectoryClaimsRoute.jsx";
 import DirectoryEnquiriesRoute from "./components/directoryPanel/DirectoryEnquiriesRoute.jsx";
@@ -103,6 +105,7 @@ export default function App() {
       <Route path="/memcom-maps-demo" element={<MemcomMapsDemo />} />
       <Route path="/claim/login" element={<DirectorySiteFrame><ClaimLogin /></DirectorySiteFrame>} />
       <Route path="/claim/manage/:claimId" element={<DirectorySiteFrame><ClaimManager /></DirectorySiteFrame>} />
+      <Route path="/claim/edit/:claimId" element={<ClaimFocusedEditor />} />
 
       {/* Client portal */}
       <Route
@@ -140,6 +143,7 @@ export default function App() {
           <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
           <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
           <Route path="page-blocks" element={<DirectoryBlockLibraryRoute />} />
+          <Route path="edit/:kind/:id" element={<DirectoryFocusedEditorRoute />} />
           {/* Old URL, before Design split into Look & feel and Entry pages */}
           <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
           <Route path="search" element={<DirectorySearchRoute />} />
@@ -340,6 +344,7 @@ export default function App() {
         <Route path="look-and-feel" element={<DirectoryLookAndFeelRoute />} />
         <Route path="entry-pages" element={<DirectoryEntryPagesRoute />} />
         <Route path="page-blocks" element={<DirectoryBlockLibraryRoute />} />
+        <Route path="edit/:kind/:id" element={<DirectoryFocusedEditorRoute />} />
         {/* Old URL, before Design split into Look & feel and Entry pages */}
         <Route path="design" element={<Navigate to="../look-and-feel" replace />} />
         <Route path="search" element={<DirectorySearchRoute />} />

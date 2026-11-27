@@ -21,6 +21,7 @@ import {
 } from "../../lib/contentPages.js";
 import RichTextEditor from "./entryEdit/RichTextEditor.jsx";
 import PageBlocksEditor from "../blocks/PageBlocksEditor.jsx";
+import { useDirectory } from "../../hooks/useDirectory.js";
 
 function buildForm(page) {
   return {
@@ -110,6 +111,7 @@ function pagesFromReorder(pages, flatNext, meta) {
  * directory's header, mobile menu, breadcrumbs, nested URLs, and footer.
  */
 export default function DirectoryContentPagesPanel({ directoryId, canManage, recordEvent }) {
+  const { basePath: directoryBasePath } = useDirectory();
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -392,7 +394,12 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
         ) : (
           <Section
             title="Edit page"
-            actions={<Button variant="danger" size="sm" onClick={() => openDelete(selectedPage)}>Delete page</Button>}
+            actions={(
+              <>
+                <Button as="a" href={`${directoryBasePath}/edit/page/${encodeURIComponent(selectedPage.id)}`} variant="primary" size="sm">Edit on the page</Button>
+                <Button variant="danger" size="sm" onClick={() => openDelete(selectedPage)}>Delete page</Button>
+              </>
+            )}
             footer={<Button variant="primary" onClick={handleSave} loading={saving} loadingLabel="Saving…">Save</Button>}
           >
             <FieldGrid>

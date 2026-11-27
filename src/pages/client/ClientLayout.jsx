@@ -227,7 +227,11 @@ export default function ClientLayout() {
       </Callout>
     );
 
-    const shellBody = directoryIdFromPath ? (
+    // The focused block editor takes the whole window: no app shell, only its own header.
+    const focusedEditor = /^\/client\/directories\/[^/]+\/edit\//.test(pathname);
+    const shellBody = focusedEditor ? (
+      <Outlet />
+    ) : directoryIdFromPath ? (
       <AppShell
         context="client"
         isStaff={isAdmin}

@@ -502,6 +502,9 @@ Block pages (docs/FEATURES.md §4.4l). Emitted by `PageBlocksEditor.jsx` (entry 
   - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, `region`, optional `to_index`, `from_region`
 - **`directory_page_block_removed`** / **`directory_page_block_reset`**
   - `meta`: `directory_id`, `page_kind`, `page_id`, `block_id`, `block_type`, optional `template_id`
+- **`directory_page_draft_saved`** / **`directory_page_published`**
+  - `meta`: `directory_id`, `page_kind`, `page_id`, `block_count`, optional `claim_id`
+  - Fired by the focused editor (`FocusedBlockEditor.jsx`): Save draft applies the working copy; Publish rebuilds only that one page (the Edge Function also logs the user id).
 - **`directory_block_template_saved`**
   - `meta`: `directory_id`, `template_id`, `block_type`, `source`; from the library also `page_kind`, `new`, `lock_position`, `lock_content`, `auto_add`; from "Save as library template" `from_page: true`
 - **`directory_block_template_stamped`**
