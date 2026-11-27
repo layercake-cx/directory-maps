@@ -10,9 +10,9 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 /**
  * Dialog: modal with focus handling. Focus goes to [data-autofocus] or the first control, Tab is trapped,
  * Esc closes, focus returns to the trigger.
- * @param {{ title: string, onClose: () => void, labelledBy?: string, wide?: boolean, footer?: React.ReactNode }} props
+ * @param {{ title: string, onClose: () => void, labelledBy?: string, wide?: boolean, xwide?: boolean, footer?: React.ReactNode }} props
  */
-export function Dialog({ title, children, onClose, labelledBy, wide = false, footer }) {
+export function Dialog({ title, children, onClose, labelledBy, wide = false, xwide = false, footer }) {
   const ref = useRef(null);
   const auto = useId();
   const titleId = labelledBy || auto;
@@ -49,7 +49,7 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
   }, []);
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={`dialog ${wide ? "dialog--wide" : ""}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
+      <div className={`dialog ${wide ? "dialog--wide" : ""} ${xwide ? "dialog--xwide" : ""}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
         <div className="dialog-head"><h2 id={titleId} className="dialog-title">{title}</h2></div>
         <div className="dialog-body">{children}</div>
         {footer ? <div className="dialog-foot">{footer}</div> : null}

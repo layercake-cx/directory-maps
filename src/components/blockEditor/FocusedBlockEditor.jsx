@@ -5,17 +5,21 @@ import {
   Button, Callout, ConfirmProvider, Dialog, EmptyState, ErrorState, Skeleton, ToastProvider, useConfirm, useToast,
 } from "../ui/index.js";
 import BlockEditDialog from "../blocks/BlockEditDialog.jsx";
-import EntrySeoTab from "../directories/entryEdit/EntrySeoTab.jsx";
+import SeoSurface from "./SeoSurface.jsx";
+import { blocksWithPlaceholders, seoChecks } from "../../lib/seoChecks.js";
+import { ENTRY_SEO_FIELDS, PAGE_SEO_FIELDS, saveEntrySeo, savePageSeo, seoPatch, seoValues } from "../../lib/seoAdapters.js";
 import FocusedEditorHeader from "./FocusedEditorHeader.jsx";
 import BlockLibraryPanel from "./BlockLibraryPanel.jsx";
 import PageCanvas from "./PageCanvas.jsx";
 import { previewRows, useBlockWorkingCopy } from "./useBlockWorkingCopy.js";
 import { useBlockDrag } from "./useBlockDrag.js";
+import { canPreviewBlock, renderBlockPreview } from "./blockPreview.js";
 import {
   blockDef, blockName, convertPageToBlocks, emptyData, listBlockTemplates,
 } from "../../lib/pageBlocks.js";
 import { getPagePublishState, isStaleSave, publishPage, renderPagePreview, validatePageBlocks } from "../../lib/pagePublish.js";
 import "../../styles/admin-shell-tokens.css";
+import "../../styles/admin-shell.css";
 import "../../styles/discover-ui.css";
 import "../../styles/blocks-editor.css";
 import "../../styles/focused-editor.css";
@@ -49,7 +53,11 @@ function badgesOf(b) {
   ].filter(Boolean);
 }
 
-function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = true, recordEvent }) {
+function Editor({
+  kind, id, directoryId, claimId = null, backHref, canEdit = true, recordEvent,
+  // Surfaces other than the CMS (a listing owner) supply their own way to load and save the page's record and SEO.
+  loadRecordOverride = null, seoFields: seoFieldsProp = null, saveSeoOverride = null, urlPrefix = null, siteName = "",
+}) {
   const confirm = useConfirm();
   const { toast } = useToast();
   const isEntry = kind === "entry";
@@ -69,7 +77,9 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   const [publishing, setPublishing] = useState(false);
   const [status, setStatus] = useState("");
   const [guard, setGuard] = useState(null); // { href }
-  const [seoDirty, setSeoDirty] = useState(false);
+  const [seo, setSeo] = useState(null);
+  const [seoBase, setSeoBase] = useState(null);
+  const [heroImageUrl, setHeroImageUrl] = useState("");
 
   const wc = useBlockWorkingCopy({ kind, id, claimId, templates });
   const canvasRef = useRef(null);
@@ -79,7 +89,8 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   // ---- the page's own record (name, slug, SEO) ----
   const loadRecord = useCallback(async () => {
     try {
-      if (isEntry) setRecord(await getDirectoryEntry(id));
+      if (loadRecordOverride) setRecord(await loadRecordOverride());
+      else if (isEntry) setRecord(await getDirectoryEntry(id));
       else {
         const { data, error } = await supabase.from("directory_content_pages").select("*").eq("id", id).single();
         if (error) throw error;
@@ -89,8 +100,24 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
     } catch (e) {
       setRecordErr(e?.message ?? String(e));
     }
-  }, [id, isEntry]);
+  }, [id, isEntry]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void loadRecord(); }, [loadRecord]);
+
+  const seoFields = seoFieldsProp ?? (isEntry ? ENTRY_SEO_FIELDS : PAGE_SEO_FIELDS);
+  // SEO is part of the draft: values live here until Save draft. A reloaded record resets them to what is saved.
+  useEffect(() => {
+    if (!record) return;
+    const v = seoValues(record, seoFields);
+    setSeo(v);
+    setSeoBase(v);
+  }, [record]); // eslint-disable-line react-hooks/exhaustive-deps
+  const seoDirty = !!seo && !!seoBase && Object.keys(seoPatch(seo, seoBase, seoFields)).length > 0;
+
+  // The listing's hero image, for the social card preview.
+  useEffect(() => {
+    if (!isEntry || claimId) return;
+    supabase.from("entry_media_assets").select("url").eq("entry_id", id).eq("is_hero", true).limit(1).then((r) => setHeroImageUrl(r.data?.[0]?.url ?? ""), () => {});
+  }, [id, isEntry, claimId]);
 
   useEffect(() => {
     if (claimId) return;
@@ -198,7 +225,14 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   // ---- save, back, publish ----
   const saveDraft = async () => {
     try {
-      await wc.save();
+      // Blocks first (they are checked against the page's version), then SEO, which changes that version.
+      if (wc.dirty) await wc.save();
+      if (seoDirty) {
+        const patch = seoPatch(seo, seoBase, seoFields);
+        await (saveSeoOverride ? saveSeoOverride(patch, record) : isEntry ? saveEntrySeo(id)(patch) : savePageSeo(id)(patch));
+      }
+      await loadRecord();
+      await wc.load();
       await refreshPublishState();
       setStatus("Draft saved.");
       toast("Draft saved.");
@@ -243,10 +277,12 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
       return;
     }
     const name = record?.name ?? record?.title ?? "this page";
+    const warnings = seoChecks({ title: seo?.meta_title, description: seo?.meta_description, noindex: seo?.noindex, placeholderBlocks: blocksWithPlaceholders(wc.draft) })
+      .filter((c) => c.status !== "ok").map((c) => `${c.label}: ${c.text}`);
     const go = await confirm({
       title: `Publish “${name}”?`,
-      body: "Only this page goes live. Other pages, the navigation, the listings page and the sitemap are not changed. Whatever you saved in this draft, including its SEO settings, becomes visible to visitors now.",
-      confirmLabel: "Publish this page",
+      body: `Only this page goes live. Other pages, the navigation, the listings page and the sitemap are not changed. Whatever you saved in this draft, including its SEO settings, becomes visible to visitors now.${warnings.length ? `\n\nSEO checks to look at first:\n- ${warnings.join("\n- ")}` : ""}`,
+      confirmLabel: warnings.length ? "Publish anyway" : "Publish this page",
     });
     if (!go) return;
     setPublishing(true);
@@ -266,6 +302,14 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
 
   // ---- dialog ----
   const dialogBlock = dialog ? wc.byKey(dialog.key) : null;
+  // The directory's theme, as the server inlined it into the canvas page, so the dialog preview looks like the site.
+  const themeCss = useMemo(() => (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] ?? "", [html]);
+  const previewFor = useMemo(
+    () => (dialogBlock && canPreviewBlock(dialogBlock.block_type)
+      ? (data, common) => renderBlockPreview({ type: dialogBlock.block_type, region: dialogBlock.region, pageKind: kind, data, common, themeCss })
+      : null),
+    [dialogBlock?.block_type, dialogBlock?.region, kind, themeCss], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // Cancelling the dialog for a block that was just added takes it back out; saving it keeps it.
   const closeDialog = () => {
     if (dialog?.isNew && dialogBlock) wc.removeBlock(dialog.key);
@@ -273,7 +317,7 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   };
 
   // ---- render ----
-  const title = record?.name ?? record?.title ?? "";
+  const title = record?.name ?? record?.title ?? record?.entry_name ?? "";
   const publishBlocked = !publishState?.directory_published;
   const state = publishing ? "Publishing…" : wc.saving ? "Saving…" : unsaved ? "Unsaved changes" : publishState?.has_unpublished_changes ? "Saved · not yet published" : "All changes saved";
   const usedTemplateIds = useMemo(() => new Set(wc.draft.map((b) => b.template_id).filter(Boolean)), [wc.draft]);
@@ -297,11 +341,20 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   } else if (surface === "seo") {
     content = (
       <div className="fe-surface" role="tabpanel" id="fe-panel-seo" aria-labelledby="fe-tab-seo">
-        {isEntry ? (
-          <EntrySeoTab directoryId={directoryId} entryId={id} entry={record} canEdit={canEdit} recordEvent={recordEvent} onSaved={() => { void loadRecord(); void wc.load(); void refreshPublishState(); setSeoDirty(false); }} />
-        ) : (
-          <Callout tone="info">SEO for site pages is edited in Pages › the page's own settings for now.</Callout>
-        )}
+        {seo ? (
+          <SeoSurface
+            kind={kind}
+            values={seo}
+            onChange={(patch) => setSeo((s) => ({ ...s, ...patch }))}
+            fields={seoFields}
+            urlPrefix={urlPrefix ?? "/"}
+            siteName={siteName}
+            pageName={title}
+            heroImageUrl={heroImageUrl}
+            placeholderBlocks={blocksWithPlaceholders(wc.draft)}
+            disabled={!canEdit}
+          />
+        ) : null}
       </div>
     );
   } else {
@@ -383,7 +436,7 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
         canRedo={wc.canRedo}
         saving={wc.saving}
         publishing={publishing}
-        canSave={canEdit && wc.dirty}
+        canSave={canEdit && unsaved}
         canPublish={canEdit && wc.loaded && wc.converted && !publishBlocked}
         publishTitle={publishBlocked ? "Publish the whole directory once before publishing single pages" : undefined}
       />
@@ -398,6 +451,7 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
           isAdmin={wc.isAdmin}
           entryName={title}
           onClose={closeDialog}
+          renderPreview={previewFor}
           onSave={async ({ data, common }) => {
             wc.updateBlock(dialog.key, { data, common });
             setDialog(null);

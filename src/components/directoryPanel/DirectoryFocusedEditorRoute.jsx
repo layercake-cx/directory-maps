@@ -10,7 +10,7 @@ import FocusedBlockEditor from "../blockEditor/FocusedBlockEditor.jsx";
  */
 export default function DirectoryFocusedEditorRoute() {
   const { kind, id } = useParams();
-  const { directoryId, basePath, canEditEntries, canManage, recordEvent } = useDirectory();
+  const { directoryId, basePath, canEditEntries, canManage, recordEvent, directory, client } = useDirectory();
   const isEntry = kind === "entry";
   const pageKind = isEntry ? "entry" : kind === "page" ? "content_page" : null;
   if (!pageKind) return <p>Unknown page type.</p>;
@@ -24,6 +24,8 @@ export default function DirectoryFocusedEditorRoute() {
       backHref={backHref}
       canEdit={isEntry ? canEditEntries : canManage}
       recordEvent={recordEvent}
+      urlPrefix={client?.slug && directory?.slug ? `/directories/${client.slug}/${directory.slug}/` : "/"}
+      siteName={directory?.name ?? ""}
     />
   );
 }
