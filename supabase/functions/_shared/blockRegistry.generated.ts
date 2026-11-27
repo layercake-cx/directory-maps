@@ -54,9 +54,11 @@ export const BLOCK_REGISTRY = {
       "options": [
         "all",
         "desktop",
-        "mobile"
+        "mobile",
+        "hidden"
       ],
-      "default": "all"
+      "default": "all",
+      "note": "Hidden keeps the block on the page but does not show it to visitors."
     }
   ],
   "blocks": [

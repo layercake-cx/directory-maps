@@ -14,7 +14,7 @@ import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
 import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 import { OWNER_ACCOUNT_STYLE } from "../../../ownerAccount.js";
-import { BLOCK_STYLE, blocksInRegion, isGenericBlock, mergeFaqJsonLd, renderGenericBlock, type BlockCtx, type BlockTerm, type PageBlock, type RegionId, type RenderedBlock } from "./blocks.ts";
+import { BLOCK_STYLE, blocksInRegion, isGenericBlock, isHiddenBlock, mergeFaqJsonLd, renderGenericBlock, type BlockCtx, type BlockTerm, type PageBlock, type RegionId, type RenderedBlock } from "./blocks.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -40,7 +40,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 25; // v25: every content block is its own box; v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
+export const ENTRY_TEMPLATE_VERSION = 26; // v26: blocks can be hidden from visitors; v25: every content block is its own box; v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
 
 export type Entry = {
   id: string;
@@ -2565,6 +2565,7 @@ export function buildEntryPage(opts: {
     const heroParts: string[] = [];
     for (const b of blocksInRegion(blocks, "hero")) {
       if (b.block_type === "entry_hero") {
+        if (isHiddenBlock(b)) continue;
         heroParts.push(`<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`);
       } else {
         const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: hasEntryHero ? undefined : breadcrumb })));
@@ -2590,7 +2591,7 @@ export function buildEntryPage(opts: {
         return;
       }
       const legacyType = legacyTypeOf[b.block_type];
-      if (!legacyType) return;
+      if (!legacyType || isHiddenBlock(b)) return;
       const key = typeof b.data.key === "string" ? b.data.key : undefined;
       const content = renderBlockContent({ type: legacyType, key });
       if (!content) return;
@@ -2611,7 +2612,7 @@ export function buildEntryPage(opts: {
     const sideParts: string[] = [];
     for (const b of blocksInRegion(blocks, "sidebar")) {
       if (b.block_type in sideFragments) {
-        if (sideFragments[b.block_type]) sideParts.push(sideFragments[b.block_type]);
+        if (sideFragments[b.block_type] && !isHiddenBlock(b)) sideParts.push(sideFragments[b.block_type]);
       } else {
         const r = collect(renderGenericBlock(b, ctxFor("sidebar")));
         if (r) sideParts.push(r.html);

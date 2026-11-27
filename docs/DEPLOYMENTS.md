@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Migration + Edge Function + frontend, staging only] Block pages: never lose notes on conversion
+
+**Branch:** `feat/2026-11-27-block-pages-preserve-notes` (stacked on `feat/2026-11-26-block-pages-claim`; PR 6 of 6 in the block pages series)
+
+### What changed
+- **Bug found by review:** converting an entry only carried `notes_html` into a text block when the page's layout (its `entry_templates` row, or the implicit default) contained a visible notes block. An entry whose template left notes out, or hid them, lost the text on conversion.
+- `convert_entry_to_blocks()` now always keeps it. If the layout showed the notes, behaviour is unchanged (a visible Rich text block in the layout's position). If it did not, the notes become a **hidden** Rich text block at the end of the main region, so converting does not publish text the page was not showing; an editor changes its Visibility to show it. Content-page `body_html` was already always converted.
+- **Visibility gains "Hidden"** (registry change, `block_registry()` re-created): the block stays on the page and in the editor (shown with a "Hidden from visitors" pill) but the renderer outputs nothing for it. `ENTRY_TEMPLATE_VERSION` 26.
+- Migration `20261127100000_block_pages_preserve_notes.sql` (rollback `_20261127100000_block_pages_preserve_notes.rollback.sql`, refuses while hidden blocks exist). Entries converted before this migration are not changed.
+- **Notes written after conversion now reach the block** (migration `20261127120000_block_pages_notes_sync.sql`, rollback `_20261127120000_block_pages_notes_sync.rollback.sql`). A `BEFORE UPDATE OF notes_html, allow_html` trigger on `directory_entries` (fired only when one of them changes) refreshes the entry's converted notes block if nobody has edited it, so AI content generation, CSV import and version restore take effect on a converted page. "Not edited" is a comparison of content (the block's text still equals what conversion made from the old notes), not of timestamps, because reordering blocks also bumps `updated_at`. An edited block, or one removed on purpose, is left alone. When it refreshes it bumps the entry's `updated_at` so the next publish rebuilds the page. Any error is swallowed with a warning, so a notes save can never fail because of blocks. The converter now gives **every** converted entry a notes block (empty when there are no notes, hidden when the layout did not show notes), so entries filled by AI after conversion have somewhere to land. Entries converted earlier without a notes block are not changed. Content-page `body_html` is not synced (its editor is hidden once converted and nothing else writes it in bulk).
+
+### Rollback plan
+Run the rollback file (restores the previous converter and registry). Redeploy the previous function.
+
+### Verification
+- [x] SQL parsed with pglast; 85 function tests pass (new: hidden blocks render nothing); `vite build`, `check-ui.sh`, `generate-block-registry.mjs --check` pass.
+- [x] Staging, 2026-11-27: migration applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. `generate_directory_site` deployed with `--project-ref beqejxneehilplrtpntn`.
+- [x] Staging, 2026-11-27: `20261127120000_block_pages_notes_sync.sql` applied; its verify block ran end to end on a real staging entry inside a rolled-back sub-transaction and passed: conversion created the notes block, an unedited block followed a `notes_html` update, an edited block was not overwritten. (`VERIFY PASSED`; no data changed.)
+- [ ] Not exercised: the hidden-block path (a layout that omits notes), and a real AI generation or CSV import against a converted entry.
+
+---
+
 ## 2026-11-26 — [Migration (staging) + frontend, not deployed] Block pages, phase 5 (listing owners)
 
 **Branch:** `feat/2026-11-26-block-pages-claim` (stacked on `feat/2026-11-26-block-pages-editor`; merge the five block-pages branches in order)

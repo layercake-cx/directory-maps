@@ -219,6 +219,7 @@ export default function PageBlocksEditor({ pageKind, pageId, directoryId, entryN
                     <span className="block-row__summary">{blockSummary(b)}</span>
                     {b.template_id && b.linked ? <Pill tone="info">From library</Pill> : null}
                     {b.template_id && !b.linked ? <Pill>Edited here</Pill> : null}
+                    {b.common?.visibility === "hidden" ? <Pill>Hidden from visitors</Pill> : null}
                     {b.lock_position ? <Pill tone="warn">Position locked</Pill> : null}
                     {b.lock_content ? <Pill tone="warn">Content locked</Pill> : null}
                   </>

@@ -361,3 +361,13 @@ Deno.test("a hero banner does not repeat the breadcrumb the entry header already
   const alone = buildEntryPage({ ...base, layout: [], blocks: [{ ...hero, position: 0 }, ...sidebar()] });
   assertEquals(alone.split('aria-label="Breadcrumb"').length - 1, 1);
 });
+
+Deno.test("a hidden block stays on the page for editors but renders nothing for visitors", () => {
+  const hidden = block("rich", { body: "<p>Hidden notes</p>" }, { common: { visibility: "hidden" } });
+  assertEquals(render(hidden), null);
+  const html = buildEntryPage({ ...base, layout: [], blocks: [block("entry_hero", {}, { region: "hero" }), hidden, block("entry_links", {}, { common: { visibility: "hidden" }, position: 1 }), ...sidebar()] });
+  assertFalse(html.includes("Hidden notes"));
+  assertFalse(html.includes("link-tile"));
+  const shown = buildEntryPage({ ...base, layout: [], blocks: [block("entry_hero", {}, { region: "hero" }), { ...hidden, common: {} }, ...sidebar()] });
+  assertStringIncludes(shown, "Hidden notes");
+});

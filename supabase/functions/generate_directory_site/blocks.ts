@@ -61,6 +61,11 @@ export function resolveBlocks(rows: BlockRow[], templates: Map<string, TemplateD
     .sort((a, b) => REGION_ORDER[a.region] - REGION_ORDER[b.region] || a.position - b.position);
 }
 
+/** True when an editor has hidden the block from visitors (Block settings > Visibility). */
+export function isHiddenBlock(b: PageBlock): boolean {
+  return b.common.visibility === "hidden";
+}
+
 export function blocksInRegion(blocks: PageBlock[], region: RegionId): PageBlock[] {
   return blocks.filter((b) => b.region === region);
 }
@@ -489,6 +494,8 @@ export function isGenericBlock(type: string): boolean {
 export function renderGenericBlock(b: PageBlock, ctx: BlockCtx): RenderedBlock | null {
   const r = RENDERERS[b.block_type];
   if (!r) return null;
+  // "Hidden" keeps the block on the page (and in the editor) but shows visitors nothing.
+  if (b.common.visibility === "hidden") return null;
   const out = r(b, ctx);
   if (!out) return null;
   const anchorId = out.anchorId ?? blockAnchorId(b);
