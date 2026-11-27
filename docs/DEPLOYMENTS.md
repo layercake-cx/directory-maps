@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-26 — [Migration, staging only] Block pages, phase 2 (server rules)
+
+**Branch:** `feat/2026-11-26-block-pages-api` (stacked on `feat/2026-11-26-block-pages`; phase 1 must be merged first)
+
+### What changed
+- Still nothing visitors or the app can see: no renderer or editor uses this yet.
+- **Block registry** is now one source, `scripts/block-registry.json`, generated into `src/lib/blockRegistry.generated.js`, `supabase/functions/_shared/blockRegistry.generated.ts` and an embedded Postgres function `block_registry()` (`node scripts/generate-block-registry.mjs`, `--check` fails if any copy drifts). It is the handoff's 18 blocks, adapted: `contact` is marked deferred (it needs Organisation records), video backgrounds dropped, images are `{url, alt}`, and 13 data-bound `entry_*` / `page_title` blocks added so converted pages render as they do today.
+- **Validation** in SQL (`block_data_errors`, `assert_block_valid`): block type, page kind, region, unknown fields, required fields, lengths, list bounds, link and image URLs, spacing tokens, and rejection of script/iframe/object/embed/style tags, `javascript:` URLs and inline `on*` handlers in rich text. The renderer must still sanitise on output (phase 3).
+- **RPCs** that enforce locks server-side for three callers: directory admins (platform admin, client owner/manager; never bound by locks), page editors (other client contacts; bound) and claim users (owner or editor of an active claim, own entry only; bound): `get_page_blocks`, `add_page_block`, `update_page_block`, `reset_page_block_to_template`, `move_page_block`, `remove_page_block`, `convert_page_to_blocks`. Admin-only: `save_block_template`, `delete_block_template`, `stamp_block_template` (batched backfill; converts each page first and re-adds the block where an owner removed it). Every write bumps the page's `updated_at` so the incremental publish rebuilds it; claim writes also stamp the same provenance columns as `update_claimed_listing_body`.
+- **Fixes phase 1:** `can_manage_client()` is true for every contact, so phase 1's write policies let members bypass locks. New `is_directory_admin()` (owner/manager/platform admin) replaces it in those policies.
+- **Not included:** the trigger that stamps `auto_add` templates onto new pages. It would sit on `directory_entries` inserts, which maps also use, so it ships with the editor in phase 4 with its own test.
+- Migration `20261126140000_block_pages_api.sql`, rollback `_20261126140000_block_pages_api.rollback.sql` (functions and policies only, no data).
+
+### Rollback plan
+Run the rollback file. It drops the functions and restores phase 1's policies; no data is touched.
+
+### Verification
+- [x] SQL parsed with a Postgres parser (pglast): both files and all 20 plpgsql bodies are syntactically valid. This does not check column names or logic.
+- [x] `node scripts/generate-block-registry.mjs --check` passes.
+- [x] Staging, 2026-11-26: applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. The migration's verify block runs 23 validator cases (5 valid, 18 invalid) plus policy and grant checks. The first two pushes failed atomically (nothing applied): the verify block caught that `<script` was not being rejected, because `\b` in a Postgres regex is backspace, not a word boundary. Fixed to `\y` before the successful push.
+- [ ] Staging: RPCs exercised as a real admin, member and claim user (locks refuse, pins hold, detach and reset work). Not possible from the CLI; needs a signed-in session.
+
+---
+
 ## 2026-11-26 — [Migration, staging only] Block pages, phase 1 (schema only)
 
 **Branch:** `feat/2026-11-26-block-pages`
