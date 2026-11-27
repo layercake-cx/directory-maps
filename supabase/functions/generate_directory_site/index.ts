@@ -121,6 +121,7 @@ import {
   normaliseClaimBanner,
   parseDirectoryDestinations,
 } from "./builders.ts";
+import { resolveBlocks, type BlockRow, type PageBlock, type TemplateData } from "./blocks.ts";
 import { PLACES_GB, directoryPlaceCentroids, dominantGeocodeRegion } from "./places.ts";
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -384,6 +385,52 @@ async function generateForDirectoryInner(
     } else {
       templates = (templateRows ?? []) as EntryTemplateRow[];
     }
+  }
+
+  // Block pages (docs: block pages phase 3). An entry or content page with
+  // block instances renders from them; one without renders exactly as before.
+  // Tolerant for the same reason as entry_templates above: this runs on EVERY
+  // directory's publish, and the migration and this deploy are independent
+  // (production does not have the block tables until its own migration), so a
+  // failed query degrades to "no blocks anywhere" instead of failing publish.
+  const blocksByEntry = new Map<string, PageBlock[]>();
+  const blocksByContentPage = new Map<string, PageBlock[]>();
+  try {
+    const { data: tplRows, error: tplErr } = await db
+      .from("directory_block_templates")
+      .select("id, data")
+      .eq("directory_id", directoryId);
+    if (tplErr) throw new Error(tplErr.message);
+    const tpls = new Map<string, TemplateData>((tplRows ?? []).map((r: TemplateData) => [r.id, r]));
+    const rows: BlockRow[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data: pageRowsChunk, error: blockErr } = await db
+        .from("directory_page_blocks")
+        .select("id, entry_id, content_page_id, region, position, block_type, template_id, data, common")
+        .eq("directory_id", directoryId)
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (blockErr) throw new Error(blockErr.message);
+      rows.push(...((pageRowsChunk ?? []) as BlockRow[]));
+      if ((pageRowsChunk ?? []).length < 1000) break;
+    }
+    const grouped = new Map<string, BlockRow[]>();
+    for (const r of rows) {
+      const key = r.entry_id ? `e:${r.entry_id}` : r.content_page_id ? `p:${r.content_page_id}` : null;
+      if (!key) continue;
+      const list = grouped.get(key) ?? [];
+      list.push(r);
+      grouped.set(key, list);
+    }
+    for (const [key, list] of grouped) {
+      const resolved = resolveBlocks(list, tpls);
+      if (key.startsWith("e:")) blocksByEntry.set(key.slice(2), resolved);
+      else blocksByContentPage.set(key.slice(2), resolved);
+    }
+  } catch (e) {
+    console.error(`block pages query failed, rendering every page from its standard layout: ${e instanceof Error ? e.message : String(e)}`);
+    blocksByEntry.clear();
+    blocksByContentPage.clear();
   }
 
   const entryTermIdsByEntry = new Map<string, Set<string>>();
@@ -842,6 +889,7 @@ async function generateForDirectoryInner(
     }
   }
 
+  const entrySlugById = new Map(entries.map((e) => [e.id, e.slug]));
   const entriesToBuild = work.entryIds === null ? entries : entries.filter((e) => work.entryIds!.includes(e.id));
 
   // Entry pages used to upload sequentially (~120s for 177 entries, almost
@@ -873,6 +921,8 @@ async function generateForDirectoryInner(
       analytics: siteAnalytics,
       enquiry: entryEnquiry,
       claim: claimWidgetFor(entry),
+      blocks: blocksByEntry.get(entry.id) ?? null,
+      entrySlugs: entrySlugById,
     });
     await uploadToBlob(`${basePath}/${entry.slug}.html`, html, "text/html; charset=utf-8");
   });
@@ -900,6 +950,7 @@ async function generateForDirectoryInner(
       theme,
       nav,
       analytics: siteAnalytics,
+      blocks: blocksByContentPage.get(page.id) ?? null,
     });
     await uploadToBlob(`${basePath}/${publicPath}.html`, html, "text/html; charset=utf-8");
   }

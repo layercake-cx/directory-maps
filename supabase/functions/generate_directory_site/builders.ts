@@ -14,6 +14,7 @@ import { escapeHtml, escapeAttr } from "../_shared/staticSiteRenderer.ts";
 import { ASK_AI_STYLE, askAiFloatingMarkup, askAiIcon, askAiPanelMarkup, buildAskAiScript } from "./askAi.ts";
 import { FONT_CATALOG } from "./fontCatalog.generated.ts";
 import { OWNER_ACCOUNT_STYLE } from "../../../ownerAccount.js";
+import { BLOCK_STYLE, blocksInRegion, isGenericBlock, mergeFaqJsonLd, renderGenericBlock, type BlockCtx, type BlockTerm, type PageBlock, type RegionId, type RenderedBlock } from "./blocks.ts";
 
 export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
 
@@ -39,7 +40,7 @@ export const SITE_ORIGIN = "https://maps.layercake-cx.biz";
  * for every deploy that changes this file's HTML/CSS output, not just ones
  * that "feel like" a template redesign.
  */
-export const ENTRY_TEMPLATE_VERSION = 22; // v22: card listing layout CSS (docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
+export const ENTRY_TEMPLATE_VERSION = 25; // v25: every content block is its own box; v24: hero-region blocks held to the page width (v23: block pages — --ds-* tokens + block CSS in theme.css, block-rendered entry/content pages (v22: card listing layout CSS, docs/DIRECTORY_CARD_LAYOUT_SPEC.md)
 
 export type Entry = {
   id: string;
@@ -1121,7 +1122,7 @@ export function fontImportRule(theme: DirectoryTheme): string {
  * colour, type, logo, or banner change does not rewrite every HTML page. */
 export function buildThemeCss(theme: DirectoryTheme): string {
   const font = fontImportRule(theme);
-  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${ASK_AI_STYLE}\n${OWNER_ACCOUNT_STYLE}\n`;
+  return `${font ? `${font}\n` : ""}${themeStyleBlock(theme)}\n${BASE_STYLE}\n${EXTRA_STYLE}\n${LAYOUT_STYLE}\n${BLOCK_STYLE}\n${ASK_AI_STYLE}\n${OWNER_ACCOUNT_STYLE}\n`;
 }
 
 export function themeStylesheetHref(clientSlug: string, directorySlug: string): string {
@@ -2225,8 +2226,12 @@ export function buildEntryPage(opts: {
   analytics?: SiteAnalytics | null;
   enquiry?: DirectoryEnquiry | null;
   claim?: ClaimWidgetOptions | null;
+  /** Block instances for this entry (block pages). Absent or empty = the page renders exactly as before, from `layout`. */
+  blocks?: PageBlock[] | null;
+  /** entry id -> slug, so an "entry" link in a block can resolve to its page. */
+  entrySlugs?: Map<string, string> | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, attachedMapFocusedEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim } = opts;
+  const { clientSlug, directorySlug, directoryName, entry, evidence, media, accreditations, links, tiles, theme, layout, categorisations, entryTermIds, attachedMapEmbedSrc, attachedMapFocusedEmbedSrc, staticMapsApiKey, related, nav, analytics, enquiry, claim, blocks, entrySlugs } = opts;
   const canonicalUrl = `${SITE_ORIGIN}/directories/${clientSlug}/${directorySlug}/${entry.slug}`;
   const landingUrl = `/directories/${clientSlug}/${directorySlug}`;
   const entryUrl = (e: Entry) => `/directories/${clientSlug}/${directorySlug}/${e.slug}`;
@@ -2523,17 +2528,109 @@ export function buildEntryPage(opts: {
 
   const breadcrumb = renderBreadcrumbTrail(breadcrumbItems);
 
+  // ---- Block pages: an entry with block instances renders its regions from
+  // them; one without keeps the output above, unchanged. Data-bound blocks
+  // (entry_*) reuse the exact fragments built above, so a converted page looks
+  // the same as it did before conversion. ----
+  let heroRegionHtml = `<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`;
+  let jumpBarHtml = jumpBar;
+  let mainHtml = sections;
+  let asideHtml = aside;
+  let claimBannerHtml = claimBanner;
+  const blockJsonLd: Record<string, unknown>[] = [];
+  if (blocks && blocks.length > 0) {
+    const blockTerms: BlockTerm[] = entryTermIds.flatMap((id) => {
+      const tm = termMeta.get(id);
+      return tm ? [{ termId: id, catKey: tm.catKey, catLabel: tm.catLabel, catFieldType: tm.catFieldType, label: tm.label, slug: tm.slug }] : [];
+    });
+    const ctxFor = (region: RegionId, extra: Partial<BlockCtx> = {}): BlockCtx => ({
+      pageKind: "entry",
+      region,
+      entry: { id: entry.id, name: entry.name, city: entry.city, claimed: !!entry.current_claim_id },
+      terms: blockTerms,
+      filterHref: filterLink,
+      entryUrl: (id) => {
+        const slug = entrySlugs?.get(id);
+        return slug ? `${landingUrl}/${slug}` : null;
+      },
+      claimWidget: !!claim,
+      ...extra,
+    });
+    const collect = (r: RenderedBlock | null) => {
+      if (r?.jsonLd) blockJsonLd.push(...r.jsonLd);
+      return r;
+    };
+    const hasEntryHero = blocks.some((b) => b.block_type === "entry_hero");
+
+    const heroParts: string[] = [];
+    for (const b of blocksInRegion(blocks, "hero")) {
+      if (b.block_type === "entry_hero") {
+        heroParts.push(`<div class="wrap">\n${breadcrumb}\n${heroSection}\n</div>`);
+      } else {
+        const r = collect(renderGenericBlock(b, ctxFor("hero", { h1Taken: hasEntryHero, breadcrumbHtml: hasEntryHero ? undefined : breadcrumb })));
+        // Held to the page width like the entry header, so a hero-region block never spans the whole window.
+        if (r) heroParts.push(`<div class="wrap ds-hero-region">${r.html}</div>`);
+      }
+    }
+    // Every page needs one h1 and a way back: fall back to the standard header if the hero region gave none.
+    if (heroParts.length > 0) heroRegionHtml = heroParts.join("\n");
+
+    const legacyTypeOf: Record<string, string> = {
+      entry_hero_image: "hero", entry_gallery: "gallery", entry_accreditations: "accreditations",
+      entry_evidence: "evidence", entry_product_tiles: "product_tiles", entry_links: "links", entry_categorisation: "categorisation",
+    };
+    const chips: string[] = [];
+    const mainParts: string[] = [];
+    blocksInRegion(blocks, "main").forEach((b, i) => {
+      if (isGenericBlock(b.block_type)) {
+        const r = collect(renderGenericBlock(b, ctxFor("main")));
+        if (!r) return;
+        if (r.anchorId && r.chipLabel) chips.push(`<a class="dir-jumpchip" href="#${r.anchorId}">${escapeHtml(r.chipLabel)}</a>`);
+        mainParts.push(r.html);
+        return;
+      }
+      const legacyType = legacyTypeOf[b.block_type];
+      if (!legacyType) return;
+      const key = typeof b.data.key === "string" ? b.data.key : undefined;
+      const content = renderBlockContent({ type: legacyType, key });
+      if (!content) return;
+      const label = typeof b.data.title === "string" ? b.data.title.trim() : "";
+      // In block mode every section is its own box (ds-box), labelled or not.
+      if (!label) {
+        mainParts.push(`<div class="dir-entry-section ds-box">${content}</div>`);
+        return;
+      }
+      const id = sectionAnchorId(label, i);
+      chips.push(`<a class="dir-jumpchip" href="#${id}">${escapeHtml(label)}</a>`);
+      mainParts.push(`<div class="dir-entry-section ds-box" id="${id}"><h2>${escapeHtml(label)}</h2>${content}</div>`);
+    });
+    mainHtml = mainParts.join("\n");
+    jumpBarHtml = chips.length ? `<div class="dir-jumpbar-outer"><nav class="wrap dir-jumpbar" aria-label="On this page">${chips.join("")}</nav></div>` : "";
+
+    const sideFragments: Record<string, string> = { entry_contact_panel: contactPanel, entry_map_card: mapCard, entry_attributes: attrsBlock, entry_tag_chips: tagBlocks };
+    const sideParts: string[] = [];
+    for (const b of blocksInRegion(blocks, "sidebar")) {
+      if (b.block_type in sideFragments) {
+        if (sideFragments[b.block_type]) sideParts.push(sideFragments[b.block_type]);
+      } else {
+        const r = collect(renderGenericBlock(b, ctxFor("sidebar")));
+        if (r) sideParts.push(r.html);
+      }
+    }
+    asideHtml = sideParts.join("\n");
+
+    // A claim block replaces the standard claim banner.
+    if (blocks.some((b) => b.block_type === "claim")) claimBannerHtml = "";
+  }
+
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav: nav ?? null })}
-<div class="wrap">
-${breadcrumb}
-${heroSection}
-</div>
-${jumpBar}
-${claimBanner}
+${heroRegionHtml}
+${jumpBarHtml}
+${claimBannerHtml}
 <div class="wrap dir-entry-body">
-  <div class="dir-entry-main">${sections}</div>
-  ${aside ? `<div class="dir-aside">${aside}</div>` : ""}
+  <div class="dir-entry-main">${mainHtml}</div>
+  ${asideHtml ? `<div class="dir-aside">${asideHtml}</div>` : ""}
 </div>
 ${relatedSection}
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav: nav ?? null })}
@@ -2545,7 +2642,7 @@ ${claim ? buildClaimWidget(claim, entry) : ""}
     title: entry.meta_title || `${entry.name} — ${directoryName}`,
     description,
     canonicalUrl,
-    jsonLd: [entrySchemaOrg(entry, canonicalUrl), breadcrumbListJsonLd(breadcrumbJsonLdItems)],
+    jsonLd: [entrySchemaOrg(entry, canonicalUrl), breadcrumbListJsonLd(breadcrumbJsonLdItems), ...mergeFaqJsonLd(blockJsonLd)],
     body,
     imageUrl: hero?.url ?? null,
     noindex: !!entry.noindex,
@@ -2671,8 +2768,10 @@ export function buildContentPage(opts: {
   theme: DirectoryTheme;
   nav: SiteNav;
   analytics?: SiteAnalytics | null;
+  /** Block instances for this page. Absent or empty = the page renders exactly as before, from body_html. */
+  blocks?: PageBlock[] | null;
 }): string {
-  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav, analytics } = opts;
+  const { clientSlug, directorySlug, directoryName, page, parentPage, childPages, pagesById, theme, nav, analytics, blocks } = opts;
   const landingUrl = nav.homeUrl;
   const hrefFor = (p: ContentPage) => contentPageHref(clientSlug, directorySlug, contentPagePublicPath(p, pagesById));
   const canonicalUrl = `${SITE_ORIGIN}${hrefFor(page)}`;
@@ -2697,12 +2796,45 @@ export function buildContentPage(opts: {
 
   const description = page.meta_description || `${page.title} — ${directoryName}`;
 
+  // Block pages: a content page with block instances renders its regions from
+  // them (the page_title block is today's breadcrumb + h1); one without keeps
+  // the output below, unchanged. There is no sidebar column on content pages,
+  // so sidebar blocks stack under the main blocks.
+  const breadcrumbHtml = renderBreadcrumbTrail(crumbItems);
+  const titleHtml = `<h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>`;
+  let aboveHtml = "";
+  let contentHtml = `${breadcrumbHtml}\n${titleHtml}\n<div class="prose">${page.body_html}</div>`;
+  const blockJsonLd: Record<string, unknown>[] = [];
+  if (blocks && blocks.length > 0) {
+    const ctxFor = (region: RegionId, extra: Partial<BlockCtx> = {}): BlockCtx => ({ pageKind: "content_page", region, ...extra });
+    const hasTitleBlock = blocks.some((b) => b.block_type === "page_title");
+    const render = (b: PageBlock, region: RegionId, extra: Partial<BlockCtx> = {}): string => {
+      const r = renderGenericBlock(b, ctxFor(region, extra));
+      if (r?.jsonLd) blockJsonLd.push(...r.jsonLd);
+      return r?.html ?? "";
+    };
+    const heroInside: string[] = [];
+    const heroAbove: string[] = [];
+    for (const b of blocksInRegion(blocks, "hero")) {
+      if (b.block_type === "page_title") heroInside.push(`${breadcrumbHtml}\n${titleHtml}`);
+      else {
+        const html = render(b, "hero", { h1Taken: hasTitleBlock, breadcrumbHtml: hasTitleBlock ? undefined : breadcrumbHtml });
+        if (html) heroAbove.push(`<div class="wrap ds-hero-region">${html}</div>`);
+      }
+    }
+    // One h1 and a way back on every page: fall back to the standard header if the hero region gave none.
+    const heroHtml = heroInside.length > 0 || heroAbove.length > 0 ? heroInside.join("\n") : `${breadcrumbHtml}\n${titleHtml}`;
+    const main = blocksInRegion(blocks, "main").map((b) => render(b, "main")).filter(Boolean);
+    const side = blocksInRegion(blocks, "sidebar").map((b) => render(b, "sidebar")).filter(Boolean);
+    aboveHtml = heroAbove.join("\n");
+    contentHtml = `${heroHtml}\n<div class="ds-page-main">${main.join("\n")}</div>${side.length ? `\n<div class="dir-aside ds-page-side">${side.join("\n")}</div>` : ""}`;
+  }
+
   const body = `
 ${siteHeader({ directoryName, tagline: null, homeUrl: landingUrl, logoUrl: theme.logoUrl, headerMode: theme.headerMode, showHeaderTitle: theme.showHeaderTitle, siteTitle: theme.siteTitle, logoMaxHeight: theme.logoMaxHeight, nav })}
+${aboveHtml}
 <div class="wrap" style="max-width:760px;">
-${renderBreadcrumbTrail(crumbItems)}
-<h1 style="font-family:var(--font-heading);font-size:clamp(calc(var(--fs-h1) * 0.7), 4vw, calc(var(--fs-h1) * 0.95));margin:0 0 24px;">${escapeHtml(page.title)}</h1>
-<div class="prose">${page.body_html}</div>
+${contentHtml}
 ${childList}
 </div>
 ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
@@ -2712,7 +2844,7 @@ ${siteFooter({ directoryName, homeUrl: landingUrl, nav })}
     title: page.meta_title || `${page.title} — ${directoryName}`,
     description,
     canonicalUrl,
-    jsonLd: [contentPageSchemaOrg(page, directoryName, canonicalUrl), breadcrumbListJsonLd(jsonLdCrumbs)],
+    jsonLd: [contentPageSchemaOrg(page, directoryName, canonicalUrl), breadcrumbListJsonLd(jsonLdCrumbs), ...mergeFaqJsonLd(blockJsonLd)],
     body,
     noindex: !!page.noindex,
     theme,

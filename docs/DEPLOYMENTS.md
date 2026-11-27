@@ -8,6 +8,32 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-26 — [Edge Function + migration, staging only] Block pages, phase 3 (public renderer)
+
+**Branch:** `feat/2026-11-26-block-pages-render` (stacked on `feat/2026-11-26-block-pages-api`, which is stacked on `feat/2026-11-26-block-pages`; merge in that order)
+
+### What changed
+- `generate_directory_site` now renders an entry page or content page from block instances when the page has any; a page with none renders exactly as before. Tests confirm that an empty block list gives the same HTML as none, and that a page converted by `convert_entry_to_blocks` (data-bound `entry_*` blocks in hero, main and sidebar) reproduces the standard page byte for byte. A converted notes block becomes an ordinary Rich text block, so its markup differs slightly from the old notes section.
+- New `blocks.ts`: an allow-list HTML sanitiser (drops script/style/iframe and their content, strips attributes and event handlers, only http(s)/mailto/tel/relative/anchor links, balances tags), renderers for 17 registry blocks (hero, tags, stats, cards, media, attrs, actions, chips, claim, rich, heading, list, quote, callout, faq, table, divider), and the `--ds-*` token layer. Tokens are defined from the directory's existing theme variables, so a directory looks like itself with no extra configuration. `contact` is not rendered (deferred in the registry). Blocks have no nested slots in v1; place a Tag list or Chip list as its own block.
+- Data loading in `index.ts` reads `directory_block_templates` and `directory_page_blocks` for the directory and resolves linked instances to their template's data. If those queries fail (production does not have the tables until its own migration), it logs and renders every page the standard way, so deploying the function ahead of the migrations is safe.
+- **Every content block is its own box** (`ENTRY_TEMPLATE_VERSION` 25): rich text, list, FAQ, table, media, chips, actions, tags, attributes and quote get a surface, border, radius and padding with a consistent gap between them, in the main column, sidebar and content pages; entry-data sections on a converted page are boxed too, labelled or not. Blocks that already are a box (Hero banner, Stats, Callout, Claim, Card grid) and Heading and Divider are not boxed a second time. A hero banner no longer repeats the breadcrumb when the entry header already shows it. Checked by rendering a sample page with a spread of blocks and viewing it.
+- **Hero-region blocks are held to the page width** (`ENTRY_TEMPLATE_VERSION` 24): a Hero banner or any other block in the hero region sits inside the same `.wrap` container as the entry header, as a contained, rounded band, instead of spanning the whole window. (First version rendered them at the top level; found on staging.) A full-bleed option is not offered.
+- `ENTRY_TEMPLATE_VERSION` 22 to 23: block CSS is added to `theme.css`, so the next ordinary Publish of every directory rebuilds all its entry pages (no visible change; the new rules only match block markup).
+- Visitor events: migration `20261126160000_block_faq_event.sql` (rollback `_20261126160000_block_faq_event.rollback.sql`) allows `listing_faq_toggle`. Links in blocks reuse `listing_cta_click` with new `cta_type` values. Documented in `docs/MAP_ENGAGEMENT.md`. No other new visitor action ships in this phase.
+- Not changed: the claim banner stays standard page chrome unless a Claim block is on the page. Related entries stay chrome. The Claim block's inline-form mode is not rendered (it links out or opens the existing claim dialog).
+
+### Rollback plan
+Redeploy the previous Edge Function version. The event migration's rollback refuses if `listing_faq_toggle` events exist. No data changes.
+
+### Verification
+- [x] `deno test --allow-read supabase/functions/generate_directory_site/`: 31 new tests plus the existing suite pass. `deno check` passes on `blocks.ts`, `builders.ts` and `index.ts`.
+- [x] Staging, 2026-11-26: `20261126160000_block_faq_event.sql` applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`. `generate_directory_site` deployed with `--project-ref beqejxneehilplrtpntn`.
+- [ ] Staging: publish a directory with no blocks and confirm its pages are unchanged, then convert one page, add blocks and publish (the editor does not exist yet, so blocks are added with SQL; see the chat for a script).
+- [ ] Not tested in a browser: block styling, mobile layout, sticky sidebar, hero banner.
+- [ ] `docs/USER_GUIDE.md` is not updated because nothing user-facing exists until the editor ships (phase 4).
+
+---
+
 ## 2026-11-26 — [Migration, staging only] Block pages, phase 2 (server rules)
 
 **Branch:** `feat/2026-11-26-block-pages-api` (stacked on `feat/2026-11-26-block-pages`; phase 1 must be merged first)
