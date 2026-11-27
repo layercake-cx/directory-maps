@@ -23,6 +23,9 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
   useEffect(() => {
     const prev = document.activeElement;
     const el = ref.current;
+    // The page behind must not scroll while a dialog is open (wheel or touch outside the dialog would move it).
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     (el?.querySelector("[data-autofocus]") || el?.querySelector(FOCUSABLE))?.focus();
     const onKey = (e) => {
       if (e.key === "Escape") {
@@ -40,6 +43,7 @@ export function Dialog({ title, children, onClose, labelledBy, wide = false, foo
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
       prev?.focus?.();
     };
   }, []);

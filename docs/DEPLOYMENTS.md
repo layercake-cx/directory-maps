@@ -8,6 +8,30 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-26 — [Migration (staging) + frontend, not deployed] Block pages, phase 4 (admin block editor)
+
+**Branch:** `feat/2026-11-26-block-pages-editor` (stacked on `feat/2026-11-26-block-pages-render`; merge the four block-pages branches in order)
+
+### What changed
+- **Block editor** for entry pages (entry **Content** tab) and content pages (**Pages** screen), in both the admin and the client portal (the same components serve both). Switch a page to blocks, add blocks from the block list or the library, edit them in a registry-driven form (rich text, lists, tables, links, images, FAQ and so on, with inline validation and the server's errors shown), reorder by drag or keyboard, move between Hero/Main/Sidebar from the ⋯ menu, reset a changed block to its template, and remove. Locks come from the server per block and the UI mirrors them (view-only, disabled move/remove); the server refuses anything not allowed. Once a page uses blocks the old notes editor (entries) and body editor with AI draft (content pages) are hidden.
+- **Block library**: new **Experience › Page blocks** (owners and managers): create, edit, delete templates; lock position, lock content, add to every page, **Add to existing pages** (batched), and "Save as library template" from a block. `Experience › Entry pages` is left in place for pages not yet converted.
+- **Migration** `20261126180000_block_pages_editor.sql` (rollback `_20261126180000_block_pages_editor.rollback.sql`): `promote_page_block_to_template()` and a trigger on `directory_entries` and `directory_content_pages` that stamps `auto_add` templates onto new pages. The trigger returns at once when a directory has no `auto_add` template and swallows its own errors with a warning, so creating an entry or page (including CSV imports and "build a directory from a map") cannot fail because of blocks.
+- New files: `src/lib/pageBlocks.js`, `src/components/blocks/*`, `src/components/directoryPanel/DirectoryBlockLibraryRoute.jsx`, `src/styles/blocks-editor.css`. Edited: `EntryContentTab.jsx`, `DirectoryContentPagesPanel.jsx`, `App.jsx`, `navConfig.js`. Docs: `USER_GUIDE.md`, `FEATURES.md` §4.4l, `AGENTS.md` admin event catalogue (`directory_page_block_*`, `directory_block_template_*`).
+- **Shared dialog fix** (`discover-ui.css`, `ui/overlays.jsx`): a dialog is now capped to the window height with its head and footer fixed and its body scrolling, and the page behind no longer scrolls while one is open. Before, a tall dialog (the block edit dialog) overflowed the window and the mouse wheel scrolled the page behind it. Affects every dialog in the app; short dialogs look the same.
+- Departures from the handoff: no new drag-and-drop library (the repo's own SortableList is used; drag stays within a region, cross-region is a menu action); no drag from the block list (Add block instead); no live rendered preview inside the dialog (use the entry's Preview tab after publishing to staging); images are a URL plus alt text (no asset picker); position-locked blocks are not visually non-draggable for editors (the server refuses and the move reverts).
+
+### Rollback plan
+Run the migration's rollback (functions and triggers only; blocks already stamped stay). Revert the frontend commit and redeploy.
+
+### Verification
+- [x] `npx vite build` passes; `scripts/check-ui.sh` passes; registry helpers run clean in Node over all 44 block/page-kind combinations, including requiredWhen and server-error parsing.
+- [x] SQL parsed with pglast. Staging, 2026-11-26: `20261126180000_block_pages_editor.sql` applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`.
+- [ ] **Not exercised in a browser or as a signed-in user.** Needs a staging frontend (run locally against staging with `npm run dev`, or `npm run deploy:test` after `npx vercel login`): switch a page to blocks, add/edit/move/remove, library create/lock/stamp/delete, locked block as a member, FAQ toggle on the published page.
+- [ ] Trigger not exercised: create an entry in a directory with an `auto_add` template.
+- [ ] Not done: Listing Manager editor for claim owners and users (phase 5).
+
+---
+
 ## 2026-11-26 — [Edge Function + migration, staging only] Block pages, phase 3 (public renderer)
 
 **Branch:** `feat/2026-11-26-block-pages-render` (stacked on `feat/2026-11-26-block-pages-api`, which is stacked on `feat/2026-11-26-block-pages`; merge in that order)

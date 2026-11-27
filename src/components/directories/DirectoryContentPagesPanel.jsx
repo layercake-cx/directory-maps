@@ -20,6 +20,7 @@ import {
   slugify,
 } from "../../lib/contentPages.js";
 import RichTextEditor from "./entryEdit/RichTextEditor.jsx";
+import PageBlocksEditor from "../blocks/PageBlocksEditor.jsx";
 
 function buildForm(page) {
   return {
@@ -146,6 +147,9 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
 
   const tree = useMemo(() => flattenTree(pages), [pages]);
   const selectedPage = pages.find((p) => p.id === selectedId) || null;
+  // Once a page uses blocks, its body is replaced by them, so the old body editor and its AI draft step are hidden.
+  const [blocksConverted, setBlocksConverted] = useState(false);
+  useEffect(() => { setBlocksConverted(false); }, [selectedId]);
   const selectedChildren = pages.filter((p) => p.parent_page_id === selectedId);
 
   useEffect(() => {
@@ -432,11 +436,16 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
               onChange={(e) => fSet("is_active", e.target.checked)}
             />
 
+            {blocksConverted ? (
+              <Callout tone="info">This page's content is built from blocks. Edit them in “Page blocks” below this section.</Callout>
+            ) : (
             <div className="b3-stack b3-stack--tight">
               <h3 className="b3-subhead">Content</h3>
               <RichTextEditor value={form.body_html} onChange={(v) => fSet("body_html", v)} editable />
             </div>
+            )}
 
+            {!blocksConverted && (
             <div className="b3-stack b3-stack--tight">
               <h3 className="b3-subhead">Generate page content with AI</h3>
               <p className="b3-muted">
@@ -458,6 +467,7 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
                 <AIButton compact variant="secondary" label="Generate content with AI" onGenerate={handleGenerate} disabled={!outline.trim() || !ai.available} />
               </div>
             </div>
+            )}
 
             <div className="b3-stack b3-stack--tight">
               <div className="b3-row b3-row--between">
@@ -490,6 +500,18 @@ export default function DirectoryContentPagesPanel({ directoryId, canManage, rec
             )}
           </Section>
         )}
+        {selectedPage ? (
+          <PageBlocksEditor
+            key={selectedPage.id}
+            pageKind="content_page"
+            pageId={selectedPage.id}
+            directoryId={directoryId}
+            entryName={selectedPage.title}
+            canEdit={canManage}
+            recordEvent={recordEvent}
+            onLoaded={(s) => setBlocksConverted(!!s.converted)}
+          />
+        ) : null}
       </div>
 
       {deleteTarget ? (
