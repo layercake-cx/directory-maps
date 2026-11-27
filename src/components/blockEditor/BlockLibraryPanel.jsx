@@ -33,7 +33,7 @@ export default function BlockLibraryPanel({
               <h3 className="fe-library__group">From the library</h3>
               <ul className="fe-library__list">
                 {lib.map((t) => (
-                  <li key={t.id} className="fe-item" onPointerDown={(e) => !readOnly && onStartDrag?.(e, { template: t })}>
+                  <li key={t.id} className="fe-item" onPointerDown={(e) => !readOnly && !e.target.closest("button") && onStartDrag?.(e, { template: t })}>
                     <span className="fe-item__main"><strong>{t.name}</strong><span>{blockName(t.block_type)} · {regionLabel(t.region)}</span></span>
                     {t.lock_position ? <Pill tone="warn">Position</Pill> : null}
                     {t.lock_content ? <Pill tone="warn">Content</Pill> : null}
@@ -51,7 +51,7 @@ export default function BlockLibraryPanel({
                 <h3 className="fe-library__group">{g.label}</h3>
                 <ul className="fe-library__list">
                   {items.map((b) => (
-                    <li key={b.id} className="fe-item" onPointerDown={(e) => !readOnly && onStartDrag?.(e, { def: b })}>
+                    <li key={b.id} className="fe-item" onPointerDown={(e) => !readOnly && !e.target.closest("button") && onStartDrag?.(e, { def: b })}>
                       <span className="fe-item__main"><strong>{b.name}</strong><span>{b.allowedRegions.map(regionLabel).join(" · ")}</span></span>
                       <Button size="sm" aria-label={`Add ${b.name}`} disabled={readOnly} onClick={() => onAdd(b)}><PlusIcon /></Button>
                     </li>

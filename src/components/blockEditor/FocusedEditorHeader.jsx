@@ -7,7 +7,7 @@ import React from "react";
  */
 export default function FocusedEditorHeader({
   backHref, backLabel, onBack, collection, title, typeBadge, state, surface, onSurface, contentLabel,
-  mode, onMode, onSave, onPublish, saving, publishing, canSave, canPublish, publishTitle,
+  mode, onMode, onSave, onPublish, saving, publishing, canSave, canPublish, publishTitle, onUndo, onRedo, canUndo, canRedo,
 }) {
   const tabs = [{ id: "content", label: contentLabel }, { id: "seo", label: "SEO" }];
   return (
@@ -32,6 +32,12 @@ export default function FocusedEditorHeader({
           {[["edit", "Editor"], ["preview", "Preview"]].map(([id, label]) => (
             <button key={id} type="button" aria-pressed={mode === id} className={mode === id ? "is-on" : ""} onClick={() => onMode(id)}>{label}</button>
           ))}
+        </div>
+      ) : null}
+      {surface === "content" && mode === "edit" ? (
+        <div className="fe-toggle fe-toggle--icons" role="group" aria-label="History">
+          <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl or Cmd + Z)">↶</button>
+          <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl or Cmd + Shift + Z)">↷</button>
         </div>
       ) : null}
       <button type="button" className="fe-btn" onClick={onSave} disabled={!canSave || saving}>{saving ? "Saving…" : "Save draft"}</button>

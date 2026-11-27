@@ -10,6 +10,7 @@ import FocusedEditorHeader from "./FocusedEditorHeader.jsx";
 import BlockLibraryPanel from "./BlockLibraryPanel.jsx";
 import PageCanvas from "./PageCanvas.jsx";
 import { previewRows, useBlockWorkingCopy } from "./useBlockWorkingCopy.js";
+import { useBlockDrag } from "./useBlockDrag.js";
 import {
   blockDef, blockName, convertPageToBlocks, emptyData, listBlockTemplates,
 } from "../../lib/pageBlocks.js";
@@ -71,6 +72,7 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
   const [seoDirty, setSeoDirty] = useState(false);
 
   const wc = useBlockWorkingCopy({ kind, id, claimId, templates });
+  const canvasRef = useRef(null);
   const readOnly = !canEdit;
   const say = useCallback((m) => setStatus(m), []);
 
@@ -120,6 +122,18 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
     return () => clearTimeout(t);
   }, [rows, mode, wc.loaded, wc.converted, kind, id, surface]);
 
+  // ---- undo and redo shortcuts (not while typing in a field or with a dialog open) ----
+  useEffect(() => {
+    const h = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      if (surface !== "content" || mode !== "edit" || dialog || e.target.closest?.("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      e.preventDefault();
+      if (e.shiftKey) { if (wc.redo()) say("Redone."); } else if (wc.undo()) say("Undone.");
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
+
   // ---- leaving with unsaved changes ----
   const unsaved = wc.dirty || seoDirty;
   useEffect(() => {
@@ -156,6 +170,30 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
     if (!ok) return;
     if (wc.removeBlock(key)) { setSelectedKey(null); say(`${blockName(b.block_type)} removed.`); }
   };
+
+  // ---- drag and drop (see useBlockDrag; every drag also has a button or menu alternative) ----
+  const { drag, startDrag } = useBlockDrag({
+    readOnly,
+    canvasRef,
+    onStart: () => setSelectedKey(null),
+    onMessage: say,
+    resolve: (payload) => {
+      const def = payload.kind === "move" ? blockDef(wc.byKey(payload.key)?.block_type) : payload.kind === "def" ? payload.def : blockDef(payload.template.block_type);
+      if (!def) return null;
+      return {
+        label: payload.kind === "template" ? payload.template.name : def.name,
+        accepts: (zone) => (payload.kind === "template" ? payload.template.region === zone : def.allowedRegions.includes(zone)),
+        excludeKey: payload.kind === "move" ? payload.key : null,
+      };
+    },
+    onDrop: (payload, { zone, index }) => {
+      if (payload.kind === "move") {
+        const b = wc.byKey(payload.key);
+        if (wc.moveBlock(payload.key, zone, index)) say(`${blockName(b.block_type)} moved to ${zone}, position ${index + 1}.`);
+      } else if (payload.kind === "def") addBlock(payload.def, zone, index);
+      else addTemplate(payload.template, index);
+    },
+  });
 
   // ---- save, back, publish ----
   const saveDraft = async () => {
@@ -284,6 +322,7 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
             onNudge={nudge}
             onRemove={remove}
             onMoveToRegion={moveToRegion}
+            onStartDrag={(e, p) => startDrag(e, p.def ? { kind: "def", def: p.def } : { kind: "template", template: p.template })}
           />
         ) : null}
         <div className="fe-main" role="tabpanel" id="fe-panel-content" aria-labelledby="fe-tab-content">
@@ -300,6 +339,9 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
             <div className="fe-status" role="status">{status || `${wc.draft.length} blocks${readOnly ? " · view only" : wc.isAdmin ? " · you can change anything, including locked blocks" : " · locked blocks are fixed"}. Hover a block for its controls, click it to edit.`}</div>
           )}
           <PageCanvas
+            ref={canvasRef}
+            drag={drag}
+            onStartMove={(e, key) => startDrag(e, { kind: "move", key })}
             html={html}
             mode={mode}
             width={mode === "preview" ? width : "desktop"}
@@ -335,6 +377,10 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
         onMode={(m) => { setMode(m); setSelectedKey(null); }}
         onSave={saveDraft}
         onPublish={handlePublish}
+        onUndo={() => { if (wc.undo()) say("Undone."); }}
+        onRedo={() => { if (wc.redo()) say("Redone."); }}
+        canUndo={wc.canUndo}
+        canRedo={wc.canRedo}
         saving={wc.saving}
         publishing={publishing}
         canSave={canEdit && wc.dirty}
@@ -360,6 +406,8 @@ function Editor({ kind, id, directoryId, claimId = null, backHref, canEdit = tru
           onReset={dialogBlock.template_id ? () => { wc.resetToTemplate(dialog.key); setDialog(null); say("Block reset to its library template."); } : null}
         />
       ) : null}
+
+      {drag?.ghost ? <div className="fe-ghost" style={{ left: drag.ghost.x + 14, top: drag.ghost.y + 14 }}>{drag.label}</div> : null}
 
       {guard ? (
         <Dialog

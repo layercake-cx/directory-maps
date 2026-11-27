@@ -62,6 +62,10 @@ export function useBlockWorkingCopy({ kind, id, claimId = null, templates = [] }
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const baseline = useRef("");
+  // Undo and redo: snapshots of the working copy, newest last. A fresh load or a save clears them.
+  const past = useRef([]);
+  const future = useRef([]);
+  const [, bump] = useState(0);
   const templateById = useMemo(() => new Map(templates.map((t) => [t.id, t])), [templates]);
 
   const load = useCallback(async () => {
@@ -70,6 +74,8 @@ export function useBlockWorkingCopy({ kind, id, claimId = null, templates = [] }
       const list = (s.blocks ?? []).map(fromServer);
       setServer(s);
       setDraft(list);
+      past.current = [];
+      future.current = [];
       baseline.current = signature(list);
       setError("");
       return s;
@@ -83,7 +89,28 @@ export function useBlockWorkingCopy({ kind, id, claimId = null, templates = [] }
 
   const dirty = server != null && signature(draft) !== baseline.current;
   const isAdmin = !!server?.is_admin;
-  const commit = (next) => setDraft(pinned(next));
+  const commit = (next) => {
+    past.current = [...past.current.slice(-49), draft];
+    future.current = [];
+    setDraft(pinned(next));
+    bump((n) => n + 1);
+  };
+  const undo = () => {
+    if (!past.current.length) return false;
+    future.current = [draft, ...future.current];
+    setDraft(past.current[past.current.length - 1]);
+    past.current = past.current.slice(0, -1);
+    bump((n) => n + 1);
+    return true;
+  };
+  const redo = () => {
+    if (!future.current.length) return false;
+    past.current = [...past.current, draft];
+    setDraft(future.current[0]);
+    future.current = future.current.slice(1);
+    bump((n) => n + 1);
+    return true;
+  };
 
   const byKey = (key) => draft.find((b) => b.key === key) ?? null;
 
@@ -168,7 +195,11 @@ export function useBlockWorkingCopy({ kind, id, claimId = null, templates = [] }
     return true;
   };
 
-  const discard = () => setDraft(server ? (server.blocks ?? []).map(fromServer) : []);
+  const discard = () => {
+    past.current = [];
+    future.current = [];
+    setDraft(server ? (server.blocks ?? []).map(fromServer) : []);
+  };
 
   /** Save draft. Throws on a stale version (see isStaleSave) or a refused change. */
   const save = async () => {
@@ -185,6 +216,7 @@ export function useBlockWorkingCopy({ kind, id, claimId = null, templates = [] }
   return {
     loaded: server != null, converted: !!server?.converted, isAdmin, pageUpdatedAt: server?.page_updated_at ?? null,
     draft, dirty, error, saving, load,
+    canUndo: past.current.length > 0, canRedo: future.current.length > 0, undo, redo,
     byKey, addBlock, addFromTemplate, updateBlock, resetToTemplate, moveBlock, nudge, removeBlock, discard, save,
     regionBlocks: (region) => draft.filter((b) => b.region === region),
     regionLabel,

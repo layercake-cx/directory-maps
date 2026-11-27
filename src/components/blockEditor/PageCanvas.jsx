@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
  * The page as published, in an iframe, with editing controls laid over it.
@@ -22,10 +22,44 @@ function useTick() {
   }, []);
 }
 
-export default function PageCanvas({
+/**
+ * Where a pointer would drop a block. Geometry only: reads the zones and blocks the server marked in the page.
+ * Returns { zone, index, line: {top,left,width} } (coordinates relative to the frame), or null when the pointer is not
+ * over any zone. `index` counts the zone's blocks (excluding `excludeKey`, the block being moved) above the pointer.
+ */
+function hitTestFrame(frame, clientX, clientY, excludeKey) {
+  const d = frame?.contentDocument;
+  if (!d) return null;
+  const fr = frame.getBoundingClientRect();
+  const x = clientX - fr.left;
+  const y = clientY - fr.top;
+  if (x < 0 || y < 0 || x > fr.width || y > fr.height) return null;
+  const PAD = 12;
+  const zones = [...d.querySelectorAll("[data-ds-zone]")].map((el) => ({ el, name: el.getAttribute("data-ds-zone"), r: el.getBoundingClientRect() }));
+  const inside = zones
+    .filter(({ r }) => x >= r.left - PAD && x <= r.right + PAD && y >= r.top - PAD && y <= r.bottom + PAD)
+    .sort((a, b) => a.r.width * a.r.height - b.r.width * b.r.height);
+  const hit = inside[0];
+  if (!hit) return null;
+  // Blocks that belong to this zone (not to a zone nested inside it), in page order, without the block being dragged.
+  const all = zones.filter((z) => z.name === hit.name);
+  const blocks = all.flatMap((z) => [...z.el.querySelectorAll("[data-ds-block]")].filter((b) => b.closest("[data-ds-zone]") === z.el))
+    .filter((b) => b.getAttribute("data-ds-block") !== excludeKey)
+    .map((el) => ({ el, r: el.getBoundingClientRect() }));
+  let index = 0;
+  for (const b of blocks) if (b.r.top + b.r.height / 2 < y) index += 1;
+  const width = hit.r.width;
+  let line;
+  if (blocks.length === 0) line = { top: hit.r.top + 8, left: hit.r.left, width };
+  else if (index < blocks.length) line = { top: blocks[index].r.top - 4, left: blocks[index].r.left, width: blocks[index].r.width };
+  else { const last = blocks[blocks.length - 1]; line = { top: last.r.bottom + 2, left: last.r.left, width: last.r.width }; }
+  return { zone: hit.name, index, line };
+}
+
+const PageCanvas = forwardRef(function PageCanvas({
   html, mode, width, loading, error, blocksByKey, selectedKey, onSelect, onEdit, onNudge, onRemove, readOnly,
-  drag, onPointerMoveInFrame,
-}) {
+  drag, onPointerMoveInFrame, onStartMove,
+}, ref) {
   const frameRef = useRef(null);
   const wrapRef = useRef(null);
   const [hoverKey, setHoverKey] = useState(null);
@@ -80,6 +114,24 @@ export default function PageCanvas({
     return { top: r.top, left: r.left, width: r.width, height: r.height };
   };
 
+  useImperativeHandle(ref, () => ({
+    hitTest: (x, y, excludeKey) => hitTestFrame(frameRef.current, x, y, excludeKey),
+  }), []);
+
+  // While dragging, every zone is outlined: dashed where the block may go, faded where it may not.
+  const zoneBoxes = useMemo(() => {
+    const d = doc();
+    if (!drag || !d) return [];
+    const names = { hero: "Hero", main: "Main", sidebar: "Sidebar" };
+    return [...d.querySelectorAll("[data-ds-zone]")].map((el) => {
+      const r = el.getBoundingClientRect();
+      const name = el.getAttribute("data-ds-zone");
+      const ok = drag.accepts(name);
+      return { key: `${name}-${Math.round(r.top)}-${Math.round(r.left)}`, name, label: `${names[name] ?? name} · ${ok ? `Accepts ${drag.label}` : `Doesn't accept ${drag.label}`}`, ok, top: r.top, left: r.left, width: r.width, height: Math.max(r.height, 36) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, docReady, html]);
+
   const activeKey = hoverKey ?? selectedKey;
   const rect = editing ? rectOf(activeKey) : null;
   const block = activeKey ? blocksByKey.get(activeKey) : null;
@@ -97,7 +149,7 @@ export default function PageCanvas({
     <div className={`fe-canvas fe-canvas--${width}`} ref={wrapRef}>
       {error ? <div className="fe-canvas__msg" role="alert">{error}</div> : null}
       {loading ? <div className="fe-canvas__busy" aria-live="polite">Updating the page…</div> : null}
-      <div className="fe-canvas__stage" onMouseLeave={() => setHoverKey(null)}>
+      <div className={`fe-canvas__stage${drag ? " is-dragging" : ""}`} onMouseLeave={() => setHoverKey(null)}>
         <iframe
           ref={frameRef}
           className="fe-canvas__frame"
@@ -107,11 +159,17 @@ export default function PageCanvas({
           onLoad={onLoad}
         />
         {editing ? (
-          <div className="fe-overlay" aria-hidden={false}>
-            {rect ? <div className="fe-outline" style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }} /> : null}
+          <div className={`fe-overlay${drag ? " is-dragging" : ""}`} aria-hidden={false}>
+            {rect && !drag ? <div className="fe-outline" style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }} /> : null}
+            {zoneBoxes.map((z) => (
+              <div key={z.key} className={`fe-zone ${z.ok ? "is-ok" : "is-no"}`} style={{ top: z.top, left: z.left, width: z.width, height: z.height }}>
+                <span className="fe-zone__label">{z.label}</span>
+              </div>
+            ))}
             {drag?.target ? <DropMarker target={drag.target} /> : null}
             {rect && block && toolbarStyle && !drag ? (
               <div className="fe-toolbar" style={{ top: toolbarStyle.top, left: toolbarStyle.left }} role="toolbar" aria-label={`${block.label} block`}>
+                <button type="button" className="fe-tbtn fe-tbtn--grip" aria-label={`Drag ${block.label} to move it`} title="Drag to move" disabled={readOnly || !block.can_move} onPointerDown={(e) => onStartMove?.(e, block.key)}>⋮⋮</button>
                 <span className="fe-toolbar__name">{block.label}</span>
                 {block.badges.map((b) => <span key={b} className="fe-badge">{b}</span>)}
                 <button type="button" className="fe-tbtn fe-tbtn--text" onClick={() => onEdit(block.key)}>{block.can_edit ? "Edit" : "View"}</button>
@@ -125,8 +183,10 @@ export default function PageCanvas({
       </div>
     </div>
   );
-}
+});
+
+export default PageCanvas;
 
 function DropMarker({ target }) {
-  return <div className="fe-drop" style={{ top: target.top, left: target.left, width: target.width }} />;
+  return <div className="fe-drop" style={{ top: target.top, left: target.left, width: target.width }}><span>Drop here</span></div>;
 }
