@@ -8,6 +8,26 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-27 — [Production, frontend] Block pages and the focused page editor deployed
+
+**Branch:** `feat/2026-11-27-focused-block-editor` (PR 369), whole stack (PRs 363 to 369). Deployed by the user from their own terminal with `npm run deploy:live` after the production migrations and the Edge Function (in that order, as required). The preview deploy (`npm run deploy:test`) was skipped.
+
+### What was done
+- Vercel CLI 67.0.0, production deployment `directory-maps-k0blvnngp-layercake-apps.vercel.app`, aliased to `uk-associations.com`, "Ready in 31s". Inspect: https://vercel.com/layercake-apps/directory-maps/FxpvMq5ipdPRsjEstM4KoAuSAQpz
+- Checked afterwards (no sign-in): `uk-associations.com/` and `/claim/login` return 200, and the live app bundle (`/assets/index-DLU7CF82.js`) contains "Open the page editor" and the `page-blocks` route.
+
+### What this changes for users now
+- Staff, Owners/Managers and team members: an entry's Content tab has **Open the page editor**; Pages has **Edit on the page**; Experience has **Page blocks**; the focused editor routes exist (`…/edit/entry/:id`, `…/edit/page/:id`). Listing owners: the Listing Manager's Listing tab links to `/claim/edit/:claimId`. The shared dialog now caps its height and scrolls inside the window for every dialog in the app.
+- Nothing changes on published directory sites, and no page uses blocks until someone chooses **Switch to blocks**.
+- Rollback: Vercel dashboard, Deployments, promote the previous production deployment (or `npx vercel rollback`). The migrations and function are safe with the older frontend.
+
+### Verification
+- [x] Deploy succeeded; live site serves; new code present in the live bundle.
+- [ ] **Not yet exercised signed in on production:** the page editor, Save draft and Publish, the block library, the Listing Manager link. Suggested first checks: open an entry's Content tab and Pages (no error box); save an entry's notes; open the page editor on a test entry and use Preview; do not Publish until ready. The first Publish of any directory does a one-off full rebuild (page template version 26).
+- [ ] Merge the stacked PRs (363 to 369) in order so `main` matches what is deployed.
+
+---
+
 ## 2026-11-27 — [Production, Edge Function] `generate_directory_site` deployed with block pages
 
 **Branch:** `feat/2026-11-27-focused-block-editor` (PR 369). The user explicitly signed off ("Yes, deploy function") after the production migrations above.
