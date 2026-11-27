@@ -511,7 +511,9 @@ Entry detail pages and directory content pages can be built from **blocks** in t
 - **Visitor events**: `listing_faq_toggle` plus `listing_cta_click` with block `cta_type` values (`docs/MAP_ENGAGEMENT.md`).
 - **Admin events**: `directory_page_blocks_converted`, `directory_page_block_added|updated|moved|removed|reset`, `directory_block_template_saved|deleted|stamped` (AGENTS.md catalogue).
 
-Migrations: `20261126120000_create_block_pages`, `20261126140000_block_pages_api`, `20261126160000_block_faq_event`, `20261126180000_block_pages_editor`. Not yet built: the Listing Manager editor for claim owners and users, a rendered preview inside the editor dialog, drag from the block list, an Organisation record and Contact block, nested block slots.
+- **Listing owners** (phase 5): the Listing Manager's Listing tab embeds the same editor (`EmbeddedBlocksEditor.jsx`, with its own toast/confirm providers and the Discover UI scope, because the Listing Manager renders outside the app shell). It passes `claimId` to every RPC; claim users cannot read the library tables, so `get_claim_block_context(claim_id)` returns the entry-page templates (no content) and the entry's terms. Owners and editors are bound only by locks. Once a listing uses blocks the old text editor, AI drafting and Save are hidden.
+
+Migrations: `20261126120000_create_block_pages`, `20261126140000_block_pages_api`, `20261126160000_block_faq_event`, `20261126180000_block_pages_editor`, `20261126200000_block_pages_claim_context`. Not yet built: a rendered preview inside the editor dialog, drag from the block list, an Organisation record and Contact block, nested block slots.
 
 ### 4.4l Directory entry Contact (2026-09-22, reworked 2026-10-04)
 

@@ -8,7 +8,7 @@ import {
 import BlockEditDialog from "./BlockEditDialog.jsx";
 import {
   REGIONS, addPageBlock, blockDef, blockName, blockSummary, convertPageToBlocks, getPageBlocks, groupedBlocks, listBlockTemplates,
-  movePageBlock, promotePageBlockToTemplate, regionLabel, removePageBlock, resetPageBlockToTemplate, updatePageBlock,
+  getClaimBlockContext, movePageBlock, promotePageBlockToTemplate, regionLabel, removePageBlock, resetPageBlockToTemplate, updatePageBlock,
 } from "../../lib/pageBlocks.js";
 import "../../styles/blocks-editor.css";
 
@@ -33,7 +33,10 @@ export default function PageBlocksEditor({ pageKind, pageId, directoryId, entryN
   const [promote, setPromote] = useState(null); // block
   const [actionError, setActionError] = useState("");
 
-  const event = useCallback((type, meta) => recordEvent?.(type, { directory_id: directoryId, page_kind: pageKind, page_id: pageId, ...meta }), [recordEvent, directoryId, pageKind, pageId]);
+  const event = useCallback(
+    (type, meta) => recordEvent?.(type, { directory_id: directoryId, page_kind: pageKind, page_id: pageId, ...(claimId ? { claim_id: claimId } : {}), ...meta }),
+    [recordEvent, directoryId, pageKind, pageId, claimId],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -48,14 +51,20 @@ export default function PageBlocksEditor({ pageKind, pageId, directoryId, entryN
 
   useEffect(() => { setState(null); void load(); }, [load]);
 
-  // Pickers' data is optional: a listing owner cannot read these tables, and the controls degrade without them.
+  // Pickers' data is optional and never blocks editing. Admins and page editors read the library tables directly; a listing
+  // owner cannot, so theirs comes from one RPC (templates without content, and the entry's own terms).
   useEffect(() => {
     let live = true;
     (async () => {
+      if (claimId) {
+        const c = await getClaimBlockContext(claimId).catch(() => null);
+        if (live && c) { setTemplates(c.templates ?? []); setCtx({ entries: [], terms: c.terms ?? [] }); }
+        return;
+      }
       const [tpl, ents, terms] = await Promise.all([
-        claimId ? [] : listBlockTemplates(directoryId).catch(() => []),
-        claimId ? [] : supabase.from("directory_entries").select("id, name").eq("directory_id", directoryId).order("name").limit(1000).then((r) => r.data ?? [], () => []),
-        pageKind === "entry" && !claimId
+        listBlockTemplates(directoryId).catch(() => []),
+        supabase.from("directory_entries").select("id, name").eq("directory_id", directoryId).order("name").limit(1000).then((r) => r.data ?? [], () => []),
+        pageKind === "entry"
           ? supabase.from("entry_category_terms").select("term_id, category_terms(id, label)").eq("entry_id", pageId).then((r) => (r.data ?? []).map((x) => ({ id: x.term_id, label: x.category_terms?.label ?? x.term_id })), () => [])
           : [],
       ]);
@@ -66,9 +75,10 @@ export default function PageBlocksEditor({ pageKind, pageId, directoryId, entryN
 
   const changed = useCallback(async () => {
     await load();
-    void markDirectoryContentChanged({ directoryId, entryId: pageKind === "entry" ? pageId : undefined });
+    // The RPCs already bump the page; this refreshes the publish chip. A listing owner has no rights on the table, so skip it.
+    if (!claimId) void markDirectoryContentChanged({ directoryId, entryId: pageKind === "entry" ? pageId : undefined });
     onChanged?.();
-  }, [load, directoryId, pageId, pageKind, onChanged]);
+  }, [load, directoryId, pageId, pageKind, claimId, onChanged]);
 
   const act = useCallback(async (fn, okMessage) => {
     setBusy(true);

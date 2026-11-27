@@ -22,6 +22,7 @@ import AiProvenanceNote from "../../components/ai/AiProvenanceNote.jsx";
 import DraftingPromptModal from "../../components/ai/DraftingPromptModal.jsx";
 import "./listingManager.css";
 import RichTextEditor from "../../components/directories/entryEdit/RichTextEditor.jsx";
+import EmbeddedBlocksEditor from "../../components/blocks/EmbeddedBlocksEditor.jsx";
 
 const STATUS_LABELS = {
   claim_started: "Claim started",
@@ -289,6 +290,8 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [promptOpen, setPromptOpen] = useState(false);
+  // Once the page uses blocks its text is a block and the old text editor, AI drafting and Save are hidden.
+  const [blocksConverted, setBlocksConverted] = useState(false);
 
   useEffect(() => { setHtml(listing?.notes_html || ""); }, [listing?.notes_html]);
 
@@ -352,7 +355,7 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
             <h2 className="lm__card-title">Listing content</h2>
             <p className="lm__card-sub">The main description visitors see on your public listing.</p>
           </div>
-          {canEdit && (
+          {canEdit && !blocksConverted && (
             <AIButton
               onGenerate={handleGenerate}
               disabled={aiDisabled}
@@ -363,14 +366,29 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
         </div>
         {!canEdit && <EditNotice />}
         {canEdit && (
+          <div className="lm__blocks">
+            <EmbeddedBlocksEditor
+              pageKind="entry"
+              pageId={entryId}
+              directoryId={directoryId}
+              entryName={listing?.name || "your listing"}
+              claimId={claimId}
+              canEdit
+              recordEvent={recordEvent}
+              onChanged={onSaved}
+              onLoaded={(s) => setBlocksConverted(!!s.converted)}
+            />
+          </div>
+        )}
+        {canEdit && !blocksConverted && (
           <AiProvenanceNote onViewPrompt={openPrompt} loadPrompt={loadPrompt}>
             AI drafts this listing from the details we hold for it, including its web address, following a drafting prompt set by the directory&rsquo;s administrators. Check the draft before you save it.
           </AiProvenanceNote>
         )}
-        {canEdit && !aiAvailable && (
+        {canEdit && !blocksConverted && !aiAvailable && (
           <p className="ai-hint" id={hintId}>{AI_NOT_SET_UP_CLAIM}</p>
         )}
-        {canEdit && aiAvailable && !hasWebAddress && (
+        {canEdit && !blocksConverted && aiAvailable && !hasWebAddress && (
           <p className="ai-hint" id={hintId}>
             Add a web address in{" "}
             <button type="button" className="ai-note__link" onClick={onGoToContact}>Contact details</button>{" "}
@@ -379,16 +397,18 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
         )}
         {err && <p className="lm__error">{err}</p>}
         {msg && <p className="lm__ok" role="status">{msg}</p>}
+        {!blocksConverted && (
         <div className="lm__editor">
           <RichTextEditor value={html} onChange={setHtml} editable={canEdit} />
         </div>
+        )}
         <div className="lm__card-foot">
           <p className="lm__source">
             Source
             <span className="lm__chip">{listing?.content_managed_by === "claimed_org" ? "Claimed organisation" : "Platform"}</span>
             {listing?.content_last_edited_at ? <span>Last edited {new Date(listing.content_last_edited_at).toLocaleDateString("en-GB")}</span> : null}
           </p>
-          {canEdit && (
+          {canEdit && !blocksConverted && (
             <button type="button" className="lm__btn lm__btn--primary" disabled={saving} onClick={handleSave}>
               {saving ? "Saving…" : "Save listing content"}
             </button>
@@ -397,6 +417,7 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
       </div>
 
       <aside className="lm__aside">
+        {!blocksConverted && (
         <div className="lm__card lm__side">
           <div className="lm__side-head">
             <span className="ai-modal__badge" aria-hidden="true">
@@ -409,6 +430,7 @@ function ListingTab({ claimId, entryId, directoryId, listing, canEdit, recordEve
           </p>
           <button type="button" className="ai-note__link lm__prompt-link" onClick={openPrompt}>View drafting prompt</button>
         </div>
+        )}
         <div className="lm__card lm__side">
           <h3 className="lm__side-title">What makes a strong listing</h3>
           <ul className="lm__side-text lm__tips">

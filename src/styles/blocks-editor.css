@@ -32,3 +32,6 @@
 .shell .block-link__thumb { max-width: 160px; max-height: 100px; object-fit: cover; border-radius: var(--radius-item); border: 1px solid var(--shell-line); }
 
 .shell .block-library__usage { color: var(--shell-text-muted); font-size: var(--fs-small); }
+
+/* Embedded in surfaces that are not the app shell (Listing Manager): keep the Discover UI scope, drop the page chrome. */
+.shell.shell--embedded { min-height: 0; display: block; background: transparent; color: inherit; font-family: inherit; }

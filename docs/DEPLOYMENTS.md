@@ -8,6 +8,28 @@ A plain-English record of every deployment to staging and production. Newest ent
 
 ---
 
+## 2026-11-26 — [Migration (staging) + frontend, not deployed] Block pages, phase 5 (listing owners)
+
+**Branch:** `feat/2026-11-26-block-pages-claim` (stacked on `feat/2026-11-26-block-pages-editor`; merge the five block-pages branches in order)
+
+### What changed
+- The Listing Manager's **Listing** tab (claim owners and editors) now embeds the block editor, using `claimId` on every RPC. They can switch their listing to blocks, add, edit, reorder, move between regions, reset to a template and remove blocks, restricted only by the locks an administrator set. Admin-only actions (save as library template) do not appear for them. Once a listing uses blocks the old text editor, Generate with AI and Save listing content are hidden; until then the tab is unchanged. The editor only appears when the claim is Active, as before.
+- Migration `20261126200000_block_pages_claim_context.sql` (rollback `_20261126200000_block_pages_claim_context.rollback.sql`): `get_claim_block_context(claim_id)` returns the directory's entry-page templates (name, type, region, locks; no content) and the claimed entry's terms, because claim users cannot read the library tables. Active claim required.
+- `EmbeddedBlocksEditor.jsx` wraps the editor with its own toast and confirm providers and a `.shell--embedded` scope, because the Listing Manager renders outside the app shell. As a result the editor uses the Discover UI look inside the Listing Manager's own `.lm` styling; the two differ visually (known, see below).
+- Events: the editor's `directory_page_block_*` events now carry `claim_id` and are recorded with source `claim_manager`. Provenance (`content_managed_by = claimed_org`, last editor and time) is stamped by the RPCs, as for the old text editor.
+- Docs: `USER_GUIDE.md` (Listing Manager bullet), `FEATURES.md` §4.4l.
+
+### Rollback plan
+Run the migration's rollback (drops one function). Revert the frontend commit; with it reverted the Listing tab shows the old text editor again for pages that have not been switched, and pages already switched keep rendering from their blocks.
+
+### Verification
+- [x] `npx vite build` and `scripts/check-ui.sh` pass; SQL parsed with pglast.
+- [x] Staging, 2026-11-26: `20261126200000_block_pages_claim_context.sql` applied with `supabase db push` (linked to `beqejxneehilplrtpntn`, only this migration pending); notice `VERIFY PASSED`.
+- [ ] **Not exercised in a browser or as a claim user.** Needs a staging frontend and an Active claim: switch to blocks, add from the library, edit, move, remove; confirm a Content-locked block is view-only and a Position-locked block cannot be moved or removed; Publish and check the public listing.
+- [ ] Known gaps: the embedded editor does not match the Listing Manager's look; claim users cannot link a block to another entry (no entry list for them); the Preview button in the Listing Manager is still disabled.
+
+---
+
 ## 2026-11-26 — [Migration (staging) + frontend, not deployed] Block pages, phase 4 (admin block editor)
 
 **Branch:** `feat/2026-11-26-block-pages-editor` (stacked on `feat/2026-11-26-block-pages-render`; merge the four block-pages branches in order)

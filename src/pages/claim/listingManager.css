@@ -58,3 +58,6 @@
 .lm__prompt-link { margin-top: 14px; display: inline-block; }
 @media (prefers-reduced-motion: reduce) { .lm * { transition: none !important; } }
 @media (max-width: 600px) { .lm { padding: 16px; } .lm__title { font-size: 32px; } }
+
+/* Block editor embedded in the Listing tab (Discover UI scope, see components/blocks/EmbeddedBlocksEditor.jsx). */
+.lm__blocks { margin: 0 0 20px; }
